@@ -1,5 +1,21 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 GUI preview PASS-LSB tier (lane/lsbtier)
+
+Owner-approved gate-contract change for `run_gui_verify.sh` only. Preview ROI
+now has three verdicts: PASS (nz==0), PASS-LSB (A/B noise 0, every channel
+|d|<=1, px>1==0, nz<=2% of 104x144), FAIL otherwise. Chrome rows stay
+bit-exact. Not a mean PASS-FLOOR.
+
+Baseline (before): pose1 FAIL mean=0.002448 px>0=62 px>1=0 max=0.667;
+pose2 FAIL mean=0.003316 px>0=140 px>1=0 max=0.667; table/furnace/chest/
+non-preview PASS; `gui verify: FAIL`.
+
+After: pose1/pose2 PASS-LSB (62/140 px at <=1 LSB); chrome unchanged;
+mutation guard PASS (uniform +1 count-cap FAIL, single +2 px>1 FAIL,
+3x3 +12 hard FAIL, live residual PASS-LSB not exact). Overall exit 0.
+`gui_preview_calibration.json` v4 records verdict + `lsb_guard`.
+
 ## 2026-08-22 hand USE-pose recapture (lane/handgold)
 
 Idle-tip goldens recaptured on anvil llvmpipe. Driver already staged

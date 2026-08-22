@@ -85,8 +85,12 @@ the block GUIs with `xdotool key r`, the player screen with E.
 pixel-diffs the panel region (inset 4px per side: translucent rounded corners over
 the live 3D scene are dropped). Table / furnace / chest / inventory non-preview
 chrome are **bit-exact** gates (near-zero A/B noise prerequisite; no margin).
-Inventory player-preview ROI is a hard **open** gate under `pin_preview_anim`:
-PASS only if bit-exact; any residual is FAIL (no PASS-FLOOR budget). Pose2 goldens
+Inventory player-preview ROI under `pin_preview_anim` has a guarded rounding
+tier: **PASS** if bit-exact; **PASS-LSB** if A/B noise is 0, every differing
+pixel is at most 1 LSB in every channel (`px>1==0`, maxch<=1), and nz is
+<= 2% of the ROI; otherwise **FAIL**. Not a mean PASS-FLOOR. A mutation
+self-test in `gui_preview_lsb.py` (invoked by this gate) proves uniform +1,
+a single +2 pixel, and a 3x3 +12 recolor still FAIL. Pose2 goldens
 come only from `capture_gui.sh` (held-out); `capture_gui_actions.sh` must not
 overwrite them.
 

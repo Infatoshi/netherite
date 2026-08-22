@@ -203,12 +203,14 @@ Two tapes are ground truth; nothing else is a match target:
 - Container screens: `verify/mc_capture/run_gui_verify.sh` covers
   inventory, crafting table, furnace, and single chest. Table/furnace/chest and
   inventory non-preview chrome are bit-exact (near-zero A/B noise prerequisite,
-  no margin). Inventory preview is a hard open 104x144 ROI gate under qrl
+  no margin). Inventory preview is a 104x144 ROI gate under qrl
   `pin_preview_anim` (ageInTicks=0 so ModelBiped idle arm Z = ±0.10); pose1
   (parked mouse) and held-out pose2 (slot A, goldens only from `capture_gui.sh`)
-  each require their own near-zero A/B noise. PASS only if bit-exact; residual
-  is FAIL/open (no PASS-FLOOR budget). `gui_preview_calibration.json` records
-  residual only. Geometry unit test: `game/test_player_preview.sh`. Chest fails
+  each require their own near-zero A/B noise. PASS if nz==0; PASS-LSB if A/B
+  noise is 0, maxch<=1, px>1==0, and nz<=2% of ROI; else FAIL. Not a mean
+  PASS-FLOOR. Mutation self-test in `gui_preview_lsb.py`.
+  `gui_preview_calibration.json` records the tier verdict and guard results.
+  Geometry unit test: `game/test_player_preview.sh`. Chest fails
   closed without `mc_gui_chest_{a,b}.png`. `capture_gui_actions.sh` +
   `run_gui_actions_verify.sh` verify inventory PICKUP, split/deposit,
   QUICK_MOVE, hotbar swap, THROW, cursor, counts, hover, and close against the
@@ -333,7 +335,7 @@ bounds, but they are not oracle pixels.
 | Dragon boss bar fill and label | `game/hud.c:gm_hud_set_boss`; `game/hud.c:gm_hud_draw` | Dragon sim/geometry gates | **No**: `bossbar` accepted class does not verify contents | High | Fight dragon from full to half health and keep the bar unobstructed. |
 | Crosshair inversion | `game/hud.c:hud_draw_crosshair` | `game/test_hud.sh` | **Yes**: canonical static poses | Low | Pan crosshair over black, white, sky, water, and a mob. |
 | Death GuiGameOver (title, score, buttons, tint) | `game/hud.c:hud_death_draw` | `run_ui_hud_gates.sh` hard title/score/buttons + hard `hud_death_tint_pair` + soft full-frame residual + live respawn | **Partial**: opaque chrome bit-exact; gradient blend hard-exact over paired underlay (source GL model); full-frame world composition soft/open (~33 C-vs-J, gray vs live pad) | High (world underlay) | Chrome + tint-pair closed. Same-scene full-frame blocked without world-only pre-death companion (frame path always draws HUD). |
-| Player inventory panel | `game/screen.c:gm_screen_draw`; `game/player_preview.c` | `game/test_screen.sh`; `game/test_player_preview.sh`; `run_gui_verify.sh` | **Yes** chrome bit-exact; preview ROI hard open gate (PASS only if bit-exact under pin; residual FAIL until equality) | High | Open a populated inventory, move cursor across armor/craft/hotbar slots, then close. |
+| Player inventory panel | `game/screen.c:gm_screen_draw`; `game/player_preview.c` | `game/test_screen.sh`; `game/test_player_preview.sh`; `run_gui_verify.sh` | **Yes** chrome bit-exact; preview ROI PASS if exact, PASS-LSB if 1-LSB residue within 2% ROI (pose1 62 px / pose2 140 px, maxch=1); mutation guard required | High | Open a populated inventory, move cursor across armor/craft/hotbar slots, then close. |
 | Single chest panel | `game/screen.c:gm_screen_draw`; `game/chest_live.c` | `run_gui_verify.sh` (fail-closed without goldens) | **Yes** for empty static panel only | Medium | Open an empty single chest and a looted stronghold chest. |
 | Crafting-table panel | `game/screen.c:gm_screen_draw`; `game/screen.c:gm_screen_layout` | `game/test_screen.sh` | **Yes** for empty static panel only | Medium | Open table with a populated 3x3 recipe and hover every active slot. |
 | Furnace panel | `game/screen.c:gm_screen_draw`; `game/screen.c:gm_screen_layout` | `game/test_screen.sh` | **Yes** for empty static panel only | Medium | Open a burning furnace with input/fuel/output and changing progress. |
