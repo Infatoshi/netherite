@@ -1,7 +1,7 @@
 {
   "margin": 2.0,
   "fail": 0,
-  "residual": 5,
+  "residual": 6,
   "blocked": [],
   "residuals": [
     {
@@ -834,6 +834,207 @@
             94,
             85,
             111
+          ]
+        }
+      ]
+    },
+    {
+      "id": "overlay_fire",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 12.90765364969517,
+      "gate": 0.0,
+      "hard_px": 353209,
+      "hard_thr": 0,
+      "max_diff": 255.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 9,
+          "c": [
+            142,
+            182,
+            255
+          ],
+          "j": [
+            151,
+            188,
+            255
+          ]
+        },
+        {
+          "x": 536,
+          "y": 36,
+          "maxch": 2,
+          "c": [
+            112,
+            112,
+            112
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 220,
+          "y": 71,
+          "maxch": 8,
+          "c": [
+            100,
+            100,
+            100
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 585,
+          "y": 106,
+          "maxch": 9,
+          "c": [
+            101,
+            101,
+            101
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 399,
+          "y": 147,
+          "maxch": 1,
+          "c": [
+            93,
+            93,
+            93
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 367,
+          "y": 188,
+          "maxch": 1,
+          "c": [
+            93,
+            93,
+            93
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 449,
+          "y": 230,
+          "maxch": 1,
+          "c": [
+            93,
+            93,
+            93
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 84,
+          "y": 266,
+          "maxch": 8,
+          "c": [
+            100,
+            100,
+            100
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 47,
+          "y": 302,
+          "maxch": 32,
+          "c": [
+            94,
+            123,
+            58
+          ],
+          "j": [
+            70,
+            91,
+            43
+          ]
+        },
+        {
+          "x": 703,
+          "y": 339,
+          "maxch": 1,
+          "c": [
+            91,
+            91,
+            91
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 800,
+          "y": 380,
+          "maxch": 1,
+          "c": [
+            177,
+            84,
+            5
+          ],
+          "j": [
+            178,
+            85,
+            5
+          ]
+        },
+        {
+          "x": 759,
+          "y": 425,
+          "maxch": 5,
+          "c": [
+            202,
+            132,
+            20
+          ],
+          "j": [
+            200,
+            133,
+            15
           ]
         }
       ]
@@ -2333,20 +2534,224 @@
     },
     {
       "id": "overlay_fire",
-      "noise": 6.7267312307901115,
-      "c_vs_j": 4.473389334658096,
-      "gate": 8.726731230790111,
-      "verdict": "CAPTURE_OK",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 12.90765364969517,
+      "max_diff": 255.0,
+      "hard_px": 353209,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
       "roi": [
         2,
         2,
         852,
         478
       ],
-      "hard": false,
-      "n_painted": 133546,
-      "noise_limit": 35.0,
-      "reason": "soft_capture"
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 404600,
+      "n_owned": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
+      "px_gt_1": 264693,
+      "nz": 353209,
+      "maxch": 255,
+      "lsb_cap": 8092.0,
+      "lsb_frac": 0.02,
+      "noise_limit": 2.0,
+      "reason": "hard_residual",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 9,
+          "c": [
+            142,
+            182,
+            255
+          ],
+          "j": [
+            151,
+            188,
+            255
+          ]
+        },
+        {
+          "x": 536,
+          "y": 36,
+          "maxch": 2,
+          "c": [
+            112,
+            112,
+            112
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 220,
+          "y": 71,
+          "maxch": 8,
+          "c": [
+            100,
+            100,
+            100
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 585,
+          "y": 106,
+          "maxch": 9,
+          "c": [
+            101,
+            101,
+            101
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 399,
+          "y": 147,
+          "maxch": 1,
+          "c": [
+            93,
+            93,
+            93
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 367,
+          "y": 188,
+          "maxch": 1,
+          "c": [
+            93,
+            93,
+            93
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 449,
+          "y": 230,
+          "maxch": 1,
+          "c": [
+            93,
+            93,
+            93
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 84,
+          "y": 266,
+          "maxch": 8,
+          "c": [
+            100,
+            100,
+            100
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 47,
+          "y": 302,
+          "maxch": 32,
+          "c": [
+            94,
+            123,
+            58
+          ],
+          "j": [
+            70,
+            91,
+            43
+          ]
+        },
+        {
+          "x": 703,
+          "y": 339,
+          "maxch": 1,
+          "c": [
+            91,
+            91,
+            91
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 800,
+          "y": 380,
+          "maxch": 1,
+          "c": [
+            177,
+            84,
+            5
+          ],
+          "j": [
+            178,
+            85,
+            5
+          ]
+        },
+        {
+          "x": 759,
+          "y": 425,
+          "maxch": 5,
+          "c": [
+            202,
+            132,
+            20
+          ],
+          "j": [
+            200,
+            133,
+            15
+          ]
+        }
+      ]
     },
     {
       "id": "overlay_underwater",
@@ -2570,5 +2975,5 @@
       ]
     }
   ],
-  "notes": "PASS = hard parity only when noise_max==0 and hard_px==0 (bit-exact C vs Java_a on A/B-stable full ROI). PASS-LSB = A/B noise 0, every owned differing pixel |d|<=1, nz<=2% of owned ROI; printed distinctly, never as exact. Not a mean PASS-FLOOR. Mutation guard in ui_hud_lsb.py. Fullscreen inside-block + portal + underwater never use ceil(noise_max) as PASS tolerance. CAPTURE_BLOCKED = A/B stable maxch residual > 0 (no C may PASS, including C=Java_a / Java_b / midpoint / Java_a+1). RESIDUAL = A/B bit-exact but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (fire/full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise (PASS-LSB is not applied; +1 extras stay residual). hud_durability_half uses atlas-alpha\u222astrip\u222aC-extra ownership (C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-GRAY isolation underlay; not threshold holes, not Java world). Hands: Java\u222aC subject ownership, hard_thr=0, A/B exact for PASS; PASS-LSB for 1-LSB residue within 2% owned; else RESIDUAL. hard_px stays the thr=0 owned-diff count. Portal: GuiIngame.renderPortal same-scene underlay residual. GuiGameOver: hard = opaque chrome + hud_death_tint_pair; full-frame tint/world composition is soft."
+  "notes": "PASS = hard parity only when noise_max==0 and hard_px==0 (bit-exact C vs Java_a on A/B-stable full ROI). PASS-LSB = A/B noise 0, every owned differing pixel |d|<=1, nz<=2% of owned ROI; printed distinctly, never as exact. Not a mean PASS-FLOOR. Mutation guard in ui_hud_lsb.py. Fullscreen inside-block + portal + fire + underwater never use ceil(noise_max) as PASS tolerance. CAPTURE_BLOCKED = A/B stable maxch residual > 0 (no C may PASS, including C=Java_a / Java_b / midpoint / Java_a+1). RESIDUAL = A/B bit-exact but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise (PASS-LSB is not applied; +1 extras stay residual). hud_durability_half uses atlas-alpha\u222astrip\u222aC-extra ownership (C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-GRAY isolation underlay; not threshold holes, not Java world). Hands: Java\u222aC subject ownership, hard_thr=0, A/B exact for PASS; PASS-LSB for 1-LSB residue within 2% owned; else RESIDUAL. hard_px stays the thr=0 owned-diff count. Portal: GuiIngame.renderPortal same-scene underlay residual. GuiGameOver: hard = opaque chrome + hud_death_tint_pair; full-frame tint/world composition is soft."
 }

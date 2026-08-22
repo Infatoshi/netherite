@@ -1,5 +1,34 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 overlay_fire atlas pin (lane/fireover)
+
+Item 7 fire overlay. Baseline anvil
+(`~/nlanes/fireover/out/verify/fireover_baseline.log`): overlay_fire
+CAPTURE_OK `noise=6.727` `c_vs_j=4.473` painted=133546 `noise_limit=35`.
+Other ui_hud rows: core HUD PASS, hands/portal/uw RESIDUAL as today.
+
+Cause: `MixinPinTextureAnimations` cancels `TextureAtlasSprite.updateAnimation`
+(`TextureAtlasSprite.java:177`) but does not upload a known strip row. Two
+`frame{}` takes landed on different `fire_layer_1` frames. Portal sticky
+pattern: `hud_pin fire_frame=0` force-uploads physical row 0 for every
+animated blocks-atlas sprite (`TextureMap.java:205` stitch
+`uploadTextureMipmap`, `ItemRenderer.java:580` `fire_layer_1`).
+`frame`/`frame_pair` re-applies. Magma `bm_atlas_set_animation_physical_zero`
+plus same-scene pad (`Entity.java:2477-2481` `isBurning`;
+`ItemRenderer.java:566-606` two quads, translate `-(i*2-1)*0.24` / `-0.3`,
+rotate `(i*2-1)*10` about Y, colour `1,1,1,0.9`, depthFunc 519,
+SRC_ALPHA/ONE_MINUS_SRC_ALPHA).
+
+After (`~/nlanes/fireover/out/verify/fireover_after_fog.log`,
+`fireover_capture.log`): recapture A/B sha-equal, `noise=0`,
+`fire_layer_1_physical_frame=0`. Dropped the 35.0 noise loophole.
+overlay_fire fullscreen hard RESIDUAL `c_vs_j=12.908` `hard_px=353209`
+`maxch=255` `stable=1.000`. Other 17 ui_hud rows byte-stable vs baseline.
+Mutations PASS. Not PASS: same-scene sky/horizon occupancy (C sky vs J
+grass around y=183) plus HUD-glyph dest holes (C 0 vs J 255, 680 px).
+Fire warm occupancy 116471/116864. Root `make test` on anvil PASS
+(`~/nlanes/fireover/out/verify/fireover_maketest.log`).
+
 ## 2026-08-22 XP orb GL item lighting (lane/xporb2)
 
 A6 continue. Baseline on gamer (`~/nlanes/xporb2/out/verify/xporb2_baseline.log`):

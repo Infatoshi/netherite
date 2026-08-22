@@ -45,7 +45,8 @@ recorder or re-recording; D-class by improving gates, not the product.
 6. Entity pixels: XP orb hard_px=3542 (grass + disc 1-2 LSB); small fireball
    complete ROI; dragon body pose/UV/per-texel dissolve. "Entity and particle
    pixels".
-7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
+7. Full-frame surfaces: death-screen composition ~33/ch (still soft),
+   fire overlay hard residual 12.91/ch (lane/fireover; A/B-exact),
    high-altitude/distance haze.
 8. Nether arrival tape: fire/lava animation phase + surrounding lightmap
    (170 frames).
@@ -95,7 +96,7 @@ magma to an unproven oracle state):**
 
 - PASS-LSB is wired on ui_hud HAND_HARD + FULLSCREEN_REPLACE; no row
   qualifies today (eat/shield/bow fail px>1 and the 2% count cap;
-  portal/underwater occupancy). Core HUD stays HARD_THR=2 exact.
+  portal/underwater/fire occupancy). Core HUD stays HARD_THR=2 exact.
 - Inventory gate: 13/23 tapes carry only tick-0 inv; count/metadata not
   compared.
 - Truncated tapes verify a prefix only (respawn-continue is an open product
@@ -354,7 +355,13 @@ These have useful capture-integrity checks but no pixel-perfect product claim:
 
 - Death-screen world/tint composition outside the exact chrome and paired tint
   model remains about `33.17/ch`.
-- Fire overlay full-frame composition remains open.
+- Fire overlay capture closed 2026-08-22 (`lane/fireover`). Sticky `hud_pin`
+  `fire_frame=0` uploads physical strip row 0 for every animated blocks-atlas
+  sprite (`TextureMap.java:205`, `ItemRenderer.java:566-606` `fire_layer_1`).
+  Anvil llvmpipe A/B is byte-identical (`noise=0`). Fullscreen hard_px:
+  `c_vs_j=12.908` `hard_px=353209` `maxch=255` RESIDUAL (same-scene sky/horizon
+  occupancy + HUD-glyph dest holes). Fire warm occupancy 116471/116864.
+  Not PASS-LSB. The 35.0 noise loophole is gone.
 - Rain/overcast rendering is not modeled for the canonical rain window.
 - High-altitude and long-distance haze are weaker than Java.
 
