@@ -9,7 +9,9 @@ cd "$ROOT"
 
 CC=${CC:-cc}
 CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore -I$BLAZE/core -I$BLAZE -I$DIR"
-OUT="/tmp/magma_entity_oracle_candidate"
+# Per-tree paths: two clones on one host must not share a candidate binary.
+mkdir -p "$ROOT/../out/verify"
+OUT="$ROOT/../out/verify/magma_entity_oracle_candidate"
 
 # Atlases required by frame_capture / entity path.
 need_atlas() {
@@ -67,7 +69,7 @@ fi
 
 # Private fixture path (override with ENTITY_GATE_C_OUT). Never write shared
 # /tmp/magma_ui_entities_c from review/corrective runs by default.
-C_OUT="${ENTITY_GATE_C_OUT:-/tmp/magma_ui_entities_c_$$}"
+C_OUT="${ENTITY_GATE_C_OUT:-$ROOT/../out/verify/magma_ui_entities_c_$$}"
 mkdir -p "$C_OUT"
 
 echo "== validate Java goldens (presence / A/B / inter-state) =="

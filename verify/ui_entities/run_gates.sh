@@ -7,7 +7,8 @@ cd "$ROOT"
 CC=${CC:-cc}
 BLAZE="$(cd "$ROOT/../blaze" && pwd)"
 CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore -I$BLAZE/core -I$BLAZE"
-OUT="/tmp/magma_ui_entities_geom_gates"
+mkdir -p "$ROOT/../out/verify"
+OUT="$ROOT/../out/verify/magma_ui_entities_geom_gates"
 
 need_atlas=0
 if [ ! -f assets/mob_atlas.h ]; then
