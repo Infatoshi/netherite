@@ -594,6 +594,20 @@ int main(void) {
         cfg.mobs=1;
     }
 
+    CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),
+          "rain-thunder runtime initializes");
+    if(r.world){
+        CHECK(r.rain_strength==0.f&&r.thunder_strength==0.f,
+              "live rain/thunder start at 0");
+        gm_runtime_set_rain_thunder(&r,1.f,1.f);
+        CHECK(r.rain_strength==1.f&&r.thunder_strength==1.f,
+              "set_rain_thunder stores tape strengths");
+        gm_runtime_set_rain_thunder(&r,-1.f,2.f);
+        CHECK(r.rain_strength==0.f&&r.thunder_strength==1.f,
+              "set_rain_thunder clamps to [0,1]");
+    }
+    gm_runtime_destroy(&r);
+
     CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),"bed runtime initializes");
     if(r.world){
         isr_set_stack(&r.player.inv,0,ic_mk(355,1,0));gm_runtime_set_pose(&r,8.5,5,8.5,0,60);

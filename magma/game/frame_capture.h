@@ -19,9 +19,11 @@ int gm_frame_capture_write(GmFrameCapture *capture, GmRuntime *runtime,
 void gm_frame_capture_close(GmFrameCapture *capture);
 
 /* Fill the 16x16 EntityRenderer.updateLightmap LUT for the given world time
- * (overworld texels; callers gate on lightmap mode + dimension 0). Shared by
- * the capture path and the interactive window loop. */
+ * and recorded getRainStrength(1)/getThunderStrength(1) (overworld texels;
+ * callers gate on lightmap mode + dimension 0). Shared by the capture path
+ * and the interactive window loop. Live play passes rain=thunder=0. */
 void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
+                            float rain_strength, float thunder_strength,
                             CrRgba lut[256]);
 
 /* Fill per-entity light fields (lm_lit + coords/multiplier) from world light

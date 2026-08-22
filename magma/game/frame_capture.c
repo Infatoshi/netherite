@@ -206,10 +206,12 @@ static void set_error(char *err, int cap, const char *msg) {
     if (err && cap > 0) snprintf(err, (size_t)cap, "%s", msg);
 }
 
-/* World.getSunBrightnessBody(1.0F), clear weather: celestial angle (float,
- * with the double Math.cos of calculateCelestialAngle), MathHelper.cos via
- * the MC sin table, ranged [0.2, 1.0]. This is the `f` of updateLightmap. */
-static float fc_sun_brightness(const McSinTable *st, long long wt) {
+/* World.getSunBrightnessBody(1.0F): celestial angle (float, with the double
+ * Math.cos of calculateCelestialAngle), MathHelper.cos via the MC sin table,
+ * rain/thunder factors, ranged [0.2, 1.0]. This is the `f` of updateLightmap.
+ * rain/thunder are getRainStrength(1)/getThunderStrength(1); live play is 0. */
+static float fc_sun_brightness(const McSinTable *st, long long wt,
+                               float rain, float thunder) {
     long long i = wt % 24000LL;
     if (i < 0) i += 24000LL;
     float f = ((float)i + 1.0f) / 24000.0f - 0.25f;   /* partialTicks = 1 */
@@ -221,6 +223,7 @@ static float fc_sun_brightness(const McSinTable *st, long long wt) {
     if (g < 0.0f) g = 0.0f;
     if (g > 1.0f) g = 1.0f;
     g = 1.0f - g;
+    g = cr_sun_weather_scale(g, rain, thunder);
     return g * 0.8f + 0.2f;
 }
 
@@ -229,8 +232,9 @@ static float fc_sun_brightness(const McSinTable *st, long long wt) {
  * Shared with the interactive window loop (game_main.c), which must feed the
  * SAME texels to its terrain shade ctxs or lightmap-mode meshes shade garbage. */
 void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
+                            float rain_strength, float thunder_strength,
                             CrRgba lut[256]) {
-    float sun = fc_sun_brightness(st, world_time);
+    float sun = fc_sun_brightness(st, world_time, rain_strength, thunder_strength);
     for (int sl = 0; sl < 16; ++sl)
         for (int bl = 0; bl < 16; ++bl)
             lut[sl * 16 + bl] =
@@ -239,7 +243,8 @@ void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
 
 static const CrRgba *build_lightmap_lut(GmFrameCapture *c, const GmRuntime *r) {
     if (!c->lm_mode || r->dimension != 0) return NULL;
-    gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time, c->lut);
+    gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time,
+                           r->rain_strength, r->thunder_strength, c->lut);
     return c->lut;
 }
 

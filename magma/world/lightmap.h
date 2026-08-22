@@ -46,6 +46,19 @@ static inline float cr_dimension_sun_brightness(int dimension)
     return dimension == -1 ? 0.2f : 1.0f;
 }
 
+/* World.getSunBrightnessBody rain/thunder factors (World.java:1578-1579).
+ * Applied after the celestial invert and before `* 0.8F + 0.2F`.
+ * `thunder_strength` is getThunderStrength: already rain-weighted. */
+static inline float cr_sun_weather_scale(float inverted_celestial,
+                                         float rain_strength,
+                                         float thunder_strength)
+{
+    float f1 = inverted_celestial;
+    f1 = (float)((double)f1 * (1.0 - (double)(rain_strength * 5.0f) / 16.0));
+    f1 = (float)((double)f1 * (1.0 - (double)(thunder_strength * 5.0f) / 16.0));
+    return f1;
+}
+
 static inline float cr_lm_gamma_finish(float v, float gamma)
 {
     float inv = 1.0f - v;

@@ -796,7 +796,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
     stamp(frame, 6);
     const CrRgba *lm = NULL;
     if (worldmc_lightmap_mode() && r->dimension == 0) {
-        gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time, c->lm_lut);
+        gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time,
+                               r->rain_strength, r->thunder_strength, c->lm_lut);
         lm = c->lm_lut;
     }
     /* EntityRenderer.renderWorldPass: opaque terrain first; entities,

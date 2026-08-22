@@ -106,6 +106,19 @@ if ./magma_game --headless --ticks 1 --script /tmp/magma-forbidden-field.jsonl \
 fi
 rg -q 'unknown or forbidden field: inventory' /tmp/magma-forbidden-field.out
 
+printf '%s\n' '{"tick":0,"type":"set_rain_thunder","rain":1.0,"thunder":1.0}' \
+	>/tmp/magma-rain-thunder.jsonl
+./magma_game --headless --ticks 1 --script /tmp/magma-rain-thunder.jsonl \
+	--render off --pace unlimited >/tmp/magma-rain-thunder.out
+printf '%s\n' '{"tick":0,"type":"set_rain_thunder","rain":-0.1,"thunder":0}' \
+	>/tmp/magma-rain-thunder-bad.jsonl
+if ./magma_game --headless --ticks 1 --script /tmp/magma-rain-thunder-bad.jsonl \
+	--render off --pace unlimited >/tmp/magma-rain-thunder-bad.out 2>&1; then
+	echo "out-of-range set_rain_thunder unexpectedly succeeded" >&2
+	exit 1
+fi
+rg -q 'invalid set_rain_thunder' /tmp/magma-rain-thunder-bad.out
+
 # Post-2026-07-12 tape schema: exact entity render state, post-tick inventory
 # view, offhand re-anchor, and HUD XP/air all parse as strict typed events.
 TAPE_STATE=/tmp/magma-tape-state.jsonl
