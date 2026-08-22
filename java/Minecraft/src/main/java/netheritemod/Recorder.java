@@ -895,8 +895,11 @@ public class Recorder {
             net.minecraft.client.renderer.texture.TextureMap map =
                 mc.getTextureMapBlocks();
             if (map == null) return;
-            net.minecraft.client.renderer.texture.TextureUtil.bindTexture(
-                map.getGlTextureId());
+            /* TextureMap.updateAnimations.java:324 uses package-private
+             * TextureUtil.bindTexture. Public path is TextureManager
+             * LOCATION_BLOCKS_TEXTURE (ItemRenderer.java:581). */
+            mc.getTextureManager().bindTexture(
+                net.minecraft.client.renderer.texture.TextureMap.LOCATION_BLOCKS_TEXTURE);
             java.lang.reflect.Field listF =
                 net.minecraft.client.renderer.texture.TextureMap.class
                     .getDeclaredField("listAnimatedSprites");
