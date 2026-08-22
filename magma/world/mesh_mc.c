@@ -621,6 +621,23 @@ static int water_glass_overlay(int neighbor_model_key) {
     return id == 20 || id == 95;
 }
 
+/* BlockBreakable.java:42-52: glass / stained glass skip a face when the
+ * neighbour is the same block. Stained glass of a different colour still
+ * renders the interface (blockState != iblockstate). Panes are a different
+ * block and do not use this cube path. */
+static int same_glass_cull(int self_key, int neigh_key, int self_meta, int neigh_meta) {
+    uint16_t ss, ns;
+    if (gm_model_key_to_state(self_key, self_meta, &ss) == GM_MAP_UNSUPPORTED)
+        return 0;
+    if (gm_model_key_to_state(neigh_key, neigh_meta, &ns) == GM_MAP_UNSUPPORTED)
+        return 0;
+    int sid = gm_state_id(ss), nid = gm_state_id(ns);
+    if (sid != nid) return 0;
+    if (sid != 20 && sid != 95) return 0;
+    if (sid == 95 && gm_state_meta(ss) != gm_state_meta(ns)) return 0;
+    return 1;
+}
+
 /* BlockFluidRenderer.getFluidHeight for one corner. This consumes the legacy
  * LEVEL metadata rather than merely carrying its nibble through the dump. */
 static float fluid_corner_height(const CrLight *L, int wx, int wy, int wz,
@@ -2145,6 +2162,10 @@ static int mesh_body(CrWorldMC *w, int ccx, int ccz, CrChunkMeshMC *out, int *ca
                     int neigh_opaque = nm->is_full_cube && nm->layer == CR_LAYER_SOLID;
                     if (neigh_opaque) continue;
                     if (self_translucent && ncb == cb) continue;
+                    if (same_glass_cull(cb, ncb,
+                                        light_meta(L, wx, wy, wz),
+                                        light_meta(L, nx, ny, nz)))
+                        continue;
 
                     int g = v_on ? variant_model_face(f, v_qx, v_qy) : f;
 

@@ -258,6 +258,10 @@ int main(void) {
     int xlv  = BASE + 5,  ylv = TY + 20, zlv = BASE + 5; /* sloped lava */
     int xwg  = BASE + 15, zwg = BASE + 10; /* water + glass south overlay */
     int ywg  = TY + 10;
+    int xgg  = BASE + 4,  zgg = BASE + 0;  /* adjacent glass pair */
+    int ygg  = TY + 15;
+    int xgw  = BASE + 12, zgw = BASE + 12; /* 3x3 glass wall, centre culled */
+    int ygw  = TY + 18;
     light_debug_set_block(L, xs,  TY, zs,  T_STAIRS);
     light_debug_set_block(L, xsl, TY, zsl, T_SLAB);
     light_debug_set_block(L, xf,  TY, zf,  T_FENCE);
@@ -267,6 +271,11 @@ int main(void) {
     light_debug_set_block(L, xw,  TY+1, zw, T_WATER);
     light_debug_set_block(L, xwg, ywg, zwg, T_WATER);
     light_debug_set_block(L, xwg, ywg, zwg + 1, T_GLASS);
+    light_debug_set_block(L, xgg, ygg, zgg, T_GLASS);
+    light_debug_set_block(L, xgg + 1, ygg, zgg, T_GLASS);
+    for (int dy = -1; dy <= 1; ++dy)
+        for (int dx = -1; dx <= 1; ++dx)
+            light_debug_set_block(L, xgw + dx, ygw + dy, zgw, T_GLASS);
     light_debug_set_block(L, xli, TY, zli, T_LILY);
     light_debug_set_block(L, xsn, TY, zsn, T_SNOW);
     light_debug_set_block(L, xv,  TY, zv,  T_VINE);
@@ -666,6 +675,37 @@ int main(void) {
               "water+glass south overlay verts %d (want 6, no reverse)", south);
         CHECK(overlay_uv == 6,
               "water+glass south UVs on water_overlay %d/6", overlay_uv);
+    }
+    /* --- GLASS-GLASS: BlockBreakable.java:42-52 hides the shared face.
+     * Two adjacent unstained cubes: 5 faces each = 30 CUTOUT verts, and no
+     * 6-vert face whose centroid sits on the shared x = xgg+1 plane (edge
+     * verts of the remaining faces do sit on that plane). */
+    {
+        int n0 = collect_cell_quads(&m, CR_LAYER_CUTOUT, xgg, ygg, zgg, got, 512);
+        int n1 = collect_cell_quads(&m, CR_LAYER_CUTOUT, xgg + 1, ygg, zgg,
+                                    got, 512);
+        CHECK(n0 == 30, "glass-glass west cell: %d verts (want 30)", n0);
+        CHECK(n1 == 30, "glass-glass east cell: %d verts (want 30)", n1);
+        int shared = 0;
+        for (int at = 0; at + 5 < m.nverts[CR_LAYER_CUTOUT]; at += 6) {
+            float cx = 0.0f, cy = 0.0f, cz = 0.0f;
+            for (int k = 0; k < 6; ++k) {
+                const CrVertex *v = &m.verts[CR_LAYER_CUTOUT][at + k];
+                cx += v->pos.x; cy += v->pos.y; cz += v->pos.z;
+            }
+            cx /= 6.0f; cy /= 6.0f; cz /= 6.0f;
+            if (cy < (float)ygg - 0.01f || cy > (float)ygg + 1.01f) continue;
+            if (cz < (float)zgg - 0.01f || cz > (float)zgg + 1.01f) continue;
+            if (fabsf(cx - ((float)xgg + 1.0f)) < 1e-4f) shared++;
+        }
+        CHECK(shared == 0,
+              "glass-glass shared-face quads %d (want 0)", shared);
+    }
+    /* 3x3 unstained wall: centre has glass on E/W/U/D, air on N/S.
+     * BlockBreakable.java:42-52 keeps only those two faces (12 verts). */
+    {
+        int n = collect_cell_quads(&m, CR_LAYER_CUTOUT, xgw, ygw, zgw, got, 512);
+        CHECK(n == 12, "glass-wall centre: %d verts (want 12)", n);
     }
     /* --- SLOPED LAVA: LEVEL 3 center with diagonal LEVEL 4..7 neighbours.
      * Java corner heights are {1/4, 2/9, 7/36, 1/6}; top rendering subtracts
