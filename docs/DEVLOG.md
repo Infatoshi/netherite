@@ -1,5 +1,28 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 first-person hand USE-pose (lane/handpose)
+
+Baseline `verify/ui_hud/run_ui_hud_gates.sh` matched OPEN_DIVERGENCES:
+bow hard_px=30260 c_vs_j=49.276 c_paint_mean=59.43; eat 101880 / 53.939 /
+51.32; shield 28506 / 23.615 / 0.748.
+
+C `build_bow_drawn` / `build_eat_drink` already match ItemRenderer.java
+call-for-call. Java bow/eat goldens are idle tips (no `use_branch` in
+meta). C draws the use pose (bow f5=20 pulling_2; eat remaining=16
+max=32, f3~1). Mesh scale matches generated.json 0.68 + ItemLayerModel
+z=7.5/16..8.5/16 + Forge T*R*S*T(-0.5). Do not retune. Close path:
+recapture with `ONLY=hand`.
+
+Shield geometry matches. Mesa packing `(tex*L8+127)/255` and
+`(tex*L8+128)>>8` did not move the wood-face +1,+1,0 bins; restored
+float trunc. Remaining: isolation gray vs wall (`n_only_j=12533` keeps
+hard_px=28506) and ~1 L8 primary (same class as inventory preview).
+`hand_raster` now uses sample_mode=1 (RenderItem setBlurMipmap
+false,false = GL_NEAREST) and alpha_ref=0.1 (alphaFunc GL_GREATER 0.1).
+After: hard_px unchanged; shield c_paint_mean=0.744.
+
+ui_hud live link needed `game/world_spawn.o` (`_gm_create_spawn_position`).
+
 ## 2026-08-22 chain4 retrain PASS + stage ladder (anvil gpu0)
 
 Chain retrain with the staged curriculum completed end-to-end for the

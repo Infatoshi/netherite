@@ -40,8 +40,12 @@ exact/mutation controls still PASS.
 - Bow pull: `hard_px=30260`, `maxch=125`, `c_vs_j=49.276`, `c_paint_mean=59.43`.
 - Eat mid-use: `hard_px=101880`, `maxch=215`, `c_vs_j=53.939`, `c_paint_mean=51.32`.
 - Blocking shield: `hard_px=28506`, `maxch=100`, `c_vs_j=23.615`,
-  `c_paint_mean=0.748` (was 1.56). C-painted vs Java: 764 exact, 15989 nz,
-  `maxch>2` only 6 px. Geometry matches (C subject subset of Java at thr 12-20).
+  `c_paint_mean=0.744` (2026-08-22 remeasure 0.744; was 0.748 / 1.56).
+  C-painted vs Java: 764 exact, 15989 nz, `maxch>2` only 6 px. Geometry
+  matches (C subject subset of Java at thr 12-20). Mesa packing
+  `(tex*L8+127)/255` and `(tex*L8+128)>>8` were measured against this
+  golden; neither moves the wood-face +1,+1,0 bins (the +1 is in the
+  ubyte primary, not modulate rounding).
 
 C `build_bow_drawn` / `build_eat_drink` / `build_block_use` match
 `ItemRenderer.java` (oracle-src) call-for-call, including
