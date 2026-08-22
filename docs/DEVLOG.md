@@ -1,5 +1,33 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 bow occupancy is world FOV (lane/bowsil)
+
+Suspects 1-3 vs oracle-src: C already bakes `bow_pulling_2` at
+pull=1.0 (`ItemBow.java:29-44`, `ItemOverrideList.java:24-28` reverse
+scan, `hand.c:802` sprite 9002). `build_bow_drawn` matches
+`ItemRenderer.java:402-427` then generated firstperson
+`[0,-90,25]/[1.13,3.2,1.13]/0.68`. Hand FOV stays 70
+(`EntityRenderer.java:804`).
+
+The occupancy is not bow metal. Wood J-only=60 C-only=32 both=632;
+J-wood/C-stone=8. Eat/shield stone_min J=C=77. Bow Java stone_min=20
+vs C unzoomed 77: J-stone/C-grass 13363 full / 1961 ROI.
+
+Tried cited full-draw `fov_mult=0.85` (`AbstractClientPlayer.java:156-170`)
+on `ui_hud_scene`. Live magma already eases that in `player_ctl.c`.
+This golden is not converged: C stone_min went to 0, occupancy flipped
+to J-grass/C-stone 5125/449, `c_vs_j` 7.007->5.836, `maxch` 108->97.
+Implied Java fov_mult from the wall edge is 0.887 (two 0.5-ease ticks).
+`fovModifierHand` is not in the capture meta. Reverted the scene pin.
+Do not fit 0.887. Recapture on anvil after the ease converges.
+
+Baseline (gamer, PATH=$HOME/.local/bin, HEAD before the pin):
+`hand_bow_pull20` 7.007 / hard_px=20745 / maxch=108. Eat 1.317 /
+shield 0.911 unchanged. After revert the row is that baseline.
+`oracle_roi_report.json` not regenerated. Gate still RESIDUAL.
+Mesh diagnosis retracted in `CLOSED_DIVERGENCES.md`; occupancy is
+class C.
+
 ## 2026-08-22 divergence split: two bridge files
 
 `magma/OPEN_DIVERGENCES.md` is now oracle->magma only, with an audited

@@ -132,21 +132,12 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
     memset(&pv, 0, sizeof pv);
     gm_runtime_view(&g_rt, &pv);
     gm_runtime_apply_tape_view(&g_rt, &pv);
-    /* World projection uses getFOVModifier(pt, true) = fovSetting *
-     * fovModifierHand. AbstractClientPlayer.getFovModifier (oracle-src
-     * AbstractClientPlayer.java:156-170) while the bow is active:
-     *   f1 = getItemInUseMaxCount()/20; f1 = f1>1 ? 1 : f1*f1;
-     *   f *= 1 - f1*0.15.
-     * At bow_pull=20 that is 0.85. EntityRenderer.updateFovModifierHand
-     * (EntityRenderer.java:491-502) eases 0.5/tick; the sticky capture
-     * (use_count=71980, portal_phase 94->102) is converged. Hand
-     * projection stays 70: getFOVModifier(pt, false) skips this term
-     * (EntityRenderer.java:804). */
-    if (!strcmp(id, "hand_bow_pull20")) {
-        float f1 = 20.0f / 20.0f;
-        f1 = (f1 > 1.0f) ? 1.0f : f1 * f1;
-        pv.fov_mult = 1.0f - f1 * 0.15f;
-    }
+    /* Do not set fov_mult for hand_bow_pull20. Live 20-tick draw is 0.85
+     * (AbstractClientPlayer.java:156-170) eased 0.5/tick in player_ctl.c
+     * (EntityRenderer.java:491-502). This golden's pad wall is mid-ease
+     * and fovModifierHand is unrecorded; pinning 0.85 over-zooms C
+     * (stone_min 0 vs Java 20). Do not fit 0.887. Recapture on anvil.
+     * Hand projection stays 70 (EntityRenderer.java:804). */
 
     GmWindowComposeFrame frame;
     memset(&frame, 0, sizeof frame);

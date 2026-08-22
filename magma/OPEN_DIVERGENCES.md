@@ -8,9 +8,8 @@ forensics in `CLOSED_DIVERGENCES.md` (a stub with the close date and one-line
 resolution stays here in place); read there before re-investigating anything
 that smells like a settled question.
 
-Last verified on `72ee9a1` (2026-08-22, post lane/handgold + lane/lsbtier +
-lane/handscene). Oracle evidence for rain / slime DRAW / portal A/B:
-lane/unblock 2026-08-21.
+Last verified on `lane/bowsil` (2026-08-22, post occupancy reclass). Oracle
+evidence for rain / slime DRAW / portal A/B: lane/unblock 2026-08-21.
 
 Pixel-perfect means every owned, A/B-stable pixel is equal. Mean-error budgets,
 hard-pixel floors, empty target captures, and unstable Oracle pairs are not
@@ -29,34 +28,31 @@ recorder or re-recording; D-class by improving gates, not the product.
 
 **A. Product divergences (magma wrong vs oracle, actionable now):**
 
-1. Bow viewmodel silhouette: ~2k px occupancy in the lower-right ROI, gray
-   bow metal vs C stone, maxch 108 (NEW 2026-08-22, exposed by same-scene
-   wall). "First-person hand use poses".
-2. Underwater overlay: magma water/glass/fog underlay too blue (26.76/ch);
+1. Underwater overlay: magma water/glass/fog underlay too blue (26.76/ch);
    close path is raster fidelity, likely kernel twins. "Portal and
    underwater".
-3. Portal overlay edges/hand residual (1.47/ch after same-scene underlay).
-4. Slime rim brightness: source-closed to the raster twins (two-machine
+2. Portal overlay edges/hand residual (1.47/ch after same-scene underlay).
+3. Slime rim brightness: source-closed to the raster twins (two-machine
    flow); inset-constant levers exhausted. Slime triage entry.
-5. Rain: `getSkyColorBody` rain mix, rain particles, `lastLightningBolt`
+4. Rain: `getSkyColorBody` rain mix, rain particles, `lastLightningBolt`
    lightmap override (lightmap sun term is wired). "Rain sky, particles,
    and lightning".
-6. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
+5. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
    precision on grazing top faces. Soul sand triage entry.
-7. Entity pixels: XP orb hard_px=12000; small fireball complete ROI;
+6. Entity pixels: XP orb hard_px=12000; small fireball complete ROI;
    dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
-8. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
+7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
    high-altitude/distance haze.
-9. Nether arrival tape: fire/lava animation phase + surrounding lightmap
+8. Nether arrival tape: fire/lava animation phase + surrounding lightmap
    (170 frames).
-10. Falling blocks t46: creative blockHitDelay on a re-landed cell breaks
+9. Falling blocks t46: creative blockHitDelay on a re-landed cell breaks
     1 of 310 world hashes. Recorder-gaps item 6 status update.
-11. Deterministic mobs: target-pitch mismatch at t=42 on one tape; nether
+10. Deterministic mobs: target-pitch mismatch at t=42 on one tape; nether
     tape A*-null case. (detmob arc, DEVLOG 2026-08-21.)
-12. Sim smalls: mob roster/AI incomplete, boat UNDER_WATER, aim-pin 1-tick
+11. Sim smalls: mob roster/AI incomplete, boat UNDER_WATER, aim-pin 1-tick
     break lag, arrow-count drift, heart-flash blink. "Simulation and
     replay".
-13. Isolated render features: dimension-transfer loading sky, enchantment
+12. Isolated render features: dimension-transfer loading sky, enchantment
     glint, chest model/seed parity, arrow ghost pitch, held-item
     registration outside pinned poses, sheep pose, dig particles.
 
@@ -81,6 +77,11 @@ magma to an unproven oracle state):**
   on 20260712T055346Z.
 - Geared dragon tape 6-tick server/client death-clock skew (sidecar'd).
 - Dynamic-fluid snapshot capture (nether lavafall cells).
+- `hand_bow_pull20` pad-wall occupancy: Java golden world FOV is mid-ease
+  (`fovModifierHand` unrecorded). C scene is unzoomed. Bow mesh is closed.
+  Recapture on anvil after the 0.5/tick ease converges, or write
+  `fovModifierHand` into frame meta. Do not fit 0.887. "First-person hand
+  use poses".
 
 **D. Verification gaps (gate work, not product bugs):**
 
@@ -94,7 +95,9 @@ magma to an unproven oracle state):**
 Do not grind: explosion puff `Particle.rand`; fog retune; texel bias;
 Magma GPU tick; particle blend=3 (vanilla ParticleManager is SRC_ALPHA,
 magma already matches); canonical t=260 texel-selection (retracted,
-CLOSED); entities over water (item 13 CLOSED).
+CLOSED); entities over water (item 13 CLOSED); bow `hand.c` transforms /
+`ui_hud_scene` fov_mult=0.85 against this golden (mesh closed; occupancy
+is recorder FOV, CLOSED + C).
 
 ## Interactive C raster renderer
 
@@ -113,7 +116,15 @@ Numerical/compose/live and HUD chrome still PASS; overlay rows byte-stable;
 synthetic exact/mutation controls still PASS.
 
 - Bow pull: `hard_px=20745`, `maxch=108`, `c_vs_j=7.007`, `n_only_j=0`
-  (was isolation 20830 / 100 / 29.266 / 16309).
+  (was isolation 20830 / 100 / 29.266 / 16309). Mesh/model/transform match
+  the oracle (bow_pulling_2, ItemRenderer BOW branch, generated firstperson).
+  Occupancy is the pad wall, not bow metal. Java stone_min x=20 vs C 77;
+  J-stone/C-grass 13363 full / 1961 ROI; J-wood/C-stone = 8. Eat/shield
+  stone_min J=C=77. Applying cited full-draw `fov_mult=0.85` over-zooms
+  (C stone_min=0, c_vs_j=5.836, maxch=97). Implied Java fov_mult from the
+  wall edge is 0.887 (two 0.5-ease ticks). `fovModifierHand` is not in the
+  capture meta. Live magma already eases in `player_ctl.c`. Recapture on
+  anvil; do not fit 0.887. Class C.
 - Eat mid-use: `hard_px=73440`, `maxch=215`, `c_vs_j=1.317`, `n_only_j=41`
   (was 74218 / 215 / 32.764 / 50268).
 - Blocking shield: `hard_px=28564`, `maxch=61`, `c_vs_j=0.911`, `n_only_j=17`
@@ -121,11 +132,9 @@ synthetic exact/mutation controls still PASS.
 
 `hard_px==0` is not reached. Eat/shield owned leftover is mostly 1 L8 wall
 texels plus painted-face LSB (same class as inventory preview / portal pad).
-Bow `c_vs_j=7` is occupancy in the lower-right ROI: gray bow metal vs C
-stone, not a missing wall. Stone has no random model rotation
-(`BlockModelShapes` maps `Blocks.STONE` by `VARIANT` only). PASS still
-requires `hard_px==0`. Diff triptychs (gitignored):
-`out/verify/ui_hud/handscene/<id>_tri.png`.
+Stone has no random model rotation (`BlockModelShapes` maps `Blocks.STONE`
+by `VARIANT` only). PASS still requires `hard_px==0`. Diff triptychs
+(gitignored): `out/verify/ui_hud/handscene/<id>_tri.png`.
 
 Repro:
 
