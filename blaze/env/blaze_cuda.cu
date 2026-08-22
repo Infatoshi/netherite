@@ -191,7 +191,7 @@ int blaze_capture(void *vh, int env, int slot);
 int blaze_obs_size(void);
 int blaze_emit(void *vh, int env, int want_cam, void *out);
 int blaze_emit_all(void *vh, int want_cam, void *out);
-int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
+int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
                    void *out);
 int blaze_debug_state(void *vh, int env, double *out, int cap);
 int blaze_op_count(void);
@@ -646,7 +646,7 @@ __global__ void k_parity_all(Blaze *envs, int n, BpParityRecord *out) {
     blaze_parity_fill(&envs[i], &out[i]);
 }
 
-typedef struct { double a[13]; } CuRawAct;
+typedef struct { double a[17]; } CuRawAct;
 
 /* raw tick for env `env`, or for ALL n envs when env == -1 (one thread per
  * env; the chain gate's 64-identical-lanes stepper). Mirrors the CPU
@@ -675,6 +675,10 @@ __global__ void k_tick_raw(Blaze *envs, int env, int n, const McSinTable *st,
     act.attack = (int)ra.a[7];
     act.use = (int)ra.a[8];
     act.hotbar_sel = (int)ra.a[9];
+    act.inv_click = (int)ra.a[13];
+    act.inv_slot = (int)ra.a[14];
+    act.inv_button = (int)ra.a[15];
+    act.inv_type = (int)ra.a[16];
     if ((int)ra.a[10] >= 0)
         (void)blaze_do_craft(&envs[i], (int)ra.a[10], recipes, nrecipes);
     if ((int)ra.a[11])
@@ -1058,8 +1062,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
             memcpy(d->mobs, s.mobs, (size_t)s.n_mobs * sizeof d->mobs[0]);
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
-        v->has_unrepresented[v->nsnaps] =
-            s.head.container != 0 || s.light == NULL;
+        v->has_unrepresented[v->nsnaps] = s.head.container != 0;
         blaze_snapshot_free(&s);
         v->nsnaps++;
     }
@@ -1379,7 +1382,7 @@ int blaze_emit_all(void *vh, int want_cam, void *out) {
 /* env == -1 broadcasts the same raw action to ALL envs in one launch (one
  * thread per env; no obs - use blaze_emit per lane). Mirrors the CPU
  * driver's broadcast loop. */
-int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
+int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
                    void *out) {
     CuVecCu *v = (CuVecCu *)vh;
     CuRawAct ra;

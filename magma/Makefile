@@ -506,6 +506,7 @@ BLAZE_PARITY = ../blaze/core/port_parity.h
 BLAZE_RANDTICK = ../blaze/core/randtick_live.h
 BLAZE_FALLING = ../blaze/core/falling_live.h
 BLAZE_WEATHER = ../blaze/core/world_weather.h
+BLAZE_CHEST = ../blaze/core/tile_entity_chest.h ../blaze/core/container_click.h
 ifeq ($(shell uname -s),Darwin)
 # Prefer Homebrew libomp; avoid `ls` (may inject color codes into Make vars).
 ifeq ($(wildcard /opt/homebrew/opt/libomp/include/omp.h),)
@@ -529,7 +530,8 @@ blaze_verify: ../blaze/env/blaze_verify
 	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
 blaze_so: ../blaze/env/blaze_cpu.so
 ../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
-                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_WEATHER)
+                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
+                        $(BLAZE_WEATHER) $(BLAZE_CHEST)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
 	    -o $@ $(LDLIBS) $(BLAZE_OMP)
 
@@ -575,7 +577,8 @@ BLAZE_NVCODE := $(if $(filter sm_%,$(BLAZE_SM)),$(foreach a,$(patsubst sm_%,%,$(
 blaze_cuda_so: ../blaze/env/blaze_cuda.so
 ../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
                         ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
-                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_WEATHER)
+                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
+                        $(BLAZE_WEATHER) $(BLAZE_CHEST)
 	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
 	    ../blaze/env/blaze_snapshot.c -o $@

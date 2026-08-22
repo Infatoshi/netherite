@@ -97,6 +97,15 @@ Not closed. complete ROI hard_px is HUD + dirt + 1-LSB sky. Candidate
 `strip_overlays=1` vs Java HUD; C has no superflat dirt cube. Do not
 edit ROI. Two-pass exploding RGB and fine rays remain. Fireball
 untouched.
+## 2026-08-22 chests M1+M2 (lane/chests)
+
+Baseline anvil (`out/verify/chests_m1_before.log`): `BLOCKED chests: Chest generation, loot, and GUI transfers are not measured end to end` (port_matrix rc=3). Shared `tile_entity_chest.h` / `container_click.h` already existed; magma `chest_live.c` / `container_live.c` already ticked them.
+
+Cause: blaze had no live chest TE table, no id-54 interact, no `GmAction.inv_click` on `blaze_tick_raw`, and no `BP_CHESTS` digest. Java `TileEntityChest.openInventory` / `closeInventory` (`TileEntityChest.java:342-351`, `:362-367`); `Container.slotClick` PICKUP/QUICK_MOVE (`Container.java:147`, merge `Container.java:606`); `ContainerChest.transferStackInSlot` chest 0..27 reverse into player then inv forward into chest (`ContainerChest.java:51-84`); `InventoryPlayer.mainInventory(36)` plus cursor `itemStack` (`InventoryPlayer.java:29-39`); `BlockChest.onBlockActivated` (`BlockChest.java:426-452`). Double-chest adjacency `getContainer` (`BlockChest.java:461-508`) is CUT, matching magma `chest_live.h`. Magma first-open may fill stronghold loot (`gm_stronghold_chest_info`); blaze snapshots do not carry TE contents or loot tables, so generation stays a named gap.
+
+After: blaze ports magma open/click/close (container=3, 64-slot TE table, GMC 0-35 and 53-79). `BP_CHESTS` hashes every table slot (pos, 27 id/count/meta, `numPlayersUsing`) plus player 36 + cursor. Fixture `s10_t0_r64_chests.bsnp` plants chest (8,66,6) and seeds hotbar cobble/apple/bread; chain 41 (interact, PICKUP+QUICK_MOVE both ways, walk away). Anvil M1 VERIFIED 41 ticks digest `0x8a913abce518ff55` (`out/verify/chests_m1_chests_full.log`). Anvil M2 VERIFIED 64 CUDA lanes (`out/verify/chests_m2_chests_full.log`). `mining_slice` M1 was BLOCKED on v1 `!light` as `unrepresented_snapshot`; load now matches capture (open container only). Already-supported rows `--no-deps` still VERIFIED. Root `make test` PASS (`out/verify/chests_maketest.log` / `chests_m2_rest.log`).
+
+Open: worldgen loot tables (LootTable / stronghold fill) and double chests.
 
 ## 2026-08-22 entity capture pad (lane/entityscene)
 

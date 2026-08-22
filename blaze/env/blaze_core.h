@@ -63,6 +63,8 @@
 #include "item_block_place.h"   /* ibp_placed_meta (place orientation) verbatim */
 #include "crafting_recipes_full.h" /* crf_build/crf_findMatching verbatim */
 #include "furnace_full_tick.h"  /* fft_tick + sr_* smelt/fuel verbatim */
+#include "tile_entity_chest.h"  /* TeChest 27-slot TE (TileEntityChest) */
+#include "container_click.h"    /* cc_* slotClick stack helpers */
 #include "blaze_snapshot.h"     /* RlSnapHead/RlSnapItem (.bsnp format) */
 #include "entity_spine.h"       /* living Entity.move spine (zero AI) */
 #include "world_weather.h"      /* WorldInfo rain/thunder + worldTime */
@@ -140,6 +142,9 @@ typedef struct {
     float forward, strafe, dyaw, dpitch;
     int   jump, sneak, sprint, attack, use;
     int   hotbar_sel;            /* 0..8 or -1 = unchanged */
+    /* Container.slotClick this tick (gm_runtime_tick -> gm_container_click).
+     * Trainer blaze_step leaves these 0; verify blaze_tick_raw a[13..16]. */
+    int   inv_click, inv_slot, inv_button, inv_type;
 } CuAction;
 
 /* ---- live item entity (GmLiveEnt fields, live_sim.h) ---- */
@@ -181,6 +186,19 @@ typedef struct {
     SRStack input, fuel, output;
     i32 burn_time, current_burn_time, cook_time, total_cook;
 } CuFurnace;
+
+/* live chest (GmRuntimeChest + ChestLive / TeChest). NOT in .bsnp -
+ * bake contract: planted block, TE created on first interact, no loot
+ * table (worldgen generation is a named gap). */
+#define CU_MAX_CHESTS BP_CHEST_TABLE  /* GM_RUNTIME_CHESTS_INITIAL */
+#define CU_GMC_INV_SLOTS 36
+#define CU_GMC_CHEST0 53              /* GMC_CHEST0 */
+#define CU_GMC_CHEST_SLOTS BP_CHEST_SLOTS
+#define CU_GMC_OUTSIDE -999
+typedef struct {
+    int active, wx, wy, wz;
+    TeChest te;
+} CuChest;
 
 /* magma/game/fluid_live.h constants - keep equal. */
 #define CU_FLUID_NX 64
@@ -243,7 +261,7 @@ typedef struct {
                                   * full-scan candidate rebuild             */
     struct CuCand *coal_cand;    /* pooled CU_COAL_CAND candidate cache     */
     int   *cont;                 /* pooled container list (wx,wy,wz x n_cont;
-                                  * ids 58/61/62), seeded from the snapshot at
+                                  * ids 58/61/62/54), seeded from the snapshot at
                                   * reset and maintained by every region edit
                                   * - blaze_do_interact iterates it instead of
                                   * scanning the 33x33x65 window             */
@@ -308,6 +326,10 @@ typedef struct {
     /* live furnaces (runtime.c furnace slots, per-env-ified) */
     CuFurnace furnaces[CU_MAX_FURNACES];
     int active_furnace;
+
+    /* live chests (runtime.c chest slots, per-env-ified) */
+    CuChest chests[CU_MAX_CHESTS];
+    int active_chest;
 
     CuItem items[CU_MAX_ITEMS];
     int    n_items;
@@ -442,7 +464,7 @@ MC_HD static inline void cu_win_set_state(Chunk *chunks, int wx, int wy, int wz,
 }
 
 MC_HD static inline int cu_is_container_id(int id) {
-    return id == 58 || id == 61 || id == 62;
+    return id == 58 || id == 61 || id == 62 || id == 54;
 }
 
 /* container-list maintenance on a region cell transition. Swap-remove keeps
@@ -1953,6 +1975,321 @@ MC_HD static inline void cu_furnace_tick(CuFurnace *f) {
     f->total_cook = kernel.total_cook;
 }
 
+/* =================== live chests (game/chest_live.c + container_live.c) ==
+ * TileEntityChest 27 slots + ContainerChest transferStackInSlot +
+ * Container.slotClick PICKUP/QUICK_MOVE over chest + player inv.
+ * Java: TileEntityChest.java:342-351 openInventory / :362-367 closeInventory;
+ * ContainerChest.java:51-84; Container.java:147 slotClick, :606 mergeItemStack;
+ * BlockChest.java:426-452 onBlockActivated; InventoryPlayer.java:29-39
+ * mainInventory(36) + itemStack cursor. CUT: double chest, loot tables. */
+
+MC_HD static inline ICStack cu_tec_to_ic(TecStack t) {
+    ICStack s;
+    int i, n;
+    if (tec_is_empty(&t)) return ic_empty();
+    s = ic_mk(t.item, t.count, t.meta);
+    n = t.n_enchants;
+    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+    if (n > TEC_MAX_ENCHANTS) n = TEC_MAX_ENCHANTS;
+    s.n_enchants = n;
+    for (i = 0; i < n; ++i) {
+        s.enchants[i].id = t.enchants[i].id;
+        s.enchants[i].level = t.enchants[i].level;
+    }
+    return s;
+}
+
+MC_HD static inline TecStack cu_ic_to_tec(ICStack s) {
+    TecStack t;
+    int i, n;
+    if (cc_is_empty(&s)) return tec_empty();
+    t = tec_mk(s.item, s.count, s.meta);
+    n = s.n_enchants;
+    if (n > TEC_MAX_ENCHANTS) n = TEC_MAX_ENCHANTS;
+    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+    t.n_enchants = n;
+    for (i = 0; i < n; ++i) {
+        t.enchants[i].id = s.enchants[i].id;
+        t.enchants[i].level = s.enchants[i].level;
+    }
+    return t;
+}
+
+/* chest_live_insert without loot fill (TE is empty until GUI transfers). */
+MC_HD static inline int cu_chest_insert(TeChest *te, int slot, ICStack stack) {
+    TecStack cur, in;
+    i32 item_lim, n, room;
+    if (!te || stack.item <= 0 || stack.count <= 0) return 0;
+    if (slot < 0 || slot >= TEC_SLOTS) return 0;
+    cur = tec_get_stack(te, slot);
+    in = cu_ic_to_tec(stack);
+    item_lim = tec_max_stack_size(stack.item);
+    if (item_lim > TEC_STACK_LIMIT) item_lim = TEC_STACK_LIMIT;
+    if (tec_is_empty(&cur)) {
+        n = stack.count;
+        if (n > item_lim) n = item_lim;
+        in.count = n;
+        tec_set_slot(te, slot, in);
+        return (int)n;
+    }
+    if (!tec_are_items_equal(&cur, &in)) return 0;
+    room = item_lim - cur.count;
+    if (room <= 0) return 0;
+    n = stack.count < room ? stack.count : room;
+    cur.count += n;
+    tec_set_slot(te, slot, cur);
+    return (int)n;
+}
+
+MC_HD static inline ICStack cu_chest_extract(TeChest *te, int slot, int amount) {
+    TecStack got;
+    if (!te || amount <= 0) return ic_empty();
+    got = tec_get_and_split(te, slot, amount);
+    if (tec_is_empty(&got)) return ic_empty();
+    return cu_tec_to_ic(got);
+}
+
+MC_HD static inline ICStack cu_chest_get(const TeChest *te, int slot) {
+    if (!te) return ic_empty();
+    return cu_tec_to_ic(tec_get_stack(te, slot));
+}
+
+MC_HD static inline TeChest *cu_open_chest_te(Blaze *env) {
+    if (env->container != 3 || env->active_chest < 0) return NULL;
+    return &env->chests[env->active_chest].te;
+}
+
+/* gm_container_close: return grid + cursor to inv; drop remainder. */
+MC_HD static inline void blaze_ct_drop(Blaze *env, ICStack s) {
+    if (cc_is_empty(&s)) return;
+    (void)cu_spawn_item(env,
+                        env->pl.ent.posX + (double)env->ox,
+                        env->pl.ent.posY + 1.3,
+                        env->pl.ent.posZ + (double)env->oz,
+                        s.item, s.count, s.meta, 40);
+}
+
+MC_HD static inline void blaze_container_close(Blaze *env) {
+    int i;
+    for (i = 0; i < 9; ++i) {
+        ICStack v = env->craft_grid[i];
+        env->craft_grid[i] = ic_empty();
+        if (cc_is_empty(&v)) continue;
+        (void)isr_add_item_stack_to_inventory(&env->pl.inv, &v);
+        if (!cc_is_empty(&v)) blaze_ct_drop(env, v);
+    }
+    if (!cc_is_empty(&env->cursor)) {
+        ICStack cur = env->cursor;
+        (void)isr_add_item_stack_to_inventory(&env->pl.inv, &cur);
+        if (!cc_is_empty(&cur)) blaze_ct_drop(env, cur);
+        env->cursor = ic_empty();
+    }
+}
+
+/* runtime_close_container: TE bookkeeping then grid/cursor. Does not
+ * zero env->container (use_block overwrites it). */
+MC_HD static inline void blaze_runtime_close_container(Blaze *env) {
+    if (env->container == 3 && env->active_chest >= 0)
+        tec_close(&env->chests[env->active_chest].te);
+    blaze_container_close(env);
+    env->active_furnace = -1;
+    env->active_chest = -1;
+}
+
+MC_HD static inline int blaze_inv_merge_order(Blaze *env, ICStack *stack,
+                                              const int *order, int n) {
+    int flag = 0, k;
+    if (cc_is_stackable(stack)) {
+        for (k = 0; k < n && !cc_is_empty(stack); ++k) {
+            int s = order[k];
+            ICStack v = isr_get_stack(&env->pl.inv, s);
+            i32 max_size, ms, j;
+            if (cc_is_empty(&v) || !cc_stack_match(&v, stack)) continue;
+            max_size = cc_slot_stack_limit();
+            ms = cc_max_stack_size(stack->item, stack->meta);
+            if (ms < max_size) max_size = ms;
+            j = v.count + stack->count;
+            if (j <= max_size) {
+                stack->count = 0;
+                v.count = j;
+                cc_normalize(stack);
+                flag = 1;
+            } else if (v.count < max_size) {
+                cc_shrink(stack, max_size - v.count);
+                v.count = max_size;
+                flag = 1;
+            }
+            isr_set_stack(&env->pl.inv, s, v);
+        }
+    }
+    if (!cc_is_empty(stack)) {
+        for (k = 0; k < n; ++k) {
+            int s = order[k];
+            ICStack v = isr_get_stack(&env->pl.inv, s);
+            i32 lim;
+            if (!cc_is_empty(&v)) continue;
+            lim = cc_slot_stack_limit();
+            isr_set_stack(&env->pl.inv, s,
+                          cc_split_stack(stack, stack->count > lim ? lim
+                                                                  : stack->count));
+            flag = 1;
+            break;
+        }
+    }
+    return flag;
+}
+
+MC_HD static inline void blaze_click_pickup_chest(Blaze *env, int slot_id,
+                                                  int button) {
+    TeChest *te = cu_open_chest_te(env);
+    int cslot;
+    ICStack cur, v;
+    if (!te) return;
+    cslot = slot_id - CU_GMC_CHEST0;
+    cur = env->cursor;
+    v = cu_chest_get(te, cslot);
+    if (cc_is_empty(&v)) {
+        int amount, moved;
+        if (cc_is_empty(&cur)) return;
+        amount = button == 0 ? cur.count : 1;
+        moved = cu_chest_insert(te, cslot, ic_with_count(&cur, amount));
+        if (moved > 0) cc_shrink(&cur, moved);
+    } else if (cc_is_empty(&cur)) {
+        int take = button == 0 ? v.count : (v.count + 1) / 2;
+        cur = cu_chest_extract(te, cslot, take);
+    } else if (cc_stack_match(&v, &cur)) {
+        int amount = button == 0 ? cur.count : 1;
+        int moved = cu_chest_insert(te, cslot, ic_with_count(&cur, amount));
+        if (moved > 0) cc_shrink(&cur, moved);
+    } else {
+        i32 lim = cc_item_stack_limit(&cur);
+        if (cur.count <= lim) {
+            ICStack taken = cu_chest_extract(te, cslot, v.count);
+            int moved = cu_chest_insert(te, cslot, cur);
+            if (moved == cur.count) {
+                cur = taken;
+            } else {
+                if (moved > 0) (void)cu_chest_extract(te, cslot, moved);
+                (void)cu_chest_insert(te, cslot, taken);
+            }
+        }
+    }
+    env->cursor = cur;
+}
+
+MC_HD static inline void blaze_click_pickup_inv(Blaze *env, int slot_id,
+                                                int button) {
+    ICStack cur = env->cursor;
+    ICStack v = isr_get_stack(&env->pl.inv, slot_id);
+    i32 slot_lim = cc_slot_stack_limit();
+    if (cc_is_empty(&v)) {
+        if (!cc_is_empty(&cur)) {
+            int l2 = button == 0 ? cur.count : 1;
+            i32 lim;
+            if (l2 > slot_lim) l2 = (int)slot_lim;
+            lim = cc_item_stack_limit(&cur);
+            if (l2 > lim) l2 = lim;
+            v = cc_split_stack(&cur, l2);
+        }
+    } else if (cc_is_empty(&cur)) {
+        int k2 = button == 0 ? v.count : (v.count + 1) / 2;
+        cur = cc_decr_slot(&v, k2);
+    } else if (cc_stack_match(&v, &cur)) {
+        int j2 = button == 0 ? cur.count : 1;
+        i32 lim = cc_item_stack_limit(&cur);
+        i32 maxs = cc_max_stack_size(cur.item, cur.meta);
+        if (j2 > lim - v.count) j2 = lim - v.count;
+        if (j2 > maxs - v.count) j2 = maxs - v.count;
+        if (j2 > 0) {
+            cc_shrink(&cur, j2);
+            cc_grow(&v, j2);
+        }
+    } else {
+        i32 lim = cc_item_stack_limit(&cur);
+        if (cur.count <= lim) {
+            ICStack tmp = v;
+            v = cur;
+            cur = tmp;
+        }
+    }
+    cc_normalize(&v);
+    isr_set_stack(&env->pl.inv, slot_id, v);
+    env->cursor = cur;
+}
+
+MC_HD static inline ICStack blaze_ct_transfer(Blaze *env, int slot_id) {
+    int order[36], n, s, before;
+    if (slot_id >= CU_GMC_CHEST0 &&
+        slot_id < CU_GMC_CHEST0 + CU_GMC_CHEST_SLOTS) {
+        TeChest *te = cu_open_chest_te(env);
+        ICStack v, original;
+        if (!te) return ic_empty();
+        v = cu_chest_get(te, slot_id - CU_GMC_CHEST0);
+        if (cc_is_empty(&v)) return ic_empty();
+        original = v;
+        n = 0;
+        for (s = 8; s >= 0; --s) order[n++] = s;
+        for (s = 35; s >= 9; --s) order[n++] = s;
+        before = v.count;
+        blaze_inv_merge_order(env, &v, order, 36);
+        if (v.count == before) return ic_empty();
+        (void)cu_chest_extract(te, slot_id - CU_GMC_CHEST0, before - v.count);
+        return original;
+    }
+    if (slot_id >= 0 && slot_id < CU_GMC_INV_SLOTS && env->container == 3) {
+        TeChest *te = cu_open_chest_te(env);
+        ICStack v, rem, original;
+        if (!te) return ic_empty();
+        v = isr_get_stack(&env->pl.inv, slot_id);
+        if (cc_is_empty(&v)) return ic_empty();
+        original = v;
+        rem = v;
+        for (s = 0; s < CU_GMC_CHEST_SLOTS && !cc_is_empty(&rem); ++s) {
+            int moved = cu_chest_insert(te, s, rem);
+            if (moved > 0) cc_shrink(&rem, moved);
+        }
+        if (rem.count == v.count) return ic_empty();
+        isr_set_stack(&env->pl.inv, slot_id, rem);
+        return original;
+    }
+    return ic_empty();
+}
+
+/* gm_container_click subset: chest + player inv, PICKUP + QUICK_MOVE. */
+MC_HD static inline int blaze_container_click(Blaze *env, int slot_id,
+                                              int button, int click_type) {
+    int is_inv, is_chest;
+    if (!env) return 0;
+    if (button != 0 && button != 1) return 0;
+    if (slot_id == CU_GMC_OUTSIDE) return 0;
+    is_inv = slot_id >= 0 && slot_id < CU_GMC_INV_SLOTS;
+    is_chest = slot_id >= CU_GMC_CHEST0 &&
+               slot_id < CU_GMC_CHEST0 + CU_GMC_CHEST_SLOTS;
+    if (is_chest && !(env->container == 3 && env->active_chest >= 0))
+        return 0;
+    if (!is_inv && !is_chest) return 0;
+    if (click_type == CC_CLICK_PICKUP) {
+        if (is_chest) blaze_click_pickup_chest(env, slot_id, button);
+        else          blaze_click_pickup_inv(env, slot_id, button);
+        return 1;
+    }
+    if (click_type == CC_CLICK_QUICK_MOVE) {
+        int guard;
+        for (guard = 0; guard < 512; ++guard) {
+            ICStack moved = blaze_ct_transfer(env, slot_id);
+            ICStack now;
+            if (cc_is_empty(&moved)) break;
+            now = is_chest
+                ? cu_chest_get(cu_open_chest_te(env),
+                               slot_id - CU_GMC_CHEST0)
+                : isr_get_stack(&env->pl.inv, slot_id);
+            if (cc_is_empty(&now) || now.item != moved.item) break;
+        }
+        return 1;
+    }
+    return 0;
+}
+
 /* =================== discrete protocol primitives (rl_mode.c) ============= */
 
 /* rl_mode.c rl_crafts + rl_do_craft + runtime.c gm_runtime_craft, merged and
@@ -2095,7 +2432,8 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
                 for (y = y1; y >= y0; --y) {
                     int id = cu_world_block(env, wx, y, wz);
                     double ddx, ddy, ddz, d2;
-                    if (id != 58 && id != 61 && id != 62) continue;
+                    if (id != 58 && id != 61 && id != 62 && id != 54)
+                        continue;
                     ddx = wx + 0.5 - (double)fx;
                     ddy = y + 0.5 - (double)fy;
                     ddz = wz + 0.5 - (double)fz;
@@ -2118,8 +2456,7 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
         if (dx2 * dx2 + dy2 * dy2 + dz2 * dz2 > 36.0) return 0;
         id = cu_world_block(env, bx, by, bz);
         if (id == 58) {
-            /* The protocol primitive never leaves grid/cursor contents, so
-             * runtime_close_container has no stacks to return here. */
+            blaze_runtime_close_container(env);
             env->container = 1;
             env->container_wx = bx; env->container_wy = by;
             env->container_wz = bz;
@@ -2129,6 +2466,7 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
         }
         if (id == 61 || id == 62) {
             int fi, free_slot = -1;
+            blaze_runtime_close_container(env);
             for (fi = 0; fi < CU_MAX_FURNACES; ++fi) {
                 CuFurnace *f = &env->furnaces[fi];
                 if (f->active && f->wx == bx && f->wy == by && f->wz == bz) {
@@ -2148,6 +2486,36 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
                 cu_furnace_init(f);
             }
             env->container = 2; env->active_furnace = free_slot;
+            env->container_wx = bx; env->container_wy = by;
+            env->container_wz = bz;
+            env->left_click_counter = 10000;
+            env->parity_container_opens++;
+            return 1;
+        }
+        if (id == 54) {
+            int ci, free_slot = -1;
+            blaze_runtime_close_container(env);
+            for (ci = 0; ci < CU_MAX_CHESTS; ++ci) {
+                CuChest *c = &env->chests[ci];
+                if (c->active && c->wx == bx && c->wy == by && c->wz == bz) {
+                    tec_open(&c->te);
+                    env->container = 3; env->active_chest = ci;
+                    env->container_wx = bx; env->container_wy = by;
+                    env->container_wz = bz;
+                    env->left_click_counter = 10000;
+                    env->parity_container_opens++;
+                    return 1;
+                }
+                if (!c->active && free_slot < 0) free_slot = ci;
+            }
+            if (free_slot < 0) return 0;
+            {
+                CuChest *c = &env->chests[free_slot];
+                c->active = 1; c->wx = bx; c->wy = by; c->wz = bz;
+                tec_init(&c->te);
+                tec_open(&c->te);
+            }
+            env->container = 3; env->active_chest = free_slot;
             env->container_wx = bx; env->container_wy = by;
             env->container_wz = bz;
             env->left_click_counter = 10000;
@@ -2441,12 +2809,22 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         double dz = (env->container_wz + 0.5) - cvz;
         int id = cu_world_block(env, env->container_wx, env->container_wy,
                                 env->container_wz);
-        int valid = env->container == 1 ? id == 58 : (id == 61 || id == 62);
+        int valid = env->container == 1 ? id == 58
+                  : env->container == 2 ? (id == 61 || id == 62)
+                  : env->container == 3 ? id == 54
+                  : 0;
         if (!valid || dx * dx + dy * dy + dz * dz > 36.0) {
+            if (env->container == 3 && env->active_chest >= 0)
+                tec_close(&env->chests[env->active_chest].te);
+            blaze_container_close(env);
             env->container = 0;
-            env->active_furnace = -1;   /* runtime.c:279 */
+            env->active_furnace = -1;
+            env->active_chest = -1;
         }
     }
+    if (act.inv_click)
+        (void)blaze_container_click(env, act.inv_slot, act.inv_button,
+                                    act.inv_type);
 
     /* dragon/mob player-attack (runtime.c:308-312): dimension 0 + mobs off
      * (--mobs off, store empty) -> both return 0. Window refill (runtime.c:
@@ -2521,6 +2899,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                                    cu_world_meta(env, f->wx, f->wy, f->wz));
         }
     }
+    for (i = 0; i < CU_MAX_CHESTS; ++i)
+        if (env->chests[i].active) tec_tick(&env->chests[i].te);
 
     if (env->vit.health <= 0.0f) {
         env->dead = 1;
@@ -3440,6 +3820,32 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     r->evidence[BP_FURNACES] = (uint32_t)any;
     if (any) r->active_mask |= BP_BIT(BP_FURNACES);
 
+    h = bp_chests_digest_begin();
+    any = 0;
+    for (i = 0; i < CU_MAX_CHESTS; ++i) {
+        const CuChest *c = &e->chests[i];
+        int s;
+        h = bp_hash_i32(h, c->active);
+        if (!c->active) continue;
+        ++any;
+        h = bp_hash_i32(h, c->wx);
+        h = bp_hash_i32(h, c->wy);
+        h = bp_hash_i32(h, c->wz);
+        for (s = 0; s < BP_CHEST_SLOTS; ++s) {
+            TecStack st = tec_get_stack(&c->te, s);
+            h = bp_hash_stack3(h, st.item, st.count, st.meta);
+        }
+        h = bp_hash_i32(h, c->te.num_players_using);
+    }
+    for (i = 0; i < ISR_MAIN_SLOTS; ++i) {
+        const ICStack *st = &e->pl.inv.main[i];
+        h = bp_hash_stack3(h, st->item, st->count, st->meta);
+    }
+    h = bp_hash_stack3(h, e->cursor.item, e->cursor.count, e->cursor.meta);
+    r->digest[BP_CHESTS] = h;
+    r->evidence[BP_CHESTS] = (uint32_t)any;
+    if (any) r->active_mask |= BP_BIT(BP_CHESTS);
+
     if (e->cells && e->rnx > 0 && e->rny > 0 && e->rnz > 0) {
         if (!e->parity_fluid_cells_valid) {
             uint32_t nliq = 0;
@@ -3769,6 +4175,12 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         cu_furnace_init(&env->furnaces[i]);
     }
     env->active_furnace = -1;
+    for (i = 0; i < CU_MAX_CHESTS; ++i) {
+        env->chests[i].active = 0;
+        env->chests[i].wx = env->chests[i].wy = env->chests[i].wz = 0;
+        tec_init(&env->chests[i].te);
+    }
+    env->active_chest = -1;
     env->items_unrepresented = 0;
 
     env->pl.inv.current_item = h->hotbar_sel;

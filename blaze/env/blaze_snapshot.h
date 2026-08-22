@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 #define BLAZE_SNAP_MAX_ITEMS 48   /* == GM_LIVE_MAX (game/live_sim.h) */
-#define BLAZE_SNAP_MAX_CONT  64   /* container-list cap (ids 58/61/62); more
+#define BLAZE_SNAP_MAX_CONT  64   /* container-list cap (ids 58/61/62/54); more
                                    * than this in one region -> ncont = -1 and
                                    * consumers fall back to the full window
                                    * scan (value-identical, just slow) */

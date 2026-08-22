@@ -223,7 +223,7 @@ int blaze_build_containers(const unsigned short *cells,
         for (iy = 0; iy < rny; ++iy)
             for (iz = 0; iz < rnz; ++iz, ++i) {
                 int id = cells[i] >> 4;
-                if (id != 58 && id != 61 && id != 62) continue;
+                if (id != 58 && id != 61 && id != 62 && id != 54) continue;
                 if (n >= cap) return -1;
                 out[n * 3 + 0] = rx0 + ix;
                 out[n * 3 + 1] = ry0 + iy;

@@ -83,6 +83,9 @@ PARITY_INDEX = {name: i for i, name in enumerate(PARITY_NAMES)}
 # Furnaces is implemented but has zero evidence on the non-iron chain - digests
 # still match (empty FNV seed); evidence is only required under explicit
 # --port-parity --features.
+# BP_CHESTS is implemented (placed TE + GUI transfers). Default chain
+# fixtures have no chest TE; compare with --features chests. Worldgen loot
+# tables stay a named generation gap.
 PARITY_SUPPORTED = (
     "player", "dig", "inventory", "items", "world", "crafting",
     "containers", "furnaces", "fluids", "observations",
@@ -364,12 +367,14 @@ class Blaze1:
         return ParityRecord(self.parity_buf.raw, "Blaze")
 
     def step(self, act):
-        a = (ctypes.c_double * 13)(
+        a = (ctypes.c_double * 17)(
             act.get("forward", 0), act.get("strafe", 0), act.get("dyaw", 0),
             act.get("dpitch", 0), act.get("jump", 0), act.get("sneak", 0),
             act.get("sprint", 0), act.get("attack", 0), act.get("use", 0),
             act.get("hotbar", -1), act.get("craft", -1),
-            act.get("interact", 0), act.get("smelt", 0))
+            act.get("interact", 0), act.get("smelt", 0),
+            act.get("inv_click", 0), act.get("inv_slot", 0),
+            act.get("inv_button", 0), act.get("inv_type", 0))
         r = self.lib.blaze_tick_raw(ctypes.c_void_p(self.h), 0, a,
                                     act.get("cam", 1), self.buf)
         assert r == 0, "blaze_tick_raw failed"
