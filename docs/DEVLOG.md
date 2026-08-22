@@ -1,5 +1,30 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 portal/uw same-scene underlay (lane/portalpix)
+
+ui_hud candidate draws overlay_portal_050 / overlay_underwater through
+window_compose on the capture pad (superflat seed 0, stone pad+wall,
+glass pool for UW). Warp is WORLD-only: EntityRenderer.setupCameraTransform
+rotate-scale-rotate is on the world modelview; renderHand reloads
+gluPerspective(getFOVModifier(*, false)) + identity, then ItemRenderer
+overlays. GuiIngame.renderPortal (t^4 alpha) stays 2D after that.
+
+Compose/capture: portal_scratch inverse-map before hand; overlay FOV
+70 * uw.fov_scale; fluid shades enable_fog=1 (setupFog EXP).
+
+Baseline gray isolation vs same-scene (exact A/B pair, hard_thr=0):
+
+| id | before c_vs_j / hard_px / maxch | after |
+|----|---------------------------------|-------|
+| overlay_portal_050 | 47.191 / 391116 / 181 | 1.465 / 363305 / 144 |
+| overlay_underwater | 6.083 / 388620 / 55 | 26.763 / 390096 / 112 |
+
+hard_px==0 not reached. Portal interior ~1 LSB; leftover is edges/hand
+(maxch 144). Underwater overlay matches renderWaterOverlayTexture;
+Magma water/glass/fog underlay is too blue (C [42,59,140] vs J [66,70,86]
+at (2,2)). Closing UW is terrain/water raster, not overlay constants.
+Numerical/compose/live PASS. Mutations PASS. Gate RESIDUAL_OR_FAIL.
+
 ## 2026-08-22 fallblock tape re-run (lane/fallblock)
 
 Cascade is already on HEAD via 1caf2bb (re-port of 2d759f8; that commit

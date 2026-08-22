@@ -45,8 +45,9 @@ int gm_overlay_emit(CrVertex *v, int max,
  * framebuffer with the vanilla fourth-power alpha curve, before the HUD. */
 void gm_overlay_portal_screen(CrFramebuffer *fb, const CrTexture *atlas,
                               float time_in_portal);
-/* EntityRenderer.setupCameraTransform portal projection. The oracle records
- * rendererUpdateCount and tick-boundary frames use partialTicks=1. */
+/* EntityRenderer.setupCameraTransform portal projection (WORLD pass only;
+ * renderHand reloads the matrix). Oracle records rendererUpdateCount;
+ * tick-boundary frames use partialTicks=1. */
 void gm_overlay_portal_warp(CrFramebuffer *fb, CrRgba *scratch,
                             float time_in_portal, int renderer_phase,
                             float fov_deg);

@@ -117,9 +117,19 @@ pair (~865 portal maxch=1; underwater n_ab_maxch_ge1=183372, maxch=3) is
 superseded. PNGs: `verify/ui_hud/goldens/overlay_{portal_050,underwater}_{a,b}.png`
 (a sha256==b). Meta records `noise_max=0`.
 
-C-vs-J is still OPEN (portal outdoor-underlay vs gray isolation; underwater
-~4.97/ch pool/hand). That is a renderer residual, grindable against this
-exact pair. PASS still requires `hard_px==0`. Do not revive a noisier pair.
+C-vs-J is still OPEN against this exact pair. Same-scene underlay is wired
+(window_compose on the capture pad; warp WORLD-only before renderHand).
+PASS still requires `hard_px==0`. Do not revive a noisier pair.
+
+Measured 2026-08-22 (`lane/portalpix`), full A/B-stable ROI, `hard_thr=0`:
+
+| id | c_vs_j | hard_px | maxch | note |
+|----|--------|---------|-------|------|
+| overlay_portal_050 | 1.465 | 363305 | 144 | was 47.191 / 391116 / 181 gray isolation. Interior ~1 LSB; leftover edges/hand. |
+| overlay_underwater | 26.763 | 390096 | 112 | was 6.083 / 388620 / 55 fitted constant (74,75,79). Overlay formula matches ItemRenderer; Magma water/glass/fog underlay is too blue vs Java. |
+
+Underwater close path is terrain/water raster fidelity (possibly kernel
+twins), not overlay alpha or brightness constants.
 
 ### Entity and particle pixels
 

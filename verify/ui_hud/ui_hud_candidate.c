@@ -6,11 +6,9 @@
  * except:
  *   - inside-block: black (no faces visible inside solid) + real atlas
  *     particle UVs (stone / dirt), never synthetic solid texels.
- *   - overlay_underwater: same-scene oracle glass-pool ambient (fogged
- *     nearby stone under water EXP fog), not gray isolation. Capture pose
- *     matches capture_ui_hud_driver build_water_pool + pin (eye submerged,
- *     yaw/pitch 0). Overlay brightness uses water-attenuated sky light
- *     (~level 10), not dry fullbright.
+ *   - overlay_portal_050 / overlay_underwater: same-scene superflat pad
+ *     through window_compose (world + hand + overlays + HUD). Gray isolation
+ *     is not a live outdoor/pool claim.
  */
 #include "game/hud.h"
 #include "game/hand.h"
@@ -19,6 +17,7 @@
 #include "assets/blockmodels.h"
 #include "assets/atlas_gen.h"
 #include "core/types.h"
+#include "ui_hud_scene.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,34 +27,6 @@
 #define W 854
 #define H 480
 #define GRAY 40
-
-/* underwater.c pulls gm_world_* for gm_uw_eval; candidate only calls
- * gm_uw_overlay_draw. Provide link stubs so we need not pull the full world. */
-struct GmWorld;
-int gm_world_sky_light(const struct GmWorld *w, int x, int y, int z) {
-    (void)w; (void)x; (void)y; (void)z; return 15;
-}
-int gm_world_block_light(const struct GmWorld *w, int x, int y, int z) {
-    (void)w; (void)x; (void)y; (void)z; return 15;
-}
-int gm_world_block(const struct GmWorld *w, int x, int y, int z) {
-    (void)w; (void)x; (void)y; (void)z; return 0;
-}
-int gm_world_meta(const struct GmWorld *w, int x, int y, int z) {
-    (void)w; (void)x; (void)y; (void)z; return 0;
-}
-/* world/light.c: cr_k14_light_query. Same formula as rk_light_query; keep the
- * candidate isolated from the world mesher. */
-int cr_k14_light_query(int nb, int up, int east, int west,
-                       int south, int north, int own) {
-    if (!nb) return own;
-    int m = up;
-    if (east > m) m = east;
-    if (west > m) m = west;
-    if (south > m) m = south;
-    if (north > m) m = north;
-    return m;
-}
 
 static CrFramebuffer make_fb(void) {
     CrFramebuffer fb;
@@ -280,10 +251,8 @@ static void s_inside_grass(GmPlayerView *pv, CrFramebuffer *fb) {
 
 static void s_portal(GmPlayerView *pv, CrFramebuffer *fb) {
     (void)fb;
-    /* GuiIngame.renderPortal: timeInPortal=0.5 -> alpha = 0.5^4*0.8+0.2 = 0.25.
-     * Frame 0 matches pin_texture_animations default tile. Gray underlay is
-     * composition isolation only (not a live outdoor claim). Hand still drawn
-     * under the portal (ItemRenderer first-person before GUI portal). */
+    /* Scene path (ui_hud_scene.c) owns the outdoor pad + warp + portal stretch.
+     * These fields stay for the gray-isolation compose fallback. */
     pv->portal = 0.5f;
     pv->portal_frame = 0;
     pv->portal_phase = 0;
@@ -295,27 +264,14 @@ static void s_fire(GmPlayerView *pv, CrFramebuffer *fb) {
 }
 
 static void s_uw(GmPlayerView *pv, CrFramebuffer *fb) {
-    /* Oracle capture: glass pool at (CX,CZ)=(8,8), PLAT_Y=4, feet y=5,
-     * eye y=6.62, yaw/pitch 0 looking +Z at glass + stone wall through water.
-     * Same-scene underlay (not gray isolation): nearby stone lit underwater
-     * (~0.6 * stone gray) with little EXP fog at 1-2 blocks yields ambient
-     * ~ (74,75,79). Water sky attenuation: roof glass opacity 0 + ~2 water
-     * cells of opacity 3 → skylight ~9-10 → getBrightness ≈ 0.27-0.33.
-     * Overlay brightness is applied in main (not hardcoded 1.0). */
+    (void)fb;
+    /* Scene path (ui_hud_scene.c) owns the glass-pool world + overlay + hand. */
     pv->air = 200;
     pv->x = 8.5f;
     pv->y = 5.0f;
     pv->z = 8.5f;
     pv->yaw = 0.0f;
     pv->pitch = 0.0f;
-    /* Fogged-stone ambient of the oracle glass-pool view (LS-optimal
-     * constant underlay at water-attenuated brightness; geometry residual
-     * remains open — not a gray-backdrop isolation claim). */
-    const unsigned char amb_r = 74, amb_g = 75, amb_b = 79;
-    for (int i = 0; i < fb->w * fb->h; ++i) {
-        fb->color[i] = (CrRgba){ amb_r, amb_g, amb_b, 255 };
-        if (fb->depth) fb->depth[i] = 1.0f;
-    }
 }
 
 static const State STATES[] = {
@@ -363,23 +319,22 @@ int main(int argc, char **argv) {
         STATES[i].setup(&pv, &fb);
 
         int want_uw = !strcmp(STATES[i].id, "overlay_underwater");
-        /* Hand/viewmodel for hand_* and fire/portal (animated later).
-         * Inside-block replaces the whole frame (blend off) so hand is moot.
-         * Underwater: empty hotbar; FOV 60 pushes empty arm mostly off-screen
-         * and hand registration residual must not dilute the overlay ROI.
-         * Air bubbles stay on the HUD path (air=200); hud_air_partial is a
-         * separate hard gate. */
+        int want_scene = want_uw || !strcmp(STATES[i].id, "overlay_portal_050");
+        /* Hand/viewmodel for hand_* and fire. Portal/underwater hands come
+         * from window_compose (ItemRenderer.renderItemInFirstPerson). */
         int want_hand = !strncmp(STATES[i].id, "hand_", 5) ||
-                        !strcmp(STATES[i].id, "overlay_fire") ||
-                        !strcmp(STATES[i].id, "overlay_portal_050");
+                        !strcmp(STATES[i].id, "overlay_fire");
         float fov = want_uw ? (60.0f) : 70.0f;
-        /* Entity.getBrightness at eye: water-attenuated sky ~level 10 in the
-         * oracle glass pool (see s_uw). Dry/fullbright 1.0 was wrong and
-         * over-tinted the overlay blue. */
-        float bright = want_uw ? (1.0f / 3.0f) : 1.0f;
+        float bright = 1.0f;
 
-        /* inside-block / underwater underlay already painted into fb */
-        compose(&fb, &pv, want_uw, want_hand, bright, fov);
+        if (want_scene) {
+            if (!ui_hud_scene_draw(&fb, STATES[i].id)) {
+                fprintf(stderr, "scene draw failed: %s\n", STATES[i].id);
+                return 1;
+            }
+        } else {
+            compose(&fb, &pv, want_uw, want_hand, bright, fov);
+        }
 
         snprintf(path, sizeof path, "%s/c_%s.ppm", outdir, STATES[i].id);
         if (!write_ppm(path, &fb)) {
@@ -390,6 +345,7 @@ int main(int argc, char **argv) {
     }
     free(fb.color);
     free(fb.depth);
+    ui_hud_scene_shutdown();
     printf("ui_hud_candidate: %d states\n", n);
     return 0;
 }
