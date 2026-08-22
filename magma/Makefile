@@ -388,7 +388,16 @@ test-sky-weather:
 	$(CC) $(CFLAGS) tests/test_sky_weather.c -o tests/test_sky_weather $(LDLIBS)
 	./tests/test_sky_weather
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor
+.PHONY: test-look-helper test-pathfinder-null
+test-look-helper:
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_look_helper.c -o tests/test_look_helper $(LDLIBS)
+	./tests/test_look_helper
+
+test-pathfinder-null:
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_pathfinder_null.c -o tests/test_pathfinder_null $(LDLIBS)
+	./tests/test_pathfinder_null
+
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 # Standalone-game semantic gates. These deliberately exercise the real streamed

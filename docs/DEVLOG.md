@@ -1,5 +1,47 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 detmob pitch / nether A*-null (lane/detmobpitch)
+
+Gamer `~/nlanes/detmobpitch`. Baseline
+`out/verify/detmobpitch_baseline_all.log` matches round 5: 6 PASS, target
+T182955Z FAIL t=42 eid=3335 pitch tape=2.7023606 magma=2.67498541
+draws_between=0, nether T182511Z FAIL t=745 eid=3872 x
+tape=-291.488923016319 magma=-291.54075023842785 draws_between=0.
+
+Look: EntityLookHelper.onUpdateLook (java:64-78) `rotationPitch=0` then
+updateRotation (java:101-115). WatchClosest 10F/40F
+(EntityLiving.java:881-888, EntityAIWatchClosest.java:98); melee 30F/30F
+(EntityAIAttackMelee.java:114). Magma CPU uses mc_atan2
+(EntityLookHelper.java:75-76 LUT; host-only on CUDA, blaze/core/mc_math.h).
+Unit `test-look-helper` pins clamp, Watch vs melee step, and look of
+zombie 53.5,74,126.5 vs pl t=40 = tape 2.702361 / yaw -42.83676. Magma
+look_px is previous tape pl. Tape t=42 pitch is look of pl t=40; hyaw t=42
+matches that yaw. No lag 0/1/2 fits t=29..49. Tape pl is client
+EntityPlayerSP after ServerTick END; lookHelper samples MP. Class C;
+FIRST MISMATCH stays t=42.
+
+Nether: PathNavigateGround.getPathToPos walk-up (java:76-83 Material.isSolid)
+on RPG dest. T182511 three blaze findPath: t=31 dest y=95 n=2 md=1
+neighbour-only already nulls (Java tasks=8 then 0); t=595 dest y=95 n=4
+Java walks to z=-78.23; t=745 dest y=96 n=10 in=0 start=-292,59,-79
+end=-292,59,-70 rpg k=0 first-of-10 all score=0.4 br=0.1. Java t=745
+tasks=8 then 0, xz unchanged. PathFinder.java:113-116 closest==start.
+On an open floor far-Y dest still yields n>0 (unit
+`test-pathfinder-null`); Java null is occupancy/ChunkCache
+(PathNavigate.java:121-126 FOLLOW+8, Y 0-255) not the A* null rule
+alone. HashSet getStart unused (tstart=WALKABLE pri=0,
+path_node_processor.h:578). Blanket dest-out-of-window null would
+regress t=595 / T182154 (Java walks). Do not widen PNP_DY (CUDA twins).
+Leave FAIL. Knob default-off.
+
+Gates unchanged vs baseline (after-replay,
+`out/verify/detmobpitch_after_all.log`). Root `make test` on gamer:
+magma/nn/rl/env_knob/public_export PASS including `test-look-helper` and
+`test-pathfinder-null`; first tape-info failed because the gitignored
+canon tape was absent on the lane clone; copy then tape-info PASS
+(`out/verify/detmobpitch_maketest.log`,
+`out/verify/detmobpitch_maketest_tapeinfo.log`).
+
 ## 2026-08-22 weather_optional M1+M2 (lane/weather)
 
 Baseline anvil HEAD 99acff8 pre-wire: `BLOCKED weather_optional: Optional weather transitions and effects are not measured by both backends` (`out/verify/weather_baseline.log`, port_matrix rc=3). After the shared kernel but before `--weather on` was allowed, M1 FAILED (`out/verify/weather_gates.log`) because `gm_config_validate_runtime` still rejected `weather=1`. Tape `scenario_rain_thunder_20260821T093435Z` physics NO divergence 209 ticks, world_hash 209/209.
