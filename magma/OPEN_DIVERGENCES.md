@@ -30,8 +30,8 @@ recorder or re-recording; D-class by improving gates, not the product.
 
 **A. Product divergences (magma wrong vs oracle, actionable now):**
 
-1. Underwater overlay: magma water/glass/fog underlay too blue (26.76/ch);
-   close path is raster fidelity, likely kernel twins. "Portal and
+1. Underwater overlay: magma water/glass/fog underlay too blue (7.311/ch);
+   close path is underlay lighting/fog, not overlay constants. "Portal and
    underwater".
 2. Portal overlay edges/hand residual (1.47/ch after same-scene underlay).
 3. Slime rim brightness: source-closed to the raster twins (two-machine
@@ -266,8 +266,19 @@ Measured 2026-08-22 (`lane/portalpix`), full A/B-stable ROI, `hard_thr=0`:
 | overlay_portal_050 | 1.465 | 363305 | 144 | was 47.191 / 391116 / 181 gray isolation. Interior ~1 LSB; leftover edges/hand. |
 | overlay_underwater | 26.763 | 390096 | 112 | was 6.083 / 388620 / 55 fitted constant (74,75,79). Overlay formula matches ItemRenderer; Magma water/glass/fog underlay is too blue vs Java. |
 
-Underwater close path is terrain/water raster fidelity (possibly kernel
-twins), not overlay alpha or brightness constants.
+Measured 2026-08-22 (`lane/raster`) on anvil, same goldens, `hard_thr=0`.
+Portal row stayed 1.466 / 363304 / maxch=144 (byte-stable vs this
+lane's baseline; docs 1.465 / 363305 is the portalpix print).
+
+| id | c_vs_j | hard_px | maxch | note |
+|----|--------|---------|-------|------|
+| overlay_portal_050 | 1.466 | 363304 | 144 | unchanged this lane. |
+| overlay_underwater | 7.311 | 390096 | 41 | was 26.763 / 390096 / 112. BlockFluidRenderer.java:185-192 water-glass overlay + :259-265 skip reverse (26.763 -> 10.654); BlockBreakable.java:42-52 glass-glass cull (10.654 -> 7.311). |
+
+Remaining underwater is a whole-frame +~14 B on the glass/stone
+underlay (glass.png frame matches Java; overlay formula untouched).
+Hard goal <= 2.0/ch is not met. Close path is still underlay
+lighting/fog, not overlay constants and not kernel twins (mesher only).
 
 ### Entity and particle pixels
 
