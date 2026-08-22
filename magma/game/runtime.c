@@ -851,8 +851,24 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         (void)gm_container_click(r, action.inv_slot, action.inv_button, action.inv_type);
         action.inv_click = 0;
     }
-    /* Apply integrated-server landing packets before the client snapshots its
-     * physics/raycast window for this tick. */
+    /* Minecraft.runTick: EntityRenderer.getMouseOver (Minecraft.java:1752)
+     * runs before PlayerControllerMP.updateController processReceivedPackets
+     * (Minecraft.java:1757 / PlayerControllerMP.java:369). Pick the falling
+     * AABB against the pre-packet world, then apply the landing packet. */
+    {
+        int can_click = gm_player_left_click_allows(action.attack);
+        if (can_click && r->dimension == 1 &&
+            gm_dragon_player_attack(&r->dragon,
+                (const struct PsvPlayer *)&r->player, r->ox, r->oz))
+            action.attack_entity = 1;
+        if (can_click && !action.attack_entity &&
+            gm_mobs_player_attack(&r->mobs,
+                (const struct PsvPlayer *)&r->player, r->ox, r->oz,
+                &r->entities))
+            action.attack_entity = 1;
+        if (can_click && !action.attack_entity && attack_hits_falling_block(r))
+            action.attack_entity = 1;
+    }
     gm_live_pre_player_tick(&r->entities, r->world);
     /* refill the physics window only when its contents can have changed:
      * recenter, dimension/world switch, or any block mutation since the last
@@ -889,28 +905,6 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 (struct PvStats *)&r->vitals, &r->player.inv, 1.0f, 1);
         --r->player_fire_ticks;
         r->player.health=r->vitals.health;
-    }
-    /* Minecraft.runTick order: leftClickCounter-- then processKeyBinds
-     * (clickMouse on press, sendClickBlockToController on hold). Entity
-     * selection/damage is clickMouse's ENTITY branch and must share the
-     * post-decrement gate. Keep the physical attack bit for gm_player_tick so
-     * dig sees a held key (and only release clears the counter); mark
-     * attack_entity so the dig machine takes the non-BLOCK reset path. */
-    {
-        int can_click = gm_player_left_click_allows(action.attack);
-        if (can_click && r->dimension == 1 &&
-            gm_dragon_player_attack(&r->dragon,
-                (const struct PsvPlayer *)&r->player, r->ox, r->oz))
-            action.attack_entity = 1;
-        if (can_click && !action.attack_entity &&
-            gm_mobs_player_attack(&r->mobs,
-                (const struct PsvPlayer *)&r->player, r->ox, r->oz,
-                &r->entities))
-            action.attack_entity = 1;
-        if (can_click && !action.attack_entity && attack_hits_falling_block(r))
-            action.attack_entity = 1;
-        fprintf(stderr, "click_pick tick=%lld atk=%d ent=%d delay_will_see=%d\n",
-                r->tick, action.attack, action.attack_entity, can_click);
     }
     GmBlockEdit edits[GM_RUNTIME_MAX_EDITS];
     int n = 0;
