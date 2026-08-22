@@ -9,8 +9,9 @@ resolution stays here in place); read there before re-investigating anything
 that smells like a settled question.
 
 Last verified on master 2026-08-22 (lanes handgold, lsbtier, handscene,
-lsbhand, rainsky, mobsnap, bowsil merged). Oracle evidence for rain /
-slime DRAW / portal A/B: lane/unblock 2026-08-21.
+lsbhand, rainsky, mobsnap, bowsil merged). Bow FOV recapture:
+lane/bowgold 2026-08-22. Oracle evidence for rain / slime DRAW / portal
+A/B: lane/unblock 2026-08-21.
 
 Pixel-perfect means every owned, A/B-stable pixel is equal. Mean-error budgets,
 hard-pixel floors, empty target captures, and unstable Oracle pairs are not
@@ -62,9 +63,10 @@ evidence; do not fit constants):**
 
 - Inventory preview 62/140 px at 1 LSB (PASS-LSB; pack-split has no
   Java-side justification).
-- Hand eat/shield 1-LSB majority is the same family, but they are not a
+- Hand eat/shield/bow 1-LSB majority is the same family, but they are not a
   floor: eat `px>1=21526` / `nz=73440` vs cap 1784.8; shield `px>1=6925` /
-  `nz=28564` vs cap 587.0. PASS-LSB is wired; rows stay RESIDUAL.
+  `nz=28564` vs cap 587.0; bow `px>1=3345` / `nz=20830` vs cap 620.5.
+  PASS-LSB is wired; rows stay RESIDUAL.
 - Canonical tape `known:4` oak-log luminance (needs an oracle fragment
   lightmap capture); t=3080/3540 mild_shift dig-window frames.
 
@@ -82,11 +84,6 @@ magma to an unproven oracle state):**
   but the counter is not recoverable. Do not guess it.
 - Geared dragon tape 6-tick server/client death-clock skew (sidecar'd).
 - Dynamic-fluid snapshot capture (nether lavafall cells).
-- `hand_bow_pull20` pad-wall occupancy: Java golden world FOV is mid-ease
-  (`fovModifierHand` unrecorded). C scene is unzoomed. Bow mesh is closed.
-  Recapture on anvil after the 0.5/tick ease converges, or write
-  `fovModifierHand` into frame meta. Do not fit 0.887. "First-person hand
-  use poses".
 
 **D. Verification gaps (gate work, not product bugs):**
 
@@ -101,9 +98,9 @@ magma to an unproven oracle state):**
 Do not grind: explosion puff `Particle.rand`; fog retune; texel bias;
 Magma GPU tick; particle blend=3 (vanilla ParticleManager is SRC_ALPHA,
 magma already matches); canonical t=260 texel-selection (retracted,
-CLOSED); entities over water (item 13 CLOSED); bow `hand.c` transforms /
-`ui_hud_scene` fov_mult=0.85 against this golden (mesh closed; occupancy
-is recorder FOV, CLOSED + C).
+CLOSED); entities over water (item 13 CLOSED); bow `hand.c` transforms
+(mesh closed; world FOV recaptured lane/bowgold with recorded
+`fov_mult=0.85`).
 
 ## Interactive C raster renderer
 
@@ -113,6 +110,8 @@ All three states have exact Java A/B captures (`noise_max=0`) and remain
 strict C residuals. Ownership is the Java∪C subject at `HAND_SUBJECT_THR=8`.
 Bow/eat recaptured 2026-08-22 (`lane/handgold`) with sticky USE pose
 (`use_branch=bow|eat`, bow remaining `use_count=71980`, eat remaining 16/32).
+Bow world FOV recaptured 2026-08-22 (`lane/bowgold`) after
+`fovModifierHand` converged; meta `fov_mult=0.85` (recorded, not fitted).
 A/B sha256 identical. Idle-tip goldens retired. Shield A/B not recaptured.
 Candidate now stages the capture pad through `ui_hud_scene` (superflat seed 0,
 stone pad+wall, pose 8.5/5/8.5 yaw 0 pitch 0, time 6000) and composes
@@ -121,16 +120,16 @@ world then `gm_hand_draw` then HUD. `n_only_j` 16309/50268/12533 -> 0/41/17
 Numerical/compose/live and HUD chrome still PASS; overlay rows byte-stable;
 synthetic exact/mutation controls still PASS.
 
-- Bow pull: `hard_px=20745`, `maxch=108`, `c_vs_j=7.007`, `n_only_j=0`
-  (was isolation 20830 / 100 / 29.266 / 16309). Mesh/model/transform match
-  the oracle (bow_pulling_2, ItemRenderer BOW branch, generated firstperson).
-  Occupancy is the pad wall, not bow metal. Java stone_min x=20 vs C 77;
-  J-stone/C-grass 13363 full / 1961 ROI; J-wood/C-stone = 8. Eat/shield
-  stone_min J=C=77. Applying cited full-draw `fov_mult=0.85` over-zooms
-  (C stone_min=0, c_vs_j=5.836, maxch=97). Implied Java fov_mult from the
-  wall edge is 0.887 (two 0.5-ease ticks). `fovModifierHand` is not in the
-  capture meta. Live magma already eases in `player_ctl.c`. Recapture on
-  anvil; do not fit 0.887. Class C.
+- Bow pull: `hard_px=20830`, `maxch=97`, `c_vs_j=0.753`, `n_only_j=0`
+  (was isolation 20830 / 100 / 29.266 / 16309; mid-ease golden 20745 /
+  108 / 7.007 / 0). Mesh/model/transform match the oracle
+  (bow_pulling_2, ItemRenderer BOW branch, generated firstperson).
+  World FOV is `fovModifierHand=0.85` recorded in capture meta after
+  `updateFovModifierHand` 0.5/tick ease converged (`AbstractClientPlayer.java:156-170`,
+  `EntityRenderer.java:491-502`); C pad scene reads that field. Hand
+  projection stays 70 (`EntityRenderer.java:804`). J-stone/C-grass occupancy
+  is gone. Remaining gt1 is wall 3332 + selbox 13 (eat/shield 1-LSB pack
+  family, not FOV). `use_count` still 71980.
 - Eat mid-use: `hard_px=73440`, `maxch=215`, `c_vs_j=1.317`, `n_only_j=41`
   (was 74218 / 215 / 32.764 / 50268).
 - Blocking shield: `hard_px=28564`, `maxch=61`, `c_vs_j=0.911`, `n_only_j=17`
@@ -149,9 +148,10 @@ durability +1 extras are not PASS-LSB.
 No hand row qualifies for PASS-LSB today. Two independent blockers: `px>1`
 and `nz` vs 2% of `n_owned` (eat cap 1784.8, shield 587.0, bow 620.5). Even
 the 1-LSB subset alone exceeds the cap (eat eq1=51914, shield 21639, bow
-8161).
+17485).
 
->1-delta buckets (owned, max-channel > 1; gamer C candidate 2026-08-22).
+>1-delta buckets (owned, max-channel > 1; anvil C candidate 2026-08-22,
+lane/bowgold).
 Sky is reported separately so it is not counted as painted hand/item.
 Selection box: `RenderGlobal.drawSelectionBox` black 0.4 alpha
 (`RenderGlobal.java:1964-1981`, `EntityRenderer.java:1408`). Stone wall:
@@ -166,21 +166,19 @@ BYTE-normal pack family as inventory preview (`VertexBuffer.java:533-535`
 |----|------|------|---------|--------|-------|-----|-----|-----|----------|
 | hand_eat_mid | 21526 | 14768 | 2617 | 0 | 4118 | 23 | 51914 | 1784.8 | no |
 | hand_block_shield | 6925 | 4885 | 4 | 0 | 2036 | 0 | 21639 | 587.0 | no |
-| hand_bow_pull20 | 12584 | 10153 | 0 (metal is gray) | 13 | 2418 | 0 | 8161 | 620.5 | no |
+| hand_bow_pull20 | 3345 | 3332 | 0 (metal is gray) | 13 | 0 | 0 | 17485 | 620.5 | no |
 
 Eat gt1 hist: 20021 at maxch=2, 907 at 3, then a 577-px high tail (maxch up
 to 215) of occupancy. Shield gt1 is almost all maxch 2-3 (6337+581) with a
-handful of occupancy (maxch 61). Bow gt1 is occupancy: gray metal vs C
-stone (median 14, max 108). Sample coords live in the LSB guard print.
+handful of occupancy (maxch 61). Bow gt1 after FOV recapture is wall
+(3332) + selbox (13); grass occupancy is gone. Sample coords live in the
+LSB guard print.
 
-Bow `c_vs_j=7` reclassified 2026-08-22 (lane/bowsil): the bow mesh and
-ItemRenderer chain are correct (J-wood vs C-stone = 8 px). The occupancy is
-the WORLD camera: the golden was captured mid bow-draw FOV ease (implied
-fovModifierHand 0.887, unrecorded); pinning 0.85 over-zooms. Class C
-capture blocker: recapture on anvil after the FOV converges, or record
-fovModifierHand in frame meta. Do not fit 0.887. Stone has no random model
-rotation. Diff triptychs (gitignored):
-`out/verify/ui_hud/handscene/<id>_tri.png`.
+Bow world FOV recaptured 2026-08-22 (lane/bowgold): hold drawn bow until
+`fovModifierHand` converges, record `fov_mult=0.85` in meta, C reads it.
+`c_vs_j` 7.007 -> 0.753 (eat/shield class). `n_only_j=0`. J-stone/C-grass
+gone. Do not retune `hand.c`. Stone has no random model rotation. Diff
+triptychs (gitignored): `out/verify/ui_hud/handscene/<id>_tri.png`.
 
 Repro:
 

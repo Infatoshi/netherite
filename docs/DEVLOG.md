@@ -1,5 +1,28 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 bow FOV recapture (lane/bowgold)
+
+The mid-ease golden was recaptured on anvil llvmpipe after holding the
+drawn bow through `EntityRenderer.updateFovModifierHand` (0.5/tick,
+`EntityRenderer.java:491-502`) toward `AbstractClientPlayer.getFovModifier`
+0.85 at 20-tick draw (`AbstractClientPlayer.java:156-170`). qrl writes
+`fov_mult`; C `ui_hud_scene` reads it. Hand projection stays 70
+(`EntityRenderer.java:804`). Sticky USE pin unchanged: `use_branch=bow`,
+`use_count=71980`, A/B sha256 identical, `noise_max=0`. Recorded
+`fov_mult=0.85` (not fitted 0.887).
+
+Baseline (anvil, HEAD 33ae09c, mid-ease golden):
+`hand_bow_pull20` 7.007 / hard_px=20745 / maxch=108 / n_only_j=0.
+Eat 1.317 / 73440 / 215 and shield 0.911 / 28564 / 61 unchanged after.
+J-stone/C-grass 2418 ROI gt1.
+
+After recapture + meta pin (anvil):
+`hand_bow_pull20` 0.753 / hard_px=20830 / maxch=97 / n_only_j=0.
+gt1 wall=3332 selbox=13 grass=0. Eat/shield/HUD/overlay byte-stable.
+Mutations PASS. LSB guard PASS. Root `make test` PASS.
+
+Bow row stays RESIDUAL (px>1 and nz vs 2% cap). Mesh still closed.
+
 ## 2026-08-22 bow occupancy is world FOV (lane/bowsil)
 
 Suspects 1-3 vs oracle-src: C already bakes `bow_pulling_2` at

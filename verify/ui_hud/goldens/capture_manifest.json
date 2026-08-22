@@ -44,18 +44,12 @@
   "blocked": [],
   "failed": [],
   "last_focused_only": [
-    "hand_bow_pull20",
-    "hand_eat_mid"
+    "hand_bow_pull20"
   ],
   "this_run_ids": [
-    "hand_bow_pull20",
-    "hand_eat_mid"
+    "hand_bow_pull20"
   ],
   "resolution": "from frame replies",
   "java_home": "/usr/lib/jvm/java-8-openjdk-amd64",
-  "portal_phase": 0,
-  "ab_noise_portal": 0.0,
-  "ab_maxch_portal": 0,
-  "ab_maxch_underwater": 0,
-  "notes": "2026-08-22 lane/handgold: hand_bow_pull20 + hand_eat_mid recaptured with sticky USE pose (use_branch=bow/eat, use_count=71980/16, A/B sha256 identical noise_max=0). Replaces idle-tip goldens. Shield A/B not recaptured (model_blocking=1.0, use_branch=block). Portal/underwater recapture 2026-08-21: A/B maxch=0 n_ab_maxch_ge1=0; C-vs-J still RESIDUAL. Hand gate is Java∪C subject exact (hard_thr=0); C residual OPEN."
+  "notes": "Genuine Java 1.11.2 FBO dumps via qrl frame{rerender:true}. State frozen with hud_pin per A/B pair. Capture integrity: noise ceiling + feature presence (cross-state + empty-hand baseline for viewmodels). frame{} clears Malmo hideGUI so first-person viewmodel paints. hand_block_shield replaces version-wrong hand_block_sword. failed[] entries had twins deleted (no contaminated goldens). Focused recapture only=['hand_bow_pull20']; manifest lists full existing golden set on disk (n_states=18), not only this run."
 }
