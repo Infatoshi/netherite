@@ -115,6 +115,7 @@ game/%.o: game/%.c core/types.h game/game.h
 game/randtick.o: ../blaze/core/randtick_live.h
 game/live_sim.o: ../blaze/core/falling_live.h
 game/world_live.o: ../blaze/core/world_weather.h
+game/runtime.o: ../blaze/core/projectile_live.h
 
 # Generated texture headers come from the native asset binary.
 # MC_JAR is a Make variable (bootstrap pointer). The binary takes --jar.
@@ -507,6 +508,7 @@ BLAZE_RANDTICK = ../blaze/core/randtick_live.h
 BLAZE_FALLING = ../blaze/core/falling_live.h
 BLAZE_WEATHER = ../blaze/core/world_weather.h
 BLAZE_CHEST = ../blaze/core/tile_entity_chest.h ../blaze/core/container_click.h
+BLAZE_PROJECTILES = ../blaze/core/projectile_live.h
 ifeq ($(shell uname -s),Darwin)
 # Prefer Homebrew libomp; avoid `ls` (may inject color codes into Make vars).
 ifeq ($(wildcard /opt/homebrew/opt/libomp/include/omp.h),)
@@ -525,13 +527,13 @@ endif
 .PHONY: blaze_verify blaze_so
 blaze_verify: ../blaze/env/blaze_verify
 ../blaze/env/blaze_verify: ../blaze/env/blaze_verify.c $(BLAZE_SRCS) \
-                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY) $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_WEATHER)
+                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY) $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_WEATHER) $(BLAZE_PROJECTILES)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env ../blaze/env/blaze_verify.c \
 	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
 blaze_so: ../blaze/env/blaze_cpu.so
 ../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
-                        $(BLAZE_WEATHER) $(BLAZE_CHEST)
+                        $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
 	    -o $@ $(LDLIBS) $(BLAZE_OMP)
 
@@ -578,7 +580,7 @@ blaze_cuda_so: ../blaze/env/blaze_cuda.so
 ../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
                         ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
-                        $(BLAZE_WEATHER) $(BLAZE_CHEST)
+                        $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES)
 	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
 	    ../blaze/env/blaze_snapshot.c -o $@

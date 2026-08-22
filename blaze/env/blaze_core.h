@@ -23,11 +23,12 @@
  * crf_*, oc_pixel) are reused VERBATIM via include - never re-implemented.
  *
  * Deliberately NOT simulated (inert or impossible with the supported item
- * set; the snapshot baker flags offenders): dragon/projectiles/AI
+ * set; the snapshot baker flags offenders): dragon/AI
  * (loaded snapshot living slots tick the Entity.move spine and hash as
  * BP_MOBS; pathfinding and combat stay on the `mobs` row),
- * portals, bow/eye-of-ender (need held item 261/381 - neither
- * is craftable in-chain). World clock / weather ticks gm_world_tick
+ * portals, eye-of-ender (need held item 381 - not craftable in-chain).
+ * Bow arrows tick magma runtime.c via blaze/core/projectile_live.h and
+ * hash as BP_PROJECTILES. World clock / weather ticks gm_world_tick
  * (blaze/core/world_weather.h) and hashes as BP_WEATHER. Fluids CA is
  * simulated (magma/game/fluid_live.c port) and hashed into BP_FLUIDS.
  * Furnaces ARE simulated since the iron extension (game/furnace_live.c +
@@ -68,6 +69,7 @@
 #include "blaze_snapshot.h"     /* RlSnapHead/RlSnapItem (.bsnp format) */
 #include "entity_spine.h"       /* living Entity.move spine (zero AI) */
 #include "world_weather.h"      /* WorldInfo rain/thunder + worldTime */
+#include "projectile_live.h"    /* bow/skeleton arrow live tick */
 #include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
 
 #ifdef __cplusplus
@@ -86,6 +88,7 @@ extern "C" {
 #define CU_NLOGS    64          /* RL_NLOGS   (emitted zeroed)   */
 #define CU_MAX_ITEMS 48         /* GM_LIVE_MAX */
 #define CU_FALL_UPDATES 128     /* GM_LIVE_FALL_UPDATES */
+#define CU_MAX_PROJECTILES 32   /* GM_RUNTIME_PROJECTILES */
 #define CU_MAX_EDITS 8          /* GM_RUNTIME_MAX_EDITS */
 #define CU_COAL_SCRATCH 512     /* rl_mode coalblk[512] cap */
 #define CU_COAL_CAND 1024       /* per-env geometric candidate cache cap */
@@ -172,6 +175,8 @@ typedef struct {
     int block_id, block_meta;
     long long due_tick;
 } CuFallLanding;
+
+typedef PlProj CuProj;
 
 /* ---- block edit (GmBlockEdit fields, game.h) ---- */
 typedef struct {
@@ -345,6 +350,10 @@ typedef struct {
      * each tick; AI/path/combat do not. */
     RlSnapMob mobs[BLAZE_SNAP_MAX_MOBS];
     unsigned n_mobs;
+
+    CuProj projectiles[CU_MAX_PROJECTILES];
+    unsigned parity_proj_hits;
+    int bow_ticks, bow_drawing;
 
     /* reward/done bookkeeping (driver-level; not part of the sim gate) */
     int    base_coal;
@@ -684,6 +693,52 @@ MC_HD static inline int cu_rt_light_at(const Blaze *e,
 #define FL_MAX CU_MAX_ITEMS
 #define FL_UPDATES CU_FALL_UPDATES
 #include "falling_live.h"
+
+MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
+                                        double radius, float damage) {
+    int best = -1;
+    unsigned i;
+    double bd = radius * radius;
+    for (i = 0; i < e->n_mobs; ++i) {
+        RlSnapMob *m = &e->mobs[i];
+        double dx, dy, dz, d;
+        if (!m->alive || m->type == EW_TYPE_NONE ||
+            m->type == EW_TYPE_PLAYER || m->type == EW_TYPE_BOAT)
+            continue;
+        dx = m->x - x;
+        dy = (m->y + 0.9) - y;
+        dz = m->z - z;
+        d = dx * dx + dy * dy + dz * dz;
+        if (d <= bd) {
+            bd = d;
+            best = (int)i;
+        }
+    }
+    if (best < 0) return 0;
+    e->mobs[best].health -= damage;
+    if (e->mobs[best].health <= 0.0f) {
+        e->mobs[best].alive = 0;
+        e->mobs[best].health = 0.0f;
+    }
+    return 1;
+}
+
+MC_HD static inline int cu_take_arrow(Blaze *e) {
+    int i;
+    for (i = 0; i < ISR_MAIN_SLOTS; ++i) {
+        if (isr_get_stack(&e->pl.inv, i).item != 262) continue;
+        (void)isr_decr_stack_size(&e->pl.inv, i, 1);
+        return 1;
+    }
+    return 0;
+}
+
+#define PL_W Blaze
+#define PL_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define PL_HIT_MOB(w, x, y, z, rad, dmg) \
+    cu_proj_hit_mob((w), (x), (y), (z), (rad), (dmg))
+#define PL_NOTE_HIT(w) do { (w)->parity_proj_hits++; } while (0)
+#include "projectile_live.h"
 
 MC_HD static inline void cu_randtick_pass(Blaze *e) {
     McGameRules gr;
@@ -2790,11 +2845,28 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 
     if (env->dead) return;                       /* r->dead || r->won gate */
 
-    /* bow draw / eye-of-ender (runtime.c:264-269): need held item 261/381,
-     * neither craftable with the chain's item set - unreachable. The
-     * runtime-level do_place-table open (runtime.c:299-307) fires only on
-     * caller-set action.do_place, which the RL protocol never sets (rl_mode
-     * memsets the action; use goes through player_ctl's rightClickMouse). */
+    /* bow draw / release (runtime.c spawn_bow_arrow). Magma fires on the
+     * use falling edge while holding item 261. Eye-of-ender (381) stays
+     * unreachable: the RL protocol never sets do_place. */
+    {
+        ICStack held_now = isr_get_stack(&env->pl.inv, env->pl.inv.current_item);
+        if (held_now.item == 261 && act.use) {
+            env->bow_drawing = 1;
+            ++env->bow_ticks;
+        } else if (env->bow_drawing) {
+            float f = pl_bow_curve(env->bow_ticks);
+            if (!(f < 0.1f || !cu_take_arrow(env))) {
+                if (f > 1.0f) f = 1.0f;
+                (void)pl_spawn_arrow(env->projectiles, CU_MAX_PROJECTILES,
+                                     env->pl.ent.posX + (double)env->ox,
+                                     env->pl.ent.posY,
+                                     env->pl.ent.posZ + (double)env->oz,
+                                     env->pl.yaw, env->pl.pitch, f);
+            }
+            env->bow_drawing = 0;
+            env->bow_ticks = 0;
+        }
+    }
 
     /* open-container distance check (runtime.c:270-281): live for the full
      * chain (interact opens the table; walking >6 blocks or breaking it
@@ -2876,12 +2948,22 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                           edits[i].drop_count, edits[i].drop_meta, 10);
     }
 
-    /* Magma runtime.c: weather then fluids then randtick then spine.
-     * Dragon/projectiles stay inert in the learned stage. */
+    /* Magma runtime.c: weather then fluids then randtick then spine
+     * then projectiles then live items. Dragon stays inert. */
     cu_weather_tick(env);
     cu_fluid_tick(env, 0, env->tick);
     cu_randtick_pass(env);
     cu_mob_spine_tick(env, st);
+    {
+        int pi;
+        for (pi = 0; pi < CU_MAX_PROJECTILES; ++pi) {
+            if (!env->projectiles[pi].active) continue;
+            if (env->projectiles[pi].type != 1 &&
+                env->projectiles[pi].type != 2)
+                continue;
+            pl_tick_arrow(&env->projectiles[pi], env);
+        }
+    }
 
     cu_live_tick_player(env);
 
@@ -3958,6 +4040,32 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     if (e->n_mobs) r->active_mask |= BP_BIT(BP_MOBS);
 
     {
+        int nents = 0, pi;
+        unsigned mi;
+        h = bp_projectiles_digest_begin();
+        for (pi = 0; pi < CU_MAX_PROJECTILES; ++pi) {
+            const CuProj *p = &e->projectiles[pi];
+            if (!p->active) continue;
+            ++nents;
+            h = bp_hash_projectile(
+                h, p->type, p->x, p->y, p->z, p->vx, p->vy, p->vz,
+                0, 0, 0, 0, 0, p->age, 0);
+        }
+        h = bp_hash_i32(h, (int32_t)e->n_mobs);
+        for (mi = 0; mi < e->n_mobs; ++mi) {
+            h = bp_hash_i32(h, e->mobs[mi].slot);
+            h = bp_hash_float(h, e->mobs[mi].health);
+        }
+        h = bp_projectiles_digest_finish(
+            h, nents, e->parity_proj_hits);
+        r->digest[BP_PROJECTILES] = h;
+        r->evidence[BP_PROJECTILES] =
+            (uint32_t)nents + e->parity_proj_hits;
+        if (nents || e->parity_proj_hits)
+            r->active_mask |= BP_BIT(BP_PROJECTILES);
+    }
+
+    {
         h = bp_weather_digest(
             e->ww.worldTime, e->ww.totalTime,
             e->ww.raining, e->ww.thundering,
@@ -4216,6 +4324,10 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         env->n_mobs = nm;
         memcpy(env->mobs, mobs, (size_t)nm * sizeof env->mobs[0]);
     }
+    memset(env->projectiles, 0, sizeof env->projectiles);
+    env->parity_proj_hits = 0;
+    env->bow_ticks = 0;
+    env->bow_drawing = 0;
 
     /* window chunk coords; the block contents come from the bulk phase */
     for (dz = -PSV_R; dz <= PSV_R; ++dz)

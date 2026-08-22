@@ -294,26 +294,43 @@ static int take_arrow(PsvPlayer *p) {
 static void runtime_close_container(GmRuntime *r);
 static void runtime_break_chest_te(GmRuntime *r, int wx, int wy, int wz);
 
+static int runtime_proj_hit_player(GmRuntime *r, double x, double y, double z,
+                                   double radius, float dmg) {
+    GmPlayerView v;
+    double dx, dy, dz;
+    gm_runtime_view(r, &v);
+    dx = x - v.x;
+    dy = y - (v.y + 0.9);
+    dz = z - v.z;
+    if (dx * dx + dy * dy + dz * dz > radius * radius) return 0;
+    (void)gm_mobs_attack_player(&r->mobs, (struct PvStats *)&r->vitals,
+                                &r->player.inv, dmg, 0);
+    r->player.health = r->vitals.health;
+    return 1;
+}
+
+#define PL_W GmRuntime
+#define PL_BLOCK(w, x, y, z) gm_world_block((w)->world, (x), (y), (z))
+#define PL_HIT_MOB(w, x, y, z, rad, dmg) \
+    gm_mobs_damage_near(&(w)->mobs, (x), (y), (z), (rad), (dmg), &(w)->entities)
+#define PL_HIT_DRAGON(w, x, y, z, rad, dmg) \
+    gm_dragon_damage_near(&(w)->dragon, (x), (y), (z), (rad), (dmg))
+#define PL_HIT_PLAYER(w, x, y, z, rad, dmg) \
+    runtime_proj_hit_player((w), (x), (y), (z), (rad), (dmg))
+#define PL_NOTE_HIT(w) do { (w)->parity_proj_hits++; } while (0)
+#include "projectile_live.h"
+typedef char gm_pl_proj_layout_ok[
+    (sizeof(GmRuntimeProjectile) == sizeof(PlProj)) ? 1 : -1];
+
 static void spawn_bow_arrow(GmRuntime *r, int draw) {
-    float f = (float)draw / 20.0f;
-    f = (f * f + f * 2.0f) / 3.0f;
+    float f = pl_bow_curve(draw);
     if (f < 0.1f || !take_arrow(&r->player)) return;
     if (f > 1.0f) f = 1.0f;
-    for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i) {
-        GmRuntimeProjectile *p = &r->projectiles[i];
-        if (p->active) continue;
-        double yr = r->player.yaw * MC_PI / 180.0;
-        double pr = r->player.pitch * MC_PI / 180.0;
-        double dx = -sin(yr) * cos(pr), dy = -sin(pr), dz = cos(yr) * cos(pr);
-        p->active = 1; p->type = 1; p->age = 0;
-        p->x = r->player.ent.posX + r->ox + dx * 0.2;
-        p->y = r->player.ent.posY + PSV_EYE_HEIGHT + dy * 0.2;
-        p->z = r->player.ent.posZ + r->oz + dz * 0.2;
-        p->vx = dx * (double)(f * 3.0f);
-        p->vy = dy * (double)(f * 3.0f);
-        p->vz = dz * (double)(f * 3.0f);
-        return;
-    }
+    (void)pl_spawn_arrow((PlProj *)r->projectiles, GM_RUNTIME_PROJECTILES,
+                         r->player.ent.posX + (double)r->ox,
+                         r->player.ent.posY,
+                         r->player.ent.posZ + (double)r->oz,
+                         r->player.yaw, r->player.pitch, f);
 }
 
 static void spawn_hostile_projectiles(GmRuntime *r) {
@@ -370,6 +387,10 @@ static void tick_projectiles(GmRuntime *r) {
     for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i) {
         GmRuntimeProjectile *p = &r->projectiles[i];
         if (!p->active) continue;
+        if (p->type == 1 || p->type == 2) {
+            pl_tick_arrow((PlProj *)p, r);
+            continue;
+        }
         if(p->type==4){
             p->x+=p->vx;p->y+=p->vy;p->z+=p->vz;++p->age;
             p->vx*=0.95;p->vz*=0.95;p->vy=(p->age<20)?p->vy*0.9:-0.03;
