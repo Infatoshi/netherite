@@ -70,7 +70,11 @@ def roi_rect(state_id):
         # Small fireball sits above mid-frame (y≈111–144); include upper band.
         return (W // 2 - 100, H // 2 - 150, W // 2 + 100, H // 2 + 80)
     if state_id == "xp_orb":
-        return (W // 2 - 60, H // 2 - 60, W // 2 + 60, H // 2 + 40)
+        # Capture pose: camera (8.5, 5+1.62, 8.5) pitch 25, orb (8.5, 6, 10.5).
+        # Disc bbox on the 854x480 golden is (411,146)-(442,178), ~8 deg above
+        # the crosshair. The old (H//2-60=180) box started 2px below the sprite
+        # and owned only pad. Cover the disc plus a grass margin.
+        return (W // 2 - 40, 140, W // 2 + 40, 185)
     # Slime/magma: include upper sky so tall squish (Y scale) is inside the ROI.
     if state_id.startswith("slime") or state_id.startswith("magma"):
         return (W // 2 - 140, 40, W // 2 + 140, H - 40)

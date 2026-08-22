@@ -1127,15 +1127,16 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                                   &sh.fog_start,&sh.fog_end);
         if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
         render_layer(c,&cam,eb[0],nv,&sh);
-        /* RenderXPOrb: SRC_ALPHA blend, alpha 128, no cutout thr 0.5 kill. */
+        /* RenderXPOrb is a pass-0 entity (EntityRenderer.java:1383-1393):
+         * alphaFunc 0.1, blend off. Vertex alpha 128 is not src-over. */
         {
             static CrVertex xp_ov[512];
-            int nx=gm_xp_orbs_emit(ents,n,v.yaw,v.pitch,xp_ov,512);
+            int nx=gm_xp_orbs_emit(ents,n,v.yaw,v.pitch,1.0f,xp_ov,512);
             if(nx>0){
                 CrShadeCtx xp={0};
                 xp.atlas=&ea; xp.fog_color=clear;
                 xp.alpha_test=1; xp.alpha_ref=0.1f;
-                xp.layer=CR_LAYER_TRANSLUCENT; xp.blend=1;
+                xp.layer=CR_LAYER_TRANSLUCENT; xp.blend=0;
                 xp.lightmap=lm;
                 if(uw.fluid){ xp.enable_fog=1; xp.fog_exp_density=uw.density; xp.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,xp_ov,nx,&xp);
