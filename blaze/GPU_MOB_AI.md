@@ -2,8 +2,8 @@
 
 Author: Fable (netherite session 2026-08-22). Reviewer: codex (13 findings,
 folded into the v2 revision below). Status: agreed spec for the port-matrix
-`mobs` row. Nothing lands until `entity_spine` and `projectiles` rows close
-(port_matrix deps for `mobs`).
+`mobs` row. `entity_spine` closed 2026-08-22; `projectiles` still blocks
+`mobs` in port_matrix.
 
 ## Goal and non-goals
 
@@ -140,8 +140,7 @@ the CUDA row passes M2 - Metal port is sequenced last, same as other rows.
 ## Sequencing
 
 port_matrix `mobs` depends on `world_dynamics`, `entity_spine`,
-`projectiles`; `entity_spine` itself is `supported: false` today. Realistic
-order: (1) entity_spine (Entity.move AABB + collision - logic already
-bit-verified inside magma mob_live det_box work), (2) projectiles, (3) this
+`projectiles`. `entity_spine` M1+M2 VERIFIED 2026-08-22 (zero-intent
+Entity.move / land travel). Remaining order: (1) projectiles, (2) this
 design. This doc exists so the mobs row starts with an agreed shape, not to
 jump the queue.
