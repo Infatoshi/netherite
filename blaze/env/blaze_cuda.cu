@@ -700,6 +700,11 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     if (opts) o = *opts;
     else blaze_create_opts_default(&o);
     if (cu_ck(cudaSetDevice(device), "cudaSetDevice")) return NULL;
+    /* BlockDynamicLiquid.getSlopeDistance recurses to depth 4 (java:178/196).
+     * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA). */
+    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 32 * 1024),
+              "cudaLimitStackSize"))
+        return NULL;
     v = (CuVecCu *)calloc(1, sizeof *v);
     if (!v) return NULL;
     v->n = n;

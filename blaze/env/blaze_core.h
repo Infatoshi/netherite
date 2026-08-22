@@ -2233,7 +2233,7 @@ MC_HD static inline void cu_fluid_mark(Blaze *e, int dim, int wx, int wy, int wz
     if (water) r->has_water = 1;
 }
 
-MC_HD static inline int cu_fluid_step_region(Blaze *e, CuFluidRegion *rg) {
+MC_HD MC_NOINLINE static int cu_fluid_step_region(Blaze *e, CuFluidRegion *rg) {
     int gx0 = rg->x0 - CU_FLUID_MARGIN * 2, gy0 = rg->y0 - CU_FLUID_MARGIN * 2;
     int gz0 = rg->z0 - CU_FLUID_MARGIN * 2;
     int nx = (rg->x1 - gx0) + 1 + CU_FLUID_MARGIN * 2;
@@ -2292,7 +2292,7 @@ MC_HD static inline int cu_fluid_step_region(Blaze *e, CuFluidRegion *rg) {
     return changed;
 }
 
-MC_HD static inline int cu_fluid_tick(Blaze *e, int dim, long long world_time) {
+MC_HD MC_NOINLINE static int cu_fluid_tick(Blaze *e, int dim, long long world_time) {
     int i, total = 0;
     if (!e->fluid_cur || !e->fluid_tmp) return 0;
     if (e->fluid_dim != dim) return 0;
