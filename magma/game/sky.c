@@ -566,7 +566,7 @@ CrRgba gm_terrain_fog_color(float time_of_day) {
  * A pixel ray (eye z=-1) is  ndc_x*tanH*aspect*R + ndc_y*tanH*U + F, which is exactly
  * the inverse of cr_perspective*cr_look_yaw_pitch, with no matrix inverse needed. */
 static void sky_cam_basis(const CrCamera *cam, float b[11]) {
-    if (cam->hurt_roll_deg == 0.0f) {
+    if (cam->hurt_roll_deg == 0.0f && !(cam->portal_time > 0.0f)) {
         /* Preserve the original operation sequence bit-for-bit. End-sky cube
          * selection is sensitive to even sub-ulp ray changes. */
         float cy = cosf(cam->yaw), sy = sinf(cam->yaw);
@@ -574,13 +574,38 @@ static void sky_cam_basis(const CrCamera *cam, float b[11]) {
         b[0] = -sy * cp; b[1] = sp;   b[2] = -cy * cp; /* F */
         b[3] =  cy;      b[4] = 0.0f; b[5] = -sy;      /* R */
         b[6] =  sy * sp; b[7] = cp;   b[8] =  cy * sp; /* U */
-    } else {
+    } else if (!(cam->portal_time > 0.0f)) {
         /* Invert the complete hurt-camera view rotation by transposing its
          * orthonormal 3x3. */
         CrMat4 view = cr_camera_view(cam);
         b[0] = -view.m[2]; b[1] = -view.m[6]; b[2] = -view.m[10]; /* F */
         b[3] =  view.m[0]; b[4] =  view.m[4]; b[5] =  view.m[8];  /* R */
         b[6] =  view.m[1]; b[7] =  view.m[5]; b[8] =  view.m[9];  /* U */
+    } else {
+        /* Portal RSR is not orthonormal (non-uniform scale). Invert the
+         * view 3x3: world_dir = V^{-1} * eye_dir. EntityRenderer.java:746-761
+         * applies this linear map to every world-pass vertex, including sky. */
+        CrMat4 view = cr_camera_view(cam);
+        float a00 = view.m[0], a01 = view.m[4], a02 = view.m[8];
+        float a10 = view.m[1], a11 = view.m[5], a12 = view.m[9];
+        float a20 = view.m[2], a21 = view.m[6], a22 = view.m[10];
+        float c00 = a11 * a22 - a12 * a21;
+        float c01 = a12 * a20 - a10 * a22;
+        float c02 = a10 * a21 - a11 * a20;
+        float det = a00 * c00 + a01 * c01 + a02 * c02;
+        float id = 1.0f / det;
+        float i00 = c00 * id;
+        float i10 = (a21 * a02 - a01 * a22) * id;
+        float i20 = (a01 * a12 - a11 * a02) * id;
+        float i01 = c01 * id;
+        float i11 = (a00 * a22 - a20 * a02) * id;
+        float i21 = (a10 * a02 - a00 * a12) * id;
+        float i02 = c02 * id;
+        float i12 = (a20 * a01 - a00 * a21) * id;
+        float i22 = (a00 * a11 - a10 * a01) * id;
+        b[0] = -i02; b[1] = -i12; b[2] = -i22; /* F = Vinv*(0,0,-1) */
+        b[3] =  i00; b[4] =  i10; b[5] =  i20; /* R = Vinv*(1,0,0) */
+        b[6] =  i01; b[7] =  i11; b[8] =  i21; /* U = Vinv*(0,1,0) */
     }
     float half_fov = cam->fov_deg * (M_PIf / 180.0f) * 0.5f;
     b[9] = sinf(half_fov) / cosf(half_fov);             /* tanH */

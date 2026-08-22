@@ -7,7 +7,9 @@
 #include "game/sel_box.h"
 #include "assets/blockmodels.h"
 #include "assets/atlas_gen.h"
+#include "core/types.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -171,6 +173,61 @@ int main(void)
         int right_r = color[(PH / 2) * PW + (PW - 2)].r;
         CHECK(left_r > right_r + 5,
               "block-in-hand mirrors U (maxU/bright on left)");
+    }
+
+    /* GuiIngame.java:1114-1118 fourth-power ease. */
+    CHECK(fabsf(gm_overlay_portal_ease(0.5f) - 0.25f) < 1e-6f,
+          "timeInPortal 0.5 eases to 0.25");
+    CHECK(gm_overlay_portal_ease(1.0f) == 1.0f,
+          "timeInPortal 1.0 is identity");
+    CHECK(gm_overlay_portal_ease(0.0f) == 0.2f,
+          "timeInPortal 0 eases to 0.2 (renderPortal not called at 0)");
+
+    /* EntityRenderer.java:757-758 scale at time 0.5. */
+    {
+        float f = 0.5f;
+        float f2 = 5.0f / (f * f + 5.0f) - f * 0.04f;
+        f2 = f2 * f2;
+        CHECK(fabsf(f2 - 0.869334399f) < 1e-6f,
+              "portal RSR f2 at 0.5 matches 5/(t^2+5)-t*0.04, squared");
+        CrCamera a, b;
+        memset(&a, 0, sizeof a);
+        memset(&b, 0, sizeof b);
+        a.fov_deg = b.fov_deg = 70.0f;
+        a.aspect = b.aspect = 854.0f / 480.0f;
+        a.znear = b.znear = 0.05f;
+        a.zfar = b.zfar = 128.0f;
+        b.portal_time = 0.5f;
+        b.portal_spin_deg = 20.0f; /* (phase 0 + partialTicks 1)*20 */
+        CrMat4 va = cr_camera_view(&a);
+        CrMat4 vb = cr_camera_view(&b);
+        int differ = 0;
+        for (int i = 0; i < 16; ++i)
+            if (va.m[i] != vb.m[i]) differ = 1;
+        CHECK(differ, "portal RSR changes the world view matrix");
+        /* Hand camera must not inherit the WORLD RSR (renderHand.java:804). */
+        CHECK(a.portal_time == 0.0f, "zeroed camera has portal_time 0");
+    }
+
+    /* NEAREST stretch of the 16x16 portal sprite, tex.a * ease blend.
+     * White dst, time=0.5 -> out = src*a + 255*(1-a), a = src.a/255 * 0.25. */
+    {
+        bm_atlas_set_portal_frame(0);
+        CrTexture atlas = bm_atlas();
+        CrAtlasSprite sp = CR_ATLAS_SPRITES[CR_SPRITE_PORTAL];
+        enum { PW = 32, PH = 16 };
+        static CrRgba color[PW * PH];
+        CrFramebuffer fb = { .w = PW, .h = PH, .color = color, .depth = 0 };
+        for (int i = 0; i < PW * PH; ++i)
+            color[i] = (CrRgba){255, 255, 255, 255};
+        gm_overlay_portal_screen(&fb, &atlas, 0.5f);
+        /* Pixel (0,0) samples sprite texel (0,0) under (x+0.5) nearest. */
+        CrRgba src = atlas.texels[sp.y0 * atlas.w + sp.x0];
+        float a = ((float)src.a / 255.0f) * 0.25f;
+        int want = (int)((float)src.r * a + 255.0f * (1.0f - a) + 0.5f);
+        CHECK(color[0].r == (u8)want,
+              "portal overlay NEAREST+tex.a blend at pixel 0");
+        CHECK(color[0].r != 255, "portal overlay darkens a white fb");
     }
 
     /* loading screen fills every pixel (tiled dirt * 64/255 + label). */

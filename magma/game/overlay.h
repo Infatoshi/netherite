@@ -41,8 +41,12 @@ int gm_overlay_emit(CrVertex *v, int max,
                     int have_sel, int sx, int sy, int sz, const float *sel_box,
                     int have_dig, int dx, int dy, int dz, float damage,
                     float eye_x, float eye_y, float eye_z);
-/* GuiIngame.renderPortal: stretch the current portal atlas tile over the
- * framebuffer with the vanilla fourth-power alpha curve, before the HUD. */
+/* GuiIngame.renderPortal (oracle-src GuiIngame.java:1114-1118):
+ * if timeInPortal < 1: t = t^4 * 0.8 + 0.2. GlStateManager.color alpha. */
+float gm_overlay_portal_ease(float time_in_portal);
+/* GuiIngame.renderPortal: stretch Blocks.PORTAL atlas sprite over the
+ * framebuffer (java:1112-1143). NEAREST mag (AbstractTexture.java:30-35
+ * blur=false -> GL_NEAREST=9728). Vertex colour alpha = ease(time). */
 void gm_overlay_portal_screen(CrFramebuffer *fb, const CrTexture *atlas,
                               float time_in_portal);
 /* EntityRenderer.setupCameraTransform portal projection (WORLD pass only;

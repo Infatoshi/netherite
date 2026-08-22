@@ -175,30 +175,54 @@ int gm_overlay_emit(CrVertex *v, int max,
     return n;
 }
 
+float gm_overlay_portal_ease(float time_in_portal) {
+    /* GuiIngame.renderPortal (GuiIngame.java:1114-1118). */
+    if (time_in_portal < 1.0f) {
+        time_in_portal = time_in_portal * time_in_portal;
+        time_in_portal = time_in_portal * time_in_portal;
+        time_in_portal = time_in_portal * 0.8f + 0.2f;
+    }
+    if (time_in_portal > 1.0f) time_in_portal = 1.0f;
+    return time_in_portal;
+}
+
 void gm_overlay_portal_screen(CrFramebuffer *fb, const CrTexture *atlas,
                               float time_in_portal) {
+    /* GuiIngame.renderPortal (java:1112-1143) + Forge call
+     * (GuiIngameForge.java:135-138). ItemRenderer.renderOverlays does not
+     * draw this (ItemRenderer.java:450-498 is block/water/fire only).
+     * Ortho quad 0..scaledW, 0..scaledH at z=-90; tex minU/maxV at the
+     * bottom-left GUI vertex (java:1135-1138). GUI scale 2 on 854x480
+     * maps pixel-center UV to the same (x+0.5)/w interpolation as a
+     * framebuffer-sized quad. MAG_FILTER is GL_NEAREST (AbstractTexture
+     * setBlurMipmapDirect(false, mip) -> 9728, java:30-35). */
     if (!fb || !atlas || !atlas->texels || time_in_portal <= 0.0f) return;
-    float alpha = time_in_portal;
-    if (alpha < 1.0f) {
-        alpha *= alpha;
-        alpha *= alpha;
-        alpha = alpha * 0.8f + 0.2f;
-    }
-    if (alpha > 1.0f) alpha = 1.0f;
-    float u0,v0,u1,v1;
-    bm_sprite_uv(CR_SPRITE_PORTAL,&u0,&v0,&u1,&v1);
-    int sx0=(int)(u0*atlas->w),sy0=(int)(v0*atlas->h);
-    int sw=(int)((u1-u0)*atlas->w+0.5f),sh=(int)((v1-v0)*atlas->h+0.5f);
-    for(int y=0;y<fb->h;++y){
-        int ty=sy0+(int)(((long long)(2*y+1)*sh)/(2*fb->h));
-        for(int x=0;x<fb->w;++x){
-            int tx=sx0+(int)(((long long)(2*x+1)*sw)/(2*fb->w));
-            CrRgba src=atlas->texels[ty*atlas->w+tx];
-            float a=((float)src.a/255.0f)*alpha,ia=1.0f-a;
-            CrRgba *dst=&fb->color[y*fb->w+x];
-            dst->r=(u8)((float)src.r*a+(float)dst->r*ia+0.5f);
-            dst->g=(u8)((float)src.g*a+(float)dst->g*ia+0.5f);
-            dst->b=(u8)((float)src.b*a+(float)dst->b*ia+0.5f);
+    float alpha = gm_overlay_portal_ease(time_in_portal);
+    CrAtlasSprite sp = CR_ATLAS_SPRITES[CR_SPRITE_PORTAL];
+    int sx0 = sp.x0, sy0 = sp.y0;
+    int sw = sp.x1 - sp.x0, sh = sp.y1 - sp.y0;
+    if (sw < 1) sw = 1;
+    if (sh < 1) sh = 1;
+    for (int y = 0; y < fb->h; ++y) {
+        int ty = sy0 + (int)(((long long)(2 * y + 1) * sh) / (2 * fb->h));
+        if (ty < sy0) ty = sy0;
+        if (ty >= sy0 + sh) ty = sy0 + sh - 1;
+        if (ty < 0) ty = 0;
+        if (ty >= atlas->h) ty = atlas->h - 1;
+        for (int x = 0; x < fb->w; ++x) {
+            int tx = sx0 + (int)(((long long)(2 * x + 1) * sw) / (2 * fb->w));
+            if (tx < sx0) tx = sx0;
+            if (tx >= sx0 + sw) tx = sx0 + sw - 1;
+            if (tx < 0) tx = 0;
+            if (tx >= atlas->w) tx = atlas->w - 1;
+            CrRgba src = atlas->texels[ty * atlas->w + tx];
+            /* GL_MODULATE colour(1,1,1,ease) then SRC_ALPHA blend
+             * (java:1124-1125). tex.a is the PNG alpha (portal.png A==B). */
+            float a = ((float)src.a / 255.0f) * alpha, ia = 1.0f - a;
+            CrRgba *dst = &fb->color[y * fb->w + x];
+            dst->r = (u8)((float)src.r * a + (float)dst->r * ia + 0.5f);
+            dst->g = (u8)((float)src.g * a + (float)dst->g * ia + 0.5f);
+            dst->b = (u8)((float)src.b * a + (float)dst->b * ia + 0.5f);
         }
     }
 }

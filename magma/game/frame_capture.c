@@ -351,6 +351,7 @@ static float time_of_day(const GmRuntime *r) {
 
 static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
     CrCamera c;
+    memset(&c, 0, sizeof c);
     c.pos = (CrVec3){v->x, v->y + v->eye_height, v->z};
     /* MC-degrees -> magma camera radians: the ONE pixel-verified mapping
      * (game/view.h). (yaw - 180) X-mirrors the view at any yaw != 180. */
@@ -364,6 +365,11 @@ static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
     c.zfar = GM_TERRAIN_ZFAR;
     c.hurt_yaw_deg = v->hurt_yaw;
     c.hurt_roll_deg = gm_view_hurt_roll_deg(v->hurt_time, v->max_hurt_time);
+    /* Tick-boundary capture: partialTicks=1 (this file's time_of_day). */
+    if (v->portal > 0.0f) {
+        c.portal_time = v->portal;
+        c.portal_spin_deg = ((float)v->portal_phase + 1.0f) * 20.0f;
+    }
     return c;
 }
 
@@ -821,13 +827,8 @@ static int finish_pending(GmFrameCapture *c) {
     bm_atlas_set_animation_physical_zero();
     bm_atlas_set_portal_frame(0);
     CrTexture atlas=bm_atlas();
-    /* World is already in pfb. Warp it before hand/overlays: renderHand
-     * (EntityRenderer.java:791-835) does not keep setupCameraTransform. */
-    if (c->pend_v.portal > 0.0f && c->post_scratch)
-        gm_overlay_portal_warp(&pfb, c->post_scratch, c->pend_v.portal,
-                               c->pend_v.portal_phase,
-                               70.0f * (c->pend_fovscale > 0.01f
-                                            ? c->pend_fovscale : 1.0f));
+    /* World raster already used setupCameraTransform portal RSR on the
+     * camera (cr_camera_view). renderHand reloads projection without it. */
     gm_hand_set_swing(c->pend_swing);
     gm_hand_set_equip(c->pend_equip);
     gm_hand_set_hurt(c->pend_v.hurt_time, c->pend_v.max_hurt_time,
@@ -1434,11 +1435,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(!hud_hidden()||have_gui)gm_hud_draw(&c->fb,&v);
     }else{
-        /* World is in fb. Warp before hand: EntityRenderer.renderHand
-         * (java:791-835) reloads projection without the portal matrix. */
-        if(v.portal>0.0f&&c->post_scratch)
-            gm_overlay_portal_warp(&c->fb,c->post_scratch,v.portal,
-                                   v.portal_phase,cam.fov_deg);
+        /* World raster already used portal RSR on cam. renderHand
+         * (java:791-835) reloads projection without that matrix. */
         if(!v.dead&&!v.riding_boat&&!cr_cfg()->no_hand&&!hand_hidden(r->tick))
             gm_hand_draw(&c->fb,&v,c->hand_bob);
         /* ItemRenderer.renderOverlays: block, water, fire; then portal; HUD. */

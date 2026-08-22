@@ -173,6 +173,7 @@ static void render_world(CrFramebuffer *fb, const CrCamera *cam, const GmMeshVie
 
 static CrCamera cam_from_view(const GmPlayerView *pv, int fb_w, int fb_h) {
     CrCamera c;
+    memset(&c, 0, sizeof c);
     c.pos.x = pv->x;
     c.pos.y = pv->y + pv->eye_height;
     c.pos.z = pv->z;
@@ -184,6 +185,10 @@ static CrCamera cam_from_view(const GmPlayerView *pv, int fb_w, int fb_h) {
     c.zfar    = GM_TERRAIN_ZFAR;
     c.hurt_yaw_deg = pv->hurt_yaw;
     c.hurt_roll_deg = gm_view_hurt_roll_deg(pv->hurt_time, pv->max_hurt_time);
+    if (pv->portal > 0.0f) {
+        c.portal_time = pv->portal;
+        c.portal_spin_deg = ((float)pv->portal_phase + 1.0f) * 20.0f;
+    }
     return c;
 }
 
