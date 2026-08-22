@@ -1,5 +1,35 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 XP orb pixels (lane/xporb)
+
+A6 first sub-item. Baseline on gamer (old ROI, pad only): xp_orb
+`hard_px=12000` owned=12000 `c_vs_j=4.756` maxch=70 `ab_nz=0` RESIDUAL.
+Other 15 rows: slime/magma CAPTURE_BLOCKED 97868/96818/109431/97058 and
+97660/97628/109451/98600; dragon_death 50/100/190 RESIDUAL
+92122/101336/159948; dig_stone/grass CAPTURE_BLOCKED 42589/43124;
+fireball_small RESIDUAL 45349; fireball_dragon CAPTURE_BLOCKED 42457.
+
+Cause: Magma used `sinf`, dropped `partialTicks` (f9 = xpColor/2),
+src-over blend on vertex alpha 128, and an ROI that started at y=180
+(disc y=146-178). Java `RenderXPOrb.doRender` (javap on deobfed.jar):
+`f9=(xpColor+partialTicks)/2`, `MathHelper.sin` LUT
+(MathHelper.java:29-31), RGB
+`(sin(f9)+1)*0.5*255 / 255 / (sin(f9+4.1887903)+1)*0.1*255` with alpha
+128 (:52-55, :64), T(0,0.1,0) Ry(180-playerViewY) Rx(-playerViewX)
+S(0.3) (:56-60), UV cell from `getTextureByXP` (EntityXPOrb.java:290-293,
+RenderXPOrb.java:37-42), pass 0 blend off (EntityRenderer.java:1383-1393),
+`getBrightnessForRender` +120 cap 240 (:67-81). Capture pin: value 17,
+color 0, age 0, pose (8.5,5,8.5) yaw 0 pitch 25, orb (8.5,6,10.5),
+partialTicks=1, `render_pin=1`.
+
+After (gamer, `~/nlanes/xporb/out/verify/xporb_after.log`): geom ALL
+PASSED; xp_orb `hard_px=3542` owned=3600 `c_vs_j=20.223` maxch=90
+`ab_nz=0` RESIDUAL. Other 15 rows byte-stable. Disc: C (184,188,0) vs
+Java (252,190,0) at (426,162) — C matches color=0 pulse (R mid, G 255);
+the llvmpipe golden looks like texel * white. Not closed. Do not fit
+vertex RGB to the yellow golden. Root `make test` on gamer PASS
+(`~/nlanes/xporb/out/verify/xporb_maketest.log`).
+
 ## 2026-08-22 fluids M2 (lane/fluidsm2)
 
 Blaze-CPU vs blaze-CUDA bitwise on `s10_t0_r64_fluid_spread.bsnp` +

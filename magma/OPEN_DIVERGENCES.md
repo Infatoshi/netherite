@@ -41,8 +41,8 @@ recorder or re-recording; D-class by improving gates, not the product.
    lightning".
 5. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
    precision on grazing top faces. Soul sand triage entry.
-6. Entity pixels: XP orb hard_px=12000; small fireball complete ROI;
-   dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
+6. Entity pixels: XP orb hard_px=3542 (disc ROI); small fireball complete
+   ROI; dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
 7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
    high-altitude/distance haze.
 8. Nether arrival tape: fire/lava animation phase + surrounding lightmap
@@ -277,8 +277,23 @@ No strict entity family is pixel-perfect yet:
   slime/magma sizes and squish, dig stone/grass, and dragon fireball.
 - Five stable states are honest `RESIDUAL`: dragon death at ticks 50/100/190,
   small fireball, and XP orb.
-- XP now has a genuine visible, full-frame A/B-exact Oracle capture; C remains
-  `hard_px=12000`.
+- XP has a genuine visible, full-frame A/B-exact Oracle capture. Lane/xporb
+  2026-08-22 ports `RenderXPOrb.doRender`: `MathHelper.sin` on
+  `(xpColor+partialTicks)/2` (RenderXPOrb.java:52-55, javap field
+  `xpColor`), `getTextureByXP` 4x4 cell (EntityXPOrb.java:290-293),
+  scale 0.3 camera billboard (:56-60), vertex alpha 128, entity pass 0
+  blend off (EntityRenderer.java:1383-1393), `getBrightnessForRender`
+  +120 block coord cap 240 (EntityXPOrb.java:67-81). Geom tests cover
+  cell, pulse, billboard, and brightness. The old ROI started 2px below
+  the disc and counted pad only (`hard_px=12000`). New ROI
+  `(387,140)-(467,185)` owns the disc. After on gamer:
+  `hard_px=3542` / owned=3600, `c_vs_j=20.223`, maxch=90, `ab_nz=0`
+  RESIDUAL. Disc pixels: C is the color=0 green-gold pulse; the
+  llvmpipe golden is un-tinted yellow (texel * white). Pin `color=0`
+  with `render_pin=1`. Do not drop vertex RGB to fit the golden. Other
+  15 entity rows are byte-stable vs the pre-port baseline. Remaining:
+  vertex-RGB vs this pair, fancy-vs-fast grass in the complete ROI, pad
+  LSB.
 - Small fireball no longer draws on-fire layers unless `isBurning`, but its
   complete ROI remains open.
 - Dragon death uses the correct 48-bit `java.util.Random`; remaining gaps are
