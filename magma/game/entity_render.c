@@ -1336,10 +1336,12 @@ static int emit_dragon(const GmEntityView *ent, CrVertex *out, int cap) {
     float f8 = f * TAU;
     float f2 = 20.0f, f3 = -12.0f, f4 = 0.0f;
     int w = 0;
-    /* death dissolve: RenderDragon.renderModel alphaFunc(GL_GREATER, f) on
-     * dragon_exploding.png per texel (f = deathTicks/200), then repaints the
-     * skin. Geometry is always emitted; cr_shade discards via alpha_mask when
-     * light < 0 and ao holds f. Fully dissolved at f=1 (no fragments pass). */
+    /* death dissolve: RenderDragon.renderModel (RenderDragon.java:57-71)
+     * alphaFunc(GL_GREATER, f) on dragon_exploding.png (f = deathTicks/200,
+     * :60) then depthFunc EQUAL and bind skin (:67-71). Geometry is always
+     * emitted; cr_shade discards via alpha_mask when light < 0 and blk holds
+     * f. ao stays ModelBox face shade from er_aff_box/er_shade. Fully
+     * dissolved at f=1 (no fragments pass). */
     float deadf = ent->death_ticks > 0 ? (float)ent->death_ticks / 200.0f
                                        : 0.0f;
     if (deadf >= 1.0f) return 0;
@@ -1351,7 +1353,7 @@ static int emit_dragon(const GmEntityView *ent, CrVertex *out, int cap) {
         if (deadf > 0.0f) { \
             for (int _i = _ds; _i < w; ++_i) { \
                 out[_i].light = -1.0f; \
-                out[_i].ao = deadf; \
+                out[_i].blk = deadf; \
             } \
         } \
     } while (0)

@@ -345,13 +345,14 @@ static CrRgbaM cr_shade(device const CrShadeCtxM *sh,
     CrRgbaM out;
     const float inv255 = 1.0f / 255.0f;
 
-    /* RenderDragon death dissolve. Mask sample uses mode 0 (the CUDA global
-     * override is still 0 at this point). */
+    /* RenderDragon death dissolve. light < 0 marks fragments; blk holds
+     * deathTicks/200 (RenderDragon.java:59-63). Mask sample uses mode 0
+     * (the CUDA global override is still 0 at this point). */
     if (sh->alpha_mask && frag->light < 0.0f && sh->atlas) {
         float mu = frag->uv.x + sh->mask_u_off;
         float mv = frag->uv.y + sh->mask_v_off;
         CrRgbaM mask = cr_atlas_sample(sh->atlas, mu, mv, 0);
-        if ((float)mask.a * inv255 <= frag->ao) {
+        if ((float)mask.a * inv255 <= frag->blk) {
             out.r = 0; out.g = 0; out.b = 0; out.a = 0;
             return out;
         }
@@ -392,7 +393,7 @@ static CrRgbaM cr_shade(device const CrShadeCtxM *sh,
         brightness_mix = fmax(0.0f, fmin(1.0f, brightness_mix));
     }
     float lscalar = (frag->light < 0.0f) ? 1.0f : frag->light;
-    float ao_mul = (sh->alpha_mask && frag->light < 0.0f) ? 1.0f : frag->ao;
+    float ao_mul = frag->ao;
     if (sh->lightmap && frag->light >= 0.0f) {
         float s = fmax(0.0f, fmin(15.0f, frag->light));
         float b = fmax(0.0f, fmin(15.0f, frag_blk));

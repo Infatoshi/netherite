@@ -237,17 +237,27 @@ int main(void) {
         CHECK(gm_dragon_death_rays_emit(&d, 1, out, 8192) == 0, "no rays when alive");
     }
 
-    /* Dragon dissolve markers (per-texel path uses light/ao; not box drop). */
+    /* Dragon dissolve markers (per-texel path uses light/blk; not box drop).
+     * RenderDragon.java:59-63: f = deathTicks/200 into alphaFunc GL_GREATER.
+     * ao stays ModelBox face shade (er_shade 1/0.8/0.6/0.5). */
     {
         GmEntityView d;
         memset(&d, 0, sizeof d);
         d.type = 9; d.y = 80; d.health = 0; d.death_ticks = 100;
         int mid = gm_entities_emit(&d, 1, out, 8192);
         CHECK(mid > 200, "mid-death dragon emits full body geometry");
-        int ok = 1;
-        for (int i = 0; i < mid; ++i)
-            if (!(out[i].light < 0.0f && fabsf(out[i].ao - 0.5f) < 1e-4f)) ok = 0;
-        CHECK(ok, "dissolve verts carry light<0 and ao=deathTicks/200");
+        int ok = 1, saw_lo = 0, saw_hi = 0;
+        for (int i = 0; i < mid; ++i) {
+            float a = out[i].ao;
+            int face = (fabsf(a - 1.0f) < 1e-4f || fabsf(a - 0.8f) < 1e-4f ||
+                        fabsf(a - 0.6f) < 1e-4f || fabsf(a - 0.5f) < 1e-4f);
+            if (!(out[i].light < 0.0f && fabsf(out[i].blk - 0.5f) < 1e-4f
+                  && face)) ok = 0;
+            if (fabsf(a - 0.5f) < 1e-4f) saw_lo = 1;
+            if (fabsf(a - 1.0f) < 1e-4f) saw_hi = 1;
+        }
+        CHECK(ok, "dissolve verts carry light<0, blk=deathTicks/200, face ao");
+        CHECK(saw_lo && saw_hi, "dissolve keeps down-face 0.5 and up-face 1.0 ao");
         d.death_ticks = 200;
         CHECK(gm_entities_emit(&d, 1, out, 8192) == 0, "f=1 emits nothing");
         float uo = 0, vo = 0;
@@ -386,14 +396,24 @@ int main(void) {
         frag.uv.x = ((float)d->x0 + 128.0f) / aw;
         frag.uv.y = ((float)d->y0 + 128.0f) / ah;
         frag.light = -1.0f;
-        frag.ao = 0.0f; /* thr=0: only alpha==0 discards */
+        frag.ao = 1.0f; /* ModelBox up-face shade */
         frag.tint = (CrRgba){255,255,255,255};
-        frag.blk = 15.0f;
+        frag.blk = 0.0f; /* thr=0: only alpha==0 discards */
         CrRgba c0 = cr_shade(&sh, &frag);
-        frag.ao = 1.0f; /* thr=1: all a<=1 discard */
+        frag.blk = 1.0f; /* thr=1: all a<=1 discard */
         CrRgba c1 = cr_shade(&sh, &frag);
         CHECK(c0.a != 0, "dissolve thr=0 keeps opaque exploding texels");
         CHECK(c1.a == 0, "dissolve thr=1 discards all fragments");
+        /* Skin pass keeps face shade (RenderDragon.java:70-71 bind skin after
+         * exploding mask). ao_mul must not be forced to 1. */
+        frag.blk = 0.0f;
+        frag.ao = 1.0f;
+        CrRgba chi = cr_shade(&sh, &frag);
+        frag.ao = 0.5f;
+        CrRgba clo = cr_shade(&sh, &frag);
+        CHECK(chi.a != 0 && clo.a != 0 && clo.r * 2 >= chi.r - 2 &&
+              clo.r * 2 <= chi.r + 2,
+              "dissolve down-face ao=0.5 is half of up-face ao=1");
     }
 
     /* RenderXPOrb: texture cell, hue pulse, billboard transform. */
