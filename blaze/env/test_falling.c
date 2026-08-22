@@ -120,17 +120,24 @@ static int write_fixture(const char *from, const char *out_path) {
         fprintf(stderr, "load %s: %s\n", from, err);
         return 0;
     }
-    /* s10 spawn (8.5, 66, 8.5) yaw 180 looks -Z. Dirt at y=68, sand 69-71,
-     * air shaft below so the column falls ~6 blocks after the dirt breaks. */
-    for (y = 62; y <= 71; ++y)
+    /* s10 spawn is airborne at y=66 (grass top is y=64). Ground the player
+     * on that grass so the look ray is stable. Yaw 180 looks -Z; pitch 0
+     * from standing eye y=66.62 hits dirt at (8,66,6). Sand sits on the
+     * dirt; air below the dirt lets the column fall onto stone. */
+    for (y = 62; y <= 70; ++y)
         plant_cell(&s, 8, y, 6, 0, 0);
     plant_cell(&s, 8, 62, 6, BLK_STONE, 0);
-    plant_cell(&s, 8, 68, 6, BLK_DIRT, 0);
+    plant_cell(&s, 8, 66, 6, BLK_DIRT, 0);
+    plant_cell(&s, 8, 67, 6, BLK_SAND, 0);
+    plant_cell(&s, 8, 68, 6, BLK_SAND, 0);
     plant_cell(&s, 8, 69, 6, BLK_SAND, 0);
-    plant_cell(&s, 8, 70, 6, BLK_SAND, 0);
-    plant_cell(&s, 8, 71, 6, BLK_SAND, 0);
+    s.head.py = 65.0;
+    s.head.box[1] = 65.0;
+    s.head.box[4] = 65.0 + 1.8;
+    s.head.on_ground = 1;
+    s.head.mx = s.head.my = s.head.mz = 0.0;
     s.head.yaw = 180.0f;
-    s.head.pitch = -24.0f;
+    s.head.pitch = 0.0f;
     s.head.version = BLAZE_SNAP_VERSION;
     s.n_mobs = 0;
     if (!blaze_snapshot_write(out_path, &s, err, (int)sizeof err)) {
@@ -139,11 +146,12 @@ static int write_fixture(const char *from, const char *out_path) {
         return 0;
     }
     fprintf(stderr,
-            "WROTE %s sand column (8,69-71,6) on dirt (8,68,6) "
+            "WROTE %s sand column (8,67-69,6) on dirt (8,66,6) "
             "floor stone (8,62,6) below=%d dirt=%d sand=%d/%d/%d "
-            "yaw=%g pitch=%g\n",
-            out_path, cell_id(&s, 8, 67, 6), cell_id(&s, 8, 68, 6),
-            cell_id(&s, 8, 69, 6), cell_id(&s, 8, 70, 6), cell_id(&s, 8, 71, 6),
+            "py=%g on_ground=%d yaw=%g pitch=%g\n",
+            out_path, cell_id(&s, 8, 65, 6), cell_id(&s, 8, 66, 6),
+            cell_id(&s, 8, 67, 6), cell_id(&s, 8, 68, 6), cell_id(&s, 8, 69, 6),
+            s.head.py, s.head.on_ground,
             (double)s.head.yaw, (double)s.head.pitch);
     blaze_snapshot_free(&s);
     return 1;
