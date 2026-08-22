@@ -1,5 +1,32 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 chain4 retrain PASS + stage ladder (anvil gpu0)
+
+Chain retrain with the staged curriculum completed end-to-end for the
+first time: `ppo: PASS backend=cuda n_envs=1024 rollout_steps=32
+chunks=3890 ticks=510001152 best_t0=0.215 best_ticks=504758272`
+(retrain_0821_chain4_best.bin). t0 went 0.000 -> 0.215 over the run;
+prior fresh-weight chain runs sat at 0.005-0.065.
+
+Two crashes on the way, same signature (host segfault in libcuda at
+chunk 2381 then 152). Root cause: device use-after-free in blaze
+capture. `blaze_reset_scalar` binds env->ore/ore_xy by pointer into
+snapshot slot buffers; `blaze_capture` freed the coal buffer on ncoal
+change (t0 vs stgK snaps differ per seed), leaving a dangling D2D
+source. Fix (master 6562d71): grow-without-free plus a retire list
+freed at destroy; shrink in place; same pattern in the CPU driver.
+test_capture_cont extended. chain4 crossed both prior crash points.
+
+Ladder (`eval --stage all`, best ckpt, 5 tries x 6000 ticks, sampled):
+stage0 full-chain 6/13 seeds; stage1 2/7 (6 SKIP); stage2 3/5 (8 SKIP);
+stage3 2/5 (8 SKIP); stage4 (coal start) 8/8 - every seed with a stg4
+snap finishes torches, incl. held-out 33. Weak link is stage3: seeds
+10/14/16 start at cobble3 and add nothing (best-of-5). Log:
+anvil out/blaze/rl/eval_chain4_ladder.log.
+
+Portability: GCC -Werror=format-truncation rejected eval.c ladder
+`char cell[8]`; widened to 24 (8902716). Mac clang never flagged it.
+
 ## 2026-08-22 detmob consolidation round 5 (lane/detmob-all)
 
 On d50ee97 plus this commit. Knob default-off. No GATES / known_divergences
