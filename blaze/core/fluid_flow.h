@@ -99,7 +99,9 @@ MC_HD static inline int ff_check_neighbor(const u16 *cur, int nx, int ny, int nz
     return level;
 }
 
-MC_HD static inline int ff_flow_distance(const u16 *cur, int nx, int ny, int nz,
+/* BlockDynamicLiquid.getSlopeDistance (oracle-src .../BlockDynamicLiquid.java:178).
+ * MC_NOINLINE: nvcc must not fold this recursion into k_tick_raw (1 KiB stack). */
+MC_HD MC_NOINLINE static int ff_flow_distance(const u16 *cur, int nx, int ny, int nz,
                                          int x, int y, int z, int depth, int from_dir,
                                          int is_water_type) {
     int best = 1000;
@@ -292,7 +294,7 @@ MC_HD static inline void ff_flow_cell_ex(const u16 *cur, u16 *next, int nx, int 
     }
 }
 
-MC_HD static inline void ff_ca_step_ex(const u16 *cur, u16 *next, int nx, int ny, int nz,
+MC_HD MC_NOINLINE static void ff_ca_step_ex(const u16 *cur, u16 *next, int nx, int ny, int nz,
                                        int lava_cost) {
     int x, y, z;
     int vol = nx * ny * nz;

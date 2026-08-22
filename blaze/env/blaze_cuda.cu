@@ -105,6 +105,7 @@ typedef struct {
     long rvol;
     u16 *d_cells, *d_cam;
     u16 *d_grass;            /* per-env grass_sec census (CU_SEC_SPAN cube) */
+    u16 *d_fluid_cur, *d_fluid_tmp; /* n * CU_FLUID_VOL CA grids; same as CPU */
     u8 *d_light, *d_dep, *d_edg;
     Chunk *d_window;
     CuCand *d_cand;
@@ -701,6 +702,11 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     if (opts) o = *opts;
     else blaze_create_opts_default(&o);
     if (cu_ck(cudaSetDevice(device), "cudaSetDevice")) return NULL;
+    /* BlockDynamicLiquid.getSlopeDistance recurses to depth 4 (java:178/196).
+     * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA). */
+    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 32 * 1024),
+              "cudaLimitStackSize"))
+        return NULL;
     v = (CuVecCu *)calloc(1, sizeof *v);
     if (!v) return NULL;
     v->n = n;
@@ -743,13 +749,18 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                    (size_t)CRF_NRECIPES * sizeof(CRRecipe)) != cudaSuccess ||
         cudaMalloc(&v->d_snaps,
                    (size_t)BLAZE_MAX_SNAPS * sizeof(CuSnapDev)) != cudaSuccess ||
-        cudaMalloc(&v->d_obs, sizeof(CuBinObs)) != cudaSuccess) {
+        cudaMalloc(&v->d_obs, sizeof(CuBinObs)) != cudaSuccess ||
+        cudaMalloc(&v->d_fluid_cur,
+                   (size_t)n * CU_FLUID_VOL * sizeof(u16)) != cudaSuccess ||
+        cudaMalloc(&v->d_fluid_tmp,
+                   (size_t)n * CU_FLUID_VOL * sizeof(u16)) != cudaSuccess) {
         fprintf(stderr, "blaze_cuda: cudaMalloc failed for n=%d fixed pools "
                         "(~%.1f GB; region pools come later at snapshot "
                         "load)\n",
                 n, (double)n * ((double)PSV_NCHUNKS * sizeof(Chunk) +
                                 PSV_MAX_BLOCKS * sizeof(McAABB) +
                                 CU_COAL_CAND * sizeof(CuCand) +
+                                2.0 * CU_FLUID_VOL * sizeof(u16) +
                                 sizeof(Blaze)) / 1e9);
         blaze_destroy(v);
         return NULL;
@@ -798,6 +809,8 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->window = v->d_window + (size_t)i * PSV_NCHUNKS;
         e->coal_cand = v->d_cand + (size_t)i * CU_COAL_CAND;
         e->cont = v->d_cont + (size_t)i * BLAZE_SNAP_MAX_CONT * 3;
+        e->fluid_cur = v->d_fluid_cur + (size_t)i * CU_FLUID_VOL;
+        e->fluid_tmp = v->d_fluid_tmp + (size_t)i * CU_FLUID_VOL;
         e->ops = v->d_ops ? v->d_ops + (size_t)i * CU_OP_N : NULL;
     }
     if (cu_ck(cudaMemcpy(v->d_envs, v->h_envs, (size_t)n * sizeof(Blaze),
@@ -880,6 +893,8 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_cont);
     cudaFree(v->d_cand);
     cudaFree(v->d_window);
+    cudaFree(v->d_fluid_cur);
+    cudaFree(v->d_fluid_tmp);
     cudaFree(v->d_edg);
     cudaFree(v->d_dep);
     cudaFree(v->d_cam);

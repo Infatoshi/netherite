@@ -1,5 +1,20 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 fluids M2 (lane/fluidsm2)
+
+Blaze-CPU vs blaze-CUDA bitwise on `s10_t0_r64_fluid_spread.bsnp` +
+`fluid_spread_s10.json` (61 actions). M1 stayed VERIFIED. First CUDA tick
+was `k_tick_raw: an illegal memory access was encountered` (not a digest
+mismatch). Cause: nvcc inlined `BlockDynamicLiquid.getSlopeDistance`
+(oracle-src `net/minecraft/block/BlockDynamicLiquid.java:178`, recurse
+`:196`, depth cap `getSlopeFindDistance` `:212`) into the tick kernel;
+default CUDA stack is 1024 B. Fix: `MC_NOINLINE` on `ff_flow_distance` /
+`ff_ca_step_ex` / `cu_fluid_step_region` / `cu_fluid_tick`, and
+`cudaDeviceSetLimit(cudaLimitStackSize, 32 KiB)`. CA numerics unchanged
+(`--fmad=false`). After: 1-lane and 64-lane chain PASS; matrix `fluids`
+m2 VERIFIED. `mining_slice` / `spawn_to_torch` / `world_dynamics` M2 still
+VERIFIED. Root `make test` PASS.
+
 ## 2026-08-22 falling t46 world hash (lane/fallt46)
 
 `scenario_falling_blocks_20260801T151855Z` digest is 310/310 on gamer.
