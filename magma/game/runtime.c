@@ -1028,6 +1028,11 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                      boat_fwd, boat_str, r->gamerules.mobGriefing);
         {double x,y,z;if(gm_mobs_take_explosion(&r->mobs,&x,&y,&z))runtime_explode(r,x,y,z,3.0f);}
         spawn_hostile_projectiles(r);
+    } else {
+        /* --mobs off skips AI/spawn/combat; loaded snapshot living slots
+         * still run Entity.move / travel (entity_spine row). */
+        gm_mobs_tick_spine(&r->mobs, r->world,
+                           (const struct McSinTable *)&r->sin_table);
     }
     if(r->dimension==1){
         GmPlayerView dv;gm_runtime_view(r,&dv);

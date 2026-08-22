@@ -84,6 +84,7 @@ TEST_BIN := $(OUT)/test_train_config
 TEST_CHAIN_BIN := $(OUT)/test_chain_reward
 TEST_CAP_BIN := $(OUT)/test_capture_cont
 TEST_MOB_BIN := $(OUT)/test_mob_snapshot
+TEST_SPINE_BIN := $(OUT)/test_entity_spine
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
 SAN_TEST_BIN := $(SAN_OUT)/test_train_config
@@ -95,7 +96,8 @@ ENV_CPU_SO := $(ENV_OUT)/blaze_cpu.so
 TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
-.PHONY: all test-config test-chain test-capture smoke smoke-cpu smoke-cuda \
+.PHONY: all test-config test-chain test-capture test-entity-spine \
+	smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval
 
@@ -161,7 +163,7 @@ endif
 
 $(ENV_CPU_SO): $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
-		$(ENV_SRC)/blaze_snapshot.h | $(ENV_OUT)
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h | $(ENV_OUT)
 	$(CC) $(ENV_CFLAGS) $(OMP_CFLAGS) -I$(ENV_SRC) -I$(CORE_SRC) -shared \
 		-o $@ $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		-lm $(OMP_LDFLAGS)
@@ -169,10 +171,22 @@ $(ENV_CPU_SO): $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 ifneq ($(UNAME_S),Darwin)
 $(ENV_CUDA_SO): $(ENV_SRC)/blaze_cuda.cu $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
-		$(ENV_SRC)/blaze_snapshot.h | $(ENV_OUT)
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h | $(ENV_OUT)
 	$(NVCC) $(NVCCFLAGS) --shared \
 		-o $@ $(ENV_SRC)/blaze_cuda.cu $(ENV_SRC)/blaze_snapshot.c \
 		-lcudart
+
+TEST_SPINE_FP_BIN := $(OUT)/test_entity_spine_fp
+$(TEST_SPINE_FP_BIN): $(ENV_SRC)/test_entity_spine_fp.cu \
+		$(CORE_SRC)/entity_spine.h $(CORE_SRC)/mc_math.h | $(OUT)
+	$(NVCC) $(NVCCFLAGS) -o $@ $(ENV_SRC)/test_entity_spine_fp.cu -lcudart
+
+.PHONY: test-entity-spine-fp
+test-entity-spine-fp: $(TEST_SPINE_FP_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_entity_spine_fp
+else
+test-entity-spine-fp:
+	@echo "test-entity-spine-fp: CUDA is Linux-only" >&2; exit 1
 endif
 
 $(TEST_BIN): test_train_config.c $(TRAIN_CFG_OBJ) | $(OUT)
@@ -189,6 +203,11 @@ $(TEST_CAP_BIN): test_capture_cont.c $(ENV_SRC)/blaze_snapshot.c \
 $(TEST_MOB_BIN): $(ENV_SRC)/test_mob_snapshot.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mob_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
+$(TEST_SPINE_BIN): $(ENV_SRC)/test_entity_spine.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_entity_spine.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 ifeq ($(UNAME_S),Darwin)
@@ -222,9 +241,13 @@ test-config: $(TEST_BIN)
 test-chain: $(TEST_CHAIN_BIN)
 	cd $(CURDIR) && $(TEST_CHAIN_BIN)
 
-test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN)
+test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
+	cd $(REPO) && ./out/blaze/rl/test_entity_spine
+
+test-entity-spine: $(TEST_SPINE_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_entity_spine
 
 # Default smoke: committed ppo.conf (backend=cpu).
 smoke: smoke-cpu

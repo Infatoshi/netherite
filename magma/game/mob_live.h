@@ -191,6 +191,10 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *world, const struct McSinTable *sin_tab
                   struct PsvPlayer *player, struct PvStats *vitals,
                   int ox, int oz, int dimension, long long world_time, GmLiveSim *drops,
                   float boat_forward, float boat_strafe, int mob_griefing);
+/* Entity.move / travel only. Zero AI intents. Used when --mobs is off so
+ * loaded snapshot living slots still fall, collide, and damp. */
+void gm_mobs_tick_spine(GmMobLive *m, GmWorld *world,
+                        const struct McSinTable *sin_table);
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max);
 int gm_mobs_alive(const GmMobLive *m);
 int gm_mobs_living_count(const GmMobLive *m);

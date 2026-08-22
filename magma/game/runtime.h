@@ -232,7 +232,7 @@ typedef struct GmRuntime {
     /* Tape getRainStrength(1)/getThunderStrength(1). Live stays 0: magma has
      * WorldInfo raining flags but no rainingStrength fade. */
     float rain_strength, thunder_strength;
-    int mobs_enabled; /* --mobs off skips gm_mobs_tick (tape-replay parity) */
+    int mobs_enabled; /* --mobs off skips AI/spawn; spine still ticks */
     /* Live/window random block ticks (game/randtick.c). Default ON for interactive
      * play and unit tests; script/tape replay sets 0 so the unseedable oracle
      * world RNG is not approximated here. */

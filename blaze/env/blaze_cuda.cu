@@ -85,6 +85,8 @@ typedef struct {
     const int *cont;             /* device, ncont x 3 container cells (58/61/
                                   * 62); interact-candidate seed */
     int ncont;                   /* -1 = overflow: full window scan fallback */
+    unsigned n_mobs;
+    RlSnapMob mobs[BLAZE_SNAP_MAX_MOBS];
 } CuSnapDev;
 
 typedef struct {
@@ -205,11 +207,9 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     if (gi >= nactive) return;
     int i = active[gi];
     const CuSnapDev *s = &snaps[assign[i]];
-    /* CPU reset restores snapshot v3 mobs; CUDA M2 does not step or store
-     * them yet (GPU_MOB_AI.md). Pass an empty trailer until that lands. */
     blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
-                       NULL, 0, success_item);
+                       s->mobs, s->n_mobs, success_item);
 }
 
 /* reset phase 2: one thread per bulk cell (region copy + window fill +
@@ -1047,6 +1047,9 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         d->xy_off = d_xy;
         d->cont = d_cn;
         d->ncont = s.ncont;
+        d->n_mobs = s.n_mobs;
+        if (s.n_mobs)
+            memcpy(d->mobs, s.mobs, (size_t)s.n_mobs * sizeof d->mobs[0]);
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
         v->has_unrepresented[v->nsnaps] =
@@ -1238,6 +1241,11 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(&he, &d->head, d->items);
+    d->n_mobs = he.n_mobs;
+    if (he.n_mobs)
+        memcpy(d->mobs, he.mobs, (size_t)he.n_mobs * sizeof d->mobs[0]);
+    else
+        memset(d->mobs, 0, sizeof d->mobs);
     if (!d->cells) {
         u16 *cells = NULL;
         if (cu_ck(cudaMalloc(&cells, (size_t)v->rvol * sizeof(u16)),
