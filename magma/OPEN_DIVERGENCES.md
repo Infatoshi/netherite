@@ -74,14 +74,17 @@ bash verify/ui_hud/run_ui_hud_gates.sh
 GUI chrome is bit-exact (table/furnace/chest/inventory non-preview `bit== PASS`,
 A/B noise 0). The rendered player remains open at max channel 1:
 
-- Pose 1: mean `0.011641`, `442` nonzero pixels, `hard_px=0`.
-- Pose 2: mean `0.009949`, `323` nonzero pixels, `hard_px=0`.
+- Pose 1: mean `0.002448`, `62` nonzero pixels, `hard_px=0`.
+- Pose 2: mean `0.003316`, `140` nonzero pixels, `hard_px=0`.
 
-Re-measured 2026-08-21 (`lane/uipix`) with the capture_gui goldens; numbers
-match `gui_preview_calibration.json`. Packing is identified
-(`L8=trunc(primary*255)`, `out=(tex*L8+127)/255`). Remaining gap is
-StandardItemLighting primary off by ~1 L8 on smaller face bins
-(`test_preview_color_formula.py`). Do not invent a PASS-FLOOR.
+Re-measured 2026-08-22 (`lane/preview`). Packing is Mesa FLOAT_TO_UBYTE
+then unorm8 modulate (`L8=round(primary*255)`, `out=(tex*L8+127)/255`).
+Primary is RenderHelper 0.4+0.6 on GL 2.1 BYTE normals
+(`VertexBuffer.normal` `(int)(c*127)`, unpack `(2c+1)/255`) after
+`prepareScale` RESCALE_NORMAL only (no `GL_NORMALIZE`). Remaining 1 L8
+sits on face bins whose `C*255` is just above `n+0.5` while sibling bins
+need round the other way (`test_preview_color_formula.py`). Do not invent
+a PASS-FLOOR.
 
 Repro:
 

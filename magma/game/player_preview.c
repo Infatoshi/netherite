@@ -21,6 +21,11 @@
 /* Side-channel for PREVIEW_DIAG attribution (part/face per emitted tri). */
 static int g_diag_part[PREVIEW_MAX_TRIS];
 static int g_diag_face[PREVIEW_MAX_TRIS];
+static float g_diag_nx[PREVIEW_MAX_TRIS];
+static float g_diag_ny[PREVIEW_MAX_TRIS];
+static float g_diag_nz[PREVIEW_MAX_TRIS];
+static float g_diag_d0[PREVIEW_MAX_TRIS];
+static float g_diag_d1[PREVIEW_MAX_TRIS];
 static int g_diag_part_idx;
 static const char *const PART_NAMES[] = {
     "head", "body", "rarm", "larm", "rleg", "lleg",
@@ -121,22 +126,18 @@ static void rotate_x(float *y, float *z, float deg)
  * AMBIENT_AND_DIFFUSE with glColor(1,1,1): material ambient=diffuse=1.
  * Light model ambient 0.4; each light diffuse 0.6, ambient/specular 0.
  *
- * Mesa/llvmpipe fixed-function path quantizes light*material to unorm8 before
- * the n·L scale (same (a*b+128)>>8 used elsewhere for unorm8 modulate):
- *   amb_u8  = round(0.4*255) = 102;  (102*255+128)>>8 = 102  → 102/255
- *   diff_u8 = round(0.6*255) = 153;  (153*255+128)>>8 = 152  → 152/255
- * Using raw 0.6 float for diffuse leaves primary L8 one high on the large
- * pose1 -Z bins (211 vs Java 210) while trunc packing helps pose2; the unorm8
- * light*material product closes both. Sum clamped at 1 (GL primary color). */
-static float standard_item_light(float nx, float ny, float nz)
+ * Light*material is float 0.4 * 1 and 0.6 * 1 (colorMaterial current color
+ * 1,1,1). Sum clamped at 1 (GL primary color). Vertex primary is quantized
+ * later as L8=round(C*255) (Mesa FLOAT_TO_UBYTE) then unorm8 modulate
+ * (tex*L8+127)/255. */
+static float standard_item_light(float nx, float ny, float nz, float *out_d0, float *out_d1)
 {
     /* Exact Java double Vec3d.normalize results, kept in double through the
      * Ry(135) sandwich then stored as float (glLight float upload). */
     static int init = 0;
     static float e0x, e0y, e0z, e1x, e1y, e1z;
-    /* unorm8 light*material (see comment above). */
-    static const float AMB = 102.0f / 255.0f;
-    static const float DIFF = 152.0f / 255.0f;
+    static const float AMB = 0.4f;
+    static const float DIFF = 0.6f;
     if (!init) {
         const double lx = 0.20000000298023224, ly = 1.0, lz = -0.699999988079071;
         const double inv = 1.0 / sqrt(lx * lx + ly * ly + lz * lz);
@@ -154,9 +155,27 @@ static float standard_item_light(float nx, float ny, float nz)
     float sum = AMB;
     float d0 = nx * e0x + ny * e0y + nz * e0z;
     float d1 = nx * e1x + ny * e1y + nz * e1z;
+    if (out_d0) *out_d0 = d0;
+    if (out_d1) *out_d1 = d1;
     if (d0 > 0.0f) sum += DIFF * d0;
     if (d1 > 0.0f) sum += DIFF * d1;
     return sum > 1.0f ? 1.0f : sum;
+}
+
+/* VertexBuffer.normal BYTE (OLDMODEL_POSITION_TEX_NORMAL / NORMAL_3B):
+ *   (byte)((int)(c * 127) & 255)   trunc toward 0
+ * GL 2.1 signed-byte attrib (spec table 2.9): f = (2c + 1) / 255
+ * so packed 0 becomes 1/255, packed -127 becomes -253/255. ModelBox axis
+ * normals go through this before the modelview transform. */
+static void gl_byte_normal_attrib(float ix, float iy, float iz,
+                                  float *ox, float *oy, float *oz)
+{
+    int bx = (int)(ix * 127.0f);
+    int by = (int)(iy * 127.0f);
+    int bz = (int)(iz * 127.0f);
+    *ox = (2.0f * (float)bx + 1.0f) * (1.0f / 255.0f);
+    *oy = (2.0f * (float)by + 1.0f) * (1.0f / 255.0f);
+    *oz = (2.0f * (float)bz + 1.0f) * (1.0f / 255.0f);
 }
 
 static CrScreenVert screen_vertex(float x, float y, float z, float u, float v,
@@ -283,8 +302,14 @@ static int emit_part(const PreviewPart *part,
             q[k] = (PreviewVertex){corner[c][0], corner[c][1], corner[c][2], u[k], v[k]};
         }
         /* Rotate part-local normal: ModelRenderer Rz*Ry*Rx on directions, then
-         * entity_frame linear part S(-1,-1,1) * Ry(180-body) * Rx(pitch). */
-        float nx = FACE_N[f][0], ny = FACE_N[f][1], nz = FACE_N[f][2];
+         * entity_frame linear part S(-1,-1,1) * Ry(180-body) * Rx(pitch).
+         * Byte-pack first (TexturedQuad -> NORMAL_3B), then transform.
+         * RenderLivingBase.prepareScale enables GL_RESCALE_NORMAL (32826) only;
+         * GL_NORMALIZE (2977) stays off (LayerSlimeGel is the only enable).
+         * Rescale with uniform |MV| is n_eye = R * n_obj, so GL 2.1 BYTE length
+         * is preserved: packed (0,0,-127) stays |n|=253/255, not renormalized. */
+        float nx, ny, nz;
+        gl_byte_normal_attrib(FACE_N[f][0], FACE_N[f][1], FACE_N[f][2], &nx, &ny, &nz);
         rotate_zyx_vertex(&nx, &ny, &nz, ax, ay, az);
         nx = -nx; ny = -ny; /* prepareScale S(-1,-1,1); z unchanged */
         {
@@ -297,9 +322,8 @@ static int emit_part(const PreviewPart *part,
             rotate_x(&tmpy, &tmpz, matrix_pitch_deg);
             ny = tmpy; nz = tmpz;
         }
-        float nl = sqrtf(nx * nx + ny * ny + nz * nz);
-        if (nl > 1e-12f) { nx /= nl; ny /= nl; nz /= nl; }
-        float light = standard_item_light(nx, ny, nz);
+        float d0_dbg = 0.f, d1_dbg = 0.f;
+        float light = standard_item_light(nx, ny, nz, &d0_dbg, &d1_dbg);
 
         for (int t = 0; t < 2; ++t) {
             CrScreenVert a = screen_vertex(q[tri_idx[t][0]].x, q[tri_idx[t][0]].y,
@@ -323,6 +347,11 @@ static int emit_part(const PreviewPart *part,
             if (n < PREVIEW_MAX_TRIS) {
                 g_diag_part[n] = g_diag_part_idx;
                 g_diag_face[n] = f;
+                g_diag_nx[n] = nx;
+                g_diag_ny[n] = ny;
+                g_diag_nz[n] = nz;
+                g_diag_d0[n] = d0_dbg;
+                g_diag_d1[n] = d1_dbg;
             }
             ++n;
         }
@@ -536,7 +565,7 @@ static void preview_dump_fragments(const CrScreenTri *tris, int n, const CrTextu
         fprintf(stderr, "PREVIEW_DIAG dump open failed: %s\n", path);
         return;
     }
-    fprintf(f, "x,y,light,tex_r,tex_g,tex_b,tex_a,out_r,out_g,out_b,part,face,tri,u,v\n");
+    fprintf(f, "x,y,light,tex_r,tex_g,tex_b,tex_a,out_r,out_g,out_b,part,face,tri,u,v,nx,ny,nz,d0,d1\n");
     int written = 0;
     /* Interior: shrink 3px; require opaque output. */
     for (int py = 3; py < h - 3; ++py) {
@@ -556,10 +585,15 @@ static void preview_dump_fragments(const CrScreenTri *tris, int n, const CrTextu
             const unsigned char *tex = HAND_SKIN_RGBA_STEVE + ((tv * 64 + tu) * 4);
             int pidx = (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_part[tri] : -1;
             int face = (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_face[tri] : -1;
-            fprintf(f, "%d,%d,%.9f,%u,%u,%u,%u,%u,%u,%u,%d,%d,%d,%.6f,%.6f\n",
+            fprintf(f, "%d,%d,%.9f,%u,%u,%u,%u,%u,%u,%u,%d,%d,%d,%.6f,%.6f,%.9f,%.9f,%.9f,%.9f,%.9f\n",
                     px, py, light, tex[0], tex[1], tex[2], tex[3],
                     color[idx].r, color[idx].g, color[idx].b,
-                    pidx, face, tri, u * 64.0f, v * 64.0f);
+                    pidx, face, tri, u * 64.0f, v * 64.0f,
+                    (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_nx[tri] : 0.f,
+                    (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_ny[tri] : 0.f,
+                    (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_nz[tri] : 0.f,
+                    (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_d0[tri] : 0.f,
+                    (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_d1[tri] : 0.f);
             ++written;
         }
     }
@@ -773,17 +807,16 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
      * high-edge -1e-4 bias via sample_mode=0.
      *
      * Color path (preview_color_mode):
-     * Default 4 = Mesa unorm8 modulate after ubyte primary:
-     *   L8 = trunc(primary*255);  out = (tex*L8 + 127) / 255
-     * Interior traces (>=20 faces, both poses) identify this packing once the
-     * unorm8 light*material primary is correct (see standard_item_light).
-     * Mode 0 keeps historical float trunc via shade for A/B; modes 2-12 are
-     * experiment recolors (preview_diag=3). */
+     * Default 5 = Mesa FLOAT_TO_UBYTE primary then unorm8 modulate:
+     *   L8 = round(primary*255);  out = (tex*L8 + 127) / 255
+     * Primary is the GL 2.1 BYTE-unpacked, RESCALE_NORMAL (not normalized)
+     * 0.4+0.6*n·L sum (see standard_item_light). Mode 0 keeps historical
+     * float trunc via shade for A/B; modes 2-12 are experiment recolors. */
     shade.sample_mode = 1;
     {
         const char *pcm = cr_cfg()->preview_color_mode;
-        /* Default 4: trunc L8 + (tex*L8+127)/255 — identified packing. */
-        g_preview_color_mode = pcm[0] ? atoi(pcm) : 4;
+        /* Default 5: round L8 + (tex*L8+127)/255. */
+        g_preview_color_mode = pcm[0] ? atoi(pcm) : 5;
         if (g_preview_color_mode == 1) shade.color_trunc = 0;
     }
     cr_raster_cpu(&local, tris, n, &shade);
