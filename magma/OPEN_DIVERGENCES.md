@@ -8,9 +8,9 @@ forensics in `CLOSED_DIVERGENCES.md` (a stub with the close date and one-line
 resolution stays here in place); read there before re-investigating anything
 that smells like a settled question.
 
-Last verified on `72ee9a1` (2026-08-22, post lane/handgold + lane/lsbtier +
-lane/handscene; PASS-LSB port to ui_hud is lane/lsbhand). Oracle evidence
-for rain / slime DRAW / portal A/B: lane/unblock 2026-08-21.
+Last verified on `d82e80e` (2026-08-22, lane/lsbhand PASS-LSB port to ui_hud;
+post lane/handgold + lane/lsbtier + lane/handscene). Oracle evidence for
+rain / slime DRAW / portal A/B: lane/unblock 2026-08-21.
 
 Pixel-perfect means every owned, A/B-stable pixel is equal. Mean-error budgets,
 hard-pixel floors, empty target captures, and unstable Oracle pairs are not
@@ -146,11 +146,11 @@ BYTE-normal pack family as inventory preview (`VertexBuffer.java:533-535`
 `(int)(c*127)`, `RenderHelper.java:38-48` 0.4+0.6,
 `RenderLivingBase.prepareScale` `enableRescaleNormal` line 214).
 
-| id | px>1 | wall | painted | selbox | grass | eq1 | cap | PASS-LSB |
-|----|------|------|---------|--------|-------|-----|-----|----------|
-| hand_eat_mid | 21526 | 14768 | 2637 (incl. sky-blue) | 3 | 4118 | 51914 | 1784.8 | no |
-| hand_block_shield | 6925 | 4885 | 4 | 0 | 2036 | 21639 | 587.0 | no |
-| hand_bow_pull20 | 12584 | 10108 | 0 (metal is gray) | 58 | 2418 | 8161 | 620.5 | no |
+| id | px>1 | wall | painted | selbox | grass | sky | eq1 | cap | PASS-LSB |
+|----|------|------|---------|--------|-------|-----|-----|-----|----------|
+| hand_eat_mid | 21526 | 14768 | 2617 | 0 | 4118 | 23 | 51914 | 1784.8 | no |
+| hand_block_shield | 6925 | 4885 | 4 | 0 | 2036 | 0 | 21639 | 587.0 | no |
+| hand_bow_pull20 | 12584 | 10153 | 0 (metal is gray) | 13 | 2418 | 0 | 8161 | 620.5 | no |
 
 Eat gt1 hist: 20021 at maxch=2, 907 at 3, then a 577-px high tail (maxch up
 to 215) of occupancy. Shield gt1 is almost all maxch 2-3 (6337+581) with a
