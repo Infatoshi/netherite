@@ -790,14 +790,15 @@ static void test_fireball_rays_particles(void) {
         CHECK(dn8 == 8 * 6, "dig particle_count override emits N quads");
     }
 
-    /* Dragon dissolve: mid-death still emits full body; light/ao encode mask. */
+    /* Dragon dissolve: mid-death still emits full body; light/blk encode mask.
+     * ao stays ModelBox face shade (RenderDragon.java:59-63, er_shade). */
     drag.death_ticks = 100;
     int mid = gm_entities_emit(&drag, 1, out, 8192);
     CHECK(mid > 0, "mid-death dragon still emits full geometry");
     int marked = 0;
     for (int i = 0; i < mid; ++i)
-        if (out[i].light < 0.0f && fabsf(out[i].ao - 0.5f) < 1e-4f) marked++;
-    CHECK(marked == mid, "all death verts mark dissolve (light<0, ao=f)");
+        if (out[i].light < 0.0f && fabsf(out[i].blk - 0.5f) < 1e-4f) marked++;
+    CHECK(marked == mid, "all death verts mark dissolve (light<0, blk=f)");
     drag.death_ticks = 200;
     CHECK(gm_entities_emit(&drag, 1, out, 8192) == 0,
           "deathTicks=200 emits no dragon body");

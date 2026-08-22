@@ -398,7 +398,7 @@ static int render_layer(GmFrameCapture *c, const CrCamera *cam,
  * every pass drawn after it - terrain AND entity layers - is fogged. */
 void gm_frame_world_fog_params(int dimension, int boss_fog, int *enabled,
                                float *fog_start, float *fog_end) {
-    int dense = dimension == -1 || boss_fog;
+    int dense = gm_fog_dense_ramp(dimension, boss_fog);
     *enabled = gm_terrain_fog_enabled();
     *fog_start = dense ? GM_TERRAIN_FOG_FAR * 0.05f : GM_TERRAIN_FOG_START;
     *fog_end = dense ? GM_TERRAIN_FOG_FAR * 0.5f : GM_TERRAIN_FOG_END;
@@ -1042,23 +1042,30 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * step on everything 40 blocks out - most visibly the death cloud, which
      * the oracle shows washed to fog grey while the dragon lives and near
      * white afterwards. Keeping the latch armed left magma's cloud grey. */
-    if(r->dimension!=1){c->boss_latch=0;c->dragon_killed=0;c->dragon_dying=0;}
-    int dragon_seen=0;
-    for(int i=0;i<n;++i)if(ents[i].type==GM_ENTITY_DRAGON){
-        dragon_seen=1;
-        if(ents[i].death_ticks>=200)c->dragon_killed=1;
-        if(ents[i].death_ticks>0&&ents[i].health<=0.0f)c->dragon_dying=1;
-        if(!c->boss_latch&&!c->dragon_killed){c->boss_latch=1;c->boss_frac=1.0f;}
-        if(ents[i].health>=0.0f)c->boss_frac=ents[i].health/200.0f;break;
-    }
-    /* A dying dragon that leaves the view list has reached deathTicks 200. */
-    if(!dragon_seen&&c->dragon_dying)c->dragon_killed=1;
-    if(c->dragon_killed){c->boss_latch=0;c->boss_frac=0.0f;}
-    else if(!c->boss_latch){
-        for(int i=0;i<n;++i){
-            /* 31 = ER_TYPE_CRYSTAL (tape/name map); 8 = GM_ENTITY_CRYSTAL. */
-            if(ents[i].type==GM_ENTITY_CRYSTAL || ents[i].type==31){
-                c->boss_latch=1;c->boss_frac=1.0f;break;
+    if(r->dimension!=1){
+        /* Overworld/Nether have no DragonFightManager BossInfo.createFog
+         * (DragonFightManager.java:54 lives on WorldProviderEnd). Do not
+         * re-arm from a capture-pin dragon: that pulled the End [6.4,64]
+         * ramp onto the overworld ui_entities rows. */
+        c->boss_latch=0;c->dragon_killed=0;c->dragon_dying=0;
+    } else {
+        int dragon_seen=0;
+        for(int i=0;i<n;++i)if(ents[i].type==GM_ENTITY_DRAGON){
+            dragon_seen=1;
+            if(ents[i].death_ticks>=200)c->dragon_killed=1;
+            if(ents[i].death_ticks>0&&ents[i].health<=0.0f)c->dragon_dying=1;
+            if(!c->boss_latch&&!c->dragon_killed){c->boss_latch=1;c->boss_frac=1.0f;}
+            if(ents[i].health>=0.0f)c->boss_frac=ents[i].health/200.0f;break;
+        }
+        /* A dying dragon that leaves the view list has reached deathTicks 200. */
+        if(!dragon_seen&&c->dragon_dying)c->dragon_killed=1;
+        if(c->dragon_killed){c->boss_latch=0;c->boss_frac=0.0f;}
+        else if(!c->boss_latch){
+            for(int i=0;i<n;++i){
+                /* 31 = ER_TYPE_CRYSTAL (tape/name map); 8 = GM_ENTITY_CRYSTAL. */
+                if(ents[i].type==GM_ENTITY_CRYSTAL || ents[i].type==31){
+                    c->boss_latch=1;c->boss_frac=1.0f;break;
+                }
             }
         }
     }

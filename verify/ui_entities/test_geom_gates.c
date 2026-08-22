@@ -4,6 +4,7 @@
 #include "game/game.h"          /* GmEntityView + MAGMA_GAME_H before entity_render.h */
 #include "game/entity_render.h"
 #include "game/item_render.h"
+#include "game/sky.h"
 #include "assets/mob_atlas.h"
 #include "world/lightmap.h"
 
@@ -275,23 +276,116 @@ int main(void) {
         CHECK(gm_dragon_death_rays_emit(&d, 1, out, 8192) == 0, "no rays when alive");
     }
 
-    /* Dragon dissolve markers (per-texel path uses light/ao; not box drop). */
+    /* Dragon dissolve markers (per-texel path uses light/blk; not box drop).
+     * RenderDragon.java:59-63: f = deathTicks/200 into alphaFunc GL_GREATER.
+     * ao is RenderHelper item lighting (RenderHelper.java:30-48), not
+     * block-face 1/0.8/0.6/0.5. Axis-aligned: 1.0 up / ~0.4 down. */
     {
         GmEntityView d;
         memset(&d, 0, sizeof d);
         d.type = 9; d.y = 80; d.health = 0; d.death_ticks = 100;
         int mid = gm_entities_emit(&d, 1, out, 8192);
         CHECK(mid > 200, "mid-death dragon emits full body geometry");
-        int ok = 1;
-        for (int i = 0; i < mid; ++i)
-            if (!(out[i].light < 0.0f && fabsf(out[i].ao - 0.5f) < 1e-4f)) ok = 0;
-        CHECK(ok, "dissolve verts carry light<0 and ao=deathTicks/200");
+        int ok = 1, buckets = 0;
+        float amin = 9.0f, amax = -9.0f;
+        for (int i = 0; i < mid; ++i) {
+            float a = out[i].ao;
+            if (!(out[i].light < 0.0f && fabsf(out[i].blk - 0.5f) < 1e-4f
+                  && a > 0.3f && a <= 1.0001f)) ok = 0;
+            if (a < amin) amin = a;
+            if (a > amax) amax = a;
+            if (fabsf(a - 0.5f) < 1e-3f || fabsf(a - 0.6f) < 1e-3f ||
+                fabsf(a - 0.8f) < 1e-3f) buckets++;
+        }
+        CHECK(ok, "dissolve verts carry light<0, blk=deathTicks/200, item ao");
+        CHECK(amin < 0.45f && amax > 0.99f,
+              "item lighting spans ~0.4 down to 1.0 up (RenderHelper.java:30-48)");
+        CHECK(buckets < mid / 4, "dragon ao is not block-face 0.5/0.6/0.8");
         d.death_ticks = 200;
         CHECK(gm_entities_emit(&d, 1, out, 8192) == 0, "f=1 emits nothing");
         float uo = 0, vo = 0;
         gm_entity_dissolve_mask(&uo, &vo);
         CHECK(fabsf(uo - 0.25f) < 1e-4f && fabsf(vo) < 1e-4f,
               "dissolve mask offset maps dragon -> dragon_exploding");
+    }
+
+    /* Capture-pin pose (ui_entities dragon_death_*). Distinct ent_id so the
+     * static trail ring re-inits (gm_dragon_pose_tick). */
+    {
+        GmEntityView d0, d1;
+        memset(&d0, 0, sizeof d0); memset(&d1, 0, sizeof d1);
+        d0.type = d1.type = 9;
+        d0.y = d1.y = 80.0f;
+        d0.health = d1.health = 200.0f;
+        d0.death_ticks = d1.death_ticks = 50;
+        /* ModelDragon.java:185 wing.rotateAngleX = 0.125 - cos(animTime*2PI)*0.2
+         * EntityDragon.java:221 isAIDisabled => animTime=0.5F
+         * (0 -> -0.075 rad, 0.5 -> +0.325 rad). */
+        d0.ent_id = 110; d0.anim_time = 0.0f;
+        d1.ent_id = 111; d1.anim_time = 0.5f;
+        int n0 = gm_entities_emit(&d0, 1, out, 8192);
+        bounds(out, n0, mn, mx);
+        float h0 = mx[1] - mn[1];
+        int n1 = gm_entities_emit(&d1, 1, out, 8192);
+        bounds(out, n1, mn, mx);
+        float h1 = mx[1] - mn[1];
+        CHECK(n0 == n1 && n0 > 200, "animTime 0 vs 0.5 keeps box count");
+        CHECK(fabsf(h1 - h0) > 0.3f,
+              "animTime 0.5 vs 0 changes wing Y span (ModelDragon.java:185)");
+
+        /* PhaseHover.getIsStationary:28-30; getHeadPartYOffset:1064-1066
+         * returns idx (neck 0..4, head 6) instead of 0. */
+        memset(&d0, 0, sizeof d0); memset(&d1, 0, sizeof d1);
+        d0.type = d1.type = 9;
+        d0.y = d1.y = 80.0f;
+        d0.health = d1.health = 200.0f;
+        d0.anim_time = d1.anim_time = 0.5f;
+        d0.ent_id = 112; d0.stationary = 0;
+        d1.ent_id = 113; d1.stationary = 1; d1.phase_id = 10;
+        n0 = gm_entities_emit(&d0, 1, out, 8192);
+        bounds(out, n0, mn, mx);
+        float z0 = mx[2] - mn[2], y0s = mx[1] - mn[1];
+        n1 = gm_entities_emit(&d1, 1, out, 8192);
+        bounds(out, n1, mn, mx);
+        float z1 = mx[2] - mn[2], y1s = mx[1] - mn[1];
+        CHECK(n0 == n1 && n0 > 200, "stationary 0 vs 1 keeps box count");
+        CHECK(fabsf(z1 - z0) > 0.2f || fabsf(y1s - y0s) > 0.2f,
+              "HOVER stationary tucks neck/head (EntityDragon.java:1064-1066)");
+
+        /* NoAI skips ring fill (EntityDragon.java:219-240). applyRotations
+         * (RenderDragon.java:33) reads getMovementOffsets(7)[0]=0, not
+         * rotationYaw=180. Cold-start ring copies view yaw, so yaw=180
+         * flips the body about Y. */
+        memset(&d0, 0, sizeof d0); memset(&d1, 0, sizeof d1);
+        d0.type = d1.type = 9;
+        d0.y = d1.y = 80.0f;
+        d0.health = d1.health = 200.0f;
+        d0.anim_time = d1.anim_time = 0.5f;
+        d0.stationary = d1.stationary = 1;
+        d0.ent_id = 114; d0.yaw = 0.0f;
+        d1.ent_id = 115; d1.yaw = 180.0f;
+        n0 = gm_entities_emit(&d0, 1, out, 8192);
+        bounds(out, n0, mn, mx);
+        float zc0 = 0.5f * (mn[2] + mx[2]);
+        n1 = gm_entities_emit(&d1, 1, out, 8192);
+        bounds(out, n1, mn, mx);
+        float zc1 = 0.5f * (mn[2] + mx[2]);
+        CHECK(n0 == n1 && n0 > 200, "ring yaw 0 vs 180 keeps box count");
+        CHECK(fabsf(zc0 - zc1) > 2.0f,
+              "ring yaw 180 vs 0 flips body along Z (RenderDragon.java:33-35)");
+    }
+
+    /* EntityRenderer.java:2044-2047 dense ramp. createFog is End-only
+     * (DragonFightManager.java:54). Overworld capture pins must not densify. */
+    {
+        CHECK(gm_fog_dense_ramp(0, 1) == 0,
+              "overworld ignores createFog (no DragonFightManager)");
+        CHECK(gm_fog_dense_ramp(1, 1) == 1,
+              "End createFog pulls [far*0.05, far*0.5]");
+        CHECK(gm_fog_dense_ramp(1, 0) == 0,
+              "End without BossInfo uses normal fog");
+        CHECK(gm_fog_dense_ramp(-1, 0) == 1,
+              "Nether doesXZShowFog always dense");
     }
 
     /* Portal: particles.png. EXPLOSION_LARGE: explosion.png (not particles). */
@@ -345,14 +439,24 @@ int main(void) {
         frag.uv.x = ((float)d->x0 + 128.0f) / aw;
         frag.uv.y = ((float)d->y0 + 128.0f) / ah;
         frag.light = -1.0f;
-        frag.ao = 0.0f; /* thr=0: only alpha==0 discards */
+        frag.ao = 1.0f; /* ModelBox up-face shade */
         frag.tint = (CrRgba){255,255,255,255};
-        frag.blk = 15.0f;
+        frag.blk = 0.0f; /* thr=0: only alpha==0 discards */
         CrRgba c0 = cr_shade(&sh, &frag);
-        frag.ao = 1.0f; /* thr=1: all a<=1 discard */
+        frag.blk = 1.0f; /* thr=1: all a<=1 discard */
         CrRgba c1 = cr_shade(&sh, &frag);
         CHECK(c0.a != 0, "dissolve thr=0 keeps opaque exploding texels");
         CHECK(c1.a == 0, "dissolve thr=1 discards all fragments");
+        /* Skin pass keeps face shade (RenderDragon.java:70-71 bind skin after
+         * exploding mask). ao_mul must not be forced to 1. */
+        frag.blk = 0.0f;
+        frag.ao = 1.0f;
+        CrRgba chi = cr_shade(&sh, &frag);
+        frag.ao = 0.5f;
+        CrRgba clo = cr_shade(&sh, &frag);
+        CHECK(chi.a != 0 && clo.a != 0 && clo.r * 2 >= chi.r - 2 &&
+              clo.r * 2 <= chi.r + 2,
+              "dissolve down-face ao=0.5 is half of up-face ao=1");
     }
 
     /* RenderXPOrb: texture cell, hue pulse, billboard transform. */

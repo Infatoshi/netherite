@@ -88,6 +88,13 @@ CR_HD CrRgba gm_sky_ray_color(CrVec3 dir, float time_of_day);
 #define GM_TERRAIN_FOG_FAR   128.0f
 #define GM_TERRAIN_FOG_START (GM_TERRAIN_FOG_FAR * 0.75f)
 #define GM_TERRAIN_FOG_END   (GM_TERRAIN_FOG_FAR)
+/* EntityRenderer.java:2044-2047: Nether doesXZShowFog OR BossInfo createFog
+ * pull the linear ramp to [far*0.05, min(far,192)*0.5]. Vanilla createFog is
+ * only the End DragonFightManager (DragonFightManager.java:54). An overworld
+ * capture pin has no fight manager; boss_fog must not densify dim 0. */
+static inline int gm_fog_dense_ramp(int dimension, int boss_create_fog) {
+    return dimension == -1 || (dimension == 1 && boss_create_fog);
+}
 /* EntityRenderer.setupCameraTransform (oracle :730): gluPerspective far =
  * farPlaneDistance * SQRT_2. Fog end stays farPlaneDistance (no *sqrt2); the
  * projection must still reach the Chebyshev RD corner at RD*16*sqrt2 so the

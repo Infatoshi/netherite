@@ -143,13 +143,14 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
     CrRgba out;
     const float inv255 = 1.0f / 255.0f;
 
-    /* RenderDragon death dissolve: light < 0 marks dissolve fragments; ao holds
-     * deathTicks/200. Sample dragon_exploding at uv+mask_off (GL_GREATER thr). */
+    /* RenderDragon death dissolve: light < 0 marks dissolve fragments; blk
+     * holds deathTicks/200 (RenderDragon.java:59-63 alphaFunc GL_GREATER f).
+     * Sample dragon_exploding at uv+mask_off. ao is ModelBox face shade. */
     if (sh->alpha_mask && frag->light < 0.0f && sh->atlas) {
         float mu = frag->uv.x + sh->mask_u_off;
         float mv = frag->uv.y + sh->mask_v_off;
         CrRgba mask = cr_atlas_sample(sh->atlas, mu, mv);
-        if ((float)mask.a * inv255 <= frag->ao) {
+        if ((float)mask.a * inv255 <= frag->blk) {
             out.r = 0; out.g = 0; out.b = 0; out.a = 0;
             return out;
         }
@@ -214,10 +215,11 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
         brightness_mix = (packed - whole) * 32.0f;
         brightness_mix = fmaxf(0.0f, fminf(1.0f, brightness_mix));
     }
-    /* Dissolve fragments encode the death threshold in ao and mark light < 0;
-     * shade as fullbright (End sky) so the mask gate is the only visibility. */
+    /* Dissolve marks light < 0 so the mask gate runs; the marker overwrites
+     * prefolded sky so End capture shades as fullbright. ao_mul is the
+     * ModelBox face shade (er_shade: 1/0.8/0.6/0.5), not the death threshold. */
     float lscalar = (frag->light < 0.0f) ? 1.0f : frag->light;
-    float ao_mul = (sh->alpha_mask && frag->light < 0.0f) ? 1.0f : frag->ao;
+    float ao_mul = frag->ao;
     if (sh->lightmap && frag->light >= 0.0f) {
         float s = fmaxf(0.0f, fminf(15.0f, frag->light));
         float b = fmaxf(0.0f, fminf(15.0f, frag_blk));

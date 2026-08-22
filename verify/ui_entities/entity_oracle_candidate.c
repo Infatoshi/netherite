@@ -126,6 +126,18 @@ static void inject_from_meta(GmRuntime *rt, const char *state, const char *meta)
         /* Match qrl render pin: keep health full so onDeathUpdate/explosion
          * particles do not run; only deathTicks drives dissolve + rays. */
         ev.health = 200.0f;
+        /* entity_pin setNoAI (Recorder.java:6936) + HOVER (:6872-6873).
+         * onLivingUpdate:219-221 isAIDisabled sets animTime=0.5F and skips
+         * the ring fill/push at :225-240, so ringBufferIndex stays -1 and
+         * ringBuffer stays 0. RenderDragon.applyRotations:33 uses
+         * getMovementOffsets(7)[0] (=0), not the subject's rotationYaw=180.
+         * PhaseHover.getIsStationary:28-30; getHeadPartYOffset:1064-1066
+         * returns idx. PhaseList.HOVER id is 10 (PhaseList.java:10-20). */
+        ev.anim_time = 0.5f;
+        ev.stationary = 1;
+        ev.phase_id = 10;
+        ev.yaw = 0.0f;
+        ev.head_yaw = 0.0f;
     } else if (j_str_eq(es, "type", "small_fireball") || strstr(state, "fireball_small")) {
         ev.type = 30;
         ev.item_id = 385;

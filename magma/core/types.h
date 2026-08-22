@@ -141,8 +141,10 @@ typedef struct {
     float  fog_exp_density;
     /* Optional per-texel dissolve (RenderDragon death): when alpha_mask is 1,
      * fragments with light < 0 sample atlas at uv+(mask_u_off,mask_v_off) and
-     * discard when mask.a/255 <= ao (ao carries deathTicks/200). Color still
-     * samples the primary UV. Zero-init keeps every existing caller unchanged. */
+     * discard when mask.a/255 <= blk (blk carries deathTicks/200;
+     * RenderDragon.java:59-63 alphaFunc GL_GREATER f). Color still samples
+     * the primary UV. ao stays ModelBox face shade (er_shade). Zero-init
+     * keeps every existing caller unchanged. */
     int    alpha_mask;
     float  mask_u_off, mask_v_off;
     /* 1 = skip atlas sample; texel is opaque white (untextured POSITION_COLOR
