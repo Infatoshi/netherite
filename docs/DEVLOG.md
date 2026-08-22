@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 weather_optional M1+M2 (lane/weather)
+
+Baseline anvil HEAD 99acff8 pre-wire: `BLOCKED weather_optional: Optional weather transitions and effects are not measured by both backends` (`out/verify/weather_baseline.log`, port_matrix rc=3). After the shared kernel but before `--weather on` was allowed, M1 FAILED (`out/verify/weather_gates.log`) because `gm_config_validate_runtime` still rejected `weather=1`. Tape `scenario_rain_thunder_20260821T093435Z` physics NO divergence 209 ticks, world_hash 209/209.
+
+Cause: blaze did not tick WorldInfo rain/thunder or worldTime. Java `World.tick` calls `updateWeather` (`World.java:2707-2710`); `updateWeatherBody` (`:2741-2836`) `doWeatherCycle` (`GameRules.java:32`), thunder re-roll `nextInt(12000)+3600` / `nextInt(168000)+12000` (`:2763-2783`), rain re-roll `nextInt(12000)+12000` / `nextInt(168000)+12000` (`:2785-2807`); strength fade `+-0.01D` clamp (`:2810-2833`) is magma-inert (live strengths stay 0). `WorldServer.tick` (`WorldServer.java:180-223`) `totalWorldTime++` (`:218`) then `worldTime++` if `doDaylightCycle` (`:220-223`, `GameRules.java:22`). Magma RNG is an isolated `JavaRandom` from the world seed (`jrand_set`), not shared `World.rand` (`World.java:108`) and not `mc_hash_seed`.
+
+After: shared `blaze/core/world_weather.h`. Magma `gm_world_tick` is a thin `ww_tick_gated` wrapper. `--weather on` is now valid (clock only). Blaze ticks weather before fluids (`runtime.c` order). `BP_WEATHER` hashes worldTime, totalWorldTime, rain/thunder flags/timers/strengths (`WWT1`). Fixture `s10_t0_r64_no_liquid.bsnp` + 64 idle (`weather_s10.json`) crosses the rain flip at t=50 (`WW_INIT_RAIN_TIME=50`). Anvil M1 VERIFIED 64 ticks digest `0x04b9d9ee88db08cb` (`out/verify/weather_gates2.log`). Anvil M2 VERIFIED 64 CUDA lanes on gpu1. mining_slice M2 and spawn_to_torch/world_dynamics/fluids/entity_spine/random_ticks/falling_blocks `--no-deps` still VERIFIED. Root `make test` PASS. Tape physics/world_hash unchanged 209/209.
+
+Open: live `rainingStrength`/`thunderingStrength` fade and sky/rain render are not this row. Magma still does not fade.
+
 ## 2026-08-22 falling_blocks M1+M2 (lane/fallblaze)
 
 Baseline anvil HEAD 4dea2ea: `BLOCKED falling_blocks: Falling-block state and outcomes are not measured by both backends` (port_matrix rc=3, `out/verify/fallblaze_m1_before.log`). Tape `scenario_falling_blocks_20260801T151855Z` world_hash 310/310 before the port.
