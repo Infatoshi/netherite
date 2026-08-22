@@ -877,8 +877,14 @@ static void hand_raster(CrFramebuffer *fb, CrVertex *verts, int nv,
     sh.alpha_test = cutout ? 1 : 0;
     sh.layer = cutout ? CR_LAYER_CUTOUT : CR_LAYER_SOLID;
     /* Mesa/llvmpipe DynamicTexture (int)(c*255). ui_hud goldens are captured
-     * with LIBGL_ALWAYS_SOFTWARE; terrain tapes keep the default round. */
+     * with LIBGL_ALWAYS_SOFTWARE; terrain tapes keep the default round.
+     * RenderItem.setBlurMipmap(false,false) (RenderItem.java:270) is
+     * GL_NEAREST (AbstractTexture.java:30-35: mag 9728); sample_mode=1 is
+     * pure floor. Terrain keeps high-edge -1e-4. Item path alphaFunc is
+     * GL_GREATER 0.1 (RenderItem.java:273), not the cutout default 0.5. */
     sh.color_trunc = 1;
+    sh.sample_mode = 1;
+    if (cutout) sh.alpha_ref = 0.1f;
 
     int ntris = cr_transform(verts, nv, NULL, 0, &cam, fb->w, fb->h,
                              g_tris, HAND_MAX_VERTS * 2);
