@@ -255,6 +255,72 @@ int main(void) {
               "dissolve mask offset maps dragon -> dragon_exploding");
     }
 
+    /* Capture-pin pose (ui_entities dragon_death_*). Distinct ent_id so the
+     * static trail ring re-inits (gm_dragon_pose_tick). */
+    {
+        GmEntityView d0, d1;
+        memset(&d0, 0, sizeof d0); memset(&d1, 0, sizeof d1);
+        d0.type = d1.type = 9;
+        d0.y = d1.y = 80.0f;
+        d0.health = d1.health = 200.0f;
+        d0.death_ticks = d1.death_ticks = 50;
+        /* ModelDragon.java:185 wing.rotateAngleX = 0.125 - cos(animTime*2PI)*0.2
+         * EntityDragon.java:221 isAIDisabled => animTime=0.5F
+         * (0 -> -0.075 rad, 0.5 -> +0.325 rad). */
+        d0.ent_id = 110; d0.anim_time = 0.0f;
+        d1.ent_id = 111; d1.anim_time = 0.5f;
+        int n0 = gm_entities_emit(&d0, 1, out, 8192);
+        bounds(out, n0, mn, mx);
+        float h0 = mx[1] - mn[1];
+        int n1 = gm_entities_emit(&d1, 1, out, 8192);
+        bounds(out, n1, mn, mx);
+        float h1 = mx[1] - mn[1];
+        CHECK(n0 == n1 && n0 > 200, "animTime 0 vs 0.5 keeps box count");
+        CHECK(fabsf(h1 - h0) > 0.3f,
+              "animTime 0.5 vs 0 changes wing Y span (ModelDragon.java:185)");
+
+        /* PhaseHover.getIsStationary:28-30; getHeadPartYOffset:1064-1066
+         * returns idx (neck 0..4, head 6) instead of 0. */
+        memset(&d0, 0, sizeof d0); memset(&d1, 0, sizeof d1);
+        d0.type = d1.type = 9;
+        d0.y = d1.y = 80.0f;
+        d0.health = d1.health = 200.0f;
+        d0.anim_time = d1.anim_time = 0.5f;
+        d0.ent_id = 112; d0.stationary = 0;
+        d1.ent_id = 113; d1.stationary = 1; d1.phase_id = 10;
+        n0 = gm_entities_emit(&d0, 1, out, 8192);
+        bounds(out, n0, mn, mx);
+        float z0 = mx[2] - mn[2], y0s = mx[1] - mn[1];
+        n1 = gm_entities_emit(&d1, 1, out, 8192);
+        bounds(out, n1, mn, mx);
+        float z1 = mx[2] - mn[2], y1s = mx[1] - mn[1];
+        CHECK(n0 == n1 && n0 > 200, "stationary 0 vs 1 keeps box count");
+        CHECK(fabsf(z1 - z0) > 0.2f || fabsf(y1s - y0s) > 0.2f,
+              "HOVER stationary tucks neck/head (EntityDragon.java:1064-1066)");
+
+        /* NoAI skips ring fill (EntityDragon.java:219-240). applyRotations
+         * (RenderDragon.java:33) reads getMovementOffsets(7)[0]=0, not
+         * rotationYaw=180. Cold-start ring copies view yaw, so yaw=180
+         * flips the body about Y. */
+        memset(&d0, 0, sizeof d0); memset(&d1, 0, sizeof d1);
+        d0.type = d1.type = 9;
+        d0.y = d1.y = 80.0f;
+        d0.health = d1.health = 200.0f;
+        d0.anim_time = d1.anim_time = 0.5f;
+        d0.stationary = d1.stationary = 1;
+        d0.ent_id = 114; d0.yaw = 0.0f;
+        d1.ent_id = 115; d1.yaw = 180.0f;
+        n0 = gm_entities_emit(&d0, 1, out, 8192);
+        bounds(out, n0, mn, mx);
+        float zc0 = 0.5f * (mn[2] + mx[2]);
+        n1 = gm_entities_emit(&d1, 1, out, 8192);
+        bounds(out, n1, mn, mx);
+        float zc1 = 0.5f * (mn[2] + mx[2]);
+        CHECK(n0 == n1 && n0 > 200, "ring yaw 0 vs 180 keeps box count");
+        CHECK(fabsf(zc0 - zc1) > 2.0f,
+              "ring yaw 180 vs 0 flips body along Z (RenderDragon.java:33-35)");
+    }
+
     /* Portal: particles.png. EXPLOSION_LARGE: explosion.png (not particles). */
     {
         GmEntityView e;
