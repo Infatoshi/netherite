@@ -566,7 +566,8 @@ BLAZE_NVCODE := $(if $(filter sm_%,$(BLAZE_SM)),$(foreach a,$(patsubst sm_%,%,$(
 blaze_cuda_so: ../blaze/env/blaze_cuda.so
 ../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
                         ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
-                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING)
+                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
+                        $(BLAZE_CHEST)
 	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
 	    ../blaze/env/blaze_snapshot.c -o $@
