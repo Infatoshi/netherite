@@ -210,6 +210,9 @@ Two tapes are ground truth; nothing else is a match target:
   noise is 0, maxch<=1, px>1==0, and nz<=2% of ROI; else FAIL. Not a mean
   PASS-FLOOR. Mutation self-test in `gui_preview_lsb.py`.
   `gui_preview_calibration.json` records the tier verdict and guard results.
+  ui_hud oracle ROI (`run_ui_hud_gates.sh`): same PASS / PASS-LSB / RESIDUAL
+  contract on HAND_HARD and fullscreen exact-bar rows (owned ROI = Java∪C
+  subject or A/B-stable overlay). Guard `ui_hud_lsb.py`. Core HUD unchanged.
   Geometry unit test: `game/test_player_preview.sh`. Chest fails
   closed without `mc_gui_chest_{a,b}.png`. `capture_gui_actions.sh` +
   `run_gui_actions_verify.sh` verify inventory PICKUP, split/deposit,

@@ -9,14 +9,14 @@ resolution stays here in place); read there before re-investigating anything
 that smells like a settled question.
 
 Last verified on `72ee9a1` (2026-08-22, post lane/handgold + lane/lsbtier +
-lane/handscene). Oracle evidence for rain / slime DRAW / portal A/B:
-lane/unblock 2026-08-21.
+lane/handscene; PASS-LSB port to ui_hud is lane/lsbhand). Oracle evidence
+for rain / slime DRAW / portal A/B: lane/unblock 2026-08-21.
 
 Pixel-perfect means every owned, A/B-stable pixel is equal. Mean-error budgets,
 hard-pixel floors, empty target captures, and unstable Oracle pairs are not
 passes. The one owner-approved exception is the guarded PASS-LSB tier
-(2026-08-22, GUI preview gate only; see that entry for the mutation guard
-that keeps it from being a tolerance).
+(2026-08-22, GUI preview gate and ui_hud oracle ROI exact-bar rows; see those
+entries for the mutation guard that keeps it from being a tolerance).
 
 Stop-asking rank and GPU-port sequence live in `docs/GATES.md` "Remaining
 to stop asking". This file keeps forensics.
@@ -65,9 +65,9 @@ evidence; do not fit constants):**
 
 - Inventory preview 62/140 px at 1 LSB (PASS-LSB; pack-split has no
   Java-side justification).
-- Hand eat/shield 1-LSB wall/painted class (same family; becomes a floor
-  once the PASS-LSB tier is ported to the ui_hud gate - until then the rows
-  read RESIDUAL).
+- Hand eat/shield 1-LSB majority is the same family, but they are not a
+  floor: eat `px>1=21526` / `nz=73440` vs cap 1784.8; shield `px>1=6925` /
+  `nz=28564` vs cap 587.0. PASS-LSB is wired; rows stay RESIDUAL.
 - Canonical tape `known:4` oak-log luminance (needs an oracle fragment
   lightmap capture); t=3080/3540 mild_shift dig-window frames.
 
@@ -84,8 +84,9 @@ magma to an unproven oracle state):**
 
 **D. Verification gaps (gate work, not product bugs):**
 
-- PASS-LSB tier exists only in the GUI preview gate; ui_hud oracle ROI gate
-  is still bit-exact-only.
+- PASS-LSB is wired on ui_hud HAND_HARD + FULLSCREEN_REPLACE; no row
+  qualifies today (eat/shield/bow fail px>1 and the 2% count cap;
+  portal/underwater occupancy). Core HUD stays HARD_THR=2 exact.
 - Inventory gate: 13/23 tapes carry only tick-0 inv; count/metadata not
   compared.
 - Truncated tapes verify a prefix only (respawn-continue is an open product
@@ -119,13 +120,46 @@ synthetic exact/mutation controls still PASS.
 - Blocking shield: `hard_px=28564`, `maxch=61`, `c_vs_j=0.911`, `n_only_j=17`
   (was 28506 / 100 / 23.613 / 12533).
 
-`hard_px==0` is not reached. Eat/shield owned leftover is mostly 1 L8 wall
-texels plus painted-face LSB (same class as inventory preview / portal pad).
+`hard_px==0` is not reached. Contract change 2026-08-22 (`lane/lsbhand`,
+owner-approved): HAND_HARD and FULLSCREEN_REPLACE use the same guarded
+PASS-LSB tier as inventory preview. Gate exit is RESIDUAL_OR_FAIL only when
+a row is neither PASS nor PASS-LSB (CAPTURE_OK stays soft). Mutation guard
+`verify/ui_hud/ui_hud_lsb.py` (via `run_ui_hud_gates.sh`): uniform +1 on
+live `overlay_inside_stone` FAIL (count cap); single +2 FAIL (`px>1`); 3x3
++12 FAIL (hard/cluster); live eat/shield residual pinned RESIDUAL
+(`px>1` 21526/6925, `hard_px` 73440/28564, maxch 215/61). Core HUD /
+durability +1 extras are not PASS-LSB.
+
+No hand row qualifies for PASS-LSB today. Two independent blockers: `px>1`
+and `nz` vs 2% of `n_owned` (eat cap 1784.8, shield 587.0, bow 620.5). Even
+the 1-LSB subset alone exceeds the cap (eat eq1=51914, shield 21639, bow
+8161).
+
+>1-delta buckets (owned, max-channel > 1; gamer C candidate 2026-08-22).
+Sky is reported separately so it is not counted as painted hand/item.
+Selection box: `RenderGlobal.drawSelectionBox` black 0.4 alpha
+(`RenderGlobal.java:1964-1981`, `EntityRenderer.java:1408`). Stone wall:
+`BlockModelShapes.java:249` VARIANT-only `cube_all`. Grass: superflat
+`Biome.getGrassColorAtPos` (`Biome.java:282-286`) via
+`BiomeColorHelper.java:50-52`. 1-LSB painted/wall residue is the same
+BYTE-normal pack family as inventory preview (`VertexBuffer.java:533-535`
+`(int)(c*127)`, `RenderHelper.java:38-48` 0.4+0.6,
+`RenderLivingBase.prepareScale` `enableRescaleNormal` line 214).
+
+| id | px>1 | wall | painted | selbox | grass | eq1 | cap | PASS-LSB |
+|----|------|------|---------|--------|-------|-----|-----|----------|
+| hand_eat_mid | 21526 | 14768 | 2637 (incl. sky-blue) | 3 | 4118 | 51914 | 1784.8 | no |
+| hand_block_shield | 6925 | 4885 | 4 | 0 | 2036 | 21639 | 587.0 | no |
+| hand_bow_pull20 | 12584 | 10108 | 0 (metal is gray) | 58 | 2418 | 8161 | 620.5 | no |
+
+Eat gt1 hist: 20021 at maxch=2, 907 at 3, then a 577-px high tail (maxch up
+to 215) of occupancy. Shield gt1 is almost all maxch 2-3 (6337+581) with a
+handful of occupancy (maxch 61). Bow gt1 is occupancy: gray metal vs C
+stone (median 14, max 108). Sample coords live in the LSB guard print.
+
 Bow `c_vs_j=7` is occupancy in the lower-right ROI: gray bow metal vs C
-stone, not a missing wall. Stone has no random model rotation
-(`BlockModelShapes` maps `Blocks.STONE` by `VARIANT` only). PASS still
-requires `hard_px==0`. Diff triptychs (gitignored):
-`out/verify/ui_hud/handscene/<id>_tri.png`.
+stone, not a missing wall. Stone has no random model rotation. Diff
+triptychs (gitignored): `out/verify/ui_hud/handscene/<id>_tri.png`.
 
 Repro:
 

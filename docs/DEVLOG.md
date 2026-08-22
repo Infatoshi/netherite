@@ -1,5 +1,25 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 ui_hud PASS-LSB tier (lane/lsbhand)
+
+Owner-approved gate-contract change for `run_ui_hud_gates.sh`, mirroring
+`lane/lsbtier` / `gui_preview_lsb.py`. HAND_HARD and FULLSCREEN_REPLACE rows
+now have three verdicts: PASS (nz==0), PASS-LSB (A/B noise 0, every channel
+|d|<=1, px>1==0, nz<=2% of owned ROI), RESIDUAL/FAIL otherwise. Core HUD,
+death chrome, and soft CAPTURE_OK are unchanged (durability +1 extras stay
+residual). Not a mean PASS-FLOOR.
+
+Baseline (gamer, HEAD `d4182be`, before): oracle ROI RESIDUAL fail=0 residual=5.
+Hands: bow 7.007/20745/maxch 108, eat 1.317/73440/215, shield 0.911/28564/61.
+Portal 1.466/363304/144, underwater 26.763/390096/112. Mutations PASS.
+Matches OPEN_DIVERGENCES.
+
+After: same five residuals; no row flips to PASS-LSB. Eat px>1=21526 (wall
+14768, painted 2637, selbox 3, grass 4118) and nz=73440 vs cap 1784.8.
+Shield px>1=6925 (wall 4885, painted 4, grass 2036) vs cap 587.0. Bow
+px>1=12584 occupancy. Guard PASS (uniform+1 count-cap, +2 px>1, 3x3+12
+hard, live eat/shield pin). Magma/game not touched.
+
 ## 2026-08-22 divergence split: two bridge files
 
 `magma/OPEN_DIVERGENCES.md` is now oracle->magma only, with an audited

@@ -177,9 +177,24 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
     --cframes "$CFRAME_DIR" \
     --margin "${UI_HUD_MARGIN:-2.0}" \
     --mutation-self-test
+
+  echo "== LSB mutation guard (PASS-LSB teeth + hand tail pin) =="
+  set +e
+  uv run --no-project --with pillow --with numpy python \
+    "$DIR/ui_hud_lsb.py" \
+    --goldens "$GOLDEN_DIR" \
+    --cframes "$CFRAME_DIR"
+  lsb_rc=$?
+  set -e
+  if [ "$lsb_rc" -ne 0 ]; then
+    echo "ui_hud LSB guard: FAIL rc=$lsb_rc"
+    echo "ui_hud gates: FAIL (LSB mutation guard)"
+    exit "$lsb_rc"
+  fi
+
   if [ "$roi_rc" -ne 0 ]; then
     echo "ui_hud oracle ROI: nonzero (fail or hard residual) rc=$roi_rc"
-    echo "ui_hud gates: RESIDUAL_OR_FAIL (composition + mutations ran; mutations PASS)"
+    echo "ui_hud gates: RESIDUAL_OR_FAIL (composition + mutations ran; mutations PASS; LSB guard PASS)"
     exit "$roi_rc"
   fi
 else
