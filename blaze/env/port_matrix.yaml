@@ -250,14 +250,60 @@ subsystems:
   - name: random_ticks
     supported: false
     sources:
-      magma: [magma/game/randtick.c]
-      shared: [blaze/core/plant_growth.h, blaze/core/block_tickers.h]
-      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+      magma: [magma/game/randtick.c, magma/game/rl_mode.c, magma/game/world_live.c]
+      shared: [blaze/core/randtick_live.h, blaze/core/port_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
     dependencies: [world_dynamics]
     required_features: [random_ticks]
-    required_artifacts: {m1: [], m2: []}
-    m1: []
-    m2: []
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_randtick.bsnp
+        - blaze/rl/fixtures/randtick_grow_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_randtick.bsnp
+        - blaze/rl/fixtures/randtick_grow_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "200"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_randtick.bsnp
+      - --tape
+      - blaze/rl/fixtures/randtick_grow_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - random_ticks
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "200"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_randtick.bsnp
+      - --tape
+      - blaze/rl/fixtures/randtick_grow_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - random_ticks
     timeout: 1500
     block_reason: Random-tick scheduling and effects are not measured by both backends.
 
