@@ -30,7 +30,10 @@ Pinning 0.85 on `ui_hud_scene` over-zooms this golden (C stone_min=0,
 is 0.887 (two ease ticks). Capture meta has no `fovModifierHand`.
 Do not fit 0.887. Recapture is anvil-only.
 
-Occupancy leftover lives in OPEN class C. Do not retune `hand.c`.
+Occupancy leftover was class C until lane/bowgold 2026-08-22 recaptured
+the golden after `fovModifierHand` converged (`fov_mult=0.85` in meta).
+`c_vs_j` 7.007 -> 0.753; J-stone/C-grass gone. Remaining 1-LSB wall is
+the eat/shield pack family. Do not retune `hand.c`.
 
 ### Canonical t=260 "texel-selection" unexplained clusters: retracted 2026-08-21
 

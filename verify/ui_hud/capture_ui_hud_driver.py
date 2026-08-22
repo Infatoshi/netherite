@@ -194,6 +194,25 @@ def grab(e, path, expect_use_branch=None):
     return r
 
 
+def reply_fov_mult(r):
+    """EntityRenderer.fovModifierHand from hud_pin / frame replies (fov_mult)."""
+    if not r:
+        return None
+    v = r.get("fov_mult")
+    if v is not None:
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            pass
+    pa = r.get("pass_a")
+    if isinstance(pa, dict) and pa.get("fovModifierHand") is not None:
+        try:
+            return float(pa.get("fovModifierHand"))
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
 def grab_pair(e, path_a, path_b, expect_use_branch=None):
     """Atomic A/B re-render on one client-thread turn (no free-running ticks).
 
@@ -750,6 +769,12 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
         n_repin = 1
     elif hand_use:
         settle_n = max(settle_n, 6)
+        # EntityRenderer.updateFovModifierHand eases 0.5/tick toward
+        # AbstractClientPlayer.getFovModifier (0.85 at full draw). Hold the
+        # drawn bow long enough that fovModifierHand converges; 20 ticks is
+        # past float32 (gap * 0.5^20). Do not capture mid-ease.
+        if state_id == "hand_bow_pull20":
+            settle_n = max(settle_n, 24)
         n_repin = 2
     else:
         n_repin = 2
@@ -812,6 +837,18 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
             if ha != hb:
                 raise RuntimeError(
                     "%s: A/B sha256 mismatch a=%s b=%s" % (state_id, ha, hb))
+        fov_mult = reply_fov_mult(fa) if fa else None
+        if fov_mult is None:
+            fov_mult = reply_fov_mult(r1)
+        if state_id == "hand_bow_pull20":
+            if fov_mult is None:
+                raise RuntimeError(
+                    "hand_bow_pull20: fov_mult missing from frame/pin reply "
+                    "(need EntityRenderer.fovModifierHand in qrl)")
+            if not (0.1 <= fov_mult <= 1.5):
+                raise RuntimeError(
+                    "hand_bow_pull20: fov_mult=%s outside vanilla clamp "
+                    "[0.1, 1.5]" % fov_mult)
     except RuntimeError as ex:
         capture_error = str(ex)
         log("CAPTURE_FAIL %s: %s" % (state_id, capture_error))
@@ -856,6 +893,7 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
         "presence": presence,
         "use_branch": r1.get("use_branch"),
         "use_count": r1.get("use_count"),
+        "fov_mult": fov_mult,
         "verdict": "CAPTURE_OK",
         "notes": (
             "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin "
@@ -866,8 +904,8 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
         meta.update(meta_extra)
     with open(os.path.join(meta_dir, "%s.json" % state_id), "w") as f:
         json.dump(meta, f, indent=2)
-    log("captured %s  noise=%.3f presence_ok pin=%s" % (
-        state_id, noise,
+    log("captured %s  noise=%.3f fov_mult=%s presence_ok pin=%s" % (
+        state_id, noise, fov_mult,
         {k: r1.get(k) for k in (
             "health", "food", "air", "armor", "absorption",
             "xp_level", "hand_active", "burning", "fire_ticks",
@@ -1046,6 +1084,14 @@ def self_test_hand_use_assertions():
         })
     except Exception as ex:
         errors.append("good shield pin should pass: %s" % ex)
+
+    # --- fov_mult recorded from pin/frame replies ---
+    if reply_fov_mult({"fov_mult": 0.85}) != 0.85:
+        errors.append("reply_fov_mult top-level fov_mult")
+    if reply_fov_mult({"pass_a": {"fovModifierHand": 0.8500000238418579}}) != 0.8500000238418579:
+        errors.append("reply_fov_mult pass_a.fovModifierHand")
+    if reply_fov_mult({"ok": True}) is not None:
+        errors.append("reply_fov_mult missing should be None")
 
     if errors:
         for e in errors:

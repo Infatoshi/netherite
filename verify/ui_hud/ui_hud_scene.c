@@ -20,6 +20,7 @@
 #include "mc_blocks.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define SCENE_W 854
@@ -37,6 +38,45 @@ static void fill_box(GmRuntime *r, int x0, int y0, int z0,
         for (int z = z0; z <= z1; ++z)
             for (int x = x0; x <= x1; ++x)
                 gm_runtime_set_block(r, x, y, z, id, meta);
+}
+
+/* Top-level json.dump indent=2 field. Nested objects use 4+ spaces. */
+static int read_meta_float(const char *id, const char *key, float *out) {
+    static const char *dirs[] = {
+        "../verify/ui_hud/goldens/meta",
+        "verify/ui_hud/goldens/meta",
+        NULL
+    };
+    char path[512];
+    char buf[65536];
+    char needle[96];
+    int i;
+    if (!id || !key || !out) return 0;
+    snprintf(needle, sizeof needle, "\n  \"%s\":", key);
+    for (i = 0; dirs[i]; ++i) {
+        FILE *f;
+        size_t n;
+        const char *p;
+        char *end;
+        float v;
+        snprintf(path, sizeof path, "%s/%s.json", dirs[i], id);
+        f = fopen(path, "r");
+        if (!f) continue;
+        n = fread(buf, 1, sizeof buf - 1, f);
+        fclose(f);
+        if (n == 0) continue;
+        buf[n] = '\0';
+        p = strstr(buf, needle);
+        if (!p) continue;
+        p = strchr(p, ':');
+        if (!p) continue;
+        p++;
+        v = strtof(p, &end);
+        if (end == p) continue;
+        *out = v;
+        return 1;
+    }
+    return 0;
 }
 
 static int ensure_runtime(void) {
@@ -132,12 +172,20 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
     memset(&pv, 0, sizeof pv);
     gm_runtime_view(&g_rt, &pv);
     gm_runtime_apply_tape_view(&g_rt, &pv);
-    /* Do not set fov_mult for hand_bow_pull20. Live 20-tick draw is 0.85
-     * (AbstractClientPlayer.java:156-170) eased 0.5/tick in player_ctl.c
-     * (EntityRenderer.java:491-502). This golden's pad wall is mid-ease
-     * and fovModifierHand is unrecorded; pinning 0.85 over-zooms C
-     * (stone_min 0 vs Java 20). Do not fit 0.887. Recapture on anvil.
-     * Hand projection stays 70 (EntityRenderer.java:804). */
+    /* World projection uses getFOVModifier(pt, true) = fovSetting *
+     * fovModifierHand (EntityRenderer.java:529-532). Hand projection stays
+     * 70: getFOVModifier(pt, false) skips this term (EntityRenderer.java:804).
+     * Read the capture meta's recorded fovModifierHand. Do not hardcode 0.85
+     * or the old mid-ease 0.887. */
+    if (!strcmp(id, "hand_bow_pull20")) {
+        float fm = 0.0f;
+        if (read_meta_float(id, "fov_mult", &fm) && fm >= 0.1f && fm <= 1.5f)
+            pv.fov_mult = fm;
+        else
+            fprintf(stderr,
+                    "ui_hud_scene: hand_bow_pull20 meta fov_mult missing; "
+                    "world FOV stays unzoomed\n");
+    }
 
     GmWindowComposeFrame frame;
     memset(&frame, 0, sizeof frame);
