@@ -278,6 +278,143 @@ int main(void) {
         CHECK(c1.a == 0, "dissolve thr=1 discards all fragments");
     }
 
+    /* RenderXPOrb: texture cell, hue pulse, billboard transform. */
+    {
+        static float sin_tab[65536];
+        static int sin_ok;
+        if (!sin_ok) {
+            const double two_pi = 6.283185307179586476925286766559;
+            for (int i = 0; i < 65536; ++i)
+                sin_tab[i] = (float)sin((double)i * two_pi / 65536.0);
+            sin_ok = 1;
+        }
+        /* MathHelper.sin (MathHelper.java:29-31). */
+        #define XP_MCSIN(v) (sin_tab[((int)((v) * 10430.378f)) & 65535])
+
+        /* getTextureByXP thresholds (EntityXPOrb.java:290-293). */
+        {
+            static const int edges[][2] = {
+                {1, 0}, {2, 0}, {3, 1}, {6, 1}, {7, 2}, {16, 2}, {17, 3},
+                {36, 3}, {37, 4}, {72, 4}, {73, 5}, {148, 5}, {149, 6},
+                {306, 6}, {307, 7}, {616, 7}, {617, 8}, {1236, 8}, {1237, 9},
+                {2476, 9}, {2477, 10},
+            };
+            int bad = 0;
+            const CrMobSprite *spr = &CR_MOB_SPRITES[CR_MOB_EXPERIENCE_ORB];
+            float aw = (float)CR_MOB_ATLAS_W;
+            for (unsigned i = 0; i < sizeof edges / sizeof edges[0]; ++i) {
+                GmEntityView e;
+                memset(&e, 0, sizeof e);
+                e.type = 21; e.y = 64; e.item_id = edges[i][0];
+                CrVertex v[6];
+                if (gm_xp_orbs_emit(&e, 1, 0.0f, 0.0f, 1.0f, v, 6) != 6) {
+                    bad = 1; break;
+                }
+                int tier = edges[i][1];
+                float want_u0 = ((float)spr->x0 + (float)(tier % 4 * 16)) / aw;
+                if (fabsf(v[0].uv.x - want_u0) > 1e-5f) bad = 1;
+            }
+            CHECK(bad == 0, "getTextureByXP 4x4 cell U matches EntityXPOrb.java:290-293");
+            /* value 17 is the capture (tier 3, column 3 of row 0). */
+            GmEntityView cap;
+            memset(&cap, 0, sizeof cap);
+            cap.type = 21; cap.y = 64; cap.item_id = 17;
+            CrVertex v[6];
+            gm_xp_orbs_emit(&cap, 1, 0.0f, 0.0f, 1.0f, v, 6);
+            float u0 = ((float)CR_MOB_SPRITES[CR_MOB_EXPERIENCE_ORB].x0 + 48.0f)
+                       / (float)CR_MOB_ATLAS_W;
+            float u1 = ((float)CR_MOB_SPRITES[CR_MOB_EXPERIENCE_ORB].x0 + 64.0f)
+                       / (float)CR_MOB_ATLAS_W;
+            CHECK(approx(v[0].uv.x, u0, 1e-5f) && approx(v[1].uv.x, u1, 1e-5f),
+                  "xpValue 17 selects sheet cell i=3 (RenderXPOrb.java:37-42)");
+        }
+
+        /* Hue pulse: f9=(xpColor+partialTicks)/2 (RenderXPOrb.java:52-55). */
+        {
+            GmEntityView e;
+            memset(&e, 0, sizeof e);
+            e.type = 21; e.y = 64; e.item_id = 17; e.item_meta = 0;
+            CrVertex v0[6], v1[6];
+            gm_xp_orbs_emit(&e, 1, 0.0f, 0.0f, 0.0f, v0, 6);
+            gm_xp_orbs_emit(&e, 1, 0.0f, 0.0f, 1.0f, v1, 6);
+            float f9_0 = (0.0f + 0.0f) / 2.0f;
+            float f9_1 = (0.0f + 1.0f) / 2.0f;
+            int r0 = (int)((XP_MCSIN(f9_0 + 0.0f) + 1.0f) * 0.5f * 255.0f);
+            int b0 = (int)((XP_MCSIN(f9_0 + 4.1887903f) + 1.0f) * 0.1f * 255.0f);
+            int r1 = (int)((XP_MCSIN(f9_1 + 0.0f) + 1.0f) * 0.5f * 255.0f);
+            int b1 = (int)((XP_MCSIN(f9_1 + 4.1887903f) + 1.0f) * 0.1f * 255.0f);
+            CHECK(v0[0].tint.r == (u8)r0 && v0[0].tint.g == 255 &&
+                  v0[0].tint.b == (u8)b0 && v0[0].tint.a == 128,
+                  "xpColor=0 partialTicks=0 pulse (RenderXPOrb.java:52-55,64)");
+            CHECK(v1[0].tint.r == (u8)r1 && v1[0].tint.g == 255 &&
+                  v1[0].tint.b == (u8)b1 && v1[0].tint.a == 128,
+                  "xpColor=0 partialTicks=1 pulse (capture pin color=0)");
+            CHECK(v0[0].tint.r != v1[0].tint.r,
+                  "partialTicks is part of the hue argument, not dropped");
+        }
+
+        /* Billboard: T(pos) T(0,0.1,0) Ry(180-yaw) Rx(-pitch) S(0.3)
+         * verts (-0.5,-0.25),(0.5,-0.25),(0.5,0.75),(-0.5,0.75)
+         * RenderXPOrb.java:56-67. Capture pose yaw=0 pitch=25. */
+        {
+            const float deg = 0.017453292519943295f;
+            const float yaw = 0.0f, pitch = 25.0f;
+            const float ex = 8.5f, ey = 6.0f, ez = 10.5f;
+            float yr = (180.0f - yaw) * deg;
+            float pr = -pitch * deg;
+            float cy = cosf(yr), sy = sinf(yr);
+            float cp = cosf(pr), sp = sinf(pr);
+            static const float CORN[4][2] = {
+                { -0.5f, -0.25f }, {  0.5f, -0.25f },
+                {  0.5f,  0.75f }, { -0.5f,  0.75f },
+            };
+            GmEntityView e;
+            memset(&e, 0, sizeof e);
+            e.type = 21; e.x = ex; e.y = ey; e.z = ez; e.item_id = 17;
+            CrVertex v[6];
+            CHECK(gm_xp_orbs_emit(&e, 1, yaw, pitch, 1.0f, v, 6) == 6,
+                  "capture-pose orb emits 6 verts");
+            int bad = 0;
+            /* tri 0,1,2,0,2,3 so verts 0,1,2 of the output are corners 0,1,2 */
+            for (int c = 0; c < 3; ++c) {
+                float px = CORN[c][0], py = CORN[c][1], pz = 0.0f;
+                float ty = py * cp - pz * sp, tz = py * sp + pz * cp;
+                py = ty; pz = tz;
+                float tx = px * cy + pz * sy;
+                tz = -px * sy + pz * cy;
+                px = tx; pz = tz;
+                float wx = ex + px * 0.3f;
+                float wy = ey + 0.1f + py * 0.3f;
+                float wz = ez + pz * 0.3f;
+                if (!approx(v[c].pos.x, wx, 1e-5f) ||
+                    !approx(v[c].pos.y, wy, 1e-5f) ||
+                    !approx(v[c].pos.z, wz, 1e-5f))
+                    bad = 1;
+            }
+            CHECK(bad == 0, "billboard T+Ry(180-yaw)+Rx(-pitch)+S(0.3) (RenderXPOrb.java:56-60)");
+        }
+
+        /* EntityXPOrb.getBrightnessForRender (EntityXPOrb.java:67-81):
+         * j = (packed block & 255) + (int)(0.5F * 15.0F * 16.0F), cap 240.
+         * Magma stores 0..15; packed block is level*16. Sky is unchanged. */
+        {
+            GmEntityView e;
+            memset(&e, 0, sizeof e);
+            e.type = 21; e.y = 64; e.item_id = 17;
+            e.lm_lit = 1; e.lm_light = 15.0f; e.lm_blk = 0.0f;
+            CrVertex v[6];
+            gm_xp_orbs_emit(&e, 1, 0.0f, 0.0f, 1.0f, v, 6);
+            CHECK(approx(v[0].light, 15.0f, 1e-5f) &&
+                  approx(v[0].blk, 7.5f, 1e-5f),
+                  "getBrightnessForRender +120 block coord (EntityXPOrb.java:67-81)");
+            e.lm_blk = 15.0f;
+            gm_xp_orbs_emit(&e, 1, 0.0f, 0.0f, 1.0f, v, 6);
+            CHECK(approx(v[0].blk, 15.0f, 1e-5f),
+                  "getBrightnessForRender block coord caps at 240");
+        }
+        #undef XP_MCSIN
+    }
+
     printf("\n%s\n", g_fail ? "*** GEOM GATES FAILED ***" : "ALL GEOM GATES PASSED");
     return g_fail;
 }

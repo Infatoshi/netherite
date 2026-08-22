@@ -868,7 +868,9 @@ int gm_window_compose_draw(GmWindowCompose *c,
                                   &esh.fog_start, &esh.fog_end);
         apply_fluid_fog(&esh, &uw);
         render_layer(c, &cam, c->entity_verts, nv, &esh);
+        /* RenderXPOrb pass 0: blend off, alpha 0.1 (EntityRenderer.java:1383). */
         int nx = gm_xp_orbs_emit(ents, nents, pv->yaw, pv->pitch,
+                                 frame->partial_ticks,
                                  c->entity_verts, c->max_entity_verts);
         if (nx > 0) {
             CrShadeCtx xp = {0};
@@ -877,7 +879,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
             xp.alpha_test = 1;
             xp.alpha_ref = 0.1f;
             xp.layer = CR_LAYER_TRANSLUCENT;
-            xp.blend = 1;
+            xp.blend = 0;
             xp.lightmap = lm;
             apply_fluid_fog(&xp, &uw);
             render_layer(c, &cam, c->entity_verts, nx, &xp);

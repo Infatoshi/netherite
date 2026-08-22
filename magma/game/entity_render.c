@@ -1593,7 +1593,8 @@ int gm_entity_type_for_spawn_id(const char *id) {
     return -1;
 }
 
-/* EntityXPOrb.getTextureByXP: tier index 0..10 into experience_orb.png. */
+/* EntityXPOrb.getTextureByXP: tier index 0..10 into experience_orb.png.
+ * EntityXPOrb.java:290-293 (javap: nested if_icmpge 2477..3). */
 static int er_xp_texture_tier(int xp_value) {
     if (xp_value >= 2477) return 10;
     if (xp_value >= 1237) return 9;
@@ -1608,13 +1609,39 @@ static int er_xp_texture_tier(int xp_value) {
     return 0;
 }
 
-/* RenderXPOrb.doRender: camera-facing quad on experience_orb.png.
- *   T(pos) T(0,0.1,0) Ry(180-playerViewY) Rx(-playerViewX) S(0.3)
- * verts (-.5,-.25,0)..(.5,.75,0); UV from getTextureByXP; colour from xpColor
- * phase; alpha 128. xpValue in item_id (or health for live fill), xpColor in
- * item_meta (legacy age when meta==0 and age set). World lighting via lm_*. */
+/* MathHelper.sin (MathHelper.java:29-31). Table init at :617:
+ *   SIN_TABLE[i] = (float)Math.sin((double)i * Math.PI * 2.0 / 65536.0)
+ * Index: (int)(value * 10430.378F) & 65535. Not libm sinf. */
+static float er_xp_mc_sin(float value) {
+    static float tab[65536];
+    static int init;
+    if (!init) {
+        const double two_pi = 6.283185307179586476925286766559;
+        for (int i = 0; i < 65536; ++i)
+            tab[i] = (float)sin((double)i * two_pi / 65536.0);
+        init = 1;
+    }
+    return tab[((int)(value * 10430.378f)) & 65535];
+}
+
+/* RenderXPOrb.doRender (RenderXPOrb.java:30-74, javap confirmed):
+ *   T(x,y,z) bind experience_orb.png
+ *   enableStandardItemLighting (RenderHelper.java:30-48)
+ *   i = getTextureByXP; UV cell i%4, i/4 on the 64x64 4x4 sheet (:37-42)
+ *   lightmap from getBrightnessForRender(partialTicks) (:46-49)
+ *   f9 = (xpColor + partialTicks) / 2 (:52)
+ *   r = (int)((MathHelper.sin(f9)+1)*0.5*255)
+ *   g = 255
+ *   b = (int)((MathHelper.sin(f9+4.1887903F)+1)*0.1*255) (:53-55)
+ *   T(0, 0.1, 0) (:56)
+ *   Ry(180 - playerViewY) (:57)
+ *   Rx(-playerViewX) first-person (:58; thirdPersonView==2 flips the sign)
+ *   S(0.3) (:59-60)
+ *   quad (-0.5,-0.25)..(0.5,0.75) COLOR alpha 128, normal (0,1,0) (:64-67)
+ * Entity pass 0 has blend off (EntityRenderer.java:1383-1393); disableBlend
+ * at :69 is leftover. Vertex alpha 128 does not src-over. */
 int gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
-                    float view_pitch, CrVertex *out, int max) {
+                    float view_pitch, float partial_ticks, CrVertex *out, int max) {
     if (!ents || !out || max < 6) return 0;
     const CrMobSprite *spr = &CR_MOB_SPRITES[CR_MOB_EXPERIENCE_ORB];
     const float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
@@ -1636,7 +1663,7 @@ int gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
         int xp_value = ents[e].item_id > 0 ? ents[e].item_id
                      : (ents[e].health > 0 ? (int)ents[e].health : 1);
         int tier = er_xp_texture_tier(xp_value);
-        /* UV in skin-texel space of the 64x64 sheet, then into the atlas. */
+        /* RenderXPOrb.java:37-42: (i%4*16+0)/64 .. (i%4*16+16)/64, row i/4. */
         float u0 = (float)(tier % 4 * 16 + 0) / 64.0f;
         float u1 = (float)(tier % 4 * 16 + 16) / 64.0f;
         float v0 = (float)(tier / 4 * 16 + 0) / 64.0f;
@@ -1645,40 +1672,64 @@ int gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
         float au1 = ((float)spr->x0 + u1 * sw) / aw;
         float av0 = ((float)spr->y0 + v0 * sh) / ah;
         float av1 = ((float)spr->y0 + v1 * sh) / ah;
-        /* colour: (sin(f9)+1)*0.5*255 red, 255 green, (sin(f9+4.18879)+1)*0.1*255 blue */
-        int xp_color = ents[e].item_meta;
-        if (xp_color <= 0 && ents[e].age > 0) xp_color = ents[e].age;
-        float f9 = ((float)xp_color /* + partialTicks=0 */) / 2.0f;
-        int cr = (int)((sinf(f9 + 0.0f) + 1.0f) * 0.5f * 255.0f);
-        int cg = 255;
-        int cb = (int)((sinf(f9 + 4.1887903f) + 1.0f) * 0.1f * 255.0f);
+        int xp_color = ents[e].item_meta; /* EntityXPOrb.xpColor; 0 is a phase */
+        float f9 = ((float)xp_color + partial_ticks) / 2.0f; /* :52 */
+        int cr = (int)((er_xp_mc_sin(f9 + 0.0f) + 1.0f) * 0.5f * 255.0f); /* :53 */
+        int cg = 255;                                                     /* :54 */
+        int cb = (int)((er_xp_mc_sin(f9 + 4.1887903f) + 1.0f) * 0.1f * 255.0f); /* :55 */
         if (cr < 0) cr = 0; else if (cr > 255) cr = 255;
         if (cb < 0) cb = 0; else if (cb > 255) cb = 255;
-        CrRgba tint = { (u8)cr, (u8)cg, (u8)cb, 128 };
+        /* enableStandardItemLighting + colorMaterial: shade * vertex colour.
+         * Normal is (0,1,0) in model space (:64), transformed by Rx then Ry.
+         * Lights are world-space (er_shade_item); at the capture pose this
+         * clamps to 1. */
+        float nx = 0.0f, ny = 1.0f, nz = 0.0f;
+        {
+            float ty = ny * cp - nz * sp, tz = ny * sp + nz * cp;
+            ny = ty; nz = tz;
+            float tx = nx * cy + nz * sy;
+            tz = -nx * sy + nz * cy;
+            nx = tx; nz = tz;
+        }
+        float item_shade = er_shade_item(nx, ny, nz);
+        cr = (int)((float)cr * item_shade + 0.5f);
+        cg = (int)((float)cg * item_shade + 0.5f);
+        cb = (int)((float)cb * item_shade + 0.5f);
+        if (cr < 0) cr = 0; else if (cr > 255) cr = 255;
+        if (cg < 0) cg = 0; else if (cg > 255) cg = 255;
+        if (cb < 0) cb = 0; else if (cb > 255) cb = 255;
+        CrRgba tint = { (u8)cr, (u8)cg, (u8)cb, 128 }; /* :64 alpha 128 */
         float lv = 1.0f, blk = 0.0f;
         if (ents[e].lm_lit == 1) {
-            lv = ents[e].lm_light; blk = ents[e].lm_blk;
+            lv = ents[e].lm_light;
+            blk = ents[e].lm_blk;
+            /* EntityXPOrb.getBrightnessForRender :67-81: add 0.5*15*16 to the
+             * packed block coord (block<<4), cap 240. Magma stores 0..15. */
+            int j = (int)(blk * 16.0f) + (int)(0.5f * 15.0f * 16.0f);
+            if (j > 240) j = 240;
+            blk = (float)j / 16.0f;
         } else if (ents[e].lm_lit == 2) {
             tint.r = (u8)(tint.r * ents[e].lm_mul_r + 0.5f);
             tint.g = (u8)(tint.g * ents[e].lm_mul_g + 0.5f);
             tint.b = (u8)(tint.b * ents[e].lm_mul_b + 0.5f);
         }
-        /* getBrightnessForRender boosts block light; leave levels as sampled. */
         static const float UVS[4][2] = {
             { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 },
         };
         CrVertex quad[4];
         for (int c = 0; c < 4; ++c) {
             float px = CORN[c][0], py = CORN[c][1], pz = 0.0f;
+            /* S then Rx(-playerViewX) then Ry(180-playerViewY); uniform S
+             * commutes. RenderXPOrb.java:56-60. */
             float ty = py * cp - pz * sp, tz = py * sp + pz * cp;
             py = ty; pz = tz;
             float tx = px * cy + pz * sy;
             tz = -px * sy + pz * cy;
             px = tx; pz = tz;
-            const float scale = 0.3f;
+            const float scale = 0.3f; /* :59-60 */
             CrVertex vtx;
             vtx.pos.x = ents[e].x + px * scale;
-            vtx.pos.y = ents[e].y + 0.1f + py * scale;
+            vtx.pos.y = ents[e].y + 0.1f + py * scale; /* :56 T(0,0.1,0) */
             vtx.pos.z = ents[e].z + pz * scale;
             vtx.uv.x = au0 + UVS[c][0] * (au1 - au0);
             vtx.uv.y = av0 + UVS[c][1] * (av1 - av0);

@@ -98,7 +98,7 @@ static void test_part_counts(void) {
     mk.type = 21; mk.y = 64; mk.health = 5; mk.item_id = 5;
     CHECK(gm_entities_emit(&mk, 1, out, MAXV) == 0,
           "xp orb (21) is not the legacy marker box in gm_entities_emit");
-    int xp_n = gm_xp_orbs_emit(&mk, 1, 0.0f, 0.0f, out, MAXV);
+    int xp_n = gm_xp_orbs_emit(&mk, 1, 0.0f, 0.0f, 1.0f, out, MAXV);
     CHECK(xp_n == 6, "xp orb emits a 6-vert camera-facing billboard");
     CHECK(xp_n != 36, "xp orb is not 36-vert marker geometry");
     /* value-tier UV: xpValue 1 -> tier 0; 2477 -> tier 10 (different U). */
@@ -108,16 +108,16 @@ static void test_part_counts(void) {
         a.type = 21; a.item_id = 1; a.y = 64;
         b.type = 21; b.item_id = 2477; b.y = 64;
         CrVertex va[6], vb[6];
-        CHECK(gm_xp_orbs_emit(&a, 1, 0.0f, 0.0f, va, 6) == 6, "tier0 orb emits");
-        CHECK(gm_xp_orbs_emit(&b, 1, 0.0f, 0.0f, vb, 6) == 6, "tier10 orb emits");
+        CHECK(gm_xp_orbs_emit(&a, 1, 0.0f, 0.0f, 1.0f, va, 6) == 6, "tier0 orb emits");
+        CHECK(gm_xp_orbs_emit(&b, 1, 0.0f, 0.0f, 1.0f, vb, 6) == 6, "tier10 orb emits");
         CHECK(fabsf(va[0].uv.x - vb[0].uv.x) > 1e-5f ||
               fabsf(va[0].uv.y - vb[0].uv.y) > 1e-5f,
               "xp value tiers select different experience_orb UVs");
         /* colour phase: xpColor changes tint (not pure white marker). */
         a.item_meta = 0;
         b.item_meta = 40;
-        gm_xp_orbs_emit(&a, 1, 0.0f, 0.0f, va, 6);
-        gm_xp_orbs_emit(&b, 1, 0.0f, 0.0f, vb, 6);
+        gm_xp_orbs_emit(&a, 1, 0.0f, 0.0f, 1.0f, va, 6);
+        gm_xp_orbs_emit(&b, 1, 0.0f, 0.0f, 1.0f, vb, 6);
         CHECK(va[0].tint.r != vb[0].tint.r || va[0].tint.b != vb[0].tint.b,
               "xpColor phase modulates orb vertex colour");
         CHECK(va[0].tint.a == 128, "RenderXPOrb vertex alpha is 128");

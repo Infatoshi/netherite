@@ -69,10 +69,11 @@ int       gm_minecart_contents_emit(const GmEntityView *ents, int n,
                                     CrVertex *out, int max);
 
 /* RenderXPOrb.doRender: camera-facing experience_orb.png billboard. 6 verts per
- * orb. Uses view_yaw/view_pitch (playerViewY/X). item_id=xpValue, item_meta=
- * xpColor, age=xpOrbAge. Binds the mob atlas (CR_MOB_EXPERIENCE_ORB). */
+ * orb. Uses view_yaw/view_pitch (playerViewY/X) and partial_ticks (xpColor phase).
+ * item_id=xpValue, item_meta=xpColor. Binds the mob atlas (CR_MOB_EXPERIENCE_ORB). */
 int       gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
-                          float view_pitch, CrVertex *out, int max);
+                          float view_pitch, float partial_ticks,
+                          CrVertex *out, int max);
 
 /* Advance the dragon trail ring for a tick whose frame is NOT rendered
  * (--frame-every sparse capture). Rendered ticks push inside the dragon

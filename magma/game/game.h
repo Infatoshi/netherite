@@ -472,7 +472,8 @@ int       gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int m
 int       gm_minecart_contents_emit(const GmEntityView *ents, int n,
                                     CrVertex *out, int max);
 int       gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
-                          float view_pitch, CrVertex *out, int max);
+                          float view_pitch, float partial_ticks,
+                          CrVertex *out, int max);
 CrTexture gm_entity_atlas(void);
 /* Advance the dragon trail ring on a tick whose frame is not rendered
  * (sparse --frame-every capture); rendered ticks push inside the emit. */
