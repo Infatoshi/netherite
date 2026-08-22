@@ -1146,17 +1146,21 @@ reads the INTEGRATED SERVER's rules instead of the join-time client copy
 (only doDaylightCycle ever synced client-side, via SPacketTimeUpdate's
 negated worldTime - which is why it alone recorded correctly). Verified:
 silverfish_encounter 175112Z records naturalRegeneration=false truthfully
-and replays physics-clean where 172741Z diverged at t101. Item 6 is
-LANDED: vanilla gravity-block cascade (BlockFalling delay-2 scheduling,
-EntityFallingBlock motion/landing, cascade notifications) plus creative
-GameType propagation into the dig controller; falling_blocks 151855Z world
-digest matched 309/310 ticks. The t46 residual is CLOSED: getMouseOver
-entity intercept must be strictly closer than the block hit, so a held
-creative attack on a re-landed cell is not stolen by a farther falling
-AABB. Gate: `bash magma/game/test_fall_reanchor.sh` H.
-`scenario_falling_blocks_20260801T151855Z` is not in this worktree's
-tapes set, so the 310/310 digest was not re-run here. Full forensics in
-CLOSED_DIVERGENCES.md.
+and replays physics-clean where 172741Z diverged at t101. Item 6 cascade
+is LANDED (BlockFalling delay-2, EntityFallingBlock motion/landing,
+neighbor schedule, creative GameType into the dig controller). Re-ran
+151855Z on 2026-08-22 (lane/fallblock, Mac CPU): world_hash 309/310,
+first mismatch t46 java=f63a2e55f4417889 magma=8d22d846ed0c2a49,
+reconverge t47. Documented t22 cascade break and t30 freeze do not
+reproduce. Dig Java-t20 / magma-t21 skew is gone under the gate's
+tape[t] vs magma row[t] compare. t46 is OPEN: held creative
+blockHitDelay is 1 on the re-landed cell (PlayerControllerMP
+onPlayerDamageBlock delay>0 decrements and returns, no break). Strict
+Entity.getCollisionBorderSize 0.0F regresses t25 (285 hash mismatches).
+`t_ent < t_block` (test H) is required and landed; it is not enough.
+Native: `bash magma/game/test_fall_reanchor.sh` PASS (A-H). Mac CPU
+frames on this tape are sky + selection box without a terrain mesh
+(86%/ch); that is render, not the digest contract.
 
 Pixel triage 2026-08-01 (full report:
 ~/dev/nw/pxtriage_reports/pxtriage_20260801.md, covering the

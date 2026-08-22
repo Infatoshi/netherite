@@ -134,24 +134,23 @@ Gates: `bash magma/game/test_runtime.sh` PASS (store/views);
 (`minecraft:blaze -> EntityBlaze 7`);
 `bash magma/game/test_script.sh` `set_tile_entity blaze spawner: ok`.
 
-### Falling-block t46: CLOSED (lane/sim, 2026-08-21)
+### Falling-block t46 intercept: LANDED (lane/sim, 2026-08-21); digest residual OPEN
 
-Residual on `scenario_falling_blocks_20260801T151855Z` was a single-tick
-t46/t47 split: Java observed re-landed sand and held-creative removal in
-the same post-tick digest; magma left the cell sand at t46.
-
-Cause: `attack_hits_falling_block` returned 1 as soon as any falling AABB
+`attack_hits_falling_block` used to return 1 as soon as any falling AABB
 crossed the look ray. Vanilla `EntityRenderer.getMouseOver` lets the
 entity win only when intercept `d1 < d0` (block hit). A leftover falling
 AABB further along the same ray stole the held creative click from the
 closer re-landed cell.
 
-Fix: compare parametric t against the selection-box block hit. Entity
-wins only if `t_ent < t_block`.
+Fix that landed: compare parametric t against the selection-box block
+hit. Entity wins only if `t_ent < t_block`. Gate H in
+`bash magma/game/test_fall_reanchor.sh`.
 
-Gate: `bash magma/game/test_fall_reanchor.sh` includes H and prints
-`fall_reanchor: PASS`. The 151855Z tape is not in this worktree's
-`verify/tapes/` set, so the 309/310 digest was not re-run here.
+Tape re-run 2026-08-22 on lane/fallblock: 151855Z world_hash still
+309/310, first mismatch t46 (java=f63a2e55f4417889,
+magma=8d22d846ed0c2a49), reconverge t47. The intercept fix is necessary
+and present; delay=1 on the re-landed cell is a separate OPEN residual
+(see OPEN_DIVERGENCES item 6).
 Canonical physics after the change:
 `out/verify/replay --tape verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77b5b462.jsonl --ticks 4000`
 -> `first_div none`, 3617/3617, `nearby_hash` match.

@@ -54,7 +54,7 @@ OBJ_ASSETS = assets/blockmodels.o
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/world_spawn.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o game/audio_live.o
 
-.PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui
+.PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-fall-reanchor test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui
 all: game
 
 # --- CUDA raster for the game ---
@@ -377,7 +377,10 @@ test-world-spawn: game/world_spawn.o
 	$(CC) $(CFLAGS) -I$(BLAZE)/core game/test_world_spawn.c game/world_spawn.o -o game/test_world_spawn $(LDLIBS)
 	./game/test_world_spawn
 
-test: test-raster-smoke test-world-spawn
+test-fall-reanchor:
+	bash game/test_fall_reanchor.sh
+
+test: test-raster-smoke test-world-spawn test-fall-reanchor
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 # Standalone-game semantic gates. These deliberately exercise the real streamed
