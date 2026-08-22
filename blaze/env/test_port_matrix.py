@@ -57,7 +57,6 @@ def test_checked_in_schema_dag_and_ready_frontier():
         "projectiles",
         "chests",
         "portals_dimensions",
-        "weather_optional",
         "boats_elytra_xp",
     ]
 

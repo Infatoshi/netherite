@@ -634,6 +634,19 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
         if (nm) out->active_mask |= BP_BIT(BP_MOBS);
     }
 
+    {
+        h = bp_weather_digest(
+            r->clock.world_time, r->clock.total_time,
+            r->clock.raining, r->clock.thundering,
+            r->clock.rain_time, r->clock.thunder_time,
+            r->rain_strength, r->thunder_strength);
+        out->digest[BP_WEATHER] = h;
+        out->evidence[BP_WEATHER] =
+            (uint32_t)(r->clock.raining || r->clock.thundering);
+        if (r->clock.raining || r->clock.thundering)
+            out->active_mask |= BP_BIT(BP_WEATHER);
+    }
+
     h = bp_hash_begin();
     for (i = 0; i < RL_NCOAL; ++i) {
         int present = i < rl_ncoal;

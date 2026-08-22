@@ -1,19 +1,31 @@
 /* world_weather: WorldInfo rain/thunder timers + worldTime/totalTime advance.
- * Exact port of the doWeatherCycle timer body in World.updateWeatherBody (overworld,
- * hasSkyLight, cleanWeatherTime=0) plus the totalTime/worldTime increments from
- * WorldServer.tick. One MC_HD source, CPU==CUDA, verbatim-Java golden.
+ * Magma live and blaze-CPU/CUDA compile this one source. Magma's
+ * gm_world_tick / gm_world_tick_clear stay thin wrappers.
  *
- * Sources (java/oracle-src/net/minecraft):
- *   world/World.java                 updateWeatherBody rain/thunder timers (2741-2807)
- *   world/WorldServer.java           tick: totalWorldTime++ / worldTime++ (218-223)
- *   world/storage/WorldInfo.java     rainTime, thunderTime, raining, thundering, DayTime
- *   java.util.Random                 nextInt bounds used for re-rolls
+ * Java 1.11.2 (java/oracle-src/net/minecraft):
+ *   World.tick                       World.java:2707-2710  updateWeather()
+ *   World.updateWeatherBody          World.java:2741-2836
+ *     doWeatherCycle                 GameRules.java:32
+ *     thunder re-roll                :2763-2783  nextInt(12000)+3600 / +12000+168000
+ *     rain re-roll                   :2785-2807  nextInt(12000)+12000 / +12000+168000
+ *     strength fade +-0.01D clamp    :2810-2833  (magma live does not fade)
+ *   WorldServer.tick                 WorldServer.java:180-223
+ *     super.tick() then              :182
+ *     totalWorldTime++               :218
+ *     worldTime++ if doDaylightCycle :220-223  GameRules.java:22
+ *   WorldInfo rain/thunder/DayTime   WorldInfo.java:43,57-64,370,376-379
+ *   World.rand                       World.java:108  java.util.Random
+ *
+ * Magma RNG: not the shared Java World.rand stream and not mc_hash_seed.
+ * ww_init seeds an isolated JavaRandom from the world seed (jrand_set).
+ * M1 matches that stream. Strengths stay 0 on the live path
+ * (magma/game/runtime.h rain_strength comment).
  *
  * SCOPE (this kernel):
  *   - Struct: totalTime, worldTime, rainTime, thunderTime, raining, thundering + JavaRandom
  *   - Per tick: weather timers then time advance (doWeatherCycle + doDaylightCycle true)
  *   - cleanWeatherTime forced 0 (the "clear weather" hold path is out of scope)
- *   - rainingStrength / thunderingStrength fades, sky-light, lightning draws: out of scope
+ *   - rainingStrength / thunderingStrength fades, sky-light, lightning: out of scope
  *   - Re-roll ranges (when timer already <= 0 at top of tick):
  *       thundering:  nextInt(12000) + 3600
  *       clear thunder: nextInt(168000) + 12000
@@ -101,6 +113,24 @@ MC_HD static inline void ww_tick(WwState *s) {
     ww_update_weather(s);
     s->totalTime += 1;
     s->worldTime += 1;
+}
+
+/* Magma gm_world_tick: GameRules doWeatherCycle / doDaylightCycle.
+ * freeze_weather skips timer/RNG work (World.updateWeatherBody :2747-2808)
+ * but still advances totalTime, and worldTime when daylight is on
+ * (WorldServer.java:218-223). Strength fade is not applied either way. */
+MC_HD static inline void ww_tick_gated(WwState *s, int freeze_weather,
+                                       int freeze_daylight) {
+    if (freeze_weather) {
+        s->totalTime += 1;
+        if (!freeze_daylight) s->worldTime += 1;
+        return;
+    }
+    {
+        i64 wt_prev = s->worldTime;
+        ww_tick(s);
+        if (freeze_daylight) s->worldTime = wt_prev;
+    }
 }
 
 MC_HD static inline void ww_dump(const WwState *s, u64 *out) {
