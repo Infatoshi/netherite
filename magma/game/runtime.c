@@ -909,6 +909,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
             action.attack_entity = 1;
         if (can_click && !action.attack_entity && attack_hits_falling_block(r))
             action.attack_entity = 1;
+        fprintf(stderr, "click_pick tick=%lld atk=%d ent=%d delay_will_see=%d\n",
+                r->tick, action.attack, action.attack_entity, can_click);
     }
     GmBlockEdit edits[GM_RUNTIME_MAX_EDITS];
     int n = 0;

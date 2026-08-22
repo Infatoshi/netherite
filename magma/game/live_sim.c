@@ -7,6 +7,7 @@
 #include "mc_blocks.h"
 #include "mc_rng.h"
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 static unsigned lcg_next(unsigned *s) {
@@ -239,6 +240,8 @@ void gm_live_pre_player_tick(GmLiveSim *s, GmWorld *w) {
     for (int i = 0; i < GM_LIVE_MAX; ++i) {
         GmLiveFallLanding *p = &s->fall_landings[i];
         if (!p->active || p->due_tick > (long long)s->ticks) continue;
+        fprintf(stderr, "fall_apply tick=%lld cell=(%d,%d,%d) id=%d\n",
+                (long long)s->ticks, p->x, p->y, p->z, p->block_id);
         gm_world_set_block_meta(w, p->x, p->y, p->z,
                                 p->block_id, p->block_meta);
         /* The packet is one client tick after the server-side placement that
@@ -306,9 +309,18 @@ static void fall_tick_entity(GmLiveSim *s, GmWorld *w, GmLiveEnt *e) {
         e->my *= -0.5;
         e->active = 0;
         if (s->n_active > 0) s->n_active--;
-        if (by >= 0 && by <= 255 && fall_target_replaceable(w, bx, by, bz) &&
-            !fall_through(gm_world_block(w, bx, by - 1, bz))) {
-            fall_queue_landing(s, bx, by, bz, e->item, e->meta);
+        {
+            int below_id = gm_world_block(w, bx, by - 1, bz);
+            int repl = fall_target_replaceable(w, bx, by, bz);
+            int place = by >= 0 && by <= 255 && repl && !fall_through(below_id);
+            fprintf(stderr,
+                    "fall_land tick=%lld pos=(%.5f,%.5f,%.5f) cell=(%d,%d,%d) "
+                    "item=%d below=%d repl=%d place=%d due=%lld\n",
+                    (long long)s->ticks, e->x, e->y, e->z, bx, by, bz,
+                    e->item, below_id, repl, place,
+                    place ? (long long)s->ticks + 1 : -1);
+            if (place)
+                fall_queue_landing(s, bx, by, bz, e->item, e->meta);
         }
         /* Vanilla otherwise converts to an EntityItem. Netherite's world
          * truth has no item digest, so a failed mayPlace ends as no block. */
