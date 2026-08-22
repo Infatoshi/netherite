@@ -1624,6 +1624,43 @@ static float er_xp_mc_sin(float value) {
     return tab[((int)(value * 10430.378f)) & 65535];
 }
 
+/* RenderHelper.enableStandardItemLighting (RenderHelper.java:30-48):
+ * LIGHT0/1 = Vec3d(±0.20000000298023224, 1, ∓0.699999988079071).normalize()
+ * (RenderHelper.java:13-14), diffuse 0.6, light-model ambient 0.4.
+ * n is the lighting-space normal AFTER inverse-transpose of the modelview
+ * (do not renormalize). Returns the unclamped sum; GL clamps the
+ * COLOR_MATERIAL product per channel, not this factor. Isolated from
+ * er_shade_item, which still unit-normalizes and clamps for ModelBox paths. */
+static float er_xp_item_factor(float nx, float ny, float nz) {
+    static int init;
+    static float l0[3], l1[3];
+    if (!init) {
+        const double lx = 0.20000000298023224, ly = 1.0, lz = -0.699999988079071;
+        const double inv = 1.0 / sqrt(lx * lx + ly * ly + lz * lz);
+        l0[0] = (float)(lx * inv);
+        l0[1] = (float)(ly * inv);
+        l0[2] = (float)(lz * inv);
+        l1[0] = -l0[0];
+        l1[1] = l0[1];
+        l1[2] = -l0[2];
+        init = 1;
+    }
+    float d0 = nx * l0[0] + ny * l0[1] + nz * l0[2];
+    float d1 = nx * l1[0] + ny * l1[1] + nz * l1[2];
+    if (d0 < 0.0f) d0 = 0.0f;
+    if (d1 < 0.0f) d1 = 0.0f;
+    return 0.4f + 0.6f * d0 + 0.6f * d1;
+}
+
+/* COLOR_MATERIAL AMBIENT_AND_DIFFUSE: lit = clamp01(c/255 * factor), then
+ * round to u8. Factor is unclamped (RenderHelper.java:30-48). */
+static int er_xp_lit_u8(int c, float factor) {
+    float v = ((float)c * (1.0f / 255.0f)) * factor;
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    return (int)(v * 255.0f + 0.5f);
+}
+
 /* RenderXPOrb.doRender (RenderXPOrb.java:30-74, javap confirmed):
  *   T(x,y,z) bind experience_orb.png
  *   enableStandardItemLighting (RenderHelper.java:30-48)
@@ -1638,6 +1675,8 @@ static float er_xp_mc_sin(float value) {
  *   Rx(-playerViewX) first-person (:58; thirdPersonView==2 flips the sign)
  *   S(0.3) (:59-60)
  *   quad (-0.5,-0.25)..(0.5,0.75) COLOR alpha 128, normal (0,1,0) (:64-67)
+ *   GL_RESCALE_NORMAL off; inverse-transpose of S(0.3) leaves |n|=1/0.3.
+ *   COLOR_MATERIAL clamps colour*unclamped_factor per channel, not the factor.
  * Entity pass 0 has blend off (EntityRenderer.java:1383-1393); disableBlend
  * at :69 is leftover. Vertex alpha 128 does not src-over. */
 int gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
@@ -1679,25 +1718,44 @@ int gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
         int cb = (int)((er_xp_mc_sin(f9 + 4.1887903f) + 1.0f) * 0.1f * 255.0f); /* :55 */
         if (cr < 0) cr = 0; else if (cr > 255) cr = 255;
         if (cb < 0) cb = 0; else if (cb > 255) cb = 255;
-        /* enableStandardItemLighting + colorMaterial: shade * vertex colour.
-         * Normal is (0,1,0) in model space (:64), transformed by Rx then Ry.
-         * Lights are world-space (er_shade_item); at the capture pose this
-         * clamps to 1. */
-        float nx = 0.0f, ny = 1.0f, nz = 0.0f;
+        /* enableStandardItemLighting + COLOR_MATERIAL (RenderXPOrb.java:37,
+         * RenderHelper.java:30-48). Lights are set after T(entity) and before
+         * Ry/Rx/S; w=0 directions ignore translation, so they stay world-space
+         * (EntityRenderer.java:1390 also sets them on the camera MV).
+         *
+         * GL_RESCALE_NORMAL starts off (GlStateManager.BooleanState
+         * currentState default false, GlStateManager.java:907,864). The
+         * entities pass never enables it (EntityRenderer.java:1390-1393).
+         * RenderLivingBase.prepareScale enables then disableRescaleNormal at
+         * doRender end (RenderLivingBase.java:214,196); first-person skips the
+         * viewer (RenderGlobal.java:650). LayerSlimeGel is the only
+         * enableNormalize (LayerSlimeGel.java:27,33). RenderXPOrb never
+         * enables rescale; it only disableRescaleNormal at :70.
+         *
+         * Object normal (0,1,0) (RenderXPOrb.java:64), NORMAL_3B pack
+         * (VertexBuffer.java:533) unpack (2c+1)/255. Inverse-transpose of
+         * S(0.3) (:59-60) with both rescale and normalize off multiplies
+         * length by 1/0.3. Product is clamped per channel, not the factor. */
+        float nx, ny, nz;
         {
+            int bx = (int)(0.0f * 127.0f);
+            int by = (int)(1.0f * 127.0f);
+            int bz = (int)(0.0f * 127.0f);
+            nx = (2.0f * (float)bx + 1.0f) * (1.0f / 255.0f);
+            ny = (2.0f * (float)by + 1.0f) * (1.0f / 255.0f);
+            nz = (2.0f * (float)bz + 1.0f) * (1.0f / 255.0f);
             float ty = ny * cp - nz * sp, tz = ny * sp + nz * cp;
             ny = ty; nz = tz;
             float tx = nx * cy + nz * sy;
             tz = -nx * sy + nz * cy;
             nx = tx; nz = tz;
+            const float inv_s = 1.0f / 0.3f; /* S(0.3), rescale off */
+            nx *= inv_s; ny *= inv_s; nz *= inv_s;
         }
-        float item_shade = er_shade_item(nx, ny, nz);
-        cr = (int)((float)cr * item_shade + 0.5f);
-        cg = (int)((float)cg * item_shade + 0.5f);
-        cb = (int)((float)cb * item_shade + 0.5f);
-        if (cr < 0) cr = 0; else if (cr > 255) cr = 255;
-        if (cg < 0) cg = 0; else if (cg > 255) cg = 255;
-        if (cb < 0) cb = 0; else if (cb > 255) cb = 255;
+        float item_shade = er_xp_item_factor(nx, ny, nz);
+        cr = er_xp_lit_u8(cr, item_shade);
+        cg = er_xp_lit_u8(cg, item_shade);
+        cb = er_xp_lit_u8(cb, item_shade);
         CrRgba tint = { (u8)cr, (u8)cg, (u8)cb, 128 }; /* :64 alpha 128 */
         float lv = 1.0f, blk = 0.0f;
         if (ents[e].lm_lit == 1) {

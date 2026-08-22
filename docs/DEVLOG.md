@@ -1,5 +1,37 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 XP orb GL item lighting (lane/xporb2)
+
+A6 continue. Baseline on gamer (`~/nlanes/xporb2/out/verify/xporb2_baseline.log`):
+geom ALL PASSED; xp_orb `hard_px=3542` owned=3600 `c_vs_j=20.223` maxch=90
+`ab_nz=0` RESIDUAL. Other 15 rows: slime/magma CAPTURE_BLOCKED
+97868/96818/109431/97058 and 97660/97628/109451/98600; dragon_death
+50/100/190 RESIDUAL 92122/101336/159948; dig_stone/grass CAPTURE_BLOCKED
+42589/43124; fireball_small RESIDUAL 45349; fireball_dragon
+CAPTURE_BLOCKED 42457.
+
+Cause: `er_shade_item` unit-normalizes and clamps the lighting factor
+before multiplying vertex RGB, so capture pulse R=188 stays 188.
+Java `RenderHelper.enableStandardItemLighting` (RenderHelper.java:30-48,
+LIGHT0/1 :13-14) is COLOR_MATERIAL AMBIENT_AND_DIFFUSE:
+`lit = clamp01(c * unclamped_factor)`. `GL_RESCALE_NORMAL` is off
+(GlStateManager.java:907,864 default; EntityRenderer.java:1390-1393 never
+enables it; RenderLivingBase.java:214/196 enable/disable around living
+models; first-person skips the viewer, RenderGlobal.java:650;
+LayerSlimeGel.java:27,33 is the only `enableNormalize`; RenderXPOrb.java:70
+only disables). S(0.3) (RenderXPOrb.java:59-60) with object normal (0,1,0)
+(:64, NORMAL_3B VertexBuffer.java:533) leaves `|n|=1/0.3`. Capture pose
+yaw 0 pitch 25 color 0 partialTicks 1: factor ~3.33 saturates R and G to
+255. Lights stay world-space (set after T(entity), before Ry/Rx/S; w=0
+ignores translation). `er_shade_item` left as-is for crystals.
+
+After (gamer, `~/nlanes/xporb2/out/verify/xporb2_after.log`): geom ALL
+PASSED including capture-pose lit colour; xp_orb `hard_px=3542` owned=3600
+`c_vs_j=14.791` maxch=90 `ab_nz=0` RESIDUAL. Other 15 rows byte-stable.
+Disc sample (426,162): C (250,188,0) vs Java (252,190,0); grey disc texels
+are r==g 1-2 LSB dark. Grass/pad still owns most of the 3542. Not closed.
+Root `make test` on gamer PASS (`~/nlanes/xporb2/out/verify/xporb2_maketest.log`).
+
 ## 2026-08-22 XP orb pixels (lane/xporb)
 
 A6 first sub-item. Baseline on gamer (old ROI, pad only): xp_orb

@@ -18,6 +18,44 @@ static int g_fail = 0;
 
 static int approx(float a, float b, float e) { return fabsf(a - b) <= e; }
 
+/* RenderXPOrb lighting (RenderHelper.java:13-14,30-48; RenderXPOrb.java:59-70).
+ * GL_RESCALE_NORMAL off, NORMAL_3B (0,1,0), S(0.3) => |n|=1/0.3. */
+static float xp_orb_item_factor(float yaw_deg, float pitch_deg) {
+    const float deg = 0.017453292519943295f;
+    float yr = (180.0f - yaw_deg) * deg;
+    float pr = -pitch_deg * deg;
+    float cy = cosf(yr), sy = sinf(yr);
+    float cp = cosf(pr), sp = sinf(pr);
+    int bx = (int)(0.0f * 127.0f);
+    int by = (int)(1.0f * 127.0f);
+    int bz = (int)(0.0f * 127.0f);
+    float nx = (2.0f * (float)bx + 1.0f) * (1.0f / 255.0f);
+    float ny = (2.0f * (float)by + 1.0f) * (1.0f / 255.0f);
+    float nz = (2.0f * (float)bz + 1.0f) * (1.0f / 255.0f);
+    float ty = ny * cp - nz * sp, tz = ny * sp + nz * cp;
+    ny = ty; nz = tz;
+    float tx = nx * cy + nz * sy;
+    tz = -nx * sy + nz * cy;
+    nx = tx; nz = tz;
+    const float inv_s = 1.0f / 0.3f;
+    nx *= inv_s; ny *= inv_s; nz *= inv_s;
+    const double lx = 0.20000000298023224, ly = 1.0, lz = -0.699999988079071;
+    const double inv = 1.0 / sqrt(lx * lx + ly * ly + lz * lz);
+    float l0x = (float)(lx * inv), l0y = (float)(ly * inv), l0z = (float)(lz * inv);
+    float d0 = nx * l0x + ny * l0y + nz * l0z;
+    float d1 = nx * -l0x + ny * l0y + nz * -l0z;
+    if (d0 < 0.0f) d0 = 0.0f;
+    if (d1 < 0.0f) d1 = 0.0f;
+    return 0.4f + 0.6f * d0 + 0.6f * d1;
+}
+
+static int xp_orb_lit_u8(int c, float factor) {
+    float v = ((float)c * (1.0f / 255.0f)) * factor;
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    return (int)(v * 255.0f + 0.5f);
+}
+
 static void bounds(const CrVertex *v, int n, float *mn, float *mx) {
     mn[0] = mn[1] = mn[2] = 1e30f;
     mx[0] = mx[1] = mx[2] = -1e30f;
@@ -329,7 +367,8 @@ int main(void) {
                   "xpValue 17 selects sheet cell i=3 (RenderXPOrb.java:37-42)");
         }
 
-        /* Hue pulse: f9=(xpColor+partialTicks)/2 (RenderXPOrb.java:52-55). */
+        /* Hue pulse: f9=(xpColor+partialTicks)/2 (RenderXPOrb.java:52-55).
+         * Emit bakes GL item lighting into tint; compare against pulse * factor. */
         {
             GmEntityView e;
             memset(&e, 0, sizeof e);
@@ -343,14 +382,19 @@ int main(void) {
             int b0 = (int)((XP_MCSIN(f9_0 + 4.1887903f) + 1.0f) * 0.1f * 255.0f);
             int r1 = (int)((XP_MCSIN(f9_1 + 0.0f) + 1.0f) * 0.5f * 255.0f);
             int b1 = (int)((XP_MCSIN(f9_1 + 4.1887903f) + 1.0f) * 0.1f * 255.0f);
-            CHECK(v0[0].tint.r == (u8)r0 && v0[0].tint.g == 255 &&
-                  v0[0].tint.b == (u8)b0 && v0[0].tint.a == 128,
-                  "xpColor=0 partialTicks=0 pulse (RenderXPOrb.java:52-55,64)");
-            CHECK(v1[0].tint.r == (u8)r1 && v1[0].tint.g == 255 &&
-                  v1[0].tint.b == (u8)b1 && v1[0].tint.a == 128,
-                  "xpColor=0 partialTicks=1 pulse (capture pin color=0)");
-            CHECK(v0[0].tint.r != v1[0].tint.r,
+            float fac00 = xp_orb_item_factor(0.0f, 0.0f);
+            int lr0 = xp_orb_lit_u8(r0, fac00), lg0 = xp_orb_lit_u8(255, fac00);
+            int lb0 = xp_orb_lit_u8(b0, fac00);
+            int lr1 = xp_orb_lit_u8(r1, fac00), lg1 = xp_orb_lit_u8(255, fac00);
+            int lb1 = xp_orb_lit_u8(b1, fac00);
+            CHECK(r0 != r1,
                   "partialTicks is part of the hue argument, not dropped");
+            CHECK(v0[0].tint.r == (u8)lr0 && v0[0].tint.g == (u8)lg0 &&
+                  v0[0].tint.b == (u8)lb0 && v0[0].tint.a == 128,
+                  "xpColor=0 partialTicks=0 pulse then GL item lighting");
+            CHECK(v1[0].tint.r == (u8)lr1 && v1[0].tint.g == (u8)lg1 &&
+                  v1[0].tint.b == (u8)lb1 && v1[0].tint.a == 128,
+                  "xpColor=0 partialTicks=1 pulse then GL item lighting");
         }
 
         /* Billboard: T(pos) T(0,0.1,0) Ry(180-yaw) Rx(-pitch) S(0.3)
@@ -392,6 +436,31 @@ int main(void) {
                     bad = 1;
             }
             CHECK(bad == 0, "billboard T+Ry(180-yaw)+Rx(-pitch)+S(0.3) (RenderXPOrb.java:56-60)");
+            /* Capture-pose lit colour. Pulse at color=0 partialTicks=1 is
+             * (188,255,b). GL_RESCALE_NORMAL off + S(0.3) makes |n|=1/0.3 so
+             * the unclamped factor exceeds 255/188; COLOR_MATERIAL saturates
+             * R and G to 255. Not a fitted vertex colour. */
+            {
+                float f9 = (0.0f + 1.0f) / 2.0f;
+                int pr = (int)((XP_MCSIN(f9 + 0.0f) + 1.0f) * 0.5f * 255.0f);
+                int pb = (int)((XP_MCSIN(f9 + 4.1887903f) + 1.0f) * 0.1f * 255.0f);
+                float fac = xp_orb_item_factor(yaw, pitch);
+                int lr = xp_orb_lit_u8(pr, fac);
+                int lg = xp_orb_lit_u8(255, fac);
+                int lb = xp_orb_lit_u8(pb, fac);
+                CHECK(pr == 188 && pr != 255,
+                      "capture pulse R is 188 (RenderXPOrb.java:52-55), not 255");
+                CHECK(fac > 255.0f / 188.0f,
+                      "capture |n|=1/0.3 factor exceeds 255/188 (rescale off)");
+                CHECK(lr == 255 && lg == 255,
+                      "unclamped factor * pulse saturates R and G to 255");
+                CHECK(v[0].tint.r == 255 && v[0].tint.g == 255 &&
+                      v[0].tint.b == (u8)lb && v[0].tint.a == 128,
+                      "capture-pose lit colour (RenderHelper.java:30-48)");
+                CHECK(v[0].tint.r == v[1].tint.r && v[0].tint.g == v[1].tint.g &&
+                      v[0].tint.b == v[2].tint.b,
+                      "all orb verts share the same lit colour");
+            }
         }
 
         /* EntityXPOrb.getBrightnessForRender (EntityXPOrb.java:67-81):
