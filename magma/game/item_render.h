@@ -61,6 +61,10 @@ int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
                             float view_pitch, CrVertex *out, int max);
 
+/* RenderHelper.enableStandardItemLighting unclamped factor
+ * (RenderHelper.java:30-48). GL clamps colour*factor per channel. */
+float gm_fireball_item_shade(float nx, float ny, float nz);
+
 /* Render.doRenderShadowAndFire for fireballs with flags&1 (isBurning).
  * item_meta>=2 uses EntityLargeFireball width 1.0 (scale 1.4); else
  * EntitySmallFireball 0.3125 (scale 0.4375). Terrain atlas fire_layer sprites.

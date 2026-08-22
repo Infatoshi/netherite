@@ -1,5 +1,44 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 small fireball pixels (lane/fireball)
+
+A6 complete-ROI sub-item. Baseline on gamer (`~/nlanes/fireball/out/verify/fireball_baseline.log`):
+fireball_small `hard_px=45349` owned=46000 `c_vs_j=5.545` maxch=161
+`ab_nz=0` RESIDUAL. Other rows: slime/magma CAPTURE_BLOCKED
+97868/96818/109431/97058 and 97660/97628/109451/98600; dragon_death
+50/100/190 RESIDUAL 92122/101336/159948; dig_stone/grass
+CAPTURE_BLOCKED 42589/43124; fireball_dragon CAPTURE_BLOCKED 42457;
+xp_orb RESIDUAL 3542.
+
+Pixel first cluster is scenery, not the sprite. Sprite bbox
+(413,114)-(434,135): 392 mismatches, C brighter [238,172,24] vs J
+[235,170,24] (~0.99). Pin has no on-fire layers (`isBurning` false).
+Pad occupancy (C z=0..15 vs capture z=6..18) plus BYTE-pack 1-LSB
+dominate the 45k ROI.
+
+Cause: item-atlas pass binds no lightmap and used white tint. Java
+`RenderFireball.doRender` (RenderFireball.java:32-60) draws a
+POSITION_TEX_NORMAL quad, scale 0.5 (RenderManager.java:208), normal
+(0,1,0), `enableRescaleNormal`, under
+`enableStandardItemLighting` (EntityRenderer.java:1390,
+RenderHelper.java:30-48). GL clamps colour*factor per channel, not the
+factor. `getBrightnessForRender` 15728880 (EntityFireball.java:272-274)
+writes lightmap 15/15 (RenderManager.java:362-371);
+`cr_lightmap_rgba8` stores `(int)(0.99*255)=252`. At pitch 25 shade>1
+so white product-clamp is 255; the missing 15/15 modulate was the
+sprite error. Port: `gm_fireball_item_shade` unclamped, clamp the
+white primary, fold 15/15 into tint, keep `light=1`. Geom tests cover
+unclamped +Y, 188 saturation, pitch 0/25/90 tints, `isBurning` off.
+
+After (gamer, `~/nlanes/fireball/out/verify/fireball_after.log`): geom
+ALL PASSED; fireball_small `hard_px=44930` owned=46000 `c_vs_j=5.536`
+maxch=161 `ab_nz=0` RESIDUAL. Sprite subject matches (mid (420,125)
+[161,48,0]). Remaining 44930 is complete-ROI pad/grass (35532 eq1,
+9398 gt1). fireball_dragon CAPTURE_BLOCKED hard_px 38371 (was 42457)
+via the shared billboard path. Other 14 rows byte-stable. Not closed.
+Do not edit the ROI or pad. Root `make test` on gamer PASS
+(`~/nlanes/fireball/out/verify/fireball_maketest.log`).
+
 ## 2026-08-22 underwater glass cull (lane/raster)
 
 Item A1 overlay_underwater. Anvil baseline `bash verify/ui_hud/run_ui_hud_gates.sh`:

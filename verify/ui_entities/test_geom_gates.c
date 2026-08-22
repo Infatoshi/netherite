@@ -5,6 +5,7 @@
 #include "game/entity_render.h"
 #include "game/item_render.h"
 #include "assets/mob_atlas.h"
+#include "world/lightmap.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -202,6 +203,44 @@ int main(void) {
         CHECK(approx(ws, 0.4375f, 1e-4f), "small fire scale = 0.3125*1.4");
         CHECK(approx(wl, 1.4f, 1e-4f), "large fire scale = 1.0*1.4");
         CHECK(approx(wl / ws, 1.0f / 0.3125f, 0.01f), "large/small fire width ratio");
+    }
+
+    /* RenderFireball item lighting (RenderHelper.java:30-48) + lightmap 15/15
+     * (EntityFireball.java:272-274). GL clamps colour*factor per channel;
+     * er_shade_item clamps the factor. White vertices (glColor 1,1,1) so the
+     * product clamp of the primary is clamp(shade). Capture pitch 25 still
+     * has shade>1; the 15/15 texel is the remaining modulate. */
+    {
+        float s_up = gm_fireball_item_shade(0.0f, 1.0f, 0.0f);
+        CHECK(s_up > 1.0f, "unclamped +Y item lighting exceeds 1 (RenderHelper.java:30-48)");
+        int r188 = (int)(188.0f * s_up + 0.5f);
+        if (r188 > 255) r188 = 255;
+        CHECK(r188 == 255, "GL product clamp: 188 * unclamped factor saturates");
+        int r_clamped = (int)(188.0f * (s_up > 1.0f ? 1.0f : s_up) + 0.5f);
+        CHECK(r_clamped == 188, "factor-first clamp would leave 188 unsaturated");
+
+        CrRgba lm8 = cr_lightmap_rgba8(cr_lightmap_rgb(0, 15, 15, 1.0f, 0.0f, 0.0f));
+        CHECK(lm8.r == 252 && lm8.g == 252 && lm8.b == 252,
+              "overworld lightmap[15,15] truncates 0.99*255 (DynamicTexture)");
+
+        GmEntityView sm;
+        memset(&sm, 0, sizeof sm);
+        sm.type = 30; sm.item_id = 385; sm.x = 8.5f; sm.y = 6.0f; sm.z = 12.5f;
+        int n0 = gm_items_emit_billboard(&sm, 1, 0.0f, 0.0f, out, 256);
+        CHECK(n0 == 6, "RenderFireball pitch 0 emits 6 verts");
+        CHECK(out[0].light == 1.0f && out[0].blk == 15.0f,
+              "item-atlas pass keeps light=1; 15/15 is in tint");
+        CHECK(out[0].tint.r == lm8.r && out[0].tint.g == lm8.g &&
+              out[0].tint.b == lm8.b,
+              "pitch 0 white*shade clamps then * lightmap[15,15]");
+
+        int n25 = gm_items_emit_billboard(&sm, 1, 0.0f, 25.0f, out, 256);
+        CHECK(n25 == 6 && out[0].tint.r == lm8.r,
+              "capture pitch 25 still clamps white*shade to 1");
+
+        int n90 = gm_items_emit_billboard(&sm, 1, 0.0f, 90.0f, out, 256);
+        CHECK(n90 == 6 && out[0].tint.r < lm8.r && out[0].tint.r > 0,
+              "pitch 90 item lighting darkens the white primary");
     }
 
     /* Death rays: 9 verts/ray, blend inputs (white center, magenta rim).
