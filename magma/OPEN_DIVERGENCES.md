@@ -63,8 +63,13 @@ recorder or re-recording; D-class by improving gates, not the product.
     0.0F (Entity.java:2366-2368). 0.1 expand left delay=1 on the re-land;
     0.0F without delay=5 extra-breaks t25. Recorder-gaps item 6. Forensics
     in CLOSED_DIVERGENCES.md.
-10. Deterministic mobs: target-pitch mismatch at t=42 on one tape; nether
-    tape A*-null case. (detmob arc, DEVLOG 2026-08-21.)
+10. Deterministic mobs: target T182955Z t=42 pitch is Class C (lookHelper
+    samples EntityPlayerMP; tape pl is EntityPlayerSP; no lag 0/1/2 fits
+    t=29..49). Nether T182511 t=745 A*-null remains: dest y=96 netherrack
+    pocket (PathNavigateGround.java:76-83) sits outside magma 32x24x32;
+    magma A* n=10 same-Y, Java tasks=8 then 0 (PathFinder.java:113-116).
+    md<=1 neighbour-only matches t=31; blanket dest-out-of-window null
+    regresses t=595 (Java walks). (detmob arc, DEVLOG 2026-08-21/22.)
 11. Sim smalls: mob roster/AI incomplete, boat UNDER_WATER, aim-pin 1-tick
     break lag, arrow-count drift, heart-flash blink. "Simulation and
     replay".
@@ -98,6 +103,12 @@ magma to an unproven oracle state):**
   but the counter is not recoverable. Do not guess it.
 - Geared dragon tape 6-tick server/client death-clock skew (sidecar'd).
 - Dynamic-fluid snapshot capture (nether lavafall cells).
+- detmob target T182955Z t=42 zombie eid=3335 pitch tape=2.7023606
+  magma=2.67498541 draws_between=0: tape pl is client EntityPlayerSP after
+  ServerTick END; EntityLookHelper.setLookPositionWithEntity reads server
+  MP (EntityLookHelper.java:31-42, EntityAIWatchClosest.java:98). Watch
+  math (onUpdateLook pitch from 0, 10F/40F) is bit-exact against pl t=40.
+  Magma look_px is previous tape pl. No uniform lag 0/1/2 fits t=29..49.
 
 **D. Verification gaps (gate work, not product bugs):**
 
@@ -1355,6 +1366,11 @@ Recipe: `verify/scenarios/rain_thunder.yaml` (`/weather thunder 1000000`,
 - Aim-pin target changes can add a one-tick block-break lag.
 - Hotbar arrow count can drift while the Oracle shoots.
 - HUD heart-flash blinking is not modeled.
+- detmob nether T182511Z t=745 blaze eid=3872 x tape=-291.488923016319
+  magma=-291.54075023842785 draws_between=0. RPG first-of-10 (all
+  score=0.4) dest walk-up to y=96; magma 32x24x32 A* n=10 same-Y +Z;
+  Java wander tasks=8 then 0. HashSet getStart unused (WALKABLE pri=0).
+  Do not widen PNP_DY (CUDA twins / GPU_MOB_AI 32x24x32).
 
 ## Oracle, recorder, and world-state blockers
 

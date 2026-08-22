@@ -1016,9 +1016,10 @@ static int pai_find_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     pai_fill_pf(w, s, i, &ox, &oy, &oz);
     pai_path_to_pos(w, &bx, &by, &bz);
     /* PathFinder.findPath: dest PathPoint is openPoint(floor) even if it sits
-     * outside the 32x24x32 window (Java ChunkCache is FOLLOW_RANGE+8). Do not
-     * clip dest into the window: that made A* treat a neighbour as closer and
-     * over-walk. Closest==start already returns n=0 (PathFinder.java:155). */
+     * outside the 32x24x32 window (Java ChunkCache is FOLLOW_RANGE+8,
+     * PathNavigate.java:121-126). Do not clip dest into the window: that made
+     * A* treat a neighbour as closer and over-walk. Closest==start already
+     * returns n=0 (PathFinder.java:113-116). */
     n = pf12_findPath(&pai_pf,
                       (double)((float)bx + 0.5f) - (double)ox,
                       (double)((float)by + 0.5f) - (double)oy,
@@ -1026,10 +1027,14 @@ static int pai_find_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                       m->det_follow[i] > 0.5f ? m->det_follow[i]
                                               : pai_follow_range(s->type[i]));
     /* Magma's 32x24x32 window is smaller than Java ChunkCache (FOLLOW_RANGE+8),
-     * so a dest snapped onto a solid column (getPathToPos walk-up) can sit
-     * outside the grid. A* then treats a same-y neighbour as closer via
-     * manhattan to that far dest. Java's larger cache keeps closest==start
-     * and returns null. Reject a neighbour-only path when dest is out of window. */
+     * so a dest snapped onto a solid column (PathNavigateGround.getPathToPos
+     * walk-up, .java:76-83) can sit outside the grid. A* then treats a same-y
+     * neighbour as closer via manhattan to that far dest. On a flat floor
+     * PathFinder.java:113-116 does NOT null that case (a neighbour is closer).
+     * Reject only a neighbour-only (md<=1) path when dest is out of window:
+     * T182511 t=31 n=2 md=1 matches Java null; t=595 n=4 dest y=95 Java walks
+     * so a blanket dest-out-of-window null regresses. t=745 n=10 dest y=96
+     * same-Y +Z is the residual (Java closest==start). */
     if (n > 0 && !pnp_in(bx - ox, by - oy, bz - oz)) {
         int sx = pai_pf.resultPts[0], sy = pai_pf.resultPts[1], sz = pai_pf.resultPts[2];
         int ex = pai_pf.resultPts[(n - 1) * 3 + 0];
@@ -3018,9 +3023,12 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     }
     if(m->player_attack_cooldown>0)--m->player_attack_cooldown;
     double px=p->ent.posX+ox, py=p->ent.posY, pz=p->ent.posZ+oz;
-    /* Tape pl is client pose after ServerTick END. t=29 pitch sign-flips if
-     * lookHelper uses this tick's pl; previous pl matches. Path dest uses
-     * the same clock (EntityAIAttackMelee look then tryMoveToEntityLiving). */
+    /* Tape pl is client EntityPlayerSP after ServerTick END. lookHelper
+     * samples server EntityPlayerMP (EntityLookHelper.java:31-42, WatchClosest
+     * .java:98). t=29 pitch sign-flips if lookHelper uses this tick's pl;
+     * previous pl matches t=34..41. t=42 tape pitch is look of pl t=40
+     * (no lag 0/1/2 fits t=29..49; recorder-gap, not interpolation). Path dest
+     * uses the same clock (EntityAIAttackMelee.java:114 look then tryMoveTo). */
     double lx = m->look_have ? m->look_px : px;
     double ly = m->look_have ? m->look_py : py;
     double lz = m->look_have ? m->look_pz : pz;
