@@ -413,7 +413,7 @@ static void print_ladder(const EvalCfg *cfg, StageSeedResult rows[5][EVAL_MAX_SE
   for (i = 0; i < cfg->nseeds; ++i) {
     printf("%5d", cfg->seeds[i]);
     for (st = 0; st <= EVAL_STAGE_MAX; ++st) {
-      char cell[8];
+      char cell[24];
       if (rows[st][i].skip)
         snprintf(cell, sizeof(cell), "SKIP");
       else
@@ -426,7 +426,7 @@ static void print_ladder(const EvalCfg *cfg, StageSeedResult rows[5][EVAL_MAX_SE
   printf("%5s", "nT/n");
   for (st = 0; st <= EVAL_STAGE_MAX; ++st) {
     int n_ran = 0, n_t = 0;
-    char cell[8];
+    char cell[24];
     for (i = 0; i < cfg->nseeds; ++i) {
       if (rows[st][i].skip)
         continue;
