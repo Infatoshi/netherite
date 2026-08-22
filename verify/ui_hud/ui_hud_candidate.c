@@ -299,9 +299,12 @@ static const State STATES[] = {
 
 int main(int argc, char **argv) {
     const char *outdir = "../verify/ui_hud/c_frames";
+    const char *only = NULL;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--out") && i + 1 < argc)
             outdir = argv[++i];
+        else if (!strcmp(argv[i], "--only") && i + 1 < argc)
+            only = argv[++i];
     }
     if (gm_hud_init() != 0) {
         fprintf(stderr, "gm_hud_init failed\n");
@@ -312,6 +315,7 @@ int main(int argc, char **argv) {
     char path[512];
     int n = (int)(sizeof STATES / sizeof STATES[0]);
     for (int i = 0; i < n; ++i) {
+        if (only && strcmp(STATES[i].id, only)) continue;
         fill_gray(&fb);
         gm_hud_set_boss(0, 1.0f);
         gm_hand_set_bow_pull(0);

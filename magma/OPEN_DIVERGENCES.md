@@ -30,8 +30,8 @@ recorder or re-recording; D-class by improving gates, not the product.
 
 **A. Product divergences (magma wrong vs oracle, actionable now):**
 
-1. Underwater overlay: magma water/glass/fog underlay too blue (26.76/ch);
-   close path is raster fidelity, likely kernel twins. "Portal and
+1. Underwater overlay: magma water/glass/fog underlay too blue (7.311/ch);
+   close path is underlay lighting/fog, not overlay constants. "Portal and
    underwater".
 2. Portal overlay: world RSR ported (0.972/ch); interior 1-2 LSB pack +
    129px right-horizon occupancy. Not PASS-LSB.
@@ -273,6 +273,20 @@ Measured 2026-08-22 (`lane/portaledge` on gamer), full A/B-stable ROI,
 |----|--------|---------|-------|------|
 | overlay_portal_050 | 0.972 | 363609 | 115 | was 1.466 / 363304 / 144 (2D fb warp). Interior maxch=1..2 (260041 eq1 + 99898 eq2) is wall BYTE-pack showing through (1-a)~0.81, same family as hand_eat C=112 vs J=114. Overlay MAG is NEAREST. Remaining occupancy: one 129px cluster at (y 235-238, x 818-853) right horizon, pxdiff cause=registration best_shift (-1,-2). Hand under overlay maxch=39 in (569,320,846,432). |
 | overlay_underwater | 26.763 | 390096 | 112 | byte-stable vs this lane. Overlay formula matches ItemRenderer; Magma water/glass/fog underlay is too blue vs Java. |
+
+Measured 2026-08-22 (`lane/raster`) on anvil, same goldens, `hard_thr=0`.
+Portal row stayed 1.466 / 363304 / maxch=144 (byte-stable vs this
+lane's baseline; docs 1.465 / 363305 is the portalpix print).
+
+| id | c_vs_j | hard_px | maxch | note |
+|----|--------|---------|-------|------|
+| overlay_portal_050 | 1.466 | 363304 | 144 | unchanged this lane. |
+| overlay_underwater | 7.311 | 390096 | 41 | was 26.763 / 390096 / 112. BlockFluidRenderer.java:185-192 water-glass overlay + :259-265 skip reverse (26.763 -> 10.654); BlockBreakable.java:42-52 glass-glass cull (10.654 -> 7.311). |
+
+Remaining underwater is a whole-frame +~14 B on the glass/stone
+underlay (glass.png frame matches Java; overlay formula untouched).
+Hard goal <= 2.0/ch is not met. Close path is still underlay
+lighting/fog, not overlay constants and not kernel twins (mesher only).
 
 PASS-LSB needs nz<=2% of ROI (~8087) and every pixel <=1/ch. Interior 2 LSB
 alone is 99898 px. Do not fit overlay alpha. Close path for portal mean

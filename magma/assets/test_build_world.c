@@ -479,9 +479,9 @@ static void check_atlas(AssetJar *jar, const char *dir) {
     expect_i(aw, 256, "atlas width");
     expect_i(ah, 256, "atlas height");
     expect_i(tile, 16, "atlas tile size");
-    expect_i(count, 164, "atlas sprite count");
+    expect_i(count, 165, "atlas sprite count");
     n_macros = count_sprite_macros(hdr);
-    expect_i(n_macros, 164, "CR_SPRITE macro count");
+    expect_i(n_macros, 165, "CR_SPRITE macro count");
 
     expect(find_sprite_rect(hdr, "water_flow", &x0, &y0, &x1, &y1) != NULL, "water_flow rect");
     expect_i(x0, 0, "water_flow x0");
@@ -496,6 +496,10 @@ static void check_atlas(AssetJar *jar, const char *dir) {
 
     expect(find_sprite_rect(hdr, "end_portal", &x0, &y0, &x1, &y1) != NULL, "end_portal rect");
     expect_i(x1 - x0, 16, "end_portal w");
+    expect(find_sprite_rect(hdr, "water_overlay", &x0, &y0, &x1, &y1) != NULL,
+           "water_overlay rect");
+    expect_i(x1 - x0, 16, "water_overlay w");
+    expect_i(y1 - y0, 16, "water_overlay h");
     expect_i(y1 - y0, 16, "end_portal h");
 
     /* stone pixels vs jar first frame */

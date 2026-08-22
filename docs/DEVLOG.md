@@ -1,5 +1,32 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 underwater glass cull (lane/raster)
+
+Item A1 overlay_underwater. Anvil baseline `bash verify/ui_hud/run_ui_hud_gates.sh`:
+c_vs_j=26.763 hard_px=390096 maxch=112 (matches OPEN_DIVERGENCES). Portal
+1.466 / 363304 / 144.
+
+Cause 1: magma emitted water_flow reverse quads on glass sides. Java
+BlockFluidRenderer.java:185-192 swaps atlasSpriteWaterOverlay against
+Blocks.GLASS / STAINED_GLASS and :259-265 skips the inward reverse.
+Commit `6632616`. Anvil after: 10.654 / 390096 / 122. Fluid skip after
+that was 0 px; remaining was glass, not water.
+
+Cause 2: magma cube mesher did not cull glass-glass. Java
+BlockBreakable.java:42-52 returns false when the neighbour is the same
+GLASS / STAINED_GLASS (stained only if colour matches). Glass is CUTOUT
+so the ice-ice translucent same-block cull missed it. `same_glass_cull`
+in mesh_mc.c. Unit test: adjacent cubes 30+30 CUTOUT verts, 3x3 wall
+centre 12 verts.
+
+Anvil after cull: overlay_underwater 7.311 / 390096 / maxch=41. Portal
+1.466 / 363304 / 144 unchanged. Other ui_hud rows unchanged. Root
+`make test` PASS. No kernel twins. Overlay constants not edited.
+
+Open: 7.311/ch vs hard goal 2.0. Glass.png frame matches Java; leftover
+is whole-frame +~14 B on the glass/stone underlay plus faint inner-square
+corner ticks. Not overlay alpha.
+
 ## 2026-08-22 XP orb GL item lighting (lane/xporb2)
 
 A6 continue. Baseline on gamer (`~/nlanes/xporb2/out/verify/xporb2_baseline.log`):
