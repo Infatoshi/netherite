@@ -38,9 +38,9 @@ recorder or re-recording; D-class by improving gates, not the product.
 3. Portal overlay edges/hand residual (1.47/ch after same-scene underlay).
 4. Slime rim brightness: source-closed to the raster twins (two-machine
    flow); inset-constant levers exhausted. Slime triage entry.
-5. Rain: `getSkyColorBody` rain mix, rain particles, `lastLightningBolt`
-   lightmap override (lightmap sun term is wired). "Rain sky, particles,
-   and lightning".
+5. Rain splash/fall particles. Sky/fog rain+thunder mix is in (lane/rainsky).
+   `lastLightningBolt` is a recorder gap. "Rain sky, particles, and
+   lightning".
 6. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
    precision on grazing top faces. Soul sand triage entry.
 7. Entity pixels: XP orb hard_px=12000; small fireball complete ROI;
@@ -79,6 +79,10 @@ magma to an unproven oracle state):**
 - Legacy tape gaps: fogColor1 history, EntityItem fields, staged windows,
   crafting/GUI events (canonical t=3257/3267 inventory), world hash drift
   on 20260712T055346Z.
+- `lastLightningBolt` / EntityLightningBolt: TAPE_COMPLETENESS already
+  lists lightning bolt strikes as unrecorded. The rain tape has `ents:[]`
+  every tick and no bolt field; t=180 is the lightning frame (arm 1.57)
+  but the counter is not recoverable. Do not guess it.
 - Geared dragon tape 6-tick server/client death-clock skew (sidecar'd).
 - Dynamic-fluid snapshot capture (nether lavafall cells).
 
@@ -1129,29 +1133,39 @@ CLOSED 2026-07-30 with the horizon family (sneak eye height); full decomposition
 
 CLOSED 2026-07-30: recorder writes fog_color1 into the tape header, replay seeds MAGMA_FOG_C1_INIT from it; all 2026-07-30 re-records carry the field (slime t=0 clean, elytra_dip header 0.99999976). Legacy tapes keep the steady-state seed. Full entry in CLOSED_DIVERGENCES.md.
 
-### Rain sky, particles, and lightning remain (lightmap sun is wired)
+### Rain sky mix is in; particles remain; lightning is a recorder gap
 
-Lightmap `f` now follows `World.getSunBrightnessBody` (`World.java:1572-1580`),
-including the rain/thunder factors at 1578-1579. Tape `rain`/`thunder` are
-`getRainStrength(1.0F)` / `getThunderStrength(1.0F)` (`Recorder.java:8213-8214`;
-thunder is already rain-weighted). `cr_lightmap_rgb`'s last two args are torch
-flicker and gamma, not weather; `updateLightmap` (`EntityRenderer.java:892`)
-takes sun brightness as `f` after those factors. Live play keeps rain=thunder=0
-(no rainingStrength fade).
+Lightmap `f` follows `World.getSunBrightnessBody` (`World.java:1572-1580`),
+including the rain/thunder factors at 1578-1579. Sky vertices now also take
+`World.getSkyColorBody` rain (`World.java:1609-1618`) then thunder
+(`1620-1629`). View/terrain fog then takes `EntityRenderer.updateFogColor`
+rain (`EntityRenderer.java:1815-1824`) then thunder (`1826-1834`) before
+fogColor1. Driven from runtime `rain_strength`/`thunder_strength` (tape
+`set_rain_thunder`; live stays 0).
 
-`scenario_rain_thunder_20260821T093435Z` `--cpu`, 21 frames:
+`updateLightmap` lightning (`EntityRenderer.java:900-903`) is ported as
+`cr_lightmap_rgb_lightning` (`lastLightningBolt > 0` unscales sky `f2`).
+Replay passes 0: the rain tape never writes `lastLightningBolt`
+(Recorder only samples it for coverage and the 11_lightmap kernel
+capture). Tick rows have `ents:[]`, no `pcl`, no bolt field. t=180 is the
+known lightning frame (arm 1.57, whole 22.59/ch after the sky mix) and
+cannot be recovered from this tape. `getSkyColorBody` bolt flash
+(`World.java:1631-1644`) is the same gap.
 
-| | whole mean/ch | terrain | UNEXPLAINED px | failed frames |
-|---|---|---|---|---|
-| before | ~75.7 | ~70.5 | 7217585 | 21 |
-| after | ~50.9 | ~41.5 | 2140760 | 21 |
+`scenario_rain_thunder_20260821T093435Z` `--cpu`, 21 frames (gamer, lane/rainsky):
 
-Arm R/G on this tape 0.46 -> 0.99 (matches golden except t=180 lightning, 1.57).
-Still FAIL: rain particles, `getSkyColorBody` rain mix (sky stays clear),
-`lastLightningBolt` lightmap override. Tape header declares
-`container_identity`/`gui_clicks` with no events so replay is fail-closed rc=2
-regardless of pixels. Do not treat the canonical tape's `known:12` rain class
-as the evidence.
+| | whole mean/ch | terrain | sky y0-148 (ex t=180) | UNEXPLAINED px | failed frames |
+|---|---|---|---|---|---|
+| sun term only | ~50.9 | ~41.5 | (clear sky) | 2140760 | 21 |
+| + sky/fog mix | ~1.24 ex t=180; 22.59 at t=180 | ~1.40 ex t=180; 20.78 at t=180 | 0.94 | 181371 (t=180 only) | 1 |
+
+Rain splash/fall particles are out of scope. After the sky mix they are
+the remaining weather residual: gate class `particles` 121028 px / 20
+frames (was 70078, previously soaked into the giant clear-sky cluster).
+Sky-band streak pixels ~5-7k/frame at ~12/ch; non-streak sky residual
+~1.5/ch. HUD 76903 and viewmodel 51399 are unchanged. Tape header
+declares `container_identity`/`gui_clicks` with no events so replay is
+fail-closed rc=2 regardless of pixels.
 
 Oracle tape (2026-08-21, anvil, git `aa43667`):
 

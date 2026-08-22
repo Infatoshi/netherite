@@ -233,18 +233,20 @@ static float fc_sun_brightness(const McSinTable *st, long long wt,
  * SAME texels to its terrain shade ctxs or lightmap-mode meshes shade garbage. */
 void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
                             float rain_strength, float thunder_strength,
-                            CrRgba lut[256]) {
+                            int last_lightning, CrRgba lut[256]) {
     float sun = fc_sun_brightness(st, world_time, rain_strength, thunder_strength);
     for (int sl = 0; sl < 16; ++sl)
         for (int bl = 0; bl < 16; ++bl)
             lut[sl * 16 + bl] =
-                cr_lightmap_rgba8(cr_lightmap_rgb(0, sl, bl, sun, 0.0f, 0.0f));
+                cr_lightmap_rgba8(cr_lightmap_rgb_lightning(
+                    0, sl, bl, sun, 0.0f, 0.0f, last_lightning));
 }
 
 static const CrRgba *build_lightmap_lut(GmFrameCapture *c, const GmRuntime *r) {
     if (!c->lm_mode || r->dimension != 0) return NULL;
+    /* Tape does not record lastLightningBolt; pass 0 rather than guess. */
     gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time,
-                           r->rain_strength, r->thunder_strength, c->lut);
+                           r->rain_strength, r->thunder_strength, 0, c->lut);
     return c->lut;
 }
 
@@ -937,6 +939,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     /* eye-in-fluid state (fog / FOV / overlay - game/underwater.h) */
     GmUnderwater uw;gm_uw_eval(r->world,r->dimension,&v,c->fog_c1,&uw);
     cam.fov_deg*=uw.fov_scale;   /* getFOVModifier: 60/70 with the eye in water */
+    gm_sky_set_weather(r->rain_strength, r->thunder_strength);
     gm_sky_set_fog_c1(c->fog_c1);  /* updateFogColor f13 on clear/view fog */
     /* orientCamera glTranslate(0,-eyeHeight,0): sky plane at 16-eyeH. */
     gm_sky_set_eye_height(v.eye_height > 0.01f ? v.eye_height : 1.62f);

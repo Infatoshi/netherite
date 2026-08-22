@@ -1,5 +1,25 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 rain sky/fog mix (lane/rainsky)
+
+`World.getSkyColorBody` rain then thunder (`World.java:1609-1629`) on sky
+vertices; `EntityRenderer.updateFogColor` rain then thunder (`1815-1834`)
+on view/terrain fog. Same runtime `rain_strength`/`thunder_strength` as
+the lightmap sun term. Live stays 0.
+
+`updateLightmap` `lastLightningBolt` (`EntityRenderer.java:900-903`) is
+ported but undriven: the rain tape does not record the counter (ents
+empty; Recorder only writes it for coverage / kernel capture). t=180
+stays a recorder gap. No fitted bolt tick.
+
+gamer `--cpu` `scenario_rain_thunder_20260821T093435Z`, 21 frames. Baseline
+matched the filed FAIL (~50.9/41.5, UNEXPLAINED 2140760, 21/21). After:
+non-lightning whole ~1.24/ch, terrain ~1.40, sky y0-148 0.94/ch (goal
+<=5). t=180 whole 22.59 / terrain 20.78 / UNEXPLAINED 181371 (lightning
+lightmap + arm). Particles 121028 px / 20 frames remain (out of scope).
+Gate still fail-closed rc=2 on empty `container_identity`/`gui_clicks`.
+`make test` PASS on gamer after copying the gitignored canonical tape
+into the nlane clone.
 ## 2026-08-22 ui_hud PASS-LSB tier (lane/lsbhand)
 
 Owner-approved gate-contract change for `run_ui_hud_gates.sh`, mirroring

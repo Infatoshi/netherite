@@ -736,6 +736,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
     else if (c->anim_textures && c->backend == GM_BACKEND_METAL)
         cr_raster_metal_atlas_dirty();
 #endif
+    gm_sky_set_weather(r->rain_strength, r->thunder_strength);
     gm_sky_set_fog_c1(fog_c1);
     gm_sky_set_eye_height(cpv->eye_height > 0.01f ? cpv->eye_height : 1.62f);
     gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);
@@ -807,7 +808,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
     const CrRgba *lm = NULL;
     if (worldmc_lightmap_mode() && r->dimension == 0) {
         gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time,
-                               r->rain_strength, r->thunder_strength, c->lm_lut);
+                               r->rain_strength, r->thunder_strength, 0,
+                               c->lm_lut);
         lm = c->lm_lut;
     }
     /* EntityRenderer.renderWorldPass: opaque terrain first; entities,

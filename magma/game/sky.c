@@ -180,7 +180,8 @@ static CR_HD CrVec3 mc_sky_base_color(float temp) {
     return v3((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f);
 }
 
-/* World.getSkyColorBody day/night scale f1 (clear weather, no lightning). */
+/* World.getSkyColorBody day/night scale f1 (World.java:1596-1597). Rain and
+ * thunder desaturate after this scale (gm_sky_color_weather_mix). */
 static CR_HD float mc_sky_daynight(float celestial) {
     return clamp01(cosf(celestial * 2.0f * M_PIf) * 2.0f + 0.5f);
 }
@@ -286,6 +287,9 @@ static float  g_fluid_fog_density = 0.0f;
 static float  g_fog_c1 = 1.0f;
 /* Entity.getEyeHeight for orientCamera's -eyeHeight translate (default standing). */
 static float  g_eye_height = 1.62f;
+/* Tape getRainStrength(1)/getThunderStrength(1). Live stays 0. */
+static float  g_rain_strength = 0.0f;
+static float  g_thunder_strength = 0.0f;
 #endif
 
 void gm_sky_set_fluid_fog(int on, CrVec3 fog01, float density) {
@@ -305,6 +309,20 @@ void gm_sky_set_fog_c1(float fog_c1) {
     (void)fog_c1;
 #endif
 }
+
+/* Magma gcc sky.o owns this setter. cuda/raster_cuda.cu includes sky.c with
+ * gm_sky_draw #defined to a private name, so skip the definition there and
+ * avoid a duplicate host symbol. Frame ctx is still built by gcc sky.o. */
+#ifndef gm_sky_draw
+void gm_sky_set_weather(float rain_strength, float thunder_strength) {
+    if (rain_strength < 0.0f) rain_strength = 0.0f;
+    if (rain_strength > 1.0f) rain_strength = 1.0f;
+    if (thunder_strength < 0.0f) thunder_strength = 0.0f;
+    if (thunder_strength > 1.0f) thunder_strength = 1.0f;
+    g_rain_strength = rain_strength;
+    g_thunder_strength = thunder_strength;
+}
+#endif
 
 void gm_sky_set_eye_height(float eye_height) {
 #if !defined(__CUDA_ARCH__)
@@ -328,8 +346,15 @@ static CR_HD GmSkyCtx gm_sky_ctx(float time_of_day) {
     float daylight = mc_sky_daynight(celestial);
     CrVec3 sky_top = mc_sky_base_color(SKY_TEMP);
     c.sky_top = v3(sky_top.x * daylight, sky_top.y * daylight, sky_top.z * daylight);
+#if !defined(__CUDA_ARCH__)
+    /* World.getSkyColorBody rain/thunder (World.java:1609-1629) on vertices. */
+    c.sky_top = gm_sky_color_weather_mix(c.sky_top, g_rain_strength,
+                                         g_thunder_strength);
+#endif
     c.fog = mc_view_fog_color(c.sky_top, mc_fog_color(celestial));
 #if !defined(__CUDA_ARCH__)
+    /* EntityRenderer.updateFogColor rain/thunder (1815-1834) then f13. */
+    c.fog = gm_fog_color_weather_mix(c.fog, g_rain_strength, g_thunder_strength);
     /* updateFogColor: fogColor{Red,Green,Blue} *= f13 (fogColor1). Sky plane
      * vertices stay unscaled (getSkyColor); only the fog target is dimmed -
      * after long underwater stretches fogColor1 is low and the horizon band
@@ -512,11 +537,16 @@ CrRgba gm_terrain_fog_color(float time_of_day) {
     float daylight  = mc_sky_daynight(celestial);
     CrVec3 sky_top  = mc_sky_base_color(SKY_TEMP);
     sky_top = v3(sky_top.x * daylight, sky_top.y * daylight, sky_top.z * daylight);
+#if !defined(__CUDA_ARCH__)
+    sky_top = gm_sky_color_weather_mix(sky_top, g_rain_strength,
+                                       g_thunder_strength);
+#endif
     CrVec3 fog = mc_view_fog_color(sky_top, mc_fog_color(celestial));
     /* fogColor1 is applied in gm_sky_ctx for the sky fog target; terrain
      * fog color is also scaled here so horizon terrain meets the same
      * clearColor (updateFogColor f13). */
 #if !defined(__CUDA_ARCH__)
+    fog = gm_fog_color_weather_mix(fog, g_rain_strength, g_thunder_strength);
     fog = v3(fog.x * g_fog_c1, fog.y * g_fog_c1, fog.z * g_fog_c1);
 #endif
     CrRgba out;

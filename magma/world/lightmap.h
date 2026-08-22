@@ -69,17 +69,22 @@ static inline float cr_lm_gamma_finish(float v, float gamma)
 }
 
 /* EntityRenderer.updateLightmap for one (sky, block) texel. Inputs are the
- * actual 0..15 light levels, provider sunBrightness, torchFlickerX, and gamma.
- * Boss tint, lightning, and night vision are intentionally absent because the
- * instrumented portal captures record all three as inactive. */
-static inline CrLightmapRgb cr_lightmap_rgb(int dimension, int sky, int block,
-                                            float sun_brightness,
-                                            float torch_flicker_x,
-                                            float gamma)
+ * actual 0..15 light levels, provider sunBrightness, torchFlickerX, gamma,
+ * and World.getLastLightningBolt (EntityRenderer.java:900-903). last_lightning
+ * <= 0 skips the override (portal captures and live play). Night vision and
+ * boss tint stay absent: those captures record them inactive. */
+static inline CrLightmapRgb cr_lightmap_rgb_lightning(int dimension, int sky,
+                                                      int block,
+                                                      float sun_brightness,
+                                                      float torch_flicker_x,
+                                                      float gamma,
+                                                      int last_lightning)
 {
     float f = sun_brightness;
     float f1 = f * 0.95f + 0.05f;
     float f2 = cr_light_brightness(dimension, sky) * f1;
+    if (last_lightning > 0)
+        f2 = cr_light_brightness(dimension, sky);
     float f3 = cr_light_brightness(dimension, block)
              * (torch_flicker_x * 0.1f + 1.5f);
     float sun_mix = f * 0.65f + 0.35f;
@@ -112,6 +117,15 @@ static inline CrLightmapRgb cr_lightmap_rgb(int dimension, int sky, int block,
     out.g = cr_lm_gamma_finish(g, gamma);
     out.b = cr_lm_gamma_finish(b, gamma);
     return out;
+}
+
+static inline CrLightmapRgb cr_lightmap_rgb(int dimension, int sky, int block,
+                                            float sun_brightness,
+                                            float torch_flicker_x,
+                                            float gamma)
+{
+    return cr_lightmap_rgb_lightning(dimension, sky, block, sun_brightness,
+                                     torch_flicker_x, gamma, 0);
 }
 
 /* DynamicTexture stores `(int)(channel * 255)`, i.e. truncation, not rounding. */
