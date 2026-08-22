@@ -1,5 +1,25 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 hand USE-pose recapture (lane/handgold)
+
+Idle-tip goldens recaptured on anvil llvmpipe. Driver already staged
+`bow_pull=20` / `use_action=1 use_remaining=16`; added eat remaining
+check, byte-identical A/B for bow/eat, and `hud_pin` timeout retries.
+Meta now has `use_branch` + `use_count`. Combined `ONLY=bow,eat` hung
+on eat re-pin after bow `frame_pair` (Java `hud_pin` timeout 120s);
+eat-only on a fresh client succeeded. C transforms not retuned.
+
+| id | before c_vs_j / hard_px / maxch | after |
+|----|---------------------------------|-------|
+| hand_bow_pull20 | 49.279 / 30260 / 125 | 29.266 / 20830 / 100 |
+| hand_eat_mid | 53.939 / 101880 / 215 | 32.764 / 74218 / 215 |
+| hand_block_shield | 23.613 / 28506 / 100 | unchanged (c_paint_mean 0.744) |
+
+Bow/eat A/B sha256 identical, `use_branch=bow|eat`, `use_count=71980|16`.
+c_paint_mean 59.43/51.32 -> 0.256/1.300. Leftover is wall isolation
+(`n_only_j`) plus painted-face LSB. Mutations PASS. Gate RESIDUAL_OR_FAIL.
+`make test` PASS.
+
 ## 2026-08-22 inventory preview lighting (lane/preview)
 
 Player-preview 1 L8 residual. Baseline (HEAD 102/255+152/255, unit n):

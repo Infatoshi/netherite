@@ -32,40 +32,33 @@ CLOSED); entities over water (item 13 CLOSED).
 
 All three states have exact Java A/B captures (`noise_max=0`) and remain
 strict C residuals. Ownership is the Java∪C subject at `HAND_SUBJECT_THR=8`.
-Measured 2026-08-21 (`lane/uipix`) after Mesa-accurate RenderHelper packing
-in `hand.c` (Vec3d light dirs + unorm8 102/255 amb / 152/255 diff +
-`color_trunc=1`). Numerical/compose/live and HUD chrome still PASS; synthetic
-exact/mutation controls still PASS.
+Bow/eat recaptured 2026-08-22 (`lane/handgold`) with sticky USE pose
+(`use_branch=bow|eat`, bow remaining `use_count=71980`, eat remaining 16/32).
+A/B sha256 identical. Idle-tip goldens retired. Shield A/B not recaptured.
+Numerical/compose/live and HUD chrome still PASS; synthetic exact/mutation
+controls still PASS. Do not retune `hand.c` transforms.
 
-- Bow pull: `hard_px=30260`, `maxch=125`, `c_vs_j=49.276`, `c_paint_mean=59.43`.
-- Eat mid-use: `hard_px=101880`, `maxch=215`, `c_vs_j=53.939`, `c_paint_mean=51.32`.
-- Blocking shield: `hard_px=28506`, `maxch=100`, `c_vs_j=23.615`,
-  `c_paint_mean=0.744` (2026-08-22 remeasure 0.744; was 0.748 / 1.56).
-  C-painted vs Java: 764 exact, 15989 nz, `maxch>2` only 6 px. Geometry
-  matches (C subject subset of Java at thr 12-20). Mesa packing
-  `(tex*L8+127)/255` and `(tex*L8+128)>>8` were measured against this
-  golden; neither moves the wood-face +1,+1,0 bins (the +1 is in the
-  ubyte primary, not modulate rounding).
+- Bow pull: `hard_px=20830`, `maxch=100`, `c_vs_j=29.266`, `c_paint_mean=0.256`
+  (was idle-tip 30260 / 125 / 49.279 / 59.43). `n_only_c=0`.
+- Eat mid-use: `hard_px=74218`, `maxch=215`, `c_vs_j=32.764`, `c_paint_mean=1.300`
+  (was idle-tip 101880 / 215 / 53.939 / 51.32). `n_only_c=6`.
+- Blocking shield: `hard_px=28506`, `maxch=100`, `c_vs_j=23.613`,
+  `c_paint_mean=0.744` (unchanged). C-painted vs Java: 764 exact, 15989 nz,
+  `maxch>2` only 6 px. Geometry matches (C subject subset of Java at thr
+  12-20). Mesa packing `(tex*L8+127)/255` and `(tex*L8+128)>>8` were
+  measured against this golden; neither moves the wood-face +1,+1,0 bins
+  (the +1 is in the ubyte primary, not modulate rounding).
 
 C `build_bow_drawn` / `build_eat_drink` / `build_block_use` match
 `ItemRenderer.java` (oracle-src) call-for-call, including
 `f = remaining - partialTicks + 1` at `partialTicks=1` and bow
-`f5 = maxDuration - remaining`. Do not retune those matrices against the
-current bow/eat PNGs: they are idle-tips. Java bow brown bbox in the
-viewmodel ROI is 1297 px vs C painted 14713; Java eat brown 6743 vs C 39116.
-`pin_reply` has `hand_active` / `use_count` (bow remaining 71980, eat
-elapsed `use_max=16` with remaining 16) but the saved meta has no
-`use_branch` / `model_pulling` — the capture predates
-`check_hand_use_pin_reply`. `capture_manifest.json` already called bow/eat
-"pre-pin tip residuals". Fitting C idle to those goldens is forbidden
-(AGENTS.md). Close path: recapture with `ONLY=hand` so the current driver
-rejects missing `use_branch=bow|eat` and `model_pulling>=0.5`.
-
-Shield is a genuine `BLOCK` pose. Remaining owned residual is isolation gray
+`f5 = maxDuration - remaining`. Meta now records `use_branch` /
+`model_pulling` / `use_count`. Remaining owned residual is isolation gray
 vs the stone-wall golden: `HAND_SUBJECT_THR=8` classifies wall texel
-variance as Java subject, so `hard_px` stays ~28k even when the shield face
-is 1 LSB. Isolation cannot paint the wall. Painted-face leftover is Mesa
-ubyte primary still ~1 L8 on some faces (same class as inventory preview).
+variance as Java subject (`n_only_j` 16309 bow / 50268 eat / 12533
+shield), so `hard_px` stays large even when the painted face is ~1 L8.
+Isolation cannot paint the wall. Painted-face leftover is the same class
+as inventory preview. PASS still requires `hard_px==0`.
 
 Repro:
 
