@@ -75,9 +75,10 @@ PARITY_NAMES = (
     "weather", "xp", "victory", "chests", "boats", "elytra", "observations",
 )
 PARITY_INDEX = {name: i for i, name in enumerate(PARITY_NAMES)}
-# Subsystems in BP_IMPLEMENTED_MASK / BP_MEASURED_MASK (port_parity.h). The
-# default-on --chain state-digest pass compares every one of these every tick;
-# unported names stay out of the list so they never spuriously BLOCK the gate.
+# Default-on --chain state-digest pass. Subset of BP_IMPLEMENTED_MASK.
+# BP_MOBS is implemented (snapshot v3 transport hash) but stays off this
+# list until blaze steps mobs; compare it with --features mobs. Unported
+# names stay out so they never spuriously BLOCK the gate.
 # Furnaces is implemented but has zero evidence on the non-iron chain - digests
 # still match (empty FNV seed); evidence is only required under explicit
 # --port-parity --features.
@@ -109,9 +110,10 @@ VERIFIED = 0
 FAILED = 1
 BLOCKED = 3
 
-# blaze_snapshot.h: BLAZE_SNAP_VERSION 2 added the per-cell packed light
-# payload. A v1 bake loads with light == NULL, and blaze then runs with world
-# dynamics UNREPRESENTED rather than refusing the fixture.
+# blaze_snapshot.h: v2 added the per-cell packed light payload; v3 added the
+# per-mob trailer. A v1 bake loads with light == NULL, and blaze then runs
+# with world dynamics UNREPRESENTED rather than refusing the fixture. v2
+# loads with n_mobs = 0.
 BSNP_MAGIC = b"BSNP"
 BSNP_VERSION_LIGHT = 2
 SNAP_HEAD_SIZE = 752       # sizeof(RlSnapHead), packed

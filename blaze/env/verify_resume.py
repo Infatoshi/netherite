@@ -84,7 +84,7 @@ SNAP_HEAD_SIZE = 752       # sizeof(RlSnapHead), packed
 SNAP_ITEM_SIZE = 76        # sizeof(RlSnapItem), packed
 SNAP_VERSION_OFF = 4
 SNAP_N_ITEMS_OFF = 724     # unsigned n_items
-BLAZE_SNAP_VERSION = 2
+BLAZE_SNAP_VERSION_LIGHT = 2  # v2 light plane; v3+ still has it
 
 DEFAULT_CHECKPOINTS = (400, 1000, 1600)
 DEFAULT_SEED = 10
@@ -113,12 +113,12 @@ def snap_version(path):
 
 
 def require_v2_snapshot(path, purpose):
-    """Resume determinism needs light (v2). Reject v1 loudly."""
+    """Resume determinism needs light (v2+). Reject v1 loudly."""
     ver = snap_version(path)
-    if ver != BLAZE_SNAP_VERSION:
+    if ver < BLAZE_SNAP_VERSION_LIGHT:
         raise RuntimeError(
             f"REJECT {purpose}: {path} is .bsnp version {ver} "
-            f"(need version {BLAZE_SNAP_VERSION} with light plane); "
+            f"(need version >= {BLAZE_SNAP_VERSION_LIGHT} with light plane); "
             f"v1/no-light snapshots are not accepted for --snapshot-in resume")
     return ver
 

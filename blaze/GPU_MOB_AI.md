@@ -113,12 +113,11 @@ row (already required by port_matrix for mobs).
 
 ## Prerequisite: M1 transport
 
-Snapshot v2 has no mob or entity-RNG state (blaze_snapshot.h:29); BP_MOBS
-exists but is unimplemented (port_parity.h:83). Before any kernel work: a
-mob-capable snapshot revision + canonical BP_MOBS hashing on both sides,
-digest = full mob state (path buffer incl. all points + index, navigation
-clocks, stuck state, task/target, pose, motion, persistent AABB, RNG triple,
-health/timers).
+Landed: snapshot v3 + `blaze_snap_mobs_digest` in `blaze/env/blaze_snapshot.h`
+(magma writer `rl_mode.c` / `gm_mobs_export_snap`, blaze-CPU hashes the
+static loaded store and does not step). v2 files load as zero mobs. Field
+list and remaining entity-arc blockers: `blaze/OPEN_DIVERGENCES.md`
+prerequisites.
 
 ## Metal mirror
 

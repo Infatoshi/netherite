@@ -10,9 +10,15 @@
 #include "player_vitals.h"
 #include "core/config.h"
 #include "path_finder.h"
+#include "../../blaze/env/blaze_snapshot.h"
 
 #include <math.h>
 #include <string.h>
+
+typedef char gm_mobs_snap_cap_is_ew_max
+    [(BLAZE_SNAP_MAX_MOBS == EW_MAX_ENTITIES) ? 1 : -1];
+typedef char gm_mobs_path_cap_is_48
+    [(BLAZE_SNAP_PATH_CAP == 48) ? 1 : -1];
 
 #define GM_MOB_REACH 2.0
 #define GM_MOB_BLOCKS 256
@@ -267,6 +273,8 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->ent_jr_gauss[slot] = 0.0;
     m->blaze_hot[slot] = 0;
     m->blaze_hof[slot] = 0.5f;
+    m->hurt_time[slot] = 0;
+    m->death_time[slot] = 0;
     s_boat_delta_rot[slot] = 0.0f;
     s_boat_glide[slot] = 0.8f;
     if (!m->size[slot]) m->size[slot] = gm_is_slimey(s ? s->type[slot] : 0) ? 2 : 1;
@@ -3483,4 +3491,146 @@ int gm_mobs_take_fireball(GmMobLive *m,double *x,double *y,double *z,
     if(x)*x=m->fireball_x;if(y)*y=m->fireball_y;if(z)*z=m->fireball_z;
     if(vx)*vx=m->fireball_vx;if(vy)*vy=m->fireball_vy;if(vz)*vz=m->fireball_vz;
     m->fireball_pending=0;return kind;
+}
+
+unsigned gm_mobs_export_snap(const GmMobLive *m, struct RlSnapMob *out,
+                             unsigned cap) {
+    const EwStore *s;
+    unsigned n = 0;
+    int i, p;
+    if (!m || !out || cap == 0) return 0;
+    s = const_store(m);
+    for (i = 1; i < EW_MAX_ENTITIES && n < cap; ++i) {
+        RlSnapMob *o;
+        if (s->type[i] == EW_TYPE_NONE && !s->alive[i]) continue;
+        o = &out[n++];
+        memset(o, 0, sizeof *o);
+        o->slot = i;
+        o->id = s->id[i];
+        o->type = (int)s->type[i];
+        o->alive = (int)s->alive[i];
+        o->persist = (int)m->det_persist[i];
+        o->x = s->x[i];
+        o->y = s->y[i];
+        o->z = s->z[i];
+        o->yaw = s->yaw[i];
+        o->pitch = m->passive_head_pitch[i];
+        o->yaw_body = m->passive_render_yaw[i];
+        o->mx = s->vx[i];
+        o->my = s->vy[i];
+        o->mz = s->vz[i];
+        o->on_ground = (int)s->on_ground[i];
+        o->health = s->health[i];
+        o->hurt_time = m->hurt_time[i];
+        o->death_time = m->death_time[i];
+        o->task_bits = m->passive_tasks[i];
+        o->target_tasks = m->det_target_tasks[i];
+        o->wander_x = m->passive_idle_x[i];
+        o->wander_z = m->passive_idle_z[i];
+        o->panic = m->panic_ticks[i];
+        o->target_idx = m->det_has_target[i] ? 1 : 0;
+        o->see_time = m->det_see_time[i];
+        o->stime = m->det_strafe_time[i];
+        o->melee_delay = m->det_melee_delay[i];
+        o->bow_attack_time = m->det_bow_attack_time[i];
+        o->attack_time = s->attack_time[i];
+        o->swell = m->creeper_fuse[i];
+        o->anger = m->anger[i];
+        for (p = 0; p < BLAZE_SNAP_PATH_CAP; ++p) {
+            o->path_x[p] = m->det_nav_x[i][p];
+            o->path_y[p] = m->det_nav_y[i][p];
+            o->path_z[p] = m->det_nav_z[i][p];
+        }
+        o->path_n = m->det_nav_n[i];
+        o->path_i = m->det_nav_i[i];
+        o->nav_ticks = m->det_nav_ticks[i];
+        o->nav_stuck_at = m->det_nav_stuck_at[i];
+        o->nav_stuck_x = m->det_nav_stuck_x[i];
+        o->nav_stuck_y = m->det_nav_stuck_y[i];
+        o->nav_stuck_z = m->det_nav_stuck_z[i];
+        o->box_on = m->det_box_on[i];
+        o->box_minx = m->det_box[i].minX;
+        o->box_miny = m->det_box[i].minY;
+        o->box_minz = m->det_box[i].minZ;
+        o->box_maxx = m->det_box[i].maxX;
+        o->box_maxy = m->det_box[i].maxY;
+        o->box_maxz = m->det_box[i].maxZ;
+        o->seed48 = m->ent_jr_seed[i];
+        o->have_gauss = m->ent_jr_have_gauss[i];
+        o->gauss = m->ent_jr_gauss[i];
+    }
+    return n;
+}
+
+void gm_mobs_import_snap(GmMobLive *m, const struct RlSnapMob *in, unsigned n) {
+    EwStore *s;
+    long long seed;
+    unsigned k;
+    int p;
+    if (!m) return;
+    seed = m->seed;
+    gm_mobs_init(m, seed);
+    if (!in || n == 0) return;
+    s = now_store(m);
+    for (k = 0; k < n; ++k) {
+        const RlSnapMob *o = &in[k];
+        int i = o->slot;
+        if (i < 1 || i >= EW_MAX_ENTITIES) continue;
+        s->type[i] = (u8)o->type;
+        s->alive[i] = (u8)(o->alive ? 1 : 0);
+        s->id[i] = o->id;
+        s->x[i] = o->x;
+        s->y[i] = o->y;
+        s->z[i] = o->z;
+        s->vx[i] = o->mx;
+        s->vy[i] = o->my;
+        s->vz[i] = o->mz;
+        s->yaw[i] = o->yaw;
+        s->health[i] = o->health;
+        s->on_ground[i] = (u8)(o->on_ground ? 1 : 0);
+        s->attack_time[i] = o->attack_time;
+        m->det_persist[i] = (unsigned char)(o->persist ? 1 : 0);
+        m->passive_head_pitch[i] = o->pitch;
+        m->passive_render_yaw[i] = o->yaw_body;
+        m->hurt_time[i] = o->hurt_time;
+        m->death_time[i] = o->death_time;
+        m->passive_tasks[i] = o->task_bits;
+        m->det_target_tasks[i] = o->target_tasks;
+        m->passive_idle_x[i] = o->wander_x;
+        m->passive_idle_z[i] = o->wander_z;
+        m->panic_ticks[i] = o->panic;
+        m->det_has_target[i] = (unsigned char)(o->target_idx ? 1 : 0);
+        m->det_see_time[i] = o->see_time;
+        m->det_strafe_time[i] = o->stime;
+        m->det_melee_delay[i] = o->melee_delay;
+        m->det_bow_attack_time[i] = o->bow_attack_time;
+        m->creeper_fuse[i] = o->swell;
+        m->anger[i] = o->anger;
+        for (p = 0; p < BLAZE_SNAP_PATH_CAP; ++p) {
+            m->det_nav_x[i][p] = o->path_x[p];
+            m->det_nav_y[i][p] = o->path_y[p];
+            m->det_nav_z[i][p] = o->path_z[p];
+        }
+        m->det_nav_n[i] = o->path_n;
+        m->det_nav_i[i] = o->path_i;
+        m->det_nav_ticks[i] = o->nav_ticks;
+        m->det_nav_stuck_at[i] = o->nav_stuck_at;
+        m->det_nav_stuck_x[i] = o->nav_stuck_x;
+        m->det_nav_stuck_y[i] = o->nav_stuck_y;
+        m->det_nav_stuck_z[i] = o->nav_stuck_z;
+        m->det_box_on[i] = o->box_on;
+        m->det_box[i].minX = o->box_minx;
+        m->det_box[i].minY = o->box_miny;
+        m->det_box[i].minZ = o->box_minz;
+        m->det_box[i].maxX = o->box_maxx;
+        m->det_box[i].maxY = o->box_maxy;
+        m->det_box[i].maxZ = o->box_maxz;
+        m->ent_jr_seed[i] = o->seed48;
+        m->ent_jr_have_gauss[i] = (unsigned char)(o->have_gauss ? 1 : 0);
+        m->ent_jr_gauss[i] = o->gauss;
+        m->entity_dimension[i] = (signed char)m->active_dimension;
+        if (i + 1 > s->count) s->count = i + 1;
+        if (o->id >= m->next_id) m->next_id = o->id + 1;
+    }
+    ew_store_copy(next_store(m), s);
 }

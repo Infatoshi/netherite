@@ -29,7 +29,7 @@ enum BpSubsystem {
     BP_FLUIDS,
     BP_RANDOM_TICKS,
     BP_FALLING_BLOCKS,
-    BP_MOBS,
+    BP_MOBS,            /* digest: blaze_snap_mobs_digest (blaze_snapshot.h) */
     BP_PROJECTILES,
     BP_EXPLOSIONS,
     BP_PORTALS,
@@ -84,12 +84,12 @@ enum BpDebugField {
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
-     BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
-     BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
     "player", "dig", "inventory", "items", "world", "crafting", \

@@ -204,9 +204,11 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     if (gi >= nactive) return;
     int i = active[gi];
     const CuSnapDev *s = &snaps[assign[i]];
+    /* CPU reset restores snapshot v3 mobs; CUDA M2 does not step or store
+     * them yet (GPU_MOB_AI.md). Pass an empty trailer until that lands. */
     blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
-                       success_item);
+                       NULL, 0, success_item);
 }
 
 /* reset phase 2: one thread per bulk cell (region copy + window fill +

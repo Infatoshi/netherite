@@ -23,7 +23,9 @@
  * crf_*, oc_pixel) are reused VERBATIM via include - never re-implemented.
  *
  * Deliberately NOT simulated (inert or impossible with the supported item
- * set; the snapshot baker flags offenders): mobs/dragon/projectiles,
+ * set; the snapshot baker flags offenders): mobs/dragon/projectiles
+ * (mobs load into a static snapshot store and hash as BP_MOBS; they do not
+ * tick),
  * weather/clock, portals, bow/eye-of-ender (need held item 261/381 - neither
  * is craftable in-chain). Fluids CA is simulated (magma/game/fluid_live.c
  * port) and hashed into BP_FLUIDS.
@@ -275,6 +277,10 @@ typedef struct {
     CuItem items[CU_MAX_ITEMS];
     int    n_items;
     int    items_unrepresented;
+
+    /* Static loaded mob state (snapshot v3). Blaze does not step mobs. */
+    RlSnapMob mobs[BLAZE_SNAP_MAX_MOBS];
+    unsigned n_mobs;
 
     /* reward/done bookkeeping (driver-level; not part of the sim gate) */
     int    base_coal;
@@ -3057,7 +3063,7 @@ MC_HD static inline int blaze_capture_head(const Blaze *e, RlSnapHead *h,
     memset(h, 0, sizeof *h);
     h->magic[0] = 'B'; h->magic[1] = 'S'; h->magic[2] = 'N';
     h->magic[3] = 'P';
-    h->version = 1;
+    h->version = BLAZE_SNAP_VERSION;
     h->seed = e->seed;
     h->tick = e->tick;
     h->ox = e->ox; h->oz = e->oz;
@@ -3362,6 +3368,10 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
         r->measured_mask &= ~BP_BIT(BP_FLUIDS);
     }
 
+    r->digest[BP_MOBS] = blaze_snap_mobs_digest(e->mobs, e->n_mobs);
+    r->evidence[BP_MOBS] = 1;
+    if (e->n_mobs) r->active_mask |= BP_BIT(BP_MOBS);
+
     (void)blaze_coal_list(e, coal);
     h = bp_hash_begin();
     for (i = 0; i < CU_NCOAL; ++i)
@@ -3482,6 +3492,8 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                                             const int *ore_xy,
                                             const int *cont, int ncont,
                                             int light_valid,
+                                            const RlSnapMob *mobs,
+                                            unsigned n_mobs,
                                             int success_item) {
     int i, dx, dz;
     unsigned u;
@@ -3583,6 +3595,15 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         env->n_items++;
     }
 
+    env->n_mobs = 0;
+    memset(env->mobs, 0, sizeof env->mobs);
+    if (mobs && n_mobs) {
+        unsigned nm = n_mobs;
+        if (nm > BLAZE_SNAP_MAX_MOBS) nm = BLAZE_SNAP_MAX_MOBS;
+        env->n_mobs = nm;
+        memcpy(env->mobs, mobs, (size_t)nm * sizeof env->mobs[0]);
+    }
+
     /* window chunk coords; the block contents come from the bulk phase */
     for (dz = -PSV_R; dz <= PSV_R; ++dz)
         for (dx = -PSV_R; dx <= PSV_R; ++dx) {
@@ -3628,10 +3649,12 @@ MC_HD static inline void blaze_reset_from_snapshot(Blaze *env, const RlSnapHead 
                                                    const int *ore, int nore,
                                                    const int *ore_xy,
                                                    const int *cont, int ncont,
+                                                   const RlSnapMob *mobs,
+                                                   unsigned n_mobs,
                                                    int success_item) {
     long i, nbulk;
     blaze_reset_scalar(env, h, items, ore, nore, ore_xy, cont, ncont,
-                       light_src != NULL, success_item);
+                       light_src != NULL, mobs, n_mobs, success_item);
     nbulk = cu_reset_bulk_count(env);
     for (i = 0; i < nbulk; ++i)
         blaze_reset_bulk(env, cells_src, light_src, i);

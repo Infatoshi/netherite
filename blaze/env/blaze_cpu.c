@@ -307,7 +307,8 @@ static void cu_reset_env(CuVec *v, int i) {
     const CuSnapshot *s = &v->snaps[v->assign[i]];
     blaze_reset_from_snapshot(&v->envs[i], &s->head, s->items, s->cells,
                               s->light, s->coal, (int)s->ncoal, s->xy_off,
-                              s->cont, s->ncont, v->success_item);
+                              s->cont, s->ncont, s->mobs, s->n_mobs,
+                              v->success_item);
 }
 
 int blaze_reset(void *vh, const unsigned char *mask) {
@@ -391,6 +392,9 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(e, &s->head, s->items);
+    s->n_mobs = e->n_mobs;
+    if (e->n_mobs)
+        memcpy(s->mobs, e->mobs, (size_t)e->n_mobs * sizeof s->mobs[0]);
     if (!s->cells) {
         s->cells = (unsigned short *)malloc((size_t)v->rvol *
                                             sizeof *s->cells);
