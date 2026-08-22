@@ -448,9 +448,12 @@ static void update_boss_state(GmWindowCompose *c,
                               const GmEntityView *ents, int n) {
     GmRuntime *r = c->runtime;
     if (r->dimension != 1) {
+        /* DragonFightManager.java:54 createFog is End-only. */
         c->boss_latch = 0;
         c->dragon_killed = 0;
         c->dragon_dying = 0;
+        gm_hud_set_boss(0, 0.0f);
+        return;
     }
     int dragon_seen = 0;
     for (int i = 0; i < n; ++i) {

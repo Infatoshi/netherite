@@ -4,6 +4,7 @@
 #include "game/game.h"          /* GmEntityView + MAGMA_GAME_H before entity_render.h */
 #include "game/entity_render.h"
 #include "game/item_render.h"
+#include "game/sky.h"
 #include "assets/mob_atlas.h"
 
 #include <math.h>
@@ -319,6 +320,19 @@ int main(void) {
         CHECK(n0 == n1 && n0 > 200, "ring yaw 0 vs 180 keeps box count");
         CHECK(fabsf(zc0 - zc1) > 2.0f,
               "ring yaw 180 vs 0 flips body along Z (RenderDragon.java:33-35)");
+    }
+
+    /* EntityRenderer.java:2044-2047 dense ramp. createFog is End-only
+     * (DragonFightManager.java:54). Overworld capture pins must not densify. */
+    {
+        CHECK(gm_fog_dense_ramp(0, 1) == 0,
+              "overworld ignores createFog (no DragonFightManager)");
+        CHECK(gm_fog_dense_ramp(1, 1) == 1,
+              "End createFog pulls [far*0.05, far*0.5]");
+        CHECK(gm_fog_dense_ramp(1, 0) == 0,
+              "End without BossInfo uses normal fog");
+        CHECK(gm_fog_dense_ramp(-1, 0) == 1,
+              "Nether doesXZShowFog always dense");
     }
 
     /* Portal: particles.png. EXPLOSION_LARGE: explosion.png (not particles). */
