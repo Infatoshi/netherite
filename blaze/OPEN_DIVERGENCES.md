@@ -16,7 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
-Last verified: master 2026-08-22 (post lane/handscene merge).
+Last verified: lane/fluidsm2 2026-08-22 (fluids M2 bitwise).
 
 ## Verified rows (no known divergence)
 
@@ -25,11 +25,7 @@ Last verified: master 2026-08-22 (post lane/handscene merge).
 | mining_slice | VERIFIED | VERIFIED |
 | spawn_to_torch | VERIFIED (chain 2058 actions) | VERIFIED |
 | world_dynamics | VERIFIED | VERIFIED |
-| fluids | VERIFIED | **no M2 defined** |
-
-Known gap on a ported row: `fluids` has an empty `m2` command in the matrix.
-The CUDA fluid path has no bitwise gate. Define it before trusting fluid
-behavior in CUDA training.
+| fluids | VERIFIED | VERIFIED (chain 61 actions) |
 
 ## Unported rows (coverage gaps), in dependency order
 
