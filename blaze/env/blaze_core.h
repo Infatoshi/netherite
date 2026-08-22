@@ -81,6 +81,7 @@ extern "C" {
 #define CU_NBLOCKS  256         /* RL_NBLOCKS (emitted zeroed)   */
 #define CU_NLOGS    64          /* RL_NLOGS   (emitted zeroed)   */
 #define CU_MAX_ITEMS 48         /* GM_LIVE_MAX */
+#define CU_FALL_UPDATES 128     /* GM_LIVE_FALL_UPDATES */
 #define CU_MAX_EDITS 8          /* GM_RUNTIME_MAX_EDITS */
 #define CU_COAL_SCRATCH 512     /* rl_mode coalblk[512] cap */
 #define CU_COAL_CAND 1024       /* per-env geometric candidate cache cap */
@@ -145,6 +146,25 @@ typedef struct {
     double x, y, z, mx, my, mz;
     int    on_ground, age, item, count, meta, pickup_delay, lifespan;
 } CuItem;
+
+/* Falling-block slots (GmLiveEnt type=2 + GmLiveFallUpdate/Landing). */
+typedef struct {
+    int    active, type;
+    double x, y, z, mx, my, mz;
+    int    on_ground, age, item, count, meta, pickup_delay, lifespan;
+} CuFallEnt;
+typedef struct {
+    int active;
+    int x, y, z;
+    int block_id;
+    long long due_tick;
+} CuFallUpdate;
+typedef struct {
+    int active;
+    int x, y, z;
+    int block_id, block_meta;
+    long long due_tick;
+} CuFallLanding;
 
 /* ---- block edit (GmBlockEdit fields, game.h) ---- */
 typedef struct {
@@ -241,6 +261,10 @@ typedef struct {
     uint32_t parity_rt_cells;
     int      parity_rt_cells_valid;
     uint32_t parity_rt_mutations;
+    uint64_t parity_fall_cells_digest;
+    uint32_t parity_fall_cells;
+    int      parity_fall_cells_valid;
+    uint32_t parity_fall_mutations;
     int     *rt_leaf;            /* RT_LIVE_SURR ints; BlockLeaves surroundings */
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
 
@@ -284,6 +308,12 @@ typedef struct {
     CuItem items[CU_MAX_ITEMS];
     int    n_items;
     int    items_unrepresented;
+
+    CuFallEnt falls[CU_MAX_ITEMS];
+    int    n_falls;
+    CuFallUpdate fall_updates[CU_FALL_UPDATES];
+    CuFallLanding fall_landings[CU_MAX_ITEMS];
+    int    live_ticks;           /* magma GmLiveSim.ticks (not world tick) */
 
     /* Loaded snapshot living slots. Spine (Entity.move / travel) ticks
      * each tick; AI/path/combat do not. */
@@ -559,6 +589,15 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
             if (old_r || new_r)
                 ++e->parity_rt_mutations;
         }
+        if (e->parity_fall_cells_valid && old_state != new_state) {
+            int old_f = bp_is_falling_state(old_state);
+            int new_f = bp_is_falling_state(new_state);
+            e->parity_fall_cells_digest = bp_falling_cells_replace(
+                e->parity_fall_cells_digest, &e->parity_fall_cells,
+                (uint64_t)i, old_state, new_state);
+            if (old_f || new_f)
+                ++e->parity_fall_mutations;
+        }
         e->cells[i] = new_state;
         /* randtick census: this is the ONLY runtime writer of cells[] (dig,
          * place, block edits, furnace lit/unlit and the tickers inside
@@ -604,6 +643,21 @@ MC_HD static inline int cu_rt_light_at(const Blaze *e,
 #define rt_live_set(w, x, y, z, id, meta) \
     cu_world_set_state((w), (x), (y), (z), (id), (meta))
 #include "randtick_live.h"
+
+#define FL_W Blaze
+#define fl_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define fl_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
+#define fl_set(w, x, y, z, id, meta) \
+    cu_world_set_state((w), (x), (y), (z), (id), (meta))
+#define FL_STORE Blaze
+#define fl_ents(s) ((s)->falls)
+#define fl_upd(s) ((s)->fall_updates)
+#define fl_land(s) ((s)->fall_landings)
+#define fl_n_active(s) ((s)->n_falls)
+#define fl_ticks(s) ((s)->live_ticks)
+#define FL_MAX CU_MAX_ITEMS
+#define FL_UPDATES CU_FALL_UPDATES
+#include "falling_live.h"
 
 MC_HD static inline void cu_randtick_pass(Blaze *e) {
     McGameRules gr;
@@ -1709,10 +1763,13 @@ MC_HD static inline int cu_item_solid_at(const Blaze *env, int x, int y, int z) 
 
 /* verbatim gm_live_tick item slice + gm_live_tick_player pickup
  * (live_sim.c:66-148; the wheat plot is inactive in rl mode - gm_runtime_init
- * memsets r->entities, so plant_active==0 always). */
+ * memsets r->entities, so plant_active==0 always). Falling scheduled updates
+ * and EntityFallingBlock ticks run first, same order as magma gm_live_tick. */
 MC_HD static inline void cu_live_tick_player(Blaze *env) {
     int i;
     double px, py, pz;
+    fl_tick_scheduled(env, env);
+    fl_tick_falling_ents(env, env);
     for (i = 0; i < CU_MAX_ITEMS; ++i) {
         CuItem *e = &env->items[i];
         int by, bx, bz, under;
@@ -1768,6 +1825,7 @@ MC_HD static inline void cu_live_tick_player(Blaze *env) {
             if (env->n_items > 0) env->n_items--;
         }
     }
+    env->live_ticks++;
 }
 
 /* =================== plant cascade (game/runtime.c port) ================== */
@@ -2385,6 +2443,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
      * 290-298): blaze's window is updated in place on every edit,
      * value-identical to the gen-triggered refill. */
 
+    /* Magma gm_live_pre_player_tick: landing packets before player raycast. */
+    fl_pre_player_tick(env, env);
     blaze_player_tick(env, st, act, edits, &n, CU_MAX_EDITS, blocks);
     /* Minecraft.runTick pins this GUI sentinel after key processing. */
     if (env->container >= 1 && env->container <= 3)
@@ -2395,6 +2455,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     for (i = 0; i < n; ++i) {
         cu_world_set_state(env, edits[i].wx, edits[i].wy, edits[i].wz,
                            edits[i].id, edits[i].meta);
+        fl_block_changed(env, env, edits[i].wx, edits[i].wy, edits[i].wz);
         cu_fluid_mark(env, 0, edits[i].wx, edits[i].wy, edits[i].wz);
         cu_break_unsupported_plants(env, edits[i].wx, edits[i].wy, edits[i].wz);
         /* water/lava placement interactions (runtime.c:361-372), ported for
@@ -3421,6 +3482,62 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
         r->measured_mask &= ~BP_BIT(BP_RANDOM_TICKS);
     }
 
+    if (e->cells && e->rnx > 0 && e->rny > 0 && e->rnz > 0) {
+        int nents = 0, ui;
+        if (!e->parity_fall_cells_valid) {
+            uint32_t nfall = 0;
+            uint64_t fh = 0;
+            long count = e->rvol, ci;
+            for (ci = 0; ci < count; ++ci)
+                fh = bp_falling_cells_add(fh, &nfall, (uint64_t)ci,
+                                          e->cells[ci]);
+            e->parity_fall_cells_digest = fh;
+            e->parity_fall_cells = nfall;
+            e->parity_fall_cells_valid = 1;
+        }
+        h = bp_falling_digest_begin();
+        for (ui = 0; ui < CU_MAX_ITEMS; ++ui) {
+            const CuFallEnt *fe = &e->falls[ui];
+            if (!fe->active || fe->type != 2) continue;
+            ++nents;
+            h = bp_hash_falling_entity(
+                h, fe->x, fe->y, fe->z, fe->mx, fe->my, fe->mz,
+                fe->on_ground, fe->age, fe->item, fe->meta);
+        }
+        h = bp_hash_i32(h, nents);
+        for (ui = 0; ui < CU_FALL_UPDATES; ++ui) {
+            const CuFallUpdate *u = &e->fall_updates[ui];
+            h = bp_hash_i32(h, u->active);
+            if (!u->active) continue;
+            h = bp_hash_i32(h, u->x);
+            h = bp_hash_i32(h, u->y);
+            h = bp_hash_i32(h, u->z);
+            h = bp_hash_i32(h, u->block_id);
+            h = bp_hash_i64(h, u->due_tick);
+        }
+        for (ui = 0; ui < CU_MAX_ITEMS; ++ui) {
+            const CuFallLanding *p = &e->fall_landings[ui];
+            h = bp_hash_i32(h, p->active);
+            if (!p->active) continue;
+            h = bp_hash_i32(h, p->x);
+            h = bp_hash_i32(h, p->y);
+            h = bp_hash_i32(h, p->z);
+            h = bp_hash_i32(h, p->block_id);
+            h = bp_hash_i32(h, p->block_meta);
+            h = bp_hash_i64(h, p->due_tick);
+        }
+        h = bp_falling_digest_finish(
+            h, e->parity_fall_cells_digest, e->parity_fall_cells,
+            e->parity_fall_mutations);
+        r->digest[BP_FALLING_BLOCKS] = h;
+        r->evidence[BP_FALLING_BLOCKS] =
+            (uint32_t)nents + e->parity_fall_mutations;
+        if (nents || e->parity_fall_mutations)
+            r->active_mask |= BP_BIT(BP_FALLING_BLOCKS);
+    } else {
+        r->measured_mask &= ~BP_BIT(BP_FALLING_BLOCKS);
+    }
+
     r->digest[BP_MOBS] = blaze_snap_mobs_digest(e->mobs, e->n_mobs);
     r->evidence[BP_MOBS] = 1;
     if (e->n_mobs) r->active_mask |= BP_BIT(BP_MOBS);
@@ -3638,6 +3755,11 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
 
     for (i = 0; i < CU_MAX_ITEMS; ++i) env->items[i].active = 0;
     env->n_items = 0;
+    for (i = 0; i < CU_MAX_ITEMS; ++i) env->falls[i].active = 0;
+    env->n_falls = 0;
+    for (i = 0; i < CU_FALL_UPDATES; ++i) env->fall_updates[i].active = 0;
+    for (i = 0; i < CU_MAX_ITEMS; ++i) env->fall_landings[i].active = 0;
+    env->live_ticks = 0;
     for (u = 0; u < h->n_items && u < CU_MAX_ITEMS; ++u) {
         CuItem *e = &env->items[u];
         e->active = 1;
@@ -3674,6 +3796,10 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->parity_rt_cells = 0;
     env->parity_rt_cells_valid = 0;
     env->parity_rt_mutations = 0;
+    env->parity_fall_cells_digest = 0;
+    env->parity_fall_cells = 0;
+    env->parity_fall_cells_valid = 0;
+    env->parity_fall_mutations = 0;
     cu_fluid_init(env);
 
     env->base_coal = blaze_inv_count(env, 263);

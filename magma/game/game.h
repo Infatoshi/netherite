@@ -322,6 +322,10 @@ int       gm_world_fluid_parity_state(const GmWorld *w, uint64_t *digest,
  * configured parity region plus live count and mutation count. */
 int       gm_world_rt_parity_state(const GmWorld *w, uint64_t *digest,
                                    unsigned *ncells, unsigned *mutations);
+/* XOR of gravity-block cell tokens (sand/gravel) in the configured parity
+ * region plus live count and mutation count. */
+int       gm_world_fall_parity_state(const GmWorld *w, uint64_t *digest,
+                                     unsigned *ncells, unsigned *mutations);
 
 /* World-time / weather counters for the live tick composition (advanced by
  * gm_world_tick). */

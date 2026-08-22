@@ -84,12 +84,14 @@ enum BpDebugField {
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
-     BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
+     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
-     BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
+     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
     "player", "dig", "inventory", "items", "world", "crafting", \
@@ -387,6 +389,74 @@ BP_HD static inline uint64_t bp_randtick_digest_begin(void) {
 }
 
 BP_HD static inline uint64_t bp_randtick_digest_finish(
+    uint64_t h, uint64_t cells_xor, uint32_t ncells, uint32_t mutations) {
+    h = bp_hash_u64(h, cells_xor);
+    h = bp_hash_u32(h, ncells);
+    return bp_hash_u32(h, mutations);
+}
+
+/* Magma live_sim.c: sand 12, gravel 13. */
+BP_HD static inline int bp_is_falling_id(int32_t id) {
+    return id == 12 || id == 13;
+}
+
+BP_HD static inline int bp_is_falling_state(uint16_t state) {
+    return bp_is_falling_id((int32_t)(state >> 4));
+}
+
+BP_HD static inline uint64_t bp_falling_cell_token(uint64_t index, uint16_t state) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x4c434c46)); /* "FLCL" */
+    h = bp_hash_u64(h, index);
+    return bp_hash_u16(h, state);
+}
+
+BP_HD static inline uint64_t bp_falling_cells_add(
+    uint64_t digest, uint32_t *ncells, uint64_t index, uint16_t state) {
+    if (!bp_is_falling_state(state)) return digest;
+    if (ncells) ++*ncells;
+    return digest ^ bp_falling_cell_token(index, state);
+}
+
+BP_HD static inline uint64_t bp_falling_cells_replace(
+    uint64_t digest, uint32_t *ncells, uint64_t index,
+    uint16_t old_state, uint16_t new_state) {
+    int old_f = bp_is_falling_state(old_state);
+    int new_f = bp_is_falling_state(new_state);
+    if (old_f == new_f && old_state == new_state) return digest;
+    if (old_f) {
+        digest ^= bp_falling_cell_token(index, old_state);
+        if (ncells) --*ncells;
+    }
+    if (new_f) {
+        digest ^= bp_falling_cell_token(index, new_state);
+        if (ncells) ++*ncells;
+    }
+    return digest;
+}
+
+BP_HD static inline uint64_t bp_hash_falling_entity(
+    uint64_t h, double x, double y, double z,
+    double mx, double my, double mz, int32_t on_ground, int32_t fall_time,
+    int32_t block_id, int32_t meta) {
+    h = bp_hash_double(h, x);
+    h = bp_hash_double(h, y);
+    h = bp_hash_double(h, z);
+    h = bp_hash_double(h, mx);
+    h = bp_hash_double(h, my);
+    h = bp_hash_double(h, mz);
+    h = bp_hash_i32(h, on_ground);
+    h = bp_hash_i32(h, fall_time);
+    h = bp_hash_i32(h, block_id);
+    return bp_hash_i32(h, meta);
+}
+
+BP_HD static inline uint64_t bp_falling_digest_begin(void) {
+    uint64_t h = bp_hash_begin();
+    return bp_hash_u32(h, UINT32_C(0x314c4146)); /* "FAL1" */
+}
+
+BP_HD static inline uint64_t bp_falling_digest_finish(
     uint64_t h, uint64_t cells_xor, uint32_t ncells, uint32_t mutations) {
     h = bp_hash_u64(h, cells_xor);
     h = bp_hash_u32(h, ncells);
