@@ -2,7 +2,7 @@
  *
  * Units: gravity bits, spawn y offset, canFallThrough, land on stone,
  * 600-tick drop. --write-fixture FROM OUT copies a magma region and plants
- * a dirt-supported sand column north of the s10 spawn look ray. */
+ * a dirt-supported sand column on the s10 spawn look ray (standing, pitch 0). */
 #define _POSIX_C_SOURCE 200809L
 #include "blaze_snapshot.h"
 #include "mc_blocks.h"

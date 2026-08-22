@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 falling_blocks M1+M2 (lane/fallblaze)
+
+Baseline anvil HEAD 4dea2ea: `BLOCKED falling_blocks: Falling-block state and outcomes are not measured by both backends` (port_matrix rc=3, `out/verify/fallblaze_m1_before.log`). Tape `scenario_falling_blocks_20260801T151855Z` world_hash 310/310 before the port.
+
+Cause: magma already ticked EntityFallingBlock in `live_sim.c` (lane/fallt46). Blaze had no falling store, no schedule, no FAL1 digest. Java `BlockFalling.onBlockAdded` / `neighborChanged` / `updateTick` / `checkFallable` / `tickRate=2` / `canFallThrough` (`BlockFalling.java:33-36, :43-46, :48-54, :56-88, :97-100, :102-107`); `EntityFallingBlock` ctor `setSize(0.98F,0.98F)` y+(1-height)/2 (`:50-64`); `onUpdate` fallTime++ source-to-air (`:116-128`), gravity `0.03999999910593033D` (`:133`), drag `0.9800000190734863D` (`:137-139`), onGround `canFallThrough(y-0.009999999776482582D)` (`:149-154`), land `0.699999988079071D` xz / `-0.5D` y then `setBlockState` (`:156-166`), despawn `fallTime>600` (`:207-215`). `World.handleMaterialAcceleration` is not involved. Magma extras kept: schedule delay 2, landing packet +1 then neighbor schedule 3, custom collision tops, sand/gravel only.
+
+After: shared `blaze/core/falling_live.h`. Magma `live_sim.c` wrappers stay thin (tape world_hash still 310/310). Blaze ticks pre-player landings, post-edit notify, then scheduled updates + falling ents after fluids/randtick/spine. `BP_FALLING_BLOCKS` hashes live ents (pos, motion, block, fallTime) plus gravity-cell XOR/mutations. Falling ents are spawned by the sim, not snapshot v3. Fixture `s10_t0_r64_falling.bsnp` grounds the s10 player at y=65 and plants dirt (8,66,6) + sand 67-69; chain 32 attack + 32 idle. Anvil M1 VERIFIED 64 ticks digest `0xe2f58256b2cb83a4` (`out/verify/fallblaze_m1_falling.log`). Anvil M2 VERIFIED 64 CUDA lanes (`out/verify/fallblaze_m2_falling.log`). Already-supported rows `--no-deps` still VERIFIED. Root `make test` PASS.
+
+Open: anvil/dragon-egg falling, EntityItem on failed mayPlace, and Java `World.rand` / instant-fall area-load path are not this row.
+
 ## 2026-08-22 XP orb pixels (lane/xporb)
 
 A6 first sub-item. Baseline on gamer (old ROI, pad only): xp_orb
