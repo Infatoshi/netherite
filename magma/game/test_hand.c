@@ -8,6 +8,11 @@
  *     extents after transform are finite and non-degenerate.
  * (D3) idle AABB is T(0.56,-0.52,-0.72)*Ry(45)*S(0.4)*T(-0.5).
  * (D4) env pitch does not move verts (rotateArroundXAndY pops).
+ * (D5) EntityPlayer cameraPitch target is 0 at motionY=0 (air hover) and
+ *     onGround; a terminal fall is ~10 deg, never the look-pitch 15.
+ * (D6) rotateArm is 0.1*(rotationPitch-renderArmPitch), not look pitch.
+ * (D7) identity dirt at 854x480 fov70 projects into the lower-right (top
+ *     y>=300). The dragon golden y~244 house-peak is the endstone shelf.
  * (E) CAP: max < 36 returns 0 and never overruns out (canary intact).
  * (F) FLINT AND STEEL: generated rim lighting uses ItemLayerModel's opposite
  *     vertex normal at the TNT tape's camera pitch.
@@ -33,6 +38,49 @@ static int g_fail;
 #define CHECK(cond, msg) do { \
     if (!(cond)) { fprintf(stderr, "FAIL: %s (%s:%d)\n", msg, __FILE__, __LINE__); g_fail = 1; } \
 } while (0)
+
+/* EntityPlayer.onLivingUpdate cameraPitch target (EntityPlayer.java:583-601).
+ * f1 = atan(-motionY * 0.20000000298023224D) * 15.0D; forced 0 on ground
+ * or when dead. applyBobbing then Rx(f3) only if viewBobbing
+ * (EntityRenderer.java:816-818); capture_ui_entities.sh:74 sets bobView false. */
+static float entityplayer_camera_pitch_target(int on_ground, double motion_y,
+                                              int dead) {
+    float f1 = (float)(atan(-motion_y * 0.20000000298023224) * 15.0);
+    if (on_ground || dead) f1 = 0.0f;
+    return f1;
+}
+
+/* ItemRenderer.rotateArm (ItemRenderer.java:107-113):
+ * GlStateManager.rotate((rotationPitch - lerp(renderArmPitch)) * 0.1F, 1,0,0).
+ * Settled pin (renderArmPitch == rotationPitch) is Rx(0), not Rx(look). */
+static float rotate_arm_rx_deg(float rotation_pitch, float render_arm_pitch) {
+    return (rotation_pitch - render_arm_pitch) * 0.1f;
+}
+
+/* renderHand gluPerspective(getFOVModifier(pt,false)=70), modelview identity
+ * (EntityRenderer.java:804-806). Screen y=0 at top. */
+static int dirt_screen_aabb(const CrVertex *v, int n, int W, int H,
+                            float *xmin, float *xmax, float *ymin, float *ymax) {
+    CrCamera cam;
+    memset(&cam, 0, sizeof cam);
+    cam.fov_deg = 70.0f;
+    cam.aspect = (float)W / (float)H;
+    cam.znear = 0.05f;
+    cam.zfar = 50.0f;
+    CrScreenTri tris[64];
+    int nt = cr_transform(v, n, NULL, 0, &cam, W, H, tris, 64);
+    *xmin = 1e9f; *xmax = -1e9f; *ymin = 1e9f; *ymax = -1e9f;
+    for (int t = 0; t < nt; ++t) {
+        for (int k = 0; k < 3; ++k) {
+            float x = tris[t].v[k].spos.x, y = tris[t].v[k].spos.y;
+            if (x < *xmin) *xmin = x;
+            if (x > *xmax) *xmax = x;
+            if (y < *ymin) *ymin = y;
+            if (y > *ymax) *ymax = y;
+        }
+    }
+    return nt;
+}
 
 int main(void) {
     static CrVertex out[TEST_MAX], out2[TEST_MAX];
@@ -185,6 +233,65 @@ int main(void) {
             d += dx * dx + dy * dy + dz * dz;
         }
         CHECK(d < 1e-8f, "pitch does not move dirt verts (java:95 pop)");
+    }
+
+    /* ---- (D5) EntityPlayer.java:583-601 cameraPitch target. Dragon pin is
+     * set_pose motionY=0 no_gravity y=70 (Recorder.java:4246-4249,
+     * driver.py:37-39). Target is 0 in air and on the pad. A fall at
+     * terminal ~3.92 is atan(0.784)*15 ~10 deg, not the look pitch 15. ---- */
+    {
+        CHECK(fabsf(entityplayer_camera_pitch_target(0, 0.0, 0)) < 1e-6f,
+              "air hover motionY=0 cameraPitch target 0");
+        CHECK(fabsf(entityplayer_camera_pitch_target(1, -3.92, 0)) < 1e-6f,
+              "onGround zeros cameraPitch target (EntityPlayer.java:595-598)");
+        float fall = entityplayer_camera_pitch_target(0, -3.92, 0);
+        CHECK(fall > 9.0f && fall < 11.0f,
+              "terminal-fall cameraPitch ~10 deg, not look pitch 15");
+    }
+
+    /* ---- (D6) ItemRenderer.java:112 rotateArm. applyStickyPosePin sets
+     * rotationPitch=prevRotationPitch=pin (Recorder.java:7705-7708) and
+     * EntityPlayerSP.updateEntityActionState lerps renderArmPitch by 0.5
+     * (EntityPlayerSP.java:878-880). Settled capture is Rx(0). ---- */
+    {
+        CHECK(fabsf(rotate_arm_rx_deg(15.0f, 15.0f)) < 1e-6f,
+              "settled rotateArm is 0");
+        CHECK(fabsf(rotate_arm_rx_deg(15.0f, 0.0f) - 1.5f) < 1e-4f,
+              "lag-0 rotateArm is 0.1*look, not look");
+        CHECK(fabsf(rotate_arm_rx_deg(0.0f, 0.0f)) < 1e-6f,
+              "ui_hud pitch-0 rotateArm is 0");
+    }
+
+    /* ---- (D7) identity dirt at capture 854x480 fov70. Java dirt (brown)
+     * bbox on dragon_death_50_a is x 602-771 y 338-479. The y~244 house-peak
+     * is the endstone shelf (world orientCamera pitch 15), not the viewmodel.
+     * Fitting glRotatef(15,1,0,0) on the cube would raise it into that shelf.
+     * renderHand loadIdentity (EntityRenderer.java:804-806) does not. ---- */
+    {
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f);
+        int n = gm_hand_emit_held(3, 0, 0.0f, 0.0f, out, TEST_MAX);
+        CHECK(n == 36, "dirt identity project emit");
+        float x0, x1, y0, y1;
+        int nt = dirt_screen_aabb(out, n, 854, 480, &x0, &x1, &y0, &y1);
+        CHECK(nt > 0, "dirt identity projects");
+        CHECK(y0 > 300.0f, "identity dirt top stays in lower half (not y=244 shelf)");
+        CHECK(x0 > 500.0f, "identity dirt is right-hand viewmodel");
+        /* glRotatef(15,1,0,0) on eye verts: y'=c y - s z, z'=s y + c z. */
+        {
+            const float c = cosf(15.0f * (float)M_PI / 180.0f);
+            const float s = sinf(15.0f * (float)M_PI / 180.0f);
+            for (int i = 0; i < n; ++i) {
+                float y = out[i].pos.y, z = out[i].pos.z;
+                out2[i] = out[i];
+                out2[i].pos.y = c * y - s * z;
+                out2[i].pos.z = s * y + c * z;
+            }
+            float rx0, rx1, ry0, ry1;
+            dirt_screen_aabb(out2, n, 854, 480, &rx0, &rx1, &ry0, &ry1);
+            CHECK(ry0 < 280.0f, "Rx(15) would raise dirt into the endstone shelf");
+            CHECK(ry0 < y0 - 40.0f, "Rx(15) is a large lift, not a 1-px nudge");
+        }
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f);
     }
 
     /* ---- (E) cap ---- */

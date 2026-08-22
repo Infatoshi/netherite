@@ -45,9 +45,10 @@ recorder or re-recording; D-class by improving gates, not the product.
 6. Entity pixels: XP orb hard_px=3484 (pad LSB + disc 1-2 LSB); small fireball
    complete ROI hard_px=44922 (4.944/ch); dragon death RESIDUAL on complete ROI
    (two-pass exploding/skin in, lane/dragonpass: 2.16/ch, hard_px 84995/83667/
-   84543; lane/dragonhand: C idle dirt already is 1.11 FP transform, Java
-   house-peak matches Rx(pitch=15) which vanilla pops; 1-px hole (482,22);
-   sky 1-LSB + endstone 2-LSB). "Entity and particle pixels".
+   84543; lane/dragonhand: C idle dirt is 1.11 FP transform; lane/dragonbob:
+   y=244 house-peak is the endstone shelf (world pitch 15), not hand Rx;
+   Java dirt brown y 338-479; 1-px hole (482,22); sky 1-LSB + endstone 2-LSB).
+   "Entity and particle pixels".
 7. Full-frame surfaces: death-screen composition ~33/ch (still soft),
    fire overlay hard residual 12.91/ch (lane/fireover; A/B-exact),
    high-altitude/distance haze.
@@ -442,17 +443,38 @@ No strict entity family is pixel-perfect yet:
   RenderItem T(-0.5) (:144). Eye AABB x 0.28..0.84 y -0.72..-0.32
   (test_hand D3). `rotateArroundXAndY` Rx(pitch)*Ry(yaw) is
   push/pop around lights only (:89-96); geometry at pitch 15 equals
-  pitch 0 (D4). Fitting Rx(15) onto the cube raises it to the Java
-  house-peak (top y 251 vs golden 244) but doubles
-  `hand_diffuse` pitch (flint rim ao test) and would pitch the
-  viewmodel in play. Not applied. Java silhouette is two side faces
-  (bbox x 500-752 y 244-429); C is the 1.11 top face (x 550-821 y
-  344-480). hard_px 84995 on t=50: eq1=28582 eq2=39973 maxch>8=7941;
-  J-sky 40435; endstone pack 2-8 LSB is the red pyramid; dirt
-  occupancy is the yellow corner. 1-px hole (482,22) J 255 vs C 15:
-  geom already pins skin a<=25 keeps exploding, a>=26 keeps skin
-  (RenderDragon.java:66). C sampled a>25 at that fragment. Do not
-  edit ROI, shade.c, or recapture. Fireball/XP untouched.
+  pitch 0 (D4).
+  Lane/dragonbob (gamer 2026-08-22): the y=244 house-peak is the
+  endstone shelf under world `orientCamera` pitch 15 (`DRAGON_CAM`
+  driver.py:37-39, meta pose pitch 15, y=70, `no_gravity`), not the
+  dirt cube. Java dirt (brown) on `dragon_death_50_a` is x 602-771
+  y 338-479; C identity dirt projects into the same lower-right
+  (test_hand D7, 854x480 fov70 top y>300). Candidates for a 15 deg
+  hand Rx are all no-ops in this capture:
+  (1) `applyBobbing` (EntityRenderer.java:582-595) is gated on
+  `viewBobbing` (:816-818); `capture_ui_entities.sh:74` sets
+  `bobView:false`. Even if on, `EntityPlayer.java:583-601`
+  `cameraPitch` target is `atan(-motionY*0.2)*15` then 0 on ground;
+  `set_pose` zeros `motionY` (Recorder.java:4247) so air-hover
+  target is 0 (D5). A terminal fall is ~10 deg, not look 15.
+  (2) `hurtCameraEffect` (:552-576) returns if `hurtTime-pt<0`.
+  Capture does not pin hurt; creative; dragon 40 blocks away.
+  (3) `renderHand` `loadIdentity` (:804-806). `rotateArm` is
+  `0.1*(rotationPitch-renderArmPitch)` (ItemRenderer.java:112);
+  settled pin is Rx(0) (D6). ui_hud `hand_block_shield` /
+  `hand_eat_mid` pose pitch 0 already encode identity; applying
+  look Rx would pitch play.
+  (4) `equippedProgressMainHand=1` after settle (:608-630); already
+  `gm_frame_capture_equip_idle`.
+  Fitting `glRotatef(15,1,0,0)` on the cube raises it into the shelf
+  (D7) and is not Java. Capture artefact / shelf misread as
+  viewmodel. Do not port. hard_px 84995 on t=50: eq1=28582 eq2=39973
+  maxch>8=7941; J-sky 40435; endstone pack 2-8 LSB is the red
+  pyramid; dirt occupancy is the yellow corner. 1-px hole (482,22)
+  J 255 vs C 15: geom already pins skin a<=25 keeps exploding,
+  a>=26 keeps skin (RenderDragon.java:66). C sampled a>25 at that
+  fragment. Do not edit ROI, shade.c, or recapture. Fireball/XP
+  untouched.
 - The death burst (deathTicks 180-217) now reconstructs the full vanilla
   timeline - every one of a `ParticleExplosionHuge`'s 8 batches (not just the
   newest), and the ~17 ticks of cloud that outlive the entity - and the boss

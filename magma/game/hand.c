@@ -4,8 +4,12 @@
  * We reconstruct MC 1.11.2's viewmodel path so the arm/item lands where real MC
  * draws it (lower-right, over the world, above the hotbar):
  *
- *   EntityRenderer.renderHand         -> modelview = identity (still player:
- *                                        hurtCamera/bob ~ 0), gluPerspective(fov).
+ *   EntityRenderer.renderHand         -> modelview = identity, gluPerspective(fov).
+ *     applyBobbing only if viewBobbing (java:816-818); capture bobView false.
+ *     EntityPlayer cameraPitch target is 0 at motionY=0 (java:583-601).
+ *     rotateArm is 0.1*(rotationPitch-renderArmPitch) (ItemRenderer.java:112).
+ *     rotateArroundXAndY pops look pitch onto lights only (java:89-96).
+ *     Do not apply player look pitch to viewmodel geometry.
  *   ItemRenderer.renderItemInFirstPerson
  *     empty main hand -> renderArmFirstPerson(equip, swing, RIGHT)
  *     non-empty       -> swing translate + transformSideFirstPerson +
