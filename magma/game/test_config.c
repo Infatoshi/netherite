@@ -93,6 +93,13 @@ int main(void) {
     char *frames_wired[]={"game","--headless","--ticks","1","--frames-out","frames"};
     CHECK(parse(&c,6,frames_wired,err)==0&&gm_config_validate_runtime(&c,0,0,err,sizeof err)==0,
           "scripted CPU frame capture is wired");
+    char *weather_ok[] = {"game", "--headless", "--ticks", "1",
+                          "--render", "off", "--pace", "unlimited",
+                          "--weather", "on"};
+    CHECK(parse(&c, (int)(sizeof weather_ok / sizeof weather_ok[0]),
+                weather_ok, err) == 0 &&
+          gm_config_validate_runtime(&c, 0, 0, err, sizeof err) == 0,
+          "weather-on headless profile is runnable");
 
     c.villages = c.enchanting = c.brewing = c.weather = 0;
     c.frames_out_dir = NULL;

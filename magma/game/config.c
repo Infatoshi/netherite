@@ -301,8 +301,8 @@ int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
         return fail(err, err_cap, "enchanting=1 is not wired");
     if (cfg->brewing)
         return fail(err, err_cap, "brewing=1 is not wired");
-    if (cfg->weather)
-        return fail(err, err_cap, "weather=1 is not wired");
+    /* weather=1 runs gm_world_tick (WorldInfo rain/thunder timers +
+     * worldTime). Sky/rain fade is still strength=0 on the live path. */
     if (cfg->render == GM_RENDER_OFF && !cfg->headless)
         return fail(err, err_cap, "render=off requires headless=1");
     if (cfg->pace == GM_PACE_UNLIMITED && !cfg->headless)

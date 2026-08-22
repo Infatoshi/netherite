@@ -220,7 +220,7 @@ $(TEST_FALL_BIN): $(ENV_SRC)/test_falling.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_WEATHER_BIN): $(ENV_SRC)/test_weather.c $(CORE_SRC)/world_weather.h | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_weather.c -lm
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_weather.c -lm
 
 ifeq ($(UNAME_S),Darwin)
 $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
