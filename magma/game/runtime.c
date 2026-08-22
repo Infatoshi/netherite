@@ -215,7 +215,11 @@ static int ray_axis(double start, double dir, double lo, double hi,
  * same ray must not steal a held creative attack from a closer re-landed
  * cell; that split the 151855Z digest across t46/t47. */
 static int attack_hits_falling_block(const GmRuntime *r) {
-    const double border = 0.1; /* Entity.getCollisionBorderSize */
+    /* Entity.getCollisionBorderSize returns 0.0F (Entity.java:2366-2368).
+     * expandXyz(0.1) steals the 151855Z ray one tick early (entity y~4.78)
+     * and leaves blockHitDelay=1 on the re-land. 0.0F with clickBlock's
+     * folded delay=4 extra-breaks the floor at t25; with delay=5 it does not. */
+    const double border = 0.0;
     /* EntityRenderer.getMouseOver uses Entity.getVectorForRotation, whose
      * MathHelper float trig is shared with the block ray. A libm double ray
      * flips the grazing decision that controls blockHitDelay here. */

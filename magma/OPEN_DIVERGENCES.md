@@ -47,8 +47,12 @@ recorder or re-recording; D-class by improving gates, not the product.
    high-altitude/distance haze.
 8. Nether arrival tape: fire/lava animation phase + surrounding lightmap
    (170 frames).
-9. Falling blocks t46: creative blockHitDelay on a re-landed cell breaks
-    1 of 310 world hashes. Recorder-gaps item 6 status update.
+9. Falling blocks t46: CLOSED 2026-08-22 (lane/fallt46). world_hash 310/310
+    on scenario_falling_blocks_20260801T151855Z. clickBlock delay=5
+    (PlayerControllerMP.java:237-242) plus Entity.getCollisionBorderSize
+    0.0F (Entity.java:2366-2368). 0.1 expand left delay=1 on the re-land;
+    0.0F without delay=5 extra-breaks t25. Recorder-gaps item 6. Forensics
+    in CLOSED_DIVERGENCES.md.
 10. Deterministic mobs: target-pitch mismatch at t=42 on one tape; nether
     tape A*-null case. (detmob arc, DEVLOG 2026-08-21.)
 11. Sim smalls: mob roster/AI incomplete, boat UNDER_WATER, aim-pin 1-tick
@@ -1324,14 +1328,25 @@ neighbor schedule, creative GameType into the dig controller). Re-ran
 first mismatch t46 java=f63a2e55f4417889 magma=8d22d846ed0c2a49,
 reconverge t47. Documented t22 cascade break and t30 freeze do not
 reproduce. Dig Java-t20 / magma-t21 skew is gone under the gate's
-tape[t] vs magma row[t] compare. t46 is OPEN: held creative
-blockHitDelay is 1 on the re-landed cell (PlayerControllerMP
-onPlayerDamageBlock delay>0 decrements and returns, no break). Strict
-Entity.getCollisionBorderSize 0.0F regresses t25 (285 hash mismatches).
-`t_ent < t_block` (test H) is required and landed; it is not enough.
-Native: `bash magma/game/test_fall_reanchor.sh` PASS (A-H). Mac CPU
-frames on this tape are sky + selection box without a terrain mesh
-(86%/ch); that is render, not the digest contract.
+tape[t] vs magma row[t] compare.
+
+Status updates 2026-08-22 (lane/fallt46, gamer CPU): t46 CLOSED.
+world_hash 310/310, physics 310/310. Magma had been folding clickBlock's
+delay=5 into 4, and `attack_hits_falling_block` used expand 0.1. The 0.1
+border stole the held ray at entity y~4.78 (Java 0.0F misses that pose);
+delay froze at 1, so the re-landed cell at t46 survived one tick
+(PlayerControllerMP.java:301-305). Port: clickBlock creative writes 5
+and does not decrement on air (PlayerControllerMP.java:237-242,
+Minecraft.java:1500-1508); onPlayerDamageBlock delay==0 creative writes
+5 then clickBlockCreative (306-311); border 0.0F
+(Entity.java:2366-2368). delay=5 alone: 22 hash mismatches starting t29.
+0.0F with delay=4: 285 mismatches at t25 (floor (0,3,4) under a delay-0
+miss). Together they match. `t_ent < t_block` (test H) stays required.
+Native: `bash magma/game/test_fall_reanchor.sh` PASS (A-I). Root
+`make test` PASS on gamer. Tape goldens still missing on gamer
+(frames_checked=0, rc=2 harness); that is not the digest contract.
+Mac CPU frames on this tape remain sky + selection box without a
+terrain mesh (~86%/ch); render, not digest.
 
 Pixel triage 2026-08-01 (full report:
 ~/dev/nw/pxtriage_reports/pxtriage_20260801.md, covering the

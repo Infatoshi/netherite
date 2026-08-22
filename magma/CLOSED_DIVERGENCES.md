@@ -5,6 +5,22 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Falling blocks t46 world hash: CLOSED 2026-08-22 (lane/fallt46)
+
+Tape `scenario_falling_blocks_20260801T151855Z`. Baseline on gamer:
+world_hash 309/310, first mismatch t46 java=f63a2e55f4417889
+magma=8d22d846ed0c2a49, reconverge t47.
+
+clickBlock creative writes `blockHitDelay=5` then sendClickBlock sees
+air and skips onPlayerDamageBlock (PlayerControllerMP.java:237-242,
+Minecraft.java:1500-1508). Magma had folded that to 4. Entity.java:2366
+returns `getCollisionBorderSize` 0.0F; magma expand 0.1 stole the held
+ray at falling y~4.78 and left delay=1 on the re-land
+(PlayerControllerMP.java:301-305). delay=5 alone: 22 mismatches from
+t29. 0.0F with delay=4: 285 mismatches at t25. Both Java values
+together: 310/310. Test I covers the delay=5 countdown.
+`t_ent < t_block` (test H) stays. See recorder-gaps item 6.
+
 ### Bow viewmodel silhouette as mesh/transform: retracted 2026-08-22
 
 Filed as gray bow metal vs C stone (~1977 ROI px, `c_vs_j=7.007`,

@@ -1,5 +1,30 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 falling t46 world hash (lane/fallt46)
+
+`scenario_falling_blocks_20260801T151855Z` digest is 310/310 on gamer.
+
+Baseline (delay=4, border 0.1): world_hash FAIL 1/310, first mismatch t46
+java=f63a2e55f4417889 magma=8d22d846ed0c2a49, reconverge t47. A-H PASS.
+
+Cause: clickBlock creative writes blockHitDelay=5 and sendClickBlock
+skips the decrement on air (PlayerControllerMP.java:237-242,
+Minecraft.java:1500-1508). Magma folded that to 4. Separately,
+`attack_hits_falling_block` used expand 0.1; Entity.getCollisionBorderSize
+is 0.0F (Entity.java:2366-2368). The 0.1 box stole the ray at y~4.78
+where Java misses, froze delay at 1, and the re-landed sand survived t46.
+
+Port: delay=5 on clickBlock and on the creative onPlayerDamageBlock
+path (306-311); border 0.0F; keep apply-then-pick. delay=5 with 0.1:
+22 mismatches from t29. 0.0F with delay=4: 285 mismatches at t25.
+Pick-before-apply + keep AABB: 280 mismatches from t29. Do not split
+those two Java values.
+
+Gamer after: world_hash PASS 0 mismatches / 310; physics 310/310;
+inventory/entities PASS. `bash magma/game/test_fall_reanchor.sh` A-I
+PASS. Root `make test` PASS. Goldens still absent on gamer
+(frames_checked=0, rc=2 harness). No other tape replayed.
+
 ## 2026-08-22 bow FOV recapture (lane/bowgold)
 
 The mid-ease golden was recaptured on anvil llvmpipe after holding the

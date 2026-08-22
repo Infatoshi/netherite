@@ -10,6 +10,7 @@
  *   E/F ordinary set_block still schedules sand and gravel falls
  *   G   dual-path mid-flight reanchor ends with one sand cell
  *   H   held creative prefers a closer block over a farther falling AABB
+ *   I   creative clickBlock blockHitDelay=5 holds a re-landed cell
  *
  * Build+run: bash game/test_fall_reanchor.sh
  */
@@ -326,6 +327,52 @@ int main(void)
         }
         CHECK(gm_world_block(r.world, XH, 102, ZH_NEAR) == 0,
               "closer stone is removed; far falling AABB does not steal the attack");
+    }
+
+    /* ---- I: clickBlock creative writes blockHitDelay=5
+     * (PlayerControllerMP.java:237-242). sendClickBlockToController then
+     * sees air and does not decrement (Minecraft.java:1500-1508).
+     * onPlayerDamageBlock delay>0 decrements and returns
+     * (PlayerControllerMP.java:301-305). A re-placed cell under a held
+     * creative attack must survive the five countdown ticks. */
+    fprintf(stderr, "== I creative blockHitDelay holds a re-landed cell ==\n");
+    clear_gravity(&r.entities);
+    {
+        const int XI = 30, ZI = 21;
+        GmPlayerCtlSnap snap;
+        GmAction atk;
+        clear_column(&r, XI, YF, YS + 8, ZI);
+        CHECK(gm_runtime_set_block(&r, XI, 100, 18, BLK_STONE, 0),
+              "I floor under player");
+        CHECK(gm_runtime_set_block(&r, XI, 102, ZI, BLK_STONE, 0), "I stone");
+        gm_runtime_set_pose(&r, XI + 0.5, 101.0, 18.5, 0.0f, 0.0f);
+        r.tape_creative = 1;
+        memset(&atk, 0, sizeof atk);
+        atk.attack = 1;
+        atk.hotbar_sel = -1;
+        gm_runtime_tick(&r, atk);
+        CHECK(gm_world_block(r.world, XI, 102, ZI) == 0,
+              "I press tick destroys the stone");
+        gm_player_ctl_dig_export(&snap);
+        CHECK(snap.dig_delay == 5,
+              "I clickBlock creative writes blockHitDelay=5");
+        CHECK(gm_runtime_set_block(&r, XI, 102, ZI, BLK_STONE, 0),
+              "I re-place stone (re-land)");
+        for (int t = 0; t < 5; ++t) {
+            gm_runtime_tick(&r, atk);
+            CHECK(gm_world_block(r.world, XI, 102, ZI) == BLK_STONE,
+                  "I re-landed stone survives delay countdown");
+            gm_player_ctl_dig_export(&snap);
+            CHECK(snap.dig_delay == 4 - t,
+                  "I onPlayerDamageBlock decrements delay without breaking");
+        }
+        CHECK(snap.dig_delay == 0, "I delay is 0 after five held ticks");
+        gm_runtime_tick(&r, atk);
+        CHECK(gm_world_block(r.world, XI, 102, ZI) == 0,
+              "I sixth held tick destroys after delay expires");
+        gm_player_ctl_dig_export(&snap);
+        CHECK(snap.dig_delay == 5,
+              "I creative onPlayerDamageBlock re-arms blockHitDelay=5");
     }
 
     gm_runtime_destroy(&r);

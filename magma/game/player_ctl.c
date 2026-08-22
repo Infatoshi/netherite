@@ -23,9 +23,11 @@
 
 /* Progressive dig state (single local player): mirrors vanilla PlayerControllerMP.
  * s_dig_progress = curBlockDamageMP, s_dig_h* = currentBlock, s_dig_hitting =
- * isHittingBlock, s_dig_delay = blockHitDelay (5 ticks after every damage-path
- * break), s_atk_prev = attack key edge (press tick = clickMouse -> clickBlock),
- * s_left_click_counter = Minecraft.leftClickCounter (miss-click cooldown). */
+ * isHittingBlock, s_dig_delay = blockHitDelay (clickBlock creative writes 5
+ * and onPlayerDamageBlock delay>0 decrements without breaking; damage-path
+ * break also writes 5), s_atk_prev = attack key edge (press tick = clickMouse
+ * -> clickBlock), s_left_click_counter = Minecraft.leftClickCounter
+ * (miss-click cooldown). */
 static float s_dig_progress;
 static int   s_dig_particle_count; /* entity_pin dig_hit count; 0 = stage proxy */
 /* PlayerControllerMP.onPlayerDamageBlock plays the block's hit sound when
@@ -479,11 +481,12 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
      * the PRE-move pose and a break is visible to the same tick's physics).
      * State machine = PlayerControllerMP: press tick = clickBlock (acquire, damage
      * 0 unless instant) THEN onPlayerDamageBlock (damage); held ticks damage-only;
-     * a target change costs an acquire tick; every damage-path break arms
-     * blockHitDelay=5 which swallows the next 5 ticks entirely. Found via tape
-     * 20260712T055346Z t438-562 hold-dig: without the delay magma broke a 6th
-     * block (49,71,164) the oracle never finished, then walked through the space
-     * where the oracle got clamped (t579).
+     * a target change costs an acquire tick; clickBlock creative and every
+     * damage-path break arm blockHitDelay=5. onPlayerDamageBlock with delay>0
+     * decrements and returns without breaking (PlayerControllerMP.java:301-311).
+     * Found via tape 20260712T055346Z t438-562 hold-dig: without the delay magma
+     * broke a 6th block (49,71,164) the oracle never finished, then walked through
+     * the space where the oracle got clamped (t579).
      *
      * leftClickCounter (Minecraft.java): decremented once/tick before keybinds;
      * clickMouse MISS in survival sets 10; both clickMouse and
@@ -557,12 +560,14 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                                         ox, oy, oz, edits, &ne, max_edits,
                                         pin.creative);
                             s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
-                            /* clickMouse and sendClickBlockToController are folded
-                             * into this post-input tick. Creative clickBlock writes
-                             * 5, leaving four future held-input ticks after the
-                             * current controller pass; survival instant hardness
-                             * does not arm the delay. */
-                            if (pin.creative) s_dig_delay = 4;
+                            /* clickBlock creative: clickBlockCreative then
+                             * blockHitDelay=5 (PlayerControllerMP.java:237-242).
+                             * sendClickBlockToController then sees isAirBlock
+                             * and skips onPlayerDamageBlock
+                             * (Minecraft.java:1500-1508), so this tick does not
+                             * decrement. Survival instant hardness does not arm
+                             * the delay. */
+                            if (pin.creative) s_dig_delay = 5;
                             bid = BLK_AIR;   /* sendClickBlockToController sees air, skips */
                         } else {
                             s_dig_hitting = 1;
@@ -577,7 +582,21 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                     if (bid != BLK_AIR) {
                         s_dig_swing = 1;   /* onPlayerDamageBlock true -> swingArm */
                         if (s_dig_delay > 0) {
+                            /* PlayerControllerMP.java:301-305 */
                             --s_dig_delay;
+                        } else if (pin.creative) {
+                            /* onPlayerDamageBlock creative: blockHitDelay=5
+                             * then clickBlockCreative
+                             * (PlayerControllerMP.java:306-311). */
+                            s_dig_delay = 5;
+                            dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                                        ox, oy, oz, edits, &ne, max_edits,
+                                        pin.creative);
+                            s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                            s_dig_progress = 0.0f;
+                            s_dig_sound_tick_counter = 0;
+                            s_dig_face = -1;
+                            s_dig_hitting = 0;
                         } else if (hx == s_dig_hx && hy == s_dig_hy && hz == s_dig_hz) {
                             /* isHittingPosition: accrue curBlockDamageMP */
                             s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
@@ -609,7 +628,8 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                                             ox, oy, oz, edits, &ne, max_edits,
                                             pin.creative);
                                 s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
-                                if (pin.creative) s_dig_delay = 5;
+                                /* Survival instant hardness (rel>=1) does not
+                                 * arm blockHitDelay (PlayerControllerMP.java:263-266). */
                             } else {
                                 s_dig_hitting = 1;
                                 s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
