@@ -143,6 +143,9 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
         cr_cfg_set("fog_c1_init", "0.9986948");
     else if (want_uw)
         cr_cfg_set("fog_c1_init", "0.6447164");
+    else if (want_fire)
+        /* overlay_fire.json pass_a.fogColor1 (EntityRenderer fogColor1). */
+        cr_cfg_set("fog_c1_init", "0.99830884");
     else if (!strcmp(id, "hand_eat_mid"))
         cr_cfg_set("fog_c1_init", "0.999935");
     else
