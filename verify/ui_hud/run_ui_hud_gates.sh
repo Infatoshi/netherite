@@ -55,7 +55,7 @@ echo "== run compose =="
 
 # Live path: real inventory armor + overlay_live against GmWorld (runtime stack).
 echo "== build live runtime objects =="
-make -s game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o \
+make -s game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o game/player_ctl.o \
   game/sel_box.o game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o \
   game/dragon_live.o game/structures_live.o game/portal_live.o \
   game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o \
@@ -66,7 +66,7 @@ make -s game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o \
   core/math.o core/shade.o
 
 LIVE_OBJS=(
-  game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o
+  game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o game/player_ctl.o
   game/sel_box.o game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o
   game/dragon_live.o game/structures_live.o game/portal_live.o
   game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o
