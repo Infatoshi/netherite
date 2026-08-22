@@ -42,8 +42,9 @@ recorder or re-recording; D-class by improving gates, not the product.
    lightning".
 5. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
    precision on grazing top faces. Soul sand triage entry.
-6. Entity pixels: XP orb hard_px=3542 (disc ROI); small fireball complete
-   ROI; dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
+6. Entity pixels: XP orb hard_px=3542 (grass + disc 1-2 LSB); small fireball
+   complete ROI; dragon body pose/UV/per-texel dissolve. "Entity and particle
+   pixels".
 7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
    high-altitude/distance haze.
 8. Nether arrival tape: fire/lava animation phase + surrounding lightmap
@@ -293,25 +294,32 @@ No strict entity family is pixel-perfect yet:
   `xpColor`), `getTextureByXP` 4x4 cell (EntityXPOrb.java:290-293),
   scale 0.3 camera billboard (:56-60), vertex alpha 128, entity pass 0
   blend off (EntityRenderer.java:1383-1393), `getBrightnessForRender`
-  +120 block coord cap 240 (EntityXPOrb.java:67-81). Geom tests cover
-  cell, pulse, billboard, and brightness. The old ROI started 2px below
-  the disc and counted pad only (`hard_px=12000`). New ROI
-  `(387,140)-(467,185)` owns the disc. After on gamer:
-  `hard_px=3542` / owned=3600, `c_vs_j=20.223`, maxch=90, `ab_nz=0`
-  RESIDUAL. Disc pixels: C is the color=0 green-gold pulse; the golden
-  disc has r==g at every pixel (252,252,0 / 191,191,0 / 158,158,0), a
-  vertex colour of (255,255,0) times texel grey. Parent review
-  2026-08-22: that is GL fixed-function lighting, not texel*white.
-  `enableStandardItemLighting` (RenderHelper.java:30-48) with
-  GL_COLOR_MATERIAL computes clamp01(colour * (0.4 + 0.6 n.l0 + 0.6 n.l1))
-  per channel: the factor is unclamped and the product is clamped, so
-  red 188 saturates to 255. `er_shade_item` clamps the factor first.
-  Normal length under S(0.3) without GL_RESCALE_NORMAL is the second
-  open question. Pin `color=0` with `render_pin=1`. Do not drop vertex
-  RGB to fit the golden. Other 15 entity rows are byte-stable vs the
-  pre-port baseline. Remaining: the lighting clamp order and normal
-  length (lane/xporb2), fancy-vs-fast grass in the complete ROI, pad
-  LSB.
+  +120 block coord cap 240 (EntityXPOrb.java:67-81). Lane/xporb2
+  2026-08-22 ports GL item lighting on that billboard:
+  `enableStandardItemLighting` (RenderHelper.java:30-48, lights :13-14)
+  is COLOR_MATERIAL AMBIENT_AND_DIFFUSE, so
+  `lit = clamp01(c * (0.4 + 0.6 max(n.l0,0) + 0.6 max(n.l1,0)))` per
+  channel (unclamped factor, product clamped). `GL_RESCALE_NORMAL`
+  starts off (GlStateManager.java:907,864); EntityRenderer entities
+  pass never enables it (:1390-1393); RenderLivingBase enables then
+  disables around living models (:214,:196) and first-person skips the
+  viewer (RenderGlobal.java:650); LayerSlimeGel is the only
+  `enableNormalize` (LayerSlimeGel.java:27,33); RenderXPOrb only
+  `disableRescaleNormal` at :70. Object normal (0,1,0) (:64) packed
+  NORMAL_3B (VertexBuffer.java:533), inverse-transpose of S(0.3)
+  (:59-60) leaves `|n|=1/0.3`. Capture pose (yaw 0, pitch 25, color 0,
+  partialTicks 1) pulse R=188 saturates to 255. `er_shade_item` is
+  unchanged (crystal ModelBox still unit-normalizes and clamps). Geom
+  tests cover cell, pulse, billboard, brightness, and capture-pose lit
+  colour. ROI `(387,140)-(467,185)`. After on gamer:
+  `hard_px=3542` / owned=3600, `c_vs_j=14.791` (was 20.223), maxch=90,
+  `ab_nz=0` RESIDUAL. Disc is now r==g yellow, 1-2 LSB dark vs golden
+  ((250,250,0) vs (252,252,0), (189,189,0) vs (191,191,0), (157,157,0)
+  vs (158,158,0), and the 42px (250,188,0) vs (252,190,0) yellow
+  texels). Pin `color=0` with `render_pin=1`. Do not drop vertex RGB to
+  fit the golden. Other 15 entity rows are byte-stable vs the pre-port
+  baseline. Remaining: fancy-vs-fast grass in the complete ROI
+  (~2294 px, maxch 90), disc 1-2 LSB, pad LSB.
 - Small fireball no longer draws on-fire layers unless `isBurning`, but its
   complete ROI remains open.
 - Dragon death uses the correct 48-bit `java.util.Random`; remaining gaps are
