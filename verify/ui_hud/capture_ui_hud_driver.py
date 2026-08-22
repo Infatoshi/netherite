@@ -17,6 +17,7 @@ Capture integrity (this driver):
 from __future__ import print_function
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -116,10 +117,24 @@ def hud_pin(e, **kwargs):
 
 
 def hud_pin_ok(e, **kwargs):
-    r = hud_pin(e, **kwargs)
-    if not r.get("ok"):
+    last = None
+    for attempt in range(3):
+        try:
+            r = hud_pin(e, **kwargs)
+        except Exception as ex:
+            last = {"ok": False, "error": str(ex)}
+            log("hud_pin transport retry %d/3: %s" % (attempt + 1, ex))
+            time.sleep(1.0)
+            continue
+        last = r
+        if r.get("ok"):
+            return r
+        if "timeout" in str(r.get("error", "")).lower() and attempt + 1 < 3:
+            log("hud_pin timeout, retry %d/3" % (attempt + 1))
+            time.sleep(1.0)
+            continue
         raise RuntimeError("hud_pin failed: %s" % r)
-    return r
+    raise RuntimeError("hud_pin failed: %s" % (last,))
 
 
 def set_pose(e, pose=None):
@@ -131,36 +146,51 @@ def focusdiag(e):
     return e._cmd({"cmd": "focusdiag", "action": {}})
 
 
+def check_frame_use_diag(r, expect_use_branch, label):
+    """Reject idle-tip / wrong-branch renders from frame{} / frame_pair{}."""
+    if expect_use_branch is None:
+        return
+    branch = str(r.get("use_branch") or "")
+    if branch != expect_use_branch:
+        raise RuntimeError(
+            "%s use_branch=%s want %s (idle tip risk): %s"
+            % (label, branch or "<missing>", expect_use_branch, r))
+    if r.get("hand_active") is False:
+        raise RuntimeError(
+            "%s hand_active=false despite use pin: %s" % (label, r))
+    if expect_use_branch == "bow":
+        if float(r.get("model_pulling", 0) or 0) < 0.5:
+            raise RuntimeError(
+                "%s model_pulling not set (bow idle sprite): %s" % (label, r))
+        if float(r.get("model_pull", 0) or 0) < 0.9:
+            raise RuntimeError(
+                "%s model_pull < 0.9 (not full draw): %s" % (label, r))
+        uc = int(r.get("use_count", -1) or -1)
+        if uc < 71900 or uc > 72000:
+            raise RuntimeError(
+                "%s use_count=%s (want ~71980 remaining): %s" % (label, uc, r))
+    if expect_use_branch == "eat":
+        uc = int(r.get("use_count", -1) or -1)
+        # Bread max 32; mid-use remaining 16 (elapsed getItemInUseMaxCount=16).
+        if uc < 15 or uc > 17:
+            raise RuntimeError(
+                "%s use_count=%s (want remaining=16/32): %s" % (label, uc, r))
+    if expect_use_branch == "block":
+        if float(r.get("model_blocking", 0) or 0) < 0.5:
+            raise RuntimeError(
+                "%s model_blocking not set (shield idle): %s" % (label, r))
+    if r.get("stack_id_eq") is False or r.get("ir_id_eq") is False:
+        raise RuntimeError(
+            "%s stack identity broken: %s" % (label, r))
+
+
 def grab(e, path, expect_use_branch=None):
     r = e._cmd({"cmd": "frame", "action": {"file": path, "rerender": True}})
     if not r.get("ok"):
         raise RuntimeError("frame failed for %s: %s" % (path, r))
     if not os.path.isfile(path) or os.path.getsize(path) < 100:
         raise RuntimeError("frame file missing/empty: %s (%s)" % (path, r))
-    # Render-time diagnostics from frame{} (post sticky re-apply).
-    if expect_use_branch is not None:
-        branch = str(r.get("use_branch") or "")
-        if branch != expect_use_branch:
-            raise RuntimeError(
-                "frame render use_branch=%s want %s (idle tip risk): %s"
-                % (branch, expect_use_branch, r))
-        if r.get("hand_active") is False:
-            raise RuntimeError(
-                "frame render hand_active=false despite use pin: %s" % r)
-        if expect_use_branch == "bow":
-            if float(r.get("model_pulling", 0) or 0) < 0.5:
-                raise RuntimeError(
-                    "frame render model_pulling not set (bow idle sprite): %s" % r)
-            if float(r.get("model_pull", 0) or 0) < 0.9:
-                raise RuntimeError(
-                    "frame render model_pull < 0.9 (not full draw): %s" % r)
-        if expect_use_branch == "block":
-            if float(r.get("model_blocking", 0) or 0) < 0.5:
-                raise RuntimeError(
-                    "frame render model_blocking not set (shield idle): %s" % r)
-        if r.get("stack_id_eq") is False or r.get("ir_id_eq") is False:
-            raise RuntimeError(
-                "frame render stack identity broken: %s" % r)
+    check_frame_use_diag(r, expect_use_branch, "frame render")
     return r
 
 
@@ -178,12 +208,7 @@ def grab_pair(e, path_a, path_b, expect_use_branch=None):
     for path in (path_a, path_b):
         if not os.path.isfile(path) or os.path.getsize(path) < 100:
             raise RuntimeError("frame_pair file missing/empty: %s (%s)" % (path, r))
-    if expect_use_branch is not None:
-        branch = str(r.get("use_branch") or "")
-        if branch != expect_use_branch:
-            raise RuntimeError(
-                "frame_pair use_branch=%s want %s: %s" % (
-                    branch, expect_use_branch, r))
+    check_frame_use_diag(r, expect_use_branch, "frame_pair")
     return r
 
 
@@ -470,6 +495,12 @@ def check_hand_use_pin_reply(state_id, pin_reply):
             raise RuntimeError(
                 "hand_bow_pull20: model_pull=%.3f (want ~1.0 for 20-tick "
                 "draw); pin=%s" % (pull, pin_reply))
+    if state_id == "hand_eat_mid":
+        uc = int(pin_reply.get("use_count", -1) or -1)
+        if uc < 15 or uc > 17:
+            raise RuntimeError(
+                "hand_eat_mid: use_count=%s (want remaining=16/32); pin=%s"
+                % (uc, pin_reply))
     if state_id == "hand_block_shield":
         blocking = float(pin_reply.get("model_blocking", -1) or -1)
         if blocking < 0.5:
@@ -573,6 +604,13 @@ def assert_feature_presence(state_id, path, pin_reply):
             if uc < 71900 or uc > 72000:
                 raise RuntimeError(
                     "hand_bow_pull20: unexpected use_count=%s (want ~71980)" % uc)
+        if state_id == "hand_eat_mid":
+            uc = int(pin_reply.get("use_count", -1) or -1)
+            # bread max 32; remaining 16 is mid-use (elapsed use_max=16)
+            if uc < 15 or uc > 17:
+                raise RuntimeError(
+                    "hand_eat_mid: unexpected use_count=%s (want remaining=16)"
+                    % uc)
         # Render-time branch / model override must match the use pose.
         # Idle/rest tips pass older presence checks; require the exact branch.
         check_hand_use_pin_reply(state_id, pin_reply)
@@ -660,6 +698,7 @@ def assert_feature_presence(state_id, path, pin_reply):
     }
     if state_id in ("hand_block_shield", "hand_bow_pull20", "hand_eat_mid"):
         out["use_branch"] = pin_reply.get("use_branch")
+        out["use_count"] = pin_reply.get("use_count")
         out["model_pulling"] = pin_reply.get("model_pulling")
         out["model_pull"] = pin_reply.get("model_pull")
         out["model_blocking"] = pin_reply.get("model_blocking")
@@ -757,6 +796,22 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
         presence = assert_feature_presence(state_id, path_a, r1)
         noise = assert_ab_noise(state_id, path_a, path_b)
         noise_max, n_ab_maxch_ge1 = ab_maxch_stats(path_a, path_b)
+        # Bow/eat recapture must be byte-identical A/B. Mean-abs ceilings of
+        # 2-3 still let a noisy idle-tip pair through; sha256 must match.
+        if state_id in ("hand_bow_pull20", "hand_eat_mid"):
+            if noise_max != 0 or n_ab_maxch_ge1 != 0:
+                raise RuntimeError(
+                    "%s: A/B not identical noise_max=%d n_ab_maxch_ge1=%d "
+                    "(want 0)" % (state_id, noise_max, n_ab_maxch_ge1))
+            def _sha256(p):
+                h = hashlib.sha256()
+                with open(p, "rb") as f:
+                    h.update(f.read())
+                return h.hexdigest()
+            ha, hb = _sha256(path_a), _sha256(path_b)
+            if ha != hb:
+                raise RuntimeError(
+                    "%s: A/B sha256 mismatch a=%s b=%s" % (state_id, ha, hb))
     except RuntimeError as ex:
         capture_error = str(ex)
         log("CAPTURE_FAIL %s: %s" % (state_id, capture_error))
@@ -799,6 +854,8 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
         "n_ab_maxch_ge1": n_ab_maxch_ge1,
         "noise_limit": NOISE_MAX.get(state_id, NOISE_MAX_DEFAULT),
         "presence": presence,
+        "use_branch": r1.get("use_branch"),
+        "use_count": r1.get("use_count"),
         "verdict": "CAPTURE_OK",
         "notes": (
             "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin "
@@ -924,6 +981,27 @@ def self_test_hand_use_assertions():
             "ir_id_eq": True,
         })
         errors.append("stack_id_eq=false should fail")
+    except RuntimeError:
+        pass
+
+    # --- pin reply: eat remaining ---
+    try:
+        check_hand_use_pin_reply("hand_eat_mid", {
+            "use_branch": "eat",
+            "use_count": 16,
+            "stack_id_eq": True,
+            "ir_id_eq": True,
+        })
+    except Exception as ex:
+        errors.append("good eat pin should pass: %s" % ex)
+    try:
+        check_hand_use_pin_reply("hand_eat_mid", {
+            "use_branch": "eat",
+            "use_count": 0,
+            "stack_id_eq": True,
+            "ir_id_eq": True,
+        })
+        errors.append("eat use_count=0 should fail")
     except RuntimeError:
         pass
 

@@ -153,10 +153,11 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   C-painted residual mean **1.563** with **15,989/16,737** nonzero and maxch
   **60** is **OPEN** (not PASS). Owned-subject hard residual under thr=0 also
   nonzero (gray isolation vs wall + hand). Do not claim pixel-perfect.
-- **OPEN bow/eat goldens:** committed `hand_bow_pull20` / `hand_eat_mid` still
-  idle-tip capture blockers/residual (no stable full-use PNG; bow sticky meta
-  CAPTURE_FAIL). C use path source-correct; do not fit offsets to tip goldens.
-  Recapture only.
+- **Bow/eat goldens recaptured (USE pose):** `hand_bow_pull20` /
+  `hand_eat_mid` A/B are sticky full-use (`use_branch=bow|eat`,
+  `use_count=71980|16`, `noise_max=0`, a sha256==b). Idle-tip captures
+  retired. C use path source-correct; do not retune transforms. C-vs-J
+  remains RESIDUAL (`hard_px` 20830 / 74218); isolation gray vs wall.
 - **Viewmodel ports:** bread (297) in item atlas; shield native 64x64
   `shield_base_nopattern` + ModelBox UV + RenderHelper diffuse; mid-eat ROI is
   the wider lower band.
