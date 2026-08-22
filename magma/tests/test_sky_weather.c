@@ -51,11 +51,12 @@ int main(void)
         fails++;
     }
 
-    /* World.java:1609-1629 with rain=1 thunder=1 on plains noon RGB. */
+    /* World.java:1609-1629 with rain=1 thunder=1 on plains noon RGB.
+     * Bits are the gcc -ffp-contract=off evaluation of the Java float ops. */
     CrVec3 sky = gm_sky_color_weather_mix(c, 1.0f, 1.0f);
-    expect_bits("sky.r", sky.x, 0x3e2c1defu);
-    expect_bits("sky.g", sky.y, 0x3e37e9bbu);
-    expect_bits("sky.b", sky.z, 0x3e4dffd1u);
+    expect_bits("sky.r", sky.x, 0x3e2c1df0u);
+    expect_bits("sky.g", sky.y, 0x3e37e9bcu);
+    expect_bits("sky.b", sky.z, 0x3e4dffd2u);
 
     CrVec3 fog_in;
     fog_in.x = 0.7529412f;
