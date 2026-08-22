@@ -895,15 +895,22 @@ void gm_hand_fire_overlay_draw(CrFramebuffer *fb, const CrTexture *atlas,
                                float fov_scale) {
     if (!fb || !fb->color || !fb->depth || !atlas) return;
     float u0, v0, u1, v1;
+    /* ItemRenderer.renderFireInFirstPerson.java:580 getAtlasSprite
+     * minecraft:blocks/fire_layer_1. Caller pins physical strip row 0. */
     bm_sprite_uv(CR_SPRITE_FIRE_LAYER_1, &u0, &v0, &u1, &v1);
     int nv = 0;
     static const int tri[12] = {0,1,2, 0,2,3, 0,2,1, 0,3,2};
 
     for (int i = 0; i < 2; ++i) {
+        /* ItemRenderer.java:577-592: i in {0,1},
+         * translate(-(i*2-1)*0.24F, -0.3F, 0), rotate((i*2-1)*10, 0,1,0).
+         * side = i*2-1 is (i*2-1); -side*0.24 == -(i*2-1)*0.24. */
         int side = i * 2 - 1;
         CrMat4 M = cr_mat4_identity();
         M = mul(M, mat_translate((float)-side * 0.24f, -0.3f, 0.0f));
         M = mul(M, mat_rot_y((float)side * 10.0f));
+        /* ItemRenderer.java:594-597 POSITION_TEX: (-0.5,-0.5,-0.5,maxU,maxV)
+         * .. (0.5,0.5,-0.5,minU,minV). */
         const float p[4][5] = {
             {-0.5f, -0.5f, -0.5f, u1, v1},
             { 0.5f, -0.5f, -0.5f, u0, v1},
@@ -921,13 +928,17 @@ void gm_hand_fire_overlay_draw(CrFramebuffer *fb, const CrTexture *atlas,
             q[k].uv = (CrVec2){p[k][3], p[k][4]};
             q[k].light = q[k].ao = 1.0f;
             q[k].blk = 0.0f;
+            /* GlStateManager.color(1,1,1,0.9F) ItemRenderer.java:570;
+             * POSITION_TEX uses the GL current colour. 0.9F*255 rounds to 230. */
             q[k].tint = (CrRgba){255, 255, 255, 230};
         }
         for (int k = 0; k < 12; ++k) g_verts[nv++] = q[tri[k]];
     }
 
-    /* Vanilla uses GL_ALWAYS with depthMask(false). Clearing the scratch depth
-     * makes this pass unconditional; later screen overlays and HUD ignore it. */
+    /* GlStateManager.depthFunc(519) GL_ALWAYS, depthMask(false)
+     * ItemRenderer.java:571-572. Restore 515/true at 604-605.
+     * tryBlendFuncSeparate SRC_ALPHA, ONE_MINUS_SRC_ALPHA.java:574.
+     * Clearing scratch depth makes this pass unconditional. */
     for (int i = 0; i < fb->w * fb->h; ++i) fb->depth[i] = 1.0f;
     CrCamera cam = {0};
     cam.fov_deg = 70.0f * (fov_scale > 0.0f ? fov_scale : 1.0f);

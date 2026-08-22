@@ -38,11 +38,11 @@ count-cap FAIL, single +2 FAIL, 3x3 +12 hard FAIL, live eat/shield residual
 pinned). `CAPTURE_BLOCKED` = A/B stable maxch residual > 0 (**nonzero exit**;
 **no** C may PASS, including C=Java_a / Java_b / midpoint / Java_a+1).
 `RESIDUAL` = A/B bit-exact but C residual (**nonzero exit**). `CAPTURE_OK` =
-soft state capture integrity only (fire / death). `FAIL` =
+soft state capture integrity only (full-frame death). `FAIL` =
 missing/noise/empty/unstable. Gate exit is RESIDUAL_OR_FAIL only when a
 row is neither PASS nor PASS-LSB (CAPTURE_OK stays soft).
 Gray C backdrop is composition isolation only — not a live-world claim.
-Portal is hard full-frame A/B-stable hard_px (not soft CAPTURE_OK).
+Portal and fire overlay are hard full-frame A/B-stable hard_px (not soft CAPTURE_OK).
 **Never** use `ceil(noise_max)` as a PASS tolerance.
 
 **Inside-block fullscreen hard gate** (`overlay_inside_stone` /
@@ -77,7 +77,7 @@ any C, Java_a+1 blocked.
 | `overlay_inside_stone.png` | Eye inside solid stone | `/tp` into stone (suffocation) | Full frame near-black **particle** texture, U mirrored (maxU left) |
 | `overlay_inside_grass.png` | Eye inside grass (particle=dirt not top) | `/tp` into grass block | Full frame dirt particle darken |
 | `overlay_portal_050.png` | `timeInPortal=0.5`, `portal_phase=0` | Outdoor pad; texture anim pinned | Full-frame portal swirl (hard_px) |
-| `overlay_fire.png` | Player on fire | Lava edge / flame | First-person fire quads |
+| `overlay_fire.png` | `fire=80`, `fire_frame=0` | Outdoor pad; atlas physical 0 | First-person fire quads (hard_px) |
 | `overlay_underwater.png` | Fully submerged, yaw 0 pitch 0 | Glass pool floor | Full-frame underwater.png |
 
 ## Capture recipe (mcwindow / qrl)

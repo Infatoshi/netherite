@@ -162,6 +162,13 @@ public class Recorder {
      * and leave maxch=1 residuals under the purple fullscreen swirl. */
     private volatile boolean pinPortalTimeActive = false;
     private volatile float pinPortalTime = 0.0F;
+    /** When >= 0, force-upload this physical TextureAtlasSprite frame for every
+     * animated blocks-atlas sprite (fire_layer_1 first-person overlay and any
+     * other animated tile in the frame) immediately before each frame{} pass.
+     * MixinPinTextureAnimations only cancels updateAnimation; it does not
+     * reset/upload a known strip row. TextureMap.java:205 uploads physical 0
+     * at stitch; magma bm_atlas_set_animation_physical_zero matches that. */
+    private volatile int pinFireFrame = -1;
 
     /**
      * Sticky first-person use-pose pin for oracle hand captures.
@@ -829,6 +836,154 @@ public class Recorder {
         p.prevTimeInPortal = pinPortalTime;
     }
 
+    /** Physical strip row currently uploaded for a sprite.
+     * TextureAtlasSprite.updateAnimation.java:183-191: frameCounter is the
+     * animation-sequence index; AnimationMetadataSection.getFrameIndex maps
+     * it onto framesTextureData (the PNG strip row). */
+    private static int spritePhysicalFrame(
+            net.minecraft.client.renderer.texture.TextureAtlasSprite s) {
+        if (s == null) return -1;
+        try {
+            java.lang.reflect.Field fc =
+                net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                    .getDeclaredField("frameCounter");
+            fc.setAccessible(true);
+            int logical = fc.getInt(s);
+            java.lang.reflect.Field mf =
+                net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                    .getDeclaredField("animationMetadata");
+            mf.setAccessible(true);
+            net.minecraft.client.resources.data.AnimationMetadataSection meta =
+                (net.minecraft.client.resources.data.AnimationMetadataSection) mf.get(s);
+            int nPhys = s.getFrameCount();
+            if (meta != null && meta.getFrameCount() > 0) {
+                int nLog = meta.getFrameCount();
+                int idx = nLog == 0 ? 0 : logical % nLog;
+                if (idx < 0) idx += nLog;
+                int phys = meta.getFrameIndex(idx);
+                if (nPhys > 0) {
+                    phys %= nPhys;
+                    if (phys < 0) phys += nPhys;
+                }
+                return phys;
+            }
+            if (nPhys <= 0) return logical;
+            int phys = logical % nPhys;
+            if (phys < 0) phys += nPhys;
+            return phys;
+        } catch (Throwable ig) {
+            return -1;
+        }
+    }
+
+    private static net.minecraft.client.renderer.texture.TextureAtlasSprite
+            atlasSprite(Minecraft mc, String name) {
+        if (mc == null || mc.getTextureMapBlocks() == null) return null;
+        return mc.getTextureMapBlocks().getAtlasSprite(name);
+    }
+
+    /** Force-upload pinFireFrame (physical strip row) for every animated
+     * blocks-atlas sprite. TextureMap.updateAnimations.java:322-328 binds
+     * the atlas then TextureAtlasSprite.updateAnimation.java:191 uploads
+     * framesTextureData[getFrameIndex(frameCounter)]. We do the same upload
+     * of a chosen physical row and park frameCounter/tickCounter so a later
+     * un-cancelled tick would not immediately interpolate
+     * (updateAnimation.java:194-196, tickCounter.java:36). */
+    private void applyPinnedTextureFrames(Minecraft mc) {
+        if (pinFireFrame < 0 || mc == null) return;
+        try {
+            net.minecraft.client.renderer.texture.TextureMap map =
+                mc.getTextureMapBlocks();
+            if (map == null) return;
+            /* TextureMap.updateAnimations.java:324 uses package-private
+             * TextureUtil.bindTexture. Public path is TextureManager
+             * LOCATION_BLOCKS_TEXTURE (ItemRenderer.java:581). */
+            mc.getTextureManager().bindTexture(
+                net.minecraft.client.renderer.texture.TextureMap.LOCATION_BLOCKS_TEXTURE);
+            java.lang.reflect.Field listF =
+                net.minecraft.client.renderer.texture.TextureMap.class
+                    .getDeclaredField("listAnimatedSprites");
+            listF.setAccessible(true);
+            java.util.List<?> sprites = (java.util.List<?>) listF.get(map);
+            if (sprites == null) return;
+            java.lang.reflect.Field fc =
+                net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                    .getDeclaredField("frameCounter");
+            java.lang.reflect.Field tc =
+                net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                    .getDeclaredField("tickCounter");
+            java.lang.reflect.Field mf =
+                net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                    .getDeclaredField("animationMetadata");
+            fc.setAccessible(true);
+            tc.setAccessible(true);
+            mf.setAccessible(true);
+            Object[] snap = sprites.toArray();
+            for (int si = 0; si < snap.length; si++) {
+                if (!(snap[si] instanceof
+                        net.minecraft.client.renderer.texture.TextureAtlasSprite))
+                    continue;
+                net.minecraft.client.renderer.texture.TextureAtlasSprite s =
+                    (net.minecraft.client.renderer.texture.TextureAtlasSprite) snap[si];
+                int nPhys = s.getFrameCount();
+                if (nPhys <= 0) continue;
+                int phys = pinFireFrame % nPhys;
+                if (phys < 0) phys += nPhys;
+                net.minecraft.client.resources.data.AnimationMetadataSection meta =
+                    (net.minecraft.client.resources.data.AnimationMetadataSection) mf.get(s);
+                int logical = 0;
+                if (meta != null && meta.getFrameCount() > 0) {
+                    int nLog = meta.getFrameCount();
+                    logical = 0;
+                    for (int i = 0; i < nLog; i++) {
+                        if (meta.getFrameIndex(i) == phys) {
+                            logical = i;
+                            break;
+                        }
+                    }
+                } else {
+                    logical = phys;
+                }
+                fc.setInt(s, logical);
+                tc.setInt(s, 0);
+                int[][] data = s.getFrameTextureData(phys);
+                if (data != null) {
+                    net.minecraft.client.renderer.texture.TextureUtil
+                        .uploadTextureMipmap(data, s.getIconWidth(),
+                            s.getIconHeight(), s.getOriginX(), s.getOriginY(),
+                            false, false);
+                }
+            }
+        } catch (Throwable ig) { /* leave live atlas */ }
+    }
+
+    private void appendTextureFramePinJson(StringBuilder sb, Minecraft mc) {
+        if (pinFireFrame >= 0)
+            sb.append(",\"fire_frame_pin\":").append(pinFireFrame);
+        net.minecraft.client.renderer.texture.TextureAtlasSprite fl0 =
+            atlasSprite(mc, "minecraft:blocks/fire_layer_0");
+        net.minecraft.client.renderer.texture.TextureAtlasSprite fl1 =
+            atlasSprite(mc, "minecraft:blocks/fire_layer_1");
+        sb.append(",\"fire_layer_0_physical_frame\":").append(spritePhysicalFrame(fl0));
+        sb.append(",\"fire_layer_1_physical_frame\":").append(spritePhysicalFrame(fl1));
+        try {
+            java.lang.reflect.Field fc =
+                net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                    .getDeclaredField("frameCounter");
+            java.lang.reflect.Field tc =
+                net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                    .getDeclaredField("tickCounter");
+            fc.setAccessible(true);
+            tc.setAccessible(true);
+            if (fl1 != null) {
+                sb.append(",\"fire_layer_1_frameCounter\":").append(fc.getInt(fl1));
+                sb.append(",\"fire_layer_1_tickCounter\":").append(tc.getInt(fl1));
+            }
+        } catch (Throwable ig) {}
+        sb.append(",\"texture_animations_pinned\":")
+            .append(QLaunch.PIN_TEXTURE_ANIMATIONS);
+    }
+
     /** EntityRenderer.fovModifierHand (EntityRenderer.java:116). World
      * getFOVModifier(pt, true) multiplies fovSetting by the eased value
      * (EntityRenderer.java:529-532). NaN if the field is missing. */
@@ -949,6 +1104,26 @@ public class Recorder {
                         d.addProperty("portal_tickCounter", tc.getInt(sp));
                     } catch (Throwable ig) {}
                 }
+            } catch (Throwable ig) {}
+            try {
+                net.minecraft.client.renderer.texture.TextureAtlasSprite fl1 =
+                    atlasSprite(mc, "minecraft:blocks/fire_layer_1");
+                if (fl1 != null) {
+                    d.addProperty("fire_layer_1_physical_frame",
+                        spritePhysicalFrame(fl1));
+                    java.lang.reflect.Field fc1 =
+                        net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                            .getDeclaredField("frameCounter");
+                    java.lang.reflect.Field tc1 =
+                        net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                            .getDeclaredField("tickCounter");
+                    fc1.setAccessible(true);
+                    tc1.setAccessible(true);
+                    d.addProperty("fire_layer_1_frameCounter", fc1.getInt(fl1));
+                    d.addProperty("fire_layer_1_tickCounter", tc1.getInt(fl1));
+                }
+                if (pinFireFrame >= 0)
+                    d.addProperty("fire_frame_pin", pinFireFrame);
             } catch (Throwable ig) {}
         } catch (Throwable t) {
             d.addProperty("diag_error", String.valueOf(t));
@@ -5875,6 +6050,10 @@ public class Recorder {
                             // Sticky portal overlay alpha (timeInPortal decays every
                             // free-running client tick when not in a portal block).
                             applyPinnedPortalTime(mc);
+                            // Sticky fire/atlas physical frame: mixin cancel does
+                            // not upload a known strip row. Re-upload before each
+                            // pass so A/B share fire_layer_1 (ItemRenderer.java:580).
+                            applyPinnedTextureFrames(mc);
                             // Re-freeze camera so A/B wall registration matches
                             // under large viewmodel silhouettes (drawn bow).
                             applyStickyPosePin(mc);
@@ -5975,6 +6154,7 @@ public class Recorder {
                                 .append(mc.player.timeInPortal);
                     }
                 }
+                appendTextureFramePinJson(resp, mc);
                 resp.append(",\"pin_use_active\":").append(pinUseActive);
                 if (pinUseActive)
                     resp.append(",\"pin_use_remaining\":").append(pinUseRemaining);
@@ -6184,6 +6364,14 @@ public class Recorder {
                     pinPortalPhase = -1;
                     pinPortalTimeActive = false;
                     pinPortalTime = 0.0F;
+                }
+                // Physical atlas frame for fire_layer_1 (ItemRenderer.java:580)
+                // and every other animated blocks-atlas sprite in the frame.
+                if (a.has("fire_frame")) {
+                    pinFireFrame = a.get("fire_frame").getAsInt();
+                    applyPinnedTextureFrames(mc);
+                } else if (a.has("fire") && a.get("fire").getAsInt() <= 0) {
+                    pinFireFrame = -1;
                 }
                 if (a.has("hurt_time")) {
                     p.hurtTime = a.get("hurt_time").getAsInt();
@@ -6644,6 +6832,7 @@ public class Recorder {
                     if (pinPortalPhase >= 0)
                         sb.append(",\"portal_phase_pin\":").append(pinPortalPhase);
                 }
+                appendTextureFramePinJson(sb, mc);
                 sb.append(",\"dead\":").append(p.getHealth() <= 0.0F || p.isDead);
                 sb.append(",\"screen\":\"").append(screenName).append("\"");
                 sb.append(",\"potion_count\":").append(p.getActivePotionEffects().size());
@@ -7892,10 +8081,12 @@ public class Recorder {
             ? mc.playerController.getCurrentGameType().getName() : "?");
 
         o.addProperty("texture_animations_pinned", QLaunch.PIN_TEXTURE_ANIMATIONS);
-        if (QLaunch.PIN_TEXTURE_ANIMATIONS) {
-            o.addProperty("fire_layer_0_physical_frame", 0);
-            o.addProperty("fire_layer_1_physical_frame", 0);
-        }
+        o.addProperty("fire_layer_0_physical_frame",
+            spritePhysicalFrame(atlasSprite(mc, "minecraft:blocks/fire_layer_0")));
+        o.addProperty("fire_layer_1_physical_frame",
+            spritePhysicalFrame(atlasSprite(mc, "minecraft:blocks/fire_layer_1")));
+        if (pinFireFrame >= 0)
+            o.addProperty("fire_frame_pin", pinFireFrame);
         boolean bossFog = false;
         try { bossFog = mc.ingameGUI.getBossOverlay().shouldCreateFog(); }
         catch (Throwable ig) {}
