@@ -239,25 +239,29 @@ int main(void) {
 
     /* Dragon dissolve markers (per-texel path uses light/blk; not box drop).
      * RenderDragon.java:59-63: f = deathTicks/200 into alphaFunc GL_GREATER.
-     * ao stays ModelBox face shade (er_shade 1/0.8/0.6/0.5). */
+     * ao is RenderHelper item lighting (RenderHelper.java:30-48), not
+     * block-face 1/0.8/0.6/0.5. Axis-aligned: 1.0 up / ~0.4 down. */
     {
         GmEntityView d;
         memset(&d, 0, sizeof d);
         d.type = 9; d.y = 80; d.health = 0; d.death_ticks = 100;
         int mid = gm_entities_emit(&d, 1, out, 8192);
         CHECK(mid > 200, "mid-death dragon emits full body geometry");
-        int ok = 1, saw_lo = 0, saw_hi = 0;
+        int ok = 1, buckets = 0;
+        float amin = 9.0f, amax = -9.0f;
         for (int i = 0; i < mid; ++i) {
             float a = out[i].ao;
-            int face = (fabsf(a - 1.0f) < 1e-4f || fabsf(a - 0.8f) < 1e-4f ||
-                        fabsf(a - 0.6f) < 1e-4f || fabsf(a - 0.5f) < 1e-4f);
             if (!(out[i].light < 0.0f && fabsf(out[i].blk - 0.5f) < 1e-4f
-                  && face)) ok = 0;
-            if (fabsf(a - 0.5f) < 1e-4f) saw_lo = 1;
-            if (fabsf(a - 1.0f) < 1e-4f) saw_hi = 1;
+                  && a > 0.3f && a <= 1.0001f)) ok = 0;
+            if (a < amin) amin = a;
+            if (a > amax) amax = a;
+            if (fabsf(a - 0.5f) < 1e-3f || fabsf(a - 0.6f) < 1e-3f ||
+                fabsf(a - 0.8f) < 1e-3f) buckets++;
         }
-        CHECK(ok, "dissolve verts carry light<0, blk=deathTicks/200, face ao");
-        CHECK(saw_lo && saw_hi, "dissolve keeps down-face 0.5 and up-face 1.0 ao");
+        CHECK(ok, "dissolve verts carry light<0, blk=deathTicks/200, item ao");
+        CHECK(amin < 0.45f && amax > 0.99f,
+              "item lighting spans ~0.4 down to 1.0 up (RenderHelper.java:30-48)");
+        CHECK(buckets < mid / 4, "dragon ao is not block-face 0.5/0.6/0.8");
         d.death_ticks = 200;
         CHECK(gm_entities_emit(&d, 1, out, 8192) == 0, "f=1 emits nothing");
         float uo = 0, vo = 0;

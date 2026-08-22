@@ -954,8 +954,10 @@ static float er_shade_item(float nx, float ny, float nz) {
     return s > 1.0f ? 1.0f : s;
 }
 
-/* shade_mode 0: er_shade block-face quantization (mob/dragon models).
- * shade_mode 1: er_shade_item exact standard item lighting. */
+/* shade_mode 0: er_shade block-face quantization (living mob models).
+ * shade_mode 1: er_shade_item exact standard item lighting (crystal,
+ * dragon ModelBox: RenderLivingBase.prepareScale enableRescaleNormal
+ * RenderLivingBase.java:214 plus RenderHelper.java:30-48). */
 static int er_aff_box_m(const ErAff *a, int sprite, int uvscale, int mirror,
                         int shade_mode, int u, int v,
                         float bx, float by, float bz, int dx, int dy, int dz,
@@ -1340,16 +1342,17 @@ static int emit_dragon(const GmEntityView *ent, CrVertex *out, int cap) {
      * alphaFunc(GL_GREATER, f) on dragon_exploding.png (f = deathTicks/200,
      * :60) then depthFunc EQUAL and bind skin (:67-71). Geometry is always
      * emitted; cr_shade discards via alpha_mask when light < 0 and blk holds
-     * f. ao stays ModelBox face shade from er_aff_box/er_shade. Fully
-     * dissolved at f=1 (no fragments pass). */
+     * f. ao is RenderHelper standard item lighting (er_shade_item), not
+     * block-face 1/0.8/0.6/0.5: RenderLivingBase.java:214 enableRescaleNormal
+     * and RenderHelper.java:30-48 LIGHT0/LIGHT1. Fully dissolved at f=1. */
     float deadf = ent->death_ticks > 0 ? (float)ent->death_ticks / 200.0f
                                        : 0.0f;
     if (deadf >= 1.0f) return 0;
 #define DBOX(AF, U, V, X, Y, Z, DX, DY, DZ, MIR) do { \
         int _ds = w; \
         float _lv = (deadf > 0.0f) ? -1.0f : (lv); \
-        w += er_aff_box((AF), CR_MOB_DRAGON, 1, (MIR), (U), (V), (X), (Y), (Z), \
-                        (DX), (DY), (DZ), tint, _lv, blk, out + w); \
+        w += er_aff_box_m((AF), CR_MOB_DRAGON, 1, (MIR), 1, (U), (V), (X), (Y), \
+                          (Z), (DX), (DY), (DZ), tint, _lv, blk, out + w); \
         if (deadf > 0.0f) { \
             for (int _i = _ds; _i < w; ++_i) { \
                 out[_i].light = -1.0f; \
