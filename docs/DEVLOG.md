@@ -1,5 +1,51 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 dragon death pose/dissolve lighting (lane/dragondeath)
+
+A6 dragon_death_50/100/190. Gamer baseline
+`~/nlanes/dragondeath/out/verify/dragondeath_baseline.log` (95c1ca4):
+geom ALL PASSED; hard_px 92122/101336/159948 ab_nz=0 RESIDUAL;
+c_vs_j 7.359/8.929/8.975. Other 13 rows: slime/magma CAPTURE_BLOCKED
+97868/96818/109431/97058 and 97660/97628/109451/98600; dig_stone/grass
+42589/43124; fireball_small RESIDUAL 45349; fireball_dragon
+CAPTURE_BLOCKED 42457; xp_orb RESIDUAL 3542.
+
+Cause 1 (pose): candidate used yaw=180, animTime=0, stationary=0.
+Oracle `entity_pin` is setNoAI + PhaseList.HOVER (Recorder.java).
+`EntityDragon.onLivingUpdate` sets `animTime=0.5F` when `isAIDisabled`
+(EntityDragon.java:221). `ringBufferIndex` stays -1 so
+`getMovementOffsets` is zeros and `RenderDragon.applyRotations` yaw is
+0 (RenderDragon.java:33-35). `PhaseHover.getIsStationary` tucks neck
+(`getHeadPartYOffset` returns idx, EntityDragon.java:1064-1066).
+`ce42441`. After1: 87803/90250/135061.
+
+Cause 2 (fog): overworld capture re-armed End `BossInfo.createFog`
+dense ramp `[far*0.05, far*0.5]` (EntityRenderer.setupFog). Java
+createFog exists only on End DragonFightManager. `ebba61c`. After2:
+84456/82905/83312, c_vs_j ~2.95. Body gray, rays magenta.
+
+Cause 3 (dissolve lighting): DBOX overwrote `ao` with deathTicks/200
+and `cr_shade` forced `ao_mul=1`. Java exploding pass is only the
+GL_GREATER mask (RenderDragon.java:59-63); skin pass keeps ModelBox
+normals. Store threshold in `blk`; keep `ao` as face shade. `5ce0408`.
+Wings still 1.37x: block-face 0.8 vs Java item lighting.
+
+Cause 4: dragon ModelBox uses `er_shade_item` (RenderHelper.java:30-48,
+RenderLivingBase.java:214 rescale-normal), not 1/0.8/0.6/0.5.
+`47677e4`. After4 (`dragondeath_after4.log`): 83757/82429/83305,
+c_vs_j 2.919/2.927/2.912, maxch 239/254/246. Wing sample (19,356)
+J=C=(60,60,60). pxdiff thresh-25: HUD 30520, dirt 3507, crosshair 68;
+no wing cluster. Body-ish thr25 = 26 px (two-pass exploding hole at
+(22,482) J white vs C 15; magenta ray specks). Other 13 rows
+byte-stable vs baseline. Geom ALL PASSED. Root `make test` PASS
+(`dragondeath_maketest.log`). Metal/CUDA xbackend ALL PASS; re-recorded
+`_helpers` metal hash.
+
+Not closed. complete ROI hard_px is HUD + dirt + 1-LSB sky. Candidate
+`strip_overlays=1` vs Java HUD; C has no superflat dirt cube. Do not
+edit ROI. Two-pass exploding RGB and fine rays remain. Fireball
+untouched.
+
 ## 2026-08-22 underwater glass cull (lane/raster)
 
 Item A1 overlay_underwater. Anvil baseline `bash verify/ui_hud/run_ui_hud_gates.sh`:

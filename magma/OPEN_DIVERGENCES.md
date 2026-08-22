@@ -43,8 +43,8 @@ recorder or re-recording; D-class by improving gates, not the product.
 5. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
    precision on grazing top faces. Soul sand triage entry.
 6. Entity pixels: XP orb hard_px=3542 (grass + disc 1-2 LSB); small fireball
-   complete ROI; dragon body pose/UV/per-texel dissolve. "Entity and particle
-   pixels".
+   complete ROI; dragon death still RESIDUAL on complete ROI (HUD/dirt/LSB;
+   body pose/dissolve lighting closed). "Entity and particle pixels".
 7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
    high-altitude/distance haze.
 8. Nether arrival tape: fire/lava animation phase + surrounding lightmap
@@ -336,8 +336,27 @@ No strict entity family is pixel-perfect yet:
   (~2294 px, maxch 90), disc 1-2 LSB, pad LSB.
 - Small fireball no longer draws on-fire layers unless `isBurning`, but its
   complete ROI remains open.
-- Dragon death uses the correct 48-bit `java.util.Random`; remaining gaps are
-  body pose/UV/dissolve, fine ray orientation, and surrounding scene pixels.
+- Dragon death (lane/dragondeath, gamer 2026-08-22). Capture pin is
+  NoAI+HOVER: `animTime=0.5F` (EntityDragon.java:221), `ringBufferIndex=-1`
+  zeros so `applyRotations` yaw is 0 (RenderDragon.java:33-35),
+  `getHeadPartYOffset` returns idx (EntityDragon.java:1064-1066).
+  `BossInfo.createFog` is End-only (DragonFightManager); overworld capture
+  must not re-arm the dense `[far*0.05, far*0.5]` ramp. Dissolve is
+  per-texel: `RenderDragon.renderModel` `alphaFunc(GL_GREATER, deathTicks/200)`
+  on `dragon_exploding.png` then skin at `depthFunc EQUAL`
+  (RenderDragon.java:57-71). Threshold lives in `CrVertex.blk`; `ao` is
+  ModelBox face shade from `RenderHelper` LIGHT0/LIGHT1
+  (RenderHelper.java:30-48, RenderLivingBase.java:214 enableRescaleNormal),
+  not block-face 1/0.8/0.6/0.5. After on gamer
+  (`out/verify/dragondeath_after4.log`): dragon_death_50/100/190
+  `hard_px=83757/82429/83305` `c_vs_j=2.919/2.927/2.912` `ab_nz=0`
+  RESIDUAL (baseline 92122/101336/159948). pxdiff thresh-25: wing gray
+  exact (J=C=60 at 19,356); remaining clusters are HUD 30520, dirt cube
+  3507, crosshair 68 (candidate `strip_overlays=1`, no superflat dirt).
+  Body-ish thr25 leftover 26 px (exploding-vs-skin two-pass holes,
+  ray/magenta specks). Other 13 rows byte-stable vs baseline. Not PASS:
+  complete ROI still counts HUD/dirt/1-LSB sky. Do not edit ROI or
+  recapture. Fine ray orientation stays open.
 - The death burst (deathTicks 180-217) now reconstructs the full vanilla
   timeline - every one of a `ParticleExplosionHuge`'s 8 batches (not just the
   newest), and the ~17 ticks of cloud that outlive the entity - and the boss
@@ -348,7 +367,9 @@ No strict entity family is pixel-perfect yet:
   cloud matches the oracle's extent, brightness, and decay but not puff for
   puff (~0.6 IoU on the bright mask). Exact match needs the recorder to log
   `spawnParticle` calls.
-- Death dissolve is still per-box rather than vanilla per-texel.
+- Death dissolve is per-texel via `dragon_exploding` alpha (see dragon
+  death bullet). Remaining holes are the two-pass exploding-RGB where
+  skin `alphaFunc 0.1` fails (RenderDragon.java:66-71), not box drop.
 
 Repro:
 
