@@ -2,6 +2,7 @@
 
 #include "game/mob_live.h"
 #include "entity_spine.h"
+#include "explosion_live.h"
 
 #include "combat_math.h"
 #include "items_tools_armor.h"
@@ -3445,6 +3446,27 @@ void gm_mobs_tick_spine(GmMobLive *m, GmWorld *w, const struct McSinTable *st_) 
     }
     ++m->tick;
     m->current ^= 1;
+}
+
+void gm_mobs_tick_creeper_fuse(GmMobLive *m) {
+    EwStore *s;
+    int i;
+    if (!m) return;
+    s = now_store(m);
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        int ignited;
+        if (!s->alive[i] || s->type[i] != EW_TYPE_CREEPER) continue;
+        ignited = m->det_has_target[i] ? 1 : 0;
+        if (!exl_fuse_tick(&m->creeper_fuse[i], ignited)) continue;
+        s->alive[i] = 0;
+        s->type[i] = EW_TYPE_NONE;
+        m->creeper_fuse[i] = 0;
+        m->explosion_pending = 1;
+        m->explosion_x = s->x[i];
+        m->explosion_y = s->y[i] + EXL_Y_OFF;
+        m->explosion_z = s->z[i];
+        break;
+    }
 }
 
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {

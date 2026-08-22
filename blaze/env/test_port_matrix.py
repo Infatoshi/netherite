@@ -54,7 +54,7 @@ def test_checked_in_schema_dag_and_ready_frontier():
 
     assert pm.validate_config(config) == EXPECTED_ROWS
     assert pm.ready_frontier(config) == [
-        "projectiles",
+        "mobs",
         "portals_dimensions",
         "boats_elytra_xp",
     ]

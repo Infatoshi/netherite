@@ -205,6 +205,13 @@ typedef struct GmRuntime {
     GmDragonLive dragon;
     GmRuntimeProjectile projectiles[GM_RUNTIME_PROJECTILES];
     unsigned parity_proj_hits;
+    unsigned parity_ex_blasts;
+    unsigned parity_ex_destroyed;
+    float parity_ex_damage;
+    double parity_ex_kb_x, parity_ex_kb_y, parity_ex_kb_z;
+    uint64_t parity_ex_rays;
+    double parity_ex_last_x, parity_ex_last_y, parity_ex_last_z;
+    float parity_ex_last_size;
     int bow_ticks,bow_drawing;
     int player_fire_ticks; /* Entity.fire, setFire(seconds) stores seconds*20 */
     int ccx, ccz;

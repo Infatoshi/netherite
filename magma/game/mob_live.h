@@ -195,6 +195,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *world, const struct McSinTable *sin_tab
  * loaded snapshot living slots still fall, collide, and damp. */
 void gm_mobs_tick_spine(GmMobLive *m, GmWorld *world,
                         const struct McSinTable *sin_table);
+/* --mobs off: EntityCreeper.onUpdate ignited fuse (explosion_live.h). */
+void gm_mobs_tick_creeper_fuse(GmMobLive *m);
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max);
 int gm_mobs_alive(const GmMobLive *m);
 int gm_mobs_living_count(const GmMobLive *m);
