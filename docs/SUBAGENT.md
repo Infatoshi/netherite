@@ -89,7 +89,11 @@ uv run --no-project --with pyyaml python blaze/env/port_matrix.py --subsystem <r
 uv run --no-project --with pyyaml python blaze/env/port_matrix.py --subsystem <row> --tier m2   # GPU
 ```
 M1 is magma-CPU vs blaze-CPU lockstep digest; M2 is blaze-CPU vs CUDA
-bitwise. A new row needs fixtures under `verify/fixtures/port` and
+bitwise. `port_matrix.py` does not build. Root `make` does not rebuild
+`blaze/env/blaze_cpu.so` or `blaze_cuda.so`; after every fetch/reset run
+`rm -f blaze/env/blaze_cpu.so blaze/env/blaze_cuda.so && make -C magma blaze_so blaze_cuda_so`
+(CUDA needs `PATH=/usr/local/cuda/bin:$PATH CUDA_HOME=/usr/local/cuda`).
+A stale library from another branch gives a clean FAIL or a false PASS. A new row needs fixtures under `verify/fixtures/port` and
 `blaze/rl/fixtures`, an `m1`/`m2` command in `port_matrix.yaml`, and
 `supported: true` only after both tiers pass. Rows already VERIFIED must
 stay VERIFIED.

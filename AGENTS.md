@@ -75,6 +75,11 @@ sub-agents pointed at them without waiting for a human to pick items:
    root `make test` on the remote clone yourself, then merge `--no-ff` to
    master, run `make test` locally, push. Never absorb a delegate's numbers.
    Doc conflicts (DEVLOG, divergence files) keep both sides, newest first.
+   A merge that touches blaze needs the MERGED tree verified on the remote
+   (push `master:refs/heads/wip/<lane>-verify`, reset the clone to it, delete
+   and rebuild `blaze_cpu.so`/`blaze_cuda.so`, all supported rows M1
+   `--no-deps` + M2) before master is pushed. A stale `.so` from the lane
+   build fails or passes for the wrong tree.
 5. Clean up: worktree, local and remote lane branch, `~/nlanes/<lane>`, the
    lane tmux session. Then pick the next item.
 
