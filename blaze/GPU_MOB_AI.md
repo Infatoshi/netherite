@@ -2,8 +2,8 @@
 
 Author: Fable (netherite session 2026-08-22). Reviewer: codex (13 findings,
 folded into the v2 revision below). Status: agreed spec for the port-matrix
-`mobs` row. `entity_spine` closed 2026-08-22; `projectiles` still blocks
-`mobs` in port_matrix.
+`mobs` row. `entity_spine` closed 2026-08-22; `projectiles` closed
+2026-08-22. `mobs` still waits on AI/combat/drops evidence.
 
 ## Goal and non-goals
 
@@ -140,7 +140,5 @@ the CUDA row passes M2 - Metal port is sequenced last, same as other rows.
 ## Sequencing
 
 port_matrix `mobs` depends on `world_dynamics`, `entity_spine`,
-`projectiles`. `entity_spine` M1+M2 VERIFIED 2026-08-22 (zero-intent
-Entity.move / land travel). Remaining order: (1) projectiles, (2) this
-design. This doc exists so the mobs row starts with an agreed shape, not to
-jump the queue.
+`projectiles`. `entity_spine` and `projectiles` M1+M2 VERIFIED 2026-08-22.
+This doc is the agreed shape for the `mobs` row.

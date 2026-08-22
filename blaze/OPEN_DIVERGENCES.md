@@ -16,7 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
-Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, entity_spine, random_ticks already on master).
+Last verified: lane/projectiles 2026-08-22 (projectiles M1+M2; weather_optional, falling_blocks, entity_spine, random_ticks already on master).
 
 ## Verified rows (no known divergence)
 
@@ -30,6 +30,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | random_ticks | VERIFIED (200 idle ticks, 27 tickable-cell mutations) | VERIFIED (64 CUDA lanes) |
 | falling_blocks | VERIFIED (chain 64 actions, `--features falling_blocks`) | VERIFIED (64 CUDA lanes) |
 | weather_optional | VERIFIED (chain 64 idle, rain flip t=50, `--features weather`) | VERIFIED (64 CUDA lanes) |
+| projectiles | VERIFIED (chain 64 draw/release, `--features projectiles`) | VERIFIED (64 CUDA lanes) |
 
 ## Unported rows (coverage gaps), in dependency order
 
@@ -42,7 +43,7 @@ start any time; deeper rows wait on their deps.
 | chests | spawn_to_torch | generation, loot, GUI transfers not measured end to end |
 | weather_optional | world_dynamics | closed 2026-08-22: WorldInfo rain/thunder timers + worldTime; strength fade and sky stay magma-inert |
 | entity_spine | spawn_to_torch | closed 2026-08-22: living Entity.move/travel spine; AI stays on `mobs` |
-| projectiles | world_dynamics, entity_spine | projectile lifecycle/collision not measured |
+| projectiles | world_dynamics, entity_spine | closed 2026-08-22: magma bow/skeleton arrow tick; fireballs/eye-of-ender, inGround/pickup, Java ray-trace stay out |
 | explosions | world_dynamics, projectiles | damage + world mutation not measured |
 | mobs | world_dynamics, entity_spine, projectiles | spawning, AI, combat, drops lack common evidence |
 | portals_dimensions | world_dynamics | portal transfer and dimension identity not measured |

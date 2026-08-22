@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 projectiles M1+M2 (lane/projectiles)
+
+Baseline anvil HEAD 88a2b8e: `BLOCKED projectiles: Projectile lifecycle and collision outcomes are not measured by both backends` (`out/verify/projectiles_baseline.log`, port_matrix rc=3). Shared `projectile_motion.h` is the trimmed synthetic in-air kernel (entity_trace); live magma `tick_projectiles` was not in blaze.
+
+Cause: blaze did not spawn or tick live arrows. Java `ItemBow.getArrowVelocity` (`ItemBow.java:167-177`) `charge/20F` then `(f*f+f*2F)/3F` clamp 1.0F; fire if `(double)f >= 0.1D` (`:102`); `setAim` velocity `f*3.0F` (`:110`, `EntityArrow.java:120-133`). `EntityArrow.onUpdate` (`:196-357`) ray-trace + `findEntityOnPath` (`:502-530`), drag `(double)0.99F` (0.6F water), gravity `0.05000000074505806D`, `inGround` life 1200 (`:245-248`), `onHit` block sets `inGround` + `arrowShake=7` (`:454-478`); entity hit `ceil(speed*damage)` then `attackEntityFrom` (`:366-392`) with `knockBack(..., 0.4F, ...)` (`EntityLivingBase.java:935-1067`, `:1296-1309`). Magma extras kept: 0.25-block substeps, any non-air id despawns (no stick/pickup), drag/gravity as double 0.99/0.05, damage `speed*2` sphere r=0.75, spawn libm `sin(yaw*PI/180)` + 0.2 aim offset + `PSV_EYE_HEIGHT`.
+
+After: shared `blaze/core/projectile_live.h`. Magma `spawn_bow_arrow` / type-1/2 `tick_projectiles` are thin wrappers. Blaze draws on `use` with held 261, ticks after spine. `BP_PROJECTILES` hashes live arrows (pos, motion, age; inGround/tile/shake stay 0) plus mob slot+health and hit count (`PRJ1`). Fixture `s10_t0_r64_projectiles.bsnp` + 64-action chain (`projectiles_s10.json`): 20 use / release at +Z wall, dyaw=-90, 20 use / release at a zombie. Anvil M1 VERIFIED 64 ticks (`out/verify/projectiles_m1_verify2.log`); t=0 digest `0x79df273ecc6afb75`, wall hit t=22 `0xd9e47b3676353ee4`, mob hit t=52 `0x02907f7a118c91fb`. Anvil M2 VERIFIED 64 CUDA lanes on gpu1 (`out/verify/projectiles_m2.log`). mining_slice M2 and spawn_to_torch/world_dynamics/fluids/entity_spine/random_ticks/falling_blocks/weather_optional `--no-deps` still VERIFIED. Root `make test` PASS.
+
+Open: fireballs/eye-of-ender stay magma-only (explosions/portals rows). Magma still does not port Java ray-trace, water 0.6F drag, inGround/inTile/shake/pickup, or knockBack.
+
 ## 2026-08-22 weather_optional M1+M2 (lane/weather)
 
 Baseline anvil HEAD 99acff8 pre-wire: `BLOCKED weather_optional: Optional weather transitions and effects are not measured by both backends` (`out/verify/weather_baseline.log`, port_matrix rc=3). After the shared kernel but before `--weather on` was allowed, M1 FAILED (`out/verify/weather_gates.log`) because `gm_config_validate_runtime` still rejected `weather=1`. Tape `scenario_rain_thunder_20260821T093435Z` physics NO divergence 209 ticks, world_hash 209/209.
