@@ -45,6 +45,10 @@ fi
 for j in java/Minecraft/run java/oracle-src; do
     [ -e "$ROOT/$j" ] && [ ! -e "$WT/$j" ] && ln -s "$ROOT/$j" "$WT/$j"
 done
+# Chain demonstration (generated into blaze/rl/out; port_matrix reads the
+# fixtures copy). Without it spawn_to_torch / world_dynamics report BLOCKED.
+CHAIN="$ROOT/blaze/rl/out/chain_actions_s10.json"
+[ -f "$CHAIN" ] && [ ! -e "$WT/blaze/rl/fixtures/chain_actions_s10.json" ] && cp "$CHAIN" "$WT/blaze/rl/fixtures/"
 for e in "$ROOT"/magma/assets/*.h; do
     [ -e "$e" ] || continue
     t="$WT/magma/assets/$(basename "$e")"; [ -e "$t" ] || cp "$e" "$t"
@@ -85,6 +89,7 @@ done
 true"
 
 R="$HOST:~/nlanes/$LANE"
+[ -f "$CHAIN" ] && rsync -aq "$CHAIN" "$R/blaze/rl/fixtures/"
 for d in verify/mc_capture/goldens verify/ui_hud/goldens verify/ui_entities/goldens; do
     [ -d "$ROOT/$d" ] || continue
     rsync -aq "$ROOT/$d/" "$R/$d/"

@@ -76,8 +76,9 @@ PARITY_NAMES = (
 )
 PARITY_INDEX = {name: i for i, name in enumerate(PARITY_NAMES)}
 # Default-on --chain state-digest pass. Subset of BP_IMPLEMENTED_MASK.
-# BP_MOBS is implemented (snapshot v3 transport hash) but stays off this
-# list until blaze steps mobs; compare it with --features mobs. Unported
+# BP_MOBS is implemented (snapshot v3 + living spine tick). Default chain
+# fixtures have n_mobs=0; compare populated stores with --features mobs.
+# Unported
 # names stay out so they never spuriously BLOCK the gate.
 # Furnaces is implemented but has zero evidence on the non-iron chain - digests
 # still match (empty FNV seed); evidence is only required under explicit

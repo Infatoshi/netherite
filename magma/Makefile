@@ -513,7 +513,8 @@ blaze_verify: ../blaze/env/blaze_verify
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env ../blaze/env/blaze_verify.c \
 	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
 blaze_so: ../blaze/env/blaze_cpu.so
-../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY)
+../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
+                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
 	    -o $@ $(LDLIBS) $(BLAZE_OMP)
 
@@ -558,7 +559,8 @@ BLAZE_NVCODE := $(if $(filter sm_%,$(BLAZE_SM)),$(foreach a,$(patsubst sm_%,%,$(
 .PHONY: blaze_cuda_so
 blaze_cuda_so: ../blaze/env/blaze_cuda.so
 ../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
-                        ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY)
+                        ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
+                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h
 	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
 	    ../blaze/env/blaze_snapshot.c -o $@

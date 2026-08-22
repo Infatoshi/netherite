@@ -56,10 +56,11 @@ def test_checked_in_schema_dag_and_ready_frontier():
     assert pm.ready_frontier(config) == [
         "random_ticks",
         "falling_blocks",
-        "entity_spine",
+        "projectiles",
         "chests",
         "portals_dimensions",
         "weather_optional",
+        "boats_elytra_xp",
     ]
 
 

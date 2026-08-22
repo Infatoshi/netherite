@@ -1,5 +1,45 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 entity_spine M1+M2 (lane/entityspine)
+
+Baseline anvil 754c029: both tiers BLOCKED "Entity lifecycle state is not
+integrated into the common parity record." Snapshot v3 hashed a static store.
+
+Cause: blaze did not step loaded living slots. Magma `--mobs off` skipped
+the whole `gm_mobs_tick`. Zero-intent travel was never on either side.
+
+Port (magma semantics, M1 is blaze-vs-magma):
+- Shared `blaze/core/entity_spine.h`: `ess_tick_living` -> `eb_tick_living`
+  with moveForward/moveStrafing/isJumping = 0.
+- Magma `gm_mobs_tick_spine` (`mob_live.c`) on the `--mobs off` branch;
+  `--mobs on` still full AI.
+- Blaze `cu_mob_spine_tick` after randtick, before live items. CUDA
+  `k_reset_scalar` copies the v3 mob trailer.
+
+Oracle (java/oracle-src):
+- Entity.setSize :376-399, setPosition :413-424, onEntityUpdate :460-477
+- Entity.move :668 (`pcf_entity_move`); onGround = collidedVertically &&
+  d3<0 :970; updateFallState :1214-1228; moveRelative :1424-1445 (gated
+  `f >= 1.0e-4F`, skipped at zero intent)
+- EntityLivingBase stepHeight=0.6F :207; jump :1897-1921; travel
+  :2015-2103 (0.91F air, slip*0.91F ground, gravity 0.08D, vertical drag
+  `(double)0.98F` = 0.9800000190734863D); onLivingUpdate :2419-2511
+  (0.003D clamp, moveStrafing/moveForward *= 0.98F)
+- Magma slip table ice 79/174/212 = 0.98F, water 8/9 = 0.8F, else 0.6F
+  (`mob_live.c:2397-2403`)
+
+After (anvil `~/nlanes/entityspine`):
+- Unit: gravity bits, land on stone, ground `motionX *= (double)(0.6F*0.91F)`
+- Fixture `s10_t0_r64_entity_spine.bsnp`: zombie slot1 ground slide on grass
+  y=65, slot2 fall onto sand y=63
+- M1: VERIFIED 32 ticks `--features mobs` digest `0x44fc8506d238d93e`
+  (`out/verify/entityspine_m1.log`)
+- M2: PASS 64 CUDA lanes vs CPU bitwise (`out/verify/entityspine_m2.log`)
+- FP census: 256 sqrt+sin samples CPU==CUDA bitwise. `mc_atan2` unused.
+- fluids M1 still VERIFIED. Root `make test` PASS.
+
+Open: AI/path/combat (`mobs` row). `mc_atan2` remains host-only.
+
 ## 2026-08-22 portal world RSR (lane/portaledge)
 
 Item A2 overlay_portal_050 on gamer. Baseline matched the file:

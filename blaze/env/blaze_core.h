@@ -23,9 +23,9 @@
  * crf_*, oc_pixel) are reused VERBATIM via include - never re-implemented.
  *
  * Deliberately NOT simulated (inert or impossible with the supported item
- * set; the snapshot baker flags offenders): mobs/dragon/projectiles
- * (mobs load into a static snapshot store and hash as BP_MOBS; they do not
- * tick),
+ * set; the snapshot baker flags offenders): dragon/projectiles/AI
+ * (loaded snapshot living slots tick the Entity.move spine and hash as
+ * BP_MOBS; pathfinding and combat stay on the `mobs` row),
  * weather/clock, portals, bow/eye-of-ender (need held item 261/381 - neither
  * is craftable in-chain). Fluids CA is simulated (magma/game/fluid_live.c
  * port) and hashed into BP_FLUIDS.
@@ -63,6 +63,7 @@
 #include "crafting_recipes_full.h" /* crf_build/crf_findMatching verbatim */
 #include "furnace_full_tick.h"  /* fft_tick + sr_* smelt/fuel verbatim */
 #include "blaze_snapshot.h"     /* RlSnapHead/RlSnapItem (.bsnp format) */
+#include "entity_spine.h"       /* living Entity.move spine (zero AI) */
 #include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
 
 #ifdef __cplusplus
@@ -278,7 +279,8 @@ typedef struct {
     int    n_items;
     int    items_unrepresented;
 
-    /* Static loaded mob state (snapshot v3). Blaze does not step mobs. */
+    /* Loaded snapshot living slots. Spine (Entity.move / travel) ticks
+     * each tick; AI/path/combat do not. */
     RlSnapMob mobs[BLAZE_SNAP_MAX_MOBS];
     unsigned n_mobs;
 
@@ -2314,6 +2316,43 @@ MC_HD MC_NOINLINE static int cu_fluid_tick(Blaze *e, int dim, long long world_ti
     return total;
 }
 
+/* Magma gm_mobs_tick_spine: zero-intent travel for loaded living slots.
+ * Collect loop matches magma/game/mob_live.c:83-101 (x,y,z, BF_SOLID). */
+MC_HD MC_NOINLINE static void cu_mob_spine_tick(Blaze *e, const McSinTable *st) {
+    unsigned i;
+    if (!e || !e->n_mobs) return;
+    for (i = 0; i < e->n_mobs; ++i) {
+        RlSnapMob *m = &e->mobs[i];
+        EbLiving liv;
+        PcfBlock blocks[ESS_MOB_BLOCKS];
+        McAABB q;
+        int n = 0, x, y, z, x0, x1, y0, y1, z0, z1, under;
+        float slip;
+        if (!m->alive || !ess_is_spine_type(m->type)) continue;
+        ess_load_snap(&liv, m);
+        ess_query_box(&liv, &q);
+        x0 = mc_floor(q.minX) - 1; x1 = mc_floor(q.maxX) + 1;
+        y0 = mc_floor(q.minY) - 1; y1 = mc_floor(q.maxY) + 1;
+        z0 = mc_floor(q.minZ) - 1; z1 = mc_floor(q.maxZ) + 1;
+        if (y0 < 0) y0 = 0;
+        if (y1 > 255) y1 = 255;
+        for (x = x0; x <= x1; ++x)
+            for (y = y0; y <= y1; ++y)
+                for (z = z0; z <= z1; ++z) {
+                    n = ess_collect_push(blocks, n, ESS_MOB_BLOCKS,
+                                         cu_world_block(e, x, y, z), x, y, z);
+                    if (n == ESS_MOB_BLOCKS) goto collected;
+                }
+    collected:
+        under = cu_world_block(e, mc_floor(liv.base.phys.posX),
+                               mc_floor(liv.base.phys.box.minY) - 1,
+                               mc_floor(liv.base.phys.posZ));
+        slip = ess_slip_on_ground(&liv, under);
+        ess_tick_living(&liv, slip, blocks, n, st);
+        ess_store_snap(m, &liv);
+    }
+}
+
 /* =================== one whole game tick (gm_runtime_tick slice) ========== */
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
@@ -2398,11 +2437,13 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                           edits[i].drop_count, edits[i].drop_meta, 10);
     }
 
-    /* world clock / weather (no obs field), mobs, dragon, projectiles:
-     * inert in the learned stage - skipped. Fluid CA matches Magma's
-     * gm_fluid_tick(r->tick) before random ticks. */
+    /* world clock / weather (no obs field), dragon, projectiles: inert in
+     * the learned stage. Fluid CA matches Magma's gm_fluid_tick(r->tick)
+     * before random ticks. Spine matches magma --mobs off (gm_mobs_tick_spine
+     * after randtick, before live items). */
     cu_fluid_tick(env, 0, env->tick);
     cu_randtick_grass_pass(env);
+    cu_mob_spine_tick(env, st);
 
     cu_live_tick_player(env);
 

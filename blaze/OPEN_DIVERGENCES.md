@@ -16,7 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
-Last verified: lane/fluidsm2 2026-08-22 (fluids M2 bitwise).
+Last verified: lane/entityspine 2026-08-22 (entity_spine M1+M2).
 
 ## Verified rows (no known divergence)
 
@@ -26,6 +26,7 @@ Last verified: lane/fluidsm2 2026-08-22 (fluids M2 bitwise).
 | spawn_to_torch | VERIFIED (chain 2058 actions) | VERIFIED |
 | world_dynamics | VERIFIED | VERIFIED |
 | fluids | VERIFIED | VERIFIED (chain 61 actions) |
+| entity_spine | VERIFIED (chain 32 actions, `--features mobs`) | VERIFIED (64 CUDA lanes) |
 
 ## Unported rows (coverage gaps), in dependency order
 
@@ -38,7 +39,7 @@ start any time; deeper rows wait on their deps.
 | falling_blocks | world_dynamics | falling-block state not measured by both backends (magma-side sim landed 2026-08-01; blaze has none) |
 | chests | spawn_to_torch | generation, loot, GUI transfers not measured end to end |
 | weather_optional | world_dynamics | weather transitions not measured by both backends |
-| entity_spine | spawn_to_torch | entity lifecycle not in the common parity record |
+| entity_spine | spawn_to_torch | closed 2026-08-22: living Entity.move/travel spine; AI stays on `mobs` |
 | projectiles | world_dynamics, entity_spine | projectile lifecycle/collision not measured |
 | explosions | world_dynamics, projectiles | damage + world mutation not measured |
 | mobs | world_dynamics, entity_spine, projectiles | spawning, AI, combat, drops lack common evidence |
@@ -52,40 +53,29 @@ Two consequences worth stating plainly:
 - **Dimensions do not exist in blaze.** The GPU sim is overworld snapshots
   only; Nether and End (`portals_dimensions`, `nether_route`) are entirely
   on the magma side today.
-- **Mobs do not exist in blaze.** The deterministic mob arc (detmob) is
-  magma-CPU only. The agreed GPU design is `blaze/GPU_MOB_AI.md` (v2,
-  codex-reviewed): one warp per env, lane-0 sequential mob tick with A*
-  inline, magma-semantics (32x24x32 window, 48-point path cap), IntHashMap
-  aliasing reproduced, all 8 detmob tapes must be blaze-exact.
+- **Mob AI does not exist in blaze.** Snapshot living slots now tick the
+  Entity.move / land-travel spine (`entity_spine`, M1+M2 VERIFIED). Pathfinding,
+  targeting, and combat stay magma-CPU (detmob). The agreed GPU design is
+  `blaze/GPU_MOB_AI.md` (v2, codex-reviewed): one warp per env, lane-0
+  sequential mob tick with A* inline, magma-semantics (32x24x32 window,
+  48-point path cap), IntHashMap aliasing reproduced, all 8 detmob tapes
+  must be blaze-exact.
 
 ## Prerequisites discovered in design review (block the entity arc)
 
-- **M1 transport (landed, this file).** Snapshot v3 (`blaze/env/blaze_snapshot.h`)
+- **M1 transport (landed).** Snapshot v3 (`blaze/env/blaze_snapshot.h`)
   carries occupied living slots after the v2 light plane. v1/v2 load as
   `n_mobs=0`. Canonical digest is `blaze_snap_mobs_digest` in that header,
-  compiled by magma (`rl_parity_build` / `gm_mobs_export_snap`) and blaze-CPU
-  (static loaded store; blaze does not step mobs). Cap 96
-  (`ew_entity_store.h:21`), path 48 (`mob_live.h:90`).
-  Field list (RlSnapMob, magma `mob_live.h` + oracle):
-  slot/id/type/alive (`ew_entity_store.h`); persist
-  (`mob_live.h:130`, EntityLiving.java:92); pose x/y/z double, yaw/pitch
-  float, motion double, on_ground (Entity.java:111-130); yaw_body
-  (`mob_live.h:57`, EntityLivingBase.java:119); health
-  (`mob_live.h` EwStore.health, EntityLivingBase.java:922); hurt/death
-  (`mob_live.h:137-138`, EntityLivingBase.java:101/107); task bits /
-  wander / panic (`mob_live.h:47/52-53/43`); target_tasks / target_idx /
-  see/stime / melee/bow timers (`mob_live.h:110-118`); attack_time
-  (EwStore); swell (`mob_live.h:41`, EntityCreeper.java:51); anger
-  (`mob_live.h:63`, EntityPigZombie.java:35); path buffer all 48 points +
-  n/i (`mob_live.h:90-94`, Path.java:19-21); nav ticks / stuck_at /
-  lastPosCheck (`mob_live.h:96-100`, PathNavigate.java:26-30); persistent
-  AABB (`mob_live.h:127-128`, Entity.java:129); RNG triple seed48 +
-  gaussian cache (`mob_live.h:85/131-132`, Entity.java:169).
-  Hash order is slot-ascending. `--features mobs` compares BP_MOBS; the
-  default-on chain feature list does not include it until blaze ticks mobs.
-- Device FP census: mc_atan2 is host-only (`blaze/core/mc_math.h:63`);
-  sqrt/sin/cos/log need device implementations with CPU/CUDA bit-pattern
-  tests before any entity math ports.
+  compiled by magma (`rl_parity_build` / `gm_mobs_export_snap`) and blaze.
+  Cap 96 (`ew_entity_store.h:21`), path 48 (`mob_live.h:90`). Hash order is
+  slot-ascending. `--features mobs` compares BP_MOBS.
+- **Living spine (landed, `entity_spine`).** Magma `--mobs off` and blaze-CPU
+  / CUDA tick Entity.move + land travel with zero AI intents
+  (`blaze/core/entity_spine.h`). AI/path/combat stay on the `mobs` row.
+- Device FP census: zero-intent spine skips `moveRelative` sqrt/sin/cos
+  (`Entity.java:1430`, `f < 1.0e-4F`). 256-sample CPU vs CUDA of
+  `(float)sqrt((double)f)` and `mc_sin` is bitwise. `mc_atan2` is still
+  host-only (`blaze/core/mc_math.h:63`); the spine does not call it.
 - `WalkNodeProcessor.getStart` HashSet iteration order is an admitted gap in
   the shared port (`blaze/core/path_node_processor.h:578`); needs a
   Java-backed fixture before that branch may execute.

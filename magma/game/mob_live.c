@@ -1,6 +1,7 @@
 #include "player_survival.h"
 
 #include "game/mob_live.h"
+#include "entity_spine.h"
 
 #include "combat_math.h"
 #include "items_tools_armor.h"
@@ -3398,6 +3399,44 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     m->look_have = 1;
     ++m->tick;m->current^=1;
     (void)drops;
+}
+
+void gm_mobs_tick_spine(GmMobLive *m, GmWorld *w, const struct McSinTable *st_) {
+    const McSinTable *st = (const McSinTable *)st_;
+    EwStore *now, *nx;
+    int i;
+    if (!m || !w || !st) return;
+    now = now_store(m);
+    nx = next_store(m);
+    ew_store_copy(nx, now);
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        EbLiving liv;
+        PcfBlock blocks[ESS_MOB_BLOCKS];
+        McAABB q;
+        int n;
+        float slip;
+        int under;
+        if (!now->alive[i] || !ess_is_spine_type((int)now->type[i])) continue;
+        ess_load_pose(&liv, (int)now->type[i],
+                      now->x[i], now->y[i], now->z[i],
+                      now->vx[i], now->vy[i], now->vz[i],
+                      now->on_ground[i], now->yaw[i],
+                      m->det_box_on[i],
+                      m->det_box[i].minX, m->det_box[i].minY, m->det_box[i].minZ,
+                      m->det_box[i].maxX, m->det_box[i].maxY, m->det_box[i].maxZ);
+        ess_query_box(&liv, &q);
+        n = collect_blocks(w, &q, blocks, ESS_MOB_BLOCKS);
+        under = gm_world_block(w, mc_floor(liv.base.phys.posX),
+                               mc_floor(liv.base.phys.box.minY) - 1,
+                               mc_floor(liv.base.phys.posZ));
+        slip = ess_slip_on_ground(&liv, under);
+        ess_tick_living(&liv, slip, blocks, n, st);
+        ehs_store_living(nx, i, &liv);
+        m->det_box[i] = liv.base.phys.box;
+        m->det_box_on[i] = 1;
+    }
+    ++m->tick;
+    m->current ^= 1;
 }
 
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
