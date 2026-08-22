@@ -829,6 +829,42 @@ public class Recorder {
         p.prevTimeInPortal = pinPortalTime;
     }
 
+    /** EntityRenderer.fovModifierHand (EntityRenderer.java:116). World
+     * getFOVModifier(pt, true) multiplies fovSetting by the eased value
+     * (EntityRenderer.java:529-532). NaN if the field is missing. */
+    private static float readFovModifierHand(Minecraft mc) {
+        if (mc == null || mc.entityRenderer == null) return Float.NaN;
+        try {
+            java.lang.reflect.Field f =
+                net.minecraft.client.renderer.EntityRenderer.class
+                    .getDeclaredField("fovModifierHand");
+            f.setAccessible(true);
+            return f.getFloat(mc.entityRenderer);
+        } catch (Throwable ig) {
+            return Float.NaN;
+        }
+    }
+
+    /** Run EntityRenderer.updateFovModifierHand n times (EntityRenderer.java:491-502).
+     * Each call eases fovModifierHand 0.5 of the gap toward
+     * AbstractClientPlayer.getFovModifier (bow full-draw 0.85 at
+     * AbstractClientPlayer.java:156-170). n>=20 is past float32 convergence
+     * when the target is constant. Does not advance the world. */
+    private static void easeFovModifierHand(Minecraft mc, int n) {
+        if (mc == null || mc.entityRenderer == null || n <= 0) return;
+        try {
+            java.lang.reflect.Method m =
+                net.minecraft.client.renderer.EntityRenderer.class
+                    .getDeclaredMethod("updateFovModifierHand");
+            m.setAccessible(true);
+            for (int i = 0; i < n; i++) {
+                m.invoke(mc.entityRenderer);
+            }
+        } catch (Throwable ig) { /* leave live FOV */ }
+    }
+
+    private static final int FOV_HAND_HOLD_TICKS = 24;
+
     /** Restore EntityRenderer fogColor1/2 so frame_pair pass B starts from the
      * same smoother state as pass A. updateFogColor / updateRenderer both write
      * these; two re-renders on one turn otherwise step the 0.1F lerp twice. */
@@ -856,7 +892,8 @@ public class Recorder {
                 Class<?> erc = net.minecraft.client.renderer.EntityRenderer.class;
                 String[] names = {
                     "fogColor1", "fogColor2",
-                    "fogColorRed", "fogColorGreen", "fogColorBlue"
+                    "fogColorRed", "fogColorGreen", "fogColorBlue",
+                    "fovModifierHand", "fovModifierHandPrev"
                 };
                 for (int i = 0; i < names.length; i++) {
                     java.lang.reflect.Field f = erc.getDeclaredField(names[i]);
@@ -5845,6 +5882,12 @@ public class Recorder {
                             // processKeyBinds may have already onStoppedUsingItem.
                             if (pinUseActive) {
                                 useAtRender = applyUsePosePin(mc);
+                                if (useAtRender != null && useAtRender.has("branch")
+                                        && "bow".equals(useAtRender.get("branch").getAsString())) {
+                                    // Hold-equivalent: ease world FOV to the drawn-bow
+                                    // target so the golden is not mid 0.5/tick ramp.
+                                    easeFovModifierHand(mc, FOV_HAND_HOLD_TICKS);
+                                }
                             }
                             if (renderPinActive) {
                                 pinSnap = applyPendingRenderPin(mc);
@@ -5935,6 +5978,11 @@ public class Recorder {
                 resp.append(",\"pin_use_active\":").append(pinUseActive);
                 if (pinUseActive)
                     resp.append(",\"pin_use_remaining\":").append(pinUseRemaining);
+                {
+                    float fovHand = readFovModifierHand(mc);
+                    if (!Float.isNaN(fovHand))
+                        resp.append(",\"fov_mult\":").append(fovHand);
+                }
                 if (useAtRender != null) {
                     if (useAtRender.has("branch"))
                         resp.append(",\"use_branch\":\"").append(
@@ -6265,6 +6313,10 @@ public class Recorder {
                             equipPinned = useDiag.get("equip_pinned").getAsInt();
                         if (useDiag.has("equip_progress"))
                             pinnedEquip = useDiag.get("equip_progress").getAsFloat();
+                        if (useDiag.has("branch")
+                                && "bow".equals(useDiag.get("branch").getAsString())) {
+                            easeFovModifierHand(mc, FOV_HAND_HOLD_TICKS);
+                        }
                     }
                 }
 
@@ -6634,7 +6686,12 @@ public class Recorder {
                         sb.append(",\"use_key_down\":").append(
                             useDiag.get("use_key_down").getAsBoolean());
                 }
-sb.append("}");
+                {
+                    float fovHand = readFovModifierHand(mc);
+                    if (!Float.isNaN(fovHand))
+                        sb.append(",\"fov_mult\":").append(fovHand);
+                }
+                sb.append("}");
                 r.resp.offer(sb.toString());
             } catch (Throwable t) {
                 r.resp.offer(err("hud_pin: " + t));
