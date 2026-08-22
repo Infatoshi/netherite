@@ -27,8 +27,8 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
     if (!f) return snap_fail(err, err_cap, "cannot open", path);
     if (fread(&out->head, sizeof out->head, 1, f) != 1 ||
         memcmp(out->head.magic, "BSNP", 4) != 0 ||
-        (out->head.version != 1 &&
-         out->head.version != BLAZE_SNAP_VERSION)) {
+        out->head.version < 1 ||
+        out->head.version > BLAZE_SNAP_VERSION) {
         fclose(f);
         return snap_fail(err, err_cap, "bad .bsnp header", path);
     }
@@ -68,7 +68,7 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             return snap_fail(err, err_cap, "truncated .bsnp coal list", path);
         }
     }
-    if (out->head.version >= 2) {
+    if (out->head.version >= BLAZE_SNAP_VERSION_LIGHT) {
         out->light = (unsigned char *)malloc((size_t)vol);
         if (!out->light ||
             fread(out->light, 1, (size_t)vol, f) != (size_t)vol) {
@@ -77,6 +77,26 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             free(out->light); out->light = NULL;
             fclose(f);
             return snap_fail(err, err_cap, "truncated .bsnp light", path);
+        }
+    }
+    out->n_mobs = 0;
+    if (out->head.version >= 3) {
+        if (fread(&out->n_mobs, sizeof out->n_mobs, 1, f) != 1 ||
+            out->n_mobs > BLAZE_SNAP_MAX_MOBS) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp mob count", path);
+        }
+        if (out->n_mobs &&
+            fread(out->mobs, sizeof out->mobs[0], out->n_mobs, f) !=
+                out->n_mobs) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp mobs", path);
         }
     }
     fclose(f);
@@ -118,6 +138,71 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
         : -1;
     if (out->ncont < 0) { free(out->cont); out->cont = NULL; }
     return 1;
+}
+
+int blaze_snapshot_write(const char *path, const CuSnapshot *s,
+                         char *err, int err_cap) {
+    FILE *f;
+    long vol;
+    int ok = 1;
+    unsigned version;
+
+    if (!s || !s->cells) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "empty snapshot: %s",
+                     path ? path : "(null)");
+        return 0;
+    }
+    version = s->head.version;
+    if (version < 1 || version > BLAZE_SNAP_VERSION) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "bad .bsnp version %u: %s",
+                     version, path ? path : "(null)");
+        return 0;
+    }
+    if (s->head.n_items > BLAZE_SNAP_MAX_ITEMS ||
+        s->n_mobs > BLAZE_SNAP_MAX_MOBS ||
+        s->head.rnx <= 0 || s->head.rny <= 0 || s->head.rnz <= 0) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "implausible .bsnp counts: %s",
+                     path ? path : "(null)");
+        return 0;
+    }
+    vol = (long)s->head.rnx * s->head.rny * s->head.rnz;
+    if (version >= BLAZE_SNAP_VERSION_LIGHT && !s->light) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "missing light plane: %s",
+                     path ? path : "(null)");
+        return 0;
+    }
+    f = fopen(path, "wb");
+    if (!f) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "cannot open %s",
+                     path ? path : "(null)");
+        return 0;
+    }
+    ok = ok && fwrite(&s->head, sizeof s->head, 1, f) == 1;
+    ok = ok && (s->head.n_items == 0 ||
+                fwrite(s->items, sizeof s->items[0], s->head.n_items, f) ==
+                    s->head.n_items);
+    ok = ok && fwrite(s->cells, sizeof *s->cells, (size_t)vol, f) ==
+                   (size_t)vol;
+    ok = ok && fwrite(&s->ncoal, sizeof s->ncoal, 1, f) == 1;
+    ok = ok && (s->ncoal == 0 ||
+                fwrite(s->coal, 3 * sizeof *s->coal, s->ncoal, f) == s->ncoal);
+    if (version >= BLAZE_SNAP_VERSION_LIGHT)
+        ok = ok && fwrite(s->light, 1, (size_t)vol, f) == (size_t)vol;
+    if (version >= 3) {
+        ok = ok && fwrite(&s->n_mobs, sizeof s->n_mobs, 1, f) == 1;
+        ok = ok && (s->n_mobs == 0 ||
+                    fwrite(s->mobs, sizeof s->mobs[0], s->n_mobs, f) ==
+                        s->n_mobs);
+    }
+    if (fclose(f) != 0) ok = 0;
+    if (!ok && err && err_cap > 0)
+        snprintf(err, (size_t)err_cap, "write failed: %s", path);
+    return ok;
 }
 
 void blaze_snapshot_free(CuSnapshot *s) {

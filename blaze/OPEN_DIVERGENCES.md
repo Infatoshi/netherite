@@ -64,10 +64,29 @@ Two consequences worth stating plainly:
 
 ## Prerequisites discovered in design review (block the entity arc)
 
-- Snapshot v2 carries no mob or entity-RNG state (`blaze_snapshot.h:29`);
-  `BP_MOBS` exists but is unimplemented (`port_parity.h:83`). A mob-capable
-  snapshot revision + canonical BP_MOBS hashing must land before
-  entity_spine parity can be measured.
+- **M1 transport (landed, this file).** Snapshot v3 (`blaze/env/blaze_snapshot.h`)
+  carries occupied living slots after the v2 light plane. v1/v2 load as
+  `n_mobs=0`. Canonical digest is `blaze_snap_mobs_digest` in that header,
+  compiled by magma (`rl_parity_build` / `gm_mobs_export_snap`) and blaze-CPU
+  (static loaded store; blaze does not step mobs). Cap 96
+  (`ew_entity_store.h:21`), path 48 (`mob_live.h:90`).
+  Field list (RlSnapMob, magma `mob_live.h` + oracle):
+  slot/id/type/alive (`ew_entity_store.h`); persist
+  (`mob_live.h:130`, EntityLiving.java:92); pose x/y/z double, yaw/pitch
+  float, motion double, on_ground (Entity.java:111-130); yaw_body
+  (`mob_live.h:57`, EntityLivingBase.java:119); health
+  (`mob_live.h` EwStore.health, EntityLivingBase.java:922); hurt/death
+  (`mob_live.h:137-138`, EntityLivingBase.java:101/107); task bits /
+  wander / panic (`mob_live.h:47/52-53/43`); target_tasks / target_idx /
+  see/stime / melee/bow timers (`mob_live.h:110-118`); attack_time
+  (EwStore); swell (`mob_live.h:41`, EntityCreeper.java:51); anger
+  (`mob_live.h:63`, EntityPigZombie.java:35); path buffer all 48 points +
+  n/i (`mob_live.h:90-94`, Path.java:19-21); nav ticks / stuck_at /
+  lastPosCheck (`mob_live.h:96-100`, PathNavigate.java:26-30); persistent
+  AABB (`mob_live.h:127-128`, Entity.java:129); RNG triple seed48 +
+  gaussian cache (`mob_live.h:85/131-132`, Entity.java:169).
+  Hash order is slot-ascending. `--features mobs` compares BP_MOBS; the
+  default-on chain feature list does not include it until blaze ticks mobs.
 - Device FP census: mc_atan2 is host-only (`blaze/core/mc_math.h:63`);
   sqrt/sin/cos/log need device implementations with CPU/CUDA bit-pattern
   tests before any entity math ports.

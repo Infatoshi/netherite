@@ -45,6 +45,7 @@
 #include "game/hud.h"
 #include "obs_camera.h"   /* blaze verified semantic camera (LUT trig) */
 #include "../../blaze/core/port_parity.h"
+#include "../../blaze/env/blaze_snapshot.h"
 
 #define RL_OBS_R    16   /* horizontal obs radius, blocks */
 #define RL_Y_DOWN   24   /* scan band below player feet   */
@@ -562,6 +563,15 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
         }
     }
 
+    {
+        RlSnapMob packed[BLAZE_SNAP_MAX_MOBS];
+        unsigned nm = gm_mobs_export_snap(&r->mobs, packed,
+                                          BLAZE_SNAP_MAX_MOBS);
+        out->digest[BP_MOBS] = blaze_snap_mobs_digest(packed, nm);
+        out->evidence[BP_MOBS] = 1;
+        if (nm) out->active_mask |= BP_BIT(BP_MOBS);
+    }
+
     h = bp_hash_begin();
     for (i = 0; i < RL_NCOAL; ++i) {
         int present = i < rl_ncoal;
@@ -584,8 +594,8 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
  * blaze/env/blaze_snapshot.h, SHARED with the batched-env reader - this file
  * remains the canonical writer. NOT captured (see gm_player_ctl_dig_export
  * note + report): furnace states, craft grid, cursor stack, world clock,
- * eat/bow/fov statics, break/place/swing counters, projectiles, mobs. */
-#include "../../blaze/env/blaze_snapshot.h"
+ * eat/bow/fov statics, break/place/swing counters, projectiles.
+ * v3 also writes occupied living-mob slots (RlSnapMob). */
 
 /* Dump pre-tick state to path. Region geometry is either:
  *   - use_bounds=1: explicit (rx0,ry0,rz0,rnx,rny,rnz) - typically the
@@ -595,8 +605,8 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
  *     = original 64x128x64). Re-centering is still needed for standalone
  *     dumps; it is the camera-OOR source for blaze resume after the player
  *     walks off-center.
- * Player pose/items/inv are always the live pre-tick values. File format
- * (blaze_snapshot.h) is unchanged. */
+ * Player pose/items/inv are always the live pre-tick values. v3 appends
+ * occupied living-mob slots after the light plane. */
 static int rl_snapshot_write(GmRuntime *r, const char *path,
                              int use_bounds, int radius,
                              int brx0, int bry0, int brz0,
@@ -731,11 +741,21 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                 }
     ok = ok && fwrite(light, 1, (size_t)h.rnx * h.rny * h.rnz, f) ==
                    (size_t)h.rnx * h.rny * h.rnz;
+    {
+        RlSnapMob packed[BLAZE_SNAP_MAX_MOBS];
+        unsigned n_mobs = gm_mobs_export_snap(&r->mobs, packed,
+                                              BLAZE_SNAP_MAX_MOBS);
+        ok = ok && fwrite(&n_mobs, sizeof n_mobs, 1, f) == 1;
+        ok = ok && (n_mobs == 0 ||
+                    fwrite(packed, sizeof packed[0], n_mobs, f) == n_mobs);
+        fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
+                "%u mobs)\n",
+                ok ? "written" : "WRITE FAILED", path, h.tick, h.n_items, ncoal,
+                n_mobs);
+    }
     free(cells);
     free(light);
     if (fclose(f) != 0) ok = 0;
-    fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal)\n",
-            ok ? "written" : "WRITE FAILED", path, h.tick, h.n_items, ncoal);
     return ok;
 }
 
@@ -752,7 +772,7 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
 
     if (!f) { snprintf(err, (size_t)err_cap, "cannot open %s", path); return 0; }
     if (fread(&h, sizeof h, 1, f) != 1 || memcmp(h.magic, "BSNP", 4) != 0 ||
-        (h.version != 1 && h.version != BLAZE_SNAP_VERSION)) {
+        h.version < 1 || h.version > BLAZE_SNAP_VERSION) {
         snprintf(err, (size_t)err_cap, "bad .bsnp header: %s", path);
         fclose(f); return 0;
     }
@@ -808,6 +828,21 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             snprintf(err, (size_t)err_cap, "truncated .bsnp light: %s", path);
             free(cells); fclose(f); return 0;
         }
+    }
+    if (h.version >= 3) {
+        unsigned n_mobs = 0;
+        RlSnapMob packed[BLAZE_SNAP_MAX_MOBS];
+        if (fread(&n_mobs, sizeof n_mobs, 1, f) != 1 ||
+            n_mobs > BLAZE_SNAP_MAX_MOBS) {
+            snprintf(err, (size_t)err_cap, "truncated .bsnp mob count: %s",
+                     path);
+            free(cells); free(light); fclose(f); return 0;
+        }
+        if (n_mobs && fread(packed, sizeof packed[0], n_mobs, f) != n_mobs) {
+            snprintf(err, (size_t)err_cap, "truncated .bsnp mobs: %s", path);
+            free(cells); free(light); fclose(f); return 0;
+        }
+        gm_mobs_import_snap(&r->mobs, packed, n_mobs);
     }
     fclose(f);
 

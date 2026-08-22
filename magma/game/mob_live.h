@@ -132,6 +132,10 @@ typedef struct {
     double ent_jr_gauss[EW_MAX_ENTITIES];
     int blaze_hot[EW_MAX_ENTITIES];     /* EntityBlaze.heightOffsetUpdateTime */
     float blaze_hof[EW_MAX_ENTITIES];   /* EntityBlaze.heightOffset */
+    /* EntityLivingBase.hurtTime / deathTime. Live tick does not yet age
+     * these; snapshot v3 still carries them so a later spine port can restore. */
+    int hurt_time[EW_MAX_ENTITIES];
+    int death_time[EW_MAX_ENTITIES];
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */
@@ -206,5 +210,12 @@ int gm_mobs_boat_mount(GmMobLive *m,struct PsvPlayer *player,int ox,int oz);
 /* Dismount if riding. */
 void gm_mobs_boat_dismount(GmMobLive *m,struct PsvPlayer *player,int ox,int oz);
 int gm_mobs_boat_riding(const GmMobLive *m);
+
+/* Packed .bsnp v3 mob trailer (RlSnapMob in blaze/env/blaze_snapshot.h).
+ * Export walks occupied slots 1..EW_MAX_ENTITIES-1 in slot order. */
+struct RlSnapMob;
+unsigned gm_mobs_export_snap(const GmMobLive *m, struct RlSnapMob *out,
+                             unsigned cap);
+void gm_mobs_import_snap(GmMobLive *m, const struct RlSnapMob *in, unsigned n);
 
 #endif

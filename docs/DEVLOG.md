@@ -1,5 +1,16 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 M1 transport: snapshot v3 + BP_MOBS (lane/mobsnap)
+
+Snapshot revision 3 appends `u32 n_mobs` + packed `RlSnapMob` after the v2
+light plane. v1/v2 load as n_mobs=0. Magma `rl_snapshot_write` always emits
+v3 from live `gm_mobs_export_snap` (slot-ascending, slot 0 skipped). Shared
+digest `blaze_snap_mobs_digest` is compiled by magma and blaze; blaze hashes
+the static loaded store and does not tick mobs. CUDA reset still passes an
+empty trailer (M2 later). Caps are compile-time 96/48. Field list:
+`blaze/OPEN_DIVERGENCES.md`. Root `make test` includes the C round-trip.
+Magma-vs-blaze digest parity is `blaze/env/test_mob_snap_parity.py`.
+
 ## 2026-08-22 divergence split: two bridge files
 
 `magma/OPEN_DIVERGENCES.md` is now oracle->magma only, with an audited
