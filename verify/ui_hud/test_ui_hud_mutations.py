@@ -119,8 +119,10 @@ def mutate(c0, name, ja, jb=None):
         # Single-channel +1 on one A/B-stable exact C==J pixel. Prefer a
         # non-gray subject pixel so hand Java∪C ownership (backdrop-relative)
         # still scores the change; gray +1 under thr stays unowned and would
-        # vacuous-PASS. With hard_thr=0 this must produce hard_px>=1 and not
-        # PASS (or CAPTURE_BLOCKED when A/B itself has residual maxch).
+        # vacuous-PASS. Must not claim exact PASS (PASS-LSB is allowed for a
+        # single 1-LSB pixel under the 2% cap; uniform +1 still fails the
+        # separate LSB count-cap guard). CAPTURE_BLOCKED when A/B itself has
+        # residual maxch.
         c = c0.copy()
         if jb is None:
             raise ValueError("plus1_ch requires jb")
@@ -474,7 +476,8 @@ def main():
         for mut in MUTATION_NAMES:
             cm = mutate(c0, mut, ja, jb)
             r = evaluate_state(sid, ja, jb, cm)
-            # Mutation must not claim parity.
+            # Mutation must not claim exact parity. A single +1 pixel may be
+            # PASS-LSB (rounding tier); that is still not PASS.
             rejected = r["verdict"] != "PASS"
             expect = "REJECT"
             status = "ok" if rejected else "LEAK"

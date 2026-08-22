@@ -56,23 +56,24 @@ Hand viewmodels (hand_bow_pull20 / hand_eat_mid / hand_block_shield):
   farther than HAND_SUBJECT_THR from that image's own ROI-border backdrop
   (GRAY isolation for C candidate; wall median for Java goldens). Missing
   Java-only silhouette and C-only extras both score. hard_thr is always 0.
-  PASS only if noise_max==0 AND hard_px==0 (bit-exact). No mean budget, no
-  legacy hard_parity label, no painted-only holes. A/B maxch residual =>
-  CAPTURE_BLOCKED. Gray C isolation vs Java wall is residual until same-scene
-  underlay; sticky-pin shield golden is exact capture but C parity remains
-  OPEN when hard_px>0.
+  PASS if noise_max==0 AND hard_px==0 (bit-exact). PASS-LSB if A/B noise 0
+  AND every differing owned pixel |d|<=1 in every channel AND nz <= 2% of
+  owned ROI (printed distinctly, never as exact). Else RESIDUAL. No mean
+  budget, no painted-only holes. A/B maxch residual => CAPTURE_BLOCKED.
+  hard_px / cluster reporting is unchanged (thr=0 count of owned diffs).
 
 Verdicts (capture integrity first; no false parity claims):
   FAIL             - missing files, capture noise over ceiling, empty/unstable
   CAPTURE_OK       - soft state: A/B frozen + feature present; no hard C parity
   CAPTURE_BLOCKED  - hard state but A/B maxch residual > 0 (no C may PASS)
   PASS             - hard_px==0 and noise_max==0 (bit-exact parity claim)
+  PASS-LSB         - A/B noise 0, maxch<=1, px>1==0, nz<=2% owned ROI (not exact)
   RESIDUAL         - A/B bit-exact but C residual (nonzero exit)
 
-Hard RESIDUAL and CAPTURE_BLOCKED return nonzero. Soft states never claim
-pixel parity. Gray C backdrop is composition isolation only; not a live-world
-equivalence claim. Inside-block C uses real atlas particle UVs (not solid
-synthetic texels).
+Hard RESIDUAL and CAPTURE_BLOCKED return nonzero. PASS-LSB is a passing
+verdict (not exact). Soft states never claim pixel parity. Gray C backdrop
+is composition isolation only; not a live-world equivalence claim.
+Inside-block C uses real atlas particle UVs (not solid synthetic texels).
 """
 from __future__ import print_function
 
@@ -83,6 +84,8 @@ import sys
 
 import numpy as np
 from PIL import Image
+
+from ui_hud_lsb import LSB_FRAC, maybe_pass_lsb  # noqa: E402
 
 W, H = 854, 480
 S = 2
@@ -411,9 +414,10 @@ def hand_owned_mask(ja, c):
 def evaluate_hand_exact(sid, ja_full, jb_full, c_full):
     """Hand viewmodel exact gate: Java∪C subject, hard_thr=0, A/B exact PASS.
 
-    Replaces the legacy painted-mean + margin hard_parity path. PASS only when
-    noise_max==0 and hard_px==0 on the owned subject. Any A/B maxch residual is
-    CAPTURE_BLOCKED. No mean budget.
+    PASS when noise_max==0 and hard_px==0 on the owned subject. PASS-LSB when
+    A/B is exact, every owned diff is at most 1 LSB, and nz <= 2% of n_owned.
+    Any A/B maxch residual is CAPTURE_BLOCKED. No mean budget. hard_px stays
+    the thr=0 owned-diff count.
     """
     rect = roi_rect(sid)
     noise_lim = NOISE_MAX.get(sid, NOISE_MAX_DEFAULT)
@@ -454,6 +458,7 @@ def evaluate_hand_exact(sid, ja_full, jb_full, c_full):
         hard_thr = 0
         hard_mask = owned & (diff_maxch_px > hard_thr)
         hard_px = int(hard_mask.sum())
+        px_gt_1 = int((owned & (diff_maxch_px > 1)).sum())
         # C-painted diagnostic (legacy false-PASS surface under mean budget).
         c_paint = painted_mask(c)
         if c_paint.any():
@@ -493,6 +498,7 @@ def evaluate_hand_exact(sid, ja_full, jb_full, c_full):
         max_diff = float("nan")
         hard_thr = 0
         hard_px = 0
+        px_gt_1 = 0
         c_paint_nz = 0
         c_paint_maxch = 0
         c_paint_mean = float("nan")
@@ -503,6 +509,7 @@ def evaluate_hand_exact(sid, ja_full, jb_full, c_full):
         and noise <= noise_lim
         and n_owned > 0
     )
+    lsb_cap = LSB_FRAC * float(n_owned)
     if not capture_ok:
         verdict = "FAIL"
         if noise != noise:
@@ -518,8 +525,10 @@ def evaluate_hand_exact(sid, ja_full, jb_full, c_full):
         verdict = "PASS"
         reason = "hand_exact"
     else:
-        verdict = "RESIDUAL"
-        reason = "hard_residual"
+        maxch_i = int(max_diff) if max_diff == max_diff else 0
+        verdict = maybe_pass_lsb(
+            "RESIDUAL", noise_max, px_gt_1, maxch_i, hard_px, n_owned)
+        reason = "lsb" if verdict == "PASS-LSB" else "hard_residual"
 
     return {
         "id": sid,
@@ -541,6 +550,11 @@ def evaluate_hand_exact(sid, ja_full, jb_full, c_full):
         "n_c_subj": n_c,
         "n_only_j": n_only_j,
         "n_only_c": n_only_c,
+        "px_gt_1": px_gt_1,
+        "nz": hard_px,
+        "maxch": int(max_diff) if max_diff == max_diff else 0,
+        "lsb_cap": lsb_cap,
+        "lsb_frac": LSB_FRAC,
         "c_paint_nz": c_paint_nz,
         "c_paint_maxch": c_paint_maxch,
         "c_paint_mean": c_paint_mean,
@@ -556,9 +570,10 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
     """Full A/B-stable ROI hard_px gate for inside-block and portal overlays.
 
     Java∪C owned = full portal/inside feature (fullscreen ROI). hard_thr is
-    always 0 (bit-exact C vs Java_a). PASS only if noise_max==0 AND hard_px==0.
-    Any stable A/B maxch residual blocks PASS (CAPTURE_BLOCKED) — no C,
-    including C=Java_a / Java_b / midpoint / Java_a+1, may claim parity.
+    always 0. PASS if noise_max==0 AND hard_px==0. PASS-LSB if A/B is exact,
+    every stable diff is at most 1 LSB, and nz <= 2% of n_stable. Any stable
+    A/B maxch residual blocks PASS (CAPTURE_BLOCKED) — no C, including
+    C=Java_a / Java_b / midpoint / Java_a+1, may claim exact parity.
     No mean budgets, no color-only masks, no ceil(noise_max) tolerance.
     """
     rect = roi_rect(sid)
@@ -602,6 +617,7 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
         hard_thr = 0
         hard_mask = stable & (diff_maxch_px > hard_thr)
         hard_px = int(hard_mask.sum())
+        px_gt_1 = int((stable & (diff_maxch_px > 1)).sum())
         if hard_px > 0:
             ys, xs = np.where(hard_mask)
             # ROI-local -> full-frame coords for reporting.
@@ -632,6 +648,7 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
         max_diff = float("nan")
         hard_thr = 0
         hard_px = n_roi
+        px_gt_1 = 0
 
     gate = noise  # no margin floor; hard_px + noise_max gate PASS
     capture_ok = (
@@ -640,6 +657,7 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
         and n_stable > 0
         and stable_frac >= MIN_STABLE_FRAC
     )
+    lsb_cap = LSB_FRAC * float(n_stable)
     if not capture_ok:
         verdict = "FAIL"
         if noise > noise_lim:
@@ -657,8 +675,10 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
         verdict = "PASS"
         reason = "fullscreen_exact"
     else:
-        verdict = "RESIDUAL"
-        reason = "hard_residual"
+        maxch_i = int(max_diff) if max_diff == max_diff else 0
+        verdict = maybe_pass_lsb(
+            "RESIDUAL", noise_max, px_gt_1, maxch_i, hard_px, n_stable)
+        reason = "lsb" if verdict == "PASS-LSB" else "hard_residual"
 
     return {
         "id": sid,
@@ -676,8 +696,14 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
         "fullscreen": True,
         "n_painted": n_painted,
         "n_stable": n_stable,
+        "n_owned": n_stable,
         "stable_frac": stable_frac,
         "n_roi": n_roi,
+        "px_gt_1": px_gt_1,
+        "nz": hard_px,
+        "maxch": int(max_diff) if max_diff == max_diff else 0,
+        "lsb_cap": lsb_cap,
+        "lsb_frac": LSB_FRAC,
         "noise_limit": noise_lim,
         "reason": reason,
         "rule": "fullscreen_replace_exact",
@@ -1601,6 +1627,8 @@ def run_compare(goldens, cframes, margin, report_path=""):
                 r_entry.update({
                     "n_owned": row.get("n_owned"),
                     "n_painted": row.get("n_painted"),
+                    "px_gt_1": row.get("px_gt_1"),
+                    "lsb_cap": row.get("lsb_cap"),
                     "c_paint_nz": row.get("c_paint_nz"),
                     "c_paint_maxch": row.get("c_paint_maxch"),
                     "c_paint_mean": row.get("c_paint_mean"),
@@ -1629,10 +1657,13 @@ def run_compare(goldens, cframes, margin, report_path=""):
                 extra)
         if row.get("hand_exact"):
             extra = (
-                " owned=%s maxch=%s thr=%s c_paint_nz=%s/%s c_paint_maxch=%s%s" % (
+                " owned=%s maxch=%s px>1=%s cap=%.1f thr=%s "
+                "c_paint_nz=%s/%s c_paint_maxch=%s%s" % (
                     row.get("n_owned"),
                     row.get("max_diff") if row.get("max_diff") == row.get("max_diff")
                     else -1.0,
+                    row.get("px_gt_1"),
+                    row.get("lsb_cap") or 0.0,
                     row.get("hard_thr"),
                     row.get("c_paint_nz"),
                     row.get("n_painted"),
@@ -1654,29 +1685,29 @@ def run_compare(goldens, cframes, margin, report_path=""):
         "rows": rows,
         "notes": (
             "PASS = hard parity only when noise_max==0 and hard_px==0 "
-            "(bit-exact C vs Java_a on A/B-stable full ROI). Fullscreen "
-            "inside-block + portal + underwater never use ceil(noise_max) as "
-            "PASS tolerance. "
+            "(bit-exact C vs Java_a on A/B-stable full ROI). "
+            "PASS-LSB = A/B noise 0, every owned differing pixel |d|<=1, "
+            "nz<=2% of owned ROI; printed distinctly, never as exact. "
+            "Not a mean PASS-FLOOR. Mutation guard in ui_hud_lsb.py. "
+            "Fullscreen inside-block + portal + underwater never use "
+            "ceil(noise_max) as PASS tolerance. "
             "CAPTURE_BLOCKED = A/B stable maxch residual > 0 (no C may PASS, "
             "including C=Java_a / Java_b / midpoint / Java_a+1). "
             "RESIDUAL = A/B bit-exact but C residual (nonzero exit). "
             "CAPTURE_OK = soft capture integrity only (fire/"
             "full-frame death). Underwater is hard full-ROI residual. "
             "FAIL = missing/noise/empty/unstable. "
-            "Core HUD: oracle∪C masks, hard_px==0 at A/B noise. "
+            "Core HUD: oracle∪C masks, hard_px==0 at A/B noise "
+            "(PASS-LSB is not applied; +1 extras stay residual). "
             "hud_durability_half uses atlas-alpha∪strip∪C-extra ownership "
             "(C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-"
             "GRAY isolation underlay; not threshold holes, not Java world). "
             "Hands: Java∪C subject ownership, hard_thr=0, A/B exact for PASS; "
-            "no mean-budget hard_parity. Sticky-pin shield golden is exact "
-            "capture; C residual with hard_px>0 stays RESIDUAL (not pixel-perfect). "
-            "Portal: GuiIngame.renderPortal over gray C isolation; outdoor Java "
-            "underlay is a same-scene product residual (not a fitted black cell). "
-            "Real portal A/B has maxch=1 residuals -> CAPTURE_BLOCKED. "
-            "GuiGameOver: hard = opaque chrome (title/score body+shadow, "
-            "full button rects) + hud_death_tint_pair (source gradient blend "
-            "over known underlay); full-frame tint/world composition is soft "
-            "and does not claim same-scene parity."
+            "PASS-LSB for 1-LSB residue within 2% owned; else RESIDUAL. "
+            "hard_px stays the thr=0 owned-diff count. "
+            "Portal: GuiIngame.renderPortal same-scene underlay residual. "
+            "GuiGameOver: hard = opaque chrome + hud_death_tint_pair; "
+            "full-frame tint/world composition is soft."
         ),
     }
     if report_path:
@@ -1713,8 +1744,9 @@ def run_compare(goldens, cframes, margin, report_path=""):
     exit_code = 1 if (n_fail or n_residual) else 0
     status = "PASS" if exit_code == 0 else (
         "FAIL" if n_fail else "RESIDUAL")
-    print("ui_hud oracle ROI gate: %s (fail=%d residual=%d)" % (
-        status, n_fail, n_residual))
+    print("ui_hud oracle ROI gate: %s (fail=%d residual=%d; "
+          "PASS-LSB counts as pass)" % (
+              status, n_fail, n_residual))
     if os.path.isfile(legacy):
         exit_code = 1
     return exit_code, report

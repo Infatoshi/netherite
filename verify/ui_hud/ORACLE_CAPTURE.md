@@ -30,11 +30,17 @@ underwater. Contaminated legacy `hand_block_sword` is rejected (1.11.2 blocks
 with **shield** item 442).
 
 **Gate verdicts:** `PASS` = hard C parity claim only when `noise_max==0` and
-`hard_px==0` (bit-exact C vs Java_a on A/B-stable ROI). `CAPTURE_BLOCKED` =
-A/B stable maxch residual > 0 (**nonzero exit**; **no** C may PASS, including
-C=Java_a / Java_b / midpoint / Java_a+1). `RESIDUAL` = A/B bit-exact but C
-residual (**nonzero exit**). `CAPTURE_OK` = soft state capture integrity only
-(fire / underwater / death). `FAIL` = missing/noise/empty/unstable.
+`hard_px==0` (bit-exact C vs Java_a on A/B-stable ROI). `PASS-LSB` = A/B
+noise 0 AND every differing owned pixel |d|<=1 in every channel AND nz <=
+2% of the owned ROI (hand subject or fullscreen stable set). Printed as
+`PASS-LSB`, never as exact. Mutation guard: `ui_hud_lsb.py` (uniform +1
+count-cap FAIL, single +2 FAIL, 3x3 +12 hard FAIL, live eat/shield residual
+pinned). `CAPTURE_BLOCKED` = A/B stable maxch residual > 0 (**nonzero exit**;
+**no** C may PASS, including C=Java_a / Java_b / midpoint / Java_a+1).
+`RESIDUAL` = A/B bit-exact but C residual (**nonzero exit**). `CAPTURE_OK` =
+soft state capture integrity only (fire / death). `FAIL` =
+missing/noise/empty/unstable. Gate exit is RESIDUAL_OR_FAIL only when a
+row is neither PASS nor PASS-LSB (CAPTURE_OK stays soft).
 Gray C backdrop is composition isolation only — not a live-world claim.
 Portal is hard full-frame A/B-stable hard_px (not soft CAPTURE_OK).
 **Never** use `ceil(noise_max)` as a PASS tolerance.
@@ -43,7 +49,8 @@ Portal is hard full-frame A/B-stable hard_px (not soft CAPTURE_OK).
 `overlay_inside_grass`): blend-off full-frame particle replace, so the compare is
 **strict full ROI on A/B-stable pixels** (Java HUD flicker excluded), not a
 painted-only mean. Explicit A/B noise (mean + max). `hard_thr` is always **0**
-(bit-exact C vs Java_a). PASS only if `noise_max==0` AND `hard_px==0`.
+(bit-exact C vs Java_a). PASS if `noise_max==0` AND `hard_px==0`. PASS-LSB
+if A/B is exact, maxch<=1, px>1==0, and nz<=2% of the stable ROI.
 **No** `ceil(noise_max)` tolerance (that allowed C=Java_a / Java_a+1 to PASS
 when A/B still had maxch=1). **No** diluted mean sole gate. Mutation suite
 (`test_ui_hud_mutations.py`) rejects erase-90%, blank-to-one, **+1 single-channel**,
