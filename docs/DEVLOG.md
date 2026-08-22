@@ -32,9 +32,11 @@ a>=26 overwrites (RenderDragon.java:66 alphaFunc 0.1). C kept skin.
 Cause (sky/endstone LSB): no new Java cite. Endstone 2-8 LSB across the
 shelf; sky 1-LSB bands. Do not retune fog or pack.
 
-After: numbers unchanged. `test_hand` PASS. Deleted Mach-O
-`magma/tests/test_raster_smoke` and `test_sky_weather` (gitignored).
-shade.c / Metal twin not edited. Fireball/XP / ROI not edited.
+After: numbers unchanged. `bash magma/game/test_hand.sh` PASS. Geom ALL
+PASSED (`out/verify/dragonhand_after.log`). Root `make test` PASS after
+copying the canon tape jsonl from anvil (`out/verify/dragonhand_maketest.log`).
+Deleted Mach-O `magma/tests/test_raster_smoke` and `test_sky_weather`
+(gitignored). shade.c / Metal twin not edited. Fireball/XP / ROI not edited.
 
 Not closed.
 
