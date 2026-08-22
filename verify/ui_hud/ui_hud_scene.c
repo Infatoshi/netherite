@@ -1,4 +1,4 @@
-/* Same-scene underlay for portal / underwater ui_hud goldens.
+/* Same-scene underlay for portal / underwater / first-person hand goldens.
  *
  * Capture geometry (verify/ui_hud/capture_ui_hud_driver.py):
  *   superflat seed 0, CX=CZ=8, PLAT_Y=4
@@ -6,6 +6,8 @@
  *   underwater: glass [6..10]x[5..8]x[6..10], still water [7..9]x[5..7]x[7..9]
  * Pose (8.5, 5.0, 8.5) yaw 0 pitch 0. World time 6000 (noon).
  * fogColor1 pinned from the oracle pair meta (EntityRenderer smoother).
+ * hand_* draws world + selection box only (skip_hand/skip_hud); the candidate
+ * then gm_hand_draw + gm_hud_draw in frame_capture order.
  */
 #include "ui_hud_scene.h"
 
@@ -83,7 +85,8 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
     if (dst->w != SCENE_W || dst->h != SCENE_H) return 0;
     int want_portal = !strcmp(id, "overlay_portal_050");
     int want_uw = !strcmp(id, "overlay_underwater");
-    if (!want_portal && !want_uw) return 0;
+    int want_hand = !strncmp(id, "hand_", 5);
+    if (!want_portal && !want_uw && !want_hand) return 0;
     if (!ensure_runtime()) return 0;
 
     build_pad(&g_rt, want_uw);
@@ -96,8 +99,12 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
     /* Oracle pair meta: pass_a.fogColor1 (EntityRenderer smoother). */
     if (want_portal)
         cr_cfg_set("fog_c1_init", "0.9986948");
-    else
+    else if (want_uw)
         cr_cfg_set("fog_c1_init", "0.6447164");
+    else if (!strcmp(id, "hand_eat_mid"))
+        cr_cfg_set("fog_c1_init", "0.999935");
+    else
+        cr_cfg_set("fog_c1_init", "0.9999515");
 
     int air = want_uw ? 200 : 300;
     float portal = want_portal ? 0.5f : 0.0f;
@@ -132,6 +139,8 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
     frame.camera_view = &pv;
     frame.partial_ticks = 1.0f;
     frame.interactive = 1; /* selection box: RenderGlobal.drawSelectionBox */
+    frame.skip_hand = want_hand;
+    frame.skip_hud = want_hand;
     if (!gm_window_compose_draw(wc, &frame, NULL, err, sizeof err)) {
         fprintf(stderr, "ui_hud_scene: compose draw failed: %s\n", err);
         gm_window_compose_close(wc);

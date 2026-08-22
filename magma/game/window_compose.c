@@ -1072,7 +1072,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
         gm_hand_set_hurt(pv->hurt_time, pv->max_hurt_time, pv->hurt_yaw);
         gm_hand_set_item_override(c->equip_item, c->equip_meta,
                                   c->equip_count);
-        if (!pv->dead && !pv->riding_boat && !cr_cfg()->no_hand)
+        if (!pv->dead && !pv->riding_boat && !cr_cfg()->no_hand &&
+            !frame->skip_hand)
             gm_hand_draw(&c->fb, pv, c->hand_bob);
         if (!pv->dead)
             gm_overlay_block_in_hand_live(&c->fb, &c->atlas, r->world, cpv);
@@ -1086,8 +1087,10 @@ int gm_window_compose_draw(GmWindowCompose *c,
     }
     if (pv->portal > 0.0f)
         gm_overlay_portal_screen(&c->fb, &c->atlas, pv->portal);
-    if (pv->dead) gm_hud_set_pointer(frame->mouse_x, frame->mouse_y);
-    gm_hud_draw(&c->fb, pv);
+    if (!frame->skip_hud) {
+        if (pv->dead) gm_hud_set_pointer(frame->mouse_x, frame->mouse_y);
+        gm_hud_draw(&c->fb, pv);
+    }
     if (frame->screen_open && !pv->dead)
         gm_screen_draw(&c->fb, r, frame->mouse_x, frame->mouse_y);
     stamp(frame, 11);

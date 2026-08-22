@@ -19,6 +19,10 @@ typedef struct {
     int mouse_x;
     int mouse_y;
     GmWindowComposeStampFn stamp;
+    /* World-only underlay (ui_hud hand states): skip viewmodel + HUD so the
+     * caller can compose gm_hand_draw then gm_hud_draw in frame_capture order. */
+    int skip_hand;
+    int skip_hud;
 } GmWindowComposeFrame;
 
 typedef struct {

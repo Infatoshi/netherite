@@ -35,30 +35,27 @@ strict C residuals. Ownership is the Java∪C subject at `HAND_SUBJECT_THR=8`.
 Bow/eat recaptured 2026-08-22 (`lane/handgold`) with sticky USE pose
 (`use_branch=bow|eat`, bow remaining `use_count=71980`, eat remaining 16/32).
 A/B sha256 identical. Idle-tip goldens retired. Shield A/B not recaptured.
-Numerical/compose/live and HUD chrome still PASS; synthetic exact/mutation
-controls still PASS. Do not retune `hand.c` transforms.
+Candidate now stages the capture pad through `ui_hud_scene` (superflat seed 0,
+stone pad+wall, pose 8.5/5/8.5 yaw 0 pitch 0, time 6000) and composes
+world then `gm_hand_draw` then HUD. `n_only_j` 16309/50268/12533 -> 0/41/17
+(wall is no longer Java-only). Do not retune `hand.c` transforms.
+Numerical/compose/live and HUD chrome still PASS; overlay rows byte-stable;
+synthetic exact/mutation controls still PASS.
 
-- Bow pull: `hard_px=20830`, `maxch=100`, `c_vs_j=29.266`, `c_paint_mean=0.256`
-  (was idle-tip 30260 / 125 / 49.279 / 59.43). `n_only_c=0`.
-- Eat mid-use: `hard_px=74218`, `maxch=215`, `c_vs_j=32.764`, `c_paint_mean=1.300`
-  (was idle-tip 101880 / 215 / 53.939 / 51.32). `n_only_c=6`.
-- Blocking shield: `hard_px=28506`, `maxch=100`, `c_vs_j=23.613`,
-  `c_paint_mean=0.744` (unchanged). C-painted vs Java: 764 exact, 15989 nz,
-  `maxch>2` only 6 px. Geometry matches (C subject subset of Java at thr
-  12-20). Mesa packing `(tex*L8+127)/255` and `(tex*L8+128)>>8` were
-  measured against this golden; neither moves the wood-face +1,+1,0 bins
-  (the +1 is in the ubyte primary, not modulate rounding).
+- Bow pull: `hard_px=20745`, `maxch=108`, `c_vs_j=7.007`, `n_only_j=0`
+  (was isolation 20830 / 100 / 29.266 / 16309).
+- Eat mid-use: `hard_px=73440`, `maxch=215`, `c_vs_j=1.317`, `n_only_j=41`
+  (was 74218 / 215 / 32.764 / 50268).
+- Blocking shield: `hard_px=28564`, `maxch=61`, `c_vs_j=0.911`, `n_only_j=17`
+  (was 28506 / 100 / 23.613 / 12533).
 
-C `build_bow_drawn` / `build_eat_drink` / `build_block_use` match
-`ItemRenderer.java` (oracle-src) call-for-call, including
-`f = remaining - partialTicks + 1` at `partialTicks=1` and bow
-`f5 = maxDuration - remaining`. Meta now records `use_branch` /
-`model_pulling` / `use_count`. Remaining owned residual is isolation gray
-vs the stone-wall golden: `HAND_SUBJECT_THR=8` classifies wall texel
-variance as Java subject (`n_only_j` 16309 bow / 50268 eat / 12533
-shield), so `hard_px` stays large even when the painted face is ~1 L8.
-Isolation cannot paint the wall. Painted-face leftover is the same class
-as inventory preview. PASS still requires `hard_px==0`.
+`hard_px==0` is not reached. Eat/shield owned leftover is mostly 1 L8 wall
+texels plus painted-face LSB (same class as inventory preview / portal pad).
+Bow `c_vs_j=7` is occupancy in the lower-right ROI: gray bow metal vs C
+stone, not a missing wall. Stone has no random model rotation
+(`BlockModelShapes` maps `Blocks.STONE` by `VARIANT` only). PASS still
+requires `hard_px==0`. Diff triptychs (gitignored):
+`out/verify/ui_hud/handscene/<id>_tri.png`.
 
 Repro:
 

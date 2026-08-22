@@ -9,6 +9,8 @@
  *   - overlay_portal_050 / overlay_underwater: same-scene superflat pad
  *     through window_compose (world + hand + overlays + HUD). Gray isolation
  *     is not a live outdoor/pool claim.
+ *   - hand_bow_pull20 / hand_eat_mid / hand_block_shield: same pad world
+ *     (skip_hand/skip_hud), then gm_hand_draw + gm_hud_draw over it.
  */
 #include "game/hud.h"
 #include "game/hand.h"
@@ -319,10 +321,15 @@ int main(int argc, char **argv) {
         STATES[i].setup(&pv, &fb);
 
         int want_uw = !strcmp(STATES[i].id, "overlay_underwater");
-        int want_scene = want_uw || !strcmp(STATES[i].id, "overlay_portal_050");
+        int want_portal = !strcmp(STATES[i].id, "overlay_portal_050");
+        int want_hand_state = !strncmp(STATES[i].id, "hand_", 5);
+        int want_scene = want_uw || want_portal || want_hand_state;
+        /* Full window_compose (world+hand+overlays+HUD) for portal/uw.
+         * Hand states: world-only scene, then compose() for use-pose + HUD. */
+        int scene_full = want_uw || want_portal;
         /* Hand/viewmodel for hand_* and fire. Portal/underwater hands come
          * from window_compose (ItemRenderer.renderItemInFirstPerson). */
-        int want_hand = !strncmp(STATES[i].id, "hand_", 5) ||
+        int want_hand = want_hand_state ||
                         !strcmp(STATES[i].id, "overlay_fire");
         float fov = want_uw ? (60.0f) : 70.0f;
         float bright = 1.0f;
@@ -332,7 +339,8 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "scene draw failed: %s\n", STATES[i].id);
                 return 1;
             }
-        } else {
+        }
+        if (!scene_full) {
             compose(&fb, &pv, want_uw, want_hand, bright, fov);
         }
 

@@ -1,5 +1,23 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 hand same-scene wall (lane/handscene)
+
+Hand states were isolation GRAY=40; Java goldens are the capture pad wall.
+`ui_hud_scene` now draws that pad for `hand_*` (world + selection box only);
+candidate `compose()` still paints the use-pose hand and HUD on top.
+Portal/underwater keep full window_compose. Non-hand `oracle_roi_report.json`
+rows are byte-identical. Stone is `cube_all` via `BlockModelShapes` VARIANT
+map; no recapture.
+
+| id | before c_vs_j / hard_px / n_only_j / c_paint_mean | after |
+|----|---------------------------------------------------|-------|
+| hand_bow_pull20 | 29.266 / 20830 / 16309 / 0.256 | 7.007 / 20745 / 0 / 7.245 |
+| hand_eat_mid | 32.764 / 74218 / 50268 / 1.300 | 1.317 / 73440 / 41 / 1.267 |
+| hand_block_shield | 23.613 / 28506 / 12533 / 0.744 | 0.911 / 28564 / 17 / 0.909 |
+
+`n_only_j` ~0 (wall now in C). `hard_px==0` not reached: eat/shield leftover
+is ~1 L8 wall + painted face; bow 7.007 is gray metal vs C stone in the
+lower-right ROI. Mutations PASS. Gate RESIDUAL_OR_FAIL. `make test` PASS.
 ## 2026-08-22 GUI preview PASS-LSB tier (lane/lsbtier)
 
 Owner-approved gate-contract change for `run_gui_verify.sh` only. Preview ROI
