@@ -45,6 +45,13 @@ Portal (overlay_portal_050) — GuiIngame.renderPortal, not ItemRenderer:
   verdict is CAPTURE_BLOCKED (never PASS under any C, including C=Java_a,
   Java_b, midpoint, or Java_a+1). Synthetic bit-exact A=B controls may PASS.
 
+overlay_fire — ItemRenderer.renderFireInFirstPerson (java:566-606):
+  Two fire_layer_1 quads over the same-scene outdoor pad. Sticky hud_pin
+  fire_frame=0 force-uploads physical strip row 0 (TextureMap.java:205)
+  for every animated blocks-atlas sprite; MixinPinTextureAnimations only
+  cancels updateAnimation. Full-frame hard_px on A/B-stable pixels (same
+  exact bar as portal). A/B recapture 2026-08-22 is byte-identical.
+
 GuiGameOver (hud_death*):
   - Opaque chrome is hard: full button rectangles; title/score body+shadow
     via oracle-derived complete feature masks (Java+C union).
@@ -65,6 +72,7 @@ Hand viewmodels (hand_bow_pull20 / hand_eat_mid / hand_block_shield):
 Verdicts (capture integrity first; no false parity claims):
   FAIL             - missing files, capture noise over ceiling, empty/unstable
   CAPTURE_OK       - soft state: A/B frozen + feature present; no hard C parity
+                     (full-frame death only; fire is fullscreen hard_px)
   CAPTURE_BLOCKED  - hard state but A/B maxch residual > 0 (no C may PASS)
   PASS             - hard_px==0 and noise_max==0 (bit-exact parity claim)
   PASS-LSB         - A/B noise 0, maxch<=1, px>1==0, nz<=2% owned ROI (not exact)
@@ -108,9 +116,6 @@ NOISE_MAX = {
     "hand_bow_pull20": 3.0,
     # Portal: sticky portal_phase + pin_texture_animations must freeze A/B.
     "overlay_portal_050": 3.0,
-    # overlay_fire: keep 35.0 only until recapture A/B noise <= 2.0, then
-    # drop this loophole (capture_ui_hud_driver.py matches).
-    "overlay_fire": 35.0,
     "hud_death": 5.0,
     "overlay_inside_stone": 3.0,
     "overlay_inside_grass": 3.0,
@@ -134,11 +139,13 @@ CORE_HARD = {
 # inside-*: ItemRenderer.renderBlockInHand blend-off replace.
 # underwater: renderWaterOverlayTexture same-scene residual (exact bar).
 # portal: GuiIngame.renderPortal full-frame translucent (Java∪C = full feature).
+# fire: ItemRenderer.renderFireInFirstPerson two quads over same-scene pad.
 FULLSCREEN_REPLACE = {
     "overlay_inside_stone",
     "overlay_inside_grass",
     "overlay_underwater",
     "overlay_portal_050",
+    "overlay_fire",
 }
 
 # Hand viewmodel hard states: Java∪C subject, hard_thr=0, A/B exact for PASS.
@@ -230,13 +237,15 @@ def roi_rect(name):
 
 
 # Hard gate: core HUD, hands, inside-block, underwater full-ROI, portal swirl,
-# and opaque GuiGameOver chrome. Full-frame death tint and fire stay soft.
+# fire overlay, and opaque GuiGameOver chrome. Full-frame death tint stays soft.
 HARD = set(CORE_HARD) | set(HAND_HARD) | {
     "overlay_inside_stone",
     "overlay_inside_grass",
     "overlay_underwater",
     # GuiIngame.renderPortal: full-frame A/B-stable hard_px (no soft CAPTURE_OK).
     "overlay_portal_050",
+    # ItemRenderer.renderFireInFirstPerson: same-scene A/B-stable hard_px.
+    "overlay_fire",
     "hud_death_title",
     "hud_death_score",
     "hud_death_btn_respawn",
@@ -569,7 +578,7 @@ def evaluate_hand_exact(sid, ja_full, jb_full, c_full):
 
 
 def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
-    """Full A/B-stable ROI hard_px gate for inside-block and portal overlays.
+    """Full A/B-stable ROI hard_px gate for inside-block, portal, and fire.
 
     Java∪C owned = full portal/inside feature (fullscreen ROI). hard_thr is
     always 0. PASS if noise_max==0 AND hard_px==0. PASS-LSB if A/B is exact,
@@ -1691,12 +1700,12 @@ def run_compare(goldens, cframes, margin, report_path=""):
             "PASS-LSB = A/B noise 0, every owned differing pixel |d|<=1, "
             "nz<=2% of owned ROI; printed distinctly, never as exact. "
             "Not a mean PASS-FLOOR. Mutation guard in ui_hud_lsb.py. "
-            "Fullscreen inside-block + portal + underwater never use "
+            "Fullscreen inside-block + portal + fire + underwater never use "
             "ceil(noise_max) as PASS tolerance. "
             "CAPTURE_BLOCKED = A/B stable maxch residual > 0 (no C may PASS, "
             "including C=Java_a / Java_b / midpoint / Java_a+1). "
             "RESIDUAL = A/B bit-exact but C residual (nonzero exit). "
-            "CAPTURE_OK = soft capture integrity only (fire/"
+            "CAPTURE_OK = soft capture integrity only ("
             "full-frame death). Underwater is hard full-ROI residual. "
             "FAIL = missing/noise/empty/unstable. "
             "Core HUD: oracle∪C masks, hard_px==0 at A/B noise "

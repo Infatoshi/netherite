@@ -2,7 +2,7 @@
 """Adversarial mutation regressions for fullscreen hard_px + hand exact gates.
 
 Honest C frames for overlay_inside_stone / overlay_inside_grass /
-overlay_underwater / overlay_portal_050 are evaluated under the fullscreen
+overlay_underwater / overlay_portal_050 / overlay_fire are evaluated under the fullscreen
 exact gate (hard_thr always 0; PASS only if noise_max==0 AND hard_px==0).
 Honest may be PASS (bit-exact), RESIDUAL (C residual with bit-exact A/B), or
 CAPTURE_BLOCKED (A/B maxch residual > 0 — no C may PASS). Capture FAIL fails
@@ -30,7 +30,7 @@ Explicit non-vacuous controls (always run):
       if A/B exact: C=Java_a/b/mid PASS; C=Java_a+1 must not PASS
   hand_synth_exact_pass + hand mutations from that control
 
-Fire stays soft (not exercised here). Underwater is hard full-ROI honest residual (~4.97/ch) — mutations must not claim PASS.
+Fire overlay is hard full-ROI (sticky fire_frame=0 A/B-exact pair). Underwater is hard full-ROI honest residual (~4.97/ch) — mutations must not claim PASS.
 """
 from __future__ import print_function
 

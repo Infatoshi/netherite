@@ -57,15 +57,12 @@ NOISE_MAX = {
     "hud_hurt_flash_on": 3.0,
     "hud_hurt_flash_off": 3.0,
     "hand_bow_pull20": 3.0,
-    # Portal / fire atlas frames still race under pin_texture_animations on
+    # Portal atlas frames still race under pin_texture_animations on
     # llvmpipe. Presence checks enforce the feature; these ceilings reject
     # fully-unfrozen scenes (>>40) without the old 40 loophole.
     # Sticky portal_phase + pin_texture_animations must freeze A/B warp/tile.
+    # overlay_fire uses the default 2.0 ceiling (sticky fire_frame=0).
     "overlay_portal_050": 3.0,
-    # overlay_fire: sticky fire_frame + pin_texture_animations must freeze
-    # A/B. Keep 35.0 only until a recapture reports A/B noise <= 2.0; then
-    # drop this loophole (compare_ui_hud_oracle.py matches).
-    "overlay_fire": 35.0,
     "hud_death": 5.0,  # GuiGameOver text can subpixel-shift slightly
     "overlay_inside_stone": 3.0,
     "overlay_inside_grass": 3.0,
