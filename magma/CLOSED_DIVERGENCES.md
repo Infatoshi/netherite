@@ -5,6 +5,33 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Bow viewmodel silhouette as mesh/transform: retracted 2026-08-22
+
+Filed as gray bow metal vs C stone (~1977 ROI px, `c_vs_j=7.007`,
+`maxch=108`) after the same-scene wall (`lane/handscene`). Suspects
+were pull-stage model, first-person transform chain, and
+`magma/game/hand.c` `build_bow_drawn`.
+
+None of those. C bakes `bow_pulling_2` (ItemBow pull>=0.9,
+ItemOverrideList reverse match, `hand.c:802` sprite 9002).
+`build_bow_drawn` matches `ItemRenderer.renderItemInFirstPerson` BOW
+branch (ItemRenderer.java:402-427) then generated
+`firstperson_righthand`. Hand FOV stays 70
+(`getFOVModifier(pt, false)`, EntityRenderer.java:804). Wood-class
+pixels: J-only 60, C-only 32, both 632; J-wood vs C-stone = 8.
+
+The occupancy is the pad wall under world FOV. Eat/shield stone_min
+x=77 on both sides. Bow Java stone_min=20 vs C unzoomed 77.
+J-stone/C-grass 13363 full / 1961 ROI. Live 20-tick draw is
+`fov_mult=0.85` (AbstractClientPlayer.java:156-170) eased 0.5/tick
+(EntityRenderer.java:491-502); `player_ctl.c` already does that.
+Pinning 0.85 on `ui_hud_scene` over-zooms this golden (C stone_min=0,
+`c_vs_j=5.836`, `maxch=97`). Implied Java fov_mult from the wall edge
+is 0.887 (two ease ticks). Capture meta has no `fovModifierHand`.
+Do not fit 0.887. Recapture is anvil-only.
+
+Occupancy leftover lives in OPEN class C. Do not retune `hand.c`.
+
 ### Canonical t=260 "texel-selection" unexplained clusters: retracted 2026-08-21
 
 The 7291-px t=260 / 6252-px t=460 clusters on

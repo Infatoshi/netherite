@@ -331,6 +331,9 @@ int main(int argc, char **argv) {
          * from window_compose (ItemRenderer.renderItemInFirstPerson). */
         int want_hand = want_hand_state ||
                         !strcmp(STATES[i].id, "overlay_fire");
+        /* renderHand gluPerspective(getFOVModifier(pt, false)): base 70,
+         * water 60/70. Bow world zoom is fovModifierHand on the scene
+         * underlay only, not on this hand pass. */
         float fov = want_uw ? (60.0f) : 70.0f;
         float bright = 1.0f;
 

@@ -124,8 +124,9 @@ typedef struct {
     int   portal_frame;         /* physical portal TextureAtlasSprite frame */
     int   portal_phase;         /* EntityRenderer.rendererUpdateCount */
     int   loading;              /* 1=GuiDownloadTerrain, 2=post-close blank frame */
-    float fov_mult;             /* EntityRenderer.fovModifierHand (sprint FOV ease;
-                                 * 0 from zeroed legacy callers = treat as 1.0) */
+    float fov_mult;             /* EntityRenderer.fovModifierHand (sprint / bow-draw
+                                 * world FOV ease; 0 from zeroed callers = 1.0).
+                                 * Hand projection does not use this. */
     int   bow_pull;             /* ticks the bow has been drawn; <=0 = idle
                                  * (drawn-bow viewmodel + pulling sprite) */
     int   hotbar_meta[9];       /* item damage / block metadata          */

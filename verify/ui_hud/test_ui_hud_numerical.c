@@ -359,6 +359,24 @@ int main(void) {
         CHECK(n > 12 + 24, "sword has opaque-edge rim quads");
     }
 
+    /* ---- AbstractClientPlayer.getFovModifier bow zoom (world only) ---- */
+    {
+        /* java/oracle-src/.../AbstractClientPlayer.java:156-170 at 20 ticks. */
+        float f1 = 20.0f / 20.0f;
+        f1 = f1 > 1.0f ? 1.0f : f1 * f1;
+        float m = 1.0f - f1 * 0.15f;
+        CHECK(m == 0.85f, "full-draw bow world fov_mult is 0.85");
+        f1 = 0.0f / 20.0f;
+        f1 = f1 > 1.0f ? 1.0f : f1 * f1;
+        m = 1.0f - f1 * 0.15f;
+        CHECK(m == 1.0f, "idle bow world fov_mult is 1.0");
+        f1 = 10.0f / 20.0f;
+        f1 = f1 > 1.0f ? 1.0f : f1 * f1;
+        m = 1.0f - f1 * 0.15f;
+        CHECK(fabsf(m - (1.0f - 0.25f * 0.15f)) < 1e-6f,
+              "mid-draw bow world fov_mult squares pull/20");
+    }
+
     /* ---- Bow pull stages move verts and change sprite path ---- */
     {
         static CrVertex a[6156], b[6156];

@@ -132,6 +132,12 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
     memset(&pv, 0, sizeof pv);
     gm_runtime_view(&g_rt, &pv);
     gm_runtime_apply_tape_view(&g_rt, &pv);
+    /* Do not set fov_mult for hand_bow_pull20. Live 20-tick draw is 0.85
+     * (AbstractClientPlayer.java:156-170) eased 0.5/tick in player_ctl.c
+     * (EntityRenderer.java:491-502). This golden's pad wall is mid-ease
+     * and fovModifierHand is unrecorded; pinning 0.85 over-zooms C
+     * (stone_min 0 vs Java 20). Do not fit 0.887. Recapture on anvil.
+     * Hand projection stays 70 (EntityRenderer.java:804). */
 
     GmWindowComposeFrame frame;
     memset(&frame, 0, sizeof frame);
