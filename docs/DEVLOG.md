@@ -1,5 +1,43 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 portal world RSR (lane/portaledge)
+
+Item A2 overlay_portal_050 on gamer. Baseline matched the file:
+noise=0 C-vs-J=1.466 hard_px=363304 maxch=144 RESIDUAL; underwater
+26.763 / 390096 / 112; mutations PASS; LSB guard PASS.
+`~/nlanes/portaledge/out/verify/portaledge_baseline_roi.log`.
+
+Java: ItemRenderer.renderOverlays (ItemRenderer.java:450-498) is
+block/water/fire only. Portal HUD is GuiIngame.renderPortal
+(GuiIngame.java:1112-1143) via GuiIngameForge.java:135-138,305-314:
+ease t<1 -> t^4*0.8+0.2, atlas sprite, SRC_ALPHA, color alpha=ease,
+MAG GL_NEAREST (AbstractTexture.java:30-35, 9728). World warp is
+EntityRenderer.setupCameraTransform (java:746-761):
+f2=5/(t^2+5)-t*0.04 then squared, R(+(count+pt)*20, 0,1,1) S(1/f2,1,1)
+R(-). renderHand (java:791-804) reloads gluPerspective without RSR;
+renderOverlays after the hand (java:833-836).
+
+Cause of leftover 144 maxch: 2D inverse-map of the colour buffer is a
+homography exact at one depth. Sky/wall occupancy at the silhouette
+diverged from the 3D raster. LINEAR sprite-edge was rejected (MAG is
+NEAREST; high maxch sat at x=817-822, not a 16x16 grid).
+
+Port: CrCamera.portal_time / portal_spin_deg into cr_camera_view RSR.
+Remove gm_overlay_portal_warp from window_compose / frame_capture.
+Hand camera stays {0}. Sky inverts the non-orthonormal 3x3 when
+portal_time>0. Overlay sample stays integer NEAREST on the portal
+sprite rect. Unit: magma/game/test_overlay.c (ease 0.5->0.25, RSR
+changes view, NEAREST+tex.a).
+
+After (gamer `out/verify/portaledge_after.log`): overlay_portal_050
+0.972 / 363609 / 115 RESIDUAL. Underwater 26.763 / 390096 / 112
+unchanged. HUD / inside / hand rows byte-stable. Mutations PASS. LSB
+guard PASS. Root `make test` PASS
+(`out/verify/portaledge_maketest.log`). pxdiff --a/--b: one 129px
+cluster (235-238, 818-853) registration. Interior 1-2 LSB is wall pack
+showing through (1-a), not overlay formula. PASS-LSB blocked by
+~99898 px at maxch=2. Item stays OPEN.
+
 ## 2026-08-22 fluids M2 (lane/fluidsm2)
 
 Blaze-CPU vs blaze-CUDA bitwise on `s10_t0_r64_fluid_spread.bsnp` +

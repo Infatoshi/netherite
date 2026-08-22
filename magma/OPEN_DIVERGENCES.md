@@ -33,7 +33,8 @@ recorder or re-recording; D-class by improving gates, not the product.
 1. Underwater overlay: magma water/glass/fog underlay too blue (26.76/ch);
    close path is raster fidelity, likely kernel twins. "Portal and
    underwater".
-2. Portal overlay edges/hand residual (1.47/ch after same-scene underlay).
+2. Portal overlay: world RSR ported (0.972/ch); interior 1-2 LSB pack +
+   129px right-horizon occupancy. Not PASS-LSB.
 3. Slime rim brightness: source-closed to the raster twins (two-machine
    flow); inset-constant levers exhausted. Slime triage entry.
 4. Rain splash/fall particles. Sky/fog rain+thunder mix is in (lane/rainsky).
@@ -256,16 +257,25 @@ superseded. PNGs: `verify/ui_hud/goldens/overlay_{portal_050,underwater}_{a,b}.p
 (a sha256==b). Meta records `noise_max=0`.
 
 C-vs-J is still OPEN against this exact pair. Same-scene underlay is wired
-(window_compose on the capture pad; warp WORLD-only before renderHand).
-PASS still requires `hard_px==0`. Do not revive a noisier pair.
+(window_compose on the capture pad). WORLD portal is
+EntityRenderer.setupCameraTransform RSR on `cr_camera_view`
+(java:746-761); renderHand stays unwarped (java:791-804). Do not
+inverse-map the colour buffer. Overlay stretch is GuiIngame.renderPortal
+NEAREST + tex.a*ease (GuiIngame.java:1112-1143,
+AbstractTexture.java:30-35). PASS still requires `hard_px==0` or guarded
+PASS-LSB. Do not revive a noisier pair.
 
-Measured 2026-08-22 (`lane/portalpix`), full A/B-stable ROI, `hard_thr=0`:
+Measured 2026-08-22 (`lane/portaledge` on gamer), full A/B-stable ROI,
+`hard_thr=0`, after world RSR:
 
 | id | c_vs_j | hard_px | maxch | note |
 |----|--------|---------|-------|------|
-| overlay_portal_050 | 1.465 | 363305 | 144 | was 47.191 / 391116 / 181 gray isolation. Interior ~1 LSB; leftover edges/hand. |
-| overlay_underwater | 26.763 | 390096 | 112 | was 6.083 / 388620 / 55 fitted constant (74,75,79). Overlay formula matches ItemRenderer; Magma water/glass/fog underlay is too blue vs Java. |
+| overlay_portal_050 | 0.972 | 363609 | 115 | was 1.466 / 363304 / 144 (2D fb warp). Interior maxch=1..2 (260041 eq1 + 99898 eq2) is wall BYTE-pack showing through (1-a)~0.81, same family as hand_eat C=112 vs J=114. Overlay MAG is NEAREST. Remaining occupancy: one 129px cluster at (y 235-238, x 818-853) right horizon, pxdiff cause=registration best_shift (-1,-2). Hand under overlay maxch=39 in (569,320,846,432). |
+| overlay_underwater | 26.763 | 390096 | 112 | byte-stable vs this lane. Overlay formula matches ItemRenderer; Magma water/glass/fog underlay is too blue vs Java. |
 
+PASS-LSB needs nz<=2% of ROI (~8087) and every pixel <=1/ch. Interior 2 LSB
+alone is 99898 px. Do not fit overlay alpha. Close path for portal mean
+is the wall pack / hand BYTE family, then the 129px horizon occupancy.
 Underwater close path is terrain/water raster fidelity (possibly kernel
 twins), not overlay alpha or brightness constants.
 

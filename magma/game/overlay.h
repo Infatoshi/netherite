@@ -49,9 +49,8 @@ float gm_overlay_portal_ease(float time_in_portal);
  * blur=false -> GL_NEAREST=9728). Vertex colour alpha = ease(time). */
 void gm_overlay_portal_screen(CrFramebuffer *fb, const CrTexture *atlas,
                               float time_in_portal);
-/* EntityRenderer.setupCameraTransform portal projection (WORLD pass only;
- * renderHand reloads the matrix). Oracle records rendererUpdateCount;
- * tick-boundary frames use partialTicks=1. */
+/* Inverse-map leftover. Live WORLD warp is cr_camera_view RSR
+ * (EntityRenderer.java:746-761). Do not call this on the colour buffer. */
 void gm_overlay_portal_warp(CrFramebuffer *fb, CrRgba *scratch,
                             float time_in_portal, int renderer_phase,
                             float fov_deg);
