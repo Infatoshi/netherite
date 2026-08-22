@@ -1,5 +1,50 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 dragon death two-pass + capture hand (lane/dragonpass)
+
+A6 dragon_death_50/100/190 after lane/dragondeath. Gamer baseline
+`out/verify/dragonpass_baseline_gate_report.json` (HEAD before this
+lane's hand pin; matches dragondeath after4): hard_px
+83757/82429/83305, c_vs_j 2.919/2.927/2.912, ab_nz=0 RESIDUAL. Other
+13 rows as entityscene.
+
+Cause 1 (af78532): `RenderDragon.renderModel` two-pass
+(RenderDragon.java:57-71). Pass 1 `alphaFunc(GL_GREATER, deathTicks/200)`
+on `dragon_exploding.png` writes RGB+depth; pass 2 `alphaFunc 0.1` +
+`depthFunc EQUAL` binds the skin. `cr_shade` (Metal twin too) keeps
+exploding RGB where skin a<=25. Death rays `depth_lequal` after
+LayerEnderDragonEyes.java:43. Dragon-only candidate
+`strip_overlays=0`/`no_hand=0` (capture_ui_entities.sh hide_gui false,
+goldens/meta frame_a.hud=1) and `place_dragon_platform` end_stone
+(driver.py:381-399). Geom tests cover both alphaFunc refs. After
+two-pass: hard_px unchanged 83757/82429/83305, c_vs_j 2.877/2.886/2.871
+(`magma_ui_entities_c_353138`).
+
+Cause 2: first-person dirt cube. Capture goldens draw
+`ItemRenderer.renderItemInFirstPerson` with Blocks.DIRT (id 3).
+`updateEquippedItem` (ItemRenderer.java:608-630) idles
+`equippedProgressMainHand` at cooldown^3=1 after driver settle();
+f5=1-progress (:340) so idle is 0. calloc capture started at progress
+0 (`resetEquippedProgress` :643) and dropped the cube. Dragon-only:
+`gm_runtime_set_inventory` dirt + `gm_frame_capture_equip_idle`.
+test_hand dirt idle vs dropped Y.
+
+After (`out/verify/dragonpass_after_hand.log`,
+`magma_ui_entities_c_afterhand/gate_report.json`):
+dragon_death_50/100/190 hard_px 84995/83667/84543
+c_vs_j 2.157/2.165/2.150 ab_nz=0 RESIDUAL. Mean down; hard_px +1238
+from C cube occupancy vs Java sky (pose still more top-down). Other
+13 rows byte-stable vs baseline. Geom ALL PASSED. Root `make test`
+PASS (`dragonpass_maketest.log`). cpu==cuda xbackend ALL PASS
+(`dragonpass_cuda2.log`, CUDA_VISIBLE_DEVICES=0). Metal twin not
+runnable on gamer; `_helpers` metal hash drifted by af78532
+(628bad4c -> c3ccbf5e). Do not `kernel_pairs.py --update` until
+cpu==metal on the Mac.
+
+Not closed. Remaining: 1-px two-pass hole (x=482,y=22) J white vs C
+15; viewmodel first-person pose/lighting; 1-LSB sky dominates
+complete-ROI hard_px. Do not edit ROI. Fireball/XP untouched.
+
 ## 2026-08-22 dragon death pose/dissolve lighting (lane/dragondeath)
 
 A6 dragon_death_50/100/190. Gamer baseline

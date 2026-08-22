@@ -584,6 +584,24 @@ static int emit_frame(GmFrameCapture *c, const CrFramebuffer *fb, int tick) {
     return len>=0&&len<(int)sizeof path&&write_ppm(path,fb,c->ppm_buf);
 }
 
+void gm_frame_capture_equip_idle(GmFrameCapture *c, const GmRuntime *r)
+{
+    int sel;
+    const IsrInv *inv;
+    ICStack held;
+    if (!c || !r) return;
+    sel = r->player.inv.current_item;
+    if (sel < 0) sel = 0;
+    if (sel > 8) sel = 8;
+    inv = r->tape_inv_active ? &r->tape_inv : &r->player.inv;
+    held = isr_get_stack(inv, sel);
+    c->equip_progress = 1.0f;
+    c->equip_item = held.item;
+    c->equip_meta = held.meta;
+    c->equip_count = held.count;
+    c->equip_slot = sel;
+}
+
 GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_cap) {
     if(!cfg||!cfg->frames_out_dir){set_error(err,err_cap,"invalid frame capture config");return NULL;}
     size_t fol=strlen(cfg->frames_out_dir);

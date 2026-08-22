@@ -283,6 +283,12 @@ int main(int argc, char **argv) {
             fprintf(stderr, "gm_hud_init failed\n");
             free(meta); gm_runtime_destroy(&rt); return 1;
         }
+        /* Capture goldens (hide_gui false, frame_a.hud=1) draw the first-person
+         * dirt block: ItemRenderer.renderItemInFirstPerson with
+         * itemStackMainHand = Blocks.DIRT (id 3). Superflat layers y=1-2 are
+         * dirt (FlatGeneratorInfo.java:327-336). isr_init after
+         * psv_player_init empties magma's bar. */
+        gm_runtime_set_inventory(&rt, 0, 3, 1, 0);
     } else {
         cr_cfg_set("strip_overlays", "1");
         cr_cfg_set("no_hand", "1");
@@ -295,6 +301,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "frame_capture_open: %s\n", err);
         free(meta); gm_runtime_destroy(&rt); return 1;
     }
+    if (is_dragon_death)
+        gm_frame_capture_equip_idle(fc, &rt);
     GmAction act;
     memset(&act, 0, sizeof act);
     /* Re-inject ghosts immediately before write (no tick clears them). */

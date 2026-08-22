@@ -134,6 +134,17 @@ int main(void) {
         CHECK(minx > 0.0f, "dirt rest x > 0 (right hand)");
     }
 
+    /* ---- (D2) dirt idle vs dropped (ItemRenderer.java:340,608-630) ---- */
+    {
+        int n0 = gm_hand_emit_held(3, 0, 0.0f, 0.0f, out, TEST_MAX);
+        int n1 = gm_hand_emit_held(3, 0, 0.0f, 1.0f, out2, TEST_MAX);
+        CHECK(n0 == 36 && n0 == n1, "dirt idle/dropped keep 36 verts");
+        float y0 = 0.0f, y1 = 0.0f;
+        for (int i = 0; i < n0; ++i) { y0 += out[i].pos.y; y1 += out2[i].pos.y; }
+        y0 /= (float)n0; y1 /= (float)n1;
+        CHECK(y1 < y0 - 0.2f, "equip=1 lowers dirt (ItemRenderer.java:340 f5)");
+    }
+
     /* ---- (E) cap ---- */
     {
         CrVertex canary;
