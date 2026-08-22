@@ -728,15 +728,44 @@ int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) 
     return written;
 }
 
+/* RenderHelper.enableStandardItemLighting (RenderHelper.java:30-48):
+ * LIGHT0 = Vec3d(0.20000000298023224, 1.0, -0.699999988079071).normalize()
+ * (line 13), LIGHT1 x/z mirror (line 14), diffuse 0.6 (38-39, 43), light-model
+ * ambient 0.4 (47-48), colorMaterial AMBIENT_AND_DIFFUSE (36). GL 2.1 clamps
+ * the primary colour*factor per channel, not the factor. entity_render.c
+ * er_shade_item clamps the factor first; this path uses the Java order. */
+float gm_fireball_item_shade(float nx, float ny, float nz) {
+    float n = sqrtf(nx * nx + ny * ny + nz * nz);
+    if (n <= 0.0f) return 1.0f;
+    nx /= n; ny /= n; nz /= n;
+    const double lx = 0.20000000298023224, ly = 1.0, lz = -0.699999988079071;
+    const double inv = 1.0 / sqrt(lx * lx + ly * ly + lz * lz);
+    float l0x = (float)(lx * inv), l0y = (float)(ly * inv), l0z = (float)(lz * inv);
+    float d0 = nx * l0x + ny * l0y + nz * l0z;
+    float d1 = nx * (-l0x) + ny * l0y + nz * (-l0z);
+    if (d0 < 0.0f) d0 = 0.0f;
+    if (d1 < 0.0f) d1 = 0.0f;
+    return 0.4f + 0.6f * d0 + 0.6f * d1;
+}
+
 /* RenderFireball / RenderDragonFireball: exact direct camera-facing quads from
  * their 1.11.2 doRender methods. Both use
- *   T(pos) S(scale) Ry(180-playerViewY) Rx(-playerViewX)
- * and vertices (-.5,-.25,0), (.5,-.25,0), (.5,.75,0), (-.5,.75,0).
- * EntitySmallFireball is registered by RenderManager at scale 0.5 and samples
- * Items.FIRE_CHARGE's particle icon (textures/items/fireball.png). The dragon
- * fireball uses scale 2.0 and textures/entity/enderdragon/dragon_fireball.png.
- * Both EntityFireball subclasses return packed brightness 0x00f000f0, so this
- * item-atlas pass deliberately leaves the vertices full-bright. */
+ *   T(pos) enableRescaleNormal S(scale) Ry(180-playerViewY) Rx(-playerViewX)
+ * (RenderFireball.java:32-48, RenderDragonFireball.java:27-38) and vertices
+ * (-.5,-.25,0), (.5,-.25,0), (.5,.75,0), (-.5,.75,0) with normal (0,1,0)
+ * (RenderFireball.java:56-60). EntitySmallFireball is registered at scale 0.5
+ * (RenderManager.java:208) and samples Items.FIRE_CHARGE's particle icon
+ * (RenderFireball.java:37). Dragon fireball uses scale 2.0 (RenderDragonFireball.java:31).
+ * POSITION_TEX_NORMAL has no colour (DefaultVertexFormats.java:58-61);
+ * RenderManager sets glColor(1,1,1) (RenderManager.java:372). Lighting is
+ * enabled for the entity pass (EntityRenderer.java:1390). enableRescaleNormal
+ * (RenderFireball.java:35) undoes uniform S so the (0,1,0) normal stays unit.
+ * getBrightnessForRender returns 15728880 (EntityFireball.java:272-274) =
+ * sky 15 / block 15; RenderManager writes those as lightmap coords
+ * (RenderManager.java:362-371). DynamicTexture stores (int)(c*255)
+ * (lightmap.h cr_lightmap_rgba8). GL multiplies the clamped primary by that
+ * texel; this path folds the same 15/15 noon overworld sample into tint so
+ * the item-atlas pass can keep scalar light=1 (no lightmap bound). */
 static int emit_fireball_billboard(const GmEntityView *ent, float view_yaw,
                                    float view_pitch, CrVertex *out) {
     const float aw = (float)CR_ITEM_ATLAS_W, ah = (float)CR_ITEM_ATLAS_H;
@@ -753,6 +782,29 @@ static int emit_fireball_billboard(const GmEntityView *ent, float view_yaw,
         {  0.5f,  0.75f, 1.0f, 0.0f },
         { -0.5f,  0.75f, 0.0f, 0.0f },
     };
+    /* Model-space normal (0,1,0): same Rx then Ry as the quad. Uniform
+     * scale drops out after GL_RESCALE_NORMAL (32826). */
+    float nx = 0.0f, ny = 1.0f, nz = 0.0f;
+    {
+        float ty = ny * cp - nz * sp, tz = ny * sp + nz * cp;
+        ny = ty; nz = tz;
+        float tx = nx * cy + nz * sy;
+        tz = -nx * sy + nz * cy;
+        nx = tx; nz = tz;
+    }
+    float shade = gm_fireball_item_shade(nx, ny, nz);
+    if (shade < 0.0f) shade = 0.0f;
+    if (shade > 1.0f) shade = 1.0f; /* GL primary clamp of white*factor */
+    /* EntityFireball.getBrightnessForRender 15728880 -> (15,15). */
+    CrLightmapRgb L = cr_lightmap_rgb(0, 15, 15, 1.0f, 0.0f, 0.0f);
+    CrRgba lm8 = cr_lightmap_rgba8(L);
+    int tr = (int)(shade * (float)lm8.r + 0.5f);
+    int tg = (int)(shade * (float)lm8.g + 0.5f);
+    int tb = (int)(shade * (float)lm8.b + 0.5f);
+    if (tr < 0) tr = 0; else if (tr > 255) tr = 255;
+    if (tg < 0) tg = 0; else if (tg > 255) tg = 255;
+    if (tb < 0) tb = 0; else if (tb > 255) tb = 255;
+    CrRgba tint = { (u8)tr, (u8)tg, (u8)tb, 255 };
     CrVertex quad[4];
     for (int c = 0; c < 4; ++c) {
         float px = CORN[c][0], py = CORN[c][1], pz = 0.0f;
@@ -770,7 +822,7 @@ static int emit_fireball_billboard(const GmEntityView *ent, float view_yaw,
         vtx.uv.y = ((float)s->y0 + CORN[c][3] * 16.0f) / ah;
         vtx.light = 1.0f;
         vtx.blk = 15.0f;
-        vtx.tint = (CrRgba){ 255, 255, 255, 255 };
+        vtx.tint = tint;
         vtx.ao = 1.0f;
         quad[c] = vtx;
     }

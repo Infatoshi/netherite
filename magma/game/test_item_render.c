@@ -12,7 +12,7 @@
  *     overruns `out` (canary vertex intact); non-item entity types skipped.
  * (E) FALLBACK: an unknown item id still resolves to a valid sprite index.
  * (F) FIREBALLS: exact RenderFireball / RenderDragonFireball scale, offset,
- *     full-bright state, atlas sprites, and renderEntityOnFire UV order.
+ *     item lighting + 15/15 lightmap tint, atlas sprites, on-fire UV order.
  * (G) GUI ISO: dirt/cobble/crafting-table block icons draw into a 16x16 slot
  *     (non-empty pixels); a stick id does not claim the block-icon path.
  *
@@ -24,6 +24,7 @@
 #include "assets/atlas_gen.h"
 #include "assets/blockmodels.h"
 #include "assets/item_atlas.h"
+#include "world/lightmap.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -252,6 +253,12 @@ int main(void) {
     {
         GmEntityView small = mk_item(385, 0, 0);
         small.type = GM_VIEW_BILLBOARD;
+        CrRgba lm8 = cr_lightmap_rgba8(cr_lightmap_rgb(0, 15, 15, 1.0f, 0.0f, 0.0f));
+        float s_up = gm_fireball_item_shade(0.0f, 1.0f, 0.0f);
+        CHECK(s_up > 1.0f, "unclamped +Y item lighting exceeds 1");
+        int r188 = (int)(188.0f * s_up + 0.5f);
+        if (r188 > 255) r188 = 255;
+        CHECK(r188 == 255, "GL product clamp: 188 * unclamped factor saturates");
         int n = gm_items_emit_billboard(&small, 1, 0.0f, 0.0f, out, 256);
         CHECK(n == 6, "RenderFireball direct quad emits 6 verts");
         float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f;
@@ -263,9 +270,10 @@ int main(void) {
             CHECK(fabsf(out[i].pos.z - small.z) < eps,
                   "zero-pitch RenderFireball quad lies at entity z");
             CHECK(out[i].light == 1.0f && out[i].blk == 15.0f,
-                  "RenderFireball is full-bright");
-            CHECK(out[i].tint.r == 255 && out[i].tint.g == 255 &&
-                  out[i].tint.b == 255, "RenderFireball has white tint");
+                  "RenderFireball item-atlas pass keeps light=1");
+            CHECK(out[i].tint.r == lm8.r && out[i].tint.g == lm8.g &&
+                  out[i].tint.b == lm8.b,
+                  "RenderFireball tint is clamped shade * lightmap[15,15]");
         }
         CHECK(fabsf((maxx - minx) - 0.5f) < eps,
               "RenderManager small-fireball scale is 0.5");
@@ -276,6 +284,12 @@ int main(void) {
         CHECK(CR_ITEM_SPRITES[si].id == 385 &&
               !strcmp(CR_ITEM_SPRITES[si].name, "fireball"),
               "small fireball samples fire_charge model particle icon");
+        n = gm_items_emit_billboard(&small, 1, 0.0f, 25.0f, out, 256);
+        CHECK(n == 6 && out[0].tint.r == lm8.r,
+              "capture pitch 25 still clamps white*shade to 1");
+        n = gm_items_emit_billboard(&small, 1, 0.0f, 90.0f, out, 256);
+        CHECK(n == 6 && out[0].tint.r < lm8.r && out[0].tint.r > 0,
+              "pitch 90 item lighting darkens the white primary");
 
         GmEntityView dragon = small;
         dragon.type = GM_VIEW_DRAGON_FIREBALL;
