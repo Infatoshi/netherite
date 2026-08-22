@@ -70,6 +70,20 @@ ln -sfn ~/dev/netherite/java/Minecraft/run java/Minecraft/run
 mkdir -p verify/tapes out/verify blaze/rl/out
 echo remote clone at \$(git rev-parse --short HEAD)"
 
+# Seed from the host's own ~/dev/netherite first (local disk, no transfer);
+# the rsync below only fills what the host lacks.
+ssh "$HOST" "cd ~/nlanes/$LANE
+for d in blaze/rl/out/snaps verify/mc_capture/goldens verify/ui_hud/goldens verify/ui_entities/goldens; do
+    [ -d ~/dev/netherite/\$d ] && [ ! -e \$d ] && { mkdir -p \$(dirname \$d); cp -r ~/dev/netherite/\$d \$d; }
+done
+for T in ${TAPES[*]}; do
+    for e in ~/dev/netherite/verify/tapes/\$T*; do
+        [ -e \"\$e\" ] || continue
+        [ -e verify/tapes/\$(basename \$e) ] || cp -r \"\$e\" verify/tapes/
+    done
+done
+true"
+
 R="$HOST:~/nlanes/$LANE"
 for d in verify/mc_capture/goldens verify/ui_hud/goldens verify/ui_entities/goldens; do
     [ -d "$ROOT/$d" ] || continue
