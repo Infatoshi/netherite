@@ -30,9 +30,9 @@ recorder or re-recording; D-class by improving gates, not the product.
 
 **A. Product divergences (magma wrong vs oracle, actionable now):**
 
-1. Underwater overlay: magma water/glass/fog underlay too blue (7.311/ch);
-   close path is underlay lighting/fog, not overlay constants. "Portal and
-   underwater".
+1. Underwater overlay: eye-in-water overlay brightness ported (1.202/ch,
+   was 7.311); leftover maxch=46 ticks + 1-2 LSB. Not PASS-LSB. Overlay
+   constants untouched. "Portal and underwater".
 2. Portal overlay: world RSR ported (0.972/ch); interior 1-2 LSB pack +
    129px right-horizon occupancy. Not PASS-LSB.
 3. Slime rim brightness: source-closed to the raster twins (two-machine
@@ -299,16 +299,22 @@ lane's baseline; docs 1.465 / 363305 is the portalpix print).
 | overlay_portal_050 | 1.466 | 363304 | 144 | unchanged this lane. |
 | overlay_underwater | 7.311 | 390096 | 41 | was 26.763 / 390096 / 112. BlockFluidRenderer.java:185-192 water-glass overlay + :259-265 skip reverse (26.763 -> 10.654); BlockBreakable.java:42-52 glass-glass cull (10.654 -> 7.311). |
 
-Remaining underwater is a whole-frame +~14 B on the glass/stone
-underlay (glass.png frame matches Java; overlay formula untouched).
-Hard goal <= 2.0/ch is not met. Close path is still underlay
-lighting/fog, not overlay constants and not kernel twins (mesher only).
+Measured 2026-08-22 (`lane/underwater`) on anvil, same goldens, `hard_thr=0`.
+Portal row stayed 0.972 / 363609 / maxch=115 (byte-stable vs this
+lane's baseline).
 
-PASS-LSB needs nz<=2% of ROI (~8087) and every pixel <=1/ch. Interior 2 LSB
-alone is 99898 px. Do not fit overlay alpha. Close path for portal mean
-is the wall pack / hand BYTE family, then the 129px horizon occupancy.
-Underwater close path is terrain/water raster fidelity (possibly kernel
-twins), not overlay alpha or brightness constants.
+| id | c_vs_j | hard_px | maxch | note |
+|----|--------|---------|-------|------|
+| overlay_portal_050 | 0.972 | 363609 | 115 | unchanged this lane. |
+| overlay_underwater | 1.202 | 387388 | 46 | was 7.311 / 390096 / 41. World.checkLightFor decrease (World.java:3046) + Chunk.generateSkylightMap (Chunk.java:238) after water opacity 3 (Block.java:2412-2413). Eye sky 12 -> 9, overlay brightness table[9]=0.2727 (ItemRenderer.java:539 getBrightness). Overlay formula untouched. |
+
+Hard goal <= 2.0/ch is met. Not closed: hard_px 387388, maxch=46 at
+(283,130)/(570,130) C=[21,29,43] vs J=[53,71,89] (four px >=40; ~3100 px
+>=16). Sample interior is now 1-2 LSB (C=[65,68,85] vs J=[66,70,86] at
+(2,2)). PASS-LSB needs nz<=2% of ROI (~8087) and every pixel <=1/ch.
+Do not fit overlay alpha. Close path for portal mean is the wall pack /
+hand BYTE family, then the 129px horizon occupancy. Underwater leftover
+is those maxch=46 ticks, not overlay alpha or brightness constants.
 
 ### Entity and particle pixels
 

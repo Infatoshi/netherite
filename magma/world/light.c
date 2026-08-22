@@ -140,6 +140,11 @@ typedef struct {
                          hold NEW spread seeds - the rest of the pool is
                          already at the flood's fixed point (monotonic raise,
                          order-independent), so the seed scan skips it. */
+    int column_dirty; /* opacity-changing edit: rerun generateSkylightMap on
+                         this chunk before the next spread. The spread only
+                         RAISES, so a water/leaf insert that lowers a cell
+                         must rebuild the vertical ladder first
+                         (World.checkLightFor decrease, World.java:3046). */
     u16 block[65536]; /* CB ids, index CB_INDEX(x,y,z) */
     u16 state[65536]; /* authoritative packed vanilla state for gameplay */
     u8  meta[65536];  /* legacy meta 0..15 (doors/facing); gen leaves 0 */
@@ -405,6 +410,7 @@ static LChunk *gen_chunk(CrLight *L, int cx, int cz) {
 
     c->valid = 1;
     c->sky_dirty = 1;
+    c->column_dirty = 0;
     L->gen_events++;
     L->blocklight_dirty = 1; /* new terrain -> block light must be recomputed */
     L->skylight_dirty   = 1; /* new terrain -> sky-light spread must be recomputed */
@@ -658,16 +664,40 @@ void light_ensure(CrLight *L, int ccx, int ccz, int radius) {
         if (L->has_sky) {
             for (int i = 0; i < L->light_slots; ++i) {
                 LChunk *c = L->slots[i];
-                if (c && c->valid) { compute_skylight(L, c); c->sky_dirty = 1; }
+                if (c && c->valid) {
+                    compute_skylight(L, c);
+                    c->sky_dirty = 1;
+                    c->column_dirty = 0;
+                }
             }
             L->skylight_dirty = 1;
         } else {
             for (int i = 0; i < L->light_slots; ++i) {
                 LChunk *c = L->slots[i];
-                if (c && c->valid) memset(c->sky, 0, sizeof(c->sky));
+                if (c && c->valid) {
+                    memset(c->sky, 0, sizeof(c->sky));
+                    c->column_dirty = 0;
+                }
             }
             L->skylight_dirty = 0;
         }
+    }
+    /* Gameplay edits (fill water, place leaves): rebuild only the chunks whose
+     * opacity changed. Chunk.generateSkylightMap (Chunk.java:238) then the
+     * existing raise-only spread. Without this, a 3x3x3 water cube stays at
+     * sky=12 in every cell because the first glass/air neighbour raises the
+     * cell and the flood never lowers it (World.java:3046-3093). */
+    if (L->has_sky) {
+        int any = 0;
+        for (int i = 0; i < L->light_slots; ++i) {
+            LChunk *c = L->slots[i];
+            if (!c || !c->valid || !c->column_dirty) continue;
+            compute_skylight(L, c);
+            c->column_dirty = 0;
+            c->sky_dirty = 1;
+            any = 1;
+        }
+        if (any) L->skylight_dirty = 1;
     }
     compute_skylight_spread(L);
     compute_blocklight(L);
@@ -731,21 +761,15 @@ void light_set_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
     c->sky_dirty = 1;
     L->blocklight_dirty = 1;
     L->skylight_dirty = 1;
-    /* World.checkLightFor rebuilds an opacity-changing cell from getRawLight;
-     * metadata-only loads keep the already-generated stored skylight. Direct
-     * sky is 15 only when Chunk.canSeeSky is true; otherwise the flood derives
-     * the value from neighbouring cells. */
+    /* World.checkLightFor (World.java:3025, decrease at :3046) rebuilds an
+     * opacity-changing cell from getRawLight and can LOWER neighbours. Magma's
+     * spread only raises, so mark the chunk for Chunk.generateSkylightMap
+     * (Chunk.java:238 / cr_k17_skylight_column) before the next light_ensure
+     * flood. Metadata-only loads keep the stored skylight. */
     if (!L->has_sky) {
         c->sky[i] = 0;
     } else if (new_opacity != old_opacity) {
-        c->sky[i] = 0;
-        if (new_opacity == 0) {
-            int y;
-            for (y = wy + 1; y < WY; ++y)
-                if (state_opacity(c->state[CB_INDEX(wx & 15, y, wz & 15)]) != 0)
-                    break;
-            if (y == WY) c->sky[i] = 15;
-        }
+        c->column_dirty = 1;
     }
 }
 

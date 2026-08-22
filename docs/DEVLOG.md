@@ -1,5 +1,33 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 underwater skylight decrease (lane/underwater)
+
+Item A1 overlay_underwater. Anvil baseline `bash verify/ui_hud/run_ui_hud_gates.sh`:
+c_vs_j=7.311 hard_px=390096 maxch=41 (matches OPEN_DIVERGENCES lane/raster).
+Portal 0.972 / 363609 / 115. Logs: `out/verify/underwater_baseline.log`.
+
+Cause: magma skylight spread only RAISES. Filling the capture glass pool
+(water opacity 3, Block.java:2412-2413) left every water cell at sky=12
+because the first glass/air neighbour raised the cell and later water
+edits never lowered it. Java World.checkLightFor decrease
+(World.java:3046-3093) plus Chunk.generateSkylightMap (Chunk.java:238-278)
+settles the 3x3x3 centre at 9. Overlay brightness is
+Entity.getBrightness -> table[sky] (ItemRenderer.java:539); table[12]=0.5
+became table[9]=0.2727. Fog color stayed the pinned oracle
+fogColor1=0.6447164 * (0.02,0.02,0.2). Overlay formula untouched.
+
+Anvil after: overlay_underwater 1.202 / 387388 / maxch=46. Portal
+0.972 / 363609 / 115 unchanged. Other comparable ui_hud row (portal)
+byte-stable. This host has only portal+underwater goldens; HUD/hand/fire
+rows stay MISSING JAVA as in baseline (mutation FAIL 3 missing assets,
+same as baseline). `make -C magma test` PASS including test-water-skylight
+(3x3x3 cube centre sky==9). Root `make test` otherwise PASS
+(`out/verify/underwater_maketest.log`); tape-info needed the gitignored
+canon jsonl copied from the canonical clone. No kernel twins.
+
+Open: 1.202/ch meets hard goal 2.0; not closed. Interior is 1-2 LSB
+(C=[65,68,85] vs J=[66,70,86] at (2,2)). Four px maxch=46 at (283,130)
+and (570,130). Do not fit overlay alpha.
 ## 2026-08-22 dragon death hand Rx (lane/dragonbob)
 
 A6 dragon_death_50/100/190 after lane/dragonhand. Gamer baseline

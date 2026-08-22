@@ -9,6 +9,7 @@ craster_world
 tests/test_world
 tests/test_assets
 tests/test_light
+tests/test_water_skylight
 renderkernels/test_rk
 tests/test_mesh_mc
 tests/test_hand_torch

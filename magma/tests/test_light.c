@@ -235,6 +235,36 @@ int main(void) {
     check(light_sky(L, wx, 200, wz) == 15,
           "direct-sky air rebuilt to 15 after leaf removal");
 
+    /* 3x3x3 still water in air. Block.java:2412-2413 setLightOpacity(3).
+     * Chunk.generateSkylightMap (Chunk.java:270-278) then World.checkLightFor
+     * decrease (World.java:3046): the cube centre is max(edge 12 - 3, column
+     * 9) = 9. The raise-only flood used to leave every water cell at 12
+     * (first glass/air neighbour wins, never lowered). */
+    {
+        uint16_t water = (uint16_t)(9 << 4);
+        int x, y, z;
+        for (y = 199; y <= 201; ++y)
+            for (z = 7; z <= 9; ++z)
+                for (x = 7; x <= 9; ++x)
+                    light_set_state(L, x, y, z, water);
+        light_ensure(L, 0, 0, 1);
+        check(light_sky(L, 8, 201, wz) == 12,
+              "water cube top centre sky == 12 (air above, opacity 3)");
+        check(light_sky(L, 8, 200, wz) == 9,
+              "water cube mid centre sky == 9 (checkLightFor decrease)");
+        check(light_sky(L, 8, 199, wz) == 10,
+              "water cube bot centre sky == 10 (air below 13 - opacity 3)");
+        check(light_sky(L, 7, 200, 7) == 12,
+              "water cube edge sky == 12 (air neighbour 15 - 3)");
+        for (y = 199; y <= 201; ++y)
+            for (z = 7; z <= 9; ++z)
+                for (x = 7; x <= 9; ++x)
+                    light_set_state(L, x, y, z, 0);
+        light_ensure(L, 0, 0, 1);
+        check(light_sky(L, 8, 200, wz) == 15,
+              "air restored to 15 after water cube removal");
+    }
+
     /* BlockLiquid is non-opaque. Water explicitly overrides light opacity to
      * 3, while lava keeps Block's constructor-derived opacity 0. */
     light_set_state(L, wx, 200, wz, (uint16_t)((10 << 4) | 1));
