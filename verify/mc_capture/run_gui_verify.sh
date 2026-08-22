@@ -31,14 +31,14 @@ FLAGS=(-O2 -ffp-contract=off -Wall -Wextra -I. -Icore -I"$BLAZE")
 NOISE_MAX="${NOISE_MAX:-1e-6}"
 
 echo "== build gui_candidate =="
-make -s game/screen.o game/player_preview.o game/hud.o game/item_render.o game/container_live.o game/runtime.o game/fluid_live.o game/config.o \
+make -s game/screen.o game/player_preview.o game/hud.o game/item_render.o game/container_live.o game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o \
     game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o \
     game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o \
     game/chest_live.o game/caps.o core/config.o world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o \
     world/mesh.o world/world.o world/gen_prefetch.o renderkernels/rk_31_facebakery_make_quad.o \
     assets/blockmodels.o core/math.o core/shade.o cpu/raster_cpu.o
 gcc "${FLAGS[@]}" "$OUT/gui_candidate.c" \
-    game/screen.o game/player_preview.o game/hud.o game/item_render.o game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o game/sel_box.o \
+    game/screen.o game/player_preview.o game/hud.o game/item_render.o game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o game/player_ctl.o game/sel_box.o \
     game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o \
     game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o \
     game/container_live.o game/caps.o core/config.o world/light.o world/mesh_mc.o \
@@ -188,7 +188,7 @@ def gate_preview(label, ja, jb, jm, noise_max):
               f"(A/B noise {noise:.6g} > {noise_max:g}; pin_preview_anim / capture broken)")
         print(f"  preview ROI exact: shape={ja.shape[1]}x{ja.shape[0]} "
               f"noise={noise:.6f} magma_vs_J={diff:.6f}")
-        return False, diff, noise, residual_clusters(d, thr=HARD_THR, min_px=8), hard_px
+        return False, diff, noise, residual_clusters(d, thr=HARD_THR, min_px=8), hard_px, int((d > 0).sum())
     pixel_perfect = diff <= noise + 1e-6 and hard_px == 0
     verdict = "PASS" if pixel_perfect else "FAIL"
     print(f"{label:<14} {noise:>13.6f} {diff:>13.6f} {'exact':>8}  {verdict}")
@@ -222,7 +222,8 @@ def gate_preview(label, ja, jb, jm, noise_max):
         for y, x in list(zip(ys, xs))[:16]:
             print(f"    ({x},{y}) J={tuple(int(v) for v in ja[y, x])} "
                   f"M={tuple(int(v) for v in jm[y, x])} d={d[y, x]:.1f}")
-    return pixel_perfect, diff, noise, clusters, hard_px
+    nz = int((d > 0).sum())
+    return pixel_perfect, diff, noise, clusters, hard_px, nz
 
 fail = 0
 print(f"{'screen':<14} {'noise(J-vs-J)':>13} {'magma-vs-J':>13} {'rule':>8}  verdict")
@@ -275,12 +276,12 @@ else:
     prev_b = preview_crop(Image.open(jb_path))
     prev_m = preview_crop(Image.open(mag_path))
     assert prev_a.shape == (144, 104, 3), prev_a.shape
-    pok, pdiff, pnoise, _, phard = gate_preview(
+    pok, pdiff, pnoise, _, phard, pnz = gate_preview(
         "preview pose1", prev_a, prev_b, prev_m, noise_max)
     fail |= not pok
     preview_stats.append({
         "pose": "pose1", "noise": pnoise, "magma_vs_j": pdiff, "hard_px": phard,
-        "pass": bool(pok),
+        "nz": pnz, "pass": bool(pok),
     })
     if not pok:
         raw = np.abs(prev_a.astype(int) - prev_m.astype(int)).clip(0, 255).astype(np.uint8)
@@ -331,12 +332,12 @@ else:
     p2a = preview_crop(Image.open(pose2_ja))
     p2b = preview_crop(Image.open(pose2_jb))
     p2m = preview_crop(Image.open(pose2_m))
-    p2ok, p2diff, p2noise, _, p2hard = gate_preview(
+    p2ok, p2diff, p2noise, _, p2hard, p2nz = gate_preview(
         "preview pose2", p2a, p2b, p2m, noise_max)
     fail |= not p2ok
     preview_stats.append({
         "pose": "pose2", "noise": p2noise, "magma_vs_j": p2diff, "hard_px": p2hard,
-        "pass": bool(p2ok),
+        "nz": p2nz, "pass": bool(p2ok),
     })
     if not p2ok:
         raw = np.abs(p2a.astype(int) - p2m.astype(int)).clip(0, 255).astype(np.uint8)
@@ -348,7 +349,7 @@ else:
 if preview_stats:
     pose1 = next((p for p in preview_stats if p["pose"] == "pose1"), preview_stats[0])
     report = {
-        "version": 2,
+        "version": 3,
         "captured": "2026-07-24",
         "pin": {
             "cmd": "pin_preview_anim",
@@ -360,6 +361,15 @@ if preview_stats:
             "idle_arm_z": 0.10,
             "formula": "cos(age*0.09)*0.05+0.05 at age=0",
             "unit_test": "game/test_player_preview.sh",
+            "normals": "GL 2.1 BYTE attrib (2c+1)/255, ModelRenderer+entity rotations, RESCALE_NORMAL (no GL_NORMALIZE)",
+        },
+        "color_path": {
+            "sample": "GL_NEAREST pure floor (CrShadeCtx.sample_mode=1); terrain keeps floor(u*w-1e-4)",
+            "packing_identified": "L8=round(primary*255); out=(tex*L8+127)/255 (Mesa FLOAT_TO_UBYTE + unorm8 modulate)",
+            "primary": "RenderHelper 0.4 ambient + 0.6*max(n.L,0) on GL 2.1 BYTE normals after rescale-only (prepareScale enables 32826, not 2977)",
+            "primary_gap": "1 L8 on face bins whose C*255 sits just above n+0.5 while sibling bins need round the other way; see residual.poses nz",
+            "default_mode": "preview_color_mode empty=5; strict gate remains open until nz=0",
+            "diagnostic": "../verify/mc_capture/test_preview_color_formula.py",
         },
         "gate_contract": {
             "chrome": "bit-exact (diff <= A/B noise + 1e-6); A/B noise near-zero required",
@@ -373,6 +383,7 @@ if preview_stats:
             "pose1_mean_abs": pose1["magma_vs_j"],
             "pose1_hard_px": pose1["hard_px"],
             "pose1_noise": pose1["noise"],
+            "cause": "remaining 1 L8 on a few StandardItemLighting face bins; maxch=1 and strict OPEN",
         },
     }
     CALIB_PATH.write_text(json.dumps(report, indent=2) + "\n")

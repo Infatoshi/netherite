@@ -11,14 +11,14 @@
     "idle_arm_z": 0.1,
     "formula": "cos(age*0.09)*0.05+0.05 at age=0",
     "unit_test": "game/test_player_preview.sh",
-    "normals": "part-local ModelBox axis normals through ModelRenderer+entity rotations"
+    "normals": "GL 2.1 BYTE attrib (2c+1)/255, ModelRenderer+entity rotations, RESCALE_NORMAL (no GL_NORMALIZE)"
   },
   "color_path": {
     "sample": "GL_NEAREST pure floor (CrShadeCtx.sample_mode=1); terrain keeps floor(u*w-1e-4)",
-    "packing_identified": "L8=trunc(primary*255); out=(tex*L8+127)/255 (Mesa unorm8 modulate)",
-    "primary": "RenderHelper ambient 102/255 + diffuse 152/255 after unorm8 light*material, GL_FLAT",
-    "primary_gap": "remaining max-channel-1 residual on smaller face bins; pose1 nz=442, pose2 nz=323",
-    "default_mode": "PREVIEW_COLOR_MODE=4; strict gate remains open until nz=0",
+    "packing_identified": "L8=round(primary*255); out=(tex*L8+127)/255 (Mesa FLOAT_TO_UBYTE + unorm8 modulate)",
+    "primary": "RenderHelper 0.4 ambient + 0.6*max(n.L,0) on GL 2.1 BYTE normals after rescale-only (prepareScale enables 32826, not 2977)",
+    "primary_gap": "1 L8 on face bins whose C*255 sits just above n+0.5 while sibling bins need round the other way; see residual.poses nz",
+    "default_mode": "preview_color_mode empty=5; strict gate remains open until nz=0",
     "diagnostic": "../verify/mc_capture/test_preview_color_formula.py"
   },
   "gate_contract": {
@@ -33,23 +33,23 @@
       {
         "pose": "pose1",
         "noise": 0.0,
-        "magma_vs_j": 0.01164084757834758,
+        "magma_vs_j": 0.002448361823361823,
         "hard_px": 0,
-        "max_ch": 1,
+        "nz": 62,
         "pass": false
       },
       {
         "pose": "pose2",
         "noise": 0.0,
-        "magma_vs_j": 0.009949252136752136,
+        "magma_vs_j": 0.003316417378917379,
         "hard_px": 0,
-        "max_ch": 1,
+        "nz": 140,
         "pass": false
       }
     ],
-    "pose1_mean_abs": 0.01164084757834758,
+    "pose1_mean_abs": 0.002448361823361823,
     "pose1_hard_px": 0,
     "pose1_noise": 0.0,
-    "cause": "remaining fixed-function primary-light face-bin packing mismatch; maxch=1 and strict OPEN"
+    "cause": "remaining 1 L8 on a few StandardItemLighting face bins; maxch=1 and strict OPEN"
   }
 }

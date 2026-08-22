@@ -112,7 +112,7 @@ CFG_BOOL(no_decor,           0,  "skip overworld populate decoration overlay (tr
 CFG_BOOL(no_prefetch,        0,  "disable the background base-terrain gen_prefetch worker")
 CFG_STR (preview_dump_path,  "", "CSV path for preview_diag=3 fragment dump; empty defaults to /tmp/preview_frags.csv")
 CFG_INT (preview_diag,       0,  "inventory preview diagnostics: 0 off, 1 hard-pixel attribute, 2 +AABB, 3 fragment dump")
-CFG_STR (preview_color_mode, "", "inventory preview color packing mode; empty = 4 (Mesa unorm8 modulate)")
+CFG_STR (preview_color_mode, "", "inventory preview color packing mode; empty = 5 (round L8 + Mesa unorm8 modulate)")
 /* ---- capture / replay-compat / render toggles ---- */
 CFG_BOOL(dig_trace,       0,  "diagnostic: emit per-tick dig controller fields in state JSONL (paired with Java dig_trace)")
 CFG_BOOL(hide_gui,        0,  "hide HUD overlay (hearts/hotbar/crosshair); also gates the first-person hand workaround")

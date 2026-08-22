@@ -1,5 +1,22 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 inventory preview lighting (lane/preview)
+
+Player-preview 1 L8 residual. Baseline (HEAD 102/255+152/255, unit n):
+pose1 mean 0.011641 nz=442; pose2 0.009949 nz=323; chrome bit-exact.
+
+Port: `VertexBuffer.normal` BYTE `(int)(c*127)` unpack GL 2.1 table 2.9
+`(2c+1)/255`; `RenderLivingBase.prepareScale` `enableRescaleNormal` only
+(`GlStateManager.java` 32826, not 2977); `RenderHelper` 0.4+0.6 float;
+L8=`round(C*255)` then `(tex*L8+127)/255`. Do not renormalize after the
+uniform-scale modelview (BYTE `-Z` stays `|n|=253/255`).
+
+Gate after: pose1 mean 0.002448 nz=62; pose2 0.003316 nz=140; hard_px=0;
+chrome still PASS. Honest floor: pose1 right-arm +X `C*255=158.543`
+rounds to 159 vs Java 158; pose2 head +X `130.678` rounds to 131 vs 130.
+No Mesa-justified global pack splits those from larm +X `184.794` which
+needs round-to-185. Mixed-channel 8 px on pose1 head +X have no single L8.
+
 ## 2026-08-22 portal/uw same-scene underlay (lane/portalpix)
 
 ui_hud candidate draws overlay_portal_050 / overlay_underwater through
