@@ -51,9 +51,36 @@ Product name: **netherite**. Trees:
 | Is X in the game? cut / pinned / open / unrecoverable | `docs/SCOPE.md` |
 | Fidelity procedure | `magma/VERIFY.md` |
 | Product contract / open bugs | `magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` (closed forensics: `CLOSED_DIVERGENCES.md`) |
+| Second bridge (magma -> blaze) open rows | `blaze/OPEN_DIVERGENCES.md` |
+| Delegated lane routine (sub-agents) | `docs/SUBAGENT.md` |
 | Current Magma or Blaze detail | that tree's `SPEC.md` |
 | History / lessons | `docs/DEVLOG.md` |
 | Old reports | `docs/archive/` (ignore by default) |
+
+## Orchestrating divergence lanes (parent agent)
+
+The two divergence files are the work queue. A parent agent keeps
+sub-agents pointed at them without waiting for a human to pick items:
+
+1. Pick from `magma/OPEN_DIVERGENCES.md` class A (top down) and
+   `blaze/OPEN_DIVERGENCES.md` unported rows (dependency order). One lane
+   per item. Skip items whose evidence (tape, golden) is not on this Mac.
+2. Stage: `bash scripts/lane_stage.sh <lane> <host> [--tape NAME]...`
+   (gamer for magma CPU work; anvil for oracle captures, CUDA, blaze M2;
+   Metal half of a twins lane builds on the Mac).
+3. Prompt = `docs/SUBAGENT.md` + a goal block: the item text, the gate
+   command, the documented baseline numbers, the hard goal, and what is
+   forbidden. Launch from the lane worktree, in the background.
+4. On return: read the report, review the diff, re-run the lane's gates and
+   root `make test` on the remote clone yourself, then merge `--no-ff` to
+   master, run `make test` locally, push. Never absorb a delegate's numbers.
+   Doc conflicts (DEVLOG, divergence files) keep both sides, newest first.
+5. Clean up: worktree, local and remote lane branch, `~/nlanes/<lane>`, the
+   lane tmux session. Then pick the next item.
+
+If a delegate dies (session exit, host reboot), its branch and remote
+clone survive; relaunch with a restart note stating the branch state, what
+was measured, and where the logs are.
 
 ## Commands
 
