@@ -860,6 +860,17 @@ independently re-measured here.
   **19 frames, 73321 UNEXPLAINED px**, with t=50 whole/terrain
   **34.80/35.74**. Neither change is landed.
 
+  **Remeasure 2026-08-22 (lane/slimerim, tape `20260730T095754Z`, CPU):**
+  Isolated slime already FaceBakery-matches 12 generalQuads (72 verts).
+  Interior 3x3 on stone: magma emits 6 inner verts (UP) and 0 outer DOWN;
+  dump wants 36 and 6. Skipping neighbor cull to emit the 12 matched
+  `quads.jsonl` (inner 3/16 inset 10.1875-10.8125 at block x=10, outer 0-1)
+  but darkened the pad: t=50 whole/terrain **4.53/4.62 -> 23.88/23.36 /ch**;
+  failed frames **13 -> 17**; t=140 UNEXPLAINED **0 -> 40447 px**. CPU
+  raster drew a 3D inner-cube grid (both sides of inner/outer walls) vs
+  Java's flat dual-top. Not landed. Closing the rim needs the hash-paired
+  raster (cpu/cuda/metal), not different inset constants.
+
   The t=50 arithmetic explains why ordering looked plausible but also refutes
   it as the missing implementation lever. On 30205 selected dark-rim pixels,
   golden/candidate medians are `[113,185,95]` / `[91,148,76]`; on 2061

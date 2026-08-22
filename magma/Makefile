@@ -284,7 +284,8 @@ app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/c
 .PHONY: test-mesh
 test-mesh: $(OBJ_WORLD) $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_mesh_models.c \
-	    world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
+	    world/mesh_mc.o world/light.o world/populate_mc.o world/gen_prefetch.o \
+	    assets/blockmodels.o \
 	    $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o -o tests/test_mesh_models $(LDLIBS)
 	./tests/test_mesh_models
 

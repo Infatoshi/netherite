@@ -31,6 +31,17 @@ After: hard_px unchanged; shield c_paint_mean=0.744.
 
 ui_hud live link needed `game/world_spawn.o` (`_gm_create_spawn_position`).
 
+## 2026-08-22 slime_bounce shell inset (lane/slimerim)
+
+Contradiction is the BLOCK model, not entity ModelSlime (already ported:
+inner 6x6x6, gel 8x8x8, scale 0.999, translate 0.001). Java
+`models/block/slime.json` has two unculled elements; DRAW dump
+`verify/fixtures/slime_translucent/` is 441*12 generalQuads, 0 face quads.
+Magma inset constants already match FaceBakery (isolated 72 verts).
+Interior pads neighbor-cull to inner+outer UP. Emitting the 12 matched
+the dump and darkened tape t=50 4.53 -> 23.88/ch (13 -> 17 failed frames,
+t=140 UNEXPLAINED 40447). Reverted. Raster twins cannot change here.
+
 ## 2026-08-22 chain4 retrain PASS + stage ladder (anvil gpu0)
 
 Chain retrain with the staged curriculum completed end-to-end for the

@@ -27,7 +27,7 @@ enum {
     T_SNOW = 16, T_VINE = 71, T_CACTUS = 81, T_FIRE = 213,
     T_PORTAL = 211, T_END_FRAME = 216, T_MAGMA = 220,
     T_IRON_BARS = 221, T_TORCH = 222, T_GLASS_PANE = 253,
-    T_STONE = 1
+    T_STONE = 1, T_SLIME = 229
 };
 
 /* --- test chunk placement (chunk (10,10), local columns, y=100) --- */
@@ -739,6 +739,110 @@ int main(void) {
            m.nverts[0], m.nverts[1], m.nverts[2], m.nverts[3]);
     worldmc_free_mesh(&m);
     worldmc_destroy(w);
+
+    /* --- SLIME (models/block/slime.json): two elements, no cullface.
+     * Isolated air-surrounded slime: 12 generalQuads, FaceBakery match.
+     * Interior pad: Java still emits 12 (dump 441*12). Magma neighbor-culls,
+     * so only inner+outer UP survive. 12-quad emit matched the dump
+     * (2026-08-22) but darkened slime_bounce t=50 4.53 -> 23.88/ch; not
+     * landed. --- */
+    {
+        CrWorldMC *ws = worldmc_create(0);
+        if (!ws) { printf("FAIL: slime worldmc_create\n"); return 1; }
+        worldmc_ensure(ws, CCX, CCZ, 1);
+        CrLight *Ls = worldmc_light(ws);
+        const int y = 120;
+        const int xiso = BASE + 2, ziso = BASE + 2;
+        const int xc = BASE + 8, zc = BASE + 8;
+        light_debug_set_block(Ls, xiso, y, ziso, T_SLIME);
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                light_debug_set_block(Ls, xc + dx, y - 1, zc + dz, T_STONE);
+                light_debug_set_block(Ls, xc + dx, y, zc + dz, T_SLIME);
+            }
+        }
+        light_set_render_state(Ls, -1, 0.0f, 0.0f);
+        CrChunkMeshMC ms;
+        worldmc_mesh_chunk(ws, CCX, CCZ, &ms);
+
+        GVert sgot[512];
+        const float inf[3] = {3, 3, 3}, ito[3] = {13, 13, 13};
+        const float ofrom[3] = {0, 0, 0}, oto[3] = {16, 16, 16};
+        const float iuv[4] = {3, 3, 13, 13};
+        int spr = CR_SPRITE_SLIME;
+
+        GList giso = {0};
+        for (int f = 0; f < 6; ++f) {
+            golden_face_custom(&giso, xiso, y, ziso, inf, ito, f, iuv,
+                               0, 3, 0.0f, NULL, 0, spr);
+            golden_face(&giso, xiso, y, ziso, ofrom, oto, f,
+                        0, 3, 0.0f, NULL, 0, spr);
+        }
+        int niso = collect(&ms, CR_LAYER_TRANSLUCENT, xiso, ziso,
+                           (float)y - 0.1f, (float)y + 1.1f, sgot, 512);
+        CHECK(niso == 72, "slime isolated: %d verts (want 72 = 12 general quads)",
+              niso);
+        CHECK(multiset_eq(sgot, niso, &giso, 1),
+              "slime isolated: pos/uv != slime.json FaceBakery");
+        free(giso.v);
+
+        /* Dump wants 6 inner faces (36 verts). Magma culls 5 of them. */
+        GList gcore_up = {0};
+        golden_face_custom(&gcore_up, xc, y, zc, inf, ito, BM_UP, iuv,
+                           0, 3, 0.0f, NULL, 0, spr);
+        int ncore = 0;
+        GVert core_got[512];
+        float ilo = (float)xc + 3.0f / 16.0f - 1e-3f;
+        float ihi = (float)xc + 13.0f / 16.0f + 1e-3f;
+        float jlo = (float)y + 3.0f / 16.0f - 1e-3f;
+        float jhi = (float)y + 13.0f / 16.0f + 1e-3f;
+        float klo = (float)zc + 3.0f / 16.0f - 1e-3f;
+        float khi = (float)zc + 13.0f / 16.0f + 1e-3f;
+        for (int i = 0; i < ms.nverts[CR_LAYER_TRANSLUCENT]; ++i) {
+            const CrVertex *v = &ms.verts[CR_LAYER_TRANSLUCENT][i];
+            if (v->pos.x < ilo || v->pos.x > ihi) continue;
+            if (v->pos.y < jlo || v->pos.y > jhi) continue;
+            if (v->pos.z < klo || v->pos.z > khi) continue;
+            if (ncore < 512)
+                core_got[ncore] = (GVert){v->pos.x, v->pos.y, v->pos.z,
+                                          v->uv.x, v->uv.y};
+            ++ncore;
+        }
+        printf("slime interior core verts=%d (dump wants 36; magma UP-only)\n",
+               ncore);
+        CHECK(ncore == 6,
+              "slime interior core: %d verts (magma cull emits inner UP only)",
+              ncore);
+        CHECK(multiset_eq(core_got, ncore, &gcore_up, 1),
+              "slime interior core UP: pos/uv != slime.json element 0");
+        free(gcore_up.v);
+
+        int ndown = 0;
+        for (int at = 0; at + 5 < ms.nverts[CR_LAYER_TRANSLUCENT]; at += 6) {
+            float cx = 0.0f, cz = 0.0f;
+            int all_bottom = 1;
+            for (int k = 0; k < 6; ++k) {
+                const CrVertex *v = &ms.verts[CR_LAYER_TRANSLUCENT][at + k];
+                if (fabsf(v->pos.y - (float)y) > 1e-4f) all_bottom = 0;
+                cx += v->pos.x;
+                cz += v->pos.z;
+            }
+            if (!all_bottom) continue;
+            cx /= 6.0f;
+            cz /= 6.0f;
+            if (cx < (float)xc || cx > (float)xc + 1.0f) continue;
+            if (cz < (float)zc || cz > (float)zc + 1.0f) continue;
+            ndown += 6;
+        }
+        printf("slime interior outer DOWN verts=%d (dump wants 6; magma 0)\n",
+               ndown);
+        CHECK(ndown == 0,
+              "slime interior outer DOWN vs stone: %d verts (magma opaque-culls)",
+              ndown);
+
+        worldmc_free_mesh(&ms);
+        worldmc_destroy(ws);
+    }
 
     if (g_fail) { printf("FAIL\n"); return 1; }
     printf("PASS\n");
