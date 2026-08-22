@@ -584,19 +584,6 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                         if (s_dig_delay > 0) {
                             /* PlayerControllerMP.java:301-305 */
                             --s_dig_delay;
-                        } else if (pin.creative) {
-                            /* onPlayerDamageBlock creative: blockHitDelay=5
-                             * then clickBlockCreative
-                             * (PlayerControllerMP.java:306-311). */
-                            s_dig_delay = 5;
-                            dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
-                                        ox, oy, oz, edits, &ne, max_edits,
-                                        pin.creative);
-                            s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
-                            s_dig_progress = 0.0f;
-                            s_dig_sound_tick_counter = 0;
-                            s_dig_face = -1;
-                            s_dig_hitting = 0;
                         } else if (hx == s_dig_hx && hy == s_dig_hy && hz == s_dig_hz) {
                             /* isHittingPosition: accrue curBlockDamageMP */
                             s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
@@ -628,6 +615,11 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                                             ox, oy, oz, edits, &ne, max_edits,
                                             pin.creative);
                                 s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                                /* onPlayerDamageBlock creative: blockHitDelay=5
+                                 * then clickBlockCreative
+                                 * (PlayerControllerMP.java:306-311). Folded as
+                                 * destroy then 5; sendClickBlock already ran. */
+                                if (pin.creative) s_dig_delay = 5;
                             } else {
                                 s_dig_hitting = 1;
                                 s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
