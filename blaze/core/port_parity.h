@@ -85,13 +85,15 @@ enum BpDebugField {
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_WEATHER) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_WEATHER) | \
+     BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_WEATHER) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_WEATHER) | \
+     BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
     "player", "dig", "inventory", "items", "world", "crafting", \
@@ -461,6 +463,41 @@ BP_HD static inline uint64_t bp_falling_digest_finish(
     h = bp_hash_u64(h, cells_xor);
     h = bp_hash_u32(h, ncells);
     return bp_hash_u32(h, mutations);
+}
+
+/* Magma runtime.c live arrows (type 1/2). inGround/tile/shake stay 0:
+ * magma despawns on collision instead of sticking. */
+BP_HD static inline uint64_t bp_hash_projectile(
+    uint64_t h, int32_t type,
+    double x, double y, double z,
+    double mx, double my, double mz,
+    int32_t in_ground, int32_t tile_x, int32_t tile_y, int32_t tile_z,
+    int32_t shake, int32_t ticks_in_air, int32_t ticks_in_ground) {
+    h = bp_hash_i32(h, type);
+    h = bp_hash_double(h, x);
+    h = bp_hash_double(h, y);
+    h = bp_hash_double(h, z);
+    h = bp_hash_double(h, mx);
+    h = bp_hash_double(h, my);
+    h = bp_hash_double(h, mz);
+    h = bp_hash_i32(h, in_ground);
+    h = bp_hash_i32(h, tile_x);
+    h = bp_hash_i32(h, tile_y);
+    h = bp_hash_i32(h, tile_z);
+    h = bp_hash_i32(h, shake);
+    h = bp_hash_i32(h, ticks_in_air);
+    return bp_hash_i32(h, ticks_in_ground);
+}
+
+BP_HD static inline uint64_t bp_projectiles_digest_begin(void) {
+    uint64_t h = bp_hash_begin();
+    return bp_hash_u32(h, UINT32_C(0x314A5250)); /* "PRJ1" */
+}
+
+BP_HD static inline uint64_t bp_projectiles_digest_finish(
+    uint64_t h, int32_t nents, uint32_t hits) {
+    h = bp_hash_i32(h, nents);
+    return bp_hash_u32(h, hits);
 }
 
 /* World clock / weather. Magma live hashes rain_strength=0 (no fade). */

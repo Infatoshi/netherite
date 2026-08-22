@@ -635,6 +635,34 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     }
 
     {
+        int nents = 0, pi;
+        unsigned nm, mi;
+        RlSnapMob packed[BLAZE_SNAP_MAX_MOBS];
+        h = bp_projectiles_digest_begin();
+        for (pi = 0; pi < GM_RUNTIME_PROJECTILES; ++pi) {
+            const GmRuntimeProjectile *p = &r->projectiles[pi];
+            if (!p->active) continue;
+            ++nents;
+            h = bp_hash_projectile(
+                h, p->type, p->x, p->y, p->z, p->vx, p->vy, p->vz,
+                0, 0, 0, 0, 0, p->age, 0);
+        }
+        nm = gm_mobs_export_snap(&r->mobs, packed, BLAZE_SNAP_MAX_MOBS);
+        h = bp_hash_i32(h, (int32_t)nm);
+        for (mi = 0; mi < nm; ++mi) {
+            h = bp_hash_i32(h, packed[mi].slot);
+            h = bp_hash_float(h, packed[mi].health);
+        }
+        h = bp_projectiles_digest_finish(
+            h, nents, r->parity_proj_hits);
+        out->digest[BP_PROJECTILES] = h;
+        out->evidence[BP_PROJECTILES] =
+            (uint32_t)nents + r->parity_proj_hits;
+        if (nents || r->parity_proj_hits)
+            out->active_mask |= BP_BIT(BP_PROJECTILES);
+    }
+
+    {
         h = bp_weather_digest(
             r->clock.world_time, r->clock.total_time,
             r->clock.raining, r->clock.thundering,

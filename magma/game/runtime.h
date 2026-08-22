@@ -204,6 +204,7 @@ typedef struct GmRuntime {
     GmMobLive mobs;
     GmDragonLive dragon;
     GmRuntimeProjectile projectiles[GM_RUNTIME_PROJECTILES];
+    unsigned parity_proj_hits;
     int bow_ticks,bow_drawing;
     int player_fire_ticks; /* Entity.fire, setFire(seconds) stores seconds*20 */
     int ccx, ccz;

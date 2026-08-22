@@ -87,6 +87,7 @@ TEST_MOB_BIN := $(OUT)/test_mob_snapshot
 TEST_SPINE_BIN := $(OUT)/test_entity_spine
 TEST_FALL_BIN := $(OUT)/test_falling
 TEST_WEATHER_BIN := $(OUT)/test_weather
+TEST_PROJ_BIN := $(OUT)/test_projectiles
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
 SAN_TEST_BIN := $(SAN_OUT)/test_train_config
@@ -99,7 +100,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-projectiles smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval
 
@@ -222,6 +223,11 @@ $(TEST_FALL_BIN): $(ENV_SRC)/test_falling.c $(ENV_SRC)/blaze_snapshot.c \
 $(TEST_WEATHER_BIN): $(ENV_SRC)/test_weather.c $(CORE_SRC)/world_weather.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_weather.c -lm
 
+$(TEST_PROJ_BIN): $(ENV_SRC)/test_projectiles.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/projectile_live.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_projectiles.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 ifeq ($(UNAME_S),Darwin)
 $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
 		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
@@ -254,12 +260,13 @@ test-chain: $(TEST_CHAIN_BIN)
 	cd $(CURDIR) && $(TEST_CHAIN_BIN)
 
 test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN) \
-		$(TEST_WEATHER_BIN)
+		$(TEST_WEATHER_BIN) $(TEST_PROJ_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
 	cd $(REPO) && ./out/blaze/rl/test_falling
 	cd $(REPO) && ./out/blaze/rl/test_weather
+	cd $(REPO) && ./out/blaze/rl/test_projectiles
 
 test-entity-spine: $(TEST_SPINE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -269,6 +276,9 @@ test-falling: $(TEST_FALL_BIN)
 
 test-weather: $(TEST_WEATHER_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_weather
+
+test-projectiles: $(TEST_PROJ_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_projectiles
 
 # Default smoke: committed ppo.conf (backend=cpu).
 smoke: smoke-cpu
