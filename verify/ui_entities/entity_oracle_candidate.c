@@ -243,15 +243,17 @@ int main(int argc, char **argv) {
      * and the horizon grass beyond it. */
     gm_world_ensure(rt.world, 0, 0, 4);
     ui_entities_place_pad(rt.world);
-    /* Dragon states need a wider mesh window around z=-40 / y=70.
-     * driver.py:381-399 place_dragon_platform: x[-8,8] z[-50,20] y=60 id=121. */
+    /* Dragon death: wider mesh around z=-40 / y=70.
+     * driver.py:381-399 place_dragon_platform: x[-8,8] z[-50,20] y=60 id=121.
+     * Superflat dirt/grass at y=1-3 stays (driver reset type=flat seed=0).
+     * Keep the old `dragon` substring so fireball_dragon's world bytes stay
+     * the baseline (that row is CAPTURE_BLOCKED / not this lane). */
+    int is_dragon_death = strstr(state, "dragon_death") != NULL;
     if (strstr(state, "dragon")) {
         for (int cx = -4; cx <= 2; ++cx)
             for (int cz = -4; cz <= 2; ++cz)
                 gm_world_ensure(rt.world, cx, cz, 2);
-        for (int x = -8; x <= 8; ++x)
-            for (int z = -50; z <= 20; ++z)
-                gm_world_set_block(rt.world, x, 60, z, 121); /* end_stone */
+        ui_entities_place_dragon_platform(rt.world);
     }
     gm_runtime_set_time(&rt, 6000);
     rt.clock.freeze_daylight = 1;
@@ -269,9 +271,22 @@ int main(int argc, char **argv) {
                                 0, 1 /* creative */, 0, 0, 0.0f, 1.0f);
 
     /* Shared frame_capture reads strip_overlays / no_hand from the registry
-     * (no longer getenv). Arm them here before open/write. */
-    cr_cfg_set("strip_overlays", "1");
-    cr_cfg_set("no_hand", "1");
+     * (no longer getenv). Arm them here before open/write.
+     * Capture: hide_gui:false, strip.overlays:false (capture_ui_entities.sh:58-62);
+     * goldens/meta/dragon_death_*.json frame_a.hud=1. EntityRenderer draws the
+     * hand outside hideGUI. Non-dragon rows keep the prior knobs so those
+     * complete-ROI bytes stay stable. */
+    if (is_dragon_death) {
+        cr_cfg_set("strip_overlays", "0");
+        cr_cfg_set("no_hand", "0");
+        if (gm_hud_init() != 0) {
+            fprintf(stderr, "gm_hud_init failed\n");
+            free(meta); gm_runtime_destroy(&rt); return 1;
+        }
+    } else {
+        cr_cfg_set("strip_overlays", "1");
+        cr_cfg_set("no_hand", "1");
+    }
 
     inject_from_meta(&rt, state, meta);
 

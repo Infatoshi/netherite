@@ -1339,12 +1339,13 @@ static int emit_dragon(const GmEntityView *ent, CrVertex *out, int cap) {
     float f2 = 20.0f, f3 = -12.0f, f4 = 0.0f;
     int w = 0;
     /* death dissolve: RenderDragon.renderModel (RenderDragon.java:57-71)
-     * alphaFunc(GL_GREATER, f) on dragon_exploding.png (f = deathTicks/200,
-     * :60) then depthFunc EQUAL and bind skin (:67-71). Geometry is always
-     * emitted; cr_shade discards via alpha_mask when light < 0 and blk holds
-     * f. ao is RenderHelper standard item lighting (er_shade_item), not
-     * block-face 1/0.8/0.6/0.5: RenderLivingBase.java:214 enableRescaleNormal
-     * and RenderHelper.java:30-48 LIGHT0/LIGHT1. Fully dissolved at f=1. */
+     * two-pass. Pass 1: alphaFunc(GL_GREATER, f) on dragon_exploding.png
+     * (f = deathTicks/200, :60) writes exploding RGB+depth. Pass 2:
+     * alphaFunc 0.1, depthFunc EQUAL, bind skin (:66-71). Geometry is
+     * always emitted; cr_shade applies both tests (light<0, blk=f). ao is
+     * RenderHelper item lighting (er_shade_item), not block-face
+     * 1/0.8/0.6/0.5: RenderLivingBase.java:214 enableRescaleNormal and
+     * RenderHelper.java:30-48 LIGHT0/LIGHT1. Fully dissolved at f=1. */
     float deadf = ent->death_ticks > 0 ? (float)ent->death_ticks / 200.0f
                                        : 0.0f;
     if (deadf >= 1.0f) return 0;

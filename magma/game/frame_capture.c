@@ -1170,6 +1170,12 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 rays.atlas=&ea; rays.fog_color=clear;
                 rays.untextured=1; rays.blend=3;
                 rays.layer=CR_LAYER_TRANSLUCENT;
+                /* LayerEnderDragonEyes.java:43 restores depthFunc 515
+                 * (GL_LEQUAL) before LayerEnderDragonDeath. Death fans
+                 * depthMask(false) (LayerEnderDragonDeath.java:38) so
+                 * blend=3 does not write depth; they still DEPTH-TEST
+                 * LEQUAL against the two-pass body. */
+                rays.depth_lequal=1;
                 /* lightmap unit 1 is never disabled by the layer (see
                  * gm_dragon_death_rays_emit): keep it bound here too. */
                 rays.lightmap=lm;

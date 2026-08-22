@@ -459,6 +459,56 @@ int main(void) {
               "dissolve down-face ao=0.5 is half of up-face ao=1");
     }
 
+    /* Two-pass exploding-vs-skin (RenderDragon.java:57-71). Synthetic 2x1
+     * atlas: texel 0 = skin, texel 1 = exploding. mask_u_off maps 0 -> 1. */
+    {
+        CrRgba px[2];
+        px[0].r = 10; px[0].g = 20; px[0].b = 30; px[0].a = 0;     /* skin a=0 */
+        px[1].r = 240; px[1].g = 240; px[1].b = 240; px[1].a = 255; /* exploding */
+        CrTexture syn;
+        memset(&syn, 0, sizeof syn);
+        syn.w = 2; syn.h = 1; syn.texels = px;
+        CrShadeCtx sh = {0};
+        sh.atlas = &syn;
+        sh.alpha_mask = 1;
+        sh.alpha_test = 1;
+        sh.layer = CR_LAYER_CUTOUT;
+        sh.mask_u_off = 0.75f; /* u=0 -> exploding at u=0.75, ix=1 */
+        sh.mask_v_off = 0.0f;
+        CrFragment frag = {0};
+        frag.uv.x = 0.0f; frag.uv.y = 0.0f;
+        frag.light = -1.0f;
+        frag.ao = 1.0f;
+        frag.tint = (CrRgba){255,255,255,255};
+        frag.blk = 0.25f; /* deathTicks=50 */
+        CrRgba hole = cr_shade(&sh, &frag);
+        CHECK(hole.a != 0 && hole.r > 200 && hole.g > 200 && hole.b > 200,
+              "skin a=0 keeps pass-1 exploding RGB (RenderDragon.java:66-71)");
+
+        px[0].a = 25; /* GL_GREATER 0.1 discards a<=25 */
+        CrRgba still = cr_shade(&sh, &frag);
+        CHECK(still.r > 200,
+              "skin a=25 fails alphaFunc 0.1; exploding RGB stays");
+
+        px[0].a = 26; /* 26/255 > 0.1 */
+        CrRgba sk = cr_shade(&sh, &frag);
+        CHECK(sk.r < 40 && sk.g < 40 && sk.b < 50,
+              "skin a=26 passes 0.1 and overwrites exploding RGB");
+
+        px[0].a = 50; /* would FAIL default CUTOUT 0.5 (thr=127) */
+        CrRgba mid = cr_shade(&sh, &frag);
+        CHECK(mid.r < 40,
+              "pass-2 uses 0.1 not CUTOUT 0.5 (RenderDragon.java:66)");
+
+        px[1].a = 0; /* exploding fails pass 1 */
+        px[0].a = 255;
+        CrRgba gone = cr_shade(&sh, &frag);
+        CHECK(gone.a == 0,
+              "exploding a=0 discards (pass 1 GL_GREATER f fails)");
+        px[1].a = 255;
+        px[1].r = 240; px[1].g = 240; px[1].b = 240;
+    }
+
     /* RenderXPOrb: texture cell, hue pulse, billboard transform. */
     {
         static float sin_tab[65536];

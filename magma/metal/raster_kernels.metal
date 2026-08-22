@@ -345,17 +345,24 @@ static CrRgbaM cr_shade(device const CrShadeCtxM *sh,
     CrRgbaM out;
     const float inv255 = 1.0f / 255.0f;
 
-    /* RenderDragon death dissolve. light < 0 marks fragments; blk holds
-     * deathTicks/200 (RenderDragon.java:59-63). Mask sample uses mode 0
-     * (the CUDA global override is still 0 at this point). */
+    /* RenderDragon.renderModel two-pass (RenderDragon.java:57-71).
+     * Pass 1: bind dragon_exploding, alphaFunc(GL_GREATER, deathTicks/200)
+     * writes exploding RGB + depth. Pass 2: alphaFunc(GL_GREATER, 0.1F),
+     * depthFunc EQUAL, bind skin: skin lands only where pass 1 wrote the
+     * same depth. If skin fails 0.1, the exploding RGB stays (holes).
+     * Mask sample uses mode 0 (the CUDA global override is still 0 here). */
+    CrRgbaM explode_tex;
+    explode_tex.r = 0; explode_tex.g = 0; explode_tex.b = 0; explode_tex.a = 0;
+    int dissolve = 0;
     if (sh->alpha_mask && frag->light < 0.0f && sh->atlas) {
         float mu = frag->uv.x + sh->mask_u_off;
         float mv = frag->uv.y + sh->mask_v_off;
-        CrRgbaM mask = cr_atlas_sample(sh->atlas, mu, mv, 0);
-        if ((float)mask.a * inv255 <= frag->blk) {
+        explode_tex = cr_atlas_sample(sh->atlas, mu, mv, 0);
+        if ((float)explode_tex.a * inv255 <= frag->blk) {
             out.r = 0; out.g = 0; out.b = 0; out.a = 0;
             return out;
         }
+        dissolve = 1;
     }
 
     CrRgbaM texel;
@@ -372,7 +379,13 @@ static CrRgbaM cr_shade(device const CrShadeCtxM *sh,
     int alpha_test = sh->alpha_test
         || sh->layer == CR_LAYER_CUTOUT
         || sh->layer == CR_LAYER_CUTOUT_MIPPED;
-    if (sh->alpha_mask && frag->light < 0.0f) alpha_test = 0;
+    if (dissolve) {
+        /* RenderDragon.java:66 alphaFunc(516, 0.1F) on the skin pass. */
+        int skin_thr = (int)(0.1f * 255.0f + 1e-5f); /* 25 */
+        if ((int)texel.a <= skin_thr)
+            texel = explode_tex;
+        alpha_test = 0;
+    }
     if (alpha_test) {
         float ref = sh->alpha_ref > 0.0f ? sh->alpha_ref : 0.5f;
         int thr = (int)(ref * 255.0f + 1e-5f); /* floor(ref*255); 0.5 -> 127 */

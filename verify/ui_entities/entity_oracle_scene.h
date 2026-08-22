@@ -51,4 +51,22 @@ static void ui_entities_place_pad(GmWorld *w)
                             UI_ENT_CZ + 3, 2, 0);
 }
 
+/* driver.py:381-399 place_dragon_platform
+ * x = range(-8, 9) = [-8,8]
+ * z = range(-50, 21) = [-50,20]
+ * end_stone id=121 meta=0 at y=60
+ *
+ * Superflat seed-0 layers stay under it (bedrock y=0, dirt y=1-2,
+ * grass y=3; FlatGeneratorInfo.java:327-336). Do not replace them.
+ */
+static void ui_entities_place_dragon_platform(GmWorld *w)
+{
+    int x, z;
+    if (!w) return;
+    for (x = -8; x <= 8; ++x) {
+        for (z = -50; z <= 20; ++z)
+            gm_world_set_block_meta(w, x, 60, z, 121, 0); /* end_stone */
+    }
+}
+
 #endif

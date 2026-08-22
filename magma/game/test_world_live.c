@@ -443,6 +443,38 @@ static void test_ui_entities_capture_pad(void) {
     gm_world_destroy(w);
 }
 
+/* Capture dragon shelf must match capture_ui_entities_driver.py:381-399.
+ * Superflat layers under the shelf stay (reset type=flat seed=0). */
+static void test_ui_entities_dragon_platform(void) {
+    printf("== ui_entities dragon platform ==\n");
+    GmWorld *w = gm_world_create_type(0, 1);
+    CHECK(w != NULL, "superflat seed 0");
+    if (!w) return;
+    gm_world_ensure(w, 0, -3, 4);
+    ui_entities_place_dragon_platform(w);
+    CHECK(gm_world_block(w, -8, 60, -50) == BLK_END_STONE,
+          "platform corner (-8,60,-50) end_stone");
+    CHECK(gm_world_block(w, 8, 60, 20) == BLK_END_STONE,
+          "platform corner (8,60,20) end_stone");
+    CHECK(gm_world_block(w, 0, 60, 0) == BLK_END_STONE,
+          "platform under dragon (0,60,0) end_stone");
+    CHECK(gm_world_block(w, -9, 60, 0) == BLK_AIR,
+          "x=-9 is outside platform x[-8,8]");
+    CHECK(gm_world_block(w, 0, 60, -51) == BLK_AIR,
+          "z=-51 is outside platform z[-50,20]");
+    CHECK(gm_world_block(w, 0, 60, 21) == BLK_AIR,
+          "z=21 is outside platform z[-50,20]");
+    CHECK(gm_world_block(w, 0, 3, 0) == BLK_GRASS,
+          "superflat grass under platform");
+    CHECK(gm_world_block(w, 0, 1, 0) == BLK_DIRT &&
+          gm_world_block(w, 0, 2, 0) == BLK_DIRT,
+          "superflat dirt y1-2 under platform");
+    CHECK(gm_world_block(w, 0, 0, 0) == BLK_BEDROCK,
+          "superflat bedrock under platform");
+    CHECK(gm_world_biome(w, 0, 0) == 1, "plains biome id 1");
+    gm_world_destroy(w);
+}
+
 int main(void) {
     test_regression_lock();
     test_dirty_cache();
@@ -450,6 +482,7 @@ int main(void) {
     test_state_namespace();
     test_superflat();
     test_ui_entities_capture_pad();
+    test_ui_entities_dragon_platform();
 
     if (fails == 0) { printf("\nALL PASS\n"); return 0; }
     printf("\n%d CHECK(S) FAILED\n", fails);
