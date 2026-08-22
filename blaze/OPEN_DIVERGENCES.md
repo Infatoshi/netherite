@@ -16,7 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
-Last verified: lane/fluidsm2 2026-08-22 (fluids M2 bitwise).
+Last verified: lane/randticks 2026-08-22 (random_ticks M1+M2).
 
 ## Verified rows (no known divergence)
 
@@ -26,6 +26,7 @@ Last verified: lane/fluidsm2 2026-08-22 (fluids M2 bitwise).
 | spawn_to_torch | VERIFIED (chain 2058 actions) | VERIFIED |
 | world_dynamics | VERIFIED | VERIFIED |
 | fluids | VERIFIED | VERIFIED (chain 61 actions) |
+| random_ticks | VERIFIED (200 idle ticks, 27 tickable-cell mutations) | VERIFIED (64 CUDA lanes) |
 
 ## Unported rows (coverage gaps), in dependency order
 
@@ -34,7 +35,6 @@ start any time; deeper rows wait on their deps.
 
 | row | deps | blocked on |
 |---|---|---|
-| random_ticks | world_dynamics | scheduling/effects not measured by both backends |
 | falling_blocks | world_dynamics | falling-block state not measured by both backends (magma-side sim landed 2026-08-01; blaze has none) |
 | chests | spawn_to_torch | generation, loot, GUI transfers not measured end to end |
 | weather_optional | world_dynamics | weather transitions not measured by both backends |
