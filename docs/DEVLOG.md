@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 fallblock tape re-run (lane/fallblock)
+
+Cascade is already on HEAD via 1caf2bb (re-port of 2d759f8; that commit
+is not an ancestor). Did not cherry-pick. Baseline disagreed with the
+OPEN t22/t30 numbers: 151855Z world_hash is 309/310, first mismatch t46
+java=f63a2e55f4417889 magma=8d22d846ed0c2a49, reconverge t47. Physics
+310/310. Documented dig skew is gone. t46 left OPEN (creative delay=1;
+border 0.0F regresses t25). Wired `test-fall-reanchor` into magma
+`make test`. Native A-H PASS.
+
 ## 2026-08-22 rain/thunder lightmap (lane/rainlight)
 
 Tape `rain`/`thunder` (`getRainStrength(1)` / `getThunderStrength(1)`) now
