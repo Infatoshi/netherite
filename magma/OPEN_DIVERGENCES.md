@@ -420,27 +420,32 @@ No strict entity family is pixel-perfect yet:
   edits.
 - Small fireball no longer draws on-fire layers unless `isBurning`, but its
   complete ROI remains open.
-- Dragon death (lane/dragondeath, gamer 2026-08-22). Capture pin is
+- Dragon death (lane/dragonpass, gamer 2026-08-22). Capture pin is
   NoAI+HOVER: `animTime=0.5F` (EntityDragon.java:221), `ringBufferIndex=-1`
   zeros so `applyRotations` yaw is 0 (RenderDragon.java:33-35),
   `getHeadPartYOffset` returns idx (EntityDragon.java:1064-1066).
   `BossInfo.createFog` is End-only (DragonFightManager); overworld capture
   must not re-arm the dense `[far*0.05, far*0.5]` ramp. Dissolve is
-  per-texel: `RenderDragon.renderModel` `alphaFunc(GL_GREATER, deathTicks/200)`
-  on `dragon_exploding.png` then skin at `depthFunc EQUAL`
-  (RenderDragon.java:57-71). Threshold lives in `CrVertex.blk`; `ao` is
-  ModelBox face shade from `RenderHelper` LIGHT0/LIGHT1
-  (RenderHelper.java:30-48, RenderLivingBase.java:214 enableRescaleNormal),
-  not block-face 1/0.8/0.6/0.5. After on gamer
-  (`out/verify/dragondeath_after4.log`): dragon_death_50/100/190
-  `hard_px=83757/82429/83305` `c_vs_j=2.919/2.927/2.912` `ab_nz=0`
-  RESIDUAL (baseline 92122/101336/159948). pxdiff thresh-25: wing gray
-  exact (J=C=60 at 19,356); remaining clusters are HUD 30520, dirt cube
-  3507, crosshair 68 (candidate `strip_overlays=1`, no superflat dirt).
-  Body-ish thr25 leftover 26 px (exploding-vs-skin two-pass holes,
-  ray/magenta specks). Other 13 rows byte-stable vs baseline. Not PASS:
-  complete ROI still counts HUD/dirt/1-LSB sky. Do not edit ROI or
-  recapture. Fine ray orientation stays open.
+  per-texel two-pass: `RenderDragon.renderModel` `alphaFunc(GL_GREATER,
+  deathTicks/200)` on `dragon_exploding.png` then skin at `depthFunc EQUAL`
+  and `alphaFunc 0.1` (RenderDragon.java:57-71). Threshold lives in
+  `CrVertex.blk`; exploding RGB stays where skin a<=25. `ao` is ModelBox
+  face shade from `RenderHelper` LIGHT0/LIGHT1 (RenderHelper.java:30-48,
+  RenderLivingBase.java:214 enableRescaleNormal). Death rays DEPTH-TEST
+  LEQUAL after LayerEnderDragonEyes.java:43. Dragon-only candidate draws
+  HUD/hand (capture hide_gui false, meta hud=1) and the end-stone shelf
+  (driver.py:381-399). Idle viewmodel:
+  `ItemRenderer.equippedProgressMainHand` = 1 after settle
+  (ItemRenderer.java:608-630); f5=1-progress (:340); goldens hold
+  Blocks.DIRT id 3. After on gamer
+  (`out/verify/dragonpass_after_hand.log`): dragon_death_50/100/190
+  `hard_px=84995/83667/84543` `c_vs_j=2.157/2.165/2.150` `ab_nz=0`
+  RESIDUAL (dragondeath after4 83757/82429/83305, 2.919/2.927/2.912).
+  Other 13 rows byte-stable vs that baseline. Not PASS: complete ROI
+  still 1-LSB sky + viewmodel pose/lighting + 1-px exploding hole
+  (x=482,y=22 J white vs C 15). Do not edit ROI or recapture. Metal
+  twin of af78532 shade.c still needs cpu==metal on the Mac before
+  `kernel_pairs.py --update`.
 - The death burst (deathTicks 180-217) now reconstructs the full vanilla
   timeline - every one of a `ParticleExplosionHuge`'s 8 batches (not just the
   newest), and the ~17 ticks of cloud that outlive the entity - and the boss
@@ -452,8 +457,8 @@ No strict entity family is pixel-perfect yet:
   puff (~0.6 IoU on the bright mask). Exact match needs the recorder to log
   `spawnParticle` calls.
 - Death dissolve is per-texel via `dragon_exploding` alpha (see dragon
-  death bullet). Remaining holes are the two-pass exploding-RGB where
-  skin `alphaFunc 0.1` fails (RenderDragon.java:66-71), not box drop.
+  death bullet). Remaining 1-px hole is exploding-RGB where skin
+  `alphaFunc 0.1` fails in Java but C keeps skin (RenderDragon.java:66-71).
 
 Repro:
 

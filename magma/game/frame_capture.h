@@ -11,6 +11,12 @@ typedef struct GmFrameCapture GmFrameCapture;
 GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_cap);
 void gm_frame_capture_bind_particles(GmFrameCapture *capture,
                                      GmParticlesLive *particles);
+/* ItemRenderer.updateEquippedItem (ItemRenderer.java:608-630): after the
+ * capture driver's settle() the main-hand stack is unchanged, so
+ * equippedProgressMainHand idles at getCooledAttackStrength^3 == 1.
+ * renderItemInFirstPerson gets f5 = 1-progress (:340). calloc starts at 0,
+ * which is resetEquippedProgress (:643) and drops the viewmodel. */
+void gm_frame_capture_equip_idle(GmFrameCapture *c, const GmRuntime *r);
 /* Call once per tick. Always advances hand-animation state; renders and
  * writes the tick-numbered PPM only when render is non-zero. */
 int gm_frame_capture_write(GmFrameCapture *capture, GmRuntime *runtime,

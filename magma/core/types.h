@@ -140,10 +140,11 @@ typedef struct {
      * initializer that predates this field leaves it 0) keeps GL_LINEAR. */
     float  fog_exp_density;
     /* Optional per-texel dissolve (RenderDragon death): when alpha_mask is 1,
-     * fragments with light < 0 sample atlas at uv+(mask_u_off,mask_v_off) and
-     * discard when mask.a/255 <= blk (blk carries deathTicks/200;
-     * RenderDragon.java:59-63 alphaFunc GL_GREATER f). Color still samples
-     * the primary UV. ao stays ModelBox face shade (er_shade). Zero-init
+     * fragments with light < 0 sample exploding at uv+(mask_u_off,mask_v_off)
+     * and discard when mask.a/255 <= blk (blk = deathTicks/200;
+     * RenderDragon.java:59-63 pass-1 alphaFunc GL_GREATER f). Pass 2 binds
+     * skin at depthFunc EQUAL with alphaFunc 0.1 (:66-71); skin that fails
+     * 0.1 keeps pass-1 exploding RGB. ao stays ModelBox face shade. Zero-init
      * keeps every existing caller unchanged. */
     int    alpha_mask;
     float  mask_u_off, mask_v_off;

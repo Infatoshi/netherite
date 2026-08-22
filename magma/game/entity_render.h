@@ -125,7 +125,8 @@ void gm_entity_restore_large_fireball_types(GmEntityView *views, int nviews);
 
 /* LayerEnderDragonDeath light rays (death_ticks > 0). Untextured additive
  * triangle fans (9 verts/ray = 3 tris). Rotations accumulate; verts after
- * applyRotations+prepareScale+Layer(0,-1,-2). Draw with blend=3, untextured=1. */
+ * applyRotations+prepareScale+Layer(0,-1,-2). Draw with blend=3, untextured=1,
+ * depth_lequal=1 (LayerEnderDragonEyes.java:43 restores GL_LEQUAL). */
 int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                               int max);
 

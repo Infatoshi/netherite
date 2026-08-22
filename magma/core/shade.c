@@ -143,17 +143,23 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
     CrRgba out;
     const float inv255 = 1.0f / 255.0f;
 
-    /* RenderDragon death dissolve: light < 0 marks dissolve fragments; blk
-     * holds deathTicks/200 (RenderDragon.java:59-63 alphaFunc GL_GREATER f).
-     * Sample dragon_exploding at uv+mask_off. ao is ModelBox face shade. */
+    /* RenderDragon.renderModel two-pass (RenderDragon.java:57-71).
+     * Pass 1: bind dragon_exploding, alphaFunc(GL_GREATER, deathTicks/200)
+     * writes exploding RGB + depth. Pass 2: alphaFunc(GL_GREATER, 0.1F),
+     * depthFunc EQUAL, bind skin: skin lands only where pass 1 wrote the
+     * same depth. If skin fails 0.1, the exploding RGB stays (holes). */
+    CrRgba explode_tex;
+    explode_tex.r = 0; explode_tex.g = 0; explode_tex.b = 0; explode_tex.a = 0;
+    int dissolve = 0;
     if (sh->alpha_mask && frag->light < 0.0f && sh->atlas) {
         float mu = frag->uv.x + sh->mask_u_off;
         float mv = frag->uv.y + sh->mask_v_off;
-        CrRgba mask = cr_atlas_sample(sh->atlas, mu, mv);
-        if ((float)mask.a * inv255 <= frag->blk) {
+        explode_tex = cr_atlas_sample(sh->atlas, mu, mv);
+        if ((float)explode_tex.a * inv255 <= frag->blk) {
             out.r = 0; out.g = 0; out.b = 0; out.a = 0;
             return out;
         }
+        dissolve = 1;
     }
 
     /* SOLID keeps level-0 nearest (byte-identical to the pre-layer path); mipped
@@ -173,12 +179,18 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
 
     /* Alpha test: explicit flag, or the CUTOUT layers. Default ref 0.5
      * (texel.a < 128, GL_GREATER 0.5). Living entities use alpha_ref=0.1
-     * (discard a/255 <= 0.1 i.e. a <= 25). Skip when dissolve already
-     * applied the exploding-mask gate for this fragment. */
+     * (discard a/255 <= 0.1 i.e. a <= 25). Dissolve applies both Java tests
+     * itself: pass-1 exploding GL_GREATER f (above) then pass-2 skin 0.1. */
     int alpha_test = sh->alpha_test
         || sh->layer == CR_LAYER_CUTOUT
         || sh->layer == CR_LAYER_CUTOUT_MIPPED;
-    if (sh->alpha_mask && frag->light < 0.0f) alpha_test = 0;
+    if (dissolve) {
+        /* RenderDragon.java:66 alphaFunc(516, 0.1F) on the skin pass. */
+        int skin_thr = (int)(0.1f * 255.0f + 1e-5f); /* 25 */
+        if ((int)texel.a <= skin_thr)
+            texel = explode_tex;
+        alpha_test = 0;
+    }
 #if !defined(__CUDA_ARCH__)
     /* Opt-in: alpha-test SOLID too (experiment; Java Fast SOLID has alpha DISABLED). */
     if (!alpha_test && sh->layer == CR_LAYER_SOLID) {

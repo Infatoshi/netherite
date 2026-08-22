@@ -909,6 +909,9 @@ int gm_window_compose_draw(GmWindowCompose *c,
             rays.untextured = 1;
             rays.blend = 3;
             rays.layer = CR_LAYER_TRANSLUCENT;
+            /* LayerEnderDragonEyes.java:43 depthFunc 515 (GL_LEQUAL)
+             * then LayerEnderDragonDeath.java:38 depthMask(false). */
+            rays.depth_lequal = 1;
             rays.lightmap = lm;
             gm_frame_world_fog_params(r->dimension, c->boss_latch,
                                       &rays.enable_fog,
