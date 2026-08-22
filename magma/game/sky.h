@@ -116,10 +116,60 @@ void gm_sky_set_fluid_fog(int on, CrVec3 fog01, float density);
  * gm_sky_frame_args / gm_terrain_fog_color. Host state; default 1.0. */
 void gm_sky_set_fog_c1(float fog_c1);
 
+/* World.getRainStrength / getThunderStrength for getSkyColorBody (sky
+ * vertices) and updateFogColor (view/terrain fog). Call each frame before
+ * gm_sky_draw / gm_sky_frame_args / gm_terrain_fog_color. Host state;
+ * default 0 (live play). Tape replay feeds the recorded strengths. */
+void gm_sky_set_weather(float rain_strength, float thunder_strength);
+
 /* Entity.getEyeHeight for orientCamera's glTranslate(0,-eyeHeight,0). Sets the
  * sky-plane eye-space height to 16 - eh (see GmSkyCtx.plane_y). Call each
  * frame before gm_sky_draw / gm_sky_frame_args. Host state; default 1.62. */
 void gm_sky_set_eye_height(float eye_height);
+
+/* World.getSkyColorBody rain (World.java:1609-1618) then thunder (1620-1629).
+ * Applied to biome*daylight sky vertices. Identity when rain=thunder=0. */
+static inline CrVec3 gm_sky_color_weather_mix(CrVec3 c, float rain, float thunder)
+{
+    if (rain > 0.0f) {
+        float f7 = (c.x * 0.3f + c.y * 0.59f + c.z * 0.11f) * 0.6f;
+        float f8 = 1.0f - rain * 0.75f;
+        float om = 1.0f - f8;
+        c.x = c.x * f8 + f7 * om;
+        c.y = c.y * f8 + f7 * om;
+        c.z = c.z * f8 + f7 * om;
+    }
+    if (thunder > 0.0f) {
+        float f11 = (c.x * 0.3f + c.y * 0.59f + c.z * 0.11f) * 0.2f;
+        float f9 = 1.0f - thunder * 0.75f;
+        float om = 1.0f - f9;
+        c.x = c.x * f9 + f11 * om;
+        c.y = c.y * f9 + f11 * om;
+        c.z = c.z * f9 + f11 * om;
+    }
+    return c;
+}
+
+/* EntityRenderer.updateFogColor rain (EntityRenderer.java:1815-1824) then
+ * thunder (1826-1834). Applied after the sky/provider view mix, before
+ * fogColor1. Identity when rain=thunder=0. */
+static inline CrVec3 gm_fog_color_weather_mix(CrVec3 c, float rain, float thunder)
+{
+    if (rain > 0.0f) {
+        float f4 = 1.0f - rain * 0.5f;
+        float f10 = 1.0f - rain * 0.4f;
+        c.x *= f4;
+        c.y *= f4;
+        c.z *= f10;
+    }
+    if (thunder > 0.0f) {
+        float f11 = 1.0f - thunder * 0.5f;
+        c.x *= f11;
+        c.y *= f11;
+        c.z *= f11;
+    }
+    return c;
+}
 
 #ifdef __cplusplus
 }

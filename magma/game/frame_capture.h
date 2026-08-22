@@ -20,11 +20,13 @@ void gm_frame_capture_close(GmFrameCapture *capture);
 
 /* Fill the 16x16 EntityRenderer.updateLightmap LUT for the given world time
  * and recorded getRainStrength(1)/getThunderStrength(1) (overworld texels;
- * callers gate on lightmap mode + dimension 0). Shared by the capture path
- * and the interactive window loop. Live play passes rain=thunder=0. */
+ * callers gate on lightmap mode + dimension 0). last_lightning is
+ * World.getLastLightningBolt; 0 skips the sky-brightness override
+ * (EntityRenderer.java:900-903). Shared by the capture path and the
+ * interactive window loop. Live play passes rain=thunder=lightning=0. */
 void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
                             float rain_strength, float thunder_strength,
-                            CrRgba lut[256]);
+                            int last_lightning, CrRgba lut[256]);
 
 /* Fill per-entity light fields (lm_lit + coords/multiplier) from world light
  * at each entity's eye block, LUT path when lm is non-NULL, legacy fold

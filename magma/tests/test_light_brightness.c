@@ -101,6 +101,24 @@ int main(void) {
             fails++;
         }
     }
+    /* EntityRenderer.java:900-903: lastLightningBolt>0 replaces f2 = table*f1
+     * with f2 = table. Sky-0 is already 0 so the override is a no-op there. */
+    {
+        CrLightmapRgb off = cr_lightmap_rgb(0, 15, 0, 0.578125f, 0.0f, 0.0f);
+        CrLightmapRgb on = cr_lightmap_rgb_lightning(0, 15, 0, 0.578125f,
+                                                     0.0f, 0.0f, 2);
+        CrLightmapRgb z0 = cr_lightmap_rgb(0, 0, 0, 0.578125f, 0.0f, 0.0f);
+        CrLightmapRgb z1 = cr_lightmap_rgb_lightning(0, 0, 0, 0.578125f,
+                                                     0.0f, 0.0f, 2);
+        if (!(on.r > off.r && on.g > off.g && on.b > off.b)) {
+            printf("FAIL: lightning sky-15 texel did not boost\n");
+            fails++;
+        }
+        if (z0.r != z1.r || z0.g != z1.g || z0.b != z1.b) {
+            printf("FAIL: lightning changed sky-0 texel\n");
+            fails++;
+        }
+    }
     printf("checked %d table + %d RGB values against %s\n", ntable, nrgb, path);
     printf(fails ? "RESULT: FAIL (%d)\n" : "RESULT: PASS (0 LSB divergence)\n", fails);
     return fails ? 1 : 0;
