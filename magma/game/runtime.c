@@ -1930,6 +1930,16 @@ void gm_runtime_set_weather(GmRuntime *r, int raining, int thundering,
                                rain_time, thunder_time);
 }
 
+void gm_runtime_set_rain_thunder(GmRuntime *r, float rain, float thunder) {
+    if (!r) return;
+    if (rain < 0.0f) rain = 0.0f;
+    if (rain > 1.0f) rain = 1.0f;
+    if (thunder < 0.0f) thunder = 0.0f;
+    if (thunder > 1.0f) thunder = 1.0f;
+    r->rain_strength = rain;
+    r->thunder_strength = thunder;
+}
+
 int gm_runtime_projectile_views(const GmRuntime *r, GmEntityView *out, int max) {
     if (!r || !out || max <= 0) return 0;
     int n = 0;

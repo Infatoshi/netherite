@@ -989,25 +989,31 @@ CLOSED 2026-07-30 with the horizon family (sneak eye height); full decomposition
 
 CLOSED 2026-07-30: recorder writes fog_color1 into the tape header, replay seeds MAGMA_FOG_C1_INIT from it; all 2026-07-30 re-records carry the field (slime t=0 clean, elytra_dip header 0.99999976). Legacy tapes keep the steady-state seed. Full entry in CLOSED_DIVERGENCES.md.
 
-### The lightmap ignores rain and thunder
+### Rain sky, particles, and lightning remain (lightmap sun is wired)
 
-`build_lightmap_lut` (`frame_capture.c`) calls
-`cr_lightmap_rgb(0, sl, bl, sun, 0.0f, 0.0f)` - rain and thunder hardcoded to
-zero - and its `sun` comes from `fc_sun_brightness(sin_table, world_time)`,
-which takes no weather at all. Vanilla's `updateLightmap` uses
-`world.getSunBrightness(1.0F)` (`EntityRenderer.java:892`), and
-`getSunBrightnessFactor` (`World.java:1551`) scales it by
-`(1 - rainStrength * 5/16)` and again by `(1 - thunderStrength * 5/16)`. So
-magma lights every rainy frame as if the sky were clear.
+Lightmap `f` now follows `World.getSunBrightnessBody` (`World.java:1572-1580`),
+including the rain/thunder factors at 1578-1579. Tape `rain`/`thunder` are
+`getRainStrength(1.0F)` / `getThunderStrength(1.0F)` (`Recorder.java:8213-8214`;
+thunder is already rain-weighted). `cr_lightmap_rgb`'s last two args are torch
+flicker and gamma, not weather; `updateLightmap` (`EntityRenderer.java:892`)
+takes sun brightness as `f` after those factors. Live play keeps rain=thunder=0
+(no rainingStrength fade).
 
-Cleanest measurement is the first-person arm on the canonical tape, because it
-reads the lightmap directly with no fog blend on top: through t=1800..1980 the
-arm is a flat achromatic **0.670** golden/magma while sky (0.787/0.805/0.827)
-and terrain (0.758/0.774/0.694) are chromatic and milder - they pick up part of
-the darkening through the fog colour, which magma does model. Outside that
-window the same arm measures 0.997.
+`scenario_rain_thunder_20260821T093435Z` `--cpu`, 21 frames:
 
-Oracle tape now exists (2026-08-21, anvil, git `aa43667`):
+| | whole mean/ch | terrain | UNEXPLAINED px | failed frames |
+|---|---|---|---|---|
+| before | ~75.7 | ~70.5 | 7217585 | 21 |
+| after | ~50.9 | ~41.5 | 2140760 | 21 |
+
+Arm R/G on this tape 0.46 -> 0.99 (matches golden except t=180 lightning, 1.57).
+Still FAIL: rain particles, `getSkyColorBody` rain mix (sky stays clear),
+`lastLightningBolt` lightmap override. Tape header declares
+`container_identity`/`gui_clicks` with no events so replay is fail-closed rc=2
+regardless of pixels. Do not treat the canonical tape's `known:12` rain class
+as the evidence.
+
+Oracle tape (2026-08-21, anvil, git `aa43667`):
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
@@ -1021,11 +1027,7 @@ header `rain_strength=1.0` `thunder_strength=1.0`; all 209 tick rows have
 `verify/tapes/scenario_rain_thunder_20260821T093435Z_world/` (sorted-file
 sha256 `bf6bb57d4accf15cf07357a4a4ab759295397d5c8dd39097e6e5391e50fc8673`).
 Recipe: `verify/scenarios/rain_thunder.yaml` (`/weather thunder 1000000`,
-`doWeatherCycle false`, 160-tick strength ramp). Replay `--cpu` is not the
-oracle-evidence gate.
-
-Wiring `rain`/`thunder` through `build_lightmap_lut` is now grindable. Do
-not treat the canonical tape's `known:12` rain class as the evidence.
+`doWeatherCycle false`, 160-tick strength ramp).
 
 ### Remaining isolated render features
 

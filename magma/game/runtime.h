@@ -229,6 +229,9 @@ typedef struct GmRuntime {
     long long seed;
     long long tick;
     int weather_enabled;
+    /* Tape getRainStrength(1)/getThunderStrength(1). Live stays 0: magma has
+     * WorldInfo raining flags but no rainingStrength fade. */
+    float rain_strength, thunder_strength;
     int mobs_enabled; /* --mobs off skips gm_mobs_tick (tape-replay parity) */
     /* Live/window random block ticks (game/randtick.c). Default ON for interactive
      * play and unit tests; script/tape replay sets 0 so the unseedable oracle
@@ -446,6 +449,7 @@ int gm_runtime_spawner_views(const GmRuntime *r, GmRuntimeSpawnerView *out,
 int gm_runtime_set_inventory(GmRuntime *r, int slot, int item, int count, int meta);
 void gm_runtime_set_weather(GmRuntime *r, int raining, int thundering,
                             int rain_time, int thunder_time);
+void gm_runtime_set_rain_thunder(GmRuntime *r, float rain, float thunder);
 int gm_runtime_projectile_views(const GmRuntime *r, GmEntityView *out, int max);
 /* Execute one survival crafting take from inventory-backed grid slots. Empty
  * cells are -1. Returns 1 only if a recipe matched and the output fit. */

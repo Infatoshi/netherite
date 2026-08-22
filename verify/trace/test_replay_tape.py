@@ -250,6 +250,46 @@ def test_portal_transit_reloads_arrival_dimension_snapshot(tmp_path: Path):
     assert cells == {(51, 5, 22, -5), (11, 9, 21, -3)}
 
 
+def test_rain_thunder_header_and_row_changes(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 6000,
+              "x": 0.5, "y": 4.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 20.0, "food": 20, "rain_strength": 1.0,
+              "thunder_strength": 1.0}
+    def row(t, rain=None, thunder=None):
+        r = {"t": t, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 4.0, "z": 0.5,
+             "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20, "ents": []}
+        if rain is not None:
+            r["rain"] = rain
+        if thunder is not None:
+            r["thunder"] = thunder
+        return r
+    ticks = [row(0, 1.0, 1.0), row(1, 1.0, 1.0),
+             row(2, 0.5, 0.5), row(3)]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()
+              if json.loads(line)["type"] == "set_rain_thunder"]
+    assert events == [
+        {"tick": 0, "type": "set_rain_thunder", "rain": 1.0, "thunder": 1.0},
+        {"tick": 2, "type": "set_rain_thunder", "rain": 0.5, "thunder": 0.5},
+        {"tick": 3, "type": "set_rain_thunder", "rain": 0.0, "thunder": 0.0},
+    ]
+
+
+def test_clear_weather_tape_omits_rain_thunder(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 6000,
+              "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 20.0, "food": 20, "rain_strength": 0.0,
+              "thunder_strength": 0.0}
+    ticks = [{"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0,
+              "z": 0.5, "yaw": 0.0, "pitch": 0.0, "hp": 20.0,
+              "food": 20, "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    types = [json.loads(line)["type"] for line in script.read_text().splitlines()]
+    assert "set_rain_thunder" not in types
+
+
 def test_recorded_food_change_is_reanchored_post_tick(tmp_path: Path):
     header = {"header": 1, "seed": 0, "world_time": 6000,
               "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,

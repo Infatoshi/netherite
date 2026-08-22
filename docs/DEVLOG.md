@@ -1,5 +1,13 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 rain/thunder lightmap (lane/rainlight)
+
+Tape `rain`/`thunder` (`getRainStrength(1)` / `getThunderStrength(1)`) now
+reach `fc_sun_brightness` via `World.getSunBrightnessBody` rain/thunder
+factors. Live stays 0. Rain tape 21 frames: whole ~75.7/ch -> ~50.9/ch,
+UNEXPLAINED 7.22M -> 2.14M px, arm R/G 0.46 -> 0.99. Still FAIL 21 frames
+(sky color, rain particles, t=180 lightning). Fence collide still PASS.
+
 ## 2026-08-22 chain4 retrain PASS + stage ladder (anvil gpu0)
 
 Chain retrain with the staged curriculum completed end-to-end for the

@@ -1090,6 +1090,8 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                 arrival_events = snapshot_arrival_events(snapshot_patch, header,
                                                          ticks)
 
+    row_weather = any("rain" in r or "thunder" in r for r in ticks)
+
     with open(script_path, "w") as f:
         f.write(json.dumps({"tick": 0, "type": "set_time",
                             "value": int(header["world_time"])}) + "\n")
@@ -1141,6 +1143,14 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
             f.write(json.dumps({"tick": 0, "type": "set_vitals",
                                 "health": header["hp"],
                                 "food": int(header["food"])}) + "\n")
+        last_rain = 0.0
+        last_thunder = 0.0
+        hr = float(header["rain_strength"]) if "rain_strength" in header else 0.0
+        ht = float(header["thunder_strength"]) if "thunder_strength" in header else 0.0
+        if hr != 0.0 or ht != 0.0:
+            f.write(json.dumps({"tick": 0, "type": "set_rain_thunder",
+                                "rain": hr, "thunder": ht}) + "\n")
+            last_rain, last_thunder = hr, ht
         # Seed live inventory before tick 0 from the first recorded inv row.
         # inv rows are post-tick truth, re-anchored via set_inventory on tick
         # t+1 so action t still sees the pre-tick stack; inv_view is render-
@@ -1298,6 +1308,13 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                 last_dim = dimension
                 f.write(json.dumps({"tick": t, "type": "set_dimension",
                                     "dimension": dimension}) + "\n")
+            if row_weather:
+                rain = float(row["rain"]) if "rain" in row else 0.0
+                thunder = float(row["thunder"]) if "thunder" in row else 0.0
+                if rain != last_rain or thunder != last_thunder:
+                    f.write(json.dumps({"tick": t, "type": "set_rain_thunder",
+                                        "rain": rain, "thunder": thunder}) + "\n")
+                    last_rain, last_thunder = rain, thunder
             for event in arrival_events.get(t, []):
                 if not post_capture_spread(event):
                     f.write(json.dumps(event) + "\n")

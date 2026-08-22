@@ -1048,6 +1048,16 @@ int gm_script_run(const GmConfig *cfg) {
                 }
                 gm_runtime_set_weather(&r,(int)raining,(int)thundering,
                                        (int)rain_time,(int)thunder_time);
+            } else if (!strcmp(type,"set_rain_thunder")) {
+                double rain,thunder;
+                static const char *const keys[]={"tick","type","rain","thunder"};
+                if(!keys_only(&pending,keys,4,err,sizeof err)||
+                   !as_double(field(&pending,"rain"),&rain)||
+                   !as_double(field(&pending,"thunder"),&thunder)||
+                   rain<0.0||rain>1.0||thunder<0.0||thunder>1.0){
+                    fprintf(stderr,"script:%ld: invalid set_rain_thunder\n",line_no);goto bad;
+                }
+                gm_runtime_set_rain_thunder(&r,(float)rain,(float)thunder);
             } else if (!strcmp(type,"set_gamerules")) {
                 McGameRules gamerules=r.gamerules;
                 /* The recorder emits all string-backed rules. These three

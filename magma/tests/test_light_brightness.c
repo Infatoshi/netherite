@@ -79,6 +79,28 @@ int main(void) {
                night15.r, night15.g, night15.b);
         fails++;
     }
+    /* World.getSunBrightnessBody after invert, rain=1 thunder=1 (noon storm):
+     * (1-5/16)^2 * 0.8 + 0.2 = 0.578125. Clear is identity. */
+    {
+        float storm = cr_sun_weather_scale(1.0f, 1.0f, 1.0f) * 0.8f + 0.2f;
+        float clear = cr_sun_weather_scale(1.0f, 0.0f, 0.0f) * 0.8f + 0.2f;
+        float rain_only = cr_sun_weather_scale(1.0f, 1.0f, 0.0f) * 0.8f + 0.2f;
+        if (storm != 0.578125f) {
+            printf("FAIL: storm sun brightness %a expected %a\n",
+                   storm, 0.578125f);
+            fails++;
+        }
+        if (clear != 1.0f) {
+            printf("FAIL: clear sun brightness %a expected %a\n",
+                   clear, 1.0f);
+            fails++;
+        }
+        if (rain_only != 0.75f) {
+            printf("FAIL: rain-only sun brightness %a expected %a\n",
+                   rain_only, 0.75f);
+            fails++;
+        }
+    }
     printf("checked %d table + %d RGB values against %s\n", ntable, nrgb, path);
     printf(fails ? "RESULT: FAIL (%d)\n" : "RESULT: PASS (0 LSB divergence)\n", fails);
     return fails ? 1 : 0;
