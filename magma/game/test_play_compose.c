@@ -262,6 +262,11 @@ static void test_world_clock(void) {
     CHECK(c.world_time == t0 + 50, "worldTime advances 50 ticks");
     CHECK(c.total_time == 50, "totalTime advances 50 ticks");
     CHECK(c.rain_time != rain0 || c.raining != 1, "weather timers move");
+    CHECK(c.raining == 0 && c.rain_time == 0,
+          "WW_INIT_RAIN_TIME=50 hits 0 and flips raining off");
+    gm_world_tick(&c);
+    CHECK(c.raining == 0 && c.rain_time > 0,
+          "next tick re-rolls clear-rain duration");
 
     gm_world_clock_init(&c, 12345);
     t0 = c.world_time;

@@ -207,10 +207,12 @@ def rand_action(rng):
 
 
 class RealEnv:
-    def __init__(self, seed, snap, port_parity=False):
+    def __init__(self, seed, snap, port_parity=False, magma_args=None):
         self.parity_fd = None
         argv = [BIN, "--rl-bin", "--render", "off", "--pace", "unlimited",
                 "--seed", str(seed), "--mobs", "off", "--snapshot-in", snap]
+        if magma_args:
+            argv = list(argv) + list(magma_args)
         kwargs = {
             "stdin": subprocess.PIPE,
             "stdout": subprocess.PIPE,
@@ -904,7 +906,10 @@ def run_seed_parity(seed, snap, actions, label, features,
                 first_div = "INITIAL"
                 return out(BLOCKED)
 
-        real = RealEnv(seed, snap, port_parity=True)
+        extra = []
+        if "weather" in features:
+            extra.extend(["--weather", "on"])
+        real = RealEnv(seed, snap, port_parity=True, magma_args=extra)
         cu.emit(1)
         real_parity = real.parity_rec
         blaze_parity = cu.parity()

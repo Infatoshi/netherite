@@ -26,9 +26,10 @@
  * set; the snapshot baker flags offenders): dragon/projectiles/AI
  * (loaded snapshot living slots tick the Entity.move spine and hash as
  * BP_MOBS; pathfinding and combat stay on the `mobs` row),
- * weather/clock, portals, bow/eye-of-ender (need held item 261/381 - neither
- * is craftable in-chain). Fluids CA is simulated (magma/game/fluid_live.c
- * port) and hashed into BP_FLUIDS.
+ * portals, bow/eye-of-ender (need held item 261/381 - neither
+ * is craftable in-chain). World clock / weather ticks gm_world_tick
+ * (blaze/core/world_weather.h) and hashes as BP_WEATHER. Fluids CA is
+ * simulated (magma/game/fluid_live.c port) and hashed into BP_FLUIDS.
  * Furnaces ARE simulated since the iron extension (game/furnace_live.c +
  * runtime.c furnace slots ported below; "smelt":1 primitive) - but furnace
  * state is NOT in .bsnp, so snapshots must be baked with no active furnace
@@ -64,6 +65,7 @@
 #include "furnace_full_tick.h"  /* fft_tick + sr_* smelt/fuel verbatim */
 #include "blaze_snapshot.h"     /* RlSnapHead/RlSnapItem (.bsnp format) */
 #include "entity_spine.h"       /* living Entity.move spine (zero AI) */
+#include "world_weather.h"      /* WorldInfo rain/thunder + worldTime */
 #include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
 
 #ifdef __cplusplus
@@ -284,6 +286,8 @@ typedef struct {
     int ox, oz, ccx, ccz;        /* physics window origin */
     long long tick, seed;
     int dead, deaths;
+    WwState ww;                  /* magma GmWorldClock + isolated JavaRandom */
+    float rain_strength, thunder_strength;  /* live stays 0; tape inject only */
 
     /* player_ctl.c statics, per-env-ified */
     float  dig_progress;
@@ -2348,6 +2352,12 @@ MC_HD MC_NOINLINE static int cu_fluid_step_region(Blaze *e, CuFluidRegion *rg) {
     return changed;
 }
 
+/* Magma gm_world_tick with weather_enabled (runtime.c). Isolated JavaRandom
+ * from ww_init(seed); RL daylight/weather cycle both on. */
+MC_HD static inline void cu_weather_tick(Blaze *e) {
+    ww_tick(&e->ww);
+}
+
 MC_HD MC_NOINLINE static int cu_fluid_tick(Blaze *e, int dim, long long world_time) {
     int i, total = 0;
     if (!e->fluid_cur || !e->fluid_tmp) return 0;
@@ -2488,10 +2498,9 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                           edits[i].drop_count, edits[i].drop_meta, 10);
     }
 
-    /* world clock / weather (no obs field), dragon, projectiles: inert in
-     * the learned stage. Fluid CA matches Magma's gm_fluid_tick(r->tick)
-     * before random ticks. Spine matches magma --mobs off (gm_mobs_tick_spine
-     * after randtick, before live items). */
+    /* Magma runtime.c: weather then fluids then randtick then spine.
+     * Dragon/projectiles stay inert in the learned stage. */
+    cu_weather_tick(env);
     cu_fluid_tick(env, 0, env->tick);
     cu_randtick_pass(env);
     cu_mob_spine_tick(env, st);
@@ -3542,6 +3551,19 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     r->evidence[BP_MOBS] = 1;
     if (e->n_mobs) r->active_mask |= BP_BIT(BP_MOBS);
 
+    {
+        h = bp_weather_digest(
+            e->ww.worldTime, e->ww.totalTime,
+            e->ww.raining, e->ww.thundering,
+            e->ww.rainTime, e->ww.thunderTime,
+            e->rain_strength, e->thunder_strength);
+        r->digest[BP_WEATHER] = h;
+        r->evidence[BP_WEATHER] =
+            (uint32_t)(e->ww.raining || e->ww.thundering);
+        if (e->ww.raining || e->ww.thundering)
+            r->active_mask |= BP_BIT(BP_WEATHER);
+    }
+
     (void)blaze_coal_list(e, coal);
     h = bp_hash_begin();
     for (i = 0; i < CU_NCOAL; ++i)
@@ -3685,6 +3707,9 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->tick = h->tick;
     env->dead = 0;
     env->deaths = 0;
+    ww_init(&env->ww, env->seed);
+    env->rain_strength = 0.0f;
+    env->thunder_strength = 0.0f;
 
     env->ccx = psv_floordiv16(h->ox); env->ccz = psv_floordiv16(h->oz);
     env->ox = h->ox; env->oz = h->oz;

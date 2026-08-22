@@ -85,13 +85,13 @@ enum BpDebugField {
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_MOBS) | BP_BIT(BP_WEATHER) | BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_MOBS) | BP_BIT(BP_WEATHER) | BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
     "player", "dig", "inventory", "items", "world", "crafting", \
@@ -461,6 +461,24 @@ BP_HD static inline uint64_t bp_falling_digest_finish(
     h = bp_hash_u64(h, cells_xor);
     h = bp_hash_u32(h, ncells);
     return bp_hash_u32(h, mutations);
+}
+
+/* World clock / weather. Magma live hashes rain_strength=0 (no fade). */
+BP_HD static inline uint64_t bp_weather_digest(
+    int64_t world_time, int64_t total_time,
+    int32_t raining, int32_t thundering,
+    int32_t rain_time, int32_t thunder_time,
+    float rain_strength, float thunder_strength) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x31545757)); /* "WWT1" */
+    h = bp_hash_i64(h, world_time);
+    h = bp_hash_i64(h, total_time);
+    h = bp_hash_i32(h, raining);
+    h = bp_hash_i32(h, thundering);
+    h = bp_hash_i32(h, rain_time);
+    h = bp_hash_i32(h, thunder_time);
+    h = bp_hash_float(h, rain_strength);
+    return bp_hash_float(h, thunder_strength);
 }
 
 BP_HD static inline void bp_record_init(BpParityRecord *r, int64_t tick) {

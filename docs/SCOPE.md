@@ -28,8 +28,10 @@ live here; do not conflate them:
   default (audio-off) build is bit-identical. Emitters still missing because
   the sim under them is: mob, world-event (`World.playEvent` 1000-1032),
   firework, and jukebox sounds.
-- Villages/villagers/trading, enchanting, brewing, weather: `--villages on`
+- Villages/villagers/trading, enchanting, brewing: `--villages on`
   etc. hard-reject at startup as "not wired yet" (`magma/game/config.c`).
+  Weather clock/timers are wired (`--weather on`); live rain/thunder
+  strength fade and sky streaks stay 0.
 - Side structures (monuments, mansions, temples, igloos) and rare-biome mobs
   (wither, guardians, shulkers, wolves, ocelots...) until a route needs them;
   the roster is the speedrun-visible subset (`magma/PRODUCT.md`).

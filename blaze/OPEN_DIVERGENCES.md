@@ -16,7 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
-Last verified: lane/fallblaze 2026-08-22 (falling_blocks M1+M2; entity_spine and random_ticks already on master).
+Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, entity_spine, random_ticks already on master).
 
 ## Verified rows (no known divergence)
 
@@ -29,6 +29,7 @@ Last verified: lane/fallblaze 2026-08-22 (falling_blocks M1+M2; entity_spine and
 | entity_spine | VERIFIED (chain 32 actions, `--features mobs`) | VERIFIED (64 CUDA lanes) |
 | random_ticks | VERIFIED (200 idle ticks, 27 tickable-cell mutations) | VERIFIED (64 CUDA lanes) |
 | falling_blocks | VERIFIED (chain 64 actions, `--features falling_blocks`) | VERIFIED (64 CUDA lanes) |
+| weather_optional | VERIFIED (chain 64 idle, rain flip t=50, `--features weather`) | VERIFIED (64 CUDA lanes) |
 
 ## Unported rows (coverage gaps), in dependency order
 
@@ -39,7 +40,7 @@ start any time; deeper rows wait on their deps.
 |---|---|---|
 | falling_blocks | world_dynamics | closed 2026-08-22: EntityFallingBlock / BlockFalling sand+gravel live tick; anvil/dragon-egg and item drop on failed mayPlace stay out |
 | chests | spawn_to_torch | generation, loot, GUI transfers not measured end to end |
-| weather_optional | world_dynamics | weather transitions not measured by both backends |
+| weather_optional | world_dynamics | closed 2026-08-22: WorldInfo rain/thunder timers + worldTime; strength fade and sky stay magma-inert |
 | entity_spine | spawn_to_torch | closed 2026-08-22: living Entity.move/travel spine; AI stays on `mobs` |
 | projectiles | world_dynamics, entity_spine | projectile lifecycle/collision not measured |
 | explosions | world_dynamics, projectiles | damage + world mutation not measured |

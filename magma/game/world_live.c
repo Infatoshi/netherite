@@ -1232,18 +1232,9 @@ void gm_world_clock_init(GmWorldClock *c, i64 seed) {
 void gm_world_tick(GmWorldClock *c) {
     if (!c) return;
     if (!g_clock.inited) gm_world_clock_init(c, 0);
-    /* WorldServer.updateWeather does no timer, toggle, or RNG work while
-     * doWeatherCycle is false. Time still advances under its separate rule. */
-    if (c->freeze_weather) {
-        ++c->total_time;
-        if (!c->freeze_daylight) ++c->world_time;
-        g_clock.ww.totalTime = c->total_time;
-        g_clock.ww.worldTime = c->world_time;
-        return;
-    }
-    i64 wt_prev = g_clock.ww.worldTime;
-    ww_tick(&g_clock.ww);
-    if (c->freeze_daylight) g_clock.ww.worldTime = wt_prev;
+    /* World.updateWeatherBody :2747 skips timers when doWeatherCycle is
+     * false; WorldServer.tick :218-223 still advances time. */
+    ww_tick_gated(&g_clock.ww, c->freeze_weather, c->freeze_daylight);
     c->total_time   = g_clock.ww.totalTime;
     c->world_time   = g_clock.ww.worldTime;
     c->rain_time    = g_clock.ww.rainTime;
