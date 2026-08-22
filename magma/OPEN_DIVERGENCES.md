@@ -43,7 +43,7 @@ recorder or re-recording; D-class by improving gates, not the product.
 5. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
    precision on grazing top faces. Soul sand triage entry.
 6. Entity pixels: XP orb hard_px=3542 (disc ROI); small fireball complete
-   ROI; dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
+   ROI hard_px=44930; dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
 7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
    high-altitude/distance haze.
 8. Nether arrival tape: fire/lava animation phase + surrounding lightmap
@@ -312,8 +312,26 @@ No strict entity family is pixel-perfect yet:
   pre-port baseline. Remaining: the lighting clamp order and normal
   length (lane/xporb2), fancy-vs-fast grass in the complete ROI, pad
   LSB.
-- Small fireball no longer draws on-fire layers unless `isBurning`, but its
-  complete ROI remains open.
+- Small fireball on-fire layers stay gated on `isBurning` (Render.java:345,
+  EntityFireball.java:94-97). Lane/fireball 2026-08-22 ports
+  `enableStandardItemLighting` unclamped (RenderHelper.java:30-48) with GL
+  product clamp of white `glColor` (RenderManager.java:372,
+  DefaultVertexFormats.java:58-61) and folds
+  `getBrightnessForRender` 15728880 = sky 15 / block 15
+  (EntityFireball.java:272-274, RenderManager.java:362-371) into the
+  item-atlas tint (`cr_lightmap_rgba8` truncates 0.99*255 to 252). Capture
+  pitch 25 still has shade>1 on the (0,1,0) billboard normal
+  (RenderFireball.java:56-60, enableRescaleNormal :35), so lighting clamp
+  is a no-op for white; the 15/15 texel was the sprite miss. After on gamer:
+  `hard_px=44930` / owned=46000, `c_vs_j=5.536`, maxch=161, `ab_nz=0`
+  RESIDUAL (was 45349 / 5.545). Sprite bbox (413,114)-(434,135) subject
+  matches the golden (mid (420,125) C=J [161,48,0]; 9 leftover px are
+  grass at the bbox corner, maxch 1-2). Remaining 44930 is complete-ROI
+  pad/grass occupancy and BYTE-pack (35532 at 1 LSB, 9398 >1). Do not
+  change the pad or the ROI. `er_shade_item` is unchanged (lane/xporb2).
+  Shared `emit_fireball_billboard` also darkens fireball_dragon C
+  (hard_px 42457 -> 38371); that row stays CAPTURE_BLOCKED (ab_nz=43).
+  Other 14 entity rows byte-stable.
 - Dragon death uses the correct 48-bit `java.util.Random`; remaining gaps are
   body pose/UV/dissolve, fine ray orientation, and surrounding scene pixels.
 - The death burst (deathTicks 180-217) now reconstructs the full vanilla
