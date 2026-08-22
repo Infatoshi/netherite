@@ -8,7 +8,7 @@ BLAZE="$(cd "$ROOT/../blaze" && pwd)"
 cd "$ROOT"
 
 CC=${CC:-cc}
-CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore -I$BLAZE/core -I$BLAZE"
+CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore -I$BLAZE/core -I$BLAZE -I$DIR"
 OUT="/tmp/magma_entity_oracle_candidate"
 
 # Atlases required by frame_capture / entity path.

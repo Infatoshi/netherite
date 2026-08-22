@@ -14,6 +14,7 @@
 #include "game/player_ctl.h"
 #include "game/runtime.h"
 #include "game/entity_render.h"
+#include "entity_oracle_scene.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,13 +68,9 @@ static char *read_file(const char *path) {
     return b;
 }
 
-static void place_pad(GmWorld *w, int y) {
-    for (int x = 0; x < 16; ++x)
-        for (int z = 0; z < 16; ++z)
-            gm_world_set_block(w, x, y, z, 1);
-    gm_world_set_block(w, 10, y + 1, 11, 1); /* stone dig target */
-    gm_world_set_block(w, 11, y + 1, 11, 2); /* grass dig target */
-}
+/* Old pad was x,z in [0,15] at y=4. Capture pad is x in [2,14], z in [6,18]
+ * (driver.py:95-103). light_set_state no-ops if the chunk is missing, so
+ * ensure first. */
 
 static void inject_from_meta(GmRuntime *rt, const char *state, const char *meta) {
     gm_runtime_ent_views_clear(rt);
@@ -199,6 +196,15 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    /* Capture profile (ORACLE_CAPTURE.md, capture_ui_entities.sh:53-80):
+     * 854x480, RD 8, fancyGraphics:false, clouds off, bob off.
+     * fancyGraphics does not skip grass overlay: BlockGrass.java:141-145
+     * getBlockLayer is always CUTOUT_MIPPED. Leaves are the fancy gate
+     * (BlockLeaves.java:250-253, RenderGlobal.java:510-511).
+     * driver.py:445-451 reset type=flat seed=0 structures=False.
+     * FlatGeneratorInfo.java:327-336 plains (id 1), bedrock/dirt/grass.
+     * magma superflat biome=1 (light.c:390-392). ao default 0 matches
+     * GameSettings.ambientOcclusion from fast.yaml / options ao:0. */
     GmConfig cfg;
     gm_config_defaults(&cfg);
     cfg.seed = 0;
@@ -221,9 +227,12 @@ int main(int argc, char **argv) {
     if (!gm_runtime_init(&rt, &cfg, err, (int)sizeof err)) {
         fprintf(stderr, "runtime: %s\n", err); free(meta); return 1;
     }
-    place_pad(rt.world, 4);
+    /* gm_runtime_init already ensure(0,0,2). Radius 4 covers pad z=18 (cz=1)
+     * and the horizon grass beyond it. */
     gm_world_ensure(rt.world, 0, 0, 4);
-    /* Dragon states need a wider mesh window around z=-40 / y=70. */
+    ui_entities_place_pad(rt.world);
+    /* Dragon states need a wider mesh window around z=-40 / y=70.
+     * driver.py:381-399 place_dragon_platform: x[-8,8] z[-50,20] y=60 id=121. */
     if (strstr(state, "dragon")) {
         for (int cx = -4; cx <= 2; ++cx)
             for (int cz = -4; cz <= 2; ++cz)

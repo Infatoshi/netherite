@@ -1,5 +1,13 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 entity capture pad (lane/entityscene)
+
+A6 scenery. Baseline on gamer (`~/nlanes/entityscene/out/verify/entityscene_baseline.log`) matches docs: fireball_small `hard_px=44930` `c_vs_j=5.536` maxch=161; xp_orb `3542` / `14.791` / 90; dragon_death 50/100/190 `92122/101336/159948`.
+
+Cause: C `place_pad` filled x,z in [0,15]. Java `capture_ui_entities_driver.py:87-111` places stone at x[2,14] z[6,18] y=4, air y=5..11, then dig targets (10,5,11) stone and (11,5,11) grass. Recorder.java:5502-5536 setblocks. Superflat plains biome 1 (FlatGeneratorInfo.java:327-336). fancyGraphics=false (capture_ui_entities.sh:76) does not skip overlay: BlockGrass.java:141-145 always CUTOUT_MIPPED; BlockLeaves.java:250-253 is the fancy gate. Residual samples were C grass [71,92,43] vs J pad [124,124,124].
+
+After (`entityscene_after.log`): xp_orb `3484` / `4.093` / maxch=25; fireball_small `44922` / `4.944` / 161. Dragon byte-stable. CAPTURE_BLOCKED c_vs_j dropped (slime_size1 4.644->2.315, magma_size1 4.713->2.385, dig_grass 5.330->3.613). pxdiff ROI thresh 25: xp 1152+63 content occupancy gone (0 clusters); fireball cutout-sky+ 5105 became shading-offset 2894. test_world_live pad CHECKs PASS. Root `make test` PASS (`entityscene_maketest.log`). Remaining: disc 1-2 LSB, pad BYTE-pack, fireball horizon 200 px. Not closed.
+
 ## 2026-08-22 overlay_fire atlas pin (lane/fireover)
 
 Item 7 fire overlay. Baseline anvil

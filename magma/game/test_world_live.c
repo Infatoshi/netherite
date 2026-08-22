@@ -30,6 +30,7 @@
 #include "world/mesh_mc.h"
 #include "verify/chunk_scene.h"   /* ChunkScene + chunkscene_init (frozen pose) */
 #include "player_survival.h"             /* struct Chunk, mc_get, mc_state_id, PSV_* */
+#include "verify/ui_entities/entity_oracle_scene.h"
 
 /* test hooks exported (non-header) by world_live.c */
 const CrChunkMeshMC *gm_world__cached_mesh(GmWorld *w, int cx, int cz, int *builds);
@@ -416,12 +417,39 @@ static void test_superflat(void) {
     gm_world_destroy(w);
 }
 
+/* Capture pad must match capture_ui_entities_driver.py:87-111, not a 16x16
+ * origin square. light.c:390-392 superflat biome=1 (plains). */
+static void test_ui_entities_capture_pad(void) {
+    printf("== ui_entities capture pad ==\n");
+    GmWorld *w = gm_world_create_type(0, 1);
+    CHECK(w != NULL, "superflat seed 0");
+    if (!w) return;
+    gm_world_ensure(w, 0, 0, 2);
+    ui_entities_place_pad(w);
+    CHECK(gm_world_block(w, 2, 4, 6) == BLK_STONE, "pad (2,4,6) stone");
+    CHECK(gm_world_block(w, 14, 4, 18) == BLK_STONE, "pad (14,4,18) stone");
+    CHECK(gm_world_block(w, 8, 4, 8) == BLK_STONE, "pad under camera stone");
+    CHECK(gm_world_block(w, 8, 5, 8) == BLK_AIR, "air above pad y=5");
+    CHECK(gm_world_block(w, 8, 11, 8) == BLK_AIR, "air above pad y=11");
+    CHECK(gm_world_block(w, 0, 4, 0) == BLK_AIR,
+          "outside pad (0,4,0) is air, not the old 0..15 stone");
+    CHECK(gm_world_block(w, 0, 3, 0) == BLK_GRASS, "superflat grass outside pad");
+    CHECK(gm_world_block(w, 8, 4, 5) == BLK_AIR, "z=5 is before pad z=6");
+    CHECK(gm_world_block(w, 8, 4, 19) == BLK_AIR, "z=19 is after pad z=18");
+    CHECK(gm_world_block(w, 8, 3, 19) == BLK_GRASS, "horizon grass beyond pad");
+    CHECK(gm_world_block(w, 10, 5, 11) == BLK_STONE, "stone dig target");
+    CHECK(gm_world_block(w, 11, 5, 11) == BLK_GRASS, "grass dig target");
+    CHECK(gm_world_biome(w, 8, 8) == 1, "plains biome id 1");
+    gm_world_destroy(w);
+}
+
 int main(void) {
     test_regression_lock();
     test_dirty_cache();
     test_fill_window();
     test_state_namespace();
     test_superflat();
+    test_ui_entities_capture_pad();
 
     if (fails == 0) { printf("\nALL PASS\n"); return 0; }
     printf("\n%d CHECK(S) FAILED\n", fails);
