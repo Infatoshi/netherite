@@ -34,7 +34,13 @@ path_node_processor.h:578). Blanket dest-out-of-window null would
 regress t=595 / T182154 (Java walks). Do not widen PNP_DY (CUDA twins).
 Leave FAIL. Knob default-off.
 
-Gates unchanged vs baseline (after-replay). Root `make test` on gamer.
+Gates unchanged vs baseline (after-replay,
+`out/verify/detmobpitch_after_all.log`). Root `make test` on gamer:
+magma/nn/rl/env_knob/public_export PASS including `test-look-helper` and
+`test-pathfinder-null`; first tape-info failed because the gitignored
+canon tape was absent on the lane clone; copy then tape-info PASS
+(`out/verify/detmobpitch_maketest.log`,
+`out/verify/detmobpitch_maketest_tapeinfo.log`).
 
 ## 2026-08-22 entity capture pad (lane/entityscene)
 
