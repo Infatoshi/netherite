@@ -255,6 +255,30 @@ int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals_,
     return gate;
 }
 
+int gm_mobs_hurt_player(GmMobLive *m, struct PsvPlayer *pl, struct PvStats *vitals_,
+                        float amount, int flags, double sx, double sz) {
+    PvStats *v = (PvStats *)vitals_;
+    float applied, raw;
+    int gate, blocked = 0;
+    if (!m || !v || amount <= 0.0f) return 0;
+    raw = amount;
+    if (pl && !psv_hurt_pre(pl, &amount, flags, sx, sz, &blocked))
+        return 0;
+    gate = ml_hurt_gate(&m->player_hurt_resistant, &m->player_last_damage,
+                        raw, &applied);
+    if (!gate) return 0;
+    if (blocked || amount <= 0.0f) {
+        if (pl) pl->health = v->health;
+        return gate;
+    }
+    applied = amount;
+    applied = mob_apply_armor(pl ? &pl->inv : NULL, applied,
+                              (flags & PSV_HURT_BYPASS) ? 1 : 0);
+    if (applied > 0.0f) pv_attack(v, applied);
+    if (pl) pl->health = v->health;
+    return gate;
+}
+
 void gm_mobs_player_hurt_tick(GmMobLive *m) {
     if (m && m->player_hurt_resistant > 0) --m->player_hurt_resistant;
 }
@@ -2342,8 +2366,11 @@ static float held_damage(const PsvPlayer *p) {
     if (id == 276) return mc_combat_weapon_raw(4);
     /* EntityPlayer.applyEntityAttributes ATTACK_DAMAGE=1.0. SharedMonster
      * default 2.0 is the knob-off live-sim fist (test_mob_live). */
-    if (pai_det()) return 1.0f;
-    return mc_combat_weapon_raw(0);
+    {
+        float bonus = psv_attack_damage_bonus(p);
+        if (pai_det()) return 1.0f + bonus;
+        return mc_combat_weapon_raw(0) + bonus;
+    }
 }
 
 static void damage_held_weapon(PsvPlayer *p){
@@ -3648,8 +3675,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             jump = o.jump;
             wandering = o.wandering;
             if (o.hit_player) {
-                int acc = gm_mobs_attack_player(m, (struct PvStats *)v, &p->inv,
-                                                o.hit_dmg, 0);
+                int acc = gm_mobs_hurt_player(m, p, (struct PvStats *)v,
+                                              o.hit_dmg, 0, nx->x[i], nx->z[i]);
                 p->health = v->health;
                 /* EntityLivingBase.attackEntityFrom flag1 knockBack 0.4F
                  * (EntityLivingBase.java:1056-1067). Math.random jitter CUT
@@ -3663,6 +3690,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                                      d1, d0);
                 }
             }
+            if (o.splash_type)
+                psv_potion_apply_type(p, (PvStats *)v, o.splash_type, 1.0);
             if (type == EW_TYPE_SPIDER || type == EW_TYPE_SLIME
                 || type == EW_TYPE_ENDERMAN || type == EW_TYPE_WITCH) {
                 ml_move_hostile(&mm, w, st, o.moving, o.jump);

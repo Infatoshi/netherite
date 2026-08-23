@@ -1,5 +1,40 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 potions (lane/potions)
+
+Anvil. Sweep 2026-08-23 magma rows 10, 11; blaze row 13.
+
+Tapes after (`replay_tape.py --cpu --no-gate --report`,
+`out/verify/potions_after_*.log`): bow physics NO divergence 1407,
+entities PASS 5525. creeper FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie
+x2 physics NO divergence through death (358 / 373). TNT both inventory
+1-mismatch t=28 slot 0 item 259 tape_meta 0 magma_meta 1. Canon physics
+NO divergence 3617, entities PASS 16526. Pixel `frames_checked=0` FATAL
+is `--no-gate` harness, not a parity verdict. No earlier first
+divergence.
+
+Cause: player had no `PotionEffect` list. Java
+`EntityLivingBase.updatePotionEffects` (`:656-674`) in `onEntityUpdate`
+`:389`. `Potion.isReady` 50/25/40 `>> amplifier` (`Potion.java:161-181`).
+Poison never kills below 1.0 (`:100-103`). Drink duration 32
+(`ItemPotion.java:90`). Milk clears (`ItemBucketMilk.java:25-27`). Witch
+splash applies the type list (`EntityWitch.java:248-257`,
+`EntityPotion.java:169-213`). Shield `canBlockDamageSource` (`:1175-1195`)
+and `damageShield` (`EntityPlayer.java:1145-1151`). Night vision /
+invisibility / blindness remain render-only.
+
+Cap 32 (vanilla ids 1..27). Snapshot v11 after resume v10; v10 loads
+`n_potions=0`. BP_PLAYER PLY2. Shared files: `player_survival.h` (list
++ tick slot), `hostile_live.h` (witch `splash_type`), `blaze_snapshot.h`
+(v11 trailer after RlSnapV10Xtra), `port_parity.h` (PLY2 comment),
+`items_tools_armor.h` (shield maxDamage 336), `rl_mode.c` digest+load,
+`runtime.c` hz/proj hurt (not sleep/bed), `mob_live.c` melee+splash.
+
+Gate: magma `test-potions` PASS, blaze `test-potions` PASS, baker wrote
+`s10_t0_r64_potions.bsnp` + 120-action chain. `potions` M1 VERIFIED. All
+listed M1 `--no-deps` VERIFIED. mining_slice M2 BLOCKED (missing
+`*_d*.bsnp`). Root `make test` PASS.
+
 ## 2026-08-23 snapshot resume gate (lane/resumegate)
 
 Gamer. Sweep 2026-08-23 blaze rows 4 and 8. Working copy

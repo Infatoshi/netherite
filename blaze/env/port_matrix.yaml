@@ -197,6 +197,81 @@ subsystems:
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
+  - name: potions
+    supported: true
+    resume: true
+    sources:
+      magma:
+        - magma/game/runtime.c
+        - magma/game/player_ctl.c
+        - magma/game/mob_live.c
+        - magma/game/rl_mode.c
+      shared:
+        - blaze/core/player_survival.h
+        - blaze/core/potion_effects.h
+        - blaze/core/hostile_live.h
+        - blaze/core/port_parity.h
+        - blaze/env/blaze_snapshot.h
+      blaze:
+        - blaze/env/blaze_core.h
+        - blaze/env/blaze_cpu.c
+        - blaze/env/blaze_cuda.cu
+    dependencies: [hazards, mobs_witch]
+    required_features: [player, mobs]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_potions.bsnp
+        - blaze/rl/fixtures/potions_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_potions.bsnp
+        - blaze/rl/fixtures/potions_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "120"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_potions.bsnp
+      - --tape
+      - blaze/rl/fixtures/potions_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - player,mobs
+      - --mobs-on
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "120"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_potions.bsnp
+      - --tape
+      - blaze/rl/fixtures/potions_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - player,mobs
+      - --mobs-on
+    m2_kernels: [raw, warp, scalar]
+    timeout: 1500
+
   - name: world_dynamics
     supported: true
     resume: true

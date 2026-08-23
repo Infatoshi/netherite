@@ -141,6 +141,8 @@ typedef struct {
     double explosion_x, explosion_y, explosion_z;
     float explosion_size;
     RlSnapV10Xtra xtra;
+    int n_potions;
+    RlSnapPotion potions[BLAZE_SNAP_POTION_MAX];
 } CuSnapDev;
 
 typedef struct {
@@ -289,6 +291,20 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                        s->biome, s->world_rand_seed, success_item);
     envs[i].pl.fire = s->player_fire;
     envs[i].pl.air = s->player_air;
+    {
+        int k, n = s->n_potions;
+        if (n < 0) n = 0;
+        if (n > PSV_POTION_MAX) n = PSV_POTION_MAX;
+        psv_potion_clear(&envs[i].pl);
+        envs[i].pl.n_potions = n;
+        for (k = 0; k < n; ++k) {
+            envs[i].pl.potions[k].id = s->potions[k].id;
+            envs[i].pl.potions[k].amplifier = s->potions[k].amplifier;
+            envs[i].pl.potions[k].duration = s->potions[k].duration;
+            envs[i].pl.potions[k].ambient = s->potions[k].ambient;
+            envs[i].pl.potions[k].show_particles = s->potions[k].show_particles;
+        }
+    }
     envs[i].update_lcg = s->update_lcg;
     if (s->head.version >= BLAZE_SNAP_VERSION_RESUME) {
         unsigned pi, fi, ui, si;
@@ -1515,6 +1531,8 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         d->explosion_z = s.explosion_z;
         d->explosion_size = s.explosion_size;
         d->xtra = s.xtra;
+        d->n_potions = s.n_potions;
+        memcpy(d->potions, s.potions, sizeof d->potions);
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
         v->has_unrepresented[v->nsnaps] = s.head.container != 0;
@@ -1835,6 +1853,20 @@ int blaze_capture(void *vh, int env, int slot) {
     d->ww_thundering = he.ww.thundering;
     d->ww_rand_seed48 = he.ww.rand.seed;
     d->rt_mutations = he.parity_rt_mutations;
+    {
+        int k, n = he.pl.n_potions;
+        if (n < 0) n = 0;
+        if (n > BLAZE_SNAP_POTION_MAX) n = BLAZE_SNAP_POTION_MAX;
+        d->n_potions = n;
+        memset(d->potions, 0, sizeof d->potions);
+        for (k = 0; k < n; ++k) {
+            d->potions[k].id = he.pl.potions[k].id;
+            d->potions[k].amplifier = he.pl.potions[k].amplifier;
+            d->potions[k].duration = he.pl.potions[k].duration;
+            d->potions[k].ambient = he.pl.potions[k].ambient;
+            d->potions[k].show_particles = he.pl.potions[k].show_particles;
+        }
+    }
     d->n_mobs = he.n_mobs;
     if (he.n_mobs) {
         unsigned mi;
@@ -2226,6 +2258,20 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
         for (ei = 0; ei < (unsigned)n; ++ei) {
             s.xtra.inv_ench[si].id[ei] = st.enchants[ei].id;
             s.xtra.inv_ench[si].level[ei] = st.enchants[ei].level;
+        }
+    }
+    {
+        int k, n = he.pl.n_potions;
+        if (n < 0) n = 0;
+        if (n > BLAZE_SNAP_POTION_MAX) n = BLAZE_SNAP_POTION_MAX;
+        s.n_potions = n;
+        memset(s.potions, 0, sizeof s.potions);
+        for (k = 0; k < n; ++k) {
+            s.potions[k].id = he.pl.potions[k].id;
+            s.potions[k].amplifier = he.pl.potions[k].amplifier;
+            s.potions[k].duration = he.pl.potions[k].duration;
+            s.potions[k].ambient = he.pl.potions[k].ambient;
+            s.potions[k].show_particles = he.pl.potions[k].show_particles;
         }
     }
     s.n_orbs = 0;

@@ -447,7 +447,7 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
                           ((cursor.meta & 0xffff) << 16));
 
     h = bp_hash_begin();
-    h = bp_hash_u32(h, UINT32_C(0x31594C50)); /* "PLY1" + fire/air */
+    h = bp_hash_u32(h, UINT32_C(0x32594C50)); /* "PLY2" + fire/air + potions */
     h = bp_hash_double(h, r->player.ent.posX + (double)r->ox);
     h = bp_hash_double(h, r->player.ent.posY);
     h = bp_hash_double(h, r->player.ent.posZ + (double)r->oz);
@@ -465,6 +465,17 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     h = bp_hash_float(h, r->vitals.exhaustion);
     h = bp_hash_i32(h, r->player.fire);
     h = bp_hash_i32(h, r->player.air);
+    h = bp_hash_i32(h, r->player.n_potions);
+    {
+        int pi;
+        for (pi = 0; pi < r->player.n_potions && pi < PSV_POTION_MAX; ++pi) {
+            h = bp_hash_i32(h, r->player.potions[pi].id);
+            h = bp_hash_i32(h, r->player.potions[pi].amplifier);
+            h = bp_hash_i32(h, r->player.potions[pi].duration);
+            h = bp_hash_i32(h, r->player.potions[pi].ambient);
+            h = bp_hash_i32(h, r->player.potions[pi].show_particles);
+        }
+    }
     out->digest[BP_PLAYER] = h;
     out->evidence[BP_PLAYER] = 1;
     out->active_mask |= BP_BIT(BP_PLAYER);
@@ -1507,6 +1518,26 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                                 x.elytra_wall_damage = r->player.elytra_wall_damage;
                                 ok = ok && fwrite(&x, sizeof x, 1, f) == 1;
                             }
+                            if (h.version >= BLAZE_SNAP_VERSION_POTIONS) {
+                                int np = r->player.n_potions;
+                                int pi;
+                                if (np < 0) np = 0;
+                                if (np > BLAZE_SNAP_POTION_MAX)
+                                    np = BLAZE_SNAP_POTION_MAX;
+                                ok = ok && fwrite(&np, sizeof np, 1, f) == 1;
+                                for (pi = 0; pi < np; ++pi) {
+                                    RlSnapPotion pe;
+                                    pe.id = r->player.potions[pi].id;
+                                    pe.amplifier =
+                                        r->player.potions[pi].amplifier;
+                                    pe.duration =
+                                        r->player.potions[pi].duration;
+                                    pe.ambient = r->player.potions[pi].ambient;
+                                    pe.show_particles =
+                                        r->player.potions[pi].show_particles;
+                                    ok = ok && fwrite(&pe, sizeof pe, 1, f) == 1;
+                                }
+                            }
                             (void)eat_ticks;
                             (void)eat_item;
                         }
@@ -1730,6 +1761,7 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         r->player.fire = fire;
         r->player.air = air;
         r->player_fire_ticks = fire;
+        psv_potion_clear(&r->player);
     }
     {
         long long tot = 0, wtm = 0;
@@ -1830,6 +1862,30 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
                 snprintf(err, (size_t)err_cap,
                          "truncated .bsnp v10 te/player: %s", path);
                 free(cells); free(light); free(biome); fclose(f); return 0;
+            }
+        }
+        if (h.version >= BLAZE_SNAP_VERSION_POTIONS) {
+            int np = 0, pi;
+            if (fread(&np, sizeof np, 1, f) != 1 || np < 0 ||
+                np > BLAZE_SNAP_POTION_MAX) {
+                snprintf(err, (size_t)err_cap,
+                         "truncated .bsnp potions: %s", path);
+                free(cells); free(light); free(biome); fclose(f); return 0;
+            }
+            r->player.n_potions = np;
+            for (pi = 0; pi < np; ++pi) {
+                RlSnapPotion pe;
+                if (fread(&pe, sizeof pe, 1, f) != 1) {
+                    snprintf(err, (size_t)err_cap,
+                             "truncated .bsnp potions: %s", path);
+                    free(cells); free(light); free(biome); fclose(f);
+                    return 0;
+                }
+                r->player.potions[pi].id = pe.id;
+                r->player.potions[pi].amplifier = pe.amplifier;
+                r->player.potions[pi].duration = pe.duration;
+                r->player.potions[pi].ambient = pe.ambient;
+                r->player.potions[pi].show_particles = pe.show_particles;
             }
         }
         fclose(f);

@@ -187,7 +187,9 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
     v10 on lane `resumegate` (row 4).
 12. Torch support / mayPlace: CLOSED 2026-08-23 lane `tntsupport`. Shared
     `ibp_may_place` (`World.java:3363-3368`, `BlockTorch.java:98-116`).
-13. Potion / milk / shield use state absent. M.
+13. Potion / milk / shield: CLOSED 2026-08-24 lane `potions`. Shared
+    `potion_effects.h` in `PsvPlayer`, snapshot v11 after resume v10,
+    `potions` M1. Forensics in magma `CLOSED_DIVERGENCES.md`.
 14. Chest cap fixed 64 in blaze vs magma growth: CLOSED 2026-08-23
     lane `chestcap`. Forensics in magma `CLOSED_DIVERGENCES.md`.
 15. Boat mount vs bow release order differs between sides. S.

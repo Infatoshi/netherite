@@ -976,6 +976,8 @@ MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
 }
 
 MC_HD static inline int cu_hurt_player(Blaze *e, float amount, int bypass_armor);
+MC_HD static inline int cu_hurt_player_src(Blaze *e, float amount, int flags,
+                                           double sx, double sz);
 
 MC_HD static inline int cu_proj_hit_player(Blaze *e, double x, double y, double z,
                                            double radius, float damage) {
@@ -988,7 +990,7 @@ MC_HD static inline int cu_proj_hit_player(Blaze *e, double x, double y, double 
     dy = y - (py + 0.9);
     dz = z - pz;
     if (dx * dx + dy * dy + dz * dz > radius * radius) return 0;
-    (void)cu_hurt_player(e, damage, 0);
+    (void)cu_hurt_player_src(e, damage, PSV_HURT_PROJECTILE, x, z);
     return 1;
 }
 
@@ -1499,18 +1501,34 @@ MC_HD static inline void cu_mobs_compact(Blaze *e) {
     e->n_mobs = o;
 }
 
-MC_HD static inline int cu_hurt_player(Blaze *e, float amount, int bypass_armor) {
-    float applied;
-    int gate;
+MC_HD static inline int cu_hurt_player_src(Blaze *e, float amount, int flags,
+                                           double sx, double sz) {
+    float applied, raw;
+    int gate, blocked = 0;
     if (!e || amount <= 0.0f) return 0;
+    raw = amount;
+    if (!psv_hurt_pre(&e->pl, &amount, flags, sx, sz, &blocked))
+        return 0;
     gate = ml_hurt_gate(&e->player_hurt_resistant, &e->player_last_damage,
-                        amount, &applied);
+                        raw, &applied);
     if (!gate) return 0;
-    if (!bypass_armor)
+    if (blocked || amount <= 0.0f) {
+        e->pl.health = e->vit.health;
+        return gate;
+    }
+    applied = amount;
+    if (!(flags & PSV_HURT_BYPASS))
         applied = cu_armor_damage(e, applied);
     if (applied > 0.0f) pv_attack(&e->vit, applied);
     e->pl.health = e->vit.health;
     return gate;
+}
+
+MC_HD static inline int cu_hurt_player(Blaze *e, float amount, int bypass_armor) {
+    int flags = bypass_armor ? PSV_HURT_BYPASS : 0;
+    double sx = e ? e->pl.ent.posX : 0.0;
+    double sz = e ? e->pl.ent.posZ : 0.0;
+    return cu_hurt_player_src(e, amount, flags, sx, sz);
 }
 
 MC_HD static inline void cu_spawn_xp(Blaze *e, double x, double y, double z, int value) {
@@ -1666,7 +1684,7 @@ MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
     if (best < 0) return 0;
     if (e->player_attack_cooldown > 0) return 1;
     held = isr_get_stack(&e->pl.inv, e->pl.inv.current_item).item;
-    e->mobs[best].health -= ml_held_damage(held);
+    e->mobs[best].health -= ml_held_damage(held) + psv_attack_damage_bonus(&e->pl);
     if (pl_is_roster(e->mobs[best].type)) {
         e->mobs[best].panic = PL_REVENGE_TICKS;
         e->mobs[best].task_bits = EW_AI_IDLE;
@@ -1875,7 +1893,7 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             continue;
         }
         if (o.hit_player) {
-            int acc = cu_hurt_player(e, o.hit_dmg, 0);
+            int acc = cu_hurt_player_src(e, o.hit_dmg, 0, mm.snap.x, mm.snap.z);
             if (acc == 1) {
                 double d1 = mm.snap.x - px;
                 double d0 = mm.snap.z - pz;
@@ -1885,6 +1903,8 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
                                  d1, d0);
             }
         }
+        if (o.splash_type)
+            psv_potion_apply_type(&e->pl, &e->vit, o.splash_type, 1.0);
         if (o.skel_fire)
             cu_skel_spawn_arrow(e, &mm.snap);
         ml_move_hostile(&mm, e, st, o.moving, o.jump);
@@ -2465,7 +2485,7 @@ MC_HD static inline void cu_vitals_apply(PvStats *vit, PsvPlayer *pl, CuAction a
         double dropped = prev_min_y - e->box.minY;
         if (dropped > 0.0) pl->fall_distance += (float)dropped;
     } else if (was_air && pl->fall_distance > 0.0f) {
-        pv_fall_damage(vit, pl->fall_distance);
+        pv_fall_damage(vit, pl->fall_distance - psv_jump_boost_fall(pl));
     }
     if (e->onGround) pl->fall_distance = 0.0f;
 
@@ -2919,7 +2939,7 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
         int elytra_was = pl->elytra_flying;
         int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
         CU_OP(env, CU_OP_PHYS_TICK);
-        psv_physics_tick(window, st, pl, &a, blocks);
+        psv_physics_tick_vit(window, st, pl, &a, blocks, vit);
         el_post_travel(pl, act.jump, water_pre, elytra_was, elytra_can_start,
                        window, blocks);
     }
@@ -2954,9 +2974,50 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                 env->eat_ticks = 0;
                 env->eat_item = 0;
             }
+        } else if (act.use && (food.item == PSV_ITEM_POTION ||
+                               food.item == PSV_ITEM_MILK)) {
+            int slot = pl->inv.current_item;
+            if (env->eat_item != food.item) {
+                env->eat_item = food.item;
+                env->eat_ticks = 0;
+            }
+            if (++env->eat_ticks >= PSV_USE_DRINK_TICKS) {
+                if (food.item == PSV_ITEM_POTION)
+                    psv_potion_drink_finish(pl, vit, slot, env->tape_creative);
+                else
+                    psv_potion_milk_finish(pl, slot, env->tape_creative);
+                env->eat_ticks = 0;
+                env->eat_item = 0;
+                psv_reset_active_hand(pl);
+            } else {
+                pl->use_action = PSV_USE_DRINK;
+                pl->use_max = PSV_USE_DRINK_TICKS;
+                pl->use_remaining = PSV_USE_DRINK_TICKS - env->eat_ticks;
+                if (pl->use_remaining < 0) pl->use_remaining = 0;
+                pl->active_hand = 0;
+            }
+        } else if (act.use && pl->shield_cooldown <= 0) {
+            int slot = -1;
+            int kind = psv_use_item_kind(pl, &slot);
+            if (kind == PSV_USE_BLOCK) {
+                if (pl->use_remaining <= 0 ||
+                    pl->use_remaining > PSV_SHIELD_USE_TICKS)
+                    pl->use_remaining = PSV_SHIELD_USE_TICKS;
+                if (pl->use_remaining > 0) --pl->use_remaining;
+                pl->use_action = PSV_USE_BLOCK;
+                pl->use_max = PSV_SHIELD_USE_TICKS;
+                pl->active_hand = (slot == ISR_OFFHAND_SLOT) ? 1 : 0;
+                env->eat_ticks = 0;
+                env->eat_item = 0;
+            } else {
+                env->eat_ticks = 0;
+                env->eat_item = 0;
+                if (food.item != 261) psv_reset_active_hand(pl);
+            }
         } else {
             env->eat_ticks = 0;
             env->eat_item = 0;
+            if (food.item != 261) psv_reset_active_hand(pl);
         }
     }
 
@@ -4493,11 +4554,17 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     {
         PsvPlayer *pl = &env->pl;
         if (pl->hz_fire > 0.0f)
-            (void)cu_hurt_player(env, pl->hz_fire, 1);
+            (void)cu_hurt_player_src(env, pl->hz_fire,
+                                     PSV_HURT_BYPASS | PSV_HURT_FIRE,
+                                     pl->ent.posX, pl->ent.posZ);
         if (pl->hz_lava > 0.0f)
-            (void)cu_hurt_player(env, pl->hz_lava, 0);
+            (void)cu_hurt_player_src(env, pl->hz_lava, PSV_HURT_FIRE,
+                                     pl->ent.posX, pl->ent.posZ);
         if (pl->hz_void > 0.0f)
-            (void)cu_hurt_player(env, pl->hz_void, 1);
+            (void)cu_hurt_player_src(env, pl->hz_void,
+                                     PSV_HURT_BYPASS | PSV_HURT_VOID |
+                                         PSV_HURT_ABSOLUTE,
+                                     pl->ent.posX, pl->ent.posZ);
         if (pl->hz_wall > 0.0f)
             (void)cu_hurt_player(env, pl->hz_wall, 1);
         if (pl->hz_drown > 0.0f)
@@ -4505,7 +4572,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         if (pl->hz_cactus > 0.0f)
             (void)cu_hurt_player(env, pl->hz_cactus, 0);
         if (pl->hz_magma > 0.0f)
-            (void)cu_hurt_player(env, pl->hz_magma, 0);
+            (void)cu_hurt_player_src(env, pl->hz_magma, PSV_HURT_FIRE,
+                                     pl->ent.posX, pl->ent.posZ);
         env->pl.health = env->vit.health;
         psv_env_clear_hits(pl);
     }
@@ -5393,7 +5461,7 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
                           ((e->cursor.meta & 0xffff) << 16));
 
     h = bp_hash_begin();
-    h = bp_hash_u32(h, UINT32_C(0x31594C50)); /* "PLY1" + fire/air */
+    h = bp_hash_u32(h, UINT32_C(0x32594C50)); /* "PLY2" + fire/air + potions */
     h = bp_hash_double(h, e->pl.ent.posX + (double)e->ox);
     h = bp_hash_double(h, e->pl.ent.posY);
     h = bp_hash_double(h, e->pl.ent.posZ + (double)e->oz);
@@ -5411,6 +5479,17 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     h = bp_hash_float(h, e->vit.exhaustion);
     h = bp_hash_i32(h, e->pl.fire);
     h = bp_hash_i32(h, e->pl.air);
+    h = bp_hash_i32(h, e->pl.n_potions);
+    {
+        int pi;
+        for (pi = 0; pi < e->pl.n_potions && pi < PSV_POTION_MAX; ++pi) {
+            h = bp_hash_i32(h, e->pl.potions[pi].id);
+            h = bp_hash_i32(h, e->pl.potions[pi].amplifier);
+            h = bp_hash_i32(h, e->pl.potions[pi].duration);
+            h = bp_hash_i32(h, e->pl.potions[pi].ambient);
+            h = bp_hash_i32(h, e->pl.potions[pi].show_particles);
+        }
+    }
     r->digest[BP_PLAYER] = h;
     r->evidence[BP_PLAYER] = 1;
     r->active_mask |= BP_BIT(BP_PLAYER);

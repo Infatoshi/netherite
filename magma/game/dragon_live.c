@@ -14,7 +14,7 @@ static float held_damage(const PsvPlayer *p){
     if(id==272)return mc_combat_weapon_raw(2);
     if(id==267)return mc_combat_weapon_raw(3);
     if(id==276)return mc_combat_weapon_raw(4);
-    return mc_combat_weapon_raw(0);
+    return mc_combat_weapon_raw(0)+psv_attack_damage_bonus(p);
 }
 static void damage_held_weapon(PsvPlayer *p){
     int slot=p->inv.current_item;ICStack held=isr_get_stack(&p->inv,slot);

@@ -5,6 +5,64 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Potion effects + milk + shield: CLOSED 2026-08-23 (lane/potions)
+
+Anvil. Sweep 2026-08-23 magma rows 10 and 11; blaze row 13.
+
+Java: `PotionEffect.onUpdate` (`PotionEffect.java:123-149`) calls
+`Potion.isReady` then `performEffect` then decrements duration.
+`Potion.isReady` (`Potion.java:161-181`) is `50 >> amp` regeneration,
+`25 >> amp` poison, `40 >> amp` wither, hunger always. Regeneration
+`heal(1.0F)` (`:93-96`). Poison `attackEntityFrom(MAGIC, 1.0F)` if
+health `> 1.0F` (`:100-103`). Wither kills (`:107`). Hunger
+`addExhaustion(0.005F * (amp+1))` (`:111`). Saturation
+`FoodStats.addStats(amp+1, 1.0F)` (`:117`). Instant health/harm
+`affectEntity` (`:133-156`) with `(int)(health * (4 << amp) + 0.5)` /
+`(6 << amp)`. Combine (`PotionEffect.java:68-90`): higher amplifier
+replaces duration; same amplifier keeps the longer duration.
+`EntityLivingBase.updatePotionEffects` (`:656-674`) is
+`onEntityUpdate` `:389`, after air/drown and before
+`onLivingUpdate` travel. `addPotionEffect` (`:810-826`) is one slot
+per Potion id. Cap 32: `Potion.registerPotions` ids 1..27
+(`Potion.java:397-426`). Drink `ItemPotion.onItemUseFinish`
+(`ItemPotion.java:40-91`) duration 32, glass bottle unless creative.
+Milk `ItemBucketMilk.java:25-52` (Forge `curePotionEffects` = vanilla
+clear). Splash `EntityPotion.applySplash` (`:169-213`); witch throw
+picks HARMING/SLOWNESS/POISON/WEAKNESS (`EntityWitch.java:248-257`)
+and applies through the same path (no EntityPotion entity; same as
+master throw RNG consume). Speed/slowness operation 2
+(`Potion.java:399-400`). Jump `motionY += (amp+1)*0.1F`
+(`EntityLivingBase.java:1909-1911`), fall `-(amp+1)` (`:1395-1397`).
+Strength +3 / weakness -4 per level (`PotionAttackDamage.java:16-18`).
+Resistance `(amp+1)*5` then `* (25-i)/25`
+(`EntityLivingBase.java:1469-1474`). Fire resistance in
+`attackEntityFrom` (`:954-957`). Water breathing skips air decrement
+(`:303`). Night vision / invisibility / blindness are render-only.
+Shield `canBlockDamageSource` (`:1175-1195`) needs
+`isActiveItemStackBlocking` (`:3006-3016`, elapsed >= 5),
+`!isUnblockable`, look-dot `< 0`. `damageShield` if `damage >= 3.0F`
+then `1 + floor(damage)` (`EntityPlayer.java:1145-1151`), max 336
+(`ItemShield.java:27`). `disableShield` cooldown 100 (`:1555-1566`).
+
+Shared C: `PsvPlayer.potions[32]` + `blaze/core/potion_effects.h`.
+Tick slot: `psv_env_pre_move` then `psv_update_potion_effects` in
+`psv_physics_tick_vit` (Java onEntityUpdate after air, before travel).
+Snapshot v11 after the v10 resume trailer (clock/rt/sidecars/xtra);
+v7/v8/v9/v10 still load; v10 loads `n_potions=0`. BP_PLAYER tag
+PLY2 (`0x32594C50`) hashes the effect list. No mob sidecar aliasing.
+
+Gate: `make -C magma test-potions` and `make -C blaze/rl test-potions`
+PASS. Baker `test_potions --write-fixture` plants regen potion (id 373
+meta 28) in hotbar 0, milk in slot 1, shield offhand, witch+zombie.
+`potions` M1 VERIFIED (120-tick chain). All listed M1 `--no-deps`
+VERIFIED. mining_slice M2 BLOCKED (missing `*_d*.bsnp`). Root
+`make test` PASS. Tapes after: bow physics NO divergence 1407,
+entities PASS 5525; creeper FIRST DIVERGENCE t=76 y 2.1e-09; smoke
+zombie 358/373; TNT inventory 1 mismatch t=28 slot 0 item 259
+tape_meta 0 magma_meta 1; canon physics NO divergence 3617, entities
+PASS 16526.
+
+
 ### Chest TE cap 64: CLOSED 2026-08-23 (lane/chestcap)
 
 Anvil. Sweep 2026-08-23 blaze row 14.

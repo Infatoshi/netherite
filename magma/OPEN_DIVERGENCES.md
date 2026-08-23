@@ -1553,11 +1553,13 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
 9. Beds: CLOSED 2026-08-23 lane `beds`. ItemBed two-cell place, trySleep
    reasons, sleepTimer 100, WorldServer time skip, spawn/safe exit.
    See `CLOSED_DIVERGENCES.md`.
-10. Potion effects are render-only; no `PotionEffect.performEffect`
-    tick. M.
-11. Shield: no `EntityPlayer.canBlockDamageSource` / `damageShield`. S.
+10. Potion effects: CLOSED 2026-08-24 lane `potions`. Shared
+    `PsvPlayer` list + `psv_update_potion_effects`. Snapshot v11 after
+    resume v10. See `CLOSED_DIVERGENCES.md`.
+11. Shield: CLOSED 2026-08-24 lane `potions`. `canBlockDamageSource` /
+    `damageShield`. See `CLOSED_DIVERGENCES.md`.
 12. Food table + `ItemFood.onItemUseFinish` rand draws: CLOSED 2026-08-23
-    lane `furnaceids`. Potion *effects* still render-only (row 10).
+    lane `furnaceids`. Potion tick + shield: CLOSED row 10/11 lane `potions`.
 
 Silent deviations found (not yet measured by any gate): fluids step
 synchronously instead of via scheduled ticks (`fluid_live.h`); light uses
@@ -1572,7 +1574,7 @@ lane `tntsupport` for the subset (torch, sapling/plants on dirt/grass,
 cactus, ladder, door canPlaceBlockAt, player AABB). ItemDoor /
 snow-layer / anvil-on-circuits stay out.
 
-Ungated systems: potions, shield, stronghold placement.
+Ungated systems: stronghold placement.
 Tapes record player physics / inventory / ghost views / world hash only,
 so a rule that never moves the player or the hotbar is invisible to the
 replay gate; unit tests against Java-derived fixtures are the gate for

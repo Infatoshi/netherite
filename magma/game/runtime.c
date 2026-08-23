@@ -549,8 +549,9 @@ static int runtime_proj_hit_player(GmRuntime *r, double x, double y, double z,
     dy = y - (v.y + 0.9);
     dz = z - v.z;
     if (dx * dx + dy * dy + dz * dz > radius * radius) return 0;
-    (void)gm_mobs_attack_player(&r->mobs, (struct PvStats *)&r->vitals,
-                                &r->player.inv, dmg, 0);
+    (void)gm_mobs_hurt_player(&r->mobs, &r->player,
+                             (struct PvStats *)&r->vitals, dmg,
+                             PSV_HURT_PROJECTILE, x, z);
     r->player.health = r->vitals.health;
     return 1;
 }
@@ -1301,14 +1302,18 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     {
         PsvPlayer *pl = &r->player;
         if (pl->hz_fire > 0.0f)
-            (void)gm_mobs_attack_player(&r->mobs,
-                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_fire, 1);
+            (void)gm_mobs_hurt_player(&r->mobs, pl,
+                (struct PvStats *)&r->vitals, pl->hz_fire,
+                PSV_HURT_BYPASS | PSV_HURT_FIRE, pl->ent.posX, pl->ent.posZ);
         if (pl->hz_lava > 0.0f)
-            (void)gm_mobs_attack_player(&r->mobs,
-                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_lava, 0);
+            (void)gm_mobs_hurt_player(&r->mobs, pl,
+                (struct PvStats *)&r->vitals, pl->hz_lava,
+                PSV_HURT_FIRE, pl->ent.posX, pl->ent.posZ);
         if (pl->hz_void > 0.0f)
-            (void)gm_mobs_attack_player(&r->mobs,
-                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_void, 1);
+            (void)gm_mobs_hurt_player(&r->mobs, pl,
+                (struct PvStats *)&r->vitals, pl->hz_void,
+                PSV_HURT_BYPASS | PSV_HURT_VOID | PSV_HURT_ABSOLUTE,
+                pl->ent.posX, pl->ent.posZ);
         if (pl->hz_wall > 0.0f)
             (void)gm_mobs_attack_player(&r->mobs,
                 (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_wall, 1);
@@ -1319,8 +1324,9 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
             (void)gm_mobs_attack_player(&r->mobs,
                 (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_cactus, 0);
         if (pl->hz_magma > 0.0f)
-            (void)gm_mobs_attack_player(&r->mobs,
-                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_magma, 0);
+            (void)gm_mobs_hurt_player(&r->mobs, pl,
+                (struct PvStats *)&r->vitals, pl->hz_magma,
+                PSV_HURT_FIRE, pl->ent.posX, pl->ent.posZ);
         r->player.health = r->vitals.health;
         r->player_fire_ticks = r->player.fire;
         psv_env_clear_hits(pl);
