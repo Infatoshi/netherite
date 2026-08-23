@@ -34,6 +34,7 @@
 #include "block_props_table.h"      /* mc_bpt_props (hardness/flags) */
 #include "inventory_stack_rules.h"  /* IsrInv + stack rules; pulls items_core */
 #include "mc_gamerules.h"           /* doTileDrops gate (Block.harvestBlock -> dropBlockAsItem) */
+#include "combat_math.h"            /* CombatRules magic absorb for explosion */
 
 /* ---- region geometry (multi-chunk, centered on origin) ---- */
 #ifndef PSV_DIM
@@ -471,6 +472,46 @@ MC_HD static inline int psv_in_liquid(const Chunk *now, const McEntity *e, int w
                 if (want_water ? is_w : is_l) return 1;
             }
     return 0;
+}
+
+/* ---- explosion damage (EntityLivingBase.damageEntity) ----
+ * Snapshot inv[37][3] is item/count/meta only: armor n_enchants is 0, so
+ * getEnchantmentModifierDamage and getMaxEnchantmentLevel(BLAST) are 0 and
+ * both paths are identity. Unit tests plant IcEnch on ICStack to gate the
+ * enchanted formula. Enchantment ids: Protection 0, BlastProtection 3
+ * (Enchantment.java register). */
+#define PSV_ENCH_PROTECTION 0
+#define PSV_ENCH_BLAST 3
+
+MC_HD static inline int psv_explosion_enchant_mod(const IsrInv *inv) {
+    int k = 0, i;
+    if (!inv) return 0;
+    for (i = 0; i < ISR_ARMOR_SLOTS; ++i) {
+        ICStack s = isr_get_stack(inv, ISR_ARMOR0 + i);
+        /* EnchantmentProtection.calcModifierDamage EnchantmentProtection.java:57
+         * Type.ALL -> level; Type.EXPLOSION && isExplosion -> level*2. */
+        k += isr_stack_enchant_level(&s, PSV_ENCH_PROTECTION);
+        k += isr_stack_enchant_level(&s, PSV_ENCH_BLAST) * 2;
+    }
+    return k;
+}
+
+MC_HD static inline int psv_blast_prot_max(const IsrInv *inv) {
+    int mx = 0, i;
+    if (!inv) return 0;
+    for (i = 0; i < ISR_ARMOR_SLOTS; ++i) {
+        ICStack s = isr_get_stack(inv, ISR_ARMOR0 + i);
+        int lv = isr_stack_enchant_level(&s, PSV_ENCH_BLAST);
+        if (lv > mx) mx = lv;
+    }
+    return mx;
+}
+
+/* CombatRules.getDamageAfterMagicAbsorb CombatRules.java:14-18 via
+ * EntityLivingBase.applyPotionDamageCalculations EntityLivingBase.java:1483-1487. */
+MC_HD static inline float psv_explosion_after_magic(float damage, int k) {
+    if (k <= 0) return damage;
+    return mc_combat_damage_after_magic_absorb(damage, (float)k);
 }
 
 /* ---- environmental damage (Java Entity / EntityLivingBase / EntityPlayer) ----

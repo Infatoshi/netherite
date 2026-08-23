@@ -1,5 +1,51 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 explosion residuals (lane/expresid)
+
+Anvil. Sweep 2026-08-23 magma row 4.
+
+Baseline tapes (`replay_tape.py --cpu --no-gate --report`,
+`out/verify/expresid_baseline_*.log`): TNT both physics NO divergence 309,
+inventory 1-mismatch t=28 slot 0 item 259 tape_meta 0 magma_meta 1.
+creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2 physics
+NO divergence through death (358 / 373), entities PASS. bow physics NO
+divergence 1407, entities PASS 5525. Canon physics NO divergence 3617,
+entities PASS 16526, world_hash first_mismatch null (c-only, 46 hash_deltas).
+20260801 TNT world_hash java PASS. Pixel `frames_checked=0` FATAL is
+`--no-gate` harness, not a parity verdict.
+
+Cause: creeper blast used feetY+0.5. Java `EntityCreeper.explode`
+(`EntityCreeper.java:310`) is `posX, posY, posZ`. Powered is
+`(float)explosionRadius * (getPowered() ? 2.0F : 1.0F)` (`:308-310`);
+lightning sets POWERED (`:274-277`). Snapshot flag aliases
+`RlSnapMob.screaming` on creeper (zero default, no version bump).
+`createExplosion` isSmoking (`World.java:2438`); creeper passes
+mobGriefing (`:307`); TNT always true (`EntityTNTPrimed.java:114`).
+`getBlockDensity` (`World.java:2456-2494`) rays
+`rayTraceBlocks` stopOnLiquid false against movement collision AABBs.
+Armor enchants are not in `.bsnp` inv[37][3]; unenchanted
+`applyPotionDamageCalculations` (`EntityLivingBase.java:1483-1487`) is
+identity. `doExplosionB` sound two `world.rand.nextFloat` (`Explosion.java:198`);
+`EntityCreeper.explode` has no rand. Flaming fire is
+`explosionRNG.nextInt(3)==0` (`:253`); live flaming source is
+`EntityLargeFireball.java:47`. Creeper/TNT are not flaming.
+
+After: same tape numbers (`out/verify/expresid_after_*.log`). creeper
+FIRST DIVERGENCE still t=76 y 2.1e-09 (not earlier). explosions M1
+VERIFIED 64 ticks t=0 digest `0xcc693e0d9377745c`
+(`out/verify/expresid_explosions_m1_detail.log`). M2 VERIFIED
+(`out/verify/expresid_m2_all.log`). `--no-deps` M1 VERIFIED for
+placement, furnaces, hazards, biome_plane, biome_plane_spawn,
+biome_plane_ice, mobs, mobs_ss, mobs_end, passives, spawn_to_torch,
+world_dynamics, fluids, entity_spine, random_ticks, random_ticks_bodies,
+falling_blocks, weather_optional, projectiles, chests, xp_orbs, boats,
+elytra, mining_slice. M2 VERIFIED for those except mining_slice BLOCKED
+(`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS
+(`out/verify/expresid_maketest.log`). Fixture
+`s10_t0_r64_explosions.bsnp` baked by `test_explosions --write-fixture`.
+EXP4 unchanged. Stay out: live lightning as powered source, tape-exact
+unseeded explosionRNG, armor enchants in snapshot.
+
 ## 2026-08-23 focused M2 production kernels (lane/warpm2)
 
 Anvil GPU1. Sweep 2026-08-23 magma->blaze row 5: focused M2 drove

@@ -7,6 +7,8 @@
 #include "blaze_snapshot.h"
 #include "entity_spine.h"
 #include "mc_blocks.h"
+#include "combat_math.h"
+#include "inventory_stack_rules.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #include "explosion_live.h"
@@ -110,16 +112,20 @@ static int write_fixture(const char *from, const char *out_path) {
                 plant_cell(&s, x, y, z, 0, 0);
         }
     /* Dirt off the player-+Z LOS so getBlockDensity is not 0, still a crater.
-     * Explosion centre (8.5,65.5,12.5) is cell (8,65,12); keep that air. */
+     * Creeper explode uses posY (EntityCreeper.java:310); centre (8.5,65,12.5)
+     * is cell (8,65,12); keep that air. Bottom slab so density is not a cube. */
     plant_cell(&s, 9, 65, 12, BLK_DIRT, 0);
     plant_cell(&s, 9, 65, 13, BLK_DIRT, 0);
     plant_cell(&s, 10, 65, 12, BLK_DIRT, 0);
+    plant_cell(&s, 8, 65, 11, BLK_STONE_SLAB, 0);
     /* TNT block in the size-4 blast so chain fuse world.rand.nextInt is live. */
     plant_cell(&s, 7, 65, 12, BLK_TNT, 0);
 
     s.head.version = BLAZE_SNAP_VERSION;
     s.n_mobs = 2;
     plant_creeper(&s.mobs[0], 1, 1, 8.5, 65.0, 12.5);
+    /* Charged: EntityCreeper.getPowered aliases screaming. Zero default. */
+    s.mobs[0].screaming = 1;
     /* Planted EntityTNTPrimed already counting down (fuse 20) so the 64-tick
      * chain observes explode size 4.0F. Java spawn fuse is 80. */
     {
@@ -148,8 +154,9 @@ static int write_fixture(const char *from, const char *out_path) {
         return 0;
     }
     fprintf(stderr,
-            "WROTE %s ignited creeper (8.5,65,12.5) TNT fuse20 (6.5,65,8.5) "
-            "TNT block (7,65,12) player (8.5,65,8.5) n_mobs=%u\n",
+            "WROTE %s charged ignited creeper (8.5,65,12.5) TNT fuse20 "
+            "(6.5,65,8.5) TNT block (7,65,12) slab (8,65,11) player "
+            "(8.5,65,8.5) n_mobs=%u\n",
             out_path, s.n_mobs);
     blaze_snapshot_free(&s);
     return 1;
@@ -261,6 +268,22 @@ static int run_units(void) {
     dmg = ex_entity_damage(8.0, 8.0, 8.0, 8.0, 8.0, 8.0, EXL_RADIUS, 1.0f);
     expect(dmg > 0.0f, "center size-3 damage is positive");
     expect(bits_eq_f(EXL_RADIUS, 3.0f), "creeper radius is 3.0F");
+    expect(bits_eq_f(exl_creeper_size(0), 3.0f),
+           "unpowered creeper size is explosionRadius 3.0F");
+    expect(bits_eq_f(exl_creeper_size(1), 6.0f),
+           "powered creeper size is 3.0F * 2.0F (EntityCreeper.java:308-310)");
+    {
+        int sc = 0;
+        expect(exl_creeper_on_struck_by_lightning(EW_TYPE_CREEPER, &sc) &&
+                   sc == 1,
+               "onStruckByLightning sets POWERED (EntityCreeper.java:274-277)");
+        expect(exl_creeper_powered(EW_TYPE_CREEPER, sc),
+               "screaming alias is powered on creeper");
+        expect(!exl_creeper_powered(EW_TYPE_ENDERMAN, 1),
+               "enderman screaming is not creeper powered");
+        expect(!exl_creeper_powered(EW_TYPE_CREEPER, 0),
+               "zero screaming is unpowered (snapshot default)");
+    }
 
     ex_fill(grid, mc_state(BLK_AIR, 0));
     dens = ex_block_density(grid, 0, 0, 0, 8.0, 8.0, 8.0,
@@ -271,6 +294,75 @@ static int run_units(void) {
     dens = ex_block_density(grid, 0, 0, 0, 8.0, 8.0, 8.0,
                             0.2, 0.2, 0.2, 0.8, 1.8, 0.8);
     expect(bits_eq_f(dens, 0.0f), "stone-occluded getBlockDensity is 0.0F");
+    {
+        float dens_slab, dens_stone, dens_water;
+        u16 g2[EX_VOL];
+        ex_fill(g2, mc_state(BLK_AIR, 0));
+        ex_set(g2, 8, 8, 8, mc_state(BLK_STONE_SLAB, 0));
+        dens_slab = ex_block_density(g2, 0, 0, 0, 8.5, 8.75, 8.5,
+                                     10.2, 8.0, 8.2, 10.8, 9.8, 8.8);
+        ex_set(g2, 8, 8, 8, mc_state(BLK_STONE, 0));
+        dens_stone = ex_block_density(g2, 0, 0, 0, 8.5, 8.75, 8.5,
+                                      10.2, 8.0, 8.2, 10.8, 9.8, 8.8);
+        ex_fill(g2, mc_state(BLK_WATER, 0));
+        dens_water = ex_block_density(g2, 0, 0, 0, 8.5, 8.75, 8.5,
+                                      10.2, 8.0, 8.2, 10.8, 9.8, 8.8);
+        expect(bits_eq_f(dens_water, 1.0f),
+               "water stopOnLiquid false does not block density");
+        expect(dens_slab > dens_stone,
+               "bottom slab occludes less than a full cube");
+        expect(dens_slab > 0.0f,
+               "side rays can miss a bottom-slab AABB");
+        expect(!ex_is_full_block(BLK_STONE_SLAB) &&
+                   ex_is_full_block(BLK_STONE) &&
+                   !ex_is_full_block(BLK_WATER),
+               "isFullBlock: stone yes, slab/water no");
+    }
+    {
+        JavaRandom r;
+        u64 before;
+        int i, n = 0;
+        jrand_set(&r, 1);
+        before = r.seed;
+        expect(!exl_flaming_place(&r, 0, 1),
+               "isFlaming short-circuit: non-air skips nextInt");
+        expect(r.seed == before, "non-air does not consume explosionRNG");
+        jrand_set(&r, 1);
+        before = r.seed;
+        expect(!exl_flaming_place(&r, 1, 0),
+               "isFlaming short-circuit: non-full down skips nextInt");
+        expect(r.seed == before, "non-full down does not consume explosionRNG");
+        jrand_set(&r, 0);
+        for (i = 0; i < 12; ++i)
+            if (exl_flaming_place(&r, 1, 1)) ++n;
+        expect(n > 0 && n < 12, "explosionRNG nextInt(3)==0 sometimes places fire");
+    }
+    {
+        IsrInv inv;
+        ICStack chest;
+        int k;
+        isr_init(&inv);
+        expect(isr_stack_enchant_level(&inv.armor[2], 3) == 0,
+               "empty armor blast prot is 0");
+        expect(bits_eq_f(mc_combat_damage_after_magic_absorb(10.0f, 0.0f),
+                         10.0f),
+               "unenchanted magic absorb is identity");
+        chest = ic_mk(307, 1, 0);
+        chest.n_enchants = 1;
+        chest.enchants[0].id = 3; /* Enchantment blast protection */
+        chest.enchants[0].level = 4;
+        isr_set_stack(&inv, ISR_ARMOR0 + 2, chest);
+        expect(isr_stack_enchant_level(&inv.armor[2], 3) == 4,
+               "getMaxEnchantmentLevel BLAST is 4");
+        k = isr_stack_enchant_level(&inv.armor[2], 3) * 2;
+        expect(k == 8, "calcModifierDamage EXPLOSION is level*2");
+        expect(mc_combat_damage_after_magic_absorb(10.0f, (float)k) < 10.0f,
+               "magic absorb reduces explosion damage");
+        expect(ex_blast_reduction(10.0, 4) < 10.0,
+               "getBlastDamageReduction level 4 reduces knockback");
+        expect(ex_blast_reduction(1.0, 0) == 1.0,
+               "EnchantmentProtection level 0 is identity");
+    }
 
     ex_entity_blast(8.5, 65.0, 8.5, 1.62f, 8.5, 65.5, 12.5, EXL_RADIUS,
                     1.0f, 0, &blast);

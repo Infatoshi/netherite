@@ -5,6 +5,48 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Explosion residuals: CLOSED 2026-08-23 (lane/expresid)
+
+Anvil. Sweep 2026-08-23 magma row 4.
+
+Java: `EntityCreeper.explode` (`EntityCreeper.java:303-314`) calls
+`world.createExplosion(this, posX, posY, posZ, (float)explosionRadius * f, flag)`
+with `f = getPowered() ? 2.0F : 1.0F` (`:308`) and `flag = mobGriefing` (`:307`).
+Lightning sets POWERED (`:274-277`). `World.createExplosion` (`World.java:2436-2438`)
+passes `isFlaming=false`, `isSmoking=flag`. TNT `createExplosion(..., true)`
+(`EntityTNTPrimed.java:114`) always smokes. `getBlockDensity` (`World.java:2456-2494`)
+samples `1/((len*2)+1)` then `rayTraceBlocks(start, end)` (`:998-1000`,
+stopOnLiquid false) against collision AABBs. Blast knockback is
+`EnchantmentProtection.getBlastDamageReduction` (`:99-108`); damage magic
+absorb is `applyPotionDamageCalculations` (`EntityLivingBase.java:1483-1487`)
+`CombatRules.getDamageAfterMagicAbsorb` (`CombatRules.java:14-18`).
+`doExplosionB` sound is two `world.rand.nextFloat` (`Explosion.java:198`);
+server `WorldServer.newExplosion` (`WorldServer.java:1250`) skips particle
+draws. Flaming fire is `explosionRNG.nextInt(3)==0` on air above
+`isFullBlock` (`Explosion.java:249-257`); `explosionRNG` is `new Random()`
+(`:65`). Live flaming sources: `EntityLargeFireball.java:47` both flags
+= griefing. Creeper/TNT are not flaming. ItemFireball / EntitySmallFireball
+place fire without an explosion. `EntityCreeper.explode` has no rand draws.
+
+C: shared `explosion.h` / `explosion_live.h`. Creeper origin is posY.
+Powered aliases `RlSnapMob.screaming` on `EW_TYPE_CREEPER` (zero default,
+no snapshot version bump). `isSmoking` gates destroy; TNT hard 1.
+Density uses movement collision AABBs. Snapshot inv has no enchant
+payload so live magic absorb is identity; units plant `IcEnch`.
+EXP digest stays EXP4 (no new hashed fields).
+
+Stay out: weather lightning strike as a live powered source; fireball
+`explosionRNG` tape-exact (unseeded `new Random()`); armor enchants in
+`.bsnp`; witch/item/M2-harness.
+
+Gate: explosions M1+M2 VERIFIED 64 ticks t=0 digest `0xcc693e0d9377745c`
+(`out/verify/expresid_explosions_m1_detail.log`). Fixture
+`s10_t0_r64_explosions.bsnp` baked by `test_explosions --write-fixture`
+(charged creeper + bottom slab). mining_slice M2 BLOCKED
+(`blaze/rl/out/snaps/*_d*.bsnp` missing). TNT inventory mismatch
+unchanged: t=28 slot 0 item 259 tape_meta 0 magma_meta 1. creeper_encounter
+FIRST DIVERGENCE still t=76 y 2.1e-09.
+
 ### mayPlace / TNT flint / boats / container leftovers: CLOSED 2026-08-23 (lane/tntsupport)
 
 Anvil. Sweep 2026-08-23 magma row 6 + silent mayPlace; blaze rows 10, 12

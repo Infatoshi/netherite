@@ -413,6 +413,9 @@ typedef struct {
     int explosion_pending;
     double explosion_x, explosion_y, explosion_z;
     float explosion_size;
+    int explosion_smoking;
+    int explosion_flaming;
+    int mob_griefing; /* GameRules mobGriefing; default 1 */
     unsigned parity_ex_blasts;
     unsigned parity_ex_destroyed;
     unsigned parity_ex_drop_n;
@@ -1146,6 +1149,11 @@ MC_HD static inline int cu_spawn_tnt_primed(Blaze *e, double x, double y,
     fl_block_changed((w), (w), (x), (y), (z)); \
     cu_fluid_mark((w), 0, (x), (y), (z)); \
 } while (0)
+#define exl_set_block(w, x, y, z, id, meta) do { \
+    cu_world_set_state((w), (x), (y), (z), (id), (meta)); \
+    fl_block_changed((w), (w), (x), (y), (z)); \
+    cu_fluid_mark((w), 0, (x), (y), (z)); \
+} while (0)
 #define exl_spawn_tnt(w, x, y, z, fuse) \
     cu_spawn_tnt_primed((w), (double)(x) + 0.5, (double)(y), \
                         (double)(z) + 0.5, (fuse))
@@ -1194,14 +1202,15 @@ MC_HD static inline void cu_mob_finish_dead(Blaze *e, RlSnapMob *m);
 MC_HD static inline void cu_mobs_compact(Blaze *e);
 
 MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
-                                    float size) {
-    int ox, oy, oz;
+                                    float size, int smoking, int flaming) {
+    int ox, oy, oz, prot, ench;
     uint32_t nd = 0;
     uint64_t rays = bp_hash_begin();
     double px, py, pz, minx, miny, minz, maxx, maxy, maxz;
     float dens, eh, damage;
     ExBlast blast;
     unsigned mi;
+    JavaRandom expl_rng;
     if (!e) return;
     exl_fill_and_rays(e, e->ex_grid, e->ex_hit, ex, ey, ez, size,
                       &ox, &oy, &oz, &e->world_rand, &e->ex_hs);
@@ -1218,9 +1227,12 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
     eh = (float)psv_player_eye_height(&e->pl);
     dens = ex_block_density(e->ex_grid, ox, oy, oz, ex, ey, ez,
                             minx, miny, minz, maxx, maxy, maxz);
-    ex_entity_blast(px, py, pz, eh, ex, ey, ez, size, dens, 0, &blast);
+    prot = psv_blast_prot_max(&e->pl.inv);
+    ench = psv_explosion_enchant_mod(&e->pl.inv);
+    ex_entity_blast(px, py, pz, eh, ex, ey, ez, size, dens, prot, &blast);
     damage = blast.damage;
     damage = cu_armor_damage(e, damage);
+    damage = psv_explosion_after_magic(damage, ench);
     pv_attack(&e->vit, damage);
     e->pl.health = e->vit.health;
     if (blast.hit) {
@@ -1281,8 +1293,11 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
         if (m->health <= 0.0f) m->health = 0.0f;
     }
     cu_mobs_compact(e);
+    expl_rng = e->world_rand;
+    jrand_long(&expl_rng);
     exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays, &e->world_rand,
-                   &e->ex_hs, size);
+                   &e->ex_hs, size, smoking, flaming,
+                   flaming ? &expl_rng : NULL);
     e->parity_ex_blasts++;
     e->parity_ex_destroyed += nd;
     e->parity_ex_rays = rays;
@@ -1339,6 +1354,8 @@ MC_HD static inline void cu_explosion_tick(Blaze *e) {
             e->explosion_z = z;
         }
         e->explosion_size = EXL_TNT_SIZE;
+        e->explosion_smoking = 1;
+        e->explosion_flaming = 0;
         {
             unsigned k;
             for (k = i; k + 1u < e->n_mobs; ++k)
@@ -1362,9 +1379,12 @@ MC_HD static inline void cu_explosion_tick(Blaze *e) {
         }
         e->explosion_pending = 1;
         e->explosion_x = m->x;
-        e->explosion_y = m->y + EXL_Y_OFF;
+        e->explosion_y = m->y; /* EntityCreeper.java:310 posY */
         e->explosion_z = m->z;
-        e->explosion_size = EXL_RADIUS;
+        e->explosion_size = exl_creeper_size(
+            exl_creeper_powered(m->type, m->screaming));
+        e->explosion_smoking = e->mob_griefing ? 1 : 0;
+        e->explosion_flaming = 0;
         {
             unsigned k;
             for (k = i; k + 1u < e->n_mobs; ++k)
@@ -1376,7 +1396,8 @@ MC_HD static inline void cu_explosion_tick(Blaze *e) {
 apply:
     if (e->explosion_pending) {
         cu_explode(e, e->explosion_x, e->explosion_y, e->explosion_z,
-                   e->explosion_size);
+                   e->explosion_size, e->explosion_smoking,
+                   e->explosion_flaming);
         e->explosion_pending = 0;
     }
 }
@@ -1749,7 +1770,7 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             ectx.yaw = e->pl.yaw;
             ectx.pitch = e->pl.pitch;
             ectx.helmet = isr_get_stack(&e->pl.inv, ISR_ARMOR_HEAD).item;
-            ectx.griefing = 1;
+            ectx.griefing = e->mob_griefing;
             ectx.world_time = e->ww.worldTime;
             ectx.raining = e->weather_enabled ? e->ww.raining : 0;
             ectx.player_health = e->pl.health;
@@ -1761,9 +1782,12 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
         if (mm.exploded) {
             e->explosion_pending = 1;
             e->explosion_x = mm.snap.x;
-            e->explosion_y = mm.snap.y + EXL_Y_OFF;
+            e->explosion_y = mm.snap.y; /* EntityCreeper.java:310 posY */
             e->explosion_z = mm.snap.z;
-            e->explosion_size = EXL_RADIUS;
+            e->explosion_size = exl_creeper_size(
+                exl_creeper_powered(mm.snap.type, mm.snap.screaming));
+            e->explosion_smoking = e->mob_griefing ? 1 : 0;
+            e->explosion_flaming = 0;
             cu_mob_to_env(e, i, &mm);
             continue;
         }
@@ -5923,6 +5947,9 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->explosion_pending = 0;
     env->explosion_x = env->explosion_y = env->explosion_z = 0.0;
     env->explosion_size = 0.0f;
+    env->explosion_smoking = 1;
+    env->explosion_flaming = 0;
+    env->mob_griefing = 1;
     env->parity_ex_blasts = 0;
     env->parity_ex_destroyed = 0;
     env->parity_ex_drop_n = 0;

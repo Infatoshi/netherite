@@ -25,6 +25,12 @@
     gm_live_block_changed(&(w)->entities, (w)->world, (x), (y), (z)); \
     gm_fluid_mark(&(w)->fluids, (w)->world, (w)->dimension, (x), (y), (z)); \
 } while (0)
+#define exl_set_block(w, x, y, z, id, meta) do { \
+    gm_world_set_block((w)->world, (x), (y), (z), (id)); \
+    (void)(meta); \
+    gm_live_block_changed(&(w)->entities, (w)->world, (x), (y), (z)); \
+    gm_fluid_mark(&(w)->fluids, (w)->world, (w)->dimension, (x), (y), (z)); \
+} while (0)
 #define exl_spawn_tnt(w, x, y, z, fuse) \
     gm_mobs_spawn_tnt_primed(&(w)->mobs, (double)(x) + 0.5, (double)(y), \
                              (double)(z) + 0.5, (fuse))
@@ -149,12 +155,14 @@ static void recenter(GmRuntime *r) {
     gm_player_ctl_recenter((int)dx, (int)dz);
 }
 
-static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float size){
-    u16 grid[EX_VOL];u8 hit[EX_VOL];int ox,oy,oz;
+static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float size,
+                            int smoking, int flaming){
+    u16 grid[EX_VOL];u8 hit[EX_VOL];int ox,oy,oz,prot,ench;
     uint32_t nd=0;uint64_t rays=bp_hash_begin();
     float dens,damage;ExBlast blast;
     double px,py,pz,minx,miny,minz,maxx,maxy,maxz;
     JavaHashSet hs;
+    JavaRandom expl_rng;
     exl_fill_and_rays(r,grid,hit,ex,ey,ez,size,&ox,&oy,&oz,&r->world_rand,&hs);
     /* doExplosionA entity loop sees the intact world (Explosion.java:132-190)
      * before doExplosionB destroys. */
@@ -168,11 +176,15 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
     maxy=r->player.ent.box.maxY;
     maxz=r->player.ent.box.maxZ+(double)r->oz;
     dens=ex_block_density(grid,ox,oy,oz,ex,ey,ez,minx,miny,minz,maxx,maxy,maxz);
+    prot=psv_blast_prot_max(&r->player.inv);
+    ench=psv_explosion_enchant_mod(&r->player.inv);
     ex_entity_blast(px,py,pz,(float)psv_player_eye_height(&r->player),
-                    ex,ey,ez,size,dens,0,&blast);
+                    ex,ey,ez,size,dens,prot,&blast);
     damage=blast.damage;
-    /* ExplosionDamage is not unblockable; armor absorb + durability apply. */
+    /* ExplosionDamage is not unblockable; armor absorb + durability apply.
+     * applyPotionDamageCalculations magic absorb is identity at n_enchants=0. */
     damage = runtime_armor_damage(r, damage, 0);
+    damage = psv_explosion_after_magic(damage, ench);
     pv_attack(&r->vitals,damage);r->player.health=r->vitals.health;
     if(blast.hit){
         r->player.ent.motionX+=blast.addx;
@@ -189,7 +201,13 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
             if(dx*dx+dy*dy+dz*dz<=size*size*4.0)r->dragon.state.arena.crystals[i].alive=0;
         }
     }
-    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays,&r->world_rand,&hs,size);
+    /* explosionRNG is new Random() (Explosion.java:65). Seeded from the
+     * World.rand cursor so magma and blaze lockstep; the stream is not
+     * World.rand itself. Live creeper/TNT pass flaming=0 so this is idle. */
+    expl_rng = r->world_rand;
+    jrand_long(&expl_rng);
+    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays,&r->world_rand,&hs,size,
+                   smoking,flaming,flaming?&expl_rng:NULL);
     r->parity_ex_blasts++;
     r->parity_ex_destroyed += nd;
     r->parity_ex_rays = rays;
@@ -544,10 +562,14 @@ static void tick_projectiles(GmRuntime *r) {
                         r->player_fire_ticks=5*20;
                         r->player.fire=r->player_fire_ticks;
                     }
-                    if(p->type==5)runtime_explode(r,p->x,p->y,p->z,1.0f);
+                    /* EntityLargeFireball.java:47 newExplosion(null, pos, power, grief, grief) */
+                    if(p->type==5)runtime_explode(r,p->x,p->y,p->z,1.0f,
+                        r->gamerules.mobGriefing, r->gamerules.mobGriefing);
                     p->active=0;
                 }else if(block){
-                    if(p->type==3||p->type==5)runtime_explode(r,p->x,p->y,p->z,1.0f);
+                    if(p->type==3)runtime_explode(r,p->x,p->y,p->z,1.0f,1,0);
+                    else if(p->type==5)runtime_explode(r,p->x,p->y,p->z,1.0f,
+                        r->gamerules.mobGriefing, r->gamerules.mobGriefing);
                     p->active=0;
                 }
             }
@@ -1236,8 +1258,12 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                      boat_fwd, boat_str, r->gamerules.mobGriefing);
         gm_mobs_tick_tnt(&r->mobs, r->world);
         {double x,y,z;float sz=EXL_RADIUS;
-         if(gm_mobs_take_explosion_size(&r->mobs,&x,&y,&z,&sz))
-             runtime_explode(r,x,y,z,sz);}
+         int sm=1,fl=0;
+         if(gm_mobs_take_explosion_size(&r->mobs,&x,&y,&z,&sz)){
+             sm=r->mobs.explosion_smoking;
+             fl=r->mobs.explosion_flaming;
+             runtime_explode(r,x,y,z,sz,sm,fl);}
+        }
         spawn_hostile_projectiles(r);
     } else {
         /* --mobs off skips AI/spawn/combat; loaded snapshot living slots
@@ -1250,11 +1276,15 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                            boat_fwd, boat_str);
         gm_mobs_tick_orbs(&r->mobs, r->world,
                           (struct PsvPlayer *)&r->player, r->ox, r->oz);
-        gm_mobs_tick_creeper_fuse(&r->mobs);
+        gm_mobs_tick_creeper_fuse(&r->mobs, r->gamerules.mobGriefing);
         gm_mobs_tick_tnt(&r->mobs, r->world);
         {double x,y,z;float sz=EXL_RADIUS;
-         if(gm_mobs_take_explosion_size(&r->mobs,&x,&y,&z,&sz))
-             runtime_explode(r,x,y,z,sz);}
+         int sm=1,fl=0;
+         if(gm_mobs_take_explosion_size(&r->mobs,&x,&y,&z,&sz)){
+             sm=r->mobs.explosion_smoking;
+             fl=r->mobs.explosion_flaming;
+             runtime_explode(r,x,y,z,sz,sm,fl);}
+        }
     }
     if(r->dimension==1){
         GmPlayerView dv;gm_runtime_view(r,&dv);
@@ -2438,7 +2468,8 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
         }
         for(int x=wx-1;x<=wx+1;++x)for(int z=wz-1;z<=wz+1;++z)
             if(gm_world_block(r->world,x,wy,z)==26)gm_world_set_block(r->world,x,wy,z,0);
-        runtime_explode(r,wx+0.5,wy+0.5,wz+0.5,5.0f);return 1;
+        /* BlockBed.java:118 newExplosion(..., 5.0F, true, true) */
+        runtime_explode(r,wx+0.5,wy+0.5,wz+0.5,5.0f,1,1);return 1;
     }
     return 0;
 }
