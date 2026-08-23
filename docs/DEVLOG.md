@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 random_ticks M1 skylight (lane/lightsync)
+
+Baseline anvil d456936: random_ticks M1 FAILED at observation 84. Magma digest `0x099236e78eba8377` evidence=11; blaze `0x03401e738ea70aca` evidence=10 (`out/verify/lightsync_baseline_random_ticks_m1.log`). VERIFIED at 42117bc; broke in 7435206 (lane/underwater merge). Magma `light_set_state` (`magma/world/light.c:751`) marks `column_dirty` on opacity change; `light_ensure` (`:690`) reruns `Chunk.generateSkylightMap` (`Chunk.java:238`, `cr_k17_skylight_column` `light.c:69`) for that chunk, then raise-only spread (`compute_skylight_spread` `:541`). Blaze still used `cu_light_raw_sky` + radius-15 `cu_light_relax_open/close`. Raise-only never lowered a 3x3x3 water cube (centre stuck at 12, magma centre 9). `randtick_live.h` reads `rt_live_light`, so the nibble mismatch changed which ticks fired.
+
+Cause: Java `World.checkLightFor` decrease (`World.java:3046`) can lower neighbours. Magma's flood only raises, so it rebuilds the chunk ladder instead of `Chunk.relightBlock` (`Chunk.java:392`). `generateSkylightMap` is per-column independent; a full-chunk rebuild then spread matches magma. Did not edit `magma/world/light.c`.
+
+After: `cu_light_after_opacity` in `blaze/env/blaze_core.h` (MC_HD). Unit `blaze/env/test_skylight_water.c` writes a 3x3x3 still-water cube and matches magma `light_set_state`+`light_ensure` (top 12, mid 9, bot 10, edge 12). random_ticks M1 VERIFIED 200 ticks (`out/verify/lightsync_after_random_ticks_m1.log`). M1 `--no-deps` also VERIFIED: world_dynamics, spawn_to_torch, fluids, entity_spine, mobs, explosions, projectiles, chests, falling_blocks, weather_optional, mining_slice. M2 GPU1 VERIFIED for those rows except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing on this clone). Root `make test` PASS (`out/verify/lightsync_maketest.log`).
+
+Open: mining_slice M2 needs the d-stage snaps on a complete tree.
+
 ## 2026-08-22 mobs M1+M2 (lane/mobs)
 
 Baseline anvil HEAD 27ddb52: `BLOCKED mobs: Mob spawning, AI, combat, and drops lack end-to-end common evidence` (`blaze/env/port_matrix.yaml`). Shared headers already had spawning (`mob_spawning_world.h`), hostile spine (`entity_hostile_spine.h`), synthetic A* (`mob_ai_zombie_astar.h`), and living `Entity.move` (`entity_spine.h`). Magma `gm_mobs_tick` (`magma/game/mob_live.c`) was the live AI/combat/spawn path; blaze hashed the v3 roster and ticked spine only.

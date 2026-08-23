@@ -531,19 +531,24 @@ MC_HD static inline void cu_cont_edit(Blaze *e, int wx, int wy, int wz,
     e->n_cont++;
 }
 
-/* Removing an opaque block can only increase light. LightWorld re-runs its
- * local BFS after every write. Process each Manhattan shell once: every
- * newly-reachable cell has a predecessor on the prior shell, so this is the
- * same radius-15 monotone relaxation without rescanning a 31^3 cube 15 times. */
+/* Magma state_opacity (light.c:119): rails (66) and double plants (175)
+ * do not attenuate skylight. CUT rails default to bpt opacity 255. */
+MC_HD static inline int cu_sky_opacity(int id) {
+    if (id == 66 || id == 175) return 0;
+    return (int)mc_bpt_props(id).light_opacity;
+}
+
+/* Raise-only one cell: magma compute_skylight_spread SKY_STEP / sky_op
+ * (light.c:519, :539) = max(1, opacity), then neighbor_sky - op.
+ * World.checkLightFor raise half (World.java:3100-3154). */
 MC_HD static inline void cu_light_relax_cell(Blaze *e, int x, int y, int z) {
     static const int dx[6] = {1, -1, 0, 0, 0, 0};
     static const int dy[6] = {0, 0, 1, -1, 0, 0};
     static const int dz[6] = {0, 0, 0, 0, 1, -1};
     long i = cu_region_idx(e, x, y, z);
-    int id, opacity, sky, best, q;
+    int opacity, sky, best, q;
     if (i < 0) return;
-    id = mc_state_id(e->cells[i]);
-    opacity = (int)mc_bpt_props(id).light_opacity;
+    opacity = cu_sky_opacity(mc_state_id(e->cells[i]));
     if (opacity > 15) opacity = 15;
     if (opacity < 1) opacity = 1;
     sky = e->light[i] >> 4;
@@ -559,67 +564,106 @@ MC_HD static inline void cu_light_relax_cell(Blaze *e, int x, int y, int z) {
         e->light[i] = (u8)((best << 4) | (e->light[i] & 15));
 }
 
-MC_HD static inline void cu_light_relax_open(Blaze *e,
-                                             int wx, int wy, int wz) {
-    int radius, ox, oy;
-    if (!e->light_valid) return;
-    for (radius = 0; radius < 15; ++radius)
-        for (ox = -radius; ox <= radius; ++ox)
-            for (oy = -(radius - (ox < 0 ? -ox : ox));
-                 oy <= radius - (ox < 0 ? -ox : ox); ++oy) {
-                int rem = radius - (ox < 0 ? -ox : ox) -
-                          (oy < 0 ? -oy : oy);
-                cu_light_relax_cell(e, wx + ox, wy + oy, wz + rem);
-                if (rem)
-                    cu_light_relax_cell(e, wx + ox, wy + oy, wz - rem);
-            }
-}
-
-/* Magma light_set_state / getRawLight sky seed: non-zero opacity starts at 0
- * (flood fills later); air canSeeSky (no opacity>0 above in-region) is 15. */
-MC_HD static inline int cu_light_raw_sky(const Blaze *e, int x, int y, int z) {
-    long i = cu_region_idx(e, x, y, z);
-    int opacity, yy;
-    if (i < 0) return 15;
-    opacity = (int)mc_bpt_props(mc_state_id(e->cells[i])).light_opacity;
-    if (opacity > 0) return 0;
-    for (yy = y + 1; yy < e->ry0 + e->rny; ++yy) {
-        long j = cu_region_idx(e, x, yy, z);
-        if (j < 0) return 15;
-        if ((int)mc_bpt_props(mc_state_id(e->cells[j])).light_opacity > 0)
-            return 0;
+/* Chunk.generateSkylightMap one column (Chunk.java:238-297) via magma
+ * cr_k17_skylight_column (light.c:69, topSeg=240 so nY=256, nn[]=1 at
+ * light.c:292). Zero the column, walk down from world top, air costs 0
+ * while k1==15 else 1, stop at i1<=0 || k1<=0. Region y above rny is air
+ * so k1 stays 15; start at the in-region top. */
+MC_HD static inline void cu_skylight_column(Blaze *e, int wx, int wz) {
+    int y, k1, j1, wy0, wy1;
+    long i;
+    wy0 = e->ry0;
+    wy1 = e->ry0 + e->rny - 1;
+    for (y = wy0; y <= wy1; ++y) {
+        i = cu_region_idx(e, wx, y, wz);
+        if (i < 0) continue;
+        e->light[i] = (u8)(e->light[i] & 15);
     }
-    return 15;
+    k1 = 15;
+    y = wy1;
+    if (y < 0) return;
+    while (1) {
+        i = cu_region_idx(e, wx, y, wz);
+        j1 = 0;
+        if (i >= 0)
+            j1 = cu_sky_opacity(mc_state_id(e->cells[i]));
+        if (j1 == 0 && k1 != 15) j1 = 1;
+        k1 -= j1;
+        if (k1 > 0 && i >= 0)
+            e->light[i] = (u8)((k1 << 4) | (e->light[i] & 15));
+        --y;
+        if (y <= 0 || k1 <= 0) break;
+    }
 }
 
-MC_HD static inline void cu_light_seed_raw_sky(Blaze *e, int x, int y, int z) {
-    long i = cu_region_idx(e, x, y, z);
-    int raw;
-    if (i < 0) return;
-    raw = cu_light_raw_sky(e, x, y, z);
-    e->light[i] = (u8)((raw << 4) | (e->light[i] & 15));
+/* Magma compute_skylight (light.c:290): every column of the chunk. */
+MC_HD static inline void cu_skylight_chunk(Blaze *e, int wx, int wz) {
+    int bx = (wx >> 4) << 4, bz = (wz >> 4) << 4;
+    int lx, lz;
+    for (lx = 0; lx < 16; ++lx)
+        for (lz = 0; lz < 16; ++lz) {
+            int cx = bx + lx, cz = bz + lz;
+            if (cu_region_idx(e, cx, e->ry0, cz) < 0) continue;
+            cu_skylight_column(e, cx, cz);
+        }
 }
 
-/* Placing a more-opaque block can only decrease light. Dual of open: re-seed
- * the radius-15 ball to raw sky (darken), then re-run open 15 times so light
- * from residual sky columns and exterior neighbors can walk back inward
- * (one open pass only advances the wavefront by one shell from the boundary). */
-MC_HD static inline void cu_light_relax_close(Blaze *e,
-                                              int wx, int wy, int wz) {
-    int radius, ox, oy, pass;
+/* Raise-only flood over a box. Magma compute_skylight_spread (light.c:541)
+ * is a BFS; 15 in-place passes are the same max-flood (air costs 1, sky
+ * 15 dies in 15 steps). Early-exit when a pass raises nothing. */
+MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
+                                                int z0, int x1, int y1,
+                                                int z1) {
+    int pass, x, y, z, changed;
+    int rx1 = e->rx0 + e->rnx - 1, ry1 = e->ry0 + e->rny - 1,
+        rz1 = e->rz0 + e->rnz - 1;
+    if (x0 < e->rx0) x0 = e->rx0;
+    if (y0 < e->ry0) y0 = e->ry0;
+    if (z0 < e->rz0) z0 = e->rz0;
+    if (x1 > rx1) x1 = rx1;
+    if (y1 > ry1) y1 = ry1;
+    if (z1 > rz1) z1 = rz1;
+    if (x0 > x1 || y0 > y1 || z0 > z1) return;
+    for (pass = 0; pass < 15; ++pass) {
+        changed = 0;
+        for (x = x0; x <= x1; ++x)
+            for (z = z0; z <= z1; ++z)
+                for (y = y0; y <= y1; ++y) {
+                    long i = cu_region_idx(e, x, y, z);
+                    int before;
+                    if (i < 0) continue;
+                    before = e->light[i] >> 4;
+                    cu_light_relax_cell(e, x, y, z);
+                    if ((e->light[i] >> 4) > before) changed = 1;
+                }
+        if (!changed) break;
+    }
+}
+
+/* Magma light_set_state (light.c:751) sets column_dirty on opacity change;
+ * light_ensure (light.c:690) then generateSkylightMap for that chunk
+ * (Chunk.java:238) and raise-only spread. world_live.c:584 calls
+ * worldmc_ensure(cx,cz,0) after every write, so this is per-edit.
+ * Java's per-edit path is Chunk.relightBlock (Chunk.java:392) plus
+ * World.checkLightFor decrease (World.java:3046). Magma's flood only
+ * raises, so it rebuilds the chunk ladder instead of relightBlock.
+ * generateSkylightMap is per-column independent; rebuilding the whole
+ * chunk then spreading matches magma, and the lockstep digests agree
+ * because both sides store those nibbles. */
+MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
+                                                int wz) {
+    int cx, cz, x0, x1, z0, z1;
+    (void)wy;
     if (!e->light_valid) return;
-    for (radius = 0; radius < 15; ++radius)
-        for (ox = -radius; ox <= radius; ++ox)
-            for (oy = -(radius - (ox < 0 ? -ox : ox));
-                 oy <= radius - (ox < 0 ? -ox : ox); ++oy) {
-                int rem = radius - (ox < 0 ? -ox : ox) -
-                          (oy < 0 ? -oy : oy);
-                cu_light_seed_raw_sky(e, wx + ox, wy + oy, wz + rem);
-                if (rem)
-                    cu_light_seed_raw_sky(e, wx + ox, wy + oy, wz - rem);
-            }
-    for (pass = 0; pass < 15; ++pass)
-        cu_light_relax_open(e, wx, wy, wz);
+    cu_skylight_chunk(e, wx, wz);
+    cx = wx >> 4;
+    cz = wz >> 4;
+    x0 = (cx << 4) - 15;
+    x1 = (cx << 4) + 30;
+    z0 = (cz << 4) - 15;
+    z1 = (cz << 4) + 30;
+    cu_skylight_spread_box(e, x0, e->ry0, z0, x1,
+                           e->ry0 + e->rny - 1, z1);
 }
 
 /* world write: region + camera ids + window mirror (the real env writes the
@@ -679,12 +723,10 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
                 }
             }
         }
-        old_op = (int)mc_bpt_props(mc_state_id(old_state)).light_opacity;
-        new_op = (int)mc_bpt_props(id).light_opacity;
-        if (old_op > new_op)
-            cu_light_relax_open(e, wx, wy, wz);
-        else if (old_op < new_op)
-            cu_light_relax_close(e, wx, wy, wz);
+        old_op = cu_sky_opacity(mc_state_id(old_state));
+        new_op = cu_sky_opacity(id);
+        if (old_op != new_op)
+            cu_light_after_opacity(e, wx, wy, wz);
         e->world_epoch++;        /* coal candidate mined-flag invalidation */
         CU_OP(e, CU_OP_WORLD_EDIT);
     }
