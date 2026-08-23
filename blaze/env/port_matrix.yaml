@@ -1597,7 +1597,7 @@ subsystems:
     supported: true
     sources:
       magma: [magma/game/live_sim.c, magma/game/rl_mode.c]
-      shared: [blaze/core/entity_item.h, blaze/core/item_live.h, blaze/core/port_parity.h]
+      shared: [blaze/core/entity_item.h, blaze/core/item_live.h, blaze/core/item_overflow.h, blaze/core/port_parity.h]
       blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
     dependencies: [fluids, entity_spine]
     required_features: [items, inventory]

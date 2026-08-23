@@ -205,6 +205,18 @@ BP_HD static inline uint64_t bp_hash_item_entity(
     return bp_hash_i32(h, lifespan);
 }
 
+/* Overflow FIFO slot (item_overflow.h). Hash item/count/meta/x/y/z/delay so
+ * a silent skip is impossible. Do not drop hashed spawn_fail_count. */
+BP_HD static inline uint64_t bp_hash_item_overflow_slot(
+    uint64_t h, double x, double y, double z,
+    int32_t item, int32_t count, int32_t meta, int32_t delay) {
+    h = bp_hash_double(h, x);
+    h = bp_hash_double(h, y);
+    h = bp_hash_double(h, z);
+    h = bp_hash_stack3(h, item, count, meta);
+    return bp_hash_i32(h, delay);
+}
+
 BP_HD static inline uint64_t bp_hash_furnace_state(
     uint64_t h, int32_t wx, int32_t wy, int32_t wz,
     int32_t input_item, int32_t input_count, int32_t input_meta,

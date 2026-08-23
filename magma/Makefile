@@ -114,7 +114,7 @@ game/%.o: game/%.c core/types.h game/game.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(BLAZE)/core -c $< -o $@
 game/randtick.o: ../blaze/core/randtick_live.h
 game/live_sim.o: ../blaze/core/falling_live.h ../blaze/core/item_live.h \
-                 ../blaze/core/entity_item.h
+                 ../blaze/core/item_overflow.h ../blaze/core/entity_item.h
 game/world_live.o: ../blaze/core/world_weather.h
 game/runtime.o: ../blaze/core/projectile_live.h ../blaze/core/explosion_live.h ../blaze/core/explosion.h
 game/mob_live.o: ../blaze/core/explosion_live.h ../blaze/core/hostile_live.h
@@ -555,7 +555,8 @@ BLAZE_EXPLOSIONS = ../blaze/core/explosion.h ../blaze/core/explosion_live.h
 BLAZE_MOBS = ../blaze/core/hostile_live.h ../blaze/core/hostile_spawn.h \
              ../blaze/core/passive_live.h
 BLAZE_XP = ../blaze/core/xp_live.h ../blaze/core/entity_xp_orb.h
-BLAZE_ITEMS = ../blaze/core/entity_item.h ../blaze/core/item_live.h
+BLAZE_ITEMS = ../blaze/core/entity_item.h ../blaze/core/item_live.h \
+              ../blaze/core/item_overflow.h
 BLAZE_BOATS = ../blaze/core/boat_live.h
 BLAZE_ELYTRA = ../blaze/core/elytra_live.h
 ifeq ($(shell uname -s),Darwin)

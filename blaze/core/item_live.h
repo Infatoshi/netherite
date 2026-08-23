@@ -37,7 +37,8 @@
  *   spawnAsEntity xz Math.random     EntityItem.java:59-61 CLASS C
  *     live table zeros mx/my/mz (cu_spawn_item / live_fill_ent)
  *   lava hop nextFloat skipped       EntityItem.java:142-144 CLASS C
- *   EntityItem table cap 48          Java World.spawnEntity has no cap
+ *   EntityItem table cap 48 + overflow 32 (item_overflow.h)
+ *     Java World.spawnEntity has no cap World.java:1268
  */
 #ifndef MC_ITEM_LIVE_H
 #define MC_ITEM_LIVE_H

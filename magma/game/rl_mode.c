@@ -519,10 +519,17 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
             it->on_ground, it->age, it->item, it->count, it->meta,
             it->pickup_delay, it->lifespan);
     }
+    h = bp_hash_i32(h, r->entities.n_overflow);
+    for (i = 0; i < r->entities.n_overflow; ++i) {
+        const IlOverflow *ov = &r->entities.overflow[i];
+        h = bp_hash_item_overflow_slot(
+            h, ov->x, ov->y, ov->z,
+            ov->stack.item, ov->stack.count, ov->stack.meta, ov->delay);
+    }
     h = bp_hash_i32(h, r->entities.spawn_fail_count);
     out->digest[BP_ITEMS] = h;
     out->evidence[BP_ITEMS] = (uint32_t)any;
-    if (any || r->entities.spawn_fail_count)
+    if (any || r->entities.spawn_fail_count || r->entities.n_overflow)
         out->active_mask |= BP_BIT(BP_ITEMS);
 
     h = bp_hash_begin();

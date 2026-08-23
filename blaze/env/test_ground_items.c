@@ -1,7 +1,7 @@
 /* Ground-item units + fixture baker.
  *
  * Units: combineItems, pickup delay 10 / thrown 40, age 6000, lava
- * dealFireDamage 5 hits, cap 48 skip+count.
+ * dealFireDamage 5 hits, 48 live + 32 overflow FIFO.
  * --write-fixture FROM OUT plants two cobble stacks that merge, a lava
  * pool, and one cobble over the lava. Writes blaze/rl/fixtures/ground_items_s10.json. */
 #define _POSIX_C_SOURCE 200809L
@@ -9,6 +9,7 @@
 #define il_id(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 0)
 #define il_meta(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 0)
 #include "item_live.h"
+#include "item_overflow.h"
 #include "blaze_snapshot.h"
 #include "mc_blocks.h"
 
@@ -16,6 +17,41 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define OV_LIVE_MAX 48
+
+typedef struct {
+    int active[OV_LIVE_MAX];
+    ICStack live[OV_LIVE_MAX];
+    double lx[OV_LIVE_MAX], ly[OV_LIVE_MAX], lz[OV_LIVE_MAX];
+    int ldelay[OV_LIVE_MAX];
+    IlOverflow overflow[IL_OVERFLOW_MAX];
+    int n_overflow;
+    int n_active;
+    int spawn_fail_count;
+} OvStore;
+
+static int ov_fill(OvStore *s, double x, double y, double z, ICStack st,
+                   int delay) {
+    int i;
+    for (i = 0; i < OV_LIVE_MAX; ++i) {
+        if (s->active[i]) continue;
+        s->active[i] = 1;
+        s->live[i] = st;
+        s->lx[i] = x;
+        s->ly[i] = y;
+        s->lz[i] = z;
+        s->ldelay[i] = delay < 0 ? 0 : delay;
+        s->n_active++;
+        return 1;
+    }
+    return 0;
+}
+
+#define IL_OV_STORE OvStore
+#define il_ov_fill_free(s, x, y, z, stack, delay) \
+    ov_fill((s), (x), (y), (z), (stack), (delay))
+#include "item_overflow.h"
 
 static int fails;
 
@@ -175,7 +211,7 @@ static int write_fixture(const char *from, const char *out_path) {
 static int run_units(void) {
     McItem a, b;
     McAABB none[1];
-    int i, spawned, failc;
+    int i, spawned;
 
     fill_item(&a, 8.5, 64.0, 8.5, 4, 32, 10);
     fill_item(&b, 8.7, 64.0, 8.5, 4, 32, 10);
@@ -258,15 +294,47 @@ static int run_units(void) {
         expect(inv.main[2].count == 32, "later cobble slot untouched");
     }
 
-    spawned = 0;
-    failc = 0;
-    for (i = 0; i < 49; ++i) {
-        if (i < 48)
-            spawned++;
-        else
-            failc++;
+    {
+        OvStore st;
+        int ok;
+        memset(&st, 0, sizeof st);
+        spawned = 0;
+        for (i = 0; i < OV_LIVE_MAX; ++i)
+            spawned += il_overflow_spawn(&st, 0.5, 64.0, 0.5, ic_mk(4, 1, 0), 10);
+        expect(spawned == OV_LIVE_MAX && st.n_overflow == 0 &&
+               st.spawn_fail_count == 0,
+               "48 live, overflow empty, no fail");
+        expect(il_overflow_spawn(&st, 1.5, 65.0, 2.5, ic_mk(1, 3, 0), 10),
+               "49th goes to overflow");
+        expect(st.n_active == OV_LIVE_MAX && st.n_overflow == 1 &&
+               st.spawn_fail_count == 0,
+               "48 live + 1 overflow, spawn_fail_count stays 0");
+        expect(st.overflow[0].stack.item == 1 && st.overflow[0].x == 1.5,
+               "overflow keeps 49th stack and x");
+        expect(il_overflow_spawn(&st, 3.0, 66.0, 4.0, ic_mk(5, 1, 0), 7),
+               "50th overflow");
+        expect(il_overflow_spawn(&st, 5.0, 67.0, 6.0, ic_mk(6, 2, 0), 8),
+               "51st overflow");
+        expect(st.overflow[0].stack.item == 1 &&
+               st.overflow[1].stack.item == 5 &&
+               st.overflow[2].stack.item == 6,
+               "overflow FIFO order 1,5,6");
+        st.active[0] = 0;
+        st.n_active--;
+        il_overflow_drain(&st);
+        expect(st.n_overflow == 2 && st.live[0].item == 1 &&
+               st.overflow[0].stack.item == 5,
+               "drain FIFO head into free slot");
+        memset(&st, 0, sizeof st);
+        ok = 0;
+        for (i = 0; i < OV_LIVE_MAX + IL_OVERFLOW_MAX + 1; ++i)
+            ok += il_overflow_spawn(&st, 0.5, 64.0, (double)i,
+                                    ic_mk(4, 1, 0), 10);
+        expect(ok == OV_LIVE_MAX + IL_OVERFLOW_MAX &&
+               st.spawn_fail_count == 1,
+               "48+32 held, 81st increments spawn_fail_count");
+        expect(IL_OVERFLOW_MAX == 32, "IL_OVERFLOW_MAX is 32");
     }
-    expect(spawned == 48 && failc == 1, "49th spawn skipped, fail count 1");
     {
         McItem tickit;
         memset(&tickit, 0, sizeof tickit);

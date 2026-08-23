@@ -1,12 +1,48 @@
-/* EntityItem kernel units: merge, pickup delay, despawn, lava, 48-cap,
- * Java pickup volume. */
+/* EntityItem kernel units: merge, pickup delay, despawn, lava,
+ * 48 live + 32 overflow FIFO, Java pickup volume. */
 #define IL_W char
 #define il_id(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 0)
 #define il_meta(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 0)
 #include "item_live.h"
+#include "item_overflow.h"
 
 #include <stdio.h>
 #include <string.h>
+
+#define OV_LIVE_MAX 48
+
+typedef struct {
+    int active[OV_LIVE_MAX];
+    ICStack live[OV_LIVE_MAX];
+    double lx[OV_LIVE_MAX], ly[OV_LIVE_MAX], lz[OV_LIVE_MAX];
+    int ldelay[OV_LIVE_MAX];
+    IlOverflow overflow[IL_OVERFLOW_MAX];
+    int n_overflow;
+    int n_active;
+    int spawn_fail_count;
+} OvStore;
+
+static int ov_fill(OvStore *s, double x, double y, double z, ICStack st,
+                   int delay) {
+    int i;
+    for (i = 0; i < OV_LIVE_MAX; ++i) {
+        if (s->active[i]) continue;
+        s->active[i] = 1;
+        s->live[i] = st;
+        s->lx[i] = x;
+        s->ly[i] = y;
+        s->lz[i] = z;
+        s->ldelay[i] = delay < 0 ? 0 : delay;
+        s->n_active++;
+        return 1;
+    }
+    return 0;
+}
+
+#define IL_OV_STORE OvStore
+#define il_ov_fill_free(s, x, y, z, stack, delay) \
+    ov_fill((s), (x), (y), (z), (stack), (delay))
+#include "item_overflow.h"
 
 static int fails;
 
@@ -37,7 +73,7 @@ static void fill_item(McItem *it, double x, double y, double z,
 int main(void) {
     McItem a, b;
     McAABB none[1];
-    int i, spawned, fail;
+    int i, spawned;
 
     /* combineItems: 32+32 cobble -> 64, donor dies. EntityItem.java:221-292 */
     fill_item(&a, 8.5, 64.0, 8.5, 4, 32, 10);
@@ -135,17 +171,58 @@ int main(void) {
         expect(inv.main[2].count == 32, "later cobble slot untouched");
     }
 
-    /* Cap 48: Java World.spawnEntity has no cap. Sim skip + count. */
-    spawned = 0;
-    fail = 0;
-    for (i = 0; i < 48 + 1; ++i) {
-        if (i < 48)
-            spawned++;
-        else
-            fail++;
+    /* Overflow FIFO. World.spawnEntity has no cap (World.java:1268). */
+    {
+        OvStore st;
+        int ok;
+        memset(&st, 0, sizeof st);
+        spawned = 0;
+        for (i = 0; i < OV_LIVE_MAX; ++i)
+            spawned += il_overflow_spawn(&st, 0.5, 64.0, 0.5, ic_mk(4, 1, 0), 10);
+        expect(spawned == OV_LIVE_MAX && st.n_overflow == 0 &&
+               st.spawn_fail_count == 0,
+               "48 live, overflow empty, no fail");
+        expect(il_overflow_spawn(&st, 1.5, 65.0, 2.5, ic_mk(1, 3, 0), 10),
+               "49th goes to overflow");
+        expect(st.n_active == OV_LIVE_MAX && st.n_overflow == 1 &&
+               st.spawn_fail_count == 0,
+               "48 live + 1 overflow, spawn_fail_count stays 0");
+        expect(st.overflow[0].stack.item == 1 && st.overflow[0].stack.count == 3 &&
+               st.overflow[0].x == 1.5 && st.overflow[0].y == 65.0 &&
+               st.overflow[0].z == 2.5 && st.overflow[0].delay == 10,
+               "overflow keeps x/y/z/delay of 49th");
+
+        expect(il_overflow_spawn(&st, 3.0, 66.0, 4.0, ic_mk(5, 1, 0), 7),
+               "50th overflow");
+        expect(il_overflow_spawn(&st, 5.0, 67.0, 6.0, ic_mk(6, 2, 0), 8),
+               "51st overflow");
+        expect(st.overflow[0].stack.item == 1 &&
+               st.overflow[1].stack.item == 5 &&
+               st.overflow[2].stack.item == 6,
+               "overflow FIFO order 1,5,6");
+        st.active[0] = 0;
+        st.n_active--;
+        il_overflow_drain(&st);
+        expect(st.n_overflow == 2 && st.n_active == OV_LIVE_MAX,
+               "drain fills one free slot");
+        expect(st.live[0].item == 1 && st.lx[0] == 1.5 && st.ldelay[0] == 10,
+               "FIFO head drained into free slot");
+        expect(st.overflow[0].stack.item == 5 &&
+               st.overflow[1].stack.item == 6,
+               "remaining overflow 5 then 6");
+
+        memset(&st, 0, sizeof st);
+        ok = 0;
+        for (i = 0; i < OV_LIVE_MAX + IL_OVERFLOW_MAX + 1; ++i)
+            ok += il_overflow_spawn(&st, 0.5, 64.0, (double)i,
+                                    ic_mk(4, 1, 0), 10);
+        expect(ok == OV_LIVE_MAX + IL_OVERFLOW_MAX &&
+               st.n_active == OV_LIVE_MAX && st.n_overflow == IL_OVERFLOW_MAX &&
+               st.spawn_fail_count == 1,
+               "48+32 held, 81st increments spawn_fail_count");
     }
-    expect(spawned == 48 && fail == 1, "49th spawn skipped, fail count 1");
     expect(EI_LIFESPAN == 6000, "EntityItem.lifespan is 6000");
+    expect(IL_OVERFLOW_MAX == 32, "IL_OVERFLOW_MAX is 32");
     {
         McItem tickit;
         memset(&tickit, 0, sizeof tickit);

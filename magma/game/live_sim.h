@@ -8,6 +8,7 @@
 
 #include "game/game.h"
 #include "items_core.h"  /* ICStack for gm_live_spawn_stack */
+#include "item_overflow.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,7 +18,7 @@ extern "C" {
  * drops (mobs, player throw). Overflow is a bounded recoverable hold when the
  * table is full - items are not silently discarded until overflow is also full. */
 #define GM_LIVE_MAX 48
-#define GM_LIVE_OVERFLOW_MAX 32
+#define GM_LIVE_OVERFLOW_MAX IL_OVERFLOW_MAX
 #define GM_LIVE_MAX_ENCHANTS 8  /* matches IC_MAX_ENCHANTS / StoredEnchantments cap */
 #define GM_LIVE_FALL_UPDATES 128
 
@@ -57,12 +58,10 @@ typedef struct {
 typedef struct {
     GmLiveEnt ents[GM_LIVE_MAX];
     int       n_active;
-    /* Recoverable hold when ents[] is full (chest break under pressure). */
-    ICStack   overflow[GM_LIVE_OVERFLOW_MAX];
-    double    overflow_x[GM_LIVE_OVERFLOW_MAX];
-    double    overflow_y[GM_LIVE_OVERFLOW_MAX];
-    double    overflow_z[GM_LIVE_OVERFLOW_MAX];
-    int       overflow_delay[GM_LIVE_OVERFLOW_MAX];
+    /* Recoverable hold when ents[] is full (chest break under pressure).
+     * Shared IlOverflow FIFO; spawn_fail_count only when overflow is full.
+     * World.spawnEntity has no cap (World.java:1268). */
+    IlOverflow overflow[GM_LIVE_OVERFLOW_MAX];
     int       n_overflow;
     int       spawn_fail_count; /* times both table and overflow rejected */
     /* BlockFalling scheduled updates. World.scheduleUpdate deduplicates an
@@ -81,8 +80,8 @@ void gm_live_init(GmLiveSim *s, long long seed, int surface_y);
 /* Plain spawn (no enchant payload). Prefer gm_live_spawn_stack for books. */
 int  gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
                         int item, int count, int meta, int pickup_delay);
-/* Table cap 48: first free slot or skip. No overflow queue. Explosion
- * drops use this so magma matches blaze CU_MAX_ITEMS skip. */
+/* Table cap 48: first free slot or skip. No overflow queue. Units that
+ * assert the 48-skip path use this; live spawn uses gm_live_spawn_stack. */
 int  gm_live_spawn_item_capped(GmLiveSim *s, double x, double y, double z,
                                int item, int count, int meta, int pickup_delay);
 /* EntityItem with full ICStack payload (item/count/meta + StoredEnchantments).
