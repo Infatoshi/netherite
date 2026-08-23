@@ -5,6 +5,16 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Bow FOV recapture occupancy-gone 0.753: superseded 2026-08-22 (lane/bowpix)
+
+The bowgold close below claimed `c_vs_j` 7.007 -> 0.753 and J-stone/C-grass
+gone after recapture at recorded `fov_mult=0.85`. Anvil lane/bowpix
+re-measured that same golden: 5.836 / hard_px=20830 / maxch=97 /
+px>1=11111, C `wall_xmin=0` vs J 20, occupancy C-stone/J-grass 487 plus
+wall texel-selection. Item gt2=0; mesh stays closed. Image FOV vs the
+0.85 field is Class C; do not fit 0.887. Forensics in OPEN first-person
+hand entry.
+
 ### Falling blocks t46 world hash: CLOSED 2026-08-22 (lane/fallt46)
 
 Tape `scenario_falling_blocks_20260801T151855Z`. Baseline on gamer:

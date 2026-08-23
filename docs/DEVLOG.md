@@ -1,5 +1,44 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 bow pull ROI triage (lane/bowpix)
+
+Item `hand_bow_pull20` after lane/bowgold recapture (`fov_mult=0.85` in
+meta). No GPU. Anvil baseline `bash verify/ui_hud/run_ui_hud_gates.sh`
+(`out/verify/bowpix_baseline.log`): c_vs_j=5.836 hard_px=20830 maxch=97
+px>1=11111 owned=31024 cap=620.5 RESIDUAL. Eat 1.317 / 73440 / 21526 and
+shield 0.911 / 28564 / 6925 byte-stable. Core HUD PASS. Mutations PASS.
+LSB guard PASS.
+
+Triage (same ROI 569,320,846,432 as shield; ui_hud_lsb buckets + pxdiff
+`--a/--b` on the ROI crop):
+
+| class | bow n | bow mean/ch | bow maxch | shield n |
+|----|--------|-------------|-----------|----------|
+| world texel/shade | 9974 | 15.669 | 58 | 584 |
+| BYTE-pack LSB (maxch<=2) | 8980 | 0.898 | 2 | 27976 |
+| selbox | 1389 | 1.362 | 97 | 0 |
+| wall/grass occupancy | 487 | 30.450 | 71 | 1 |
+| item/bow texels gt2 | 0 | 0 | 0 | 3 |
+
+gt1 buckets bow: wall=10611 painted=0 selbox=13 grass=487. eq1 painted=3432
+(BYTE-pack on the bow). C `wall_xmin=0` grass_cols=0; J `wall_xmin=20`
+grass_cols=40. Shield C and J `wall_xmin=77`. pxdiff bow ROI: cluster 0-1
+`content` is J grass vs C stone at the right edge; shield 0 clusters
+>=50 px at thresh 25.
+
+Java: world `getFOVModifier(pt,true)` = fovSetting * fovModifierHand
+(EntityRenderer.java:529-532, :730). Hand `getFOVModifier(pt,false)` = 70
+(`:804`). Bow pull pose is ItemRenderer.java:402-427 (no
+transformFirstPerson; f5/f6/f7 tremble at pull=20 is saturated f6=1).
+C already does that (`build_bow_drawn`, `ui_hud_scene` reads meta
+0.85). At 70*0.85=59.5 the pad wall fills the frame. The golden wall
+edge is the mid-ease 0.887 geometry. Do not fit 0.887. Recapture
+forbidden this lane. `hand.c` not edited.
+
+No C change. `oracle_roi_report.json` regenerated, byte-identical to
+the pre-gate copy. Other ui_hud rows byte-stable vs baseline. Root
+`make test` PASS (`out/verify/bowpix_maketest.log`).
+
 ## 2026-08-22 underwater skylight decrease (lane/underwater)
 
 Item A1 overlay_underwater. Anvil baseline `bash verify/ui_hud/run_ui_hud_gates.sh`:

@@ -81,7 +81,8 @@ evidence; do not fit constants):**
   Java-side justification).
 - Hand eat/shield/bow 1-LSB majority is the same family, but they are not a
   floor: eat `px>1=21526` / `nz=73440` vs cap 1784.8; shield `px>1=6925` /
-  `nz=28564` vs cap 587.0; bow `px>1=3345` / `nz=20830` vs cap 620.5.
+  `nz=28564` vs cap 587.0; bow `px>1=11111` / `nz=20830` vs cap 620.5
+  (lane/bowpix; OPEN's 3345/0.753 was not reproduced on this golden).
   PASS-LSB is wired; rows stay RESIDUAL.
 - Canonical tape `known:4` oak-log luminance (needs an oracle fragment
   lightmap capture); t=3080/3540 mild_shift dig-window frames.
@@ -106,6 +107,15 @@ magma to an unproven oracle state):**
   MP (EntityLookHelper.java:31-42, EntityAIWatchClosest.java:98). Watch
   math (onUpdateLook pitch from 0, 10F/40F) is bit-exact against pl t=40.
   Magma look_px is previous tape pl. No uniform lag 0/1/2 fits t=29..49.
+- ui_hud `hand_bow_pull20` PNG vs recorded `fov_mult`: meta and
+  `pass_a.fovModifierHand` are 0.85 after `easeFovModifierHand` 24
+  (EntityRenderer.java:491-502, AbstractClientPlayer.java:156-170) and
+  `frame_pair` re-renders at `partialTicks=1`. C world FOV is
+  `70*fov_mult` (`getFOVModifier(pt,true)`, EntityRenderer.java:529-532);
+  hand stays 70 (`:804`). At 59.5 deg the pad wall fills the frame
+  (C `wall_xmin=0`). The golden still has `wall_xmin=20` / grass columns
+  (same edge as the mid-ease 0.887 pin). Do not fit 0.887. Recapture is
+  anvil-only. `hand.c` stays closed.
 
 **D. Verification gaps (gate work, not product bugs):**
 
@@ -121,8 +131,8 @@ Do not grind: explosion puff `Particle.rand`; fog retune; texel bias;
 Magma GPU tick; particle blend=3 (vanilla ParticleManager is SRC_ALPHA,
 magma already matches); canonical t=260 texel-selection (retracted,
 CLOSED); entities over water (item 13 CLOSED); bow `hand.c` transforms
-(mesh closed; world FOV recaptured lane/bowgold with recorded
-`fov_mult=0.85`).
+(mesh closed; do not fit world FOV 0.887 to the `hand_bow_pull20` PNG;
+recorded `fov_mult=0.85` is the Java field, image wall edge is Class C).
 
 ## Interactive C raster renderer
 
@@ -142,16 +152,17 @@ world then `gm_hand_draw` then HUD. `n_only_j` 16309/50268/12533 -> 0/41/17
 Numerical/compose/live and HUD chrome still PASS; overlay rows byte-stable;
 synthetic exact/mutation controls still PASS.
 
-- Bow pull: `hard_px=20830`, `maxch=97`, `c_vs_j=0.753`, `n_only_j=0`
-  (was isolation 20830 / 100 / 29.266 / 16309; mid-ease golden 20745 /
-  108 / 7.007 / 0). Mesh/model/transform match the oracle
-  (bow_pulling_2, ItemRenderer BOW branch, generated firstperson).
-  World FOV is `fovModifierHand=0.85` recorded in capture meta after
-  `updateFovModifierHand` 0.5/tick ease converged (`AbstractClientPlayer.java:156-170`,
-  `EntityRenderer.java:491-502`); C pad scene reads that field. Hand
-  projection stays 70 (`EntityRenderer.java:804`). J-stone/C-grass occupancy
-  is gone. Remaining gt1 is wall 3332 + selbox 13 (eat/shield 1-LSB pack
-  family, not FOV). `use_count` still 71980.
+- Bow pull: `hard_px=20830`, `maxch=97`, `c_vs_j=5.836`, `n_only_j=0`,
+  `px>1=11111` / cap 620.5 (anvil lane/bowpix; was isolation 29.266 /
+  16309; mid-ease golden 7.007 / 20745; bowgold DEVLOG 0.753 was not
+  reproduced on this golden). Mesh/model/transform match the oracle
+  (bow_pulling_2, ItemRenderer.java:402-427 BOW branch, generated
+  firstperson). Item texels: `item_texel` gt2 n=0, painted eq1=3432
+  (BYTE-pack). Hand projection stays 70 (`EntityRenderer.java:804`).
+  World FOV C=`70*0.85` from meta (`EntityRenderer.java:529-532`);
+  C `wall_xmin=0`, J `wall_xmin=20` (occupancy C-stone/J-grass 487 plus
+  FOV texel-selection on the wall). Do not fit 0.887. `use_count` still
+  71980.
 - Eat mid-use: `hard_px=73440`, `maxch=215`, `c_vs_j=1.317`, `n_only_j=41`
   (was 74218 / 215 / 32.764 / 50268).
 - Blocking shield: `hard_px=28564`, `maxch=61`, `c_vs_j=0.911`, `n_only_j=17`
@@ -170,10 +181,10 @@ durability +1 extras are not PASS-LSB.
 No hand row qualifies for PASS-LSB today. Two independent blockers: `px>1`
 and `nz` vs 2% of `n_owned` (eat cap 1784.8, shield 587.0, bow 620.5). Even
 the 1-LSB subset alone exceeds the cap (eat eq1=51914, shield 21639, bow
-17485).
+eq1=9719).
 
 >1-delta buckets (owned, max-channel > 1; anvil C candidate 2026-08-22,
-lane/bowgold).
+lane/bowpix). Same ROI (569,320,846,432) for bow and shield.
 Sky is reported separately so it is not counted as painted hand/item.
 Selection box: `RenderGlobal.drawSelectionBox` black 0.4 alpha
 (`RenderGlobal.java:1964-1981`, `EntityRenderer.java:1408`). Stone wall:
@@ -188,18 +199,20 @@ BYTE-normal pack family as inventory preview (`VertexBuffer.java:533-535`
 |----|------|------|---------|--------|-------|-----|-----|-----|----------|
 | hand_eat_mid | 21526 | 14768 | 2617 | 0 | 4118 | 23 | 51914 | 1784.8 | no |
 | hand_block_shield | 6925 | 4885 | 4 | 0 | 2036 | 0 | 21639 | 587.0 | no |
-| hand_bow_pull20 | 3345 | 3332 | 0 (metal is gray) | 13 | 0 | 0 | 17485 | 620.5 | no |
+| hand_bow_pull20 | 11111 | 10611 | 0 | 13 | 487 | 0 | 9719 | 620.5 | no |
 
 Eat gt1 hist: 20021 at maxch=2, 907 at 3, then a 577-px high tail (maxch up
 to 215) of occupancy. Shield gt1 is almost all maxch 2-3 (6337+581) with a
-handful of occupancy (maxch 61). Bow gt1 after FOV recapture is wall
-(3332) + selbox (13); grass occupancy is gone. Sample coords live in the
-LSB guard print.
+handful of occupancy (maxch 61). Shield at this ROI: BYTE-pack LSB 27976 /
+28564 nz, occupancy 1, C and J `wall_xmin=77`. Bow nz split: world
+texel/shade 9974 mean 15.7, BYTE-pack LSB 8980 mean 0.90, selbox 1389,
+wall/grass occupancy 487 (C stone vs J grass), item gt2 0. pxdiff ROI
+thresh 25: right-edge `content` is that grass strip; shield 0 clusters
+>=50 px. Sample coords live in the LSB guard print.
 
-Bow world FOV recaptured 2026-08-22 (lane/bowgold): hold drawn bow until
-`fovModifierHand` converges, record `fov_mult=0.85` in meta, C reads it.
-`c_vs_j` 7.007 -> 0.753 (eat/shield class). `n_only_j=0`. J-stone/C-grass
-gone. Do not retune `hand.c`. Stone has no random model rotation. Diff
+Bow world FOV: C reads recorded `fov_mult=0.85` (lane/bowgold meta).
+`c_vs_j` stays 5.836 on that golden (not 0.753). J `wall_xmin=20` vs C 0.
+Do not retune `hand.c`. Stone has no random model rotation. Diff
 triptychs (gitignored): `out/verify/ui_hud/handscene/<id>_tri.png`.
 
 Repro:
