@@ -143,6 +143,8 @@ typedef struct {
     int success_item; /* +10/done=1 item id; 263 default (exact ppo_coal),
                        * 0 = never. Applied to envs at their next reset. */
     int mobs_enabled; /* magma --mobs on: hostile AI/combat live tick */
+    int natural_spawn;
+    long long world_time_pin;
     int elytra_kit;   /* magma --elytra on: chest 443 after reset */
     int legacy_recenter;  /* create opts: A/B fallback to the serial-recenter
                            * k_tick_legacy (host-side launch pick; zero tick
@@ -184,6 +186,8 @@ int blaze_assign(void *vh, const int *snap_idx);
 int blaze_set_reward_gate(void *vh, double dist_gate);
 int blaze_set_success_item(void *vh, int item);
 int blaze_set_mobs_enabled(void *vh, int on);
+int blaze_set_natural_spawn(void *vh, int on);
+int blaze_set_world_time(void *vh, long long world_time);
 int blaze_set_elytra_enabled(void *vh, int on);
 int blaze_reset(void *vh, const unsigned char *mask);
 int blaze_step(void *vh, const double *actions, int repeat,
@@ -210,6 +214,7 @@ int blaze_op_trace(void *vh, unsigned long long *out);
 __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                                const CuSnapDev *snaps, const int *assign,
                                int success_item, int mobs_enabled,
+                               int natural_spawn, long long world_time_pin,
                                int elytra_kit) {
     int gi = blockIdx.x * blockDim.x + threadIdx.x;
     if (gi >= nactive) return;
@@ -219,6 +224,9 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
                        s->mobs, s->n_mobs, s->orbs, s->n_orbs, success_item);
     envs[i].mobs_enabled = mobs_enabled;
+    envs[i].natural_spawn = natural_spawn;
+    if (world_time_pin >= 0)
+        envs[i].ww.worldTime = world_time_pin;
     envs[i].elytra_kit = elytra_kit;
     if (elytra_kit) {
         isr_set_stack(&envs[i].pl.inv, ISR_ARMOR_CHEST,
@@ -734,6 +742,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     v->n = n;
     v->device = device;
     v->success_item = 263;
+    v->world_time_pin = -1;
     v->ktime = o.ktime ? 1 : 0;
     v->stage_time = o.stage_time ? 1 : 0;
     v->legacy_recenter = o.legacy_recenter ? 1 : 0;
@@ -1157,6 +1166,46 @@ int blaze_set_mobs_enabled(void *vh, int on) {
     return 0;
 }
 
+int blaze_set_natural_spawn(void *vh, int on) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int i, flag;
+    if (!v) return -1;
+    v->natural_spawn = on ? 1 : 0;
+    flag = v->natural_spawn;
+    if (v->h_envs)
+        for (i = 0; i < v->n; ++i)
+            v->h_envs[i].natural_spawn = flag;
+    if (v->d_envs) {
+        cudaSetDevice(v->device);
+        for (i = 0; i < v->n; ++i) {
+            if (cudaMemcpy(&v->d_envs[i].natural_spawn, &flag, sizeof flag,
+                           cudaMemcpyHostToDevice) != cudaSuccess)
+                return -1;
+        }
+    }
+    return 0;
+}
+
+int blaze_set_world_time(void *vh, long long world_time) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int i;
+    if (!v) return -1;
+    v->world_time_pin = world_time;
+    if (v->h_envs)
+        for (i = 0; i < v->n; ++i)
+            v->h_envs[i].ww.worldTime = world_time;
+    if (v->d_envs) {
+        cudaSetDevice(v->device);
+        for (i = 0; i < v->n; ++i) {
+            if (cudaMemcpy(&v->d_envs[i].ww.worldTime, &world_time,
+                           sizeof world_time, cudaMemcpyHostToDevice)
+                != cudaSuccess)
+                return -1;
+        }
+    }
+    return 0;
+}
+
 int blaze_set_elytra_enabled(void *vh, int on) {
     CuVecCu *v = (CuVecCu *)vh;
     int i, flag;
@@ -1225,7 +1274,8 @@ int blaze_reset(void *vh, const unsigned char *mask) {
         return -1;
     k_reset_scalar<<<(nact + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
         v->d_envs, v->d_active, nact, v->d_snaps, v->d_assign,
-        v->success_item, v->mobs_enabled, v->elytra_kit);
+        v->success_item, v->mobs_enabled, v->natural_spawn,
+        v->world_time_pin, v->elytra_kit);
     /* all snapshots share the pool dims, so the bulk count is uniform - the
      * grass census grid is sized off the dims alone for exactly this reason
      * (cu_grass_grid_init); keep this in step with cu_reset_bulk_count. */

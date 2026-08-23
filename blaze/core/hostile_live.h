@@ -26,7 +26,7 @@
  *   EntityLivingBase.onDeath/dropLoot      EntityLivingBase.java:1224-1279
  *   EntityLiving.despawnEntity             EntityLiving.java:787-831
  *     128^2=16384 hard, age>600 + nextInt(800) and 32^2=1024 soft
- *   WorldEntitySpawner                     (magma simplified; not this header)
+ *   WorldEntitySpawner                     hostile_spawn.h
  *
  * Magma extras (M1 is magma semantics; do not "fix" to Java here):
  *   det_entity_rng off: generic aggro + straight chase, not EntityAITasks/A*
@@ -37,7 +37,7 @@
  *   knockBack: KR default 0 so nextDouble always applies; player has no
  *     JavaRandom (that stream is not in the sim). Degenerate xz < 1e-4
  *     skips the attackEntityFrom Math.random() jitter.
- *   persist does not skip despawn on this path (det_entity_rng only)
+ *   persist skips despawn (EntityLiving.java:790-793)
  *   drops: one item, no loot table / looting / equipment
  *
  * Include after defining ML_BLOCK(w,x,y,z) for the world half.
@@ -50,6 +50,7 @@
 
 #include "mc.h"
 #include "mc_math.h"
+#include "mc_rng.h"
 #include "combat_math.h"
 #include "entity_hostile_spine.h"
 #include "entity_spine.h"
@@ -300,15 +301,16 @@ MC_HD static inline int ml_sky_exposed(ML_W *w, double x, double y, double z) {
     return 1;
 }
 
-/* Despawn clocks + daylight burn. Magma gm_mobs_tick hostile preamble
- * (mob_live.c:3064-3091) for det_entity_rng-off hostiles.
+/* EntityLiving.despawnEntity EntityLiving.java:787-831 + daylight burn.
+ * persist => age=0, no nextInt. despawn_ticks is entityAge.
  * Returns 1 alive, 0 despawned (no drop), -1 fire death (drop). */
 MC_HD static inline int ml_hostile_pre(MlMob *m, ML_W *w,
                                        double px, double py, double pz,
                                        int day) {
     RlSnapMob *s;
-    double dx, dy, dz, d;
+    double dx, dy, dz, d, d3;
     int type;
+    JavaRandom er;
     if (!m || !m->snap.alive) return 0;
     s = &m->snap;
     type = s->type;
@@ -316,19 +318,30 @@ MC_HD static inline int ml_hostile_pre(MlMob *m, ML_W *w,
     dy = py - s->y;
     dz = pz - s->z;
     d = sqrt(dx * dx + dy * dy + dz * dz);
-    if (d > ML_DESPAWN_HARD) {
-        s->alive = 0;
-        s->type = EW_TYPE_NONE;
-        return 0;
-    }
-    if (d > ML_DESPAWN_SOFT) {
-        if (++m->despawn_ticks >= ML_DESPAWN_DELAY) {
+    d3 = d * d;
+    /* EntityLiving.updateEntityActionState :835 ++entityAge then despawn.
+     * Java && at :821 draws nextInt(800) whenever age>600, then d3>1024. */
+    if (s->persist) {
+        m->despawn_ticks = 0;                 /* EntityLiving.java:790-793 */
+    } else {
+        ++m->despawn_ticks;
+        if (d3 > 16384.0) {                   /* :816 128^2 */
             s->alive = 0;
             s->type = EW_TYPE_NONE;
             return 0;
         }
-    } else {
-        m->despawn_ticks = 0;
+        if (m->despawn_ticks > 600) {
+            er.seed = s->seed48;
+            if (jrand_int_bound(&er, 800) == 0 && d3 > 1024.0) {
+                s->seed48 = er.seed;
+                s->alive = 0;
+                s->type = EW_TYPE_NONE;
+                return 0;
+            }
+            s->seed48 = er.seed;
+        }
+        if (d3 < 1024.0)                      /* :825 */
+            m->despawn_ticks = 0;
     }
     if (day && (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON) &&
         m->fire_ticks <= 0 && ml_sky_exposed(w, s->x, s->y, s->z))

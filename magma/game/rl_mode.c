@@ -1100,6 +1100,13 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             free(cells); free(light); fclose(f); return 0;
         }
         gm_mobs_import_snap(&r->mobs, packed, n_mobs);
+        r->mobs.spawn_clip = 1;
+        r->mobs.spawn_rx0 = h.rx0;
+        r->mobs.spawn_ry0 = h.ry0;
+        r->mobs.spawn_rz0 = h.rz0;
+        r->mobs.spawn_rnx = h.rnx;
+        r->mobs.spawn_rny = h.rny;
+        r->mobs.spawn_rnz = h.rnz;
     }
     if (h.version >= BLAZE_SNAP_VERSION) {
         unsigned n_orbs = 0;

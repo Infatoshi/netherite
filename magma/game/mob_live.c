@@ -17,6 +17,33 @@
 #define ML_W GmWorld
 #define ML_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
 #include "hostile_live.h"
+
+typedef struct {
+    GmWorld *w;
+    GmMobLive *m;
+    EwStore *s;
+} GmHsWorld;
+
+static int gm_hs_place(GmHsWorld *h, int type, double x, double y, double z,
+                       float yaw, unsigned long long seed48, int have_g,
+                       double g);
+static int gm_hs_count(const GmHsWorld *h);
+static int gm_hs_hit(const GmHsWorld *h, double x0, double y0, double z0,
+                     double x1, double y1, double z1);
+static int gm_hs_in_clip(const GmHsWorld *h, int x, int y, int z);
+static int gm_hs_block(const GmHsWorld *h, int x, int y, int z);
+static int gm_hs_sky(const GmHsWorld *h, int x, int y, int z);
+static int gm_hs_blk(const GmHsWorld *h, int x, int y, int z);
+
+#define HS_W GmHsWorld
+#define HS_BLOCK(h, x, y, z) gm_hs_block((h), (x), (y), (z))
+#define HS_SKY(h, x, y, z) gm_hs_sky((h), (x), (y), (z))
+#define HS_BLK(h, x, y, z) gm_hs_blk((h), (x), (y), (z))
+#define HS_HOSTILE_COUNT(h) gm_hs_count(h)
+#define HS_MOB_HIT(h, x0, y0, z0, x1, y1, z1) gm_hs_hit((h), (x0), (y0), (z0), (x1), (y1), (z1))
+#define HS_PLACE(h, type, x, y, z, yaw, seed48, have_g, g) \
+    gm_hs_place((h), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g))
+#include "hostile_spawn.h"
 #include "xp_live.h"
 #define BL_W GmWorld
 #define BL_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
@@ -348,9 +375,13 @@ static void ml_load_slot(MlMob *o, const GmMobLive *m, const EwStore *s, int i) 
     o->snap.panic = (int)s->path_len[i];
     o->snap.box_on = m->det_box_on[i];
     o->repath_timer = s->repath_timer[i];
-    o->despawn_ticks = m->despawn_ticks[i];
+    o->despawn_ticks = m->entity_age[i];
     o->fire_ticks = m->fire_ticks[i];
     o->size = (int)m->size[i];
+    o->snap.persist = (int)m->det_persist[i];
+    o->snap.seed48 = m->ent_jr_seed[i];
+    o->snap.have_gauss = m->ent_jr_have_gauss[i];
+    o->snap.gauss = m->ent_jr_gauss[i];
 }
 
 static void ml_save_slot(GmMobLive *m, EwStore *s, int i, const MlMob *o) {
@@ -380,6 +411,10 @@ static void ml_save_slot(GmMobLive *m, EwStore *s, int i, const MlMob *o) {
     m->passive_idle_x[i] = p->wander_x;
     m->passive_idle_z[i] = p->wander_z;
     m->despawn_ticks[i] = o->despawn_ticks;
+    m->entity_age[i] = o->despawn_ticks;
+    m->ent_jr_seed[i] = o->snap.seed48;
+    m->ent_jr_have_gauss[i] = o->snap.have_gauss;
+    m->ent_jr_gauss[i] = o->snap.gauss;
     m->fire_ticks[i] = o->fire_ticks;
 }
 
@@ -1925,11 +1960,18 @@ static int sky_exposed(GmWorld *w, double x, double y, double z) {
 }
 
 void gm_mobs_init(GmMobLive *m, long long seed) {
+    JavaRandom r;
     memset(m, 0, sizeof *m);
     ew_store_clear(&m->a); ew_store_clear(&m->b);
     m->seed = seed; m->next_id = 1; m->next_orb_id=1000;
     m->active_dimension = 0;
     m->boat_ride = -1;
+    jrand_set(&r, seed);
+    m->spawn_world_seed48 = r.seed;
+    jrand_set(&r, seed ^ (long long)0x4D415448);
+    m->spawn_math_seed48 = r.seed;
+    jrand_set(&r, seed ^ (long long)0x5348464C);
+    m->spawn_shuffle_seed48 = r.seed;
 }
 
 void gm_mobs_spawn_xp(GmMobLive *m,double x,double y,double z,int value){
@@ -2918,17 +2960,132 @@ static void slime_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
     }
 }
 
-/* Route-roster weighted pick — NOT Java-exact WorldEntitySpawner pack loop.
- * Approximate biome monster weights for supported types only (zombie 95,
- * skeleton/creeper/spider 100, enderman 10). Full pack enumeration, chunk
- * RNG order, and type-specific EntityAITasks remain open (OPEN_DIVERGENCES). */
-static int overworld_hostile_weighted(JavaRandom *r) {
-    int roll = jrand_int_bound(r, 405);
-    if (roll < 95) return EW_TYPE_ZOMBIE;
-    if (roll < 195) return EW_TYPE_SKELETON;
-    if (roll < 295) return EW_TYPE_CREEPER;
-    if (roll < 395) return EW_TYPE_SPIDER;
-    return EW_TYPE_ENDERMAN;
+static int gm_hs_in_clip(const GmHsWorld *h, int x, int y, int z) {
+    const GmMobLive *m;
+    if (!h || !h->m || !h->m->spawn_clip) return 1;
+    m = h->m;
+    if (x < m->spawn_rx0 || x >= m->spawn_rx0 + m->spawn_rnx) return 0;
+    if (y < m->spawn_ry0 || y >= m->spawn_ry0 + m->spawn_rny) return 0;
+    if (z < m->spawn_rz0 || z >= m->spawn_rz0 + m->spawn_rnz) return 0;
+    return 1;
+}
+static int gm_hs_block(const GmHsWorld *h, int x, int y, int z) {
+    if (!h || !h->w) return 0;
+    if (!gm_hs_in_clip(h, x, y, z)) return 0;
+    return gm_world_block(h->w, x, y, z);
+}
+static int gm_hs_sky(const GmHsWorld *h, int x, int y, int z) {
+    if (!h || !h->w) return 15;
+    if (!gm_hs_in_clip(h, x, y, z)) return 15;
+    return gm_world_sky_light(h->w, x, y, z);
+}
+static int gm_hs_blk(const GmHsWorld *h, int x, int y, int z) {
+    if (!h || !h->w) return 0;
+    if (!gm_hs_in_clip(h, x, y, z)) return 0;
+    return gm_world_block_light(h->w, x, y, z);
+}
+
+static int gm_hs_count(const GmHsWorld *h) {
+    const EwStore *s;
+    int i, n = 0;
+    if (!h || !h->s) return 0;
+    s = h->s;
+    for (i = 1; i < EW_MAX_ENTITIES; ++i)
+        if (s->alive[i] && ehs_is_hostile(s->type[i])) ++n;
+    return n;
+}
+
+static int gm_hs_hit(const GmHsWorld *h, double x0, double y0, double z0,
+                     double x1, double y1, double z1) {
+    const EwStore *s;
+    int i;
+    if (!h || !h->s) return 0;
+    s = h->s;
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        float w, ht;
+        double mx0, my0, mz0, mx1, my1, mz1;
+        if (!s->alive[i] || !gm_living(s->type[i])) continue;
+        ehs_size(s->type[i], &w, &ht);
+        mx0 = s->x[i] - (double)w * 0.5;
+        my0 = s->y[i];
+        mz0 = s->z[i] - (double)w * 0.5;
+        mx1 = s->x[i] + (double)w * 0.5;
+        my1 = s->y[i] + (double)ht;
+        mz1 = s->z[i] + (double)w * 0.5;
+        if (x0 < mx1 && x1 > mx0 && y0 < my1 && y1 > my0 && z0 < mz1 && z1 > mz0)
+            return 1;
+    }
+    return 0;
+}
+
+static int gm_hs_place(GmHsWorld *h, int type, double x, double y, double z,
+                       float yaw, unsigned long long seed48, int have_g,
+                       double g) {
+    EwStore *s;
+    GmMobLive *m;
+    int slot;
+    if (!h || !h->m || !h->s) return 0;
+    m = h->m;
+    s = h->s;
+    slot = ew_store_spawn(s, (u8)type, m->next_id++, x, y, z, max_health(type, 1));
+    if (slot < 0) return 0;
+    m->entity_dimension[slot] = (signed char)m->active_dimension;
+    reset_slot_state_s(m, s, slot);
+    s->yaw[slot] = yaw;
+    s->cx[slot] = mc_floor(x) >> 4;
+    s->cz[slot] = mc_floor(z) >> 4;
+    m->ent_jr_seed[slot] = seed48;
+    m->ent_jr_have_gauss[slot] = (unsigned char)(have_g ? 1 : 0);
+    m->ent_jr_gauss[slot] = g;
+    m->entity_age[slot] = 0;
+    m->det_persist[slot] = 0;
+    m->despawn_ticks[slot] = 0;
+    m->det_strafe_time[slot] = 0;
+    m->det_bow_attack_time[slot] = 0;
+    m->det_target_tasks[slot] = 0;
+    m->det_see_time[slot] = 0;
+    m->det_melee_delay[slot] = 0;
+    m->hurt_time[slot] = 0;
+    m->death_time[slot] = 0;
+    {
+        float bw, bh, hf;
+        ehs_size((u8)type, &bw, &bh);
+        hf = bw / 2.0f;
+        m->det_box[slot] = mc_aabb_make(x - (double)hf, y, z - (double)hf,
+                                        x + (double)hf, y + (double)bh, z + (double)hf);
+        m->det_box_on[slot] = 1;
+    }
+    return 1;
+}
+
+static void gm_hs_run(GmMobLive *m, GmWorld *w, EwStore *s,
+                      double px, double py, double pz, long long world_time) {
+    GmHsWorld hw;
+    HsState st;
+    if (!m || !w || !s) return;
+    /* PlayerChunkMap sent chunks in Java (WorldEntitySpawner.java:67-71).
+     * Interactive play generates the radius-8 disk. Snapshot lockstep clips
+     * to the region AABB and must not grow the world. */
+    if (!m->spawn_clip)
+        gm_world_ensure(w, mc_floor(px) >> 4, mc_floor(pz) >> 4, 8);
+    hw.w = w;
+    hw.m = m;
+    hw.s = s;
+    memset(&st, 0, sizeof st);
+    st.world_rand.seed = m->spawn_world_seed48;
+    st.math_rand.seed = m->spawn_math_seed48;
+    st.shuffle_rand.seed = m->spawn_shuffle_seed48;
+    st.seed = m->seed;
+    st.world_time = world_time;
+    st.difficulty = 2;
+    st.thundering = 0;
+    st.spawn_x = 0.0;
+    st.spawn_y = 64.0;
+    st.spawn_z = 0.0;
+    hs_find_chunks_for_spawning(&hw, &st, px, py, pz);
+    m->spawn_world_seed48 = st.world_rand.seed;
+    m->spawn_math_seed48 = st.math_rand.seed;
+    m->spawn_shuffle_seed48 = st.shuffle_rand.seed;
 }
 
 static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
@@ -2936,44 +3093,18 @@ static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
     discover_spawners(m, w, px, py, pz, dimension);
     tick_spawners(m, w, s, px, py, pz);
 
+    if (!m->natural_spawn) return;
+
     if (dimension == -1) {
         nether_natural_spawn(m, w, s, px, py, pz);
         return;
     }
     if (dimension != 0) return;
 
-    /* Simplified natural spawn (not Java WorldEntitySpawner call-order parity):
-     * slime pocket, then day creature / night monster attempt. */
-    slime_spawn(m, w, s, px, py, pz);
-
-    int tod = (int)(world_time % 24000LL); if (tod < 0) tod += 24000;
-    if (tod < 12000) { passive_spawn(m, w, s, px, py, pz); return; }
-    if (tod < 13000 || tod > 23000 || (m->tick % 20) ||
-        alive_count(m,s) >= GM_NATURAL_HOSTILE_CAP) return;
-    JavaRandom rng;
-    jrand_set(&rng, (i64)m->seed ^ ((i64)m->tick * 6364136223846793005LL) ^ 0x4d4f4253LL);
-    for (int a = 0; a < 8; ++a) {
-        int dx = 24 + jrand_int_bound(&rng, 9);
-        int dz = jrand_int_bound(&rng, 17) - 8;
-        if (jrand_int_bound(&rng, 2) == 0) dx = -dx;
-        int x = mc_floor(px) + dx, z = mc_floor(pz) + dz;
-        gm_world_ensure(w, x >> 4, z >> 4, 0);
-        int y = gm_world_surface_y(w, x, z);
-        double ddx = (x + 0.5) - px, ddy = y - py, ddz = (z + 0.5) - pz;
-        double ds = ddx * ddx + ddy * ddy + ddz * ddz;
-        if (ds < 24.0 * 24.0 || ds > 32.0 * 32.0 || !solid_id(gm_world_block(w, x, y - 1, z)) ||
-            gm_world_block(w, x, y, z) != 0 || gm_world_block(w, x, y + 1, z) != 0 ||
-            gm_world_block_light(w, x, y, z) > 7) continue;
-        int type = overworld_hostile_weighted(&rng);
-        int slot = ew_store_spawn(s, (u8)type, m->next_id++, x + 0.5, y, z + 0.5,
-                                  max_health(type, 1));
-        if (slot >= 0) {
-            m->entity_dimension[slot]=(signed char)m->active_dimension;
-            s->cx[slot] = x >> 4; s->cz[slot] = z >> 4;
-            reset_slot_state_s(m, s, slot);
-        }
-        return;
-    }
+    /* WorldServer.tick mobSpawner then updateEntities. Magma calls this at
+     * the start of gm_mobs_tick (entity phase). World.rand is the isolated
+     * spawn stream in spawn_*_seed48, not ww.rand. */
+    gm_hs_run(m, w, s, px, py, pz, world_time);
 }
 
 /* Status: 0 IN_WATER, 1 ON_LAND, 2 IN_AIR (subset of EntityBoat.Status). */
@@ -3012,7 +3143,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     m->active_dimension=dimension;
     PsvPlayer *p=(PsvPlayer *)player_; PvStats *v=(PvStats *)vitals_;
     const McSinTable *st=(const McSinTable *)st_;
-    EwStore *now=now_store(m), *nx=next_store(m); ew_store_copy(nx,now);
+    EwStore *now=now_store(m), *nx=next_store(m);
     if (m->player_wither_ticks > 0) {
         /* DamageSource.WITHER is unblockable. */
         if (m->player_wither_ticks % 40 == 0)
@@ -3037,10 +3168,11 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     player_bb.maxX += (double)ox;
     player_bb.minZ += (double)oz;
     player_bb.maxZ += (double)oz;
+    if (!pai_det())
+        natural_spawn(m,w,now,px,py,pz,dimension,world_time);
+    ew_store_copy(nx,now);
     if (pai_det())
         pai_player_collide_mobs(m, nx, &player_bb, px, pz);
-    if (!pai_det())
-        natural_spawn(m,w,nx,px,py,pz,dimension,world_time);
     int tod=(int)(world_time%24000LL); if(tod<0)tod+=24000;
     int day=dimension==0&&tod<12000;
     float boat_fwd = m->boat_ride >= 0 ? boat_forward : 0.0f;
@@ -3060,9 +3192,10 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         if (type == EW_TYPE_PIGMAN && m->anger[i] > 0) --m->anger[i];
         double dx=px-now->x[i],dy=py-now->y[i],dz=pz-now->z[i];
         double d=sqrt(dx*dx+dy*dy+dz*dz), xz=sqrt(dx*dx+dz*dz);
-        if(hostile){
+        if(hostile && !(hai_ok(type) && !pai_det())){
             /* PersistenceRequired hostiles on the det path skip the 32/128
-             * despawn clock (Java despawnEntity zeros age and never nextInt). */
+             * despawn clock (Java despawnEntity zeros age and never nextInt).
+             * Generic hai_ok path uses ml_hostile_pre (EntityLiving.despawnEntity). */
             if(!(pai_det() && (hai_ok(type) || m->det_persist[i]))){
                 if(d>GM_MOB_DESPAWN_HARD){nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;continue;}
                 if(d>GM_MOB_DESPAWN_SOFT){
@@ -3072,7 +3205,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 }else m->despawn_ticks[i]=0;
             }
         }
-        if(!(pai_det() && hai_ok(type)) &&
+        if(!(pai_det() && hai_ok(type)) && !(hai_ok(type) && !pai_det()) &&
            day&&(type==EW_TYPE_ZOMBIE||type==EW_TYPE_SKELETON)&&
            m->fire_ticks[i]<=0&&sky_exposed(w,now->x[i],now->y[i],now->z[i]))
             m->fire_ticks[i]=GM_MOB_FIRE_TICKS;
@@ -3148,7 +3281,14 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         }else if(hai_ok(type) && !pai_det()){
             MlMob mm;
             MlAiOut o;
+            int pre;
             ml_load_slot(&mm, m, nx, i);
+            pre = ml_hostile_pre(&mm, w, px, py, pz, day);
+            if (pre <= 0) {
+                ml_save_slot(m, nx, i, &mm);
+                if (pre < 0) mob_drop(m, nx, i, drops);
+                continue;
+            }
             ml_hostile_ai(&mm, w, px, py, pz, day, m->seed, m->tick, &o);
             ml_save_slot(m, nx, i, &mm);
             if (mm.exploded) {

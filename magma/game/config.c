@@ -102,6 +102,7 @@ static int resolve_config(GmConfig *cfg, const CrConfig *r,
     cfg->elytra = r->elytra;
     cfg->daylight = r->daylight;
     cfg->mobs = r->mobs;
+    cfg->natural_spawn = r->natural_spawn;
     cfg->stats = r->stats;
 
     if (!strcmp(r->render, "window")) cfg->render = GM_RENDER_WINDOW;

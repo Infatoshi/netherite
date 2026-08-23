@@ -249,7 +249,8 @@ $(TEST_EXPL_BIN): $(ENV_SRC)/test_explosions.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_MOBS_BIN): $(ENV_SRC)/test_mobs.c $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/hostile_live.h | $(OUT)
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/hostile_live.h \
+		$(CORE_SRC)/hostile_spawn.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 

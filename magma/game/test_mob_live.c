@@ -195,9 +195,11 @@ static int blaze_task_reset_test(void) {
 
 static int blaze_schedule_receipt(FILE *receipt) {
     BlazeSchedule two_cycles,long_run;
+    int saved=fail;
+    fail=0;
     CHECK(run_blaze_ticks(356,receipt,&two_cycles),
           "deterministic blaze schedule executes");
-    if(fail)return 0;
+    if(fail){fail=saved||fail;return 0;}
     CHECK(two_cycles.charged_on==156&&two_cycles.charged_off==200,
           "two blaze cycles reproduce 78 charged / 100 uncharged ticks each");
     CHECK(two_cycles.ntransitions==4&&
@@ -237,7 +239,11 @@ static int blaze_schedule_receipt(FILE *receipt) {
             two_cycles.shots[0],two_cycles.shots[1],two_cycles.shots[2],
             two_cycles.shots[3],two_cycles.shots[4],two_cycles.shots[5],
             old_shots*100.0/3560.0,long_run.nshots*100.0/3560.0);
-    return !fail;
+    {
+        int ok=!fail;
+        fail=saved||!ok;
+        return ok;
+    }
 }
 
 int main(int argc, char **argv) {
@@ -469,8 +475,26 @@ int main(int argc, char **argv) {
     gm_runtime_destroy(&r);
 
     if(!init_flat(&r))return 1;
-    r.clock.world_time=13000;
-    for(int i=0;i<200&&!gm_mobs_alive(&r.mobs);++i)gm_runtime_tick(&r,idle);
+    {
+        int nspawn=0;
+        gm_runtime_set_time(&r,18000);
+        for(int i=0;i<50;++i){
+            gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+            gm_runtime_tick(&r,idle);
+        }
+        nspawn=gm_mobs_alive(&r.mobs);
+        CHECK(nspawn==0,"natural_spawn default off plants nothing over night ticks");
+        gm_runtime_destroy(&r);
+    }
+
+    if(!init_flat(&r))return 1;
+    r.natural_spawn = 1;
+    r.mobs.natural_spawn = 1;
+    gm_runtime_set_time(&r,18000);
+    for(int i=0;i<400&&!gm_mobs_alive(&r.mobs);++i){
+        gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+        gm_runtime_tick(&r,idle);
+    }
     CHECK(gm_mobs_alive(&r.mobs)>0,"night cycle naturally spawns a light-gated hostile");
     gm_runtime_destroy(&r);
 
@@ -896,9 +920,11 @@ int main(int argc, char **argv) {
           "type AI: close skeleton keep-away navigates outward (not zombie melee stand)");
     gm_runtime_destroy(&r);
 
-    /* Approximate weighted natural spawn (NOT Java WorldEntitySpawner parity):
-     * enderman is rare vs zombie/skeleton/creeper/spider in the route roster. */
+    /* WorldEntitySpawner biome list still draws enderman; roster insert is
+     * zombie/skeleton/creeper only so the live table never holds enderman. */
     if(!init_flat(&r))return 1;
+    r.natural_spawn = 1;
+    r.mobs.natural_spawn = 1;
     gm_runtime_set_time(&r,14000);
     int counts[32];memset(counts,0,sizeof counts);
     for(int trial=0;trial<40;++trial){

@@ -1,6 +1,7 @@
 #include "game/runtime.h"
 #include "game/randtick.h"
 #include "game/sel_box.h"
+#include "core/config.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -829,6 +830,8 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->gamerules = mc_gamerules_default();
     r->gamerules.doDaylightCycle = cfg->daylight;
     gm_world_clock_init(&r->clock, cfg->seed);
+    if (cr_cfg()->set_time != -1)
+        r->clock.world_time = cr_cfg()->set_time;
     memset(&r->entities, 0, sizeof r->entities);
     gm_mobs_init(&r->mobs, cfg->seed);
     gm_fluid_init(&r->fluids);
@@ -836,6 +839,8 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->elytra_kit = cfg->elytra;
     r->clock.freeze_daylight = !r->gamerules.doDaylightCycle;
     r->mobs_enabled = cfg->mobs;
+    r->natural_spawn = cfg->natural_spawn;
+    r->mobs.natural_spawn = cfg->natural_spawn;
     /* Live random ticks on by default; script.c clears this for tape replay. */
     r->randtick_enabled = 1;
     r->randtick_radius = cfg->view_distance > 0 ? cfg->view_distance : 2;
@@ -1151,6 +1156,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         gm_randtick_pass(r->world, r->seed, r->tick, r->ccx, r->ccz,
                          r->randtick_radius, &r->gamerules);
     if (r->mobs_enabled) {
+        r->mobs.natural_spawn = r->natural_spawn;
         gm_mobs_tick(&r->mobs,r->world,(const struct McSinTable *)&r->sin_table,
                      (struct PsvPlayer *)&r->player,(struct PvStats *)&r->vitals,
                      r->ox,r->oz,r->dimension,r->clock.world_time,&r->entities,
