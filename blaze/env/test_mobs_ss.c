@@ -280,7 +280,7 @@ static int run_units(void) {
     expect(hs_is_roster(HS_SPIDER) && hs_is_roster(HS_SLIME),
            "spider and slime insert on the MONSTER path");
     expect(hs_is_roster(HS_ENDERMAN), "enderman inserts on the MONSTER path");
-    expect(!hs_is_roster(HS_WITCH), "witch still consume then skip");
+    expect(hs_is_roster(HS_WITCH), "witch inserts on the MONSTER path");
     expect(ml_is_roster(EW_TYPE_ENDERMAN), "enderman is on the live roster");
     expect(bits_eq_f(ehs_max_health(EW_TYPE_ENDERMAN), 40.0f),
            "enderman MAX_HEALTH 40");

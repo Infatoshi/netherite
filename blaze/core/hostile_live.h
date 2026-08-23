@@ -447,22 +447,35 @@ typedef struct {
 #define ML_WITCH_DRINK_TICKS 32         /* ItemPotion.java:90 */
 #define ML_WITCH_THROW_RANGE 10.0       /* EntityAIAttackRanged.java:70 10.0F */
 
-/* ENTITIES_WITCH looting 0: rolls min 1 max 3 (nextInt(3)+1), then
- * WeightedRandom over 7 weight-1 entries, set_count 0..2 = nextInt(3). */
+/* LootTableList.ENTITIES_WITCH EntityWitch.java:232 + loot_tables/entities/witch.json.
+ * LootPool.generateLoot: rolls.generateInt 1..3 (MathHelper.getInt nextInt(3)+1
+ * RandomValueRange.java:44-45 / MathHelper.java:174-176). bonus_rolls default
+ * 0.0F,0.0F: nextFloat is skipped because min>=max (MathHelper.java:179-181).
+ * createLootRoll LootPool.java:66 nextInt(totalWeight). Stick weight 2, others 1,
+ * total 8. SetCount 0..2 generateInt (SetCount.java:26). LootingEnchantBonus
+ * looting 0 returns with no extra draw (LootingEnchantBonus.java:37-40).
+ * deathLootTableSeed==0 uses this.rand (EntityLiving.java:602). */
 MC_HD static inline int ml_witch_drop(JavaRandom *er, MlDrop *out, int cap) {
     static const int table[7] = {
         ML_ITEM_GLOWSTONE, ML_ITEM_SUGAR, ML_ITEM_REDSTONE,
         ML_ITEM_SPIDER_EYE, ML_ITEM_GLASS_BOTTLE, ML_ITEM_GUNPOWDER,
         ML_ITEM_STICK
     };
+    static const int wt[7] = {1, 1, 1, 1, 1, 1, 2};
     int rolls, i, n = 0;
     if (!er || !out || cap <= 0) return 0;
     rolls = 1 + jrand_int_bound(er, 3);
     for (i = 0; i < rolls; ++i) {
-        int k = jrand_int_bound(er, 7);
-        int c = jrand_int_bound(er, 3);
+        int k = jrand_int_bound(er, 8);
+        int e, c;
+        for (e = 0; e < 7; ++e) {
+            k -= wt[e];
+            if (k < 0) break;
+        }
+        if (e >= 7) e = 6;
+        c = jrand_int_bound(er, 3);
         if (c > 0 && n < cap) {
-            out[n].item = table[k];
+            out[n].item = table[e];
             out[n].count = c;
             out[n].meta = 0;
             ++n;
@@ -1152,7 +1165,8 @@ MC_HD static inline void ml_witch_ai(MlMob *m, ML_W *w,
     dsq = d * d;
     feet = ML_BLOCK(w, mc_floor(s->x), mc_floor(s->y), mc_floor(s->z));
     eye = ML_BLOCK(w, mc_floor(s->x), mc_floor(s->y + 1.62), mc_floor(s->z));
-    in_water = ml_block_is_fluid(feet) || ml_block_is_fluid(eye);
+    /* Entity.isInsideOfMaterial(WATER) EntityWitch.java:155. ids 8/9 only. */
+    in_water = feet == 8 || feet == 9 || eye == 8 || eye == 9;
     burning = m->fire_ticks > 0;
     drinking = s->witch_drink != ML_WITCH_DRINK_NONE;
     /* EntityWitch.onLivingUpdate EntityWitch.java:123-191. */

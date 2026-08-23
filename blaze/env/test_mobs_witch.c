@@ -43,6 +43,36 @@ static int hs_test_place(HsTestW *w, int type, double x, double y, double z,
 #define ML_BLK(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 0)
 #include "hostile_live.h"
 
+typedef struct {
+    HsTestW blocks;
+    MlMob *hit;
+    int hits;
+} PlHitW;
+
+static int pl_test_hit_mob(PlHitW *w, double x, double y, double z,
+                           double radius, float damage) {
+    MlMob *m;
+    double dx, dy, dz;
+    if (!w || !w->hit || !w->hit->snap.alive) return 0;
+    m = w->hit;
+    dx = m->snap.x - x;
+    dy = (m->snap.y + 0.9) - y;
+    dz = m->snap.z - z;
+    if (dx * dx + dy * dy + dz * dz > radius * radius) return 0;
+    ++w->hits;
+    if (m->snap.type == EW_TYPE_ENDERMAN)
+        return ml_enderman_arrow_hit(m, &w->blocks);
+    m->snap.health -= damage;
+    if (m->snap.health < 0.0f) m->snap.health = 0.0f;
+    return 1;
+}
+
+#define PL_W PlHitW
+#define PL_BLOCK(w, x, y, z) hs_test_block(&(w)->blocks, (x), (y), (z))
+#define PL_HIT_MOB(w, x, y, z, rad, dmg) \
+    pl_test_hit_mob((w), (x), (y), (z), (rad), (dmg))
+#include "projectile_live.h"
+
 #define HS_W HsTestW
 #define HS_BLOCK(w, x, y, z) hs_test_block((w), (x), (y), (z))
 #define HS_PLACE(w, type, x, y, z, yaw, seed48, have_g, g, extra) \
@@ -263,6 +293,67 @@ static int run_units(void) {
                "arrow vs enderman skips HP EntityEnderman.java:371-381");
         expect(mm.snap.seed48 != seed0,
                "64-try teleportRandomly consumes entity.rand");
+    }
+    {
+        /* Type 1 is the mob-hit arrow (projectile_live.h). Type 2 skeleton
+         * arrows only hit the player, same as magma runtime.c. */
+        PlHitW aw;
+        PlProj p;
+        MlMob em, zm;
+        float ehp, zhp;
+        unsigned long long eseed;
+        memset(&aw, 0, sizeof aw);
+        aw.blocks.stone_y = 64;
+        memset(&em, 0, sizeof em);
+        em.snap.type = EW_TYPE_ENDERMAN;
+        em.snap.alive = 1;
+        em.snap.health = 40.0f;
+        em.snap.x = 8.5;
+        em.snap.y = 65.0;
+        em.snap.z = 8.5;
+        em.snap.on_ground = 1;
+        em.snap.seed48 = 1;
+        ehp = em.snap.health;
+        eseed = em.snap.seed48;
+        memset(&p, 0, sizeof p);
+        p.active = 1;
+        p.type = 1;
+        p.x = 8.5;
+        p.y = 65.9;
+        p.z = 8.5;
+        p.vx = 0.0;
+        p.vy = 0.0;
+        p.vz = 0.1;
+        aw.hit = &em;
+        pl_tick_arrow(&p, &aw);
+        expect(aw.hits == 1, "type-1 arrow PL_HIT_MOB reaches planted enderman");
+        expect(em.snap.health == ehp,
+               "type-1 arrow vs enderman skips HP EntityEnderman.java:371-381");
+        expect(em.snap.seed48 != eseed,
+               "type-1 arrow runs 64-try teleportRandomly");
+        expect(!p.active, "arrow deactivates on the enderman hit");
+        memset(&zm, 0, sizeof zm);
+        zm.snap.type = EW_TYPE_ZOMBIE;
+        zm.snap.alive = 1;
+        zm.snap.health = 20.0f;
+        zm.snap.x = 8.5;
+        zm.snap.y = 65.0;
+        zm.snap.z = 8.5;
+        zhp = zm.snap.health;
+        memset(&p, 0, sizeof p);
+        p.active = 1;
+        p.type = 1;
+        p.x = 8.5;
+        p.y = 65.9;
+        p.z = 8.5;
+        p.vx = 0.0;
+        p.vy = 0.0;
+        p.vz = 0.1;
+        aw.hit = &zm;
+        aw.hits = 0;
+        pl_tick_arrow(&p, &aw);
+        expect(aw.hits == 1 && zm.snap.health < zhp,
+               "type-1 arrow applies HP to a planted zombie");
     }
     {
         JavaRandom er;
