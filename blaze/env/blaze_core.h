@@ -912,7 +912,7 @@ MC_HD static inline float cu_armor_damage(Blaze *e, float amount) {
 MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m);
 MC_HD static inline void cu_mobs_compact(Blaze *e);
 
-MC_HD static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
+MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
                                     float size) {
     int ox, oy, oz;
     uint32_t nd = 0;
@@ -1029,26 +1029,37 @@ MC_HD static inline void cu_explosion_tick(Blaze *e) {
             ++i;
             continue;
         }
-        wx = mc_floor(m->x);
-        wy = mc_floor(m->y - 0.01);
-        wz = mc_floor(m->z);
-        id = cu_world_block(e, wx, wy, wz);
-        solid = id > 0 && id != BLK_WEB
-            && (mc_bpt_props(id).flags & BF_SOLID)
-            && !(mc_bpt_props(id).flags & BF_LIQUID);
-        floor_y = (double)wy + 1.0;
-        og = m->on_ground;
-        if (!exl_tnt_on_update(&m->x, &m->y, &m->z, &m->mx, &m->my, &m->mz,
-                               &og, &m->swell, solid, floor_y)) {
+        {
+            double x = m->x, y = m->y, z = m->z;
+            double mx = m->mx, my = m->my, mz = m->mz;
+            int fuse = m->swell;
+            wx = mc_floor(x);
+            wy = mc_floor(y - 0.01);
+            wz = mc_floor(z);
+            id = cu_world_block(e, wx, wy, wz);
+            solid = id > 0 && id != BLK_WEB
+                && (mc_bpt_props(id).flags & BF_SOLID)
+                && !(mc_bpt_props(id).flags & BF_LIQUID);
+            floor_y = (double)wy + 1.0;
+            og = m->on_ground;
+            if (!exl_tnt_on_update(&x, &y, &z, &mx, &my, &mz,
+                                   &og, &fuse, solid, floor_y)) {
+                m->x = x; m->y = y; m->z = z;
+                m->mx = mx; m->my = my; m->mz = mz;
+                m->on_ground = og;
+                m->swell = fuse;
+                ++i;
+                continue;
+            }
+            m->x = x; m->y = y; m->z = z;
+            m->mx = mx; m->my = my; m->mz = mz;
             m->on_ground = og;
-            ++i;
-            continue;
+            m->swell = fuse;
+            e->explosion_pending = 1;
+            e->explosion_x = x;
+            e->explosion_y = y + EXL_TNT_Y_OFF;
+            e->explosion_z = z;
         }
-        m->on_ground = og;
-        e->explosion_pending = 1;
-        e->explosion_x = m->x;
-        e->explosion_y = m->y + EXL_TNT_Y_OFF;
-        e->explosion_z = m->z;
         e->explosion_size = EXL_TNT_SIZE;
         {
             unsigned k;

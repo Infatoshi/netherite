@@ -712,8 +712,10 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     if (cu_ck(cudaSetDevice(device), "cudaSetDevice")) return NULL;
     /* BlockDynamicLiquid.getSlopeDistance recurses to depth 4 (java:178/196).
      * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA).
-     * Hostile live tick inlines add another frame; 32 KB was not enough. */
-    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 64 * 1024),
+     * Hostile live tick inlines add another frame; 32 KB was not enough.
+     * getBlockDensity DDA (Explosion.java:2456) plus TNT tick overflowed 64 KB
+     * (k_tick_raw misaligned address on explosions M2). */
+    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024),
               "cudaLimitStackSize"))
         return NULL;
     v = (CuVecCu *)calloc(1, sizeof *v);

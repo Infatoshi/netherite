@@ -172,7 +172,7 @@ MC_HD static inline int ex_cell_solid(const u16 *grid, int ox, int oy, int oz,
 /* World.rayTraceBlocks(start, end, false, false, false) World.java:998-1014
  * on the 16^3 sample. Magma extra: full-cube BF_SOLID only. Returns 1 if the
  * ray hits a solid (Java RayTraceResult != null). */
-MC_HD static inline int ex_ray_blocked(const u16 *grid, int ox, int oy, int oz,
+MC_HD MC_NOINLINE static inline int ex_ray_blocked(const u16 *grid, int ox, int oy, int oz,
                                        double sx, double sy, double sz,
                                        double tx, double ty, double tz) {
     int i, j, k, l, i1, j1, k1;
@@ -241,7 +241,7 @@ MC_HD static inline int ex_ray_blocked(const u16 *grid, int ox, int oy, int oz,
 
 /* World.getBlockDensity World.java:2456-2494. d3/d4 use java.lang.Math.floor.
  * Sample increment is (float)((double)f + d0). Return (float)i / (float)j. */
-MC_HD static inline float ex_block_density(const u16 *grid, int ox, int oy, int oz,
+MC_HD MC_NOINLINE static inline float ex_block_density(const u16 *grid, int ox, int oy, int oz,
                                            double vx, double vy, double vz,
                                            double minx, double miny, double minz,
                                            double maxx, double maxy, double maxz) {
