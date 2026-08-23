@@ -160,6 +160,11 @@ typedef struct {
     int spawn_clip;
     int spawn_rx0, spawn_ry0, spawn_rz0;
     int spawn_rnx, spawn_rny, spawn_rnz;
+    /* Packed (sky<<4)|block copy of the snapshot light plane. Magma
+     * compute_blocklight memsets every chunk then BFS in-chunk emitters,
+     * so torch light that bled in from outside the AABB is lost; blaze
+     * keeps the nibble (cu_world_blk). Spawn reads this copy. */
+    unsigned char *spawn_light;
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */

@@ -297,7 +297,14 @@ static int run_units(void) {
                "WeightedRandom hits zombie/skeleton/creeper");
         expect(seen[HS_SPIDER] && seen[HS_SLIME],
                "WeightedRandom also hits spider/slime on the biome list");
+        expect(!seen[HS_STRAY], "plains WeightedRandom never picks stray");
     }
+    expect(hs_biome_or_plains(0, 6) == 1 && hs_biome_or_plains(1, 6) == 6,
+           "OOR biome clips to plains; in-region keeps live id");
+    expect(hs_monster_entry_weight(HS_BIOME_ICE_PLAINS, 7) == 20 &&
+               hs_monster_entry_weight(HS_BIOME_ICE_PLAINS, 8) == 80 &&
+               !hs_is_roster(HS_STRAY),
+           "ice plains skeleton 20 + stray 80, stray not roster");
     {
         int age = 0;
         u64 seed48;

@@ -14,6 +14,8 @@
 #include "path_finder.h"
 #include "../../blaze/env/blaze_snapshot.h"
 
+#include <stdlib.h>
+
 #define ML_W GmWorld
 #define ML_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
 #define ML_SKY(w, x, y, z) gm_world_sky_light((w), (x), (y), (z))
@@ -2020,7 +2022,11 @@ static int sky_exposed(GmWorld *w, double x, double y, double z) {
 
 void gm_mobs_init(GmMobLive *m, long long seed) {
     JavaRandom r;
+    unsigned char *held;
+    if (!m) return;
+    held = m->spawn_light;
     memset(m, 0, sizeof *m);
+    free(held);
     ew_store_clear(&m->a); ew_store_clear(&m->b);
     m->seed = seed; m->next_id = 1; m->next_orb_id=1000;
     m->active_dimension = 0;
@@ -3179,15 +3185,39 @@ static int gm_hs_sky(const GmHsWorld *h, int x, int y, int z) {
     return gm_world_sky_light(h->w, x, y, z);
 }
 static int gm_hs_blk(const GmHsWorld *h, int x, int y, int z) {
+    const GmMobLive *m;
+    long i;
+    int ix, iy, iz;
     if (!h || !h->w) return 0;
     if (!gm_hs_in_clip(h, x, y, z)) return 0;
+    m = h->m;
+    if (m && m->spawn_clip && m->spawn_light) {
+        ix = x - m->spawn_rx0;
+        iy = y - m->spawn_ry0;
+        iz = z - m->spawn_rz0;
+        i = ((long)ix * m->spawn_rny + iy) * m->spawn_rnz + iz;
+        return (int)(m->spawn_light[i] & 15);
+    }
     return gm_world_block_light(h->w, x, y, z);
 }
 static int gm_hs_biome(const GmHsWorld *h, int x, int z) {
-    int b;
+    int b, in;
     if (!h || !h->w) return 1;
-    b = gm_world_biome(h->w, x, z);
-    return b < 0 ? 1 : b;
+    /* Snapshot lockstep: clip column biome to the region AABB like
+     * gm_hs_block / gm_world_rt_block (world_live.c:705-708). Magma's live
+     * world still has genlayer biomes on chunks ensure() loaded past the
+     * snapshot; blaze cu_biome_at (blaze_core.h:465-474) returns plains 1
+     * outside. Java uses the biome at the candidate BlockPos
+     * (WorldEntitySpawner.java:132-133, WorldServer.java:245-249,
+     * Chunk.getBiome Chunk.java:1273-1278). Shared deviation. */
+    in = 1;
+    if (h->m && h->m->spawn_clip) {
+        const GmMobLive *m = h->m;
+        if (x < m->spawn_rx0 || x >= m->spawn_rx0 + m->spawn_rnx) in = 0;
+        if (z < m->spawn_rz0 || z >= m->spawn_rz0 + m->spawn_rnz) in = 0;
+    }
+    b = in ? gm_world_biome(h->w, x, z) : 1;
+    return hs_biome_or_plains(in, b);
 }
 
 static int gm_hs_count(const GmHsWorld *h) {

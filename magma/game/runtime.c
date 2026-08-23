@@ -885,6 +885,8 @@ void gm_runtime_destroy(GmRuntime *r) {
     free(r->chests);
     r->chests = NULL;
     r->chests_cap = 0;
+    free(r->mobs.spawn_light);
+    r->mobs.spawn_light = NULL;
     for(int i=0;i<3;++i)if(r->worlds[i])gm_world_destroy(r->worlds[i]);
     memset(r, 0, sizeof *r);
 }

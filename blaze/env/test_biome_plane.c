@@ -242,8 +242,32 @@ static int run_units(void) {
     expect(hs_total_weight(1) == 515, "plains monster total 515");
     expect(hs_total_weight(HS_BIOME_SWAMP) == 516,
            "swamp monster total 516 (BiomeSwamp.java:34 extra slime 1)");
-    expect(hs_weight_at_biome(HS_SLIME, HS_BIOME_SWAMP) == 101,
-           "swamp slime weight 101");
+    expect(hs_monster_entry_count(1) == 8, "plains monster list has 8 entries");
+    expect(hs_monster_entry_count(HS_BIOME_SWAMP) == 9,
+           "swamp appends a second slime entry");
+    expect(hs_monster_entry_type(HS_BIOME_SWAMP, 8) == HS_SLIME &&
+               hs_monster_entry_weight(HS_BIOME_SWAMP, 8) == 1,
+           "swamp extra slime is list index 8 weight 1 (BiomeSwamp.java:34)");
+    expect(hs_weight_at_biome(HS_SLIME, HS_BIOME_SWAMP) == 100,
+           "type-indexed swamp slime stays Biome.java:151 weight 100");
+    expect(hs_is_snow_biome(HS_BIOME_ICE_PLAINS) &&
+               hs_monster_entry_count(HS_BIOME_ICE_PLAINS) == 9,
+           "ice plains monster list is 9 (BiomeSnow.java:36-49)");
+    expect(hs_monster_entry_type(HS_BIOME_ICE_PLAINS, 3) == HS_CREEPER &&
+               hs_monster_entry_type(HS_BIOME_ICE_PLAINS, 7) == HS_SKELETON &&
+               hs_monster_entry_weight(HS_BIOME_ICE_PLAINS, 7) == 20 &&
+               hs_monster_entry_type(HS_BIOME_ICE_PLAINS, 8) == HS_STRAY &&
+               hs_monster_entry_weight(HS_BIOME_ICE_PLAINS, 8) == 80,
+           "ice plains removes skeleton then appends skeleton 20 + stray 80");
+    expect(hs_total_weight(HS_BIOME_ICE_PLAINS) == 515,
+           "ice plains monster total stays 515");
+    expect(!hs_is_roster(HS_STRAY), "stray is not on the live roster");
+    expect(hs_biome_or_plains(0, HS_BIOME_SWAMP) == 1,
+           "OOR spawn biome clips to plains 1");
+    expect(hs_biome_or_plains(1, HS_BIOME_SWAMP) == HS_BIOME_SWAMP,
+           "in-region swamp stays swamp");
+    expect(hs_biome_or_plains(1, -1) == 1,
+           "missing chunk biome is plains");
     expect(hs_creature_total_weight(1) == 40, "plains creature total 40");
     expect(hs_creature_total_weight(HS_BIOME_SWAMP) == 40,
            "swamp creature list is Biome.java default");

@@ -80,6 +80,7 @@ void     light_recheck_break_surfaces(CrLight *, int wx, int wy, int wz);
  * horizontal spread is monotonic-raising, so a restored value then survives.
  * No-op without sky light (Nether/End keep a zero store). */
 void     light_load_sky(CrLight *, int wx, int wy, int wz, int sky);
+void     light_load_blk(CrLight *, int wx, int wy, int wz, int blk);
 /* Meta nibble at world cell (0 if unloaded). */
 int      light_meta(const CrLight *, int wx, int wy, int wz);
 int      light_sky  (const CrLight *, int wx, int wy, int wz); /* 0..15 sky light   */
