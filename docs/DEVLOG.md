@@ -1,5 +1,40 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 portal horizon occupancy (lane/portalhz)
+
+Item A2 overlay_portal_050 on anvil. Baseline matched the file:
+noise=0 C-vs-J=0.972 hard_px=363609 maxch=115 RESIDUAL; underwater
+1.202 / 387388 / 46; mutations PASS. LSB guard FAIL is pre-existing
+dragondirt eat pin (73440/21526 vs live 73443/21529), not this row.
+`out/verify/portalhz_ui_hud_baseline.log`.
+
+Java 1.11.2 world warp is only setupCameraTransform RSR
+(EntityRenderer.java:746-761): f2=5/(t^2+5)-t*0.04 squared, rotate
+(count+pt)*20 about (0,1,1), scale(1/f2,1,1), rotate back. orientCamera
+T_z(0.05) then pitch then yaw+180 then -eye (java:681,698-702).
+getFOVModifier has no portal branch (java:518-549). renderHand reloads
+gluPerspective without RSR (java:791-804). Overlay is GuiIngame.renderPortal
+NEAREST + tex.a*ease (GuiIngame.java:1112-1143, AbstractTexture.java:30-35).
+Later nausea (`t*2`, rotate t*5 about X/Y, scale 1/(1+t*0.2)) is not in
+this oracle.
+
+pxdiff survey: one cluster >=50px at thresh 25, 129px (y 235-238, x 818-853),
+cause registration best_shift (-1,-2). Golden there is sky
+(161,168,243); C is grass (118,123,157). Independent GL stack matches
+cr_camera_view. The same RSR maps grass y=5 at world (-44.9, 58.5)
+to ~835,236 — the right-horizon grass plane at ~50 blocks, not pad,
+not sky-plane y=16, not overlay. Leftover is 1-2 px silhouette fill.
+Hand ROI maxch 39 is 11 occupancy px (pad/grass + one hand edge),
+interior BYTE-pack. Overlay sample/alpha already match.
+
+No product constant changed. Unit: magma/game/test_overlay.c independent
+GL stack vs cr_camera_view on the wall corner and the D=50 grass point;
+verify/ui_hud/test_ui_hud_numerical.c pins f2 and hand-unwarped.
+
+After: overlay_portal_050 still 0.972 / 363609 / 115 RESIDUAL. Underwater
+and other ui_hud rows byte-stable vs baseline. ROI eq1=257987 eq2=98832
+BYTE-pack floor. Item stays OPEN.
+
 ## 2026-08-22 sim smalls arrow consume + heart-flash (lane/simsmalls)
 
 Gamer. Tapes rsynced from anvil (host `~/dev/netherite` lacked bow/zombie

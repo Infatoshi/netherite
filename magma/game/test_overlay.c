@@ -5,6 +5,7 @@
  * Build+run: bash game/test_overlay.sh */
 #include "game/overlay.h"
 #include "game/sel_box.h"
+#include "game/view.h"
 #include "assets/blockmodels.h"
 #include "assets/atlas_gen.h"
 #include "core/types.h"
@@ -12,6 +13,132 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+
+/* Independent GL post-multiply stack for EntityRenderer.setupCameraTransform
+ * (java:712-764) + orientCamera first-person (java:681,697-702). Mesa
+ * glRotatef / glScalef / glTranslatef, column-major. Not cr_camera_view. */
+static void gl_ident(float m[16])
+{
+    int i;
+    for (i = 0; i < 16; i++) m[i] = 0.0f;
+    m[0] = m[5] = m[10] = m[15] = 1.0f;
+}
+static void gl_mul(float o[16], const float a[16], const float b[16])
+{
+    float r[16];
+    int col, row, k;
+    for (col = 0; col < 4; col++)
+        for (row = 0; row < 4; row++) {
+            float s = 0.0f;
+            for (k = 0; k < 4; k++)
+                s += a[k * 4 + row] * b[col * 4 + k];
+            r[col * 4 + row] = s;
+        }
+    memcpy(o, r, sizeof r);
+}
+static void gl_translate(float m[16], float x, float y, float z)
+{
+    float t[16];
+    gl_ident(t);
+    t[12] = x;
+    t[13] = y;
+    t[14] = z;
+    gl_mul(m, m, t);
+}
+static void gl_scale(float m[16], float x, float y, float z)
+{
+    float t[16];
+    gl_ident(t);
+    t[0] = x;
+    t[5] = y;
+    t[10] = z;
+    gl_mul(m, m, t);
+}
+static void gl_rotate(float m[16], float angle, float x, float y, float z)
+{
+    float mag = sqrtf(x * x + y * y + z * z);
+    float rad, c, s, one_c, xx, yy, zz, xy, yz, zx, xs, ys, zs;
+    float r[16];
+    x /= mag;
+    y /= mag;
+    z /= mag;
+    rad = angle * 0.01745329251994329577f;
+    c = cosf(rad);
+    s = sinf(rad);
+    one_c = 1.0f - c;
+    xx = x * x;
+    yy = y * y;
+    zz = z * z;
+    xy = x * y;
+    yz = y * z;
+    zx = z * x;
+    xs = x * s;
+    ys = y * s;
+    zs = z * s;
+    gl_ident(r);
+    r[0] = one_c * xx + c;
+    r[4] = one_c * xy - zs;
+    r[8] = one_c * zx + ys;
+    r[1] = one_c * xy + zs;
+    r[5] = one_c * yy + c;
+    r[9] = one_c * yz - xs;
+    r[2] = one_c * zx - ys;
+    r[6] = one_c * yz + xs;
+    r[10] = one_c * zz + c;
+    gl_mul(m, m, r);
+}
+static void gl_frustum_persp(float m[16], float fovy, float aspect,
+                             float znear, float zfar)
+{
+    float f = 1.0f / tanf(fovy * 0.01745329251994329577f * 0.5f);
+    int i;
+    for (i = 0; i < 16; i++) m[i] = 0.0f;
+    m[0] = f / aspect;
+    m[5] = f;
+    m[10] = (zfar + znear) / (znear - zfar);
+    m[11] = -1.0f;
+    m[14] = (2.0f * zfar * znear) / (znear - zfar);
+}
+/* java:746-764 world modelview, then orientCamera first-person. */
+static void java_portal_view(float out[16], float time_in_portal, float spin_deg,
+                             float feet_x, float feet_y, float feet_z,
+                             float eye_h, float mc_yaw_deg, float mc_pitch_deg)
+{
+    float f2, yaw;
+    gl_ident(out);
+    if (time_in_portal > 0.0f) {
+        f2 = 5.0f / (time_in_portal * time_in_portal + 5.0f)
+             - time_in_portal * 0.04f; /* java:757 */
+        f2 = f2 * f2;                  /* java:758 */
+        gl_rotate(out, spin_deg, 0.0f, 1.0f, 1.0f);           /* java:759 */
+        gl_scale(out, 1.0f / f2, 1.0f, 1.0f);                 /* java:760 */
+        gl_rotate(out, -spin_deg, 0.0f, 1.0f, 1.0f);          /* java:761 */
+    }
+    gl_translate(out, 0.0f, 0.0f, 0.05f);                     /* java:681 */
+    gl_rotate(out, mc_pitch_deg, 1.0f, 0.0f, 0.0f);           /* java:698 */
+    yaw = mc_yaw_deg + 180.0f;                                /* java:686 */
+    gl_rotate(out, yaw, 0.0f, 1.0f, 0.0f);                    /* java:699 */
+    gl_translate(out, -feet_x, -feet_y - eye_h, -feet_z);     /* java:702 + chunk -pos */
+}
+static void project_screen(const float proj[16], const float view[16],
+                           float wx, float wy, float wz, int fb_w, int fb_h,
+                           float *sx, float *sy)
+{
+    float mvp[16], p[4], c[4];
+    int i, j;
+    gl_mul(mvp, proj, view);
+    p[0] = wx;
+    p[1] = wy;
+    p[2] = wz;
+    p[3] = 1.0f;
+    for (i = 0; i < 4; i++) {
+        c[i] = 0.0f;
+        for (j = 0; j < 4; j++)
+            c[i] += mvp[j * 4 + i] * p[j];
+    }
+    *sx = (c[0] / c[3] * 0.5f + 0.5f) * (float)fb_w;
+    *sy = (0.5f - c[1] / c[3] * 0.5f) * (float)fb_h;
+}
 
 /* overlay.c's loading-screen compositor uses the real HUD font in the game;
  * this geometry-only standalone test does not link hud.c. */
@@ -207,6 +334,87 @@ int main(void)
         CHECK(differ, "portal RSR changes the world view matrix");
         /* Hand camera must not inherit the WORLD RSR (renderHand.java:804). */
         CHECK(a.portal_time == 0.0f, "zeroed camera has portal_time 0");
+        /* Later nausea (1.13+ / wiki) is not 1.11.2. */
+        CHECK(fabsf(1.0f / f2 - 1.0f / (1.0f + 0.5f * 0.2f)) > 0.2f,
+              "1.11.2 scale 1/f2 is not 1/(1+t*0.2)");
+    }
+
+    /* Warped projection of a known world point: overlay_portal_050 pose
+     * (8.5,5,8.5) yaw 0 pitch 0, timeInPortal 0.5, phase 0, pt=1 -> spin 20.
+     * Independent GL stack vs cr_camera_view. */
+    {
+        const float feet_x = 8.5f, feet_y = 5.0f, feet_z = 8.5f, eye_h = 1.62f;
+        const float t = 0.5f, spin = 20.0f;
+        const int fb_w = 854, fb_h = 480;
+        float jview[16], jproj[16], jview0[16];
+        float jsx, jsy, csx, csy, hsx, hsy, jsx0, jsy0;
+        CrCamera cam, hand;
+        CrMat4 cv, pv, mvp;
+        CrVec4 wp, clip;
+        java_portal_view(jview, t, spin, feet_x, feet_y, feet_z, eye_h, 0.0f, 0.0f);
+        java_portal_view(jview0, 0.0f, 0.0f, feet_x, feet_y, feet_z, eye_h, 0.0f, 0.0f);
+        gl_frustum_persp(jproj, 70.0f, (float)fb_w / (float)fb_h, 0.05f,
+                         128.0f * 1.41421356237f);
+        memset(&cam, 0, sizeof cam);
+        cam.pos.x = feet_x;
+        cam.pos.y = feet_y + eye_h;
+        cam.pos.z = feet_z;
+        cam.yaw = gm_view_cam_yaw_rad(0.0f);
+        cam.pitch = gm_view_cam_pitch_rad(0.0f);
+        cam.fov_deg = 70.0f;
+        cam.aspect = (float)fb_w / (float)fb_h;
+        cam.znear = 0.05f;
+        cam.zfar = 128.0f * 1.41421356237f;
+        cam.portal_time = t;
+        cam.portal_spin_deg = spin;
+        hand = cam;
+        hand.portal_time = 0.0f;
+        hand.portal_spin_deg = 0.0f;
+        cv = cr_camera_view(&cam);
+        pv = cr_perspective(cam.fov_deg, cam.aspect, cam.znear, cam.zfar);
+        mvp = cr_mat4_mul(pv, cv);
+        /* Stone-wall south-west corner on the capture pad (ui_hud_scene). */
+        project_screen(jproj, jview, 6.0f, 5.0f, 11.0f, fb_w, fb_h, &jsx, &jsy);
+        wp.x = 6.0f;
+        wp.y = 5.0f;
+        wp.z = 11.0f;
+        wp.w = 1.0f;
+        clip = cr_mat4_mul_vec4(mvp, wp);
+        csx = (clip.x / clip.w * 0.5f + 0.5f) * (float)fb_w;
+        csy = (0.5f - clip.y / clip.w * 0.5f) * (float)fb_h;
+        CHECK(fabsf(csx - jsx) < 1e-3f && fabsf(csy - jsy) < 1e-3f,
+              "cr_camera_view wall corner matches Java GL RSR stack");
+        CHECK(csx > 800.0f && csx < 830.0f && csy > 430.0f && csy < 460.0f,
+              "wall corner stays on-screen lower-right under RSR");
+        /* Same point, hand pass: renderHand reloads gluPerspective without RSR
+         * (java:791-804). */
+        {
+            CrMat4 hv = cr_camera_view(&hand);
+            CrMat4 hm = cr_mat4_mul(pv, hv);
+            CrVec4 hc = cr_mat4_mul_vec4(hm, wp);
+            hsx = (hc.x / hc.w * 0.5f + 0.5f) * (float)fb_w;
+            hsy = (0.5f - hc.y / hc.w * 0.5f) * (float)fb_h;
+            project_screen(jproj, jview0, 6.0f, 5.0f, 11.0f, fb_w, fb_h,
+                           &jsx0, &jsy0);
+            CHECK(fabsf(hsx - jsx0) < 1e-3f && fabsf(hsy - jsy0) < 1e-3f,
+                  "hand camera projection is the unwarped Java stack");
+            CHECK(fabsf(hsx - csx) > 1.0f || fabsf(hsy - csy) > 1.0f,
+                  "world RSR moves the wall corner vs the hand camera");
+        }
+        /* Grass plane point that lands on the right-horizon cluster column
+         * (y 235-238, x 818-853): world x=-44.90, z=58.5 (D=50 south). */
+        project_screen(jproj, jview, -44.90f, 5.0f, 58.5f,
+                       fb_w, fb_h, &jsx, &jsy);
+        wp.x = -44.90f;
+        wp.y = 5.0f;
+        wp.z = 58.5f;
+        clip = cr_mat4_mul_vec4(mvp, wp);
+        csx = (clip.x / clip.w * 0.5f + 0.5f) * (float)fb_w;
+        csy = (0.5f - clip.y / clip.w * 0.5f) * (float)fb_h;
+        CHECK(fabsf(csx - jsx) < 1e-3f && fabsf(csy - jsy) < 1e-3f,
+              "cr_camera_view grass point matches Java GL RSR stack");
+        CHECK(fabsf(csx - 835.0f) < 0.1f && fabsf(csy - 235.87f) < 0.1f,
+              "RSR maps the D=50 right-grass point onto the horizon cluster");
     }
 
     /* NEAREST stretch of the 16x16 portal sprite, tex.a * ease blend.
