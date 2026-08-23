@@ -1,5 +1,38 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 item overflow FIFO (lane/overflow)
+
+Anvil. Magma Sweep 2026-08-23 row 7 leftover + blaze row 9 leftover.
+
+Java `World.spawnEntity` World.java:1268-1301 has no numeric cap.
+`WorldServer.canAddEntity` WorldServer.java:1141-1175 is UUID only.
+`EntityItem` ctor EntityItem.java:51-68. Class C residual: do not invent
+a Java cap.
+
+Shared `item_overflow.h`: 32-slot FIFO (`IL_OVERFLOW_MAX`), drain into
+free live slots, `spawn_fail_count` only when overflow is full. Magma
+`gm_live_spawn_stack` and blaze `cu_spawn_item` compile that header.
+BP_ITEMS hashes n_overflow + slot x/y/z/item/count/meta/delay +
+spawn_fail_count. Explosion drops use overflow spawn on both sides.
+
+Baseline tapes (`out/verify/overflow_baseline_*.log`): bow physics NO
+1407, entities PASS 5525. creeper FIRST t=76 y 2.1e-09. smoke_zombie
+NO 358/373. TNT inventory 1 mismatch t=28 (meta 0 vs 1). canon physics
+NO 3617, entities PASS 16526.
+
+Units PASS (`test_live_items`, `test_ground_items`, `test_play_compose`).
+Baker `test_ground_items --write-fixture` reproduced the committed
+ground_items fixture. `ground_items` M1+M2 VERIFIED 64
+(`out/verify/overflow_m1_ground_items.log`,
+`out/verify/overflow_m2_ground_items.log`). Listed `--no-deps` M1
+VERIFIED. M2 VERIFIED raw/warp/scalar including mining_slice on this
+clone (snaps present). Root `make test` PASS
+(`out/verify/overflow_maketest.log`). After tapes match baseline
+(`out/verify/overflow_after_*.log`). No earlier first divergence.
+
+Stay open: XP orb lava; live enchant copy into blaze pickup;
+spawnAsEntity xz Class C.
+
 ## 2026-08-23 live EntityItem pickup volume (lane/liveitems)
 
 Gamer continuation. Merge origin/master (tntsupport mayPlace/placement).

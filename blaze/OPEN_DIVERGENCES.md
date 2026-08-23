@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/overflow 2026-08-23 (shared `item_overflow.h` 32-slot FIFO; spawn_fail_count after overflow full; BP_ITEMS hashes n_overflow+slots+fail. ground_items M1+M2 VERIFIED 64. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar including mining_slice on this clone which had `blaze/rl/out/snaps/*_d*.bsnp`. A clone missing those snaps still BLOCKS mining_slice M2.)
 Last verified: lane/liveitems 2026-08-23 (spawn_to_torch M1+M2 2058 after Java pickup expand 1.0/0.5/1.0 EntityPlayer.java:613 + delay EntityItem.java:432. ground_items M1+M2 stay VERIFIED. listed --no-deps M1 VERIFIED; M2 VERIFIED except mining_slice BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/expresid 2026-08-23 (explosions M1+M2 after creeper posY origin, charged 2x via screaming alias, mobGriefing isSmoking, density collision AABB, unenchanted blast-prot identity, isFlaming explosionRNG draw. EXP4 unchanged. placement, furnaces, hazards, biome_plane, biome_plane_spawn, biome_plane_ice, spawn_to_torch, world_dynamics, fluids, entity_spine, random_ticks, random_ticks_bodies, falling_blocks, weather_optional, projectiles, chests, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/warpm2 2026-08-23 (Sweep row 5: focused M2 now runs k_tick_raw, k_tick_warp, and k_tick. All supported chain rows PASS raw+warp+scalar. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp. M1 unchanged VERIFIED.)
@@ -162,10 +163,13 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    `CLOSED_DIVERGENCES.md`.
 8. Mob sidecars (repath, despawn, fire, tick counters) not snapshotted and
    not digested. M.
-9. Item enchant payload and the 32-stack overflow queue missing in blaze.
-   M. lane/liveitems 2026-08-23 shared `item_live.h` EntityItem.onUpdate and
-   hashed 48-cap skip (`spawn_fail_count` in BP_ITEMS). Overflow queue and
-   live enchant copy into blaze pickup still magma-only.
+9. Item enchant payload missing in blaze pickup. Overflow FIFO: CLOSED
+   2026-08-23 lane `overflow`. Shared `item_overflow.h` 32-slot hold
+   (`IL_OVERFLOW_MAX` = magma `GM_LIVE_OVERFLOW_MAX`); `cu_spawn_item` /
+   `gm_live_spawn_stack` drain FIFO into free live slots;
+   `spawn_fail_count` only when overflow is full; BP_ITEMS hashes
+   n_overflow + slot x/y/z/item/count/meta/delay + fail. Live enchant
+   copy into blaze pickup still magma-only. M.
 10. TNT flint-and-steel: CLOSED 2026-08-23 lane `tntsupport`. Shared
     `block_may_place.h` (`BlockTNT.java:105-119` / `:85-96`, fuse 80).
 11. Furnaces matrix row: CLOSED 2026-08-23 lane `furnaceids`. `furnaces`
