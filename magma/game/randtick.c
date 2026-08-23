@@ -10,6 +10,7 @@
 #define rt_live_id(w, x, y, z) gm_world_rt_block((w), (x), (y), (z))
 #define rt_live_meta(w, x, y, z) (gm_world_rt_meta((w), (x), (y), (z)) & 15)
 #define rt_live_light(w, x, y, z) gm_world_rt_light((w), (x), (y), (z))
+#define rt_live_block_light(w, x, y, z) gm_world_rt_block_light((w), (x), (y), (z))
 #define rt_live_set(w, x, y, z, id, meta) \
     gm_world_rt_set((w), (x), (y), (z), (id), (meta))
 #include "randtick_live.h"
@@ -21,7 +22,7 @@ void gm_randtick_block(GmWorld *w, int wx, int wy, int wz,
     McGameRules def;
     if (!w) return;
     if (!gr) { def = mc_gamerules_default(); gr = &def; }
-    rt_live_tick_block(w, wx, wy, wz, world_rand, gr, gm_rt_surr);
+    rt_live_tick_block(w, wx, wy, wz, world_rand, gr, gm_rt_surr, 0);
 }
 
 void gm_randtick_pass(GmWorld *w, JavaRandom *world_rand, i32 *update_lcg,

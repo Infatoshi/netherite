@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/rtbodies 2026-08-23 (random_ticks_bodies M1+M2 after sapling STAGE / farmland / ice / snow / mycelium updateTick + updateBlocks ice/snow placement. RTK3 hashes the extra cell ids. Tree gen and lightning stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
 Last verified: lane/rtworldrand 2026-08-23 (random_ticks M1+M2 after shared World.rand + updateLCG replace purpose-hash streams. Snapshot v6 update_lcg. RTK2 hashes the cursor. BlockFire world.rand closed. Class C: Java World.rand and updateLCG are unseeded. Fireball and EntityItem Math.random motion stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
 Last verified: lane/spiderslime 2026-08-23 (mobs_ss M1+M2 after EntitySpider/EntitySlime shared live tick+MONSTER insert; mobs, passives, xp_orbs, boats, elytra, projectiles, random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/expdrops 2026-08-23 (explosions M1+M2 after doExplosionB drops in JDK 8 HashSet order + World.rand getDrops/spawnAsEntity. EXP4 hashes drop count/ids after the cursor. Class C: EntityItem xz motion is Math.random; table zeros mx/my/mz. Fireball and BlockFire world.rand stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
@@ -42,6 +43,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | fluids | VERIFIED | VERIFIED (chain 61 actions) |
 | entity_spine | VERIFIED (chain 32 actions, `--features mobs`) | VERIFIED (64 CUDA lanes) |
 | random_ticks | VERIFIED (200 idle ticks, 27 tickable-cell mutations) | VERIFIED (64 CUDA lanes) |
+| random_ticks_bodies | VERIFIED (200 idle ticks, planted sapling/farmland/ice/snow/mycelium) | VERIFIED (64 CUDA lanes) |
 | falling_blocks | VERIFIED (chain 64 actions, `--features falling_blocks`) | VERIFIED (64 CUDA lanes) |
 | weather_optional | VERIFIED (chain 64 idle, rain flip t=50, `--features weather`) | VERIFIED (64 CUDA lanes) |
 | projectiles | VERIFIED (chain 64 draw/release, `--features projectiles`) | VERIFIED (64 CUDA lanes) |

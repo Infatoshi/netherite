@@ -9,7 +9,9 @@
  *   - randomTickSpeed 0: engine no-op
  *   - Position: World.updateLCG (World.java:95-97). Behavior RNG: World.rand.
  *   - Behaviors: BlockGrass, BlockLeaves decay, BlockFire (doFireTick-gated),
- *     BlockCrops family (wheat / carrots / potatoes). Beetroot deferred (max age 3).
+ *     BlockCrops (wheat/carrots/potatoes), BlockSapling STAGE flip,
+ *     BlockFarmland, BlockIce, BlockSnow, BlockMycelium. Tree gen and
+ *     lightning stay out. Beetroot deferred (max age 3).
  */
 #ifndef MAGMA_GAME_RANDTICK_H
 #define MAGMA_GAME_RANDTICK_H

@@ -252,7 +252,79 @@ int main(void)
         CHECK(age1 > age0, "carrot ages under forced BlockCrops rolls");
     }
 
-    /* ---- 8. updateLCG sequence matches World.java:96 for seed 0 ---- */
+    /* ---- 8. sapling STAGE flip; STAGE 1 does not invent a tree ---- */
+    {
+        JavaRandom rng;
+        int seed, hit = 0, meta;
+        CHECK(gm_runtime_set_block(&r, X, Y, Z + 2, 3, 0), "dirt under sapling");
+        CHECK(gm_runtime_set_block(&r, X, Y + 1, Z + 2, 6, 0), "oak sapling STAGE 0");
+        CHECK(gm_runtime_set_block(&r, X, Y + 2, Z + 2, 0, 0), "air above sapling");
+        for (seed = 0; seed < 64 && !hit; ++seed) {
+            jrand_set(&rng, seed);
+            if (jrand_int_bound(&rng, 7) != 0) continue;
+            gm_runtime_set_block(&r, X, Y + 1, Z + 2, 6, 0);
+            jrand_set(&rng, seed);
+            gm_randtick_block(r.world, X, Y + 1, Z + 2, &rng, &gr);
+            meta = gm_world_meta(r.world, X, Y + 1, Z + 2);
+            CHECK(gm_world_block(r.world, X, Y + 1, Z + 2) == 6, "sapling remains");
+            CHECK((meta & 8) != 0, "sapling STAGE 0 -> 1");
+            hit = 1;
+        }
+        CHECK(hit, "found nextInt(7)==0 seed for sapling");
+        gm_runtime_set_block(&r, X, Y + 1, Z + 2, 6, 8);
+        jrand_set(&rng, seed - 1);
+        gm_randtick_block(r.world, X, Y + 1, Z + 2, &rng, &gr);
+        CHECK(gm_world_block(r.world, X, Y + 1, Z + 2) == 6 &&
+              (gm_world_meta(r.world, X, Y + 1, Z + 2) & 8) != 0,
+              "STAGE 1 sapling does not become a tree");
+    }
+
+    /* ---- 9. farmland moisture / turnToDirt, no World.rand ---- */
+    {
+        JavaRandom rng;
+        u64 before, after;
+        CHECK(gm_runtime_set_block(&r, X + 2, Y, Z + 2, 60, 3), "farmland moist 3");
+        CHECK(gm_runtime_set_block(&r, X + 2, Y + 1, Z + 2, 1, 0), "stone roof");
+        jrand_set(&rng, 11);
+        before = rng.seed;
+        gm_randtick_block(r.world, X + 2, Y, Z + 2, &rng, &gr);
+        after = rng.seed;
+        CHECK(before == after, "farmland updateTick draws no World.rand");
+        CHECK(gm_world_block(r.world, X + 2, Y, Z + 2) == 60, "still farmland");
+        CHECK((gm_world_meta(r.world, X + 2, Y, Z + 2) & 7) == 2, "moisture 3->2");
+        gm_runtime_set_block(&r, X + 2, Y, Z + 2, 60, 0);
+        gm_randtick_block(r.world, X + 2, Y, Z + 2, &rng, &gr);
+        CHECK(gm_world_block(r.world, X + 2, Y, Z + 2) == 3,
+              "dry farmland no crops -> dirt");
+    }
+
+    /* ---- 10. ice melt by BLOCK light; snow melt by BLOCK light ---- */
+    {
+        JavaRandom rng;
+        jrand_set(&rng, 1);
+        CHECK(gm_runtime_set_block(&r, X + 4, Y, Z + 2, 79, 0), "ice");
+        gm_randtick_block(r.world, X + 4, Y, Z + 2, &rng, &gr);
+        /* Superflat open sky: BLOCK light is 0, ice stays. */
+        CHECK(gm_world_block(r.world, X + 4, Y, Z + 2) == 79,
+              "ice with BLOCK light 0 does not melt");
+        CHECK(gm_runtime_set_block(&r, X + 5, Y, Z + 2, 78, 0), "snow layer");
+        gm_randtick_block(r.world, X + 5, Y, Z + 2, &rng, &gr);
+        CHECK(gm_world_block(r.world, X + 5, Y, Z + 2) == 78,
+              "snow with BLOCK light 0 stays");
+    }
+
+    /* ---- 11. mycelium dies under stone ---- */
+    {
+        JavaRandom rng;
+        CHECK(gm_runtime_set_block(&r, X + 6, Y, Z + 2, 110, 0), "mycelium");
+        CHECK(gm_runtime_set_block(&r, X + 6, Y + 1, Z + 2, 1, 0), "stone over myc");
+        jrand_set(&rng, 5);
+        gm_randtick_block(r.world, X + 6, Y, Z + 2, &rng, &gr);
+        CHECK(gm_world_block(r.world, X + 6, Y, Z + 2) == 3,
+              "mycelium dies to dirt under stone");
+    }
+
+    /* ---- 12. updateLCG sequence matches World.java:96 for seed 0 ---- */
     {
         i32 lcg = 0;
         i32 j1;

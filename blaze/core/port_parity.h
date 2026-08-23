@@ -348,9 +348,11 @@ BP_HD static inline uint64_t bp_fluid_digest_finish(
     return bp_hash_u32(h, mutations);
 }
 
-/* Magma randtick.c dispatch: grass, leaves/leaves2, fire, wheat/carrot/potato. */
+/* Magma randtick.c dispatch: grass, leaves/leaves2, fire, wheat/carrot/potato,
+ * sapling, farmland, ice, snow_layer, mycelium. */
 BP_HD static inline int bp_is_randtick_id(int32_t id) {
-    return id == 2 || id == 18 || id == 51 || id == 59 ||
+    return id == 2 || id == 6 || id == 18 || id == 51 || id == 59 ||
+           id == 60 || id == 78 || id == 79 || id == 110 ||
            id == 141 || id == 142 || id == 161;
 }
 
@@ -391,7 +393,7 @@ BP_HD static inline uint64_t bp_randtick_cells_replace(
 
 BP_HD static inline uint64_t bp_randtick_digest_begin(void) {
     uint64_t h = bp_hash_begin();
-    return bp_hash_u32(h, UINT32_C(0x324b5452)); /* "RTK2" World.rand+updateLCG */
+    return bp_hash_u32(h, UINT32_C(0x334b5452)); /* "RTK3" sapling/farmland/ice/snow/mycelium */
 }
 
 BP_HD static inline uint64_t bp_randtick_digest_finish(

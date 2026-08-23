@@ -265,9 +265,10 @@ typedef struct {
                                   * the oc_pixel input (oc_block does >>4)  */
     u8    *light;                /* region packed light (sky<<4)|block       */
     u16   *grass_sec;            /* per-16^3-section randtick-occupancy census
-                                  * (grass/leaves/fire/crops) over the
-                                  * region's covering section grid, for the
-                                  * random-tick skip (cu_grass_* below);
+                                  * (grass/leaves/fire/crops/sapling/farmland/
+                                  * ice/snow/mycelium) over the region's
+                                  * covering section grid, for the random-tick
+                                  * skip (cu_grass_* below);
                                   * NULL = census off -> full hash sweep    */
     Chunk *window;               /* PSV_NCHUNKS physics window (blocks only)*/
     u16   *cam;                  /* last rendered frame (want_cam=0 reuse)  */
@@ -775,6 +776,13 @@ MC_HD static inline int cu_rt_light_at(const Blaze *e,
     return cu_world_light(e, wx, wy, wz);
 }
 
+MC_HD static inline int cu_rt_block_light_at(const Blaze *e,
+                                            int wx, int wy, int wz) {
+    long i = cu_region_idx(e, wx, wy, wz);
+    if (i < 0) return 0;
+    return (int)(e->light[i] & 15);
+}
+
 MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
     long g;
     if (!e->grass_sec) return 1;
@@ -787,6 +795,7 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 #define rt_live_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #define rt_live_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
 #define rt_live_light(w, x, y, z) cu_rt_light_at((w), (x), (y), (z))
+#define rt_live_block_light(w, x, y, z) cu_rt_block_light_at((w), (x), (y), (z))
 #define rt_live_set(w, x, y, z, id, meta) \
     cu_world_set_state((w), (x), (y), (z), (id), (meta))
 #define RT_SECTION_NEEDS(w, cx, sec, cz) \

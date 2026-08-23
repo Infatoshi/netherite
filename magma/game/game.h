@@ -330,6 +330,7 @@ int       gm_world_rt_parity_state(const GmWorld *w, uint64_t *digest,
 int       gm_world_rt_block(const GmWorld *w, int wx, int wy, int wz);
 int       gm_world_rt_meta(const GmWorld *w, int wx, int wy, int wz);
 int       gm_world_rt_light(const GmWorld *w, int wx, int wy, int wz);
+int       gm_world_rt_block_light(const GmWorld *w, int wx, int wy, int wz);
 void      gm_world_rt_set(GmWorld *w, int wx, int wy, int wz, int id, int meta);
 /* XOR of gravity-block cell tokens (sand/gravel) in the configured parity
  * region plus live count and mutation count. */

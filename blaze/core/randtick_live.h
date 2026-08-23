@@ -32,10 +32,27 @@
  *   ExtendedBlockStorage.java:86 getNeedsRandomTick
  *   BlockGrass.java:41-73, BlockCrops.java:72-90 / :111-164
  *   BlockFire.java:146-253 / :286-314, BlockLeaves.java:69-176
+ *   BlockSapling.java:56-78 (STAGE flip; generateTree out)
+ *   BlockFarmland.java:53-72 (no World.rand draws)
+ *   BlockIce.java:82-102, BlockSnow.java:132-137
+ *   BlockMycelium.java:42-66 (mirrors BlockGrass.java:41-73)
+ *   World.java:2873-2948 canBlockFreezeBody / canSnowAtBody
+ *   World.java:3860-3878 isRainingAt
+ *   Biome.java:234-237 canRain, :258-268 getFloatTemperature
+ *   Block.java:2487-2488 ice opacity 3 / snow_layer opacity 0
  *
- * Ported tickers: grass, leaves/leaves2, fire, wheat/carrot/potato.
- * Sapling/farmland/ice/snow/mycelium stay unported: LCG still picks the
- * cell; their Java updateTick draws are not consumed.
+ * Ported tickers: grass, leaves/leaves2, fire, wheat/carrot/potato,
+ * sapling STAGE flip, farmland, ice, snow layer, mycelium.
+ * Tree growth stays out: WorldGenTrees lives in populate.h for chunk
+ * decorate (World* primer), not live rt_live_set. STAGE==1 + nextInt(7)==0
+ * does not consume generateTree draws.
+ * Lightning stays out: no EntityLightningBolt slot (ew_entity_store.h).
+ * nextInt(100000) is already consumed; the 1/100000 hit's nextDouble horse
+ * roll is not.
+ * fillWithRain (cauldron) stays out; no extra World.rand there except
+ * BlockCauldron.fillWithRain nextInt(20).
+ * Snapshot has no biome plane: freeze/snow placement uses plains (id 1)
+ * so magma==blaze. Cold-biome freeze is a unit with biome 12.
  *
  * Chunk order: stationary 1-player PlayerChunkMap.entries is addPlayer
  * insertion (cx outer, cz inner). Moving-player append/remove of that
@@ -50,6 +67,7 @@
 #include "mc_rng.h"
 #include "mc_blocks.h"
 #include "block_props_table.h"
+#include "biome_props_full.h"
 #include "mc_gamerules.h"
 #include "port_parity.h"
 
@@ -57,17 +75,33 @@
 #error "randtick_live.h requires RT_W and rt_live_* accessors"
 #endif
 
-#define RT_BLK_FIRE     51
-#define RT_BLK_WHEAT    59
-#define RT_BLK_FARMLAND 60
-#define RT_BLK_CARROT   141
-#define RT_BLK_POTATO   142
-#define RT_BLK_LEAVES   18
-#define RT_BLK_LEAVES2  161
-#define RT_BLK_LOG      17
-#define RT_BLK_LOG2     162
-#define RT_LIVE_SURR    32768
+#define RT_BLK_FIRE       51
+#define RT_BLK_WHEAT      59
+#define RT_BLK_FARMLAND   60
+#define RT_BLK_CARROT     141
+#define RT_BLK_POTATO     142
+#define RT_BLK_LEAVES     18
+#define RT_BLK_LEAVES2    161
+#define RT_BLK_LOG        17
+#define RT_BLK_LOG2       162
+#define RT_BLK_SAPLING    6
+#define RT_BLK_SNOW_LAYER 78
+#define RT_BLK_ICE        79
+#define RT_BLK_PACKED_ICE 174
+#define RT_BLK_MYCELIUM   110
+#define RT_LIVE_SURR      32768
 #define RT_DIST_HASH_MAGIC 1013904223u /* World.java:97 */
+
+/* Optional accessors. Magma/blaze define block light; tests default 0. */
+#ifndef rt_live_block_light
+#define rt_live_block_light(w, x, y, z) 0
+#endif
+#ifndef rt_live_biome
+#define rt_live_biome(w, x, z) 1 /* plains; snapshot has no biome plane */
+#endif
+#ifndef rt_live_water_vaporizes
+#define rt_live_water_vaporizes(w) 0 /* nether WorldProviderHell; blaze is overworld */
+#endif
 
 MC_HD static inline int rt_live_opacity(int id) {
     if (id == 0) return 0;
@@ -397,10 +431,246 @@ MC_HD static inline void rt_live_tick_crop(RT_W *w, JavaRandom *rng,
         rt_live_set(w, x, y, z, id, age + 1);
 }
 
+MC_HD static inline int rt_live_is_water_id(int id) {
+    return id == 8 || id == 9;
+}
+
+/* Biome.enableSnow. Biome.java registerBiomes setSnowEnabled. */
+MC_HD static inline int rt_live_biome_enable_snow(int biome) {
+    return biome == 10 || biome == 11 || biome == 12 || biome == 13 ||
+           biome == 26 || biome == 30 || biome == 31 || biome == 140 ||
+           biome == 158;
+}
+
+/* Biome.enableRain. Rainfall-0 biomes from Biome.registerBiomes. */
+MC_HD static inline int rt_live_biome_enable_rain(int biome) {
+    return !(biome == 2 || biome == 8 || biome == 9 || biome == 17 ||
+             biome == 35 || biome == 36 || biome == 37 || biome == 38 ||
+             biome == 39 || biome == 130 || biome == 163 || biome == 164 ||
+             biome == 165 || biome == 166 || biome == 167);
+}
+
+/* Biome.canRain :234-237. */
+MC_HD static inline int rt_live_biome_can_rain(int biome) {
+    if (rt_live_biome_enable_snow(biome)) return 0;
+    return rt_live_biome_enable_rain(biome);
+}
+
+/* Biome.getFloatTemperature :258-268. TEMPERATURE_NOISE (Random(1234L) Perlin)
+ * is omitted: f=0. Plains 0.8 never crosses 0.15. Cold biomes at y<=64 use
+ * the base table. */
+MC_HD static inline float rt_live_float_temperature(int biome, int wy) {
+    float temp = mc_bpf_temperature(biome);
+    if (wy > 64)
+        return temp - ((float)wy - 64.0f) * 0.05f / 30.0f;
+    return temp;
+}
+
+MC_HD static inline int rt_live_can_see_sky(RT_W *w, int x, int y, int z) {
+    int yy;
+    if (y >= 256) return 1;
+    if (y < 0) y = 0;
+    for (yy = y; yy < 256; ++yy)
+        if (rt_live_opacity(rt_live_id(w, x, yy, z)) > 0)
+            return 0;
+    return 1;
+}
+
+/* Chunk.getPrecipitationHeight :1083-1114: first blocksMovement-or-liquid
+ * from the top, then +1. Opacity>0 stands in for blocksMovement. */
+MC_HD static inline int rt_live_precip_y(RT_W *w, int x, int z) {
+    int y;
+    for (y = 255; y > 0; --y) {
+        int id = rt_live_id(w, x, y, z);
+        if (id == 8 || id == 9 || id == 10 || id == 11)
+            return y + 1;
+        if (rt_live_opacity(id) > 0)
+            return y + 1;
+    }
+    return 0;
+}
+
+MC_HD static inline int rt_live_snow_can_place(RT_W *w, int x, int y, int z) {
+    int below;
+    if (y < 1) return 0;
+    below = rt_live_id(w, x, y - 1, z);
+    if (below == RT_BLK_ICE || below == RT_BLK_PACKED_ICE) return 0;
+    if (rt_live_is_leaves(below)) return 1;
+    if (below == RT_BLK_SNOW_LAYER &&
+        ((rt_live_meta(w, x, y - 1, z) & 7) + 1) == 8)
+        return 1;
+    return rt_live_fully_opaque(below);
+}
+
+/* World.canBlockFreezeBody :2873-2906, noWaterAdj=true (:2860-2862). */
+MC_HD static inline int rt_live_can_block_freeze_no_water(RT_W *w, int x, int y,
+                                                         int z) {
+    int id, m;
+    if (rt_live_float_temperature(rt_live_biome(w, x, z), y) >= 0.15f)
+        return 0;
+    if (y < 0 || y >= 256) return 0;
+    if (rt_live_block_light(w, x, y, z) >= 10) return 0;
+    id = rt_live_id(w, x, y, z);
+    m = rt_live_meta(w, x, y, z) & 15;
+    if (!(id == 8 || id == 9) || m != 0) return 0;
+    if (rt_live_is_water_id(rt_live_id(w, x - 1, y, z)) &&
+        rt_live_is_water_id(rt_live_id(w, x + 1, y, z)) &&
+        rt_live_is_water_id(rt_live_id(w, x, y, z - 1)) &&
+        rt_live_is_water_id(rt_live_id(w, x, y, z + 1)))
+        return 0;
+    return 1;
+}
+
+/* World.canSnowAtBody :2922-2948. */
+MC_HD static inline int rt_live_can_snow_at(RT_W *w, int x, int y, int z,
+                                           int check_light) {
+    if (rt_live_float_temperature(rt_live_biome(w, x, z), y) >= 0.15f)
+        return 0;
+    if (!check_light) return 1;
+    if (y < 0 || y >= 256) return 0;
+    if (rt_live_block_light(w, x, y, z) >= 10) return 0;
+    if (rt_live_id(w, x, y, z) != 0) return 0;
+    return rt_live_snow_can_place(w, x, y, z);
+}
+
+/* World.isRainingAt :3860-3878. */
+MC_HD static inline int rt_live_is_raining_at(RT_W *w, int x, int y, int z,
+                                             int raining) {
+    int biome;
+    if (!raining) return 0;
+    if (!rt_live_can_see_sky(w, x, y, z)) return 0;
+    if (rt_live_precip_y(w, x, z) > y) return 0;
+    biome = rt_live_biome(w, x, z);
+    if (rt_live_biome_enable_snow(biome)) return 0;
+    if (rt_live_can_snow_at(w, x, y, z, 0)) return 0;
+    return rt_live_biome_can_rain(biome);
+}
+
+/* BlockBush.canSustainBush :48-50 / canBlockStay :78-86. */
+MC_HD static inline int rt_live_sapling_can_stay(RT_W *w, int x, int y, int z) {
+    int soil = rt_live_id(w, x, y - 1, z);
+    return soil == BLK_GRASS || soil == BLK_DIRT || soil == RT_BLK_FARMLAND;
+}
+
+/* BlockSapling.updateTick :56-67 then grow :69-78.
+ * super.updateTick is BlockBush.checkAndDropBlock :64-75.
+ * light is getLightFromNeighbors(pos.up()) :62.
+ * generateTree (:81-198) is out: WorldGenTrees is populate-only. */
+MC_HD static inline void rt_live_tick_sapling(RT_W *w, JavaRandom *rng,
+                                             int x, int y, int z) {
+    int meta, stage;
+    if (!rng) return;
+    if (rt_live_id(w, x, y, z) != RT_BLK_SAPLING) return;
+    if (!rt_live_sapling_can_stay(w, x, y, z)) {
+        rt_live_set(w, x, y, z, 0, 0);
+        return;
+    }
+    if (rt_live_light(w, x, y + 1, z) < 9) return;
+    if (jrand_int_bound(rng, 7) != 0) return;
+    meta = rt_live_meta(w, x, y, z) & 15;
+    stage = (meta >> 3) & 1;
+    if (stage == 0)
+        rt_live_set(w, x, y, z, RT_BLK_SAPLING, (meta & 7) | 8);
+    /* STAGE==1: generateTree not ported. nextInt(10) / WorldGen* draws stay. */
+}
+
+/* BlockFarmland.hasWater :105-116. Inclusive [x±4] x [y..y+1] x [z±4]. */
+MC_HD static inline int rt_live_farmland_has_water(RT_W *w, int x, int y, int z) {
+    int dx, dy, dz;
+    for (dy = 0; dy <= 1; ++dy)
+        for (dz = -4; dz <= 4; ++dz)
+            for (dx = -4; dx <= 4; ++dx)
+                if (rt_live_is_water_id(rt_live_id(w, x + dx, y + dy, z + dz)))
+                    return 1;
+    return 0;
+}
+
+/* BlockFarmland.hasCrops :99-103: IPlantable && canSustainPlant(farmland, UP).
+ * BlockBush shortcut :1879 + Crop/Plains cases :1888-1890. */
+MC_HD static inline int rt_live_farmland_has_crops(RT_W *w, int x, int y, int z) {
+    int id = rt_live_id(w, x, y + 1, z);
+    return id == RT_BLK_SAPLING || id == 31 || id == 37 || id == 38 ||
+           id == 39 || id == 40 || id == RT_BLK_WHEAT || id == 104 ||
+           id == 105 || id == RT_BLK_CARROT || id == RT_BLK_POTATO ||
+           id == 175 || id == 207;
+}
+
+/* BlockFarmland.updateTick :53-72. No World.rand draws. */
+MC_HD static inline void rt_live_tick_farmland(RT_W *w, int x, int y, int z,
+                                              int raining) {
+    int moisture;
+    if (rt_live_id(w, x, y, z) != RT_BLK_FARMLAND) return;
+    moisture = rt_live_meta(w, x, y, z) & 7;
+    if (!rt_live_farmland_has_water(w, x, y, z) &&
+        !rt_live_is_raining_at(w, x, y + 1, z, raining)) {
+        if (moisture > 0)
+            rt_live_set(w, x, y, z, RT_BLK_FARMLAND, moisture - 1);
+        else if (!rt_live_farmland_has_crops(w, x, y, z))
+            rt_live_set(w, x, y, z, BLK_DIRT, 0);
+    } else if (moisture < 7) {
+        rt_live_set(w, x, y, z, RT_BLK_FARMLAND, 7);
+    }
+}
+
+/* BlockIce.updateTick :82-87 / turnIntoWater :90-102.
+ * Threshold: BLOCK light > 11 - getDefaultState().getLightOpacity()
+ * (Block.java:2488 setLightOpacity(3) -> > 8).
+ * quantityDropped :77-80 returns 0: dropBlockAsItem is a no-op. */
+MC_HD static inline void rt_live_tick_ice(RT_W *w, int x, int y, int z) {
+    int op;
+    if (rt_live_id(w, x, y, z) != RT_BLK_ICE) return;
+    op = (int)mc_bpt_props(RT_BLK_ICE).light_opacity;
+    if (rt_live_block_light(w, x, y, z) > 11 - op) {
+        if (rt_live_water_vaporizes(w))
+            rt_live_set(w, x, y, z, 0, 0);
+        else
+            rt_live_set(w, x, y, z, 9, 0); /* Blocks.WATER :99 */
+    }
+}
+
+/* BlockSnow.updateTick :132-137. 1.11.2 is setBlockToAir only (no
+ * dropBlockAsItem; that path is 1.8). BLOCK light > 11. No World.rand. */
+MC_HD static inline void rt_live_tick_snow(RT_W *w, int x, int y, int z) {
+    if (rt_live_id(w, x, y, z) != RT_BLK_SNOW_LAYER) return;
+    if (rt_live_block_light(w, x, y, z) > 11)
+        rt_live_set(w, x, y, z, 0, 0);
+}
+
+/* BlockMycelium.updateTick :42-66. Same 4-try offset as BlockGrass :41-73. */
+MC_HD static inline void rt_live_tick_mycelium(RT_W *w, JavaRandom *rng,
+                                              int x, int y, int z) {
+    int above_id, light_up, i;
+    if (!rng) return;
+    if (rt_live_id(w, x, y, z) != RT_BLK_MYCELIUM) return;
+    above_id = rt_live_id(w, x, y + 1, z);
+    light_up = rt_live_light(w, x, y + 1, z);
+    if (light_up < 4 && rt_live_opacity(above_id) > 2) {
+        rt_live_set(w, x, y, z, BLK_DIRT, 0);
+        return;
+    }
+    if (light_up < 9) return;
+    for (i = 0; i < 4; ++i) {
+        i32 dx, dy, dz;
+        int nx, ny, nz, tid, tmeta, a_id;
+        dx = jrand_int_bound(rng, 3) - 1;
+        dy = jrand_int_bound(rng, 5) - 3;
+        dz = jrand_int_bound(rng, 3) - 1;
+        nx = x + dx; ny = y + dy; nz = z + dz;
+        if (ny < 0 || ny >= 256) continue;
+        tid = rt_live_id(w, nx, ny, nz);
+        tmeta = rt_live_meta(w, nx, ny, nz) & 15;
+        if (tid != BLK_DIRT || tmeta != 0) continue;
+        a_id = rt_live_id(w, nx, ny + 1, nz);
+        if (rt_live_light(w, nx, ny + 1, nz) >= 4 && rt_live_opacity(a_id) <= 2)
+            rt_live_set(w, nx, ny, nz, RT_BLK_MYCELIUM, 0);
+    }
+}
+
 MC_HD static inline void rt_live_tick_block(RT_W *w, int wx, int wy, int wz,
                                             JavaRandom *rng,
                                             const McGameRules *gr,
-                                            int *leaf_surr) {
+                                            int *leaf_surr,
+                                            int raining) {
     int id;
     McGameRules def;
     if (!w) return;
@@ -423,6 +693,21 @@ MC_HD static inline void rt_live_tick_block(RT_W *w, int wx, int wy, int wz,
         case RT_BLK_POTATO:
             rt_live_tick_crop(w, rng, wx, wy, wz);
             break;
+        case RT_BLK_SAPLING:
+            rt_live_tick_sapling(w, rng, wx, wy, wz);
+            break;
+        case RT_BLK_FARMLAND:
+            rt_live_tick_farmland(w, wx, wy, wz, raining);
+            break;
+        case RT_BLK_ICE:
+            rt_live_tick_ice(w, wx, wy, wz);
+            break;
+        case RT_BLK_SNOW_LAYER:
+            rt_live_tick_snow(w, wx, wy, wz);
+            break;
+        case RT_BLK_MYCELIUM:
+            rt_live_tick_mycelium(w, rng, wx, wy, wz);
+            break;
         default:
             break;
     }
@@ -442,18 +727,34 @@ MC_HD static inline int rt_live_section_needs(RT_W *w, int cx, int sec, int cz) 
 #define RT_SECTION_NEEDS(w, cx, sec, cz) rt_live_section_needs((w), (cx), (sec), (cz))
 #endif
 
-/* WorldServer.updateBlocks thunder :421 / iceandsnow :449. Placement of
- * lightning, ice, and snow stays out; the World.rand / updateLCG draws
- * still consume the shared stream in Java order. */
-MC_HD static inline void rt_live_chunk_worldrand_prefix(JavaRandom *rng, i32 *lcg,
-                                                        int raining, int thundering) {
+/* WorldServer.updateBlocks thunder :421 / iceandsnow :449-470.
+ * Lightning: nextInt(100000) consumed; EntityLightningBolt is not a live
+ * slot, so the hit does not spawn and does not consume the horse nextDouble.
+ * Ice/snow: after nextInt(16)==0 the LCG pick is precipitationHeight, then
+ * canBlockFreezeNoWater -> ICE and (raining && canSnowAt) -> SNOW_LAYER.
+ * fillWithRain stays out. */
+MC_HD static inline void rt_live_chunk_worldrand_prefix(RT_W *w, JavaRandom *rng,
+                                                        i32 *lcg, int raining,
+                                                        int thundering,
+                                                        int j, int k) {
     if (!rng || !lcg) return;
     if (raining && thundering) {
         if (jrand_int_bound(rng, 100000) == 0)
             (void)rt_live_step_lcg(lcg);
     }
-    if (jrand_int_bound(rng, 16) == 0)
-        (void)rt_live_step_lcg(lcg);
+    if (jrand_int_bound(rng, 16) == 0) {
+        i32 j2 = rt_live_step_lcg(lcg);
+        int wx, wz, py, fy;
+        if (!w) return;
+        wx = j + (j2 & 15);
+        wz = k + ((j2 >> 8) & 15);
+        py = rt_live_precip_y(w, wx, wz);
+        fy = py - 1;
+        if (rt_live_can_block_freeze_no_water(w, wx, fy, wz))
+            rt_live_set(w, wx, fy, wz, RT_BLK_ICE, 0);
+        if (raining && rt_live_can_snow_at(w, wx, py, wz, 1))
+            rt_live_set(w, wx, py, wz, RT_BLK_SNOW_LAYER, 0);
+    }
 }
 
 /* WorldServer.updateBlocks randomTick loop :409-500.
@@ -474,7 +775,8 @@ MC_HD static inline void rt_live_pass(RT_W *w, JavaRandom *rng, i32 *update_lcg,
 
     for (cx = ccx - radius; cx <= ccx + radius; ++cx) {
         for (cz = ccz - radius; cz <= ccz + radius; ++cz) {
-            rt_live_chunk_worldrand_prefix(rng, update_lcg, raining, thundering);
+            rt_live_chunk_worldrand_prefix(w, rng, update_lcg, raining, thundering,
+                                           cx * 16, cz * 16);
             for (sec = 0; sec < 16; ++sec) {
                 int base_y = sec * 16;
                 if (!RT_SECTION_NEEDS(w, cx, sec, cz)) continue;
@@ -486,7 +788,7 @@ MC_HD static inline void rt_live_pass(RT_W *w, JavaRandom *rng, i32 *update_lcg,
                     int wx = cx * 16 + lx;
                     int wy = base_y + ly;
                     int wz = cz * 16 + lz;
-                    rt_live_tick_block(w, wx, wy, wz, rng, gr, leaf_surr);
+                    rt_live_tick_block(w, wx, wy, wz, rng, gr, leaf_surr, raining);
                 }
             }
         }

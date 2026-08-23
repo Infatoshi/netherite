@@ -1,5 +1,26 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 Random-tick bodies + ice/snow placement (lane/rtbodies)
+
+Anvil. Baseline random_ticks M1 VERIFIED (`out/verify/rtbodies_baseline_random_ticks_m1.log`). mining_slice M2 BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). Tapes (`replay_tape.py --cpu --no-gate --report`, randtick off): TNT both physics NO divergence 309, inventory 1-mismatch t=28 slot 0 flint-and-steel 259 tape meta 0 vs magma meta 1. creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2 and bow physics NO divergence. Canon physics NO divergence 3617, entities PASS 16526, world_hash first_mismatch null, 46 c-side hash_deltas.
+
+`s10_t0_r64_randtick.bsnp` has 64 farmland + 64 wheat, 0 sapling/ice/snow/mycelium. Farmland was already under wheat; adding it to `bp_is_randtick_id` is a hashed-cell layout change (RTK2 -> RTK3).
+
+Java 1.11.2, shared `blaze/core/randtick_live.h` (MC_HD; CUDA compiles):
+- BlockSapling.updateTick `BlockSapling.java:56-67` / grow `:69-78`: `BlockBush.checkAndDropBlock` `:64-75`, light >= 9, `nextInt(7)==0`, STAGE bit. generateTree `:81-198` out: `WorldGenTrees` is populate-only (`blaze/core/populate.h` `wg_trees`), not live `rt_live_set`. STAGE==1 consumes `nextInt(7)` only.
+- BlockFarmland.updateTick `BlockFarmland.java:53-72`: hasWater 4-radius `:105-116`, isRainingAt `:57` / `World.java:3860-3878`, moisture--, turnToDirt, hydrate to 7. No World.rand draws. Entity shove on turnToDirt `:93-96` out.
+- BlockIce.updateTick `BlockIce.java:82-87` / turnIntoWater `:90-102`: BLOCK light > 11-opacity (`Block.java:2488` opacity 3 -> >8). Nether vaporize -> air; else water. `quantityDropped` `:77-80` returns 0.
+- BlockSnow.updateTick `BlockSnow.java:132-137`: BLOCK light > 11 -> setBlockToAir. 1.11.2 has no dropBlockAsItem (that is 1.8).
+- BlockMycelium.updateTick `BlockMycelium.java:42-66`: dirt conversion + 4-try `nextInt(3)-1` / `nextInt(5)-3` / `nextInt(3)-1`, same shape as BlockGrass `:41-73`.
+- WorldServer.updateBlocks ice/snow `:449-470`: after `nextInt(16)==0` (already consumed), precipitationHeight, canBlockFreezeNoWater `World.java:2860-2906` -> ice, raining && canSnowAt `:2917-2948` -> snow layer. isRainingAt gates farmland rain and snow place. Snapshot has no biome plane: live freeze uses plains id 1 so magma==blaze. Cold-biome freeze is a unit (biome 12). fillWithRain out. Lightning: `nextInt(100000)` consumed; no EntityLightningBolt slot (`ew_entity_store.h`); the 1/100000 hit's horse `nextDouble` is not consumed.
+- getFloatTemperature `Biome.java:258-268`: height term for y>64 with Perlin f=0 (TEMPERATURE_NOISE out). Plains 0.8 never crosses 0.15.
+
+Fixture `s10_t0_r64_randtick_bodies.bsnp` baked by `out/blaze/rl/test_randtick --write-fixture` from the randtick snapshot (not hand-edited): sapling STAGE 0, roofed dry farmland, ice, snow layer, mycelium under stone, mycelium next to dirt. Chain `randtick_bodies_s10.json` (200 idle). New row `random_ticks_bodies` deps random_ticks, weather_optional.
+
+After: random_ticks_bodies M1+M2 VERIFIED (`out/verify/rtbodies_after_random_ticks_bodies_m1.log`, `out/verify/rtbodies_after_random_ticks_bodies_m2.log`). random_ticks M1+M2 stay VERIFIED. Listed `--no-deps` M1 stay VERIFIED; M2 stay VERIFIED except mining_slice BLOCKED. Root `make test` PASS (`out/verify/rtbodies_maketest.log`). After tapes match baseline first-divergence ticks.
+
+Stay out: tree growth (WorldGenTrees not a live generator); lightning bolt entity; fillWithRain / cauldron `nextInt(20)`; TEMPERATURE_NOISE Perlin at y>64; tape-exact World.rand / updateLCG (unseeded); PlayerChunkMap moving-player list order; EntityItem `Math.random` motion; fireball.
+
 ## 2026-08-23 Random ticks on World.rand (lane/rtworldrand)
 
 Anvil. Baseline random_ticks M1 VERIFIED (`out/verify/rtworldrand_baseline_random_ticks_m1.log`); explosions M1 VERIFIED (`out/verify/rtworldrand_baseline_explosions_m1.log`). mining_slice M2 BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing).

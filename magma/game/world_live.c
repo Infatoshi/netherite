@@ -719,6 +719,12 @@ int gm_world_rt_light(const GmWorld *w, int wx, int wy, int wz) {
     return sky > blk ? sky : blk;
 }
 
+int gm_world_rt_block_light(const GmWorld *w, int wx, int wy, int wz) {
+    if (!w) return 0;
+    if (!gm_rt_in_parity(w, wx, wy, wz)) return 0;
+    return gm_world_block_light(w, wx, wy, wz);
+}
+
 void gm_world_rt_set(GmWorld *w, int wx, int wy, int wz, int id, int meta) {
     if (!w) return;
     if (!gm_rt_in_parity(w, wx, wy, wz)) return;
