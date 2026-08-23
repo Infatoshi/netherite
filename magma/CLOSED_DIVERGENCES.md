@@ -5,6 +5,35 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Chest TE cap 64: CLOSED 2026-08-23 (lane/chestcap)
+
+Anvil. Sweep 2026-08-23 blaze row 14.
+
+Java: `TileEntityChest.chestContents` is `NonNullList.withSize(27)`
+(`TileEntityChest.java:28`) with no region cap. `World.getTileEntity`
+(`World.java:2535-2560`) has none. `Chunk.chunkTileEntityMap` is
+`Maps.newHashMap` (`Chunk.java:69`, `:98`); get/put at `:829` / `:877`.
+`ContainerChest` wraps that inventory (`ContainerChest.java:12-37`).
+
+C: Magma `runtime_chest_free_slot` (`runtime.c:2567-2599`) realloc-doubles
+`GmRuntimeChest` and never evicts a live block-54 TE. Blaze `n_cont` /
+`BLAZE_SNAP_MAX_CONT` 64 is the interact-pick cache; overflow sets
+`n_cont=-1` and the window scan pick is value-identical to a grown list
+(strict d2, ties = x asc, z asc, y desc). The lost TE was
+`CuChest chests[64]` with `if (free_slot < 0) return 0`. Blaze now doubles
+`chests_cap` inside `CU_CHEST_POOL` 256 (tick path cannot malloc). Digest
+hashes `0..chests_cap-1` on both sides (initial 64 keeps existing M1).
+Capture of `n_cont=-1` does not die (`test_capture_cont`).
+
+Stay out: item overflow, XP lava, block light, snapshot v10, potion/bed/shield.
+CUDA pool 256 is the compile-time ceiling; magma realloc stays unbounded.
+
+Gate: `make -C blaze/rl test-chests` (72 live TEs, scan==grown list),
+`test_capture_cont` (65-cont ncont=-1 capture), magma `test_chest_loot`.
+chests M1+M2 VERIFIED. listed `--no-deps` M1 VERIFIED. M2 VERIFIED
+including mining_slice (this clone had `blaze/rl/out/snaps/*_d*.bsnp`).
+Root `make test` PASS.
+
 ### Beds: CLOSED 2026-08-23 (lane/beds)
 
 Anvil. Sweep 2026-08-23 magma row 9.

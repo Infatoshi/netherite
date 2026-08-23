@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/chestcap 2026-08-23 (Sweep row 14: blaze chest TE table grows past 64 like magma runtime_chest_free_slot. n_cont=-1 scan pick equals a grown list. chests M1+M2 stay VERIFIED. listed --no-deps M1 VERIFIED; M2 VERIFIED including mining_slice: this clone had blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/liveitems 2026-08-23 (spawn_to_torch M1+M2 2058 after Java pickup expand 1.0/0.5/1.0 EntityPlayer.java:613 + delay EntityItem.java:432. ground_items M1+M2 stay VERIFIED. listed --no-deps M1 VERIFIED; M2 VERIFIED except mining_slice BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/expresid 2026-08-23 (explosions M1+M2 after creeper posY origin, charged 2x via screaming alias, mobGriefing isSmoking, density collision AABB, unenchanted blast-prot identity, isFlaming explosionRNG draw. EXP4 unchanged. placement, furnaces, hazards, biome_plane, biome_plane_spawn, biome_plane_ice, spawn_to_torch, world_dynamics, fluids, entity_spine, random_ticks, random_ticks_bodies, falling_blocks, weather_optional, projectiles, chests, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/warpm2 2026-08-23 (Sweep row 5: focused M2 now runs k_tick_raw, k_tick_warp, and k_tick. All supported chain rows PASS raw+warp+scalar. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp. M1 unchanged VERIFIED.)
@@ -174,7 +175,8 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
 12. Torch support / mayPlace: CLOSED 2026-08-23 lane `tntsupport`. Shared
     `ibp_may_place` (`World.java:3363-3368`, `BlockTorch.java:98-116`).
 13. Potion / milk / shield use state absent. M.
-14. Chest cap fixed 64 in blaze vs magma growth. S.
+14. Chest cap fixed 64 in blaze vs magma growth: CLOSED 2026-08-23
+    lane `chestcap`. Forensics in magma `CLOSED_DIVERGENCES.md`.
 15. Boat mount vs bow release order differs between sides. S.
 
 Field aliasing in the shared mob table: `swell` (slime size), `melee_delay`
