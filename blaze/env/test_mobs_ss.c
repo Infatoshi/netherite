@@ -280,7 +280,31 @@ static int run_units(void) {
     expect(hs_is_roster(HS_SPIDER) && hs_is_roster(HS_SLIME),
            "spider and slime insert on the MONSTER path");
     expect(!hs_is_roster(HS_WITCH) && !hs_is_roster(HS_ENDERMAN),
-           "witch/enderman still consume then skip");
+           "witch still consume then skip; enderman spawn insert is a later commit");
+    expect(ml_is_roster(EW_TYPE_ENDERMAN), "enderman is on the live roster");
+    expect(bits_eq_f(ehs_max_health(EW_TYPE_ENDERMAN), 40.0f),
+           "enderman MAX_HEALTH 40");
+    expect(bits_eq_f(ehs_land_speed(EW_TYPE_ENDERMAN), 0.30000001192092896f),
+           "enderman SPEED 0.30000001192092896");
+    expect(bits_eq_f(ml_melee_damage(EW_TYPE_ENDERMAN), 7.0f),
+           "enderman ATTACK_DAMAGE 7");
+    expect(ml_follow_range(EW_TYPE_ENDERMAN) == 64.0, "enderman FOLLOW_RANGE 64");
+    {
+        float w, h;
+        ehs_size(EW_TYPE_ENDERMAN, &w, &h);
+        expect(bits_eq_f(w, 0.6f) && bits_eq_f(h, 2.9f),
+               "enderman setSize 0.6x2.9");
+    }
+    {
+        JavaRandom er;
+        MlDrop d[1];
+        int n;
+        jrand_set(&er, 1);
+        n = ml_enderman_drop(&er, d, 1);
+        expect(n == 0 || (n == 1 && d[0].item == ML_ITEM_ENDER_PEARL
+                          && d[0].count == 1),
+               "ender pearl dropFewItems nextInt(2) is 0 or 1");
+    }
     {
         RlSnapMob dying;
         int t, keep;

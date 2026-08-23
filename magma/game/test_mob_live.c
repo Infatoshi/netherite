@@ -83,7 +83,7 @@ static int run_sheep_trace(SheepTrace *trace) {
     other->vx[slot]=other->vz[slot]=0.0;other->path_len[slot]=0;
     r.mobs.passive_tasks[slot]=0;r.mobs.passive_task_tick[slot]=0;
     GmEntityView before;if(!sheep_view(&r,&before)){gm_runtime_destroy(&r);return 0;}
-    if(!gm_mobs_damage_near(&r.mobs,before.x,before.y+0.5,before.z,1.0,1.0f,&r.entities)){
+    if(!gm_mobs_damage_near(&r.mobs,r.world,before.x,before.y+0.5,before.z,1.0,1.0f,&r.entities)){
         gm_runtime_destroy(&r);return 0;
     }
     for(int tick=0;tick<60;++tick){
@@ -377,7 +377,7 @@ int main(int argc, char **argv) {
 
     if(!init_flat(&r))return 1;
     CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_SHEEP,8.5,5.0,10.5)>=0,"spawn loot sheep");
-    CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,1.0,100.0f,&r.entities),
+    CHECK(gm_mobs_damage_near(&r.mobs,r.world,8.5,5.5,10.5,1.0,100.0f,&r.entities),
           "component lethal hit reaches sheep");
     for(int i=0;i<20;++i)gm_runtime_tick(&r,idle);
     int wool=0,mutton=0;for(int i=0;i<GM_LIVE_MAX;++i)if(r.entities.ents[i].active){
@@ -577,7 +577,7 @@ int main(int argc, char **argv) {
     CHECK(gm_mobs_spawn_sized(&r.mobs,GM_MOB_MAGMA,8.5,5.0,10.5,2)>=0,"spawn size-2 magma");
     CHECK(r.mobs.size[1]==2,"magma size stored");
     /* Deterministic death via damage_near (player melee reach is flaky on hoppers). */
-    CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,2.0,100.0f,&r.entities),
+    CHECK(gm_mobs_damage_near(&r.mobs,r.world,8.5,5.5,10.5,2.0,100.0f,&r.entities),
           "magma takes lethal damage");
     /* EntityLivingBase.onDeathUpdate ++deathTime == 20 then setDead/split. */
     for(int t=0;t<20;++t) gm_runtime_tick(&r,idle);
@@ -595,7 +595,7 @@ int main(int argc, char **argv) {
         CHECK(slot>=0,"spawn size-1 slime");
         r.mobs.ent_jr_seed[slot]=1; /* nextInt(3) > 0 at this cursor */
     }
-    CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,2.0,100.0f,&r.entities),
+    CHECK(gm_mobs_damage_near(&r.mobs,r.world,8.5,5.5,10.5,2.0,100.0f,&r.entities),
           "slime takes lethal damage");
     for(int t=0;t<20;++t) gm_runtime_tick(&r,idle);
     int ball=0;for(int i=0;i<GM_LIVE_MAX;++i)

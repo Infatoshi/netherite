@@ -231,10 +231,12 @@ int main(int argc, char **argv) {
     }
 
     expect(sizeof(RlSnapHead) == 752, "RlSnapHead is 752 bytes packed");
-    expect(sizeof(RlSnapMob) == 544, "RlSnapMob is 544 bytes packed");
-    expect(BLAZE_SNAP_VERSION == 6, "snapshot version is 6");
+    expect(sizeof(RlSnapMob) == 572, "RlSnapMob is 572 bytes packed");
+    expect(BLAZE_SNAP_VERSION == 7, "snapshot version is 7");
     expect(BLAZE_SNAP_VERSION_WORLD_RAND == 5, "world_rand trailer is version 5");
     expect(BLAZE_SNAP_VERSION_UPDATE_LCG == 6, "updateLCG trailer is version 6");
+    expect(BLAZE_SNAP_VERSION_ENDER == 7, "enderman fields are version 7");
+    expect(BLAZE_SNAP_MOB_SIZE_V6 == 544, "v6 mob record is 544 bytes");
     expect(BLAZE_SNAP_VERSION_ORBS == 4, "orb trailer is version 4");
     expect(sizeof(RlSnapOrb) == 84, "RlSnapOrb is 84 bytes packed");
     expect(BLAZE_SNAP_MAX_ORBS == 64, "orb cap is GM_XP_ORBS 64");

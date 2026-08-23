@@ -18,6 +18,7 @@
 #define ML_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
 #define ML_SKY(w, x, y, z) gm_world_sky_light((w), (x), (y), (z))
 #define ML_BLK(w, x, y, z) gm_world_block_light((w), (x), (y), (z))
+#define ML_SET_BLOCK(w, x, y, z, id) gm_world_set_block((w), (x), (y), (z), (id))
 #include "hostile_live.h"
 
 typedef struct {
@@ -90,7 +91,7 @@ static int gm_passive(int type){
 }
 static int hai_ok(int type){
     return type==EW_TYPE_ZOMBIE||type==EW_TYPE_SKELETON||type==EW_TYPE_CREEPER
-        ||type==EW_TYPE_SPIDER||type==EW_TYPE_SLIME;
+        ||type==EW_TYPE_SPIDER||type==EW_TYPE_SLIME||type==EW_TYPE_ENDERMAN;
 }
 static int gm_living(int type){
     return gm_hostile(type)||gm_passive(type)||type==EW_TYPE_BOAT;
@@ -313,6 +314,13 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->blaze_hof[slot] = 0.5f;
     m->hurt_time[slot] = 0;
     m->death_time[slot] = 0;
+    m->screaming[slot] = 0;
+    m->carried[slot] = 0;
+    m->carried_meta[slot] = 0;
+    m->target_change_time[slot] = 0;
+    m->ticks_existed[slot] = 0;
+    m->find_aggro[slot] = 0;
+    m->teleport_time[slot] = 0;
     m->boat_delta_rot[slot] = 0.0f;
     m->boat_glide[slot] = 0.8f;
     if (!m->size[slot]) m->size[slot] = gm_is_slimey(s ? s->type[slot] : 0) ? 2 : 1;
@@ -380,6 +388,13 @@ static void ml_load_slot(MlMob *o, const GmMobLive *m, const EwStore *s, int i) 
     o->snap.health = s->health[i];
     o->snap.hurt_time = m->hurt_time[i];
     o->snap.death_time = m->death_time[i];
+    o->snap.screaming = m->screaming[i];
+    o->snap.carried = m->carried[i];
+    o->snap.carried_meta = m->carried_meta[i];
+    o->snap.target_change_time = m->target_change_time[i];
+    o->snap.ticks_existed = m->ticks_existed[i];
+    o->snap.find_aggro = m->find_aggro[i];
+    o->snap.teleport_time = m->teleport_time[i];
     o->snap.attack_time = s->attack_time[i];
     o->snap.swell = m->creeper_fuse[i];
     o->snap.target_idx = m->det_has_target[i] ? 1 : 0;
@@ -424,6 +439,13 @@ static void ml_save_slot(GmMobLive *m, EwStore *s, int i, const MlMob *o) {
     s->health[i] = p->health;
     m->hurt_time[i] = p->hurt_time;
     m->death_time[i] = p->death_time;
+    m->screaming[i] = p->screaming;
+    m->carried[i] = p->carried;
+    m->carried_meta[i] = p->carried_meta;
+    m->target_change_time[i] = p->target_change_time;
+    m->ticks_existed[i] = p->ticks_existed;
+    m->find_aggro[i] = p->find_aggro;
+    m->teleport_time[i] = p->teleport_time;
     s->attack_time[i] = p->attack_time;
     s->ai_state[i] = p->task_bits;
     s->path_tx[i] = p->wander_x;
@@ -2338,9 +2360,19 @@ static void mob_on_death(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         item = 0;
         break;
     }
-    case EW_TYPE_ENDERMAN:
-        if ((mc_hash64((u64)m->seed ^ (u64)s->id[i]) & 1ULL) != 0) item = 368;
+    case EW_TYPE_ENDERMAN: {
+        JavaRandom er;
+        MlDrop pd[1];
+        int nd;
+        er.seed = m->ent_jr_seed[i];
+        nd = ml_enderman_drop(&er, pd, 1);
+        m->ent_jr_seed[i] = er.seed;
+        if (nd > 0)
+            gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i],
+                               pd[0].item, pd[0].count, pd[0].meta, 10);
+        item = 0;
         break;
+    }
     case EW_TYPE_BLAZE:
         if ((mc_hash64((u64)m->seed ^ (u64)s->id[i]) & 1ULL) != 0) item = 369;
         break;
@@ -2556,6 +2588,12 @@ int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player_,
     }
     damage_held_weapon((PsvPlayer *)p);
     m->player_attack_cooldown = 10;
+    if (s->type[best] == EW_TYPE_ENDERMAN) {
+        /* EntityAIHurtByTarget: setAttackTarget -> screaming + targetChangeTime. */
+        m->screaming[best] = 1;
+        m->target_change_time[best] = m->ticks_existed[best];
+        m->det_has_target[best] = 1;
+    }
     if (s->health[best] <= 0.0f) s->health[best] = 0.0f;
     ew_store_copy(next_store(m), s);
     return 1;
@@ -3511,7 +3549,17 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             }
             ml_save_slot(m, nx, i, &mm);
             if (tick_corpse(m, nx, i, drops)) continue;
-            ml_hostile_ai(&mm, w, px, py, pz, day, m->seed, m->tick, &o);
+            {
+                MlEndCtx ectx;
+                memset(&ectx, 0, sizeof ectx);
+                ectx.yaw = p->yaw;
+                ectx.pitch = p->pitch;
+                ectx.helmet = isr_get_stack(&p->inv, ISR_ARMOR_HEAD).item;
+                ectx.griefing = mob_griefing;
+                ectx.world_time = world_time;
+                ml_hostile_ai(&mm, w, px, py, pz, day, m->seed, m->tick,
+                              &ectx, &o);
+            }
             ml_save_slot(m, nx, i, &mm);
             if (mm.exploded) {
                 m->explosion_pending = 1;
@@ -3541,7 +3589,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                                      d1, d0);
                 }
             }
-            if (type == EW_TYPE_SPIDER || type == EW_TYPE_SLIME) {
+            if (type == EW_TYPE_SPIDER || type == EW_TYPE_SLIME
+                || type == EW_TYPE_ENDERMAN) {
                 ml_move_hostile(&mm, w, st, o.moving, o.jump);
                 ml_save_slot(m, nx, i, &mm);
                 m->panic_ticks[i] = mm.snap.panic;
@@ -3957,10 +4006,12 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
 
 int gm_mobs_alive(const GmMobLive *m){return m?alive_count(m,const_store(m)):0;}
 
-int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
+int gm_mobs_damage_near(GmMobLive *m, GmWorld *w,
+                        double x,double y,double z,double radius,
                         float damage,GmLiveSim *drops){
     if(!m)return 0;
     EwStore *s=now_store(m);int best=-1;double bd=radius*radius;
+    (void)drops;
     for(int i=1;i<EW_MAX_ENTITIES;++i)
         if(s->alive[i]&&m->entity_dimension[i]==m->active_dimension&&gm_living(s->type[i])&&
                                          s->type[i]!=EW_TYPE_BOAT){
@@ -3968,6 +4019,14 @@ int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
         if(d<=bd){bd=d;best=i;}
     }
     if(best<0)return 0;
+    if (s->type[best] == EW_TYPE_ENDERMAN && w) {
+        MlMob mm;
+        ml_load_slot(&mm, m, s, best);
+        (void)ml_enderman_arrow_hit(&mm, w);
+        ml_save_slot(m, s, best, &mm);
+        ew_store_copy(next_store(m), s);
+        return 1;
+    }
     s->health[best]-=damage;mark_hurt(m,s,best);
     if(s->health[best]<=0.0f) s->health[best]=0.0f;
     ew_store_copy(next_store(m),s);return 1;
@@ -4134,6 +4193,13 @@ unsigned gm_mobs_export_snap(const GmMobLive *m, struct RlSnapMob *out,
         o->health = s->health[i];
         o->hurt_time = m->hurt_time[i];
         o->death_time = m->death_time[i];
+        o->screaming = m->screaming[i];
+        o->carried = m->carried[i];
+        o->carried_meta = m->carried_meta[i];
+        o->target_change_time = m->target_change_time[i];
+        o->ticks_existed = m->ticks_existed[i];
+        o->find_aggro = m->find_aggro[i];
+        o->teleport_time = m->teleport_time[i];
         o->task_bits = m->passive_tasks[i];
         o->target_tasks = m->det_target_tasks[i];
         o->wander_x = m->passive_idle_x[i];
@@ -4211,6 +4277,13 @@ void gm_mobs_import_snap(GmMobLive *m, const struct RlSnapMob *in, unsigned n) {
         m->passive_render_yaw[i] = o->yaw_body;
         m->hurt_time[i] = o->hurt_time;
         m->death_time[i] = o->death_time;
+        m->screaming[i] = o->screaming;
+        m->carried[i] = o->carried;
+        m->carried_meta[i] = o->carried_meta;
+        m->target_change_time[i] = o->target_change_time;
+        m->ticks_existed[i] = o->ticks_existed;
+        m->find_aggro[i] = o->find_aggro;
+        m->teleport_time[i] = o->teleport_time;
         m->passive_tasks[i] = o->task_bits;
         m->det_target_tasks[i] = o->target_tasks;
         m->passive_idle_x[i] = o->wander_x;

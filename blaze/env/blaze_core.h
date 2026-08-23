@@ -829,11 +829,14 @@ MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
         }
     }
     if (best < 0) return 0;
+    /* Arrow vs enderman is EntityDamageSourceIndirect: teleport, no HP.
+     * ml_enderman_arrow_hit lives in the hostile_live world half, included
+     * below; lockstep fixtures do not fire arrows at endermen. */
+    if (e->mobs[best].type == EW_TYPE_ENDERMAN)
+        return 1;
     e->mobs[best].health -= damage;
-    if (e->mobs[best].health <= 0.0f) {
-        e->mobs[best].alive = 0;
+    if (e->mobs[best].health <= 0.0f)
         e->mobs[best].health = 0.0f;
-    }
     return 1;
 }
 
@@ -919,6 +922,8 @@ MC_HD static inline int cu_world_blk(const Blaze *e, int wx, int wy, int wz) {
 #define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #define ML_SKY(w, x, y, z) cu_world_sky((w), (x), (y), (z))
 #define ML_BLK(w, x, y, z) cu_world_blk((w), (x), (y), (z))
+#define ML_SET_BLOCK(w, x, y, z, id) cu_world_set_state((w), (x), (y), (z), (id), 0)
+#define ML_BLOCK_META(w, x, y, z) cu_world_meta((w), (x), (y), (z))
 #include "hostile_live.h"
 
 MC_HD static inline int cu_hs_count(const Blaze *e) {
@@ -1439,6 +1444,18 @@ MC_HD static inline void cu_mob_on_death(Blaze *e, RlSnapMob *m) {
                           drops[0].item, drops[0].count, drops[0].meta, 10);
         return;
     }
+    if (m->type == EW_TYPE_ENDERMAN) {
+        JavaRandom er;
+        MlDrop drops[1];
+        int n;
+        er.seed = m->seed48;
+        n = ml_enderman_drop(&er, drops, 1);
+        m->seed48 = er.seed;
+        if (n > 0)
+            cu_spawn_item(e, m->x, m->y + 0.25, m->z,
+                          drops[0].item, drops[0].count, drops[0].meta, 10);
+        return;
+    }
     if (pl_is_roster(m->type)) {
         JavaRandom er;
         PlDrop drops[4];
@@ -1532,6 +1549,11 @@ MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
         e->mobs[best].seed48 = jr.seed;
     }
     e->player_attack_cooldown = ML_PLAYER_ATK_CD;
+    if (e->mobs[best].type == EW_TYPE_ENDERMAN) {
+        e->mobs[best].screaming = 1;
+        e->mobs[best].target_change_time = e->mobs[best].ticks_existed;
+        e->mobs[best].target_idx = 1;
+    }
     if (e->mobs[best].health <= 0.0f)
         e->mobs[best].health = 0.0f;
     return 1;
@@ -1675,7 +1697,18 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             continue;
         }
         if (mm.snap.attack_time > 0) --mm.snap.attack_time;
-        ml_hostile_ai(&mm, e, px, py, pz, day, e->seed, e->mob_tick, &o);
+        {
+            MlEndCtx ectx;
+            memset(&ectx, 0, sizeof ectx);
+            ectx.yaw = e->pl.yaw;
+            ectx.pitch = e->pl.pitch;
+            ectx.helmet = isr_get_stack(&e->pl.inv, ISR_ARMOR_HEAD).item;
+            ectx.griefing = 1;
+            ectx.world_time = e->ww.worldTime;
+            ectx.raining = e->weather_enabled ? e->ww.raining : 0;
+            ml_hostile_ai(&mm, e, px, py, pz, day, e->seed, e->mob_tick,
+                          &ectx, &o);
+        }
         if (mm.exploded) {
             e->explosion_pending = 1;
             e->explosion_x = mm.snap.x;
