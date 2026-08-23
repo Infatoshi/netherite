@@ -54,7 +54,6 @@ static int write_bsnp_ex(const char *path, int ntab, const int *wx,
   unsigned short *cells;
   unsigned char *light;
   int *coal = NULL;
-  FILE *f;
   int x, y, z, t;
   unsigned u;
   cells = (unsigned short *)calloc((size_t)vol, sizeof *cells);
@@ -99,96 +98,35 @@ static int write_bsnp_ex(const char *path, int ntab, const int *wx,
     coal[u * 3u + 1] = 1;
     coal[u * 3u + 2] = (int)(u / (unsigned)RNX);
   }
-  f = fopen(path, "wb");
-  if (!f || fwrite(&h, sizeof h, 1, f) != 1 ||
-      fwrite(cells, sizeof *cells, (size_t)vol, f) != (size_t)vol ||
-      fwrite(&ncoal, sizeof ncoal, 1, f) != 1 ||
-      (ncoal && fwrite(coal, sizeof *coal, (size_t)ncoal * 3u, f) !=
-                    (size_t)ncoal * 3u) ||
-      fwrite(light, 1, (size_t)vol, f) != (size_t)vol) {
-    if (f)
-      fclose(f);
+  {
+    CuSnapshot s;
+    unsigned char *biome;
+    size_t bvol = (size_t)RNX * (size_t)RNZ;
+    char err[256];
+    int ok;
+    memset(&s, 0, sizeof s);
+    s.head = h;
+    s.cells = cells;
+    s.light = light;
+    s.ncoal = ncoal;
+    s.coal = coal;
+    s.player_air = 300;
+    biome = (unsigned char *)malloc(bvol);
+    if (!biome) {
+      free(cells);
+      free(light);
+      free(coal);
+      return -1;
+    }
+    memset(biome, BLAZE_SNAP_BIOME_PLAINS, bvol);
+    s.biome = biome;
+    ok = blaze_snapshot_write(path, &s, err, (int)sizeof err);
+    free(biome);
     free(cells);
     free(light);
     free(coal);
-    return -1;
+    return ok ? 0 : -1;
   }
-  {
-    unsigned n_mobs = 0, n_orbs = 0;
-    if (h.version >= 3 && fwrite(&n_mobs, sizeof n_mobs, 1, f) != 1) {
-      fclose(f);
-      free(cells);
-      free(light);
-      free(coal);
-      return -1;
-    }
-    if (h.version >= BLAZE_SNAP_VERSION_ORBS &&
-        fwrite(&n_orbs, sizeof n_orbs, 1, f) != 1) {
-      fclose(f);
-      free(cells);
-      free(light);
-      free(coal);
-      return -1;
-    }
-    if (h.version >= BLAZE_SNAP_VERSION_WORLD_RAND) {
-      unsigned long long wr = 0;
-      if (fwrite(&wr, sizeof wr, 1, f) != 1) {
-        fclose(f);
-        free(cells);
-        free(light);
-        free(coal);
-        return -1;
-      }
-    }
-    if (h.version >= BLAZE_SNAP_VERSION_UPDATE_LCG) {
-      int lcg = 0;
-      if (fwrite(&lcg, sizeof lcg, 1, f) != 1) {
-        fclose(f);
-        free(cells);
-        free(light);
-        free(coal);
-        return -1;
-      }
-    }
-    if (h.version >= BLAZE_SNAP_VERSION_BIOME) {
-      size_t bvol = (size_t)RNX * (size_t)RNZ;
-      unsigned char *biome = (unsigned char *)malloc(bvol);
-      int ok;
-      if (!biome) {
-        fclose(f);
-        free(cells);
-        free(light);
-        free(coal);
-        return -1;
-      }
-      memset(biome, BLAZE_SNAP_BIOME_PLAINS, bvol);
-      ok = fwrite(biome, 1, bvol, f) == bvol;
-      free(biome);
-      if (!ok) {
-        fclose(f);
-        free(cells);
-        free(light);
-        free(coal);
-        return -1;
-      }
-    }
-    if (h.version >= BLAZE_SNAP_VERSION_HAZARDS) {
-      int fire = 0, air = 300;
-      if (fwrite(&fire, sizeof fire, 1, f) != 1 ||
-          fwrite(&air, sizeof air, 1, f) != 1) {
-        fclose(f);
-        free(cells);
-        free(light);
-        free(coal);
-        return -1;
-      }
-    }
-  }
-  fclose(f);
-  free(cells);
-  free(light);
-  free(coal);
-  return 0;
 }
 
 static int write_bsnp(const char *path, int ntab, const int *wx, const int *wy,
