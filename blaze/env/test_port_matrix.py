@@ -31,6 +31,7 @@ EXPECTED_ROWS = [
     "passives",
     "mobs_ss",
     "mobs_end",
+    "mobs_witch",
     "boats",
     "elytra",
 ]
@@ -326,4 +327,82 @@ def test_m2_kernels_reject_unknown_names():
     subject["m2_kernels"] = ["raw", "legacy"]
 
     with pytest.raises(pm.ConfigError, match="m2_kernels"):
+        pm.validate_config(matrix(subject))
+
+
+def test_resume_flag_runs_after_m1():
+    subject = row("subject")
+    subject["resume"] = True
+    calls = []
+
+    def executor(argv, root, timeout):
+        calls.append(list(argv))
+        return 0, "ok"
+
+    report = pm.run_matrix(matrix(subject), tier="m1", executor=executor)
+
+    assert report["results"][0]["status"] == pm.VERIFIED
+    assert calls[0] == ["m1-gate"]
+    assert calls[1][:6] == [
+        "uv", "run", "--no-project", "--with", "numpy", "python",
+    ]
+    assert "blaze/env/verify_resume_parity.py" in calls[1]
+    assert report["results"][0]["gates"][1]["resume"] is True
+
+
+def test_resume_flag_runs_after_m2_kernels():
+    subject = row("subject")
+    subject["resume"] = True
+    subject["m2_kernels"] = ["raw"]
+    calls = []
+
+    def executor(argv, root, timeout):
+        calls.append(list(argv))
+        return 0, ""
+
+    report = pm.run_matrix(matrix(subject), tier="m2", executor=executor)
+
+    assert report["results"][0]["status"] == pm.VERIFIED
+    assert calls[0] == ["m2-gate", "--m2-kernel", "raw"]
+    assert "--cuda" in calls[1]
+    assert "blaze/env/verify_resume_parity.py" in calls[1]
+
+
+def test_resume_failure_fails_the_row():
+    subject = row("subject")
+    subject["resume"] = True
+    calls = []
+
+    def executor(argv, root, timeout):
+        calls.append(list(argv))
+        if any("verify_resume_parity.py" in tok for tok in argv):
+            return 1, "FIRST DIFF tick 8 subsystem furnaces"
+        return 0, ""
+
+    report = pm.run_matrix(matrix(subject), tier="m1", executor=executor)
+
+    assert report["results"][0]["status"] == pm.FAILED
+    assert len(calls) == 2
+
+
+def test_resume_skipped_when_m1_fails():
+    subject = row("subject")
+    subject["resume"] = True
+    calls = []
+
+    def executor(argv, root, timeout):
+        calls.append(list(argv))
+        return 1, "m1 fail"
+
+    report = pm.run_matrix(matrix(subject), tier="m1", executor=executor)
+
+    assert report["results"][0]["status"] == pm.FAILED
+    assert calls == [["m1-gate"]]
+
+
+def test_resume_must_be_boolean():
+    subject = row("subject")
+    subject["resume"] = "yes"
+
+    with pytest.raises(pm.ConfigError, match="resume must be boolean"):
         pm.validate_config(matrix(subject))
