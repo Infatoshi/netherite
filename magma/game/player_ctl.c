@@ -15,6 +15,7 @@
 #include "player_break.h"
 #include "item_block_place.h"
 #include "block_may_place.h"
+#include "player_bed.h"
 #include "interact_blocks.h"
 #include "container_click.h"
 #include "items_tools_armor.h"
@@ -734,15 +735,35 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                     psv_set_state(window,ax,ay,az,fluid,0);
                     isr_set_stack(&pl->inv,pl->inv.current_item,ic_mk(325,1,0));
                     emit_edit(edits,&ne,max_edits,ox,oy,oz,ax,ay,az,fluid,0,0,0,0);
-                } else if(held.item==355&&psv_get_block(window,ax,ay,az)==BLK_AIR){
-                    int q=yaw_to_quad(pl->yaw),dx[4]={0,-1,0,1},dz[4]={1,0,-1,0};
-                    int hx2=ax+dx[q],hz2=az+dz[q];
-                    if(psv_get_block(window,hx2,ay,hz2)==BLK_AIR){
-                        psv_set_state(window,ax,ay,az,26,q);
-                        psv_set_state(window,hx2,ay,hz2,26,q|8);
-                        (void)isr_decr_stack_size(&pl->inv,pl->inv.current_item,1);
-                        emit_edit(edits,&ne,max_edits,ox,oy,oz,ax,ay,az,26,q,0,0,0);
-                        emit_edit(edits,&ne,max_edits,ox,oy,oz,hx2,ay,hz2,26,q|8,0,0,0);
+                } else if (held.item == BED_ITEM) {
+                    /* ItemBed.onItemUse :34-71. Not World.mayPlace: facing
+                     * must be UP, both cells replaceable, isFullyOpaque below. */
+                    int face = face_from_adj(hx, hy, hz, ax, ay, az);
+                    if (face == IBP_UP) {
+                        int q = yaw_to_quad(pl->yaw);
+                        int fx, fy, fz, hx2, hz2, foot, head;
+                        if (ibp_is_replaceable(hit_id)) {
+                            fx = hx;
+                            fy = hy;
+                            fz = hz;
+                        } else {
+                            fx = hx;
+                            fy = hy + 1;
+                            fz = hz;
+                        }
+                        if (bed_item_can_place(window, fx, fy, fz, q)) {
+                            hx2 = fx + bed_facing_dx(q);
+                            hz2 = fz + bed_facing_dz(q);
+                            foot = bed_foot_meta(q);
+                            head = bed_head_meta(q);
+                            psv_set_state(window, fx, fy, fz, BED_BLK, foot);
+                            psv_set_state(window, hx2, fy, hz2, BED_BLK, head);
+                            (void)isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
+                            emit_edit(edits, &ne, max_edits, ox, oy, oz, fx, fy, fz,
+                                      BED_BLK, foot, 0, 0, 0);
+                            emit_edit(edits, &ne, max_edits, ox, oy, oz, hx2, fy, hz2,
+                                      BED_BLK, head, 0, 0, 0);
+                        }
                     }
                 } else if (!isr_is_empty(&held) && psv_get_block(window, ax, ay, az) == BLK_AIR && held.item==259) {
                     /* ItemFlintAndSteel.onItemUse: light the adjacent air cell.

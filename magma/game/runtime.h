@@ -356,6 +356,15 @@ typedef struct GmRuntime {
     GmRuntimeSoundEvent sound_events[GM_RUNTIME_SOUND_EVENTS];
     int sound_event_head, sound_event_count;
     uint64_t sound_event_next_seq, sound_event_dropped;
+    /* EntityPlayer.sleeping / sleepTimer / bedLocation / spawnChunk.
+     * Not in blaze_snapshot.h (RL has no sleep; resumegate owns that file). */
+    int player_sleeping;
+    int sleep_timer;
+    int bed_head_x, bed_head_y, bed_head_z;
+    int spawn_chunk_set;
+    int spawn_chunk_x, spawn_chunk_y, spawn_chunk_z;
+    int spawn_forced;
+    int world_spawn_x, world_spawn_y, world_spawn_z;
 } GmRuntime;
 
 int  gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap);

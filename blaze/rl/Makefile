@@ -103,6 +103,7 @@ TEST_BOATS_BIN := $(OUT)/test_boats
 TEST_ELYTRA_BIN := $(OUT)/test_elytra
 TEST_HAZARDS_BIN := $(OUT)/test_hazards
 TEST_PLACE_BIN := $(OUT)/test_placement
+TEST_BEDS_BIN := $(OUT)/test_beds
 TEST_SKY_BIN := $(OUT)/test_skylight_water
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
@@ -116,7 +117,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-placement test-skylight-water smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-placement test-beds test-skylight-water smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval
 
@@ -333,6 +334,9 @@ $(TEST_PLACE_BIN): $(ENV_SRC)/test_placement.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_placement.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_BEDS_BIN): $(REPO)/magma/tests/test_beds.c $(CORE_SRC)/player_bed.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(REPO)/magma/tests/test_beds.c -lm
+
 # Magma light.o graph matches magma/Makefile test-water-skylight.
 MAGMA := $(REPO)/magma
 SKY_MAGMA_OBJS := $(MAGMA)/world/mesh_mc.o $(MAGMA)/world/light.o \
@@ -393,6 +397,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 		$(TEST_MOBS_BIN) $(TEST_MOBS_SS_BIN) $(TEST_MOBS_END_BIN) $(TEST_MOBS_WITCH_BIN) $(TEST_PASSIVES_BIN) $(TEST_XP_BIN) $(TEST_BOATS_BIN) $(TEST_ELYTRA_BIN) \
 		$(TEST_HAZARDS_BIN) \
 		$(TEST_PLACE_BIN) \
+		$(TEST_BEDS_BIN) \
 		$(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
@@ -415,6 +420,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_elytra
 	cd $(REPO) && ./out/blaze/rl/test_hazards
 	cd $(REPO) && ./out/blaze/rl/test_placement
+	cd $(REPO) && ./out/blaze/rl/test_beds
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
 
 test-hazards: $(TEST_HAZARDS_BIN)
@@ -422,6 +428,9 @@ test-hazards: $(TEST_HAZARDS_BIN)
 
 test-placement: $(TEST_PLACE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_placement
+
+test-beds: $(TEST_BEDS_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_beds
 
 test-entity-spine: $(TEST_SPINE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine

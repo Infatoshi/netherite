@@ -349,6 +349,9 @@ typedef struct {
     /* GameRules gates. Zero defaults retain the historical live-clock path. */
     int freeze_daylight;
     int freeze_weather;
+    /* WorldServer.areAllPlayersAsleep this tick (EntityPlayer.java:1841).
+     * Always 0 on RL ticks; weather_optional hashes the skip-off path. */
+    int sleep_skip;
 } GmWorldClock;
 void      gm_world_clock_init(GmWorldClock *c, i64 seed);
 /* Advance one WorldServer-style weather+time tick (uses world_weather.h). */
@@ -357,6 +360,7 @@ void      gm_world_tick(GmWorldClock *c);
  * no weather RNG/timer work. */
 void      gm_world_tick_clear(GmWorldClock *c);
 void      gm_world_clock_set_total_time(GmWorldClock *c, long long total_time);
+void      gm_world_clock_set_world_time(GmWorldClock *c, long long world_time);
 /* Harness-only weather state injection. Keeps the private verified weather
  * kernel synchronized so the following tick continues from the injected state. */
 void      gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,
