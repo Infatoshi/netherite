@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 projectiles M1 inGround (lane/projground)
+
+Baseline anvil 0e099f6 (7edfd2b simsmalls is an ancestor): projectiles M1 FAILED at observation 22. Magma digest `0x8e2d11e7e393fea1` evidence=2; blaze `0xd9e47b3676353ee4` evidence=1 (`out/verify/projground_baseline_projectiles_m1.log`). VERIFIED before simsmalls; broke when magma `runtime.c` restuck arrows on block hit (`2162b7f`).
+
+Cause: Java `EntityArrow.onHit` sets `inGround` + `arrowShake=7` (`EntityArrow.java:471-472`). Magma `tick_projectiles` (`runtime.c:460-477`) reactivates after `pl_tick_arrow` if the cell is non-air, then `onUpdate` shake countdown and 1200-tick despawn (`EntityArrow.java:223-248`, `runtime.c:449-456`) and `onCollideWithPlayer` pickup (`EntityArrow.java:604-618`, `runtime.c:302-331`, `setSize(0.5F,0.5F)` `EntityArrow.java:78`). blaze still deactivated on block hit and passed creative=0 into `isr_try_fire_bow`. Digest `nents` is the active count, so the sides diverged. Magma lockstep `--rl-bin` never writes `gm_runtime_tape_player_view`; `r->tape_creative` stays 0. Did not edit `magma/game/runtime.c`.
+
+After: blaze sidecar + `e->tape_creative` (MC_HD). Shared helpers in `blaze/core/projectile_live.h`. Unit `blaze/env/test_projectiles.c` sticks one arrow, shake 7->0, ALLOWED pickup merge, despawn at 1200. projectiles M1 VERIFIED 64 ticks (`out/verify/projground_after_projectiles_m1.log`). M1 `--no-deps` also VERIFIED: random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, mobs, explosions, chests, falling_blocks, weather_optional, mining_slice (`out/verify/projground_m1_nodeps.log`). M2 GPU1 VERIFIED for those rows except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing on this clone; `out/verify/projground_m2_nodeps.log`). Root `make test` PASS (`out/verify/projground_maketest.log`).
+
+Open: mining_slice M2 needs the d-stage snaps on a complete tree. Fireballs, eye-of-ender, Java ray-trace, water 0.6F drag stay out.
+
 ## 2026-08-22 random_ticks M1 skylight (lane/lightsync)
 
 Baseline anvil d456936: random_ticks M1 FAILED at observation 84. Magma digest `0x099236e78eba8377` evidence=11; blaze `0x03401e738ea70aca` evidence=10 (`out/verify/lightsync_baseline_random_ticks_m1.log`). VERIFIED at 42117bc; broke in 7435206 (lane/underwater merge). Magma `light_set_state` (`magma/world/light.c:751`) marks `column_dirty` on opacity change; `light_ensure` (`:690`) reruns `Chunk.generateSkylightMap` (`Chunk.java:238`, `cr_k17_skylight_column` `light.c:69`) for that chunk, then raise-only spread (`compute_skylight_spread` `:541`). Blaze still used `cu_light_raw_sky` + radius-15 `cu_light_relax_open/close`. Raise-only never lowered a 3x3x3 water cube (centre stuck at 12, magma centre 9). `randtick_live.h` reads `rt_live_light`, so the nibble mismatch changed which ticks fired.
