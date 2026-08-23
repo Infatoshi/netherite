@@ -23,9 +23,9 @@
  * crf_*, oc_pixel) are reused VERBATIM via include - never re-implemented.
  *
  * Deliberately NOT simulated (inert or impossible with the supported item
- * set; the snapshot baker flags offenders): dragon/AI
- * (loaded snapshot living slots tick the Entity.move spine and hash as
- * BP_MOBS; pathfinding and combat stay on the `mobs` row),
+ * set; the snapshot baker flags offenders): dragon,
+ * (loaded snapshot living slots tick Entity.move; --mobs on adds the
+ * generic hostile AI/combat/drops subset in blaze/core/hostile_live.h),
  * portals, eye-of-ender (need held item 381 - not craftable in-chain).
  * Bow arrows tick magma runtime.c via blaze/core/projectile_live.h and
  * hash as BP_PROJECTILES. Ignited creeper fuse + Explosion.doExplosionA
@@ -74,6 +74,7 @@
 #include "projectile_live.h"    /* bow/skeleton arrow live tick */
 #include "explosion.h"          /* 16^3 doExplosionA rays */
 #include "explosion_live.h"     /* creeper fuse + live apply */
+#include "hostile_live.h"       /* hostile AI/combat/drops (mobs row) */
 #include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
 
 #ifdef __cplusplus
@@ -148,6 +149,7 @@ enum {
 typedef struct {
     float forward, strafe, dyaw, dpitch;
     int   jump, sneak, sprint, attack, use;
+    int   attack_entity;         /* runtime.c: entity hit, dig takes ENTITY path */
     int   hotbar_sel;            /* 0..8 or -1 = unchanged */
     /* Container.slotClick this tick (gm_runtime_tick -> gm_container_click).
      * Trainer blaze_step leaves these 0; verify blaze_tick_raw a[13..16]. */
@@ -351,9 +353,17 @@ typedef struct {
     int    live_ticks;           /* magma GmLiveSim.ticks (not world tick) */
 
     /* Loaded snapshot living slots. Spine (Entity.move / travel) ticks
-     * each tick; AI/path/combat do not. */
+     * each tick; AI/path/combat run when mobs_enabled (magma --mobs on). */
     RlSnapMob mobs[BLAZE_SNAP_MAX_MOBS];
     unsigned n_mobs;
+    int    mobs_enabled;
+    int    player_hurt_resistant;
+    float  player_last_damage;
+    int    player_attack_cooldown;
+    int    mob_repath[BLAZE_SNAP_MAX_MOBS];
+    int    mob_despawn[BLAZE_SNAP_MAX_MOBS];
+    int    mob_fire[BLAZE_SNAP_MAX_MOBS];
+    long long mob_tick;
 
     CuProj projectiles[CU_MAX_PROJECTILES];
     unsigned parity_proj_hits;
@@ -740,6 +750,23 @@ MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
     return 1;
 }
 
+MC_HD static inline int cu_hurt_player(Blaze *e, float amount, int bypass_armor);
+
+MC_HD static inline int cu_proj_hit_player(Blaze *e, double x, double y, double z,
+                                           double radius, float damage) {
+    double px, py, pz, dx, dy, dz;
+    if (!e) return 0;
+    px = e->pl.ent.posX + (double)e->ox;
+    py = e->pl.ent.posY;
+    pz = e->pl.ent.posZ + (double)e->oz;
+    dx = x - px;
+    dy = y - (py + 0.9);
+    dz = z - pz;
+    if (dx * dx + dy * dy + dz * dz > radius * radius) return 0;
+    (void)cu_hurt_player(e, damage, 0);
+    return 1;
+}
+
 MC_HD static inline int cu_take_arrow(Blaze *e) {
     int i;
     for (i = 0; i < ISR_MAIN_SLOTS; ++i) {
@@ -754,8 +781,14 @@ MC_HD static inline int cu_take_arrow(Blaze *e) {
 #define PL_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #define PL_HIT_MOB(w, x, y, z, rad, dmg) \
     cu_proj_hit_mob((w), (x), (y), (z), (rad), (dmg))
+#define PL_HIT_PLAYER(w, x, y, z, rad, dmg) \
+    cu_proj_hit_player((w), (x), (y), (z), (rad), (dmg))
 #define PL_NOTE_HIT(w) do { (w)->parity_proj_hits++; } while (0)
 #include "projectile_live.h"
+
+#define ML_W Blaze
+#define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#include "hostile_live.h"
 
 MC_HD static inline void cu_fluid_mark(Blaze *e, int dim, int wx, int wy, int wz);
 
@@ -827,9 +860,14 @@ MC_HD static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
     e->parity_ex_kb_z = 0.0;
 }
 
+MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
+                                      int item, int count, int meta,
+                                      int pickup_delay);
+
 MC_HD static inline void cu_explosion_tick(Blaze *e) {
     unsigned i;
     if (!e) return;
+    if (e->mobs_enabled) goto apply;
     for (i = 0; i < e->n_mobs; ) {
         RlSnapMob *m = &e->mobs[i];
         int ignited;
@@ -855,11 +893,204 @@ MC_HD static inline void cu_explosion_tick(Blaze *e) {
         e->n_mobs--;
         break;
     }
+apply:
     if (e->explosion_pending) {
         cu_explode(e, e->explosion_x, e->explosion_y, e->explosion_z,
                    e->explosion_size);
         e->explosion_pending = 0;
     }
+}
+
+MC_HD static inline void cu_mobs_compact(Blaze *e) {
+    unsigned i, o = 0;
+    if (!e) return;
+    for (i = 0; i < e->n_mobs; ++i) {
+        if (e->mobs[i].type == EW_TYPE_NONE && !e->mobs[i].alive)
+            continue;
+        if (o != i) {
+            e->mobs[o] = e->mobs[i];
+            e->mob_repath[o] = e->mob_repath[i];
+            e->mob_despawn[o] = e->mob_despawn[i];
+            e->mob_fire[o] = e->mob_fire[i];
+        }
+        ++o;
+    }
+    e->n_mobs = o;
+}
+
+MC_HD static inline int cu_hurt_player(Blaze *e, float amount, int bypass_armor) {
+    float applied;
+    if (!e || amount <= 0.0f) return 0;
+    if (!ml_hurt_gate(&e->player_hurt_resistant, &e->player_last_damage,
+                      amount, &applied))
+        return 0;
+    if (!bypass_armor)
+        applied = cu_armor_damage(e, applied);
+    if (applied > 0.0f) pv_attack(&e->vit, applied);
+    e->pl.health = e->vit.health;
+    return 1;
+}
+
+MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
+    int item;
+    if (!e || !m) return;
+    item = ml_drop_item(m->type);
+    if (item)
+        cu_spawn_item(e, m->x, m->y + 0.25, m->z, item, 1, 0, 10);
+    m->alive = 0;
+    m->type = EW_TYPE_NONE;
+}
+
+MC_HD static inline int cu_mobs_player_attack(Blaze *e) {
+    int best, held;
+    double px, py, pz;
+    if (!e || e->n_mobs == 0) return 0;
+    px = e->pl.ent.posX + (double)e->ox;
+    py = e->pl.ent.posY;
+    pz = e->pl.ent.posZ + (double)e->oz;
+    best = ml_player_pick(e->mobs, e->n_mobs, px, py, pz,
+                          e->pl.yaw, e->pl.pitch);
+    if (best < 0) return 0;
+    if (e->player_attack_cooldown > 0) return 1;
+    held = isr_get_stack(&e->pl.inv, e->pl.inv.current_item).item;
+    e->mobs[best].health -= ml_held_damage(held);
+    e->player_attack_cooldown = ML_PLAYER_ATK_CD;
+    if (e->mobs[best].health <= 0.0f)
+        cu_mob_drop(e, &e->mobs[best]);
+    cu_mobs_compact(e);
+    return 1;
+}
+
+MC_HD static inline void cu_skel_spawn_arrow(Blaze *e, const RlSnapMob *m) {
+    int i;
+    double sx, sy, sz, dx, dy, dz, len;
+    double px, py, pz;
+    if (!e || !m) return;
+    px = e->pl.ent.posX + (double)e->ox;
+    py = e->pl.ent.posY;
+    pz = e->pl.ent.posZ + (double)e->oz;
+    sx = m->x;
+    sy = m->y + 1.5;
+    sz = m->z;
+    dx = px - sx;
+    dy = (py + ML_EYE_HEIGHT) - sy;
+    dz = pz - sz;
+    len = sqrt(dx * dx + dy * dy + dz * dz);
+    if (len < 0.001) return;
+    for (i = 0; i < CU_MAX_PROJECTILES; ++i) {
+        if (e->projectiles[i].active) continue;
+        e->projectiles[i].active = 1;
+        e->projectiles[i].type = 2;
+        e->projectiles[i].age = 0;
+        e->projectiles[i].x = sx;
+        e->projectiles[i].y = sy;
+        e->projectiles[i].z = sz;
+        e->projectiles[i].vx = dx / len * 1.6;
+        e->projectiles[i].vy = dy / len * 1.6;
+        e->projectiles[i].vz = dz / len * 1.6;
+        return;
+    }
+}
+
+MC_HD static inline void cu_mob_from_env(MlMob *o, const Blaze *e, unsigned i) {
+    memset(o, 0, sizeof *o);
+    o->snap = e->mobs[i];
+    o->repath_timer = e->mob_repath[i];
+    o->despawn_ticks = e->mob_despawn[i];
+    o->fire_ticks = e->mob_fire[i];
+}
+
+MC_HD static inline void cu_mob_to_env(Blaze *e, unsigned i, const MlMob *o) {
+    e->mobs[i] = o->snap;
+    e->mob_repath[i] = o->repath_timer;
+    e->mob_despawn[i] = o->despawn_ticks;
+    e->mob_fire[i] = o->fire_ticks;
+}
+
+MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
+    unsigned i;
+    double px, py, pz;
+    int day, tod;
+    if (!e) return;
+    if (e->player_attack_cooldown > 0) --e->player_attack_cooldown;
+    if (!e->n_mobs) {
+        e->mob_tick++;
+        return;
+    }
+    px = e->pl.ent.posX + (double)e->ox;
+    py = e->pl.ent.posY;
+    pz = e->pl.ent.posZ + (double)e->oz;
+    tod = (int)(e->ww.worldTime % 24000LL);
+    if (tod < 0) tod += 24000;
+    day = tod < 12000;
+    for (i = 0; i < e->n_mobs; ++i) {
+        MlMob mm;
+        MlAiOut o;
+        int pre, drop_type;
+        if (!e->mobs[i].alive || !ml_is_roster(e->mobs[i].type)) {
+            /* Zero-intent spine for non-roster living slots. */
+            RlSnapMob *m = &e->mobs[i];
+            EbLiving liv;
+            PcfBlock blocks[ESS_MOB_BLOCKS];
+            McAABB q;
+            int n = 0, x, y, z, x0, x1, y0, y1, z0, z1, under;
+            float slip;
+            if (!m->alive || !ess_is_spine_type(m->type)) continue;
+            ess_load_snap(&liv, m);
+            ess_query_box(&liv, &q);
+            x0 = mc_floor(q.minX) - 1; x1 = mc_floor(q.maxX) + 1;
+            y0 = mc_floor(q.minY) - 1; y1 = mc_floor(q.maxY) + 1;
+            z0 = mc_floor(q.minZ) - 1; z1 = mc_floor(q.maxZ) + 1;
+            if (y0 < 0) y0 = 0;
+            if (y1 > 255) y1 = 255;
+            for (x = x0; x <= x1; ++x)
+                for (y = y0; y <= y1; ++y)
+                    for (z = z0; z <= z1; ++z) {
+                        n = ess_collect_push(blocks, n, ESS_MOB_BLOCKS,
+                                             cu_world_block(e, x, y, z), x, y, z);
+                        if (n == ESS_MOB_BLOCKS) goto collected;
+                    }
+        collected:
+            under = cu_world_block(e, mc_floor(liv.base.phys.posX),
+                                   mc_floor(liv.base.phys.box.minY) - 1,
+                                   mc_floor(liv.base.phys.posZ));
+            slip = ess_slip_on_ground(&liv, under);
+            ess_tick_living(&liv, slip, blocks, n, st);
+            ess_store_snap(m, &liv);
+            continue;
+        }
+        drop_type = e->mobs[i].type;
+        cu_mob_from_env(&mm, e, i);
+        pre = ml_hostile_pre(&mm, e, px, py, pz, day);
+        if (pre <= 0) {
+            cu_mob_to_env(e, i, &mm);
+            if (pre < 0) {
+                mm.snap.type = drop_type;
+                cu_mob_drop(e, &mm.snap);
+                e->mobs[i] = mm.snap;
+            }
+            continue;
+        }
+        if (mm.snap.attack_time > 0) --mm.snap.attack_time;
+        ml_hostile_ai(&mm, e, px, py, pz, day, e->seed, e->mob_tick, &o);
+        if (mm.exploded) {
+            e->explosion_pending = 1;
+            e->explosion_x = mm.snap.x;
+            e->explosion_y = mm.snap.y + EXL_Y_OFF;
+            e->explosion_z = mm.snap.z;
+            e->explosion_size = EXL_RADIUS;
+            cu_mob_to_env(e, i, &mm);
+            continue;
+        }
+        if (o.hit_player)
+            (void)cu_hurt_player(e, o.hit_dmg, 0);
+        if (o.skel_fire)
+            cu_skel_spawn_arrow(e, &mm.snap);
+        ml_move_hostile(&mm, e, st, o.moving, o.jump);
+        cu_mob_to_env(e, i, &mm);
+    }
+    cu_mobs_compact(e);
+    e->mob_tick++;
 }
 
 MC_HD static inline void cu_randtick_pass(Blaze *e) {
@@ -1635,6 +1866,9 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
         if (env->left_click_counter > 0) --env->left_click_counter;
         if (env->left_click_counter > 0) {
             /* clickMouse + sendClickBlock both no-op; dig state freezes. */
+        } else if (act.attack_entity) {
+            env->dig_hitting = 0;
+            env->dig_progress = 0.0f;
         } else {
             int press = !env->atk_prev;
             int hx, hy, hz, ax, ay, az;
@@ -3020,10 +3254,20 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         (void)blaze_container_click(env, act.inv_slot, act.inv_button,
                                     act.inv_type);
 
-    /* dragon/mob player-attack (runtime.c:308-312): dimension 0 + mobs off
-     * (--mobs off, store empty) -> both return 0. Window refill (runtime.c:
-     * 290-298): blaze's window is updated in place on every edit,
-     * value-identical to the gen-triggered refill. */
+    /* EntityLivingBase.onUpdate ages hurtResistantTime even when --mobs off. */
+    if (env->player_hurt_resistant > 0) --env->player_hurt_resistant;
+
+    /* Magma gm_player_left_click_allows peek, then gm_mobs_player_attack. */
+    {
+        int can_click = 0;
+        if (act.attack) {
+            int c = env->left_click_counter;
+            if (c > 0) --c;
+            can_click = (c <= 0);
+        }
+        if (can_click && cu_mobs_player_attack(env))
+            act.attack_entity = 1;
+    }
 
     /* Magma gm_live_pre_player_tick: landing packets before player raycast. */
     fl_pre_player_tick(env, env);
@@ -3075,7 +3319,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     cu_weather_tick(env);
     cu_fluid_tick(env, 0, env->tick);
     cu_randtick_pass(env);
-    cu_mob_spine_tick(env, st);
+    if (env->mobs_enabled) cu_mob_ai_tick(env, st);
+    else cu_mob_spine_tick(env, st);
     cu_explosion_tick(env);
     {
         int pi;
@@ -4158,9 +4403,26 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
         r->measured_mask &= ~BP_BIT(BP_FALLING_BLOCKS);
     }
 
-    r->digest[BP_MOBS] = blaze_snap_mobs_digest(e->mobs, e->n_mobs);
-    r->evidence[BP_MOBS] = 1;
-    if (e->n_mobs) r->active_mask |= BP_BIT(BP_MOBS);
+    {
+        uint64_t items_h = bp_hash_begin();
+        int n_items = 0, ii;
+        for (ii = 0; ii < CU_MAX_ITEMS; ++ii) {
+            const CuItem *it = &e->items[ii];
+            if (!it->active) continue;
+            ++n_items;
+            items_h = bp_hash_item_entity(
+                items_h, it->x, it->y, it->z, it->mx, it->my, it->mz,
+                it->on_ground, it->age, it->item, it->count, it->meta,
+                it->pickup_delay, it->lifespan);
+        }
+        r->digest[BP_MOBS] = blaze_snap_mobs_digest_ext(
+            e->mobs, e->n_mobs, e->vit.health,
+            e->player_hurt_resistant, e->player_attack_cooldown,
+            items_h, n_items);
+        r->evidence[BP_MOBS] = 1 + (uint32_t)e->n_mobs + (uint32_t)n_items;
+        if (e->n_mobs || n_items || e->player_hurt_resistant)
+            r->active_mask |= BP_BIT(BP_MOBS);
+    }
 
     {
         int nents = 0, pi;
@@ -4468,6 +4730,13 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
 
     env->n_mobs = 0;
     memset(env->mobs, 0, sizeof env->mobs);
+    memset(env->mob_repath, 0, sizeof env->mob_repath);
+    memset(env->mob_despawn, 0, sizeof env->mob_despawn);
+    memset(env->mob_fire, 0, sizeof env->mob_fire);
+    env->player_hurt_resistant = 0;
+    env->player_last_damage = 0.0f;
+    env->player_attack_cooldown = 0;
+    env->mob_tick = 0;
     if (mobs && n_mobs) {
         unsigned nm = n_mobs;
         if (nm > BLAZE_SNAP_MAX_MOBS) nm = BLAZE_SNAP_MAX_MOBS;

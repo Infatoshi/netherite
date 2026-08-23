@@ -86,6 +86,7 @@ typedef struct {
     int    success_item;     /* +10/done=1 item; 263 default (exact ppo_coal),
                               * 0 = disabled. Applied at reset. */
     int    no_ore_xy;        /* create-time: skip ore spatial index on load */
+    int    mobs_enabled;     /* magma --mobs on: hostile AI/combat live tick */
 } CuVec;
 
 /* OPT-IN training-reward mode: gate the +0.03 crosshair-attack bonus on
@@ -106,6 +107,17 @@ int blaze_set_success_item(void *vh, int item) {
     CuVec *v = (CuVec *)vh;
     if (!v || item < 0) return -1;
     v->success_item = item;
+    return 0;
+}
+
+int blaze_set_mobs_enabled(void *vh, int on) {
+    CuVec *v = (CuVec *)vh;
+    int i;
+    if (!v) return -1;
+    v->mobs_enabled = on ? 1 : 0;
+    if (v->envs)
+        for (i = 0; i < v->n; ++i)
+            v->envs[i].mobs_enabled = v->mobs_enabled;
     return 0;
 }
 
@@ -319,6 +331,7 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->light, s->coal, (int)s->ncoal, s->xy_off,
                               s->cont, s->ncont, s->mobs, s->n_mobs,
                               v->success_item);
+    v->envs[i].mobs_enabled = v->mobs_enabled;
 }
 
 int blaze_reset(void *vh, const unsigned char *mask) {
@@ -528,6 +541,7 @@ int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
     act.sprint = (int)a[6];
     act.attack = (int)a[7];
     act.use = (int)a[8];
+    act.attack_entity = 0;
     act.hotbar_sel = (int)a[9];
     act.inv_click = (int)a[13];
     act.inv_slot = (int)a[14];

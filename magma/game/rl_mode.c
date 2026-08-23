@@ -656,9 +656,24 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
         RlSnapMob packed[BLAZE_SNAP_MAX_MOBS];
         unsigned nm = gm_mobs_export_snap(&r->mobs, packed,
                                           BLAZE_SNAP_MAX_MOBS);
-        out->digest[BP_MOBS] = blaze_snap_mobs_digest(packed, nm);
-        out->evidence[BP_MOBS] = 1;
-        if (nm) out->active_mask |= BP_BIT(BP_MOBS);
+        uint64_t items_h = bp_hash_begin();
+        int n_items = 0, ii;
+        for (ii = 0; ii < GM_LIVE_MAX; ++ii) {
+            const GmLiveEnt *it = &r->entities.ents[ii];
+            if (!it->active || it->type != 0) continue;
+            ++n_items;
+            items_h = bp_hash_item_entity(
+                items_h, it->x, it->y, it->z, it->mx, it->my, it->mz,
+                it->on_ground, it->age, it->item, it->count, it->meta,
+                it->pickup_delay, it->lifespan);
+        }
+        out->digest[BP_MOBS] = blaze_snap_mobs_digest_ext(
+            packed, nm, r->vitals.health,
+            r->mobs.player_hurt_resistant, r->mobs.player_attack_cooldown,
+            items_h, n_items);
+        out->evidence[BP_MOBS] = 1 + (uint32_t)nm + (uint32_t)n_items;
+        if (nm || n_items || r->mobs.player_hurt_resistant)
+            out->active_mask |= BP_BIT(BP_MOBS);
     }
 
     {

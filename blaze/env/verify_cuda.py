@@ -425,6 +425,17 @@ def run_chain(args, iron=False):
         e.load_snapshots([snap])
         e.assign([0] * n)
         e.reset()
+    if getattr(args, "mobs_on", False):
+        for e in (cpu, cuda):
+            e.lib.blaze_set_mobs_enabled.argtypes = [
+                ctypes.c_void_p, ctypes.c_int]
+            e.lib.blaze_set_mobs_enabled.restype = ctypes.c_int
+            if e.lib.blaze_set_mobs_enabled(e.h, 1) != 0:
+                print("BLOCKED: blaze_set_mobs_enabled failed")
+                args.parity_blocked = True
+                cpu.close()
+                cuda.close()
+                return False
     requested = sum(1 << PARITY_INDEX[name] for name in features)
     if args.strict_capabilities and features:
         for source, env in (("CPU", cpu), ("CUDA", cuda)):
@@ -813,6 +824,9 @@ def build_parser():
     ap.add_argument(
         "--strict-capabilities", action="store_true",
         help="BLOCKED if requested or snapshot-required capabilities are absent")
+    ap.add_argument(
+        "--mobs-on", action="store_true",
+        help="enable blaze hostile AI (mobs row; magma --set mobs=1 is CPU-only)")
     ap.add_argument("--bench", action="store_true")
     ap.add_argument("--t0", action="store_true",
                     help="bench on t0 snapshots with full action decode")

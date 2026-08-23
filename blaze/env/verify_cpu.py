@@ -839,7 +839,7 @@ def print_initial_parity(seed, label, real_rec, blaze_rec, features):
 
 def run_seed_parity(seed, snap, actions, label, features,
                     strict_capabilities=False, require_evidence=True,
-                    track_liquid=False, result=None):
+                    track_liquid=False, result=None, mobs_on=False):
     """Lockstep Magma vs Blaze CPU on PARY digests. Existing callers unchanged.
 
     require_evidence: default True is the --port-parity gate (zero evidence
@@ -914,6 +914,13 @@ def run_seed_parity(seed, snap, actions, label, features,
         extra = []
         if "weather" in features:
             extra.extend(["--weather", "on"])
+        if mobs_on:
+            extra.extend(["--set", "mobs=1"])
+            cu.lib.blaze_set_mobs_enabled.argtypes = [
+                ctypes.c_void_p, ctypes.c_int]
+            cu.lib.blaze_set_mobs_enabled.restype = ctypes.c_int
+            if cu.lib.blaze_set_mobs_enabled(ctypes.c_void_p(cu.h), 1) != 0:
+                raise RuntimeError("blaze_set_mobs_enabled failed")
         real = RealEnv(seed, snap, port_parity=True, magma_args=extra)
         cu.emit(1)
         real_parity = real.parity_rec
@@ -1069,7 +1076,7 @@ def run_port_parity(args, seeds, features):
             acts = json.load(f)
         status = run_seed_parity(
             seed, snap, acts, f"iron stage x{len(acts)}", features,
-            args.strict_capabilities)
+            args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False))
         return port_parity_result([status], "iron fixture")
 
     if args.chain:
@@ -1092,7 +1099,7 @@ def run_port_parity(args, seeds, features):
             return port_parity_result([BLOCKED], "chain fixture")
         status = run_seed_parity(
             seed, snap, acts, f"full chain x{len(acts)}", features,
-            args.strict_capabilities)
+            args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False))
         return port_parity_result([status], "chain fixture")
 
     statuses = []
@@ -1183,6 +1190,9 @@ def main():
         "--strict-capabilities", action="store_true",
         help="fail closed before stepping if requested or snapshot-required "
              "capabilities are unavailable (requires --port-parity)")
+    ap.add_argument(
+        "--mobs-on", action="store_true",
+        help="enable magma --set mobs=1 and blaze hostile AI (mobs row)")
     ap.add_argument(
         "--no-state-digest", action="store_true",
         help="opt out of the default-on per-tick PARY state-digest pass "
