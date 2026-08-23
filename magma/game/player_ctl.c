@@ -14,6 +14,7 @@
 #include "player_vitals.h"
 #include "player_break.h"
 #include "item_block_place.h"
+#include "block_may_place.h"
 #include "interact_blocks.h"
 #include "container_click.h"
 #include "items_tools_armor.h"
@@ -89,6 +90,7 @@ static ICStack s_cursor;
 /* World.rand for ItemFood.onItemUseFinish draws (ItemFood.java:55,66). */
 static JavaRandom *s_world_rand;
 static ICStack s_pending_drop;
+static int s_tnt_pending, s_tnt_x, s_tnt_y, s_tnt_z, s_tnt_fuse;
 
 void gm_player_bind_world_rand(JavaRandom *r) { s_world_rand = r; }
 
@@ -96,6 +98,16 @@ int gm_player_take_drop(ICStack *out) {
     if (!out || isr_is_empty(&s_pending_drop)) return 0;
     *out = s_pending_drop;
     s_pending_drop = ic_empty();
+    return 1;
+}
+
+int gm_player_take_tnt_ignite(int *x, int *y, int *z, int *fuse) {
+    if (!s_tnt_pending || !x || !y || !z || !fuse) return 0;
+    *x = s_tnt_x;
+    *y = s_tnt_y;
+    *z = s_tnt_z;
+    *fuse = s_tnt_fuse;
+    s_tnt_pending = 0;
     return 1;
 }
 
@@ -183,38 +195,7 @@ static int yaw_to_quad(float yaw_deg) {
     return ((int)floor(y * 4.0 / 360.0 + 0.5)) & 3;
 }
 
-/* vanilla Block.isReplaceable: air, liquids, tallgrass/deadbush, fire, snow layer.
- * Placing into one of these destroys it (no drop without shears). */
-static int psv_replaceable(int id) {
-    return id == 0 || (id >= 8 && id <= 11) || id == 31 || id == 32 ||
-           id == 51 || id == 78;
-}
-
-/* BlockTorch.canPlaceBlockAt/getStateForPlacement. The pure orientation table
- * deliberately omits world support checks, but the live path must reject a
- * repeated use that tries to stack a torch on another torch (the canonical
- * tape holds use for several ticks). `face` points from the clicked support
- * block into the placement cell. */
-static int torch_placement_meta(const Chunk *w, int x, int y, int z, int face) {
-    int support = 0;
-    switch (face) {
-    case IBP_UP:    support = psv_solid(psv_get_block(w, x, y - 1, z)); break;
-    case IBP_NORTH: support = psv_solid(psv_get_block(w, x, y, z + 1)); break;
-    case IBP_SOUTH: support = psv_solid(psv_get_block(w, x, y, z - 1)); break;
-    case IBP_WEST:  support = psv_solid(psv_get_block(w, x + 1, y, z)); break;
-    case IBP_EAST:  support = psv_solid(psv_get_block(w, x - 1, y, z)); break;
-    default: break; /* torches cannot attach to ceilings */
-    }
-    if (support) return ibp_meta_torch(face);
-
-    /* BlockTorch's horizontal fallback iterates EnumFacing value order. */
-    if (psv_solid(psv_get_block(w, x, y, z + 1))) return ibp_meta_torch(IBP_NORTH);
-    if (psv_solid(psv_get_block(w, x, y, z - 1))) return ibp_meta_torch(IBP_SOUTH);
-    if (psv_solid(psv_get_block(w, x + 1, y, z))) return ibp_meta_torch(IBP_WEST);
-    if (psv_solid(psv_get_block(w, x - 1, y, z))) return ibp_meta_torch(IBP_EAST);
-    if (psv_solid(psv_get_block(w, x, y - 1, z))) return ibp_meta_torch(IBP_UP);
-    return -1;
-}
+static int psv_replaceable(int id) { return ibp_is_replaceable(id); }
 
 /* Entity.isInsideOfMaterial(WATER): the eye sits below the liquid surface of
  * its cell. BlockLiquid.getLiquidHeightPercent: falling (meta>=8) counts as a
@@ -715,18 +696,25 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
             int hit_id = psv_get_block(window, hx, hy, hz);
             int hit_meta = psv_get_meta(window, hx, hy, hz);
             ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
-            if (r == 1 && hit_id == 46 && held.item == 259) {
-                /* BlockTNT.onBlockActivated: flint and steel primes TNT and
-                 * removes the block itself. Tape replay supplies the recorded
-                 * EntityTNTPrimed view; do not also place fire next to it. */
+            if (r == 1 && ibp_tnt_flint_activate(hit_id, held.item)) {
+                /* BlockTNT.onBlockActivated + explode (BlockTNT.java:105-119,
+                 * :85-96). Fuse 80, no world.rand. Runtime consumes the
+                 * pending spawn into gm_mobs_spawn_tnt_primed. */
+                int nmeta;
                 psv_set_state(window, hx, hy, hz, BLK_AIR, 0);
-                held.meta++;
-                if (held.meta > 64)
+                if (ibp_flint_broke(held.meta, &nmeta))
                     (void)isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
-                else
+                else {
+                    held.meta = nmeta;
                     isr_set_stack(&pl->inv, pl->inv.current_item, held);
+                }
                 emit_edit(edits, &ne, max_edits, ox, oy, oz, hx, hy, hz,
                           BLK_AIR, 0, 0, 0, 0);
+                s_tnt_pending = 1;
+                s_tnt_x = ox + hx;
+                s_tnt_y = oy + hy;
+                s_tnt_z = oz + hz;
+                s_tnt_fuse = IBP_TNT_FUSE;
             } else if (ib_is_interactable(hit_id)) {
                 IbCase ic;
                 ic.block_id = hit_id;
@@ -766,26 +754,17 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                     emit_edit(edits,&ne,max_edits,ox,oy,oz,ax,ay,az,51,0,0,0,0);
                 } else if (!isr_is_empty(&held) && psv_replaceable(psv_get_block(window, ax, ay, az))) {
                     int place_id = held.item;
-                    /* World.mayPlace entity-collision gate: a block with a
-                     * collision box cannot be placed intersecting the player
-                     * bb (strict AABB intersects, PRE-move pose; oracle mobs
-                     * are not simulated 1:1 so only the player is checked).
-                     * This is what makes the t611 mid-jump nerd-pole place
-                     * fail while t627 succeeds. */
-                    if (psv_solid(place_id)) {
-                        const McAABB *pb = &pl->ent.box;
-                        if (pb->minX < (double)ax + 1.0 && pb->maxX > (double)ax &&
-                            pb->minY < (double)ay + 1.0 && pb->maxY > (double)ay &&
-                            pb->minZ < (double)az + 1.0 && pb->maxZ > (double)az)
-                            place_id = 0;
-                    }
                     /* only place if it looks like a block id (1..255); tools stay tools */
                     if (place_id > 0 && place_id < 256 && !ita_is_pickaxe(place_id)) {
                         int face = face_from_adj(hx, hy, hz, ax, ay, az);
                         int yq = yaw_to_quad(pl->yaw);
                         int sneaked = act.sneak;
-                        int pmeta = place_id == IBP_BLK_TORCH
-                            ? torch_placement_meta(window, ax, ay, az, face)
+                        int pmeta;
+                        if (!ibp_may_place(window, place_id, ax, ay, az, face,
+                                           &pl->ent.box))
+                            place_id = 0;
+                        pmeta = place_id == IBP_BLK_TORCH
+                            ? ibp_torch_placement_meta(window, ax, ay, az, face)
                             : ibp_placed_meta(place_id, face, yq, sneaked, held.meta) & 15;
                         if (pmeta < 0) place_id = 0;
                         if (place_id) {

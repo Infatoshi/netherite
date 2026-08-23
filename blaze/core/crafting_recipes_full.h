@@ -1,7 +1,7 @@
 /* crafting_recipes_full: MC 1.11.2 CraftingManager KEEP-scope recipe set (generated + hand header).
  * Matcher = verbatim ShapedRecipes/ShapelessRecipes/findMatchingRecipe (same as crafting_recipes.h).
  * Registry = RecipesTools/Weapons/Ingots/Food + RecipesCrafting(chest,furnace,table) + RecipesArmor +
- * inline planks/sticks/torch/flint_and_steel, vanilla registration order. 95 recipes.
+ * inline planks/sticks/torch/flint_and_steel, vanilla registration order. 102 recipes.
  * CUT: RecipesDyes, special IRecipes, CraftingManager decorative/redstone inline rows. */
 #ifndef MC_CRAFTING_RECIPES_FULL_H
 #define MC_CRAFTING_RECIPES_FULL_H
@@ -64,7 +64,7 @@ MC_HD static inline CRStack crf_findMatching(const CRRecipe *recipes, int n, con
     return crf_mk((i32)0xffffffff, 0, 0);
 }
 
-#define CRF_NRECIPES 95
+#define CRF_NRECIPES 102
 #define CRF_NTESTS 49
 MC_HD static inline int crf_build(CRRecipe *R) {
     int n = 0;
@@ -934,6 +934,79 @@ MC_HD static inline int crf_build(CRRecipe *R) {
     R[n].ing[0]=crf_it(368);
     R[n].ing[1]=crf_it(377);
     ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=2; R[n].nIng=6;
+    R[n].output=crf_mk(333,1,0);
+    { CRStack a[6]={
+        crf_is(5,0),
+        crf_empty(),
+        crf_is(5,0),
+        crf_is(5,0),
+        crf_is(5,0),
+        crf_is(5,0)
+    }; for(int q=0;q<6;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=2; R[n].nIng=6;
+    R[n].output=crf_mk(444,1,0);
+    { CRStack a[6]={
+        crf_is(5,1),
+        crf_empty(),
+        crf_is(5,1),
+        crf_is(5,1),
+        crf_is(5,1),
+        crf_is(5,1)
+    }; for(int q=0;q<6;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=2; R[n].nIng=6;
+    R[n].output=crf_mk(445,1,0);
+    { CRStack a[6]={
+        crf_is(5,2),
+        crf_empty(),
+        crf_is(5,2),
+        crf_is(5,2),
+        crf_is(5,2),
+        crf_is(5,2)
+    }; for(int q=0;q<6;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=2; R[n].nIng=6;
+    R[n].output=crf_mk(446,1,0);
+    { CRStack a[6]={
+        crf_is(5,3),
+        crf_empty(),
+        crf_is(5,3),
+        crf_is(5,3),
+        crf_is(5,3),
+        crf_is(5,3)
+    }; for(int q=0;q<6;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=2; R[n].nIng=6;
+    R[n].output=crf_mk(447,1,0);
+    { CRStack a[6]={
+        crf_is(5,4),
+        crf_empty(),
+        crf_is(5,4),
+        crf_is(5,4),
+        crf_is(5,4),
+        crf_is(5,4)
+    }; for(int q=0;q<6;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=2; R[n].nIng=6;
+    R[n].output=crf_mk(448,1,0);
+    { CRStack a[6]={
+        crf_is(5,5),
+        crf_empty(),
+        crf_is(5,5),
+        crf_is(5,5),
+        crf_is(5,5),
+        crf_is(5,5)
+    }; for(int q=0;q<6;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=3; R[n].nIng=9;
+    R[n].output=crf_mk(354,1,0);
+    { CRStack a[9]={
+        crf_it(335),
+        crf_it(335),
+        crf_it(335),
+        crf_it(353),
+        crf_it(344),
+        crf_it(353),
+        crf_it(296),
+        crf_it(296),
+        crf_it(296)
+    }; for(int q=0;q<9;++q)R[n].ing[q]=a[q]; } ++n;
     return n;
 }
 MC_HD static inline void crf_battery(CRStack out[CRF_NTESTS][9]) {

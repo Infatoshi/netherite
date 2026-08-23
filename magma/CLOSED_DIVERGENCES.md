@@ -5,6 +5,44 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### mayPlace / TNT flint / boats / container leftovers: CLOSED 2026-08-23 (lane/tntsupport)
+
+Anvil. Sweep 2026-08-23 magma row 6 + silent mayPlace; blaze rows 10, 12
+and do_place reachability on row 2.
+
+Java: `ItemBlock.onItemUse` `world.mayPlace(block, pos, false, facing, null)`
+(`ItemBlock.java:49`). `World.mayPlace` (`World.java:3363-3368`) is dest
+`isReplaceable` plus `canPlaceBlockOnSide` (= `canPlaceBlockAt`) plus
+collision AABB unless `NULL_AABB`. Torch `canPlaceBlockAt` /
+`canPlaceAt` (`BlockTorch.java:98-116`). Bush soil grass/dirt/farmland
+(`BlockBush.java:39-51`, `Block.java:1890`). Cactus sand + open sides
+(`BlockCactus.java:96-128`). Ladder any horizontal `isSideSolid`
+(`BlockLadder.java:65-71`). Door `canPlaceBlockAt` (`BlockDoor.java:240-242`);
+`ItemDoor.onItemUse` stays out. TNT flint is `BlockTNT.onBlockActivated`
+(`BlockTNT.java:105-119`) then `explode` (`:85-96`) fuse 80
+(`EntityTNTPrimed.java:25,38`). No world.rand on that spawn (`Math.random`
+xz CUT). Flint `damageItem(1)` (`ItemStack.java:351-370`) maxDamage 64
+(`ItemFlintAndSteel.java:20`). Boats `CraftingManager.java:140-145`. Cake
+`:115`. Remaining items `ShapedRecipes.java:42-52` /
+`ForgeHooks.getContainerItem` (`ForgeHooks.java:957-969`) /
+`Item.java:1568-1577,1680` / `SlotCrafting.onTake` (`:132-166`).
+
+C: shared `blaze/core/block_may_place.h` + `crafting_remaining.h`. Magma
+`player_ctl.c` and blaze `blaze_core.h` both call `ibp_may_place` /
+`ibp_tnt_flint_activate`. Magma runtime `gm_mobs_spawn_tnt_primed`; blaze
+`cu_spawn_tnt_primed`. RL place is `act.use` `a[8]` mapped to `do_place`
+like magma `player_ctl.c:687`.
+
+Stay out: ItemDoor, snow-layer side rewrite, anvil-on-circuits, mushroom
+light / deadbush sand / reeds water, thin ladder AABB vs full cube,
+fire-charge TNT, Unbreaking flint, `Math.random` xz kick.
+
+Gate: `placement` M1+M2 VERIFIED 96 ticks t=0 player digest
+`0x9f0939bbcbfb06b2` (`out/verify/tntsupport_placement_m1_detail.log`).
+Fixture `s10_t0_r64_placement.bsnp` baked by `test_placement --write-fixture`.
+mining_slice M2 BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). TNT tape
+inventory mismatch unchanged: t=28 slot 0 item 259 tape_meta 0 magma_meta 1.
+
 ### Furnace registry / buckets / food / hotbar: CLOSED 2026-08-23 (lane/furnaceids)
 
 Anvil. Sweep 2026-08-23 magma rows 2, 3, 12 + silent hotbar; blaze row 11.

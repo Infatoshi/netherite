@@ -44,6 +44,8 @@ void gm_player_view(const struct PsvPlayer *pl, int ox, int oz, GmPlayerView *ou
 void gm_player_inv_click(struct PsvPlayer *pl, int slot_id, int button, int click_type);
 void gm_player_bind_world_rand(JavaRandom *world_rand);
 int  gm_player_take_drop(ICStack *out);
+/* BlockTNT flint-and-steel ignite this tick: world-block pos + fuse 80. */
+int  gm_player_take_tnt_ignite(int *x, int *y, int *z, int *fuse);
 ICStack gm_player_cursor(void);
 void gm_player_cursor_set(ICStack s);
 void gm_player_dig_reset(void);

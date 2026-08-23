@@ -1125,6 +1125,15 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                                 r->player.ent.posZ + (double)r->oz,
                                 dropped, 40);
     }
+    {
+        int tx, ty, tz, fuse;
+        if (gm_player_take_tnt_ignite(&tx, &ty, &tz, &fuse)) {
+            /* BlockTNT.java:91 (float)x+0.5F; fuse 80, no world.rand. */
+            gm_mobs_spawn_tnt_primed(&r->mobs,
+                                     (double)((float)tx + 0.5f), (double)ty,
+                                     (double)((float)tz + 0.5f), fuse);
+        }
+    }
     /* PlayerControllerMP.onPlayerDamageBlock hit sound, drained per tick. The
      * counter lives in player_ctl because that is where the dig cadence lives;
      * it is render/audio-only state and the RL snapshot excludes it. */

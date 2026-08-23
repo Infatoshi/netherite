@@ -495,6 +495,62 @@ int main(void) {
         }
     }
 
+    /* CraftingManager.java:140 oak boat; SlotCrafting remaining containers. */
+    {
+        GmPlayerView v; gm_runtime_view(&r, &v);
+        gm_runtime_set_pose(&r, v.x + 20.0, v.y, v.z, 0.0f, 0.0f);
+        { GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
+          gm_runtime_tick(&r, idle); }
+        for (int s = 0; s < GMC_INV_SLOTS; ++s)
+            (void)gm_runtime_set_inventory(&r, s, 0, 0, 0);
+        gm_player_cursor_set(ic_empty());
+        gm_runtime_view(&r, &v);
+        int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
+        CHECK(gm_runtime_set_block(&r, bx, by + 1, bz, 58, 0), "place table for boat");
+        CHECK(gm_runtime_use_block(&r, bx, by + 1, bz), "open table for boat");
+        CHECK(r.container == 1, "table open for boat");
+        CHECK(gm_runtime_set_inventory(&r, 0, 5, 5, 0), "seed 5 oak planks");
+        click(&r, 0, 0, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 0, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 2, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 3, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 4, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 5, 1, CC_CLICK_PICKUP);
+        { ICStack res = gm_container_result(&r);
+          CHECK(res.item == 333 && res.count == 1, "oak boat recipe matches"); }
+        click(&r, GMC_RESULT, 0, CC_CLICK_PICKUP);
+        { ICStack c = gm_player_cursor();
+          CHECK(c.item == 333 && c.count == 1, "taking the result yields a boat"); }
+        click(&r, 1, 0, CC_CLICK_PICKUP);
+
+        for (int i = 0; i < 9; ++i) r.craft_grid[i] = ic_empty();
+        CHECK(gm_runtime_set_inventory(&r, 2, 335, 3, 0), "seed 3 milk");
+        CHECK(gm_runtime_set_inventory(&r, 3, 353, 2, 0), "seed sugar");
+        CHECK(gm_runtime_set_inventory(&r, 4, 344, 1, 0), "seed egg");
+        CHECK(gm_runtime_set_inventory(&r, 5, 296, 3, 0), "seed wheat");
+        click(&r, 2, 0, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 0, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 1, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 2, 1, CC_CLICK_PICKUP);
+        click(&r, 3, 0, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 3, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 5, 1, CC_CLICK_PICKUP);
+        click(&r, 4, 0, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 4, 0, CC_CLICK_PICKUP);
+        click(&r, 5, 0, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 6, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 7, 1, CC_CLICK_PICKUP);
+        click(&r, GMC_GRID0 + 8, 1, CC_CLICK_PICKUP);
+        { ICStack res = gm_container_result(&r);
+          CHECK(res.item == 354 && res.count == 1, "cake recipe matches"); }
+        click(&r, GMC_RESULT, 0, CC_CLICK_PICKUP);
+        { ICStack c = gm_player_cursor();
+          CHECK(c.item == 354 && c.count == 1, "taking cake yields cake");
+          CHECK(r.craft_grid[0].item == 325 && r.craft_grid[0].count == 1 &&
+                r.craft_grid[1].item == 325 && r.craft_grid[2].item == 325,
+                "milk buckets return empty buckets"); }
+    }
+
     if (fail) { fprintf(stderr, "container_live: FAIL\n"); return 1; }
     fprintf(stderr, "container_live: PASS\n");
     return 0;
