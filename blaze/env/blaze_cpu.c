@@ -30,6 +30,11 @@
  *       env == -1 broadcasts the same action to ALL envs (no obs; out ignored)
  *       - the verify chain gate's batched lane stepper. Trainer blaze_step
  *       stays 13-wide (inv_click=0).
+ *   blaze_tick(h, env, a[17], want_cam, out) -> same ABI, production path:
+ *       blaze_decision_begin + inv_click + cu_recenter + one
+ *       blaze_decision_subtick (CPU serial reference for CUDA k_tick /
+ *       k_tick_warp). Kernel pick on CUDA is create opts.warp_tick
+ *       (blaze_abi.h / blaze.conf / ppo.conf; default 1 = warp).
  *   blaze_debug_state(h, env, out[32]) -> raw doubles for divergence bisect
  *
  * Reward/scalars (ppo_coal.py semantics) live in blaze_core.h as MC_HD code
@@ -637,6 +642,37 @@ int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
     blaze_runtime_tick(&v->envs[env], &v->st, act,
                        v->blocks + (size_t)env * PSV_MAX_BLOCKS);
     if (out) blaze_emit_bolr(&v->envs[env], &v->st, (CuBinObs *)out, want_cam);
+    return 0;
+}
+
+/* Production-path tick: same 17-double ABI as blaze_tick_raw. CPU runs the
+ * serial decision body (begin, optional inv_click, recenter, one subtick)
+ * that k_tick / k_tick_warp execute on CUDA. Trainer blaze_step stays 13-wide
+ * and does not call this. */
+int blaze_tick(void *vh, int env, const double a[17], int want_cam,
+               void *out) {
+    CuVec *v = (CuVec *)vh;
+    Blaze *e;
+    McAABB *blocks;
+    if (!v || env < -1 || env >= v->n || !a) return -1;
+    if (env == -1) {
+        int i, rc = 0;
+#pragma omp parallel for schedule(static) reduction(|:rc) if(v->n > 1)
+        for (i = 0; i < v->n; ++i)
+            rc |= blaze_tick(vh, i, a, 0, NULL);
+        return rc;
+    }
+    e = &v->envs[env];
+    blocks = v->blocks + (size_t)env * PSV_MAX_BLOCKS;
+    if (!blaze_decision_begin(e, &v->st, a, v->recipes, v->nrecipes)) {
+        if (out) blaze_emit_bolr(e, &v->st, (CuBinObs *)out, want_cam);
+        return 0;
+    }
+    if ((int)a[13])
+        (void)blaze_container_click(e, (int)a[14], (int)a[15], (int)a[16]);
+    if (!e->dead) cu_recenter(e);
+    blaze_decision_subtick(e, &v->st, a, 0, 1, blocks, 1, v->atk_gate);
+    if (out) blaze_emit_bolr(e, &v->st, (CuBinObs *)out, want_cam);
     return 0;
 }
 

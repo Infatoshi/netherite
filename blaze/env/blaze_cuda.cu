@@ -8,7 +8,13 @@
  *             pre-tick on sub-tick 0), full 12-double raw action rows;
  *             physics-window recenter refills run WARP-COOPERATIVELY (see
  *             the kernel comment; create opts.legacy_recenter=1 selects the
- *             old serial-recenter kernel at create for A/B)
+ *             old serial-recenter kernel at create for A/B).
+ *             blaze_tick (verify) launches this when warp_tick=0.
+ *   k_tick_warp : one env per warp (create opts.warp_tick=1, default;
+ *             blaze.conf / ppo.conf / blaze_abi.h). Lane 0 runs the serial
+ *             decision body; recenter fill + coal sweep use the 32 lanes.
+ *             blaze_tick (verify) launches this when warp_tick=1.
+ *   k_tick_raw : verify-only one-thread-per-env runtime_tick (blaze_tick_raw).
  *   k_obs   : blaze_render_cam_pixel for envs whose decision frame is fresh,
  *             then copies the persisted frame into the caller's tensors
  *   k_final : blaze_decision_finalize - deferred crosshair/+10 reward terms
@@ -137,6 +143,10 @@ typedef struct {
     int has_unrepresented[BLAZE_MAX_SNAPS];
     /* verify-helper scratch */
     CuBinObs *d_obs;
+    /* blaze_tick host staging: n * 13 trainer actions + n * 4 inv_click
+     * extras. Lazy; training blaze_step never touches these. */
+    double *d_tick_act, *h_tick_act;
+    double *d_tick_inv, *h_tick_inv;
     /* blaze_emit_all's n-record staging buffer. Allocated on first use rather
      * than at create (same pattern as blaze_capture's slot buffers): only the
      * verify gates emit, and at n=4096 this would be 60 MB of pool the
@@ -210,6 +220,8 @@ int blaze_emit(void *vh, int env, int want_cam, void *out);
 int blaze_emit_all(void *vh, int want_cam, void *out);
 int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
                    void *out);
+int blaze_tick(void *vh, int env, const double a[17], int want_cam,
+               void *out);
 int blaze_debug_state(void *vh, int env, double *out, int cap);
 int blaze_op_count(void);
 int blaze_op_trace(void *vh, unsigned long long *out);
@@ -285,10 +297,24 @@ __device__ __forceinline__ unsigned long long cu_clk64(void) {
     return t;
 }
 
+/* Verify-only: trainer blaze_step passes inv==NULL (13-wide ABI). Focused
+ * M2 packs a[13..16] here so chests/furnaces keep the same chain as
+ * blaze_tick_raw without editing blaze_subtick_phys. Sequence: after
+ * decision_begin, before recenter. */
+__device__ __forceinline__ void cu_apply_inv_click(Blaze *e, const double *inv,
+                                                   int i) {
+    const double *x;
+    if (!inv) return;
+    x = inv + (size_t)i * 4;
+    if ((int)x[0])
+        (void)blaze_container_click(e, (int)x[1], (int)x[2], (int)x[3]);
+}
+
 __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
                        const double *actions, int repeat, McAABB *aabb_pool,
                        const CRRecipe *recipes, int nrecipes,
-                       double atk_gate, unsigned long long *stage_cycles) {
+                       double atk_gate, unsigned long long *stage_cycles,
+                       const double *inv) {
     const unsigned FULL = 0xffffffffu;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int lane = (int)(threadIdx.x & 31u);
@@ -302,6 +328,8 @@ __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
         exec = blaze_decision_begin(e, st,
                                     actions + (size_t)i * BLAZE_ACT_HEADS,
                                     recipes, nrecipes);
+    if (exec)
+        cu_apply_inv_click(e, inv, i);
     if (stage_cycles) {
         t1 = cu_clk64();
         c_begin = t1 - t0;
@@ -514,7 +542,8 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
                             const double *actions, int repeat,
                             McAABB *aabb_pool, const CRRecipe *recipes,
                             int nrecipes, double atk_gate,
-                            unsigned long long *stage_cycles) {
+                            unsigned long long *stage_cycles,
+                            const double *inv) {
     const unsigned FULL = 0xffffffffu;
     int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
     int lane = (int)(threadIdx.x & 31u);
@@ -528,6 +557,8 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
     if (lane == 0)
         exec = blaze_decision_begin(e, st, a, recipes, nrecipes);
     exec = __shfl_sync(FULL, exec, 0);
+    if (lane == 0 && exec)
+        cu_apply_inv_click(e, inv, w);
     if (stage_cycles && lane == 0) {
         t1 = cu_clk64();
         c_begin = t1 - t0;
@@ -934,6 +965,10 @@ void blaze_destroy(void *vh) {
         cudaFree((void *)v->retired[i]);
     cudaFree(v->d_ops);
     cudaFree(v->d_obs);
+    cudaFree(v->d_tick_act);
+    cudaFree(v->d_tick_inv);
+    free(v->h_tick_act);
+    free(v->h_tick_inv);
     cudaFree(v->d_obs_all);
     cudaFree(v->d_parity_all);
     cudaFree(v->d_snaps);
@@ -1364,13 +1399,15 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                       v->stream>>>(v->d_envs, v->n, v->d_st, actions,
                                    repeat, v->d_aabb, v->d_recipes,
                                    v->nrecipes, v->atk_gate,
-                                   v->stage_time ? v->d_stage_cycles : NULL);
+                                   v->stage_time ? v->d_stage_cycles : NULL,
+                                   NULL);
     else
         k_tick<<<(v->n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(v->d_envs, v->n, v->d_st, actions, repeat,
                               v->d_aabb, v->d_recipes, v->nrecipes,
                               v->atk_gate,
-                              v->stage_time ? v->d_stage_cycles : NULL);
+                              v->stage_time ? v->d_stage_cycles : NULL,
+                              NULL);
     if (v->ktime) cudaEventRecord(v->ev[1], v->stream);
     k_obs<<<pblocks, CU_TPB, 0, v->stream>>>(v->d_envs, v->n, v->d_st,
                                              cam, depth, edge);
@@ -1602,6 +1639,95 @@ int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
     if (!out || env == -1) return 0;
     return cu_ck(cudaMemcpy(out, v->d_obs, sizeof(CuBinObs),
                             cudaMemcpyDeviceToHost), "obs readback");
+}
+
+/* Production tick for focused M2: same 17-double ABI as blaze_tick_raw, but
+ * launches k_tick_warp (create opts.warp_tick=1, default; blaze.conf /
+ * ppo.conf / blaze_abi.h) or k_tick (warp_tick=0). One env per fixture
+ * lane (warp: 32 threads help that env). inv_click rides a side buffer so
+ * blaze_step's 13-wide trainer ABI stays unchanged. */
+static int cu_ensure_tick_act(CuVecCu *v) {
+    size_t nact = (size_t)v->n * BLAZE_ACT_HEADS * sizeof(double);
+    size_t ninv = (size_t)v->n * 4 * sizeof(double);
+    if (v->d_tick_act) return 0;
+    v->h_tick_act = (double *)malloc(nact);
+    v->h_tick_inv = (double *)malloc(ninv);
+    if (!v->h_tick_act || !v->h_tick_inv ||
+        cudaMalloc(&v->d_tick_act, nact) != cudaSuccess ||
+        cudaMalloc(&v->d_tick_inv, ninv) != cudaSuccess) {
+        fprintf(stderr, "blaze_cuda: blaze_tick action staging alloc failed\n");
+        return -1;
+    }
+    return 0;
+}
+
+static void cu_pack_tick_act(CuVecCu *v, int dst, const double a[17]) {
+    int k;
+    double *act = v->h_tick_act + (size_t)dst * BLAZE_ACT_HEADS;
+    double *inv = v->h_tick_inv + (size_t)dst * 4;
+    for (k = 0; k < BLAZE_ACT_HEADS; ++k) act[k] = a[k];
+    for (k = 0; k < 4; ++k) inv[k] = a[13 + k];
+}
+
+static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
+                               const double *act, McAABB *aabb,
+                               const double *inv) {
+    int repeat = 1;
+    if (v->legacy_recenter)
+        k_tick_legacy<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB,
+                        0, v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
+                                        v->d_recipes, v->nrecipes,
+                                        v->atk_gate);
+    else if (v->warp_tick)
+        k_tick_warp<<<(unsigned)(((size_t)n * 32 + 127) / 128), 128, 0,
+                      v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
+                                   v->d_recipes, v->nrecipes, v->atk_gate,
+                                   v->stage_time ? v->d_stage_cycles : NULL,
+                                   inv);
+    else
+        k_tick<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
+                 v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
+                              v->d_recipes, v->nrecipes, v->atk_gate,
+                              v->stage_time ? v->d_stage_cycles : NULL, inv);
+    return cu_ck(cudaStreamSynchronize(v->stream), "blaze_tick");
+}
+
+int blaze_tick(void *vh, int env, const double a[17], int want_cam,
+               void *out) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int i, npack;
+    size_t nact, ninv;
+    if (!v || env < -1 || env >= v->n || !a) return -1;
+    cudaSetDevice(v->device);
+    if (cu_ensure_tick_act(v)) return -1;
+    if (env == -1) {
+        for (i = 0; i < v->n; ++i) cu_pack_tick_act(v, i, a);
+        npack = v->n;
+    } else {
+        cu_pack_tick_act(v, 0, a);
+        npack = 1;
+    }
+    nact = (size_t)npack * BLAZE_ACT_HEADS * sizeof(double);
+    ninv = (size_t)npack * 4 * sizeof(double);
+    if (cu_ck(cudaMemcpyAsync(v->d_tick_act, v->h_tick_act, nact,
+                              cudaMemcpyHostToDevice, v->stream),
+              "tick act upload") ||
+        cu_ck(cudaMemcpyAsync(v->d_tick_inv, v->h_tick_inv, ninv,
+                              cudaMemcpyHostToDevice, v->stream),
+              "tick inv upload"))
+        return -1;
+    if (env == -1) {
+        if (cu_launch_prod_tick(v, v->d_envs, v->n, v->d_tick_act, v->d_aabb,
+                                v->d_tick_inv))
+            return -1;
+        return 0;
+    }
+    if (cu_launch_prod_tick(v, v->d_envs + env, 1, v->d_tick_act,
+                            v->d_aabb + (size_t)env * PSV_MAX_BLOCKS,
+                            v->d_tick_inv))
+        return -1;
+    if (!out) return 0;
+    return blaze_emit(vh, env, want_cam, out);
 }
 
 /* op-trace readout: counters per env (buffer sizing) + the n * CU_OP_N

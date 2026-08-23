@@ -22,11 +22,16 @@ reproducibility. No mid-run resets in --big (done envs idle).
 --chain: full spawn-to-torch chain gate on CUDA. Batch of --chain-lanes
 (default 64) envs, ALL assigned the fresh-spawn tick-0 snapshot s10_t0.bsnp,
 replaying the committed 2058-action chain (movement + hotbar + use/place +
-craft:N + interact) via the raw-tick path (blaze_tick_raw env=-1 broadcast).
+craft:N + interact). --m2-kernel raw (default) uses blaze_tick_raw
+(k_tick_raw, env=-1 broadcast). --m2-kernel warp uses blaze_tick with
+create opts.warp_tick=1 (k_tick_warp, 32 lanes per env; blaze.conf /
+ppo.conf / blaze_abi.h default). --m2-kernel scalar uses blaze_tick with
+warp_tick=0 (k_tick, one thread per env, warp-cooperative recenter).
 EVERY tick, EVERY lane's full BOLR record must match the batch-of-1 CPU
 blaze record byte-for-byte (the CPU env is itself byte-exact vs the real
 game per verify_cpu.py --chain) - one loop covers both the CPU==CUDA chain
-gate and the 64-identical-lanes cross-env-interference check.
+gate and the 64-identical-lanes cross-env-interference check. Raw mode
+stays. Production kernels compare against CPU blaze_tick (decision path).
 
 --mixed: big-N FULL-action gate: N (default 2048) on the 13 *_t0.bsnp
 snapshots round-robin, 250 decisions of seeded random full 12-double action
@@ -229,6 +234,12 @@ def _create_kw(args=None):
         kw["no_ore_xy"] = True
     if getattr(args, "warp_tick", None) is not None:
         kw["warp_tick"] = int(args.warp_tick)
+    else:
+        kernel = getattr(args, "m2_kernel", "raw")
+        if kernel == "scalar":
+            kw["warp_tick"] = 0
+        elif kernel == "warp":
+            kw["warp_tick"] = 1
     return kw
 
 
@@ -336,6 +347,12 @@ def _raw_abi(env):
     env.lib.blaze_tick_raw.argtypes = [
         ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_double),
         ctypes.c_int, ctypes.c_void_p]
+    env.has_blaze_tick = hasattr(env.lib, "blaze_tick")
+    if env.has_blaze_tick:
+        env.lib.blaze_tick.argtypes = [
+            ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_double),
+            ctypes.c_int, ctypes.c_void_p]
+        env.lib.blaze_tick.restype = ctypes.c_int
     env.lib.blaze_emit.argtypes = [ctypes.c_void_p, ctypes.c_int,
                                    ctypes.c_int, ctypes.c_void_p]
     env.lib.blaze_obs_size.restype = ctypes.c_int
@@ -394,6 +411,8 @@ def run_chain(args, iron=False):
         args.parity_blocked = True
         return False
     nl = args.chain_lanes
+    kernel = getattr(args, "m2_kernel", "raw") or "raw"
+    prod = kernel in ("warp", "scalar")
     # Default-on state digests: every tick, every CUDA lane's PARY is compared
     # against the batch-of-1 CPU record for all BP_IMPLEMENTED subsystems.
     # --no-state-digest reverts to BOLR-only. Explicit --port-parity --features
@@ -413,7 +432,7 @@ def run_chain(args, iron=False):
     print(f"{tag} gate: {os.path.basename(snap)} x {len(acts)} actions, "
           f"CUDA batch of "
           f"{nl} identical lanes vs batch-of-1 CPU, byte-exact every tick"
-          f"{digest_note}")
+          f"{digest_note}  kernel={kernel}")
     kw = _create_kw(args)
     cpu = VecBlaze(1, device=0, so_path=CPU_SO, **kw)
     cuda = VecBlaze(nl, device=args.device, so_path=CUDA_SO, **kw)
@@ -425,6 +444,15 @@ def run_chain(args, iron=False):
         e.load_snapshots([snap])
         e.assign([0] * n)
         e.reset()
+    if prod and (not cpu.has_blaze_tick or not cuda.has_blaze_tick):
+        print("BLOCKED: blaze_tick missing from CPU or CUDA .so "
+              "(rebuild blaze_cpu.so / blaze_cuda.so)")
+        args.parity_blocked = True
+        cpu.close()
+        cuda.close()
+        return False
+    cpu_tick = cpu.lib.blaze_tick if prod else cpu.lib.blaze_tick_raw
+    cuda_tick = cuda.lib.blaze_tick if prod else cuda.lib.blaze_tick_raw
     if getattr(args, "mobs_on", False):
         for e in (cpu, cuda):
             e.lib.blaze_set_mobs_enabled.argtypes = [
@@ -539,7 +567,7 @@ def run_chain(args, iron=False):
     def report_state_fail(t, lane, cpu_record, cuda_record, subsystem, detail):
         nonlocal ok
         print(f"FAIL tick {t} lane {lane}: state digest feature "
-              f"{subsystem or 'record'} ({detail})")
+              f"{subsystem or 'record'} ({detail}) kernel={kernel}")
         if subsystem is not None:
             idx = PARITY_INDEX[subsystem]
             print(f"    cpu:  digest=0x{cpu_record.digest[idx]:016x} "
@@ -610,7 +638,8 @@ def run_chain(args, iron=False):
                 assert cuda.lib.blaze_emit(cuda.h, lane, want, buf_g) == 0
                 if buf_g.raw != buf_c.raw:
                     f = first_diff_field(buf_c.raw, buf_g.raw) or "blocks/logs"
-                    print(f"FAIL tick {t} lane {lane}: field {f}")
+                    print(f"FAIL tick {t} lane {lane}: field {f} "
+                          f"kernel={kernel}")
                     if f != "blocks/logs":
                         print(f"    cpu:  {fmt_field(buf_c.raw, f)}")
                         print(f"    cuda: {fmt_field(buf_g.raw, f)}")
@@ -657,8 +686,8 @@ def run_chain(args, iron=False):
         for t, act in enumerate(acts):
             want = act.get("cam", 1)
             a = _raw_act(act)
-            assert cpu.lib.blaze_tick_raw(cpu.h, 0, a, want, buf_c) == 0
-            assert cuda.lib.blaze_tick_raw(cuda.h, -1, a, 0, None) == 0
+            assert cpu_tick(cpu.h, 0, a, want, buf_c) == 0
+            assert cuda_tick(cuda.h, -1, a, 0, None) == 0
             if not lanes_match(t, want):
                 break
             if (t + 1) % 500 == 0:
@@ -678,7 +707,8 @@ def run_chain(args, iron=False):
             ok = False
     print(("PASS" if ok else "FAIL") +
           f": {tag} s{seed} x {len(acts)} ticks, {nl} CUDA lanes vs CPU "
-          f"byte-exact (full BOLR record{digest_note}, every tick)")
+          f"byte-exact (full BOLR record{digest_note}, every tick, "
+          f"kernel={kernel})")
     cpu.close(); cuda.close()
     return ok
 
@@ -906,6 +936,12 @@ def build_parser():
                     help="skip ore spatial index at snapshot load")
     ap.add_argument("--warp-tick", type=int, default=None,
                     help="1=warp-per-env (default), 0=flat k_tick")
+    ap.add_argument(
+        "--m2-kernel", choices=("raw", "warp", "scalar"), default="raw",
+        help="focused M2 tick kernel: raw=blaze_tick_raw/k_tick_raw "
+             "(default), warp=blaze_tick+k_tick_warp, scalar=blaze_tick+k_tick. "
+             "Create-time warp_tick comes from blaze_abi.h / blaze.conf "
+             "(default 1). No env vars.")
     ap.add_argument("--no-parity-all", action="store_true",
                     help="force per-lane blaze_parity_state (A/B vs batched)")
     return ap
