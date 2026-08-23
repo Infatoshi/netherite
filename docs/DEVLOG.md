@@ -1,5 +1,25 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 Explosion.doExplosionB drops (lane/expdrops)
+
+Anvil. Baseline explosions M1 VERIFIED (`out/verify/expdrops_baseline_explosions_m1.log`). mining_slice M2 BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing).
+
+Java `doExplosionA` (`Explosion.java:84-132`) fills `Sets.newHashSet()` then `affectedBlockPositions.addAll(set)`. `affectedBlockPositions` is `Lists.newArrayList()` (`:66`), not a second HashSet: doExplosionB iterates that ArrayList copy of HashSet bucket/`next` order. BlockPos hash is Vec3i (`Vec3i.java:47-49`) `(y + z*31)*31 + x`, then HashMap.hash `h ^ (h>>>16)`. Default capacity 16, load 0.75. TREEIFY_THRESHOLD 8 / MIN_TREEIFY_CAPACITY 64: a 16^3 face-cell set (n=1352) on JDK 8 has table cap 2048, max chain 4, treeBins=0. Size-4 TNT/creeper does not treeify. Tree bins are still ported (`java_hashset.h`) so a colliding set matches Java. C `JavaHashSet` unit TEN order matches `/usr/lib/jvm/java-8-openjdk-amd64` HashSet.
+
+Per block in that order (`Explosion.java:209-246`, server `doExplosionB(false)` skips particle draws):
+- `canDropFromExplosion`: TNT false (`BlockTNT.java:147`), else true (`Block.java:1069`).
+- `dropBlockAsItemWithChance` (`Block.java:688-703` Forge): `getDrops` (`:1505-1520`) then `world.rand.nextFloat() <= chance` with `chance = 1.0F/size`. Leaves use `BlockLeaves.getDrops` (`:275-305`): sapling `nextInt(20)` (jungle 40, `BlockOldLeaf.java:46`), oak apple `nextInt(200)` (`:37-42`). Gravel flint `nextInt(10)==0` (`BlockGravel.java:23`). Glass `quantityDropped` 0 (`BlockGlass.java:23-24`). Stone -> cobble (`BlockStone.java:50-52`).
+- `spawnAsEntity` three `nextFloat()*0.5F+0.25D` (`Block.java:719-721`), `setDefaultPickupDelay` 10 (`EntityItem.java:564-566`).
+- `onBlockExploded` set air then TNT chain fuse (`Block.java:1730-1733`, `BlockTNT.java:68-74`).
+- XP `getExpDrop` / `dropXpOnBlockBreak` is harvestBlock only; doExplosionB does not call it.
+
+Class C: `EntityItem` xz motion is `Math.random()` (`EntityItem.java:59-61`), not `world.rand`. Live table keeps zeros (`cu_spawn_item` / `live_fill_ent` memset), including Java's constant `motionY` 0.2. Table cap 48 (`GM_LIVE_MAX` / `CU_MAX_ITEMS`) is a shared sim cap: both sides skip when full (`gm_live_spawn_item_capped`). Java has no cap.
+
+EXP3 -> EXP4 hashes drop count/ids after the World.rand cursor. Snapshot v5 unchanged; fixture not rebaked.
+
+After: explosions M1+M2 VERIFIED (`out/verify/expdrops_after_explosions_m1.log`, `out/verify/expdrops_after_explosions_m2.log`). Listed `--no-deps` M1 stay VERIFIED; M2 stay VERIFIED except mining_slice BLOCKED. Root `make test` PASS (`out/verify/expdrops_maketest.log`). TNT tapes: physics NO divergence, inventory 1-mismatch stays t=28 slot 0 flint-and-steel (259) tape meta 0 vs magma meta 1 (durability, not gravel flint). creeper_encounter FIRST DIVERGENCE stays t=76 y 2.1e-09. smoke_zombie x2 and bow physics NO divergence.
+
+Stay out: fireball; BlockFire `world.rand`; EntityItem `Math.random` motion; tape-exact World.rand (unseeded).
 ## 2026-08-23 passives cow/pig/sheep/chicken (lane/passives)
 
 Gamer. Port leftover on `mobs` "Not closed" of lane/natspawn: Java 1.11.2 EntityCow/Pig/Sheep/Chicken into shared C magma and blaze both compile (`blaze/core/passive_live.h` + CREATURE half of `hostile_spawn.h`). Knob `natural_spawn_passive` default 0 so existing tapes and the mobs row stay bit-identical. Isolated spawn JavaRandom is the natspawn stream (not ww.rand).

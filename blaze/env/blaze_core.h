@@ -407,6 +407,8 @@ typedef struct {
     float explosion_size;
     unsigned parity_ex_blasts;
     unsigned parity_ex_destroyed;
+    unsigned parity_ex_drop_n;
+    uint64_t parity_ex_drop_ids;
     float parity_ex_damage;
     double parity_ex_kb_x, parity_ex_kb_y, parity_ex_kb_z;
     uint64_t parity_ex_rays;
@@ -414,6 +416,7 @@ typedef struct {
     float parity_ex_last_size;
     u16 ex_grid[EX_VOL];
     u8  ex_hit[EX_VOL];
+    JavaHashSet ex_hs;
 
     /* reward/done bookkeeping (driver-level; not part of the sim gate) */
     int    base_coal;
@@ -1091,6 +1094,17 @@ MC_HD static inline int cu_spawn_tnt_primed(Blaze *e, double x, double y,
 #define exl_spawn_tnt(w, x, y, z, fuse) \
     cu_spawn_tnt_primed((w), (double)(x) + 0.5, (double)(y), \
                         (double)(z) + 0.5, (fuse))
+MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
+                                      int item, int count, int meta,
+                                      int pickup_delay);
+#define exl_spawn_item(w, x, y, z, item, count, meta, delay) \
+    cu_spawn_item((w), x, y, z, item, count, meta, delay)
+#define exl_note_drop(w, item, count, meta) do { \
+    (w)->parity_ex_drop_n++; \
+    (w)->parity_ex_drop_ids = bp_hash_i32((w)->parity_ex_drop_ids, (item)); \
+    (w)->parity_ex_drop_ids = bp_hash_i32((w)->parity_ex_drop_ids, (count)); \
+    (w)->parity_ex_drop_ids = bp_hash_i32((w)->parity_ex_drop_ids, (meta)); \
+} while (0)
 #include "explosion_live.h"
 
 MC_HD static inline float cu_armor_damage(Blaze *e, float amount) {
@@ -1133,7 +1147,7 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
     unsigned mi;
     if (!e) return;
     exl_fill_and_rays(e, e->ex_grid, e->ex_hit, ex, ey, ez, size,
-                      &ox, &oy, &oz, &e->world_rand);
+                      &ox, &oy, &oz, &e->world_rand, &e->ex_hs);
     /* doExplosionA entity loop sees the intact world (Explosion.java:132-190). */
     px = e->pl.ent.posX + (double)e->ox;
     py = e->pl.ent.posY;
@@ -1210,7 +1224,8 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
         if (m->health <= 0.0f) cu_mob_drop(e, m);
     }
     cu_mobs_compact(e);
-    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays, &e->world_rand);
+    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays, &e->world_rand,
+                   &e->ex_hs, size);
     e->parity_ex_blasts++;
     e->parity_ex_destroyed += nd;
     e->parity_ex_rays = rays;
@@ -1223,10 +1238,6 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
     e->parity_ex_kb_y = blast.mapy;
     e->parity_ex_kb_z = blast.mapz;
 }
-
-MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
-                                      int item, int count, int meta,
-                                      int pickup_delay);
 
 MC_HD static inline void cu_explosion_tick(Blaze *e) {
     unsigned i;
@@ -5181,6 +5192,8 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
             }
             h = bp_hash_i32(h, ntnt);
             h = bp_hash_world_rand(h, e->world_rand.seed);
+            h = bp_hash_explosion_drops(
+                h, (int32_t)e->parity_ex_drop_n, e->parity_ex_drop_ids);
             r->digest[BP_EXPLOSIONS] = h;
             r->evidence[BP_EXPLOSIONS] =
                 e->parity_ex_blasts + e->parity_ex_destroyed
@@ -5588,6 +5601,8 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->explosion_size = 0.0f;
     env->parity_ex_blasts = 0;
     env->parity_ex_destroyed = 0;
+    env->parity_ex_drop_n = 0;
+    env->parity_ex_drop_ids = 0;
     env->parity_ex_damage = 0.0f;
     env->parity_ex_kb_x = env->parity_ex_kb_y = env->parity_ex_kb_z = 0.0;
     env->parity_ex_rays = 0;

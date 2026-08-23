@@ -736,6 +736,8 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
             }
             h = bp_hash_i32(h, ntnt);
             h = bp_hash_world_rand(h, r->world_rand.seed);
+            h = bp_hash_explosion_drops(
+                h, (int32_t)r->parity_ex_drop_n, r->parity_ex_drop_ids);
             out->digest[BP_EXPLOSIONS] = h;
             out->evidence[BP_EXPLOSIONS] =
                 r->parity_ex_blasts + r->parity_ex_destroyed

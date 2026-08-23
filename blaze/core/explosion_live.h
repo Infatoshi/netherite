@@ -25,14 +25,15 @@
  *     EnchantmentProtection.getBlastDamageReduction, motion += d5*d11,
  *     playerKnockbackMap (d5*d10)
  *   Explosion.doExplosionB            Explosion.java:196-248
- *     sound/particles/drops/fire  CUT (magma does not port)
+ *     sound two nextFloat (:198); particles CUT on server (false)
+ *     HashSet order drops (explosion_drops.h); fire CUT (isFlaming 0)
  *
  * Magma extras (M1 is magma semantics; do not "fix" to Java here):
  *   density rand consumes world.rand.nextFloat per face ray when the
  *     live JavaRandom is passed (Explosion.java:102); NULL keeps 0.5F
  *   getBlockDensity is full-cube BF_SOLID on the 16^3 sample (no non-cube BB)
  *   blast-prot level 0 (no armor enchant scan)
- *   no doExplosionB drops / particles / flaming
+ *   particles / flaming CUT; doExplosionB drops are live (HashSet order)
  *   explosion Y is feetY + 0.5 (not Entity.posY)
  *   unpowered radius 3.0F, always destroys (no mobGriefing / powered 2x)
  *   --mobs off: ignited living creepers (hasIgnited), not AICreeperSwell
@@ -61,6 +62,7 @@
 #define EXL_TNT_GROUND_XZ 0.699999988079071  /* :88 (double)0.7F */
 #define EXL_TNT_SPAWN_MY 0.20000000298023224 /* ctor :36 */
 #define EXL_BLK_TNT 46                       /* Blocks.TNT */
+#include "explosion_drops.h"
 
 /* EntityPlayer.java:2488 eyeHeight 1.62; zombie/skeleton 1.74F
  * (EntityZombie.java:461, AbstractSkeleton.java:303); else Entity.java:3193
@@ -146,11 +148,13 @@ MC_HD static inline void exl_fill_and_rays(EXL_W *w, u16 *grid, u8 *hit,
                                            double ex, double ey, double ez,
                                            float size,
                                            int *ox, int *oy, int *oz,
-                                           JavaRandom *rand) {
+                                           JavaRandom *rand,
+                                           JavaHashSet *hs) {
     int x, y, z;
     *ox = (int)floor(ex) - 8;
     *oy = (int)floor(ey) - 8;
     *oz = (int)floor(ez) - 8;
+    if (hs) jhs_init(hs);
     for (x = 0; x < EX_DIM; ++x)
         for (y = 0; y < EX_DIM; ++y)
             for (z = 0; z < EX_DIM; ++z)
@@ -158,45 +162,109 @@ MC_HD static inline void exl_fill_and_rays(EXL_W *w, u16 *grid, u8 *hit,
                     exl_block(w, *ox + x, *oy + y, *oz + z),
                     exl_meta(w, *ox + x, *oy + y, *oz + z));
     ex_do_explosion_blocks(grid, ex - (double)*ox, ey - (double)*oy,
-                           ez - (double)*oz, size, hit, rand);
+                           ez - (double)*oz, size, hit, rand, hs, *ox, *oy, *oz);
 }
 
-/* doExplosionB block destroy: sound draws, optional chain TNT, air.
- * Drops (Block.dropBlockAsItemWithChance) stay out: HashSet order plus
- * getDrops/quantityDropped are not in the live item table contract. */
+#ifdef exl_spawn_item
+/* dropBlockAsItemWithChance + spawnAsEntity (Block.java:688-725). */
+MC_HD static inline void exl_drop_with_chance(EXL_W *w, int id, int meta,
+                                              int wx, int wy, int wz,
+                                              float chance, JavaRandom *rand) {
+    ExlStack st[EXL_DROP_STACKS];
+    int n, i;
+    if (!rand || chance < 0.0f) return;
+    n = exl_get_drops(id, meta, rand, st, EXL_DROP_STACKS);
+    for (i = 0; i < n; ++i) {
+        double d0, d1, d2;
+        if (jrand_float(rand) > chance) continue;
+        /* spawnAsEntity :719-721 then EntityItem ctor Class C zeros motion. */
+        d0 = (double)(jrand_float(rand) * 0.5f) + 0.25;
+        d1 = (double)(jrand_float(rand) * 0.5f) + 0.25;
+        d2 = (double)(jrand_float(rand) * 0.5f) + 0.25;
+        if (exl_spawn_item(w, (double)wx + d0, (double)wy + d1,
+                           (double)wz + d2, st[i].item, st[i].count,
+                           st[i].meta, EXL_PICKUP_DELAY)) {
+#ifdef exl_note_drop
+            exl_note_drop(w, st[i].item, st[i].count, st[i].meta);
+#endif
+        }
+    }
+}
+#endif
+
+/* doExplosionB: sound draws, HashSet-order drops, chain TNT, air.
+ * affectedBlockPositions is ArrayList.addAll(HashSet) (Explosion.java:66,132)
+ * so iteration is the first HashSet's bucket/next order. */
 MC_HD static inline void exl_apply_hits(EXL_W *w, const u8 *hit,
                                         int ox, int oy, int oz,
                                         uint32_t *ndestroyed, uint64_t *rays,
-                                        JavaRandom *rand) {
-    int x, y, z;
+                                        JavaRandom *rand, JavaHashSet *hs,
+                                        float size) {
     if (rand) {
         /* Explosion.java:198 playSound pitch: two nextFloat. Server
          * WorldServer.newExplosion doExplosionB(false) skips particle draws. */
         (void)jrand_float(rand);
         (void)jrand_float(rand);
     }
-    for (x = 0; x < EX_DIM; ++x)
-        for (y = 0; y < EX_DIM; ++y)
-            for (z = 0; z < EX_DIM; ++z) {
-                int id;
-                if (!hit[ex_idx(x, y, z)]) continue;
-                id = exl_block(w, ox + x, oy + y, oz + z);
-#ifdef exl_spawn_tnt
-                if (id == EXL_BLK_TNT && rand) {
-                    int fuse = exl_chain_fuse(rand);
-                    exl_spawn_tnt(w, ox + x, oy + y, oz + z, fuse);
-                }
+    if (hs && hs->size > 0) {
+        JhsIter it;
+        i32 wx, wy, wz;
+        float chance = (size > 0.0f) ? (1.0f / size) : 1.0f;
+        jhs_iter_init(hs, &it);
+        while (jhs_iter_next(hs, &it, &wx, &wy, &wz)) {
+            int id = exl_block(w, wx, wy, wz);
+            int meta;
+            if (exl_is_air_id(id)) continue;
+            meta = exl_meta(w, wx, wy, wz);
+#ifdef exl_spawn_item
+            if (exl_can_drop_from_explosion(id) && rand)
+                exl_drop_with_chance(w, id, meta, wx, wy, wz, chance, rand);
 #else
-                (void)id;
+            (void)meta;
+            (void)chance;
 #endif
-                exl_set_air(w, ox + x, oy + y, oz + z);
-                if (ndestroyed) ++*ndestroyed;
-                if (rays) {
-                    *rays = bp_hash_i32(*rays, ox + x);
-                    *rays = bp_hash_i32(*rays, oy + y);
-                    *rays = bp_hash_i32(*rays, oz + z);
-                }
+#ifdef exl_spawn_tnt
+            if (id == EXL_BLK_TNT && rand) {
+                int fuse = exl_chain_fuse(rand);
+                exl_spawn_tnt(w, wx, wy, wz, fuse);
             }
+#endif
+            exl_set_air(w, wx, wy, wz);
+            if (ndestroyed) ++*ndestroyed;
+            if (rays) {
+                *rays = bp_hash_i32(*rays, wx);
+                *rays = bp_hash_i32(*rays, wy);
+                *rays = bp_hash_i32(*rays, wz);
+            }
+        }
+        return;
+    }
+    /* hs empty/NULL: XYZ bitset (battery / no-HashSet callers). */
+    {
+        int x, y, z;
+        for (x = 0; x < EX_DIM; ++x)
+            for (y = 0; y < EX_DIM; ++y)
+                for (z = 0; z < EX_DIM; ++z) {
+                    int id;
+                    if (!hit[ex_idx(x, y, z)]) continue;
+                    id = exl_block(w, ox + x, oy + y, oz + z);
+#ifdef exl_spawn_tnt
+                    if (id == EXL_BLK_TNT && rand) {
+                        int fuse = exl_chain_fuse(rand);
+                        exl_spawn_tnt(w, ox + x, oy + y, oz + z, fuse);
+                    }
+#else
+                    (void)id;
+#endif
+                    exl_set_air(w, ox + x, oy + y, oz + z);
+                    if (ndestroyed) ++*ndestroyed;
+                    if (rays) {
+                        *rays = bp_hash_i32(*rays, ox + x);
+                        *rays = bp_hash_i32(*rays, oy + y);
+                        *rays = bp_hash_i32(*rays, oz + z);
+                    }
+                }
+    }
 }
 
 #endif /* MC_EXPLOSION_LIVE_APPLY_H */

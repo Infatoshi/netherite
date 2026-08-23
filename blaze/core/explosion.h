@@ -8,7 +8,8 @@
  *   f = size * (0.7F + rand * 0.6F) (Explosion.java:102). Live sim consumes
  *   that stream when a JavaRandom is passed. NULL rand keeps the old 0.5F
  *   battery path. getBlockDensity / knockback / blast-prot use no Random.
- * Drop/flame RNG paths CUT (doExplosionB not ported). explosionRNG (new Random()
+ * doExplosionB drops: HashSet order of affectedBlockPositions then
+ * dropBlockAsItemWithChance (explosion_drops.h). explosionRNG (new Random()
  * in Explosion.java:65) is only the flaming nextInt(3) in doExplosionB:253.
  *
  * READ-ONLY deps: block_props_table.h (hardness), mc_math.h (floor).
@@ -23,6 +24,7 @@
 #include "mc_math.h"
 #include "mc_rng.h"
 #include "block_props_table.h"
+#include "java_hashset.h"
 
 #define EX_DIM 16
 #define EX_VOL (EX_DIM * EX_DIM * EX_DIM)
@@ -101,13 +103,17 @@ MC_HD static inline float ex_ray_strength(float size, JavaRandom *rand) {
     return size * (0.7F + u * 0.6F);
 }
 
-/* doExplosionA block-destroy rays on synthetic grid. Marks bitset[vol] for non-air
- * in-bounds positions that would be added to affectedBlockPositions. */
+/* doExplosionA block-destroy rays on synthetic grid. Marks bitset[vol] for
+ * in-bounds non-air. When hs is non-NULL, HashSet.add every BlockPos with
+ * f>0 (air and out-of-grid included: Explosion.java:118-121). World coords
+ * are (ox+bx, oy+by, oz+bz). hs==NULL keeps the battery path. */
 MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
                                                 double ex, double ey, double ez,
                                                 float size,
                                                 u8 *bitset,
-                                                JavaRandom *rand) {
+                                                JavaRandom *rand,
+                                                JavaHashSet *hs,
+                                                int ox, int oy, int oz) {
     for (int i = 0; i < EX_VOL; ++i) bitset[i] = 0;
 
     /* step decrement and advance match oracle float/double literals exactly */
@@ -142,8 +148,12 @@ MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
                             f -= (f2 + 0.3F) * 0.3F;
                         }
 
-                        if (f > 0.0F && ex_in(bx, by, bz) && !ex_is_air(st)) {
-                            bitset[ex_idx(bx, by, bz)] = 1;
+                        if (f > 0.0F) {
+                            /* Sets.newHashSet add, including air (Explosion.java:118-121). */
+                            if (hs)
+                                jhs_add(hs, ox + bx, oy + by, oz + bz);
+                            if (ex_in(bx, by, bz) && !ex_is_air(st))
+                                bitset[ex_idx(bx, by, bz)] = 1;
                         }
 
                         d4 += d0 * step_adv;
@@ -417,7 +427,7 @@ MC_HD static inline void ex_run_scenario(int idx, u16 *grid, u8 *bitset,
     float size = ex_scenario_size(idx);
     ex_scenario_origin(idx, &ox, &oy, &oz);
     ex_scenario_grid(idx, grid);
-    ex_do_explosion_blocks(grid, ox, oy, oz, size, bitset, NULL);
+    ex_do_explosion_blocks(grid, ox, oy, oz, size, bitset, NULL, NULL, 0, 0, 0);
 
     /* count + emit sorted by x, then y, then z */
     u32 count = 0;

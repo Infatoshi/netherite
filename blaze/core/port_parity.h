@@ -505,10 +505,16 @@ BP_HD static inline uint64_t bp_projectiles_digest_finish(
 }
 
 /* Magma runtime_explode + creeper fuse (EntityCreeper onUpdate ignited).
- * EXP3 adds the live World.rand 48-bit cursor so a stream desync shows. */
+ * EXP4 adds drop item count/ids after the World.rand cursor hash. */
 BP_HD static inline uint64_t bp_explosions_digest_begin(void) {
     uint64_t h = bp_hash_begin();
-    return bp_hash_u32(h, UINT32_C(0x33585045)); /* "EXP3" */
+    return bp_hash_u32(h, UINT32_C(0x34585045)); /* "EXP4" */
+}
+
+BP_HD static inline uint64_t bp_hash_explosion_drops(
+    uint64_t h, int32_t n, uint64_t ids) {
+    h = bp_hash_i32(h, n);
+    return bp_hash_u64(h, ids);
 }
 
 BP_HD static inline uint64_t bp_hash_world_rand(uint64_t h, uint64_t seed48) {

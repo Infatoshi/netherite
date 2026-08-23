@@ -28,6 +28,14 @@
 #define exl_spawn_tnt(w, x, y, z, fuse) \
     gm_mobs_spawn_tnt_primed(&(w)->mobs, (double)(x) + 0.5, (double)(y), \
                              (double)(z) + 0.5, (fuse))
+#define exl_spawn_item(w, x, y, z, item, count, meta, delay) \
+    gm_live_spawn_item_capped(&(w)->entities, x, y, z, item, count, meta, delay)
+#define exl_note_drop(w, item, count, meta) do { \
+    (w)->parity_ex_drop_n++; \
+    (w)->parity_ex_drop_ids = bp_hash_i32((w)->parity_ex_drop_ids, (item)); \
+    (w)->parity_ex_drop_ids = bp_hash_i32((w)->parity_ex_drop_ids, (count)); \
+    (w)->parity_ex_drop_ids = bp_hash_i32((w)->parity_ex_drop_ids, (meta)); \
+} while (0)
 #include "explosion_live.h"
 
 /* EntityLivingBase.applyArmorCalculations + InventoryPlayer.damageArmor. */
@@ -146,7 +154,8 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
     uint32_t nd=0;uint64_t rays=bp_hash_begin();
     float dens,damage;ExBlast blast;
     double px,py,pz,minx,miny,minz,maxx,maxy,maxz;
-    exl_fill_and_rays(r,grid,hit,ex,ey,ez,size,&ox,&oy,&oz,&r->world_rand);
+    JavaHashSet hs;
+    exl_fill_and_rays(r,grid,hit,ex,ey,ez,size,&ox,&oy,&oz,&r->world_rand,&hs);
     /* doExplosionA entity loop sees the intact world (Explosion.java:132-190)
      * before doExplosionB destroys. */
     px=r->player.ent.posX+(double)r->ox;
@@ -180,7 +189,7 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
             if(dx*dx+dy*dy+dz*dz<=size*size*4.0)r->dragon.state.arena.crystals[i].alive=0;
         }
     }
-    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays,&r->world_rand);
+    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays,&r->world_rand,&hs,size);
     r->parity_ex_blasts++;
     r->parity_ex_destroyed += nd;
     r->parity_ex_rays = rays;
