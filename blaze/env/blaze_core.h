@@ -264,6 +264,8 @@ typedef struct {
     u16   *cells;                /* region packed states (id<<4)|meta; also
                                   * the oc_pixel input (oc_block does >>4)  */
     u8    *light;                /* region packed light (sky<<4)|block       */
+    u8    *biome;                /* rnx*rnz column biome ids; v7 load = plains 1.
+                                  * index ix * rnz + iz. Java Chunk.getBiome. */
     u16   *grass_sec;            /* per-16^3-section randtick-occupancy census
                                   * (grass/leaves/fire/crops/sapling/farmland/
                                   * ice/snow/mycelium) over the region's
@@ -458,6 +460,18 @@ MC_HD static inline long cu_region_idx(const Blaze *e, int wx, int wy, int wz) {
     if (ix < 0 || iy < 0 || iz < 0 || ix >= e->rnx || iy >= e->rny || iz >= e->rnz)
         return -1;
     return ((long)ix * e->rny + iy) * e->rnz + iz;
+}
+
+/* Snapshot column biome. Out of region / missing plane -> plains 1 (v7). */
+MC_HD static inline int cu_biome_at(const Blaze *e, int wx, int wz) {
+    int ix, iz;
+    if (!e || !e->biome || e->rnx <= 0 || e->rnz <= 0)
+        return BLAZE_SNAP_BIOME_PLAINS;
+    ix = wx - e->rx0;
+    iz = wz - e->rz0;
+    if (ix < 0 || iz < 0 || ix >= e->rnx || iz >= e->rnz)
+        return BLAZE_SNAP_BIOME_PLAINS;
+    return (int)e->biome[(long)ix * e->rnz + iz];
 }
 
 /* ---- random-tick occupancy census ----
@@ -798,6 +812,7 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 #define rt_live_block_light(w, x, y, z) cu_rt_block_light_at((w), (x), (y), (z))
 #define rt_live_set(w, x, y, z, id, meta) \
     cu_world_set_state((w), (x), (y), (z), (id), (meta))
+#define rt_live_biome(w, x, z) cu_biome_at((w), (x), (z))
 #define RT_SECTION_NEEDS(w, cx, sec, cz) \
     cu_rt_section_needs((w), (cx), (sec), (cz))
 #include "randtick_live.h"
@@ -1041,6 +1056,7 @@ MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, doub
 #define HS_PLACE(e, type, x, y, z, yaw, seed48, have_g, g, extra) \
     cu_hs_place((e), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g), (extra))
 #define HS_CREATURE_COUNT(e) cu_ps_count(e)
+#define HS_BIOME(e, x, z) cu_biome_at((e), (x), (z))
 #include "hostile_spawn.h"
 #ifndef ML_SKY
 #define ML_SKY(e, x, y, z) cu_world_sky((e), (x), (y), (z))
@@ -5169,7 +5185,8 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
         h = bp_randtick_digest_finish(
             bp_randtick_digest_begin(), e->parity_rt_cells_digest,
             e->parity_rt_cells, e->parity_rt_mutations,
-            e->world_rand.seed & MC_JR_MASK, e->update_lcg);
+            e->world_rand.seed & MC_JR_MASK, e->update_lcg,
+            e->biome, e->rnx, e->rnz);
         r->digest[BP_RANDOM_TICKS] = h;
         r->evidence[BP_RANDOM_TICKS] = e->parity_rt_mutations;
         if (e->parity_rt_mutations)
@@ -5246,10 +5263,11 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
                 it->on_ground, it->age, it->item, it->count, it->meta,
                 it->pickup_delay, it->lifespan);
         }
-        r->digest[BP_MOBS] = blaze_snap_mobs_digest_ext(
+        h = blaze_snap_mobs_digest_ext(
             e->mobs, e->n_mobs, e->vit.health,
             e->player_hurt_resistant, e->player_attack_cooldown,
             items_h, n_items);
+        r->digest[BP_MOBS] = bp_hash_biome_plane(h, e->biome, e->rnx, e->rnz);
         r->evidence[BP_MOBS] = 1 + (uint32_t)e->n_mobs + (uint32_t)n_items;
         if (e->n_mobs || n_items || e->player_hurt_resistant)
             r->active_mask |= BP_BIT(BP_MOBS);
@@ -5524,14 +5542,24 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                                             unsigned n_mobs,
                                             const RlSnapOrb *orbs,
                                             unsigned n_orbs,
+                                            const u8 *biome_src,
                                             unsigned long long world_rand_seed,
                                             int success_item) {
     int i, dx, dz;
     unsigned u;
+    long bvol;
 
     env->rx0 = h->rx0; env->ry0 = h->ry0; env->rz0 = h->rz0;
     env->rnx = h->rnx; env->rny = h->rny; env->rnz = h->rnz;
     env->rvol = (long)h->rnx * h->rny * h->rnz;
+    bvol = (long)h->rnx * (long)h->rnz;
+    if (env->biome && bvol > 0) {
+        if (biome_src)
+            for (i = 0; i < (int)bvol; ++i) env->biome[i] = biome_src[i];
+        else
+            for (i = 0; i < (int)bvol; ++i)
+                env->biome[i] = (u8)BLAZE_SNAP_BIOME_PLAINS;
+    }
     cu_grass_grid_init(env);     /* bulk phase fills grass_sec from this */
     env->ore = ore;
     env->nore = nore;
@@ -5787,12 +5815,13 @@ MC_HD static inline void blaze_reset_from_snapshot(Blaze *env, const RlSnapHead 
                                                    unsigned n_mobs,
                                                    const RlSnapOrb *orbs,
                                                    unsigned n_orbs,
+                                                   const u8 *biome_src,
                                                    unsigned long long world_rand_seed,
                                                    int success_item) {
     long i, nbulk;
     blaze_reset_scalar(env, h, items, ore, nore, ore_xy, cont, ncont,
                        light_src != NULL, mobs, n_mobs, orbs, n_orbs,
-                       world_rand_seed, success_item);
+                       biome_src, world_rand_seed, success_item);
     nbulk = cu_reset_bulk_count(env);
     for (i = 0; i < nbulk; ++i)
         blaze_reset_bulk(env, cells_src, light_src, i);

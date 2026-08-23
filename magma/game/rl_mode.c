@@ -225,6 +225,36 @@ static int rl_loaded_bounds_valid;
 static int rl_loaded_rx0, rl_loaded_ry0, rl_loaded_rz0;
 static int rl_loaded_rnx, rl_loaded_rny, rl_loaded_rnz;
 
+/* Packed rnx*rnz biome plane in snapshot index order (ix * rnz + iz).
+ * v7 restore wrote plains 1; v8 wrote the chunk array. Caller frees. */
+static unsigned char *rl_biome_plane_dup(const GmRuntime *r, int *nx, int *nz) {
+    unsigned char *p;
+    int x, z;
+    long bvol;
+    if (!rl_loaded_bounds_valid || !r || !r->world) {
+        if (nx) *nx = 0;
+        if (nz) *nz = 0;
+        return NULL;
+    }
+    if (nx) *nx = rl_loaded_rnx;
+    if (nz) *nz = rl_loaded_rnz;
+    bvol = (long)rl_loaded_rnx * (long)rl_loaded_rnz;
+    p = (unsigned char *)malloc((size_t)bvol);
+    if (!p) {
+        if (nx) *nx = 0;
+        if (nz) *nz = 0;
+        return NULL;
+    }
+    for (x = 0; x < rl_loaded_rnx; ++x)
+        for (z = 0; z < rl_loaded_rnz; ++z) {
+            int id = gm_world_biome(r->world, rl_loaded_rx0 + x,
+                                    rl_loaded_rz0 + z);
+            if (id < 0) id = BLAZE_SNAP_BIOME_PLAINS;
+            p[(long)x * rl_loaded_rnz + z] = (unsigned char)(id & 255);
+        }
+    return p;
+}
+
 /* Total count of item id across the main inventory. */
 static int rl_inv_count(const GmRuntime *r, int item) {
     int i, n = 0;
@@ -594,10 +624,13 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
         uint64_t cells_xor = 0;
         unsigned nrt = 0, muts = 0;
         if (gm_world_rt_parity_state(r->world, &cells_xor, &nrt, &muts)) {
+            int bnx = 0, bnz = 0;
+            unsigned char *bplane = rl_biome_plane_dup(r, &bnx, &bnz);
             h = bp_randtick_digest_finish(
                 bp_randtick_digest_begin(), cells_xor, (uint32_t)nrt,
                 (uint32_t)muts, r->world_rand.seed & MC_JR_MASK,
-                (int32_t)r->update_lcg);
+                (int32_t)r->update_lcg, bplane, bnx, bnz);
+            free(bplane);
             out->digest[BP_RANDOM_TICKS] = h;
             out->evidence[BP_RANDOM_TICKS] = muts;
             if (muts) out->active_mask |= BP_BIT(BP_RANDOM_TICKS);
@@ -668,10 +701,16 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
                 it->on_ground, it->age, it->item, it->count, it->meta,
                 it->pickup_delay, it->lifespan);
         }
-        out->digest[BP_MOBS] = blaze_snap_mobs_digest_ext(
-            packed, nm, r->vitals.health,
-            r->mobs.player_hurt_resistant, r->mobs.player_attack_cooldown,
-            items_h, n_items);
+        {
+            int bnx = 0, bnz = 0;
+            unsigned char *bplane = rl_biome_plane_dup(r, &bnx, &bnz);
+            h = blaze_snap_mobs_digest_ext(
+                packed, nm, r->vitals.health,
+                r->mobs.player_hurt_resistant, r->mobs.player_attack_cooldown,
+                items_h, n_items);
+            out->digest[BP_MOBS] = bp_hash_biome_plane(h, bplane, bnx, bnz);
+            free(bplane);
+        }
         out->evidence[BP_MOBS] = 1 + (uint32_t)nm + (uint32_t)n_items;
         if (nm || n_items || r->mobs.player_hurt_resistant)
             out->active_mask |= BP_BIT(BP_MOBS);
@@ -1011,15 +1050,33 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
             {
                 unsigned long long wr = r->world_rand.seed & MC_JR_MASK;
                 int lcg = r->update_lcg;
+                u8 *biome;
+                long bvol = (long)h.rnx * (long)h.rnz;
+                int bx, bz;
                 ok = ok && fwrite(&wr, sizeof wr, 1, f) == 1;
                 ok = ok && fwrite(&lcg, sizeof lcg, 1, f) == 1;
+                biome = (u8 *)malloc((size_t)bvol);
+                if (!biome) ok = 0;
+                else {
+                    for (bx = 0; bx < h.rnx; ++bx)
+                        for (bz = 0; bz < h.rnz; ++bz) {
+                            int id = gm_world_biome(r->world, h.rx0 + bx,
+                                                    h.rz0 + bz);
+                            if (id < 0) id = BLAZE_SNAP_BIOME_PLAINS;
+                            biome[(long)bx * h.rnz + bz] =
+                                (u8)(id & 255);
+                        }
+                    ok = ok && fwrite(biome, 1, (size_t)bvol, f) ==
+                                   (size_t)bvol;
+                    free(biome);
+                }
             }
             fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
-                    "%u mobs, %u orbs, wr=%llu lcg=%d)\n",
+                    "%u mobs, %u orbs, wr=%llu lcg=%d, biome %dx%d)\n",
                     ok ? "written" : "WRITE FAILED", path, h.tick, h.n_items,
                     ncoal, n_mobs, n_orbs,
                     (unsigned long long)(r->world_rand.seed & MC_JR_MASK),
-                    r->update_lcg);
+                    r->update_lcg, h.rnx, h.rnz);
         }
     }
     free(cells);
@@ -1034,7 +1091,8 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     GmPlayerCtlSnap d;
     u16 *cells = NULL;
     u8 *light = NULL;
-    long vol;
+    u8 *biome = NULL;
+    long vol, bvol;
     int ecx, ecz, erad;
     FILE *f = fopen(path, "rb");
     int i, x, y, z;
@@ -1170,6 +1228,20 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         }
         r->update_lcg = lcg;
     }
+    bvol = (long)h.rnx * (long)h.rnz;
+    biome = (u8 *)malloc((size_t)bvol);
+    if (!biome) {
+        snprintf(err, (size_t)err_cap, "biome plane alloc: %s", path);
+        free(cells); free(light); fclose(f); return 0;
+    }
+    if (h.version >= BLAZE_SNAP_VERSION_BIOME) {
+        if (fread(biome, 1, (size_t)bvol, f) != (size_t)bvol) {
+            snprintf(err, (size_t)err_cap, "truncated .bsnp biome: %s", path);
+            free(cells); free(light); free(biome); fclose(f); return 0;
+        }
+    } else {
+        memset(biome, BLAZE_SNAP_BIOME_PLAINS, (size_t)bvol);
+    }
     fclose(f);
 
     ecx = psv_floordiv16(h.rx0 + h.rnx / 2);
@@ -1202,9 +1274,15 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         snprintf(err, (size_t)err_cap,
                  "cannot configure parity world bounds: %s", path);
         free(cells);
+        free(biome);
         return 0;
     }
+    for (x = 0; x < h.rnx; ++x)
+        for (z = 0; z < h.rnz; ++z)
+            gm_world_set_biome(r->world, h.rx0 + x, h.rz0 + z,
+                               (int)biome[(long)x * h.rnz + z]);
     free(cells);
+    free(biome);
 
     r->ccx = psv_floordiv16(h.ox); r->ccz = psv_floordiv16(h.oz);
     r->ox = h.ox; r->oz = h.oz;

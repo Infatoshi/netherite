@@ -167,6 +167,31 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             return snap_fail(err, err_cap, "truncated .bsnp update_lcg", path);
         }
     }
+    {
+        long bvol = (long)out->head.rnx * (long)out->head.rnz;
+        out->biome = (unsigned char *)malloc((size_t)bvol);
+        if (!out->biome) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "biome plane alloc", path);
+        }
+        if (out->head.version >= BLAZE_SNAP_VERSION_BIOME) {
+            if (fread(out->biome, 1, (size_t)bvol, f) != (size_t)bvol) {
+                free(out->cells); out->cells = NULL;
+                free(out->coal); out->coal = NULL;
+                free(out->light); out->light = NULL;
+                free(out->biome); out->biome = NULL;
+                fclose(f);
+                return snap_fail(err, err_cap, "truncated .bsnp biome", path);
+            }
+        } else {
+            /* v7 and older: plains 1. Old fixtures keep HS_BIOME/freeze
+             * plains semantics (hostile_spawn.h / randtick_live.h). */
+            memset(out->biome, BLAZE_SNAP_BIOME_PLAINS, (size_t)bvol);
+        }
+    }
     fclose(f);
 
     /* spatial index over the static ore list (bucketed coal-candidate
@@ -290,6 +315,20 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
         int lcg = s->update_lcg;
         ok = ok && fwrite(&lcg, sizeof lcg, 1, f) == 1;
     }
+    if (version >= BLAZE_SNAP_VERSION_BIOME) {
+        long bvol = (long)s->head.rnx * (long)s->head.rnz;
+        if (s->biome)
+            ok = ok && fwrite(s->biome, 1, (size_t)bvol, f) == (size_t)bvol;
+        else {
+            unsigned char *tmp = (unsigned char *)malloc((size_t)bvol);
+            if (!tmp) ok = 0;
+            else {
+                memset(tmp, BLAZE_SNAP_BIOME_PLAINS, (size_t)bvol);
+                ok = ok && fwrite(tmp, 1, (size_t)bvol, f) == (size_t)bvol;
+                free(tmp);
+            }
+        }
+    }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)
         snprintf(err, (size_t)err_cap, "write failed: %s", path);
@@ -303,6 +342,7 @@ void blaze_snapshot_free(CuSnapshot *s) {
     free(s->coal);   s->coal = NULL;
     free(s->xy_off); s->xy_off = NULL;
     free(s->cont);   s->cont = NULL;
+    free(s->biome);  s->biome = NULL;
 }
 
 int blaze_build_containers(const unsigned short *cells,

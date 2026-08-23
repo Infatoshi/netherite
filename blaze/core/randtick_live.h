@@ -51,8 +51,8 @@
  * roll is not.
  * fillWithRain (cauldron) stays out; no extra World.rand there except
  * BlockCauldron.fillWithRain nextInt(20).
- * Snapshot has no biome plane: freeze/snow placement uses plains (id 1)
- * so magma==blaze. Cold-biome freeze is a unit with biome 12.
+ * Snapshot v8 carries a per-column biome plane (Chunk.blockBiomeArray).
+ * v7 loads plains 1. Freeze/snow read rt_live_biome + getFloatTemperature.
  *
  * Chunk order: stationary 1-player PlayerChunkMap.entries is addPlayer
  * insertion (cx outer, cz inner). Moving-player append/remove of that
@@ -68,6 +68,7 @@
 #include "mc_blocks.h"
 #include "block_props_table.h"
 #include "biome_props_full.h"
+#include "chunk_provider.h" /* CpPerlin TEMPERATURE_NOISE (NoiseGeneratorPerlin) */
 #include "mc_gamerules.h"
 #include "port_parity.h"
 
@@ -97,7 +98,7 @@
 #define rt_live_block_light(w, x, y, z) 0
 #endif
 #ifndef rt_live_biome
-#define rt_live_biome(w, x, z) 1 /* plains; snapshot has no biome plane */
+#define rt_live_biome(w, x, z) 1 /* plains; tests / v7 snapshot default */
 #endif
 #ifndef rt_live_water_vaporizes
 #define rt_live_water_vaporizes(w) 0 /* nether WorldProviderHell; blaze is overworld */
@@ -456,13 +457,29 @@ MC_HD static inline int rt_live_biome_can_rain(int biome) {
     return rt_live_biome_enable_rain(biome);
 }
 
-/* Biome.getFloatTemperature :258-268. TEMPERATURE_NOISE (Random(1234L) Perlin)
- * is omitted: f=0. Plains 0.8 never crosses 0.15. Cold biomes at y<=64 use
- * the base table. */
-MC_HD static inline float rt_live_float_temperature(int biome, int wy) {
+/* Biome.TEMPERATURE_NOISE = NoiseGeneratorPerlin(new Random(1234L), 1)
+ * (Biome.java static). Device-safe: construct on the stack, 1 simplex. */
+MC_HD static inline void rt_live_temperature_noise_init(CpPerlin *tn) {
+    JavaRandom r;
+    jrand_set(&r, 1234LL);
+    tn->n = 1;
+    cp_simplex_init(&tn->levels[0], &r);
+}
+
+/* Biome.getFloatTemperature :258-268.
+ * JVM: (float)x/8.0F promoted to double for Perlin; *4.0D cast to float. */
+MC_HD static inline float rt_live_float_temperature(int biome, int wx, int wy,
+                                                    int wz) {
     float temp = mc_bpf_temperature(biome);
-    if (wy > 64)
-        return temp - ((float)wy - 64.0f) * 0.05f / 30.0f;
+    if (wy > 64) {
+        CpPerlin tn;
+        float f;
+        rt_live_temperature_noise_init(&tn);
+        f = (float)(cp_perlin_getValue(&tn,
+                      (double)((float)wx / 8.0f),
+                      (double)((float)wz / 8.0f)) * 4.0);
+        return temp - (f + (float)wy - 64.0f) * 0.05f / 30.0f;
+    }
     return temp;
 }
 
@@ -506,7 +523,7 @@ MC_HD static inline int rt_live_snow_can_place(RT_W *w, int x, int y, int z) {
 MC_HD static inline int rt_live_can_block_freeze_no_water(RT_W *w, int x, int y,
                                                          int z) {
     int id, m;
-    if (rt_live_float_temperature(rt_live_biome(w, x, z), y) >= 0.15f)
+    if (rt_live_float_temperature(rt_live_biome(w, x, z), x, y, z) >= 0.15f)
         return 0;
     if (y < 0 || y >= 256) return 0;
     if (rt_live_block_light(w, x, y, z) >= 10) return 0;
@@ -524,7 +541,7 @@ MC_HD static inline int rt_live_can_block_freeze_no_water(RT_W *w, int x, int y,
 /* World.canSnowAtBody :2922-2948. */
 MC_HD static inline int rt_live_can_snow_at(RT_W *w, int x, int y, int z,
                                            int check_light) {
-    if (rt_live_float_temperature(rt_live_biome(w, x, z), y) >= 0.15f)
+    if (rt_live_float_temperature(rt_live_biome(w, x, z), x, y, z) >= 0.15f)
         return 0;
     if (!check_light) return 1;
     if (y < 0 || y >= 256) return 0;

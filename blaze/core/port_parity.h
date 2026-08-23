@@ -391,19 +391,32 @@ BP_HD static inline uint64_t bp_randtick_cells_replace(
     return digest;
 }
 
+BP_HD static inline uint64_t bp_hash_biome_plane(
+    uint64_t h, const uint8_t *plane, int32_t nx, int32_t nz) {
+    long i, n;
+    h = bp_hash_i32(h, nx);
+    h = bp_hash_i32(h, nz);
+    if (!plane || nx <= 0 || nz <= 0) return h;
+    n = (long)nx * (long)nz;
+    for (i = 0; i < n; ++i) h = bp_hash_u8(h, plane[i]);
+    return h;
+}
+
 BP_HD static inline uint64_t bp_randtick_digest_begin(void) {
     uint64_t h = bp_hash_begin();
-    return bp_hash_u32(h, UINT32_C(0x334b5452)); /* "RTK3" sapling/farmland/ice/snow/mycelium */
+    return bp_hash_u32(h, UINT32_C(0x344b5452)); /* "RTK4" biome plane */
 }
 
 BP_HD static inline uint64_t bp_randtick_digest_finish(
     uint64_t h, uint64_t cells_xor, uint32_t ncells, uint32_t mutations,
-    uint64_t world_rand_seed, int32_t update_lcg) {
+    uint64_t world_rand_seed, int32_t update_lcg,
+    const uint8_t *biome, int32_t rnx, int32_t rnz) {
     h = bp_hash_u64(h, cells_xor);
     h = bp_hash_u32(h, ncells);
     h = bp_hash_u32(h, mutations);
     h = bp_hash_u64(h, world_rand_seed);
-    return bp_hash_i32(h, update_lcg);
+    h = bp_hash_i32(h, update_lcg);
+    return bp_hash_biome_plane(h, biome, rnx, rnz);
 }
 
 /* Magma live_sim.c: sand 12, gravel 13. */

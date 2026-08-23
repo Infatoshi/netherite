@@ -1,5 +1,21 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 biome plane snapshot v8 (lane/biomeplane)
+
+Anvil. Snapshot v8 carries one u8 per x,z column of the lockstep region (`ix*rnz+iz`). Magma `rl_snapshot_write` copies `LChunk.biome` (`magma/world/light.c:153`, index `(wx&15)+(wz&15)*16` = Java `Chunk.getBiome` `Chunk.java:1273-1278`). Magma load restores via `gm_world_set_biome`. Blaze env `biome[]` pool. v7 loads plains id 1 so old fixtures keep HS_BIOME/freeze plains semantics.
+
+Java: `Chunk.blockBiomeArray` (`Chunk.java:53`). Consumers: `WorldEntitySpawner.getSpawnListEntryForTypeAt` (`WorldServer.java:245-249`) -> `Biome.getSpawnableList` (`Biome.java:204-220`); `HS_BIOME` in `hostile_spawn.h`. `World.canBlockFreeze` / `canSnowAt` -> `Biome.getFloatTemperature` (`Biome.java:258-268`): `TEMPERATURE_NOISE.getValue((float)x/8.0F, (float)z/8.0F)*4.0D` with `NoiseGeneratorPerlin(new Random(1234L), 1)` (`Biome.java` static, `NoiseGeneratorPerlin.java:21-32` / `NoiseGeneratorSimplex.java:24-40`). Port reuses `cp_simplex_init` / `cp_perlin_getValue` (`chunk_provider.h`). `EntitySlime.getCanSpawnHere` swamp `biome == Biomes.SWAMPLAND` (`EntitySlime.java:350`). CREATURE lists: default `Biome.java:142-145`; empty ocean/river/beach/mesa (`BiomeOcean.java:8` etc.); ice plains rabbit/polar bear only (`BiomeSnow.java:33-35`) so roster weight 0. Swamp extra slime weight 1 (`BiomeSwamp.java:34`) already on the monster list.
+
+Digest: `BP_MOBS` MBM2 -> MBM3, `BP_RANDOM_TICKS` RTK3 -> RTK4; both hash the plane. Fixture `s7_t0_r64_biome_plane.bsnp` baked by `test_biome_plane --write-fixture --seed 7` from `s10_t0_r64_randtick_bodies.bsnp` (cells unchanged; genlayer tiled 16x16 like `light.c:403-406`). Seed 7 at (0,0) is biome 6 swamp (`B_SWAMP`); region `rx0=-56` 128x128 has 11910 swamp columns; player column id 6. Plane digest live `0x445765477ed874fb` vs forced-plains `0x57dc49820e0ad2c5`. M1 t=0 swamp RT `0x30456b456d67ed57` / mobs `0xb41b5f6c48c1c715`; plains twin RT `0x0d483600952866f1` / mobs `0x9e8f2ea1c70bf687`.
+
+Units: Perlin `getValue(1,2) = -0.23526496123584156` matches Java 8 `NoiseGeneratorPerlin`; `getFloatTemperature` plains (8,80,16) float bits 1061576695; swamp/ocean/ice spawn lists; v7 load plains 1. `make -C blaze/rl test-biome-plane` PASS.
+
+M1+M2 VERIFIED (`out/verify/biomeplane_biome_plane_m1.log`, `out/verify/biomeplane_biome_plane_m2.log`) without `--natural-spawn`. Listed `--no-deps` M1 stay VERIFIED; M2 stay VERIFIED except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS (`out/verify/biomeplane_maketest.log`).
+
+Tapes (`replay_tape.py --cpu --no-gate --report`): TNT both physics NO divergence 309, inventory 1-mismatch t=28 slot 0 flint-and-steel 259 tape meta 0 vs magma meta 1. creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2 physics NO divergence through death (358 / 373), entities PASS. bow physics NO divergence 1407, entities PASS 5525. Canon physics NO divergence 3617, entities PASS 16526, world_hash first_mismatch null, 46 c-side hash_deltas. First-divergence ticks did not move earlier.
+
+Natural-spawn on swamp (t=7 magma evidence 12 vs blaze 10) and ice plains (t=2 magma 8 vs blaze 6) still diverges; birch 27 with natural-spawn VERIFIED (same monster weights as plains). Did not edit hostile_live.h / living_base.h. `mob_live.c` only `HS_BIOME` -> `gm_world_biome`. Stay out: tape-exact World.rand; swamp/ice natural-spawn lockstep.
+
 ## 2026-08-23 enderman live insert (lane/enderman)
 
 Gamer. Port leftover on `mobs` "Not closed" of lane/spiderslime: Java 1.11.2 EntityEnderman into shared C magma and blaze both compile (`blaze/core/hostile_live.h` + MONSTER insert in `hostile_spawn.h`). Spiderslime residuals: 20-tick deathTime before slime split; BiomeSwamp extra slime weight 1; spider HARD potion roll still consumed (living_base.h has no PotionEffect list). New row `mobs_end`. Snapshot v7. `BP_MOBS` tag MBM1 -> MBM2.

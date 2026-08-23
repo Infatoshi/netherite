@@ -1032,6 +1032,14 @@ static int biome_at(const CrLight *L, int wx, int wz) {
  * is not loaded. Same value magma renders from (world_diff verifier hook). */
 int light_biome(const CrLight *L, int wx, int wz) { return biome_at(L, wx, wz); }
 
+void light_set_biome(CrLight *L, int wx, int wz, int biome) {
+    LChunk *c;
+    if (!L) return;
+    c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return;
+    c->biome[(wx & 15) + (wz & 15) * 16] = biome;
+}
+
 /* Color resolvers: BiomeColorHelper keeps BlockPos.y fixed across the 3x3 (only
  * x/z step ±1); TEMPERATURE_NOISE therefore samples each neighbour's column. */
 static int grass_fn(int b, int wx, int wy, int wz) {

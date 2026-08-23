@@ -118,9 +118,21 @@ enum {
 };
 
 #ifndef HS_BIOME
-#define HS_BIOME(w, x, z) 1              /* plains. Swamp is 6 (B_SWAMP). */
+#define HS_BIOME(w, x, z) 1              /* plains. Override from the snapshot plane. */
 #endif
 #define HS_BIOME_SWAMP 6
+#define HS_BIOME_OCEAN 0
+#define HS_BIOME_RIVER 7
+#define HS_BIOME_FROZEN_OCEAN 10
+#define HS_BIOME_ICE_PLAINS 12
+#define HS_BIOME_ICE_MOUNTAINS 13
+#define HS_BIOME_BEACH 16
+#define HS_BIOME_STONE_BEACH 25
+#define HS_BIOME_COLD_BEACH 26
+#define HS_BIOME_DEEP_OCEAN 24
+#define HS_BIOME_MESA 37
+#define HS_BIOME_MESA_ROCK 38
+#define HS_BIOME_MESA_CLEAR 39
 
 /* Biome.java:146-153 weights. A function, not a host array: nvcc device. */
 MC_HD static inline int hs_weight_at(int i) {
@@ -851,19 +863,52 @@ MC_HD static inline int hs_creature_weight_at(int i) {
 }
 #define HS_CREATURE_TOTAL_WEIGHT 40
 
+/* Biomes that clear spawnableCreatureList in their ctor. Horse/donkey/wolf/
+ * rabbit extras are not in the lockstep roster (same as plains horse). */
+MC_HD static inline int hs_creature_list_empty(int biome) {
+    /* BiomeOcean.java:8, BiomeRiver.java:8, BiomeBeach.java:10,
+     * BiomeStoneBeach.java:10, BiomeMesa.java:41 / :49. */
+    if (biome == HS_BIOME_OCEAN || biome == HS_BIOME_DEEP_OCEAN ||
+        biome == HS_BIOME_RIVER || biome == HS_BIOME_FROZEN_OCEAN ||
+        biome == HS_BIOME_BEACH || biome == HS_BIOME_STONE_BEACH ||
+        biome == HS_BIOME_COLD_BEACH || biome == HS_BIOME_MESA ||
+        biome == HS_BIOME_MESA_ROCK || biome == HS_BIOME_MESA_CLEAR)
+        return 1;
+    /* BiomeSnow.java:33-35: clear then rabbit+polar bear. Roster has none. */
+    if (biome == HS_BIOME_ICE_PLAINS || biome == HS_BIOME_ICE_MOUNTAINS)
+        return 1;
+    return 0;
+}
+
+MC_HD static inline int hs_creature_weight_at_biome(int i, int biome) {
+    if (hs_creature_list_empty(biome)) return 0;
+    return hs_creature_weight_at(i);
+}
+
+MC_HD static inline int hs_creature_total_weight(int biome) {
+    if (hs_creature_list_empty(biome)) return 0;
+    return HS_CREATURE_TOTAL_WEIGHT;
+}
+
 MC_HD static inline int hs_creature_cap(int chunk_count_i) {
     return HS_CREATURE_CAP * chunk_count_i / HS_MOB_COUNT_DIV;
 }
 
-MC_HD static inline int hs_creature_weighted_pick(JavaRandom *r) {
-    int w, i;
+MC_HD static inline int hs_creature_weighted_pick_biome(JavaRandom *r, int biome) {
+    int w, i, tot;
     if (!r) return HS_CREATURE_SHEEP;
-    w = jrand_int_bound(r, HS_CREATURE_TOTAL_WEIGHT);
+    tot = hs_creature_total_weight(biome);
+    if (tot <= 0) return -1;
+    w = jrand_int_bound(r, tot);
     for (i = 0; i < HS_CREATURE_NTYPES; ++i) {
-        w -= hs_creature_weight_at(i);
+        w -= hs_creature_weight_at_biome(i, biome);
         if (w < 0) return i;
     }
     return HS_CREATURE_SHEEP;
+}
+
+MC_HD static inline int hs_creature_weighted_pick(JavaRandom *r) {
+    return hs_creature_weighted_pick_biome(r, 1); /* plains */
 }
 
 MC_HD static inline int hs_creature_to_ew(int c) {
@@ -1010,8 +1055,12 @@ MC_HD MC_NOINLINE static int hs_find_chunks_for_creatures(HS_W *w, HsState *st,
                 if (dsq < HS_PLAYER_RANGE * HS_PLAYER_RANGE
                     || dspawn < HS_SPAWN_PT_RANGE_SQ)
                     continue;
-                if (type < 0)
-                    type = hs_creature_weighted_pick(&st->world_rand);
+                if (type < 0) {
+                    int biome = HS_BIOME(w, l2, j3);
+                    if (hs_creature_total_weight(biome) <= 0) break;
+                    type = hs_creature_weighted_pick_biome(&st->world_rand,
+                                                          biome);
+                }
                 if (type < 0) break;
                 rx = l2;
                 ry = i3;

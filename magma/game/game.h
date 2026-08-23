@@ -290,6 +290,7 @@ int       gm_world_block_light(const GmWorld *w, int wx, int wy, int wz);
 /* Voronoi biome id at a column (-1 unloaded) and the blended 0xRRGGBB grass
  * tint the mesher would use — exposed for the script.c oracle-diff probes. */
 int       gm_world_biome(const GmWorld *w, int wx, int wz);
+void      gm_world_set_biome(GmWorld *w, int wx, int wz, int biome);
 int       gm_world_grass_color(const GmWorld *w, int wx, int wy, int wz);
 /* Blended 0xRRGGBB foliage tint (light_foliage_color); ParticleDigging leaves. */
 int       gm_world_foliage_color(const GmWorld *w, int wx, int wy, int wz);

@@ -38,6 +38,7 @@ static int gm_hs_in_clip(const GmHsWorld *h, int x, int y, int z);
 static int gm_hs_block(const GmHsWorld *h, int x, int y, int z);
 static int gm_hs_sky(const GmHsWorld *h, int x, int y, int z);
 static int gm_hs_blk(const GmHsWorld *h, int x, int y, int z);
+static int gm_hs_biome(const GmHsWorld *h, int x, int z);
 
 #define HS_W GmHsWorld
 #define HS_BLOCK(h, x, y, z) gm_hs_block((h), (x), (y), (z))
@@ -48,6 +49,7 @@ static int gm_hs_blk(const GmHsWorld *h, int x, int y, int z);
 #define HS_PLACE(h, type, x, y, z, yaw, seed48, have_g, g, extra) \
     gm_hs_place((h), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g), (extra))
 #define HS_CREATURE_COUNT(h) gm_ps_count(h)
+#define HS_BIOME(h, x, z) gm_hs_biome((h), (x), (z))
 #include "hostile_spawn.h"
 #define ML_SKY(w, x, y, z) gm_world_sky_light((w), (x), (y), (z))
 #define ML_BLK(w, x, y, z) gm_world_block_light((w), (x), (y), (z))
@@ -3180,6 +3182,12 @@ static int gm_hs_blk(const GmHsWorld *h, int x, int y, int z) {
     if (!h || !h->w) return 0;
     if (!gm_hs_in_clip(h, x, y, z)) return 0;
     return gm_world_block_light(h->w, x, y, z);
+}
+static int gm_hs_biome(const GmHsWorld *h, int x, int z) {
+    int b;
+    if (!h || !h->w) return 1;
+    b = gm_world_biome(h->w, x, z);
+    return b < 0 ? 1 : b;
 }
 
 static int gm_hs_count(const GmHsWorld *h) {

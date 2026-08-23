@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/biomeplane 2026-08-23 (biome_plane M1+M2 after snapshot v8 per-column biome plane + HS_BIOME/rt_live_biome + TEMPERATURE_NOISE Perlin. BP_MOBS MBM3, BP_RANDOM_TICKS RTK4. v7 loads plains 1. Swamp/ice natural-spawn lockstep still diverges. random_ticks, random_ticks_bodies, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/enderman 2026-08-23 (mobs_end M1+M2 after EntityEnderman shared live tick + MONSTER insert + deathTime 20 + BiomeSwamp slime weight 1. Snapshot v7 enderman fields. BP_MOBS MBM2. mobs, mobs_ss, passives, xp_orbs, boats, elytra, projectiles, random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/rtbodies 2026-08-23 (random_ticks_bodies M1+M2 after sapling STAGE / farmland / ice / snow / mycelium updateTick + updateBlocks ice/snow placement. RTK3 hashes the extra cell ids. Tree gen and lightning stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
 Last verified: lane/rtworldrand 2026-08-23 (random_ticks M1+M2 after shared World.rand + updateLCG replace purpose-hash streams. Snapshot v6 update_lcg. RTK2 hashes the cursor. BlockFire world.rand closed. Class C: Java World.rand and updateLCG are unseeded. Fireball and EntityItem Math.random motion stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
@@ -57,6 +58,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | passives | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn-passive`) | VERIFIED (64 CUDA lanes) |
 | mobs_ss | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | mobs_end | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
+| biome_plane | VERIFIED (chain 64, `--features random_ticks,mobs --mobs-on`, seed 7 swamp plane) | VERIFIED (64 CUDA lanes) |
 
 ## Unported rows (coverage gaps), in dependency order
 

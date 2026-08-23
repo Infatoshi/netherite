@@ -150,6 +150,28 @@ static int write_bsnp_ex(const char *path, int ntab, const int *wx,
         return -1;
       }
     }
+    if (h.version >= BLAZE_SNAP_VERSION_BIOME) {
+      size_t bvol = (size_t)RNX * (size_t)RNZ;
+      unsigned char *biome = (unsigned char *)malloc(bvol);
+      int ok;
+      if (!biome) {
+        fclose(f);
+        free(cells);
+        free(light);
+        free(coal);
+        return -1;
+      }
+      memset(biome, BLAZE_SNAP_BIOME_PLAINS, bvol);
+      ok = fwrite(biome, 1, bvol, f) == bvol;
+      free(biome);
+      if (!ok) {
+        fclose(f);
+        free(cells);
+        free(light);
+        free(coal);
+        return -1;
+      }
+    }
   }
   fclose(f);
   free(cells);
