@@ -883,6 +883,75 @@ int main(int argc, char **argv) {
     CHECK(acquired,"autonomy: hurt enderman acquires and chases the player");
     gm_runtime_destroy(&r);
 
+    /* Arrow vs enderman: EntityEnderman.java:371-381 64-try teleport, no HP. */
+    if(!init_flat(&r))return 1;
+    {
+        int aslot=gm_mobs_spawn(&r.mobs,EW_TYPE_ENDERMAN,8.5,5.0,10.5);
+        EwStore *es;
+        float hp0;
+        unsigned long long seed0;
+        CHECK(aslot>=0,"arrow: spawn enderman");
+        es=test_mob_store(&r.mobs);
+        hp0=es->health[aslot];
+        r.mobs.ent_jr_seed[aslot]=1;
+        seed0=r.mobs.ent_jr_seed[aslot];
+        CHECK(gm_mobs_damage_near(&r.mobs,r.world,8.5,5.5,10.5,1.0,4.0f,&r.entities),
+              "arrow: damage_near hits enderman");
+        es=test_mob_store(&r.mobs);
+        CHECK(es->health[aslot]==hp0,
+              "arrow: enderman HP unchanged (EntityEnderman.java:371-381)");
+        CHECK(r.mobs.ent_jr_seed[aslot]!=seed0,
+              "arrow: 64-try teleport consumes entity.rand");
+    }
+    gm_runtime_destroy(&r);
+
+    /* Type-1 (bow) arrow tick vs planted enderman. Type 2 skeleton arrows
+     * only hit the player (projectile_live.h / runtime.c). */
+    if(!init_flat(&r))return 1;
+    {
+        int aslot=gm_mobs_spawn(&r.mobs,EW_TYPE_ENDERMAN,8.5,5.0,10.5);
+        EwStore *es;
+        float hp0;
+        unsigned long long seed0;
+        GmAction idle;memset(&idle,0,sizeof idle);idle.hotbar_sel=-1;
+        CHECK(aslot>=0,"proj arrow: spawn enderman");
+        es=test_mob_store(&r.mobs);
+        hp0=es->health[aslot];
+        r.mobs.ent_jr_seed[aslot]=1;
+        seed0=r.mobs.ent_jr_seed[aslot];
+        r.projectiles[0].active=1;
+        r.projectiles[0].type=1;
+        r.projectiles[0].age=0;
+        r.projectiles[0].x=8.5;
+        r.projectiles[0].y=5.9;
+        r.projectiles[0].z=10.5;
+        r.projectiles[0].vx=0.0;
+        r.projectiles[0].vy=0.0;
+        r.projectiles[0].vz=0.1;
+        gm_runtime_tick(&r,idle);
+        es=test_mob_store(&r.mobs);
+        CHECK(es->health[aslot]==hp0,
+              "proj arrow: enderman HP unchanged (EntityEnderman.java:371-381)");
+        CHECK(r.mobs.ent_jr_seed[aslot]!=seed0,
+              "proj arrow: 64-try teleport consumes entity.rand");
+        CHECK(!r.projectiles[0].active,
+              "proj arrow: type-1 deactivates on the enderman hit");
+    }
+    gm_runtime_destroy(&r);
+
+    /* Witch live insert: size/health from applyEntityAttributes. */
+    if(!init_flat(&r))return 1;
+    {
+        int wslot=gm_mobs_spawn(&r.mobs,EW_TYPE_WITCH,8.5,5.0,10.5);
+        EwStore *es;
+        CHECK(wslot>=0,"witch: spawn");
+        es=test_mob_store(&r.mobs);
+        CHECK(es->health[wslot]==26.0f,
+              "witch: MAX_HEALTH 26 EntityWitch.java:115");
+        CHECK(es->type[wslot]==EW_TYPE_WITCH,"witch: type 23");
+    }
+    gm_runtime_destroy(&r);
+
     /* Blaze burst: AIFireballAttack charge 60 then 3-shot volley (type-3). */
     if(!init_flat(&r))return 1;
     r.dimension=-1;r.mobs.active_dimension=-1;
@@ -929,8 +998,7 @@ int main(int argc, char **argv) {
           "type AI: close skeleton keep-away navigates outward (not zombie melee stand)");
     gm_runtime_destroy(&r);
 
-    /* WorldEntitySpawner biome list still draws enderman; roster insert is
-     * zombie/skeleton/creeper only so the live table never holds enderman. */
+    /* WorldEntitySpawner biome list draws enderman+witch; both insert. */
     if(!init_flat(&r))return 1;
     r.natural_spawn = 1;
     r.mobs.natural_spawn = 1;

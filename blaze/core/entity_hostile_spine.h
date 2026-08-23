@@ -31,6 +31,7 @@ enum {
     EW_TYPE_COW      = 12,
     EW_TYPE_CHICKEN  = 13,
     EW_TYPE_PIGMAN   = 15,   /* live type; render = zombie + pigman skin */
+    EW_TYPE_WITCH    = 23,   /* ER_TYPE_WITCH magma/game/entity_render.c:72 */
     EW_TYPE_GHAST    = 26,
     EW_TYPE_MAGMA    = 27,
     EW_TYPE_WITHER_SKELETON = 32,
@@ -56,7 +57,7 @@ MC_HD static inline int ehs_is_hostile(u8 type) {
         || type == EW_TYPE_WITHER_SKELETON || type == EW_TYPE_BLAZE
         || type == EW_TYPE_PIGMAN || type == EW_TYPE_GHAST
         || type == EW_TYPE_MAGMA || type == EW_TYPE_SLIME
-        || type == EW_TYPE_SILVERFISH;
+        || type == EW_TYPE_SILVERFISH || type == EW_TYPE_WITCH;
 }
 
 /* EntityCow/Pig/Sheep/Chicken. EntityAnimal.canDespawn is false. */
@@ -73,6 +74,7 @@ MC_HD static inline float ehs_max_health(u8 type) {
                                                /* EntityPig.java:73 EntityCow.java:56 */
     if (type == EW_TYPE_SPIDER) return 16.0f;   /* EntitySpider.java:104 */
     if (type == EW_TYPE_ENDERMAN) return 40.0f;
+    if (type == EW_TYPE_WITCH) return 26.0f;    /* EntityWitch.java:115 */
     if (type == EW_TYPE_GHAST) return 10.0f;
     if (type == EW_TYPE_SILVERFISH) return 8.0f;
     if (type == EW_TYPE_BOAT) return 40.0f;
@@ -98,6 +100,7 @@ MC_HD static inline float ehs_land_speed(u8 type) {
     case EW_TYPE_CREEPER:  return 0.25f;
     case EW_TYPE_SPIDER:   return 0.30000001192092896f;
     case EW_TYPE_ENDERMAN: return 0.30000001192092896f;
+    case EW_TYPE_WITCH:    return 0.25f;                 /* EntityWitch.java:116 */
     case EW_TYPE_BLAZE:    return 0.23000000417232513f;
     case EW_TYPE_MAGMA:    return 0.20000000298023224f;
     case EW_TYPE_SILVERFISH: return 0.25f;
@@ -128,6 +131,9 @@ MC_HD static inline void ehs_size(u8 type, float *width, float *height) {
         break;
     case EW_TYPE_ENDERMAN:
         *width = 0.6f; *height = 2.9f;
+        break;
+    case EW_TYPE_WITCH:
+        *width = 0.6f; *height = 1.95f; /* EntityWitch.java:59 */
         break;
     case EW_TYPE_WITHER_SKELETON:
         *width = 0.7f; *height = 2.4f;

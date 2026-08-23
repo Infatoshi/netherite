@@ -95,7 +95,8 @@ static int gm_passive(int type){
 }
 static int hai_ok(int type){
     return type==EW_TYPE_ZOMBIE||type==EW_TYPE_SKELETON||type==EW_TYPE_CREEPER
-        ||type==EW_TYPE_SPIDER||type==EW_TYPE_SLIME||type==EW_TYPE_ENDERMAN;
+        ||type==EW_TYPE_SPIDER||type==EW_TYPE_SLIME||type==EW_TYPE_ENDERMAN
+        ||type==EW_TYPE_WITCH;
 }
 static int gm_living(int type){
     return gm_hostile(type)||gm_passive(type)||type==EW_TYPE_BOAT;
@@ -153,6 +154,7 @@ static int collect_blocks(GmWorld *w, const McAABB *q, PcfBlock *out, int cap) {
 
 static float max_health(int type, int size) {
     if (type == EW_TYPE_ENDERMAN) return 40.0f;
+    if (type == EW_TYPE_WITCH) return 26.0f;
     if (type == EW_TYPE_GHAST) return 10.0f;
     if (type == EW_TYPE_SILVERFISH) return 8.0f;
     if (gm_is_slimey(type)) {
@@ -325,6 +327,11 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->ticks_existed[slot] = 0;
     m->find_aggro[slot] = 0;
     m->teleport_time[slot] = 0;
+    m->witch_attack_timer[slot] = 0;
+    m->witch_drink[slot] = 0;
+    m->effect_id[slot] = 0;
+    m->effect_duration[slot] = 0;
+    m->effect_amplifier[slot] = 0;
     m->boat_delta_rot[slot] = 0.0f;
     m->boat_glide[slot] = 0.8f;
     if (!m->size[slot]) m->size[slot] = gm_is_slimey(s ? s->type[slot] : 0) ? 2 : 1;
@@ -399,6 +406,11 @@ static void ml_load_slot(MlMob *o, const GmMobLive *m, const EwStore *s, int i) 
     o->snap.ticks_existed = m->ticks_existed[i];
     o->snap.find_aggro = m->find_aggro[i];
     o->snap.teleport_time = m->teleport_time[i];
+    o->snap.witch_attack_timer = m->witch_attack_timer[i];
+    o->snap.witch_drink = m->witch_drink[i];
+    o->snap.effect_id = m->effect_id[i];
+    o->snap.effect_duration = m->effect_duration[i];
+    o->snap.effect_amplifier = m->effect_amplifier[i];
     o->snap.attack_time = s->attack_time[i];
     o->snap.swell = m->creeper_fuse[i];
     o->snap.target_idx = m->det_has_target[i] ? 1 : 0;
@@ -450,6 +462,11 @@ static void ml_save_slot(GmMobLive *m, EwStore *s, int i, const MlMob *o) {
     m->ticks_existed[i] = p->ticks_existed;
     m->find_aggro[i] = p->find_aggro;
     m->teleport_time[i] = p->teleport_time;
+    m->witch_attack_timer[i] = p->witch_attack_timer;
+    m->witch_drink[i] = p->witch_drink;
+    m->effect_id[i] = p->effect_id;
+    m->effect_duration[i] = p->effect_duration;
+    m->effect_amplifier[i] = p->effect_amplifier;
     s->attack_time[i] = p->attack_time;
     s->ai_state[i] = p->task_bits;
     s->path_tx[i] = p->wander_x;
@@ -553,6 +570,7 @@ static double pai_attribute_speed(int type) {
     if (type == EW_TYPE_ZOMBIE) return 0.23000000417232513;
     if (type == EW_TYPE_SKELETON || type == EW_TYPE_CREEPER) return 0.25;
     if (type == EW_TYPE_ENDERMAN) return 0.30000001192092896;
+    if (type == EW_TYPE_WITCH) return 0.25;
     return 0.23000000417232513;
 }
 
@@ -575,6 +593,7 @@ static void pai_size(int type, float *width, float *height) {
     if (type == EW_TYPE_BLAZE) { *width = 0.6f; *height = 1.8f; return; }
     if (type == EW_TYPE_PIGMAN) { *width = 0.6f; *height = 1.95f; return; }
     if (type == EW_TYPE_ENDERMAN) { *width = 0.6f; *height = 2.9f; return; }
+    if (type == EW_TYPE_WITCH) { *width = 0.6f; *height = 1.95f; return; }
     *width = 0.9f;
     if (type == EW_TYPE_SHEEP) *height = 1.3f;
     else if (type == EW_TYPE_PIG) *height = 0.9f;
@@ -2381,6 +2400,19 @@ static void mob_on_death(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         item = 0;
         break;
     }
+    case EW_TYPE_WITCH: {
+        JavaRandom er;
+        MlDrop pd[7];
+        int nd, di;
+        er.seed = m->ent_jr_seed[i];
+        nd = ml_witch_drop(&er, pd, 7);
+        m->ent_jr_seed[i] = er.seed;
+        for (di = 0; di < nd; ++di)
+            gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i],
+                               pd[di].item, pd[di].count, pd[di].meta, 10);
+        item = 0;
+        break;
+    }
     case EW_TYPE_BLAZE:
         if ((mc_hash64((u64)m->seed ^ (u64)s->id[i]) & 1ULL) != 0) item = 369;
         break;
@@ -3595,6 +3627,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 ectx.helmet = isr_get_stack(&p->inv, ISR_ARMOR_HEAD).item;
                 ectx.griefing = mob_griefing;
                 ectx.world_time = world_time;
+                ectx.player_health = v ? v->health : 20.0f;
+                ectx.pmx = p->ent.motionX;
+                ectx.pmz = p->ent.motionZ;
                 ml_hostile_ai(&mm, w, px, py, pz, day, m->seed, m->tick,
                               &ectx, &o);
             }
@@ -3628,7 +3663,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 }
             }
             if (type == EW_TYPE_SPIDER || type == EW_TYPE_SLIME
-                || type == EW_TYPE_ENDERMAN) {
+                || type == EW_TYPE_ENDERMAN || type == EW_TYPE_WITCH) {
                 ml_move_hostile(&mm, w, st, o.moving, o.jump);
                 ml_save_slot(m, nx, i, &mm);
                 m->panic_ticks[i] = mm.snap.panic;
@@ -4238,6 +4273,11 @@ unsigned gm_mobs_export_snap(const GmMobLive *m, struct RlSnapMob *out,
         o->ticks_existed = m->ticks_existed[i];
         o->find_aggro = m->find_aggro[i];
         o->teleport_time = m->teleport_time[i];
+        o->witch_attack_timer = m->witch_attack_timer[i];
+        o->witch_drink = m->witch_drink[i];
+        o->effect_id = m->effect_id[i];
+        o->effect_duration = m->effect_duration[i];
+        o->effect_amplifier = m->effect_amplifier[i];
         o->task_bits = m->passive_tasks[i];
         o->target_tasks = m->det_target_tasks[i];
         o->wander_x = m->passive_idle_x[i];
@@ -4322,6 +4362,11 @@ void gm_mobs_import_snap(GmMobLive *m, const struct RlSnapMob *in, unsigned n) {
         m->ticks_existed[i] = o->ticks_existed;
         m->find_aggro[i] = o->find_aggro;
         m->teleport_time[i] = o->teleport_time;
+        m->witch_attack_timer[i] = o->witch_attack_timer;
+        m->witch_drink[i] = o->witch_drink;
+        m->effect_id[i] = o->effect_id;
+        m->effect_duration[i] = o->effect_duration;
+        m->effect_amplifier[i] = o->effect_amplifier;
         m->passive_tasks[i] = o->task_bits;
         m->det_target_tasks[i] = o->target_tasks;
         m->passive_idle_x[i] = o->wander_x;

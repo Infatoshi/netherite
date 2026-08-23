@@ -1,10 +1,7 @@
-/* Spider + slime live-tick unit tests + fixture baker.
+/* Witch lockstep fixture baker + units.
  *
- * Units: Java sizes/health/speed, hop delay, split offsets, slime-chunk,
- * swamp moon, spider climb pack, drops.
- * --write-fixture FROM OUT copies a magma region, grounds the s10 player
- * on a roofed stone floor, plants zombie +Z, skeleton +X, spider west,
- * slime size-2 NE. */
+ * --write-fixture FROM OUT copies the mobs_end region and plants a
+ * witch next to that set. */
 #define _POSIX_C_SOURCE 200809L
 #include "blaze_snapshot.h"
 #include "entity_spine.h"
@@ -39,6 +36,42 @@ static int hs_test_place(HsTestW *w, int type, double x, double y, double z,
     ++g_hs_placed;
     return 1;
 }
+
+#define ML_W HsTestW
+#define ML_BLOCK(w, x, y, z) hs_test_block((w), (x), (y), (z))
+#define ML_SKY(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 15)
+#define ML_BLK(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 0)
+#include "hostile_live.h"
+
+typedef struct {
+    HsTestW blocks;
+    MlMob *hit;
+    int hits;
+} PlHitW;
+
+static int pl_test_hit_mob(PlHitW *w, double x, double y, double z,
+                           double radius, float damage) {
+    MlMob *m;
+    double dx, dy, dz;
+    if (!w || !w->hit || !w->hit->snap.alive) return 0;
+    m = w->hit;
+    dx = m->snap.x - x;
+    dy = (m->snap.y + 0.9) - y;
+    dz = m->snap.z - z;
+    if (dx * dx + dy * dy + dz * dz > radius * radius) return 0;
+    ++w->hits;
+    if (m->snap.type == EW_TYPE_ENDERMAN)
+        return ml_enderman_arrow_hit(m, &w->blocks);
+    m->snap.health -= damage;
+    if (m->snap.health < 0.0f) m->snap.health = 0.0f;
+    return 1;
+}
+
+#define PL_W PlHitW
+#define PL_BLOCK(w, x, y, z) hs_test_block(&(w)->blocks, (x), (y), (z))
+#define PL_HIT_MOB(w, x, y, z, rad, dmg) \
+    pl_test_hit_mob((w), (x), (y), (z), (rad), (dmg))
+#include "projectile_live.h"
 
 #define HS_W HsTestW
 #define HS_BLOCK(w, x, y, z) hs_test_block((w), (x), (y), (z))
@@ -155,11 +188,13 @@ static int write_fixture(const char *from, const char *out_path) {
     }
 
     s.head.version = BLAZE_SNAP_VERSION;
-    s.n_mobs = 4;
+    s.n_mobs = 6;
     plant_hostile(&s.mobs[0], 1, 1, EW_TYPE_ZOMBIE, 8.5, 65.0, 11.5, 0);
     plant_hostile(&s.mobs[1], 2, 2, EW_TYPE_SKELETON, 12.5, 65.0, 8.5, 0);
     plant_hostile(&s.mobs[2], 3, 3, EW_TYPE_SPIDER, 6.5, 65.0, 8.5, 0);
     plant_hostile(&s.mobs[3], 4, 4, EW_TYPE_SLIME, 11.5, 65.0, 11.5, 2);
+    plant_hostile(&s.mobs[4], 5, 5, EW_TYPE_ENDERMAN, 10.5, 65.0, 6.5, 0);
+    plant_hostile(&s.mobs[5], 6, 6, EW_TYPE_WITCH, 10.5, 65.0, 11.5, 0);
     s.n_orbs = 1;
     {
         RlSnapOrb *o = &s.orbs[0];
@@ -194,6 +229,7 @@ static int write_fixture(const char *from, const char *out_path) {
     fprintf(stderr,
             "WROTE %s zombie (8.5,65,11.5) skeleton (12.5,65,8.5) "
             "spider (6.5,65,8.5) slime2 (11.5,65,11.5) "
+            "enderman (10.5,65,6.5) witch (10.5,65,11.5) "
             "player (8.5,65,8.5) n_mobs=%u digest=0x%016llx\n",
             out_path, s.n_mobs,
             (unsigned long long)blaze_snap_mobs_digest(s.mobs, s.n_mobs));
@@ -203,152 +239,136 @@ static int write_fixture(const char *from, const char *out_path) {
 
 static int run_units(void) {
     float w, h;
-    ehs_size(EW_TYPE_SPIDER, &w, &h);
-    expect(bits_eq_f(w, 1.4f) && bits_eq_f(h, 0.9f), "spider 1.4x0.9");
-    expect(bits_eq_f(ehs_max_health(EW_TYPE_SPIDER), 16.0f), "spider health 16");
-    expect(bits_eq_f(ml_melee_damage(EW_TYPE_SPIDER), 2.0f), "spider attack 2");
-    ehs_size_scaled(EW_TYPE_SLIME, 2, &w, &h);
-    expect(bits_eq_f(w, 0.51000005f * 2.0f) && bits_eq_f(h, 0.51000005f * 2.0f),
-           "setSlimeSize 2 is 0.51000005*2");
-    expect(bits_eq_f(ehs_max_health_of(EW_TYPE_SLIME, 2), 4.0f),
-           "slime size 2 health is 4");
-    expect(bits_eq_f(ehs_max_health_of(EW_TYPE_SLIME, 4), 16.0f),
-           "slime size 4 health is 16");
-    expect(bits_eq_f(ehs_land_speed_of(EW_TYPE_SLIME, 2), 0.4f),
-           "slime size 2 speed is 0.2+0.1*2");
-    expect(ml_is_roster(EW_TYPE_SLIME) && hs_is_roster(HS_SLIME),
-           "slime is on live and spawn roster");
-    expect(ml_xp_points(EW_TYPE_SLIME, 2) == 2, "slime XP is size");
-    expect(ml_xp_points(EW_TYPE_SLIME, 4) == 4, "slime XP size 4 is 4");
-    {
-        float ox, oz;
-        ml_slime_split_off(0, 2, &ox, &oz);
-        expect(bits_eq_f(ox, -0.25f) && bits_eq_f(oz, -0.25f),
-               "split k=0 offset (-0.25,-0.25) for size 2");
-        ml_slime_split_off(1, 2, &ox, &oz);
-        expect(bits_eq_f(ox, 0.25f) && bits_eq_f(oz, -0.25f),
-               "split k=1 offset (0.25,-0.25)");
-        ml_slime_split_off(2, 2, &ox, &oz);
-        expect(bits_eq_f(ox, -0.25f) && bits_eq_f(oz, 0.25f),
-               "split k=2 offset (-0.25,0.25)");
-    }
+    expect(ml_is_roster(EW_TYPE_WITCH) && hs_is_roster(HS_WITCH),
+           "witch is on live and spawn roster");
+    expect(hs_weight_at(HS_WITCH) == 5, "Biome.java:153 witch weight 5/1-1");
+    ehs_size(EW_TYPE_WITCH, &w, &h);
+    expect(bits_eq_f(w, 0.6f) && bits_eq_f(h, 1.95f),
+           "witch setSize 0.6x1.95 EntityWitch.java:59");
+    expect(bits_eq_f(ehs_max_health(EW_TYPE_WITCH), 26.0f),
+           "witch MAX_HEALTH 26 EntityWitch.java:115");
+    expect(bits_eq_f(ehs_land_speed(EW_TYPE_WITCH), 0.25f),
+           "witch SPEED 0.25 EntityWitch.java:116");
+    expect(ml_xp_points(EW_TYPE_WITCH, 0) == 5, "witch XP 5 EntityMob.java:27");
+    expect(ml_attack_cooldown(EW_TYPE_WITCH) == 60,
+           "EntityAIAttackRanged interval 60");
+    expect(ML_WITCH_DRINK_TICKS == 32, "ItemPotion.java:90 drink 32 ticks");
     {
         JavaRandom er;
-        int n;
-        jrand_set(&er, 7);
-        n = ml_slime_split_n(&er);
-        expect(n >= 2 && n <= 4, "split count is 2+nextInt(3)");
-    }
-    {
-        JavaRandom er;
-        MlDrop d[1];
-        int n;
-        jrand_set(&er, 3);
-        n = ml_slime_drop(&er, 2, d, 1);
-        expect(n == 0, "size-2 slime drops nothing");
-        jrand_set(&er, 3);
-        n = ml_slime_drop(&er, 1, d, 1);
-        expect(n == 0 || (n == 1 && d[0].item == ML_ITEM_SLIME_BALL
-                          && d[0].count >= 1 && d[0].count <= 2)
-               || (n == 1 && d[0].count == 0),
-               "size-1 slimeball nextInt(3) count");
-        /* count 0 is not emitted (n==0). nextInt(3) is 0..2. */
-        expect(n == 0 || (d[0].item == ML_ITEM_SLIME_BALL && d[0].count >= 1
-                          && d[0].count <= 2),
-               "size-1 drop is 1..2 slimeballs or empty");
-    }
-    expect(bits_eq_f(hs_moon_phase_factor(0), 1.0f), "moon phase 0 factor 1.0");
-    expect(bits_eq_f(hs_moon_phase_factor(24000LL), 0.75f),
-           "moon phase 1 factor 0.75");
-    expect(bits_eq_f(hs_moon_phase_factor(96000LL), 0.0f),
-           "moon phase 4 factor 0.0");
-    {
-        JavaRandom er;
-        int have = 0;
-        double g = 0.0;
-        int sz;
-        jrand_set(&er, 11);
-        sz = hs_slime_init(&er, &have, &g, 18000LL, 2);
-        expect(sz == 1 || sz == 2 || sz == 4, "onInitialSpawn size is 1<<i");
-    }
-    {
-        /* Chunk.getRandomWithSeed overflow: just a deterministic pin. */
-        int a = hs_is_slime_chunk(0, 0, 0);
-        int b = hs_is_slime_chunk(0, 0, 0);
-        expect(a == b, "slime-chunk is a pure function of seed+chunk");
-    }
-    expect(hs_is_roster(HS_SPIDER) && hs_is_roster(HS_SLIME),
-           "spider and slime insert on the MONSTER path");
-    expect(hs_is_roster(HS_ENDERMAN), "enderman inserts on the MONSTER path");
-    expect(hs_is_roster(HS_WITCH), "witch inserts on the MONSTER path");
-    expect(ml_is_roster(EW_TYPE_ENDERMAN), "enderman is on the live roster");
-    expect(bits_eq_f(ehs_max_health(EW_TYPE_ENDERMAN), 40.0f),
-           "enderman MAX_HEALTH 40");
-    expect(bits_eq_f(ehs_land_speed(EW_TYPE_ENDERMAN), 0.30000001192092896f),
-           "enderman SPEED 0.30000001192092896");
-    expect(bits_eq_f(ml_melee_damage(EW_TYPE_ENDERMAN), 7.0f),
-           "enderman ATTACK_DAMAGE 7");
-    expect(ml_follow_range(EW_TYPE_ENDERMAN) == 64.0, "enderman FOLLOW_RANGE 64");
-    {
-        float w, h;
-        ehs_size(EW_TYPE_ENDERMAN, &w, &h);
-        expect(bits_eq_f(w, 0.6f) && bits_eq_f(h, 2.9f),
-               "enderman setSize 0.6x2.9");
-    }
-    {
-        JavaRandom er;
-        MlDrop d[1];
-        int n;
+        MlDrop d[7];
+        int n, i, ok = 1;
         jrand_set(&er, 1);
-        n = ml_enderman_drop(&er, d, 1);
-        expect(n == 0 || (n == 1 && d[0].item == ML_ITEM_ENDER_PEARL
-                          && d[0].count == 1),
-               "ender pearl dropFewItems nextInt(2) is 0 or 1");
+        n = ml_witch_drop(&er, d, 7);
+        expect(n >= 0 && n <= 3, "witch loot rolls 1..3, empty counts dropped");
+        for (i = 0; i < n; ++i) {
+            int item = d[i].item;
+            if (item != ML_ITEM_GLOWSTONE && item != ML_ITEM_SUGAR &&
+                item != ML_ITEM_REDSTONE && item != ML_ITEM_SPIDER_EYE &&
+                item != ML_ITEM_GLASS_BOTTLE && item != ML_ITEM_GUNPOWDER &&
+                item != ML_ITEM_STICK)
+                ok = 0;
+            if (d[i].count < 1 || d[i].count > 2) ok = 0;
+        }
+        expect(ok, "witch drop items are the 7-item table counts 1..2");
     }
     {
-        RlSnapMob dying;
-        int t, keep;
-        memset(&dying, 0, sizeof dying);
-        dying.type = EW_TYPE_SLIME;
-        dying.alive = 1;
-        dying.health = 0.0f;
-        dying.swell = 2;
-        keep = 1;
-        for (t = 0; t < 19 && keep; ++t)
-            keep = ml_on_death_update(&dying);
-        expect(keep == 1 && dying.death_time == 19,
-               "onDeathUpdate keeps the slot through deathTime 19");
-        keep = ml_on_death_update(&dying);
-        expect(keep == 0 && dying.death_time == 20,
-               "EntityLivingBase.onDeathUpdate setDead at deathTime==20");
+        HsTestW tw;
+        MlMob mm;
+        float hp0;
+        unsigned long long seed0;
+        tw.stone_y = 64;
+        memset(&mm, 0, sizeof mm);
+        mm.snap.type = EW_TYPE_ENDERMAN;
+        mm.snap.alive = 1;
+        mm.snap.health = 40.0f;
+        mm.snap.x = 8.5;
+        mm.snap.y = 65.0;
+        mm.snap.z = 8.5;
+        mm.snap.on_ground = 1;
+        mm.snap.seed48 = 1;
+        hp0 = mm.snap.health;
+        seed0 = mm.snap.seed48;
+        (void)ml_enderman_arrow_hit(&mm, &tw);
+        expect(mm.snap.health == hp0,
+               "arrow vs enderman skips HP EntityEnderman.java:371-381");
+        expect(mm.snap.seed48 != seed0,
+               "64-try teleportRandomly consumes entity.rand");
+    }
+    {
+        /* Type 1 is the mob-hit arrow (projectile_live.h). Type 2 skeleton
+         * arrows only hit the player, same as magma runtime.c. */
+        PlHitW aw;
+        PlProj p;
+        MlMob em, zm;
+        float ehp, zhp;
+        unsigned long long eseed;
+        memset(&aw, 0, sizeof aw);
+        aw.blocks.stone_y = 64;
+        memset(&em, 0, sizeof em);
+        em.snap.type = EW_TYPE_ENDERMAN;
+        em.snap.alive = 1;
+        em.snap.health = 40.0f;
+        em.snap.x = 8.5;
+        em.snap.y = 65.0;
+        em.snap.z = 8.5;
+        em.snap.on_ground = 1;
+        em.snap.seed48 = 1;
+        ehp = em.snap.health;
+        eseed = em.snap.seed48;
+        memset(&p, 0, sizeof p);
+        p.active = 1;
+        p.type = 1;
+        p.x = 8.5;
+        p.y = 65.9;
+        p.z = 8.5;
+        p.vx = 0.0;
+        p.vy = 0.0;
+        p.vz = 0.1;
+        aw.hit = &em;
+        pl_tick_arrow(&p, &aw);
+        expect(aw.hits == 1, "type-1 arrow PL_HIT_MOB reaches planted enderman");
+        expect(em.snap.health == ehp,
+               "type-1 arrow vs enderman skips HP EntityEnderman.java:371-381");
+        expect(em.snap.seed48 != eseed,
+               "type-1 arrow runs 64-try teleportRandomly");
+        expect(!p.active, "arrow deactivates on the enderman hit");
+        memset(&zm, 0, sizeof zm);
+        zm.snap.type = EW_TYPE_ZOMBIE;
+        zm.snap.alive = 1;
+        zm.snap.health = 20.0f;
+        zm.snap.x = 8.5;
+        zm.snap.y = 65.0;
+        zm.snap.z = 8.5;
+        zhp = zm.snap.health;
+        memset(&p, 0, sizeof p);
+        p.active = 1;
+        p.type = 1;
+        p.x = 8.5;
+        p.y = 65.9;
+        p.z = 8.5;
+        p.vx = 0.0;
+        p.vy = 0.0;
+        p.vz = 0.1;
+        aw.hit = &zm;
+        aw.hits = 0;
+        pl_tick_arrow(&p, &aw);
+        expect(aw.hits == 1 && zm.snap.health < zhp,
+               "type-1 arrow applies HP to a planted zombie");
+    }
+    {
+        JavaRandom er;
+        RlSnapMob s;
+        memset(&s, 0, sizeof s);
+        jrand_set(&er, 3);
+        expect(jrand_float(&er) >= 0.0f, "drink pick stream is live");
+        expect(ml_witch_has_effect(&s, ML_POTION_SPEED) == 0,
+               "empty effect table is inactive");
+        s.effect_id = ML_POTION_SPEED;
+        s.effect_duration = 10;
+        expect(ml_witch_has_effect(&s, ML_POTION_SPEED) == 1,
+               "stored speed effect is active");
     }
     expect(hs_total_weight(1) == 515, "plains monster list weight is 515");
-    expect(hs_total_weight(HS_BIOME_SWAMP) == 516,
-           "BiomeSwamp extra slime weight 1 -> 516");
-    expect(hs_weight_at_biome(HS_SLIME, 1) == 100, "plains slime weight 100");
-    expect(hs_monster_entry_type(HS_BIOME_SWAMP, 8) == HS_SLIME &&
-               hs_monster_entry_weight(HS_BIOME_SWAMP, 8) == 1,
-           "swamp extra slime is appended weight 1");
-    {
-        JavaRandom wr, er;
-        int have = 0;
-        double g = 0.0;
-        u64 before, after_norm, after_hard;
-        jrand_set(&wr, 99);
-        jrand_set(&er, 7);
-        before = wr.seed;
-        hs_spider_init(&wr, &er, &have, &g, 2, 18000LL);
-        after_norm = wr.seed;
-        expect(after_norm != before, "spider jockey draw consumes world.rand");
-        jrand_set(&wr, 99);
-        have = 0;
-        g = 0.0;
-        jrand_set(&er, 7);
-        hs_spider_init(&wr, &er, &have, &g, 3, 2000000LL);
-        after_hard = wr.seed;
-        expect(after_hard != 0, "HARD spider potion roll consumes or skips nextFloat");
-        (void)after_norm;
-    }
     {
         HsState st0;
         HsTestW tw0;
@@ -357,7 +377,9 @@ static int run_units(void) {
         st0.difficulty = 0;
         (void)hs_find_chunks_for_creatures(&tw0, &st0, 8.5, 65.0, 8.5);
         (void)hs_find_chunks_for_spawning(&tw0, &st0, 8.5, 65.0, 8.5);
-        (void)hs_creature_cap(289);
+        (void)g_hs_placed;
+        (void)g_hs_last_type;
+        (void)g_hs_last_extra;
     }
 #ifndef __CUDA_ARCH__
     (void)mc_probe_fn;

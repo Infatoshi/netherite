@@ -1041,8 +1041,12 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
         unsigned n_mobs = gm_mobs_export_snap(&r->mobs, packed,
                                               BLAZE_SNAP_MAX_MOBS);
         ok = ok && fwrite(&n_mobs, sizeof n_mobs, 1, f) == 1;
-        ok = ok && (n_mobs == 0 ||
-                    fwrite(packed, sizeof packed[0], n_mobs, f) == n_mobs);
+        if (n_mobs) {
+            unsigned mi;
+            for (mi = 0; mi < n_mobs; ++mi)
+                ok = ok && fwrite(&packed[mi], BLAZE_SNAP_MOB_SIZE_V7, 1, f) ==
+                    1;
+        }
         {
             RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
             unsigned n_orbs = gm_mobs_export_orbs(&r->mobs, orbs,
@@ -1176,10 +1180,14 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         }
         if (n_mobs) {
             if (h.version >= BLAZE_SNAP_VERSION_ENDER) {
-                if (fread(packed, sizeof packed[0], n_mobs, f) != n_mobs) {
-                    snprintf(err, (size_t)err_cap, "truncated .bsnp mobs: %s",
-                             path);
-                    free(cells); free(light); fclose(f); return 0;
+                unsigned mi;
+                memset(packed, 0, sizeof packed);
+                for (mi = 0; mi < n_mobs; ++mi) {
+                    if (fread(&packed[mi], BLAZE_SNAP_MOB_SIZE_V7, 1, f) != 1) {
+                        snprintf(err, (size_t)err_cap,
+                                 "truncated .bsnp mobs: %s", path);
+                        free(cells); free(light); fclose(f); return 0;
+                    }
                 }
             } else {
                 unsigned mi;
