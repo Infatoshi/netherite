@@ -840,7 +840,7 @@ def print_initial_parity(seed, label, real_rec, blaze_rec, features):
 def run_seed_parity(seed, snap, actions, label, features,
                     strict_capabilities=False, require_evidence=True,
                     track_liquid=False, result=None, mobs_on=False,
-                    natural_spawn=False):
+                    natural_spawn=False, natural_spawn_passive=False):
     """Lockstep Magma vs Blaze CPU on PARY digests. Existing callers unchanged.
 
     require_evidence: default True is the --port-parity gate (zero evidence
@@ -940,6 +940,20 @@ def run_seed_parity(seed, snap, actions, label, features,
                 ctypes.c_void_p, ctypes.c_longlong]
             cu.lib.blaze_set_world_time.restype = ctypes.c_int
             if cu.lib.blaze_set_world_time(ctypes.c_void_p(cu.h), 18000) != 0:
+                raise RuntimeError("blaze_set_world_time failed")
+        if natural_spawn_passive:
+            extra.extend(["--set", "natural_spawn_passive=1",
+                          "--set", "set_time=6000"])
+            cu.lib.blaze_set_natural_spawn_passive.argtypes = [
+                ctypes.c_void_p, ctypes.c_int]
+            cu.lib.blaze_set_natural_spawn_passive.restype = ctypes.c_int
+            if cu.lib.blaze_set_natural_spawn_passive(
+                    ctypes.c_void_p(cu.h), 1) != 0:
+                raise RuntimeError("blaze_set_natural_spawn_passive failed")
+            cu.lib.blaze_set_world_time.argtypes = [
+                ctypes.c_void_p, ctypes.c_longlong]
+            cu.lib.blaze_set_world_time.restype = ctypes.c_int
+            if cu.lib.blaze_set_world_time(ctypes.c_void_p(cu.h), 6000) != 0:
                 raise RuntimeError("blaze_set_world_time failed")
         real = RealEnv(seed, snap, port_parity=True, magma_args=extra)
         cu.emit(1)
@@ -1097,7 +1111,8 @@ def run_port_parity(args, seeds, features):
         status = run_seed_parity(
             seed, snap, acts, f"iron stage x{len(acts)}", features,
             args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False),
-            natural_spawn=getattr(args, "natural_spawn", False))
+            natural_spawn=getattr(args, "natural_spawn", False),
+            natural_spawn_passive=getattr(args, "natural_spawn_passive", False))
         return port_parity_result([status], "iron fixture")
 
     if args.chain:
@@ -1121,7 +1136,8 @@ def run_port_parity(args, seeds, features):
         status = run_seed_parity(
             seed, snap, acts, f"full chain x{len(acts)}", features,
             args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False),
-            natural_spawn=getattr(args, "natural_spawn", False))
+            natural_spawn=getattr(args, "natural_spawn", False),
+            natural_spawn_passive=getattr(args, "natural_spawn_passive", False))
         return port_parity_result([status], "chain fixture")
 
     statuses = []
@@ -1218,6 +1234,9 @@ def main():
     ap.add_argument(
         "--natural-spawn", action="store_true",
         help="enable WorldEntitySpawner (magma --set natural_spawn=1 set_time=18000)")
+    ap.add_argument(
+        "--natural-spawn-passive", action="store_true",
+        help="enable CREATURE WorldEntitySpawner (natural_spawn_passive=1 set_time=6000)")
     ap.add_argument(
         "--no-state-digest", action="store_true",
         help="opt out of the default-on per-tick PARY state-digest pass "

@@ -59,6 +59,25 @@ MC_HD static inline int ehs_is_hostile(u8 type) {
         || type == EW_TYPE_SILVERFISH;
 }
 
+/* EntityCow/Pig/Sheep/Chicken. EntityAnimal.canDespawn is false. */
+MC_HD static inline int ehs_is_passive(u8 type) {
+    return type == EW_TYPE_SHEEP || type == EW_TYPE_PIG
+        || type == EW_TYPE_COW || type == EW_TYPE_CHICKEN;
+}
+
+/* SharedMonsterAttributes.MAX_HEALTH setBaseValue. */
+MC_HD static inline float ehs_max_health(u8 type) {
+    if (type == EW_TYPE_SHEEP) return 8.0f;     /* EntitySheep.java:124 */
+    if (type == EW_TYPE_CHICKEN) return 4.0f;   /* EntityChicken.java:75 */
+    if (type == EW_TYPE_PIG || type == EW_TYPE_COW) return 10.0f;
+                                               /* EntityPig.java:73 EntityCow.java:56 */
+    if (type == EW_TYPE_ENDERMAN) return 40.0f;
+    if (type == EW_TYPE_GHAST) return 10.0f;
+    if (type == EW_TYPE_SILVERFISH) return 8.0f;
+    if (type == EW_TYPE_BOAT) return 40.0f;
+    return 20.0f;
+}
+
 /* SharedMonsterAttributes.MOVEMENT_SPEED base from oracle applyEntityAttributes. */
 MC_HD static inline float ehs_land_speed(u8 type) {
     switch (type) {
@@ -73,6 +92,10 @@ MC_HD static inline float ehs_land_speed(u8 type) {
     case EW_TYPE_MAGMA:    return 0.20000000298023224f;
     case EW_TYPE_SILVERFISH: return 0.25f;
     case EW_TYPE_SLIME:    return 0.2f;
+    case EW_TYPE_COW:      return 0.20000000298023224f; /* EntityCow.java:57 */
+    case EW_TYPE_PIG:      return 0.25f;                /* EntityPig.java:74 */
+    case EW_TYPE_SHEEP:    return 0.23000000417232513f; /* EntitySheep.java:125 */
+    case EW_TYPE_CHICKEN:  return 0.25f;                /* EntityChicken.java:76 */
     default:               return 0.23000000417232513f;
     }
 }
@@ -111,12 +134,16 @@ MC_HD static inline void ehs_size(u8 type, float *width, float *height) {
         *width = 0.98f; *height = 0.98f; /* EntityTNTPrimed.java:27 */
         break;
     case EW_TYPE_SHEEP:
+        *width = 0.9f; *height = 1.3f; /* EntitySheep.java:82 */
+        break;
     case EW_TYPE_PIG:
+        *width = 0.9f; *height = 0.9f; /* EntityPig.java:54 */
+        break;
     case EW_TYPE_COW:
-        *width = 0.9f; *height = 1.4f;
+        *width = 0.9f; *height = 1.4f; /* EntityCow.java:33 */
         break;
     case EW_TYPE_CHICKEN:
-        *width = 0.4f; *height = 0.7f;
+        *width = 0.4f; *height = 0.7f; /* EntityChicken.java:50 */
         break;
     default: /* zombie / skeleton / creeper / pigman */
         *width = 0.6f; *height = 1.95f;

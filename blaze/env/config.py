@@ -19,6 +19,7 @@ class BlazeConfig:
     no_ore_xy: bool = False
     no_emit_all: bool = False
     natural_spawn: bool = False
+    natural_spawn_passive: bool = False
     metal_max_cells: int = 2097152
     metallib: str = ""
 
@@ -26,7 +27,7 @@ class BlazeConfig:
 DEFAULT_PATH = Path(__file__).resolve().parent.parent / "blaze.conf"
 _BOOL_KEYS = {
     "ktime", "stage_time", "legacy_recenter", "op_trace", "no_ore_xy",
-    "no_emit_all", "natural_spawn",
+    "no_emit_all", "natural_spawn", "natural_spawn_passive",
 }
 _INT_KEYS = {"device", "n_envs", "warp_tick", "metal_max_cells"}
 _STR_KEYS = {"backend", "metallib"}

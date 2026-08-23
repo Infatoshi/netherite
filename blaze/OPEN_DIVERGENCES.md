@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/passives 2026-08-23 (passives M1+M2 after EntityCow/Pig/Sheep/Chicken shared spine+generic AI+CREATURE spawn; mobs, xp_orbs, boats, elytra, projectiles, random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/worldrand 2026-08-23 (explosions M1+M2 after shared World.rand: face-ray nextFloat jitter + BlockTNT chain fuse. Snapshot v5 world_rand_seed. EXP3 hashes the cursor. Class C: Java `new Random()` is unseeded so tape-exact draws are unrecorded. doExplosionB drops and BlockFire world.rand stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
 Last verified: lane/natspawn 2026-08-22 (mobs M1+M2 after WorldEntitySpawner MONSTER + EntityLiving.despawnEntity in shared hostile_spawn.h; planted persist AI from lane/mobs stays. xp_orbs, boats, elytra, projectiles, random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/tntknock 2026-08-22 (explosions M1+M2 after doExplosionA knockback + getBlockDensity + planted EntityTNTPrimed; mobs M1+M2 after EntityLivingBase.knockBack. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp. Chain fuse / fire rand / doExplosionB drops stay out: no world.rand.)
@@ -47,6 +48,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | xp_orbs | VERIFIED (chain 64 idle/walk, `--features xp`) | VERIFIED (64 CUDA lanes) |
 | boats | VERIFIED (chain 64 use/forward, `--features boats`) | VERIFIED (64 CUDA lanes) |
 | elytra | VERIFIED (chain 64 jump/pitch, `--features elytra`) | VERIFIED (64 CUDA lanes) |
+| passives | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn-passive`) | VERIFIED (64 CUDA lanes) |
 
 ## Unported rows (coverage gaps), in dependency order
 
@@ -62,9 +64,10 @@ start any time; deeper rows wait on their deps.
 | projectiles | world_dynamics, entity_spine | closed 2026-08-22: magma bow/skeleton arrow tick; 2026-08-22 lane/projground added inGround/shake/pickup; fireballs/eye-of-ender and Java ray-trace stay out |
 | explosions | world_dynamics, projectiles | closed 2026-08-22: ignited creeper fuse 30 + doExplosionA crater/player damage; 2026-08-22 lane/tntknock added getBlockDensity, doExplosionA knockback, planted EntityTNTPrimed size 4.0F. 2026-08-23 lane/worldrand: shared World.rand, face-ray jitter, chain TNT fuse. Fireball, doExplosionB drops, BlockFire world.rand stay out |
 | explosions | world_dynamics, projectiles | closed 2026-08-22: ignited creeper fuse 30 + doExplosionA crater/player damage; TNT/fireball/drops/knockback stay out |
+| passives | mobs, xp_orbs | closed 2026-08-23: cow/pig/sheep/chicken Java sizes/health, EntityAnimal.canDespawn false, chicken motionY*=0.6, EntityAIPanic/WanderAvoidWater/LookIdle RNG + straight-line, CREATURE spawn cap 10*i/289 + 400-tick gate. PathNavigateGround A* / mate/tempt/follow/eat/watch stay design-gap (GPU_MOB_AI.md) |
 | mobs | world_dynamics, entity_spine, projectiles | closed 2026-08-22: planted zombie+skeleton generic AI (LOS/chase/melee), player i-frames, bone/flesh drops, skeleton arrows; 2026-08-22 lane/natspawn: WorldEntitySpawner MONSTER + EntityLiving.despawnEntity (natural_spawn knob default 0). det_entity_rng A*, Java knockBack, passives stay out |
 | explosions | world_dynamics, projectiles | closed 2026-08-22: ignited creeper fuse 30 + doExplosionA crater/player damage; 2026-08-22 lane/tntknock added getBlockDensity, doExplosionA knockback, planted EntityTNTPrimed size 4.0F. Fireball, chain fuse world.rand, doExplosionB drops stay out |
-| mobs | world_dynamics, entity_spine, projectiles | closed 2026-08-22: planted zombie+skeleton generic AI (LOS/chase/melee), player i-frames, bone/flesh drops, skeleton arrows; 2026-08-22 lane/tntknock added EntityLivingBase.knockBack on generic melee. WorldEntitySpawner, det_entity_rng A*, passives stay out |
+| mobs | world_dynamics, entity_spine, projectiles | closed 2026-08-22: planted zombie+skeleton generic AI (LOS/chase/melee), player i-frames, bone/flesh drops, skeleton arrows; 2026-08-22 lane/tntknock added EntityLivingBase.knockBack on generic melee. WorldEntitySpawner, det_entity_rng A*, passives stay out. 2026-08-23 lane/passives closed cow/pig/sheep/chicken as row `passives` |
 | portals_dimensions | world_dynamics | portal transfer and dimension identity not measured |
 | nether_route | spawn_to_torch, portals_dimensions | no strict cross-backend fixture |
 | boats_elytra_xp | fluids, entity_spine | closed 2026-08-22: split into xp_orbs, boats, elytra (all M1+M2). Java water accel / Mending / UNDER_* boat status / snapshot armor stay out |

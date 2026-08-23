@@ -146,4 +146,13 @@ MC_HD static inline void ess_tick_living(EbLiving *liv, float slip,
     eb_tick_living(liv, slip, 0, blocks, n, st);
 }
 
+/* EntityChicken.onLivingUpdate after super: fall-damage-immune (fall is
+ * empty, EntityChicken.java:113-115) and motionY*=0.6 glide (:98-101).
+ * Wing destPos is visual-only and is not hashed. */
+MC_HD static inline void ess_chicken_glide(EbLiving *liv, int type) {
+    if (type != EW_TYPE_CHICKEN || !liv) return;
+    if (!liv->base.phys.onGround && liv->base.phys.motionY < 0.0)
+        liv->base.phys.motionY *= 0.6;
+}
+
 #endif /* MC_ENTITY_SPINE_H */

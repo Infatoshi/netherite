@@ -27,17 +27,17 @@ static int g_hs_placed;
 
 static int hs_test_place(HsTestW *w, int type, double x, double y, double z,
                          float yaw, unsigned long long seed48, int have_g,
-                         double g) {
+                         double g, int extra) {
     (void)w; (void)type; (void)x; (void)y; (void)z;
-    (void)yaw; (void)seed48; (void)have_g; (void)g;
+    (void)yaw; (void)seed48; (void)have_g; (void)g; (void)extra;
     ++g_hs_placed;
     return 1;
 }
 
 #define HS_W HsTestW
 #define HS_BLOCK(w, x, y, z) hs_test_block((w), (x), (y), (z))
-#define HS_PLACE(w, type, x, y, z, yaw, seed48, have_g, g) \
-    hs_test_place((w), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g))
+#define HS_PLACE(w, type, x, y, z, yaw, seed48, have_g, g, extra) \
+    hs_test_place((w), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g), (extra))
 #include "hostile_spawn.h"
 
 #include <math.h>
@@ -285,6 +285,15 @@ static int run_units(void) {
             (void)hs_find_chunks_for_spawning(&tw, &st, 8.5, 65.0, 8.5);
         expect(g_hs_placed > 0,
                "night findChunksForSpawning places a roster hostile");
+    }
+    {
+        HsState st0;
+        HsTestW tw0;
+        tw0.stone_y = 64;
+        hs_init(&st0, 1);
+        st0.difficulty = 0;
+        (void)hs_find_chunks_for_creatures(&tw0, &st0, 8.5, 65.0, 8.5);
+        (void)hs_creature_cap(289);
     }
 #ifndef __CUDA_ARCH__
     (void)mc_probe_fn;

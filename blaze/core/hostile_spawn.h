@@ -84,15 +84,19 @@
 #ifndef HS_HOSTILE_COUNT
 #define HS_HOSTILE_COUNT(w) 0
 #endif
+#ifndef HS_CREATURE_COUNT
+#define HS_CREATURE_COUNT(w) 0
+#endif
 #ifndef HS_MOB_HIT
 #define HS_MOB_HIT(w, x0, y0, z0, x1, y1, z1) 0
 #endif
 #ifndef HS_PLACE
-#define HS_PLACE(w, type, x, y, z, yaw, seed48, have_g, g) 0
+#define HS_PLACE(w, type, x, y, z, yaw, seed48, have_g, g, extra) 0
 #endif
 
 #define HS_MOB_COUNT_DIV 289          /* WorldEntitySpawner.java:27 */
 #define HS_MONSTER_CAP 70             /* EnumCreatureType.java:12 */
+#define HS_CREATURE_CAP 10            /* EnumCreatureType.java:13 */
 #define HS_CHUNK_RADIUS 8             /* WorldEntitySpawner.java:52 */
 #define HS_PLAYER_RANGE 24.0          /* WorldEntitySpawner.java:128 */
 #define HS_SPAWN_PT_RANGE_SQ 576.0    /* WorldEntitySpawner.java:128 24^2 */
@@ -584,7 +588,7 @@ MC_HD static inline int hs_try_one(HS_W *w, HsState *st, int hs_type,
     if (HS_HOSTILE_COUNT(w) >= HS_TABLE_CAP)
         return 0;                             /* magma/blaze shared cap */
     ew = hs_to_ew(hs_type);
-    return HS_PLACE(w, ew, px, py, pz, yaw, er.seed, have, gauss);
+    return HS_PLACE(w, ew, px, py, pz, yaw, er.seed, have, gauss, 0);
 }
 
 MC_HD static inline void hs_shuffle_chunks(JavaRandom *r, int *cx, int *cz, int n) {
@@ -730,6 +734,215 @@ MC_HD static inline int hs_despawn_tick(int persist, double d,
     if (d3 < 1024.0)                          /* :825 */
         *entity_age = 0;
     return 0;
+}
+
+/* ---- CREATURE (EntityAnimal) -------------------------------------------
+ * WorldEntitySpawner.findChunksForSpawning CREATURE pass.
+ * EnumCreatureType.CREATURE max 10, peaceful, isAnimal.
+ * WorldServer.tick spawnOnSetTickRate = worldTotalTime % 400L == 0
+ * (WorldServer.java:206). Caller gates that; this body assumes it is time.
+ * Isolated spawn JavaRandom, same as MONSTER. */
+
+enum {
+    HS_CREATURE_SHEEP = 0,
+    HS_CREATURE_PIG = 1,
+    HS_CREATURE_CHICKEN = 2,
+    HS_CREATURE_COW = 3,
+    HS_CREATURE_NTYPES = 4
+};
+
+/* Biome.java:142-145 default creature list. */
+MC_HD static inline int hs_creature_weight_at(int i) {
+    if (i == HS_CREATURE_SHEEP) return 12;
+    if (i == HS_CREATURE_PIG) return 10;
+    if (i == HS_CREATURE_CHICKEN) return 10;
+    if (i == HS_CREATURE_COW) return 8;
+    return 0;
+}
+#define HS_CREATURE_TOTAL_WEIGHT 40
+
+MC_HD static inline int hs_creature_cap(int chunk_count_i) {
+    return HS_CREATURE_CAP * chunk_count_i / HS_MOB_COUNT_DIV;
+}
+
+MC_HD static inline int hs_creature_weighted_pick(JavaRandom *r) {
+    int w, i;
+    if (!r) return HS_CREATURE_SHEEP;
+    w = jrand_int_bound(r, HS_CREATURE_TOTAL_WEIGHT);
+    for (i = 0; i < HS_CREATURE_NTYPES; ++i) {
+        w -= hs_creature_weight_at(i);
+        if (w < 0) return i;
+    }
+    return HS_CREATURE_SHEEP;
+}
+
+MC_HD static inline int hs_creature_to_ew(int c) {
+    if (c == HS_CREATURE_SHEEP) return EW_TYPE_SHEEP;
+    if (c == HS_CREATURE_PIG) return EW_TYPE_PIG;
+    if (c == HS_CREATURE_CHICKEN) return EW_TYPE_CHICKEN;
+    if (c == HS_CREATURE_COW) return EW_TYPE_COW;
+    return EW_TYPE_NONE;
+}
+
+/* EntitySheep.getRandomSheepColor EntitySheep.java:333-336. world.rand. */
+MC_HD static inline int hs_random_sheep_color(JavaRandom *r) {
+    int i;
+    if (!r) return 0;
+    i = jrand_int_bound(r, 100);
+    if (i < 5) return 15;
+    if (i < 10) return 7;
+    if (i < 15) return 8;
+    if (i < 18) return 12;
+    if (jrand_int_bound(r, 500) == 0) return 6;
+    return 0;
+}
+
+/* EntityAnimal.getCanSpawnHere EntityAnimal.java:117-124:
+ * grass below, World.getLight(pos)>8 (getLightSubtracted amount 0),
+ * super EntityLiving.getCanSpawnHere (down.canEntitySpawn). */
+MC_HD static inline int hs_creature_can_spawn_here(HS_W *w, int x, int y, int z) {
+    int down, light;
+    if (y < 1 || y > 254) return 0;
+    down = HS_BLOCK(w, x, y - 1, z);
+    if (down != BLK_GRASS) return 0;
+    light = hs_combined_light(w, x, y, z, 0); /* World.getLight amount=0 */
+    return light > 8;
+}
+
+MC_HD static inline void hs_creature_aabb(int ew, double x, double y, double z,
+                                          double *x0, double *y0, double *z0,
+                                          double *x1, double *y1, double *z1) {
+    float w, h;
+    ehs_size((u8)ew, &w, &h);
+    *x0 = x - (double)w * 0.5;
+    *y0 = y;
+    *z0 = z - (double)w * 0.5;
+    *x1 = x + (double)w * 0.5;
+    *y1 = y + (double)h;
+    *z1 = z + (double)w * 0.5;
+}
+
+MC_HD static inline int hs_creature_try_one(HS_W *w, HsState *st, int ctype,
+                                            int x, int y, int z, int attempt,
+                                            int *livingdata, int first_in_pack) {
+    JavaRandom er;
+    int have = 0;
+    double gauss = 0.0;
+    double px, py, pz, yaw;
+    double x0, y0, z0, x1, y1, z1;
+    float f, f1;
+    int ew, extra = 0;
+    (void)livingdata;
+    (void)first_in_pack;
+    if (!st) return 0;
+    f = (float)x + 0.5f;
+    f1 = (float)z + 0.5f;
+    px = (double)f;
+    py = (double)y;
+    pz = (double)f1;
+    ew = hs_creature_to_ew(ctype);
+    hs_seed_entity(&er, st->seed, st->world_time, x, y, z, attempt);
+    hs_consume_uuid(&er);                     /* Entity.java:241 */
+    yaw = jrand_float(&st->world_rand) * 360.0f;
+    if (!hs_creature_can_spawn_here(w, x, y, z))
+        return 0;
+    hs_creature_aabb(ew, px, py, pz, &x0, &y0, &z0, &x1, &y1, &z1);
+    if (!hs_not_colliding(w, x0, y0, z0, x1, y1, z1))
+        return 0;
+    hs_living_init(&er, &have, &gauss);
+    if (ctype == HS_CREATURE_SHEEP)
+        extra = hs_random_sheep_color(&st->world_rand); /* EntitySheep.java:368 */
+    if (!hs_not_colliding(w, x0, y0, z0, x1, y1, z1))
+        return 0;
+    if (HS_CREATURE_COUNT(w) >= HS_TABLE_CAP)
+        return 0;
+    return HS_PLACE(w, ew, px, py, pz, yaw, er.seed, have, gauss, extra);
+}
+
+MC_HD MC_NOINLINE static int hs_find_chunks_for_creatures(HS_W *w, HsState *st,
+                                                          double px, double py, double pz) {
+    int pcx, pcz, i1, j1, n_el, i_count, cap, n_cr, placed;
+    int cx[HS_MAX_ELIGIBLE], cz[HS_MAX_ELIGIBLE];
+    int c, k2, i4, l3, type, livingdata, first, pack, rx, ry, rz;
+    int bx, by, bz, here;
+    double f, f1, dx, dy, dz, dsq, dspawn;
+    if (!w || !st) return 0;
+    st->skylight_sub = hs_skylight_sub(st->world_time);
+    n_cr = HS_CREATURE_COUNT(w);
+    pcx = mc_floor(px / 16.0);
+    pcz = mc_floor(pz / 16.0);
+    i_count = 0;
+    n_el = 0;
+    for (i1 = -HS_CHUNK_RADIUS; i1 <= HS_CHUNK_RADIUS; ++i1) {
+        for (j1 = -HS_CHUNK_RADIUS; j1 <= HS_CHUNK_RADIUS; ++j1) {
+            int border = (i1 == -HS_CHUNK_RADIUS || i1 == HS_CHUNK_RADIUS
+                          || j1 == -HS_CHUNK_RADIUS || j1 == HS_CHUNK_RADIUS);
+            ++i_count;
+            if (border) continue;
+            if (n_el < HS_MAX_ELIGIBLE) {
+                cx[n_el] = i1 + pcx;
+                cz[n_el] = j1 + pcz;
+                ++n_el;
+            }
+        }
+    }
+    cap = hs_creature_cap(i_count);
+    if (n_cr > cap) return 0;
+    hs_shuffle_chunks(&st->shuffle_rand, cx, cz, n_el);
+    placed = 0;
+    for (c = 0; c < n_el; ++c) {
+        hs_random_chunk_pos(w, &st->world_rand, cx[c], cz[c], &bx, &by, &bz);
+        here = HS_BLOCK(w, bx, by, bz);
+        if (hs_is_normal_cube(here)) continue;
+        pack = 0;
+        type = -1;
+        livingdata = -1;
+        l3 = hs_ceil_d(jrand_double(&st->math_rand) * 4.0);
+        for (k2 = 0; k2 < 3; ++k2) {
+            int l2 = bx, i3 = by, j3 = bz;
+            for (i4 = 0; i4 < l3; ++i4) {
+                l2 += jrand_int_bound(&st->world_rand, 6)
+                    - jrand_int_bound(&st->world_rand, 6);
+                i3 += jrand_int_bound(&st->world_rand, 1)
+                    - jrand_int_bound(&st->world_rand, 1);
+                j3 += jrand_int_bound(&st->world_rand, 6)
+                    - jrand_int_bound(&st->world_rand, 6);
+                f = (float)l2 + 0.5f;
+                f1 = (float)j3 + 0.5f;
+                dx = (double)f - px;
+                dy = (double)i3 - py;
+                dz = (double)f1 - pz;
+                dsq = dx * dx + dy * dy + dz * dz;
+                dx = (double)f - st->spawn_x;
+                dy = (double)i3 - st->spawn_y;
+                dz = (double)f1 - st->spawn_z;
+                dspawn = dx * dx + dy * dy + dz * dz;
+                if (dsq < HS_PLAYER_RANGE * HS_PLAYER_RANGE
+                    || dspawn < HS_SPAWN_PT_RANGE_SQ)
+                    continue;
+                if (type < 0)
+                    type = hs_creature_weighted_pick(&st->world_rand);
+                if (type < 0) break;
+                rx = l2;
+                ry = i3;
+                rz = j3;
+                if (!hs_can_spawn_at(w, rx, ry, rz))
+                    continue;
+                first = (livingdata < 0);
+                if (hs_creature_try_one(w, st, type, rx, ry, rz, i4 + k2 * 8,
+                                        &livingdata, first)) {
+                    ++pack;
+                    ++placed;
+                    ++n_cr;
+                    if (n_cr >= HS_TABLE_CAP) return placed;
+                    if (pack >= HS_MAX_PACK) goto next_chunk;
+                }
+            }
+        }
+    next_chunk:
+        (void)0;
+    }
+    return placed;
 }
 
 #endif /* MC_HOSTILE_SPAWN_H */
