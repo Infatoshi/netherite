@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/mobs 2026-08-22 (mobs M1+M2 planted zombie+skeleton generic AI/combat/drops; explosions, projectiles, chests, weather_optional, falling_blocks, entity_spine, random_ticks already on master).
 Last verified: lane/explosions 2026-08-22 (explosions M1+M2; projectiles, chests, weather_optional, falling_blocks, entity_spine, random_ticks already on master).
 Last verified: lane/projectiles 2026-08-22 (projectiles M1+M2; weather_optional, falling_blocks, entity_spine, random_ticks already on master).
 Last verified: lane/chests 2026-08-22 (chests M1+M2; falling_blocks, entity_spine, and random_ticks already on master).
@@ -36,6 +37,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | projectiles | VERIFIED (chain 64 draw/release, `--features projectiles`) | VERIFIED (64 CUDA lanes) |
 | chests | VERIFIED (chain 41 actions, `--features chests`) | VERIFIED (64 CUDA lanes) |
 | explosions | VERIFIED (chain 64 idle+walk, `--features explosions`) | VERIFIED (64 CUDA lanes) |
+| mobs | VERIFIED (chain 64 stand/walk/melee, `--features mobs --mobs-on`) | VERIFIED (64 CUDA lanes) |
 
 ## Unported rows (coverage gaps), in dependency order
 
@@ -50,7 +52,7 @@ start any time; deeper rows wait on their deps.
 | entity_spine | spawn_to_torch | closed 2026-08-22: living Entity.move/travel spine; AI stays on `mobs` |
 | projectiles | world_dynamics, entity_spine | closed 2026-08-22: magma bow/skeleton arrow tick; fireballs/eye-of-ender, inGround/pickup, Java ray-trace stay out |
 | explosions | world_dynamics, projectiles | closed 2026-08-22: ignited creeper fuse 30 + doExplosionA crater/player damage; TNT/fireball/drops/knockback stay out |
-| mobs | world_dynamics, entity_spine, projectiles | spawning, AI, combat, drops lack common evidence |
+| mobs | world_dynamics, entity_spine, projectiles | closed 2026-08-22: planted zombie+skeleton generic AI (LOS/chase/melee), player i-frames, bone/flesh drops, skeleton arrows; WorldEntitySpawner, det_entity_rng A*, Java knockBack, passives stay out |
 | portals_dimensions | world_dynamics | portal transfer and dimension identity not measured |
 | nether_route | spawn_to_torch, portals_dimensions | no strict cross-backend fixture |
 | boats_elytra_xp | fluids, entity_spine | boats/elytra/XP lack common evidence |
@@ -61,10 +63,11 @@ Two consequences worth stating plainly:
 - **Dimensions do not exist in blaze.** The GPU sim is overworld snapshots
   only; Nether and End (`portals_dimensions`, `nether_route`) are entirely
   on the magma side today.
-- **Mob AI does not exist in blaze.** Snapshot living slots now tick the
-  Entity.move / land-travel spine (`entity_spine`, M1+M2 VERIFIED). Pathfinding,
-  targeting, and combat stay magma-CPU (detmob). The agreed GPU design is
-  `blaze/GPU_MOB_AI.md` (v2, codex-reviewed): one warp per env, lane-0
+- **Detmob A* still does not exist in blaze.** Snapshot living slots tick the
+  Entity.move spine (`entity_spine`) and the magma generic (det_entity_rng off)
+  zombie/skeleton/creeper chase/melee path (`mobs`, M1+M2 VERIFIED). Java
+  EntityAITasks + PathFinder A* stay magma-CPU (detmob). The agreed GPU design
+  is `blaze/GPU_MOB_AI.md` (v2, codex-reviewed): one warp per env, lane-0
   sequential mob tick with A* inline, magma-semantics (32x24x32 window,
   48-point path cap), IntHashMap aliasing reproduced, all 8 detmob tapes
   must be blaze-exact.

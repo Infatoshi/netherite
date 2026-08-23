@@ -180,6 +180,7 @@ int blaze_parity_state_all(void *vh, void *out);
 int blaze_assign(void *vh, const int *snap_idx);
 int blaze_set_reward_gate(void *vh, double dist_gate);
 int blaze_set_success_item(void *vh, int item);
+int blaze_set_mobs_enabled(void *vh, int on);
 int blaze_reset(void *vh, const unsigned char *mask);
 int blaze_step(void *vh, const double *actions, int repeat,
                unsigned short *cam, unsigned char *depth, unsigned char *edge,
@@ -710,8 +711,9 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     else blaze_create_opts_default(&o);
     if (cu_ck(cudaSetDevice(device), "cudaSetDevice")) return NULL;
     /* BlockDynamicLiquid.getSlopeDistance recurses to depth 4 (java:178/196).
-     * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA). */
-    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 32 * 1024),
+     * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA).
+     * Hostile live tick inlines add another frame; 32 KB was not enough. */
+    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 64 * 1024),
               "cudaLimitStackSize"))
         return NULL;
     v = (CuVecCu *)calloc(1, sizeof *v);

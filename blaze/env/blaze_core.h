@@ -941,7 +941,7 @@ MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
     m->type = EW_TYPE_NONE;
 }
 
-MC_HD static inline int cu_mobs_player_attack(Blaze *e) {
+MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
     int best, held;
     double px, py, pz;
     if (!e || e->n_mobs == 0) return 0;
