@@ -16,6 +16,8 @@ typedef struct {
     int enchanting;
     int brewing;
     int weather;
+    int xp;
+    int elytra;
     /* doDaylightCycle: 1 = worldTime advances per tick (vanilla default);
      * 0 = frozen clock (the trace profile pins world_time for pixel
      * determinism - the oracle session magma replays against never

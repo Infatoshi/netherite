@@ -17,6 +17,7 @@
 #include "interact_blocks.h"
 #include "container_click.h"
 #include "items_tools_armor.h"
+#include "elytra_live.h"
 #include "mc_blocks.h"
 #include <math.h>
 #include <limits.h>
@@ -345,10 +346,7 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
      * New tapes set elytra_flag7_recorded and apply each observed metadata
      * value through set_elytra_flag7 before this tick, so prediction is both
      * unnecessary and wrong when the integrated-server delay varies. */
-    if (!pl->elytra_flag7_recorded && pl->elytra_flying_pending) {
-        pl->elytra_flying = 1;
-        pl->elytra_flying_pending = 0;
-    }
+    el_consume_pending(pl);
 
     /* hotbar selection (keys 1-9 / scroll) */
     if (act.hotbar_sel >= 0 && act.hotbar_sel <= 8)
@@ -824,51 +822,14 @@ use_done:
      * Flight eligibility: when chest (isr 38) holds Items.ELYTRA, derive the
      * equipped flag from ItemElytra.isBroken (usable). Other chest items clear
      * it. Empty chest preserves set_elytra (replay/test hook). */
+    el_derive_equipped(pl);
     {
-        ICStack chest = isr_get_stack(&pl->inv, ISR_ARMOR_CHEST);
-        if (chest.item == ISR_ELYTRA_ITEM)
-            pl->elytra_equipped = isr_elytra_usable(&chest);
-        else if (!isr_is_empty(&chest))
-            pl->elytra_equipped = 0;
+        int elytra_was = pl->elytra_flying;
+        int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
+        psv_physics_tick(window, st, pl, &a, blocks);
+        el_post_travel(pl, act.jump, water_pre, elytra_was, elytra_can_start,
+                       window, blocks);
     }
-    int elytra_press = act.jump && !pl->prev_jump;
-    int elytra_was = pl->elytra_flying;
-    int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
-    psv_physics_tick(window, st, pl, &a, blocks);
-
-    if (!pl->elytra_flag7_recorded && elytra_press && !elytra_was &&
-        pl->elytra_equipped && !water_pre &&
-        elytra_can_start)
-        pl->elytra_flying_pending = 1;
-    pl->prev_jump = act.jump;
-    /* EntityLivingBase.onUpdate increments ticksElytraFlying only when the
-     * flag was true for this onUpdate. Activation is post-travel, so the
-     * arming tick must not count; the first travel tick still starts at 0
-     * so updateElytra's (ticks+1)%20 damage cadence stays aligned. */
-    if (elytra_was && pl->elytra_flying) {
-        ++pl->ticks_elytra_flying;
-        /* EntityLivingBase.updateElytra: damage chest elytra every 20 flying
-         * ticks when the piece is still usable. */
-        if ((pl->ticks_elytra_flying % 20) == 0) {
-            ICStack chest = isr_get_stack(&pl->inv, ISR_ARMOR_CHEST);
-            if (chest.item == ISR_ELYTRA_ITEM && chest.count > 0) {
-                ITAStack e = ita_mk(chest.item, chest.meta);
-                if (ita_attempt_damage(&e, 1, NULL)) {
-                    isr_set_stack(&pl->inv, ISR_ARMOR_CHEST, ic_empty());
-                    pl->elytra_equipped = 0;
-                    pl->elytra_flying = 0;
-                } else {
-                    chest.meta = e.damage;
-                    isr_set_stack(&pl->inv, ISR_ARMOR_CHEST, chest);
-                    pl->elytra_equipped = isr_elytra_usable(&chest);
-                    if (!pl->elytra_equipped) pl->elytra_flying = 0;
-                }
-            }
-        }
-    } else if (!pl->elytra_flying) {
-        pl->ticks_elytra_flying = 0;
-    }
-    psv_update_elytra_size(window, pl, blocks);
 
     {
         ICStack food=isr_get_stack(&pl->inv,pl->inv.current_item);

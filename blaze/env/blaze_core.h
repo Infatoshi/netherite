@@ -33,6 +33,10 @@
  * clock / weather ticks gm_world_tick
  * (blaze/core/world_weather.h) and hashes as BP_WEATHER. Fluids CA is
  * simulated (magma/game/fluid_live.c port) and hashed into BP_FLUIDS.
+ * XP orbs tick magma tick_xp_orbs via blaze/core/xp_live.h and hash as
+ * BP_XP. Boats tick magma tick_boat via blaze/core/boat_live.h and hash
+ * as BP_BOATS. Elytra START_FALL_FLYING + updateElytra live in
+ * blaze/core/elytra_live.h and hash as BP_ELYTRA.
  * Furnaces ARE simulated since the iron extension (game/furnace_live.c +
  * runtime.c furnace slots ported below; "smelt":1 primitive) - but furnace
  * state is NOT in .bsnp, so snapshots must be baked with no active furnace
@@ -75,6 +79,9 @@
 #include "explosion.h"          /* 16^3 doExplosionA rays */
 #include "explosion_live.h"     /* creeper fuse + live apply */
 #include "hostile_live.h"       /* hostile AI/combat/drops (mobs row) */
+#include "xp_live.h"            /* XP orb lifecycle + addExperience */
+#include "boat_live.h"          /* EntityBoat.onUpdate magma subset */
+#include "elytra_live.h"        /* START_FALL_FLYING + updateElytra */
 #include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
 
 #ifdef __cplusplus
@@ -364,6 +371,18 @@ typedef struct {
     int    mob_despawn[BLAZE_SNAP_MAX_MOBS];
     int    mob_fire[BLAZE_SNAP_MAX_MOBS];
     long long mob_tick;
+
+    McOrb  orbs[XL_MAX];
+    signed char orb_dim[XL_MAX];
+    int    next_orb_id;
+    unsigned parity_xp_pickups;
+
+    int    boat_ride;            /* index into mobs[] or -1 */
+    float  boat_delta_rot[BLAZE_SNAP_MAX_MOBS];
+    float  boat_glide[BLAZE_SNAP_MAX_MOBS];
+    float  boat_fwd, boat_str;   /* this-tick riding inputs */
+
+    int    elytra_kit;           /* magma --elytra on: chest 443 after reset */
 
     CuProj projectiles[CU_MAX_PROJECTILES];
     /* Magma runtime.h:209-212 sidecar next to PlProj (layout stays shared). */
@@ -871,6 +890,10 @@ MC_HD static inline void cu_try_pickup_arrow(Blaze *e, int index) {
 #define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #include "hostile_live.h"
 
+#define BL_W Blaze
+#define BL_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#include "boat_live.h"
+
 MC_HD static inline void cu_fluid_mark(Blaze *e, int dim, int wx, int wy, int wz);
 
 #define EXL_W Blaze
@@ -1109,6 +1132,8 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
         MlAiOut o;
         int pre, drop_type;
         if (!e->mobs[i].alive || !ml_is_roster(e->mobs[i].type)) {
+            /* Boats tick in cu_boat_tick, not the living spine. */
+            if (e->mobs[i].type == EW_TYPE_BOAT) continue;
             /* Zero-intent spine for non-roster living slots. */
             RlSnapMob *m = &e->mobs[i];
             EbLiving liv;
@@ -2180,8 +2205,16 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
         env->server_motion_z += (double)(mc_cos(st, fj) * 0.2f);
     }
 
-    CU_OP(env, CU_OP_PHYS_TICK);
-    psv_physics_tick(window, st, pl, &a, blocks);
+    el_consume_pending(pl);
+    el_derive_equipped(pl);
+    {
+        int elytra_was = pl->elytra_flying;
+        int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
+        CU_OP(env, CU_OP_PHYS_TICK);
+        psv_physics_tick(window, st, pl, &a, blocks);
+        el_post_travel(pl, act.jump, water_pre, elytra_was, elytra_can_start,
+                       window, blocks);
+    }
 
     /* eating (player_ctl.c:592-611): ported verbatim (food items are
      * unobtainable in the chain, but "use" is now a live action - keep the
@@ -3234,6 +3267,147 @@ MC_HD MC_NOINLINE static int cu_fluid_tick(Blaze *e, int dim, long long world_ti
     return total;
 }
 
+MC_HD static inline int cu_collect_orb_blocks(const Blaze *e, const McAABB *q,
+                                              McAABB *out, int cap) {
+    int n = 0, x0, x1, y0, y1, z0, z1, x, y, z;
+    x0 = mc_floor(q->minX) - 1; x1 = mc_floor(q->maxX) + 1;
+    y0 = mc_floor(q->minY) - 1; y1 = mc_floor(q->maxY) + 1;
+    z0 = mc_floor(q->minZ) - 1; z1 = mc_floor(q->maxZ) + 1;
+    if (y0 < 0) y0 = 0;
+    if (y1 > 255) y1 = 255;
+    for (x = x0; x <= x1; ++x)
+        for (y = y0; y <= y1; ++y)
+            for (z = z0; z <= z1; ++z) {
+                int id = cu_world_block(e, x, y, z);
+                BptProps p;
+                if (id == 0) continue;
+                p = mc_bpt_props(id);
+                if (!((p.flags & BF_SOLID) && !(p.flags & BF_LIQUID))) continue;
+                if (n == cap) return n;
+                out[n++] = mc_aabb_make(x, y, z, x + 1, y + 1, z + 1);
+            }
+    return n;
+}
+
+MC_HD static inline void cu_xp_tick(Blaze *e) {
+    McAABB player;
+    int i;
+    if (!e) return;
+    player = e->pl.ent.box;
+    player.minX += (double)e->ox;
+    player.maxX += (double)e->ox;
+    player.minZ += (double)e->oz;
+    player.maxZ += (double)e->oz;
+    {
+        XlPlayer xp;
+        xp.xpCooldown = e->pl.xpCooldown;
+        xp.experience = e->pl.experience;
+        xp.experienceLevel = e->pl.experienceLevel;
+        xp.experienceTotal = e->pl.experienceTotal;
+        xl_player_tick(&xp);
+        for (i = 0; i < XL_MAX; ++i) {
+            McOrb *o = &e->orbs[i];
+            McAABB q, blocks[64];
+            int nb, ux, uy, uz;
+            u16 under;
+            if (o->dead || o->xpValue <= 0) continue;
+            q = mc_aabb_addcoord(&o->box, o->motionX, o->motionY, o->motionZ);
+            nb = cu_collect_orb_blocks(e, &q, blocks, 64);
+            ux = mc_floor(o->posX);
+            uy = mc_floor(o->box.minY) - 1;
+            uz = mc_floor(o->posZ);
+            if (uy < 0) uy = 0;
+            under = mc_state(cu_world_block(e, ux, uy, uz),
+                             cu_world_meta(e, ux, uy, uz));
+            eo_tick(o, e->pl.ent.posX + (double)e->ox, e->pl.ent.posY,
+                    e->pl.ent.posZ + (double)e->oz,
+                    (float)psv_player_eye_height(&e->pl), 0,
+                    blocks, nb, under, 0);
+            if (xl_try_pickup(o, &xp, &player))
+                e->parity_xp_pickups++;
+        }
+        e->pl.xpCooldown = xp.xpCooldown;
+        e->pl.experience = xp.experience;
+        e->pl.experienceLevel = xp.experienceLevel;
+        e->pl.experienceTotal = xp.experienceTotal;
+    }
+}
+
+MC_HD static inline int cu_boat_mount(Blaze *e) {
+    unsigned i;
+    int best = -1;
+    double px, py, pz, bd = 2.5 * 2.5;
+    if (!e || e->boat_ride >= 0) return e && e->boat_ride >= 0;
+    px = e->pl.ent.posX + (double)e->ox;
+    py = e->pl.ent.posY;
+    pz = e->pl.ent.posZ + (double)e->oz;
+    for (i = 0; i < e->n_mobs; ++i) {
+        RlSnapMob *m = &e->mobs[i];
+        double dx, dy, dz, d;
+        if (!m->alive || m->type != EW_TYPE_BOAT) continue;
+        dx = m->x - px; dy = m->y - py; dz = m->z - pz;
+        d = dx * dx + dy * dy + dz * dz;
+        if (d < bd) { bd = d; best = (int)i; }
+    }
+    if (best < 0) return 0;
+    e->boat_ride = e->mobs[best].slot;
+    e->pl.ent.posX = e->mobs[best].x - (double)e->ox;
+    e->pl.ent.posY = e->mobs[best].y + BL_RIDE_Y;
+    e->pl.ent.posZ = e->mobs[best].z - (double)e->oz;
+    e->pl.ent.motionX = e->pl.ent.motionY = e->pl.ent.motionZ = 0.0;
+    return 1;
+}
+
+MC_HD static inline void cu_boat_dismount(Blaze *e) {
+    unsigned i;
+    if (!e || e->boat_ride < 0) return;
+    for (i = 0; i < e->n_mobs; ++i) {
+        if (e->mobs[i].slot != e->boat_ride) continue;
+        if (e->mobs[i].alive && e->mobs[i].type == EW_TYPE_BOAT) {
+            double yaw = (double)e->mobs[i].yaw * MC_PI / 180.0;
+            e->pl.ent.posX = e->mobs[i].x - (double)e->ox - sin(yaw) * 1.0;
+            e->pl.ent.posY = e->mobs[i].y + 0.5;
+            e->pl.ent.posZ = e->mobs[i].z - (double)e->oz + cos(yaw) * 1.0;
+        }
+        break;
+    }
+    e->boat_ride = -1;
+}
+
+MC_HD static inline void cu_boat_tick(Blaze *e, float forward, float strafe) {
+    unsigned i;
+    if (!e) return;
+    for (i = 0; i < e->n_mobs; ++i) {
+        RlSnapMob *m = &e->mobs[i];
+        BlBoat b;
+        int ridden, status;
+        if (!m->alive || m->type != EW_TYPE_BOAT) continue;
+        b.x = m->x; b.y = m->y; b.z = m->z;
+        b.vx = m->mx; b.vy = m->my; b.vz = m->mz;
+        b.yaw = m->yaw;
+        b.on_ground = m->on_ground;
+        b.delta_rot = e->boat_delta_rot[i];
+        b.glide = e->boat_glide[i];
+        ridden = (e->boat_ride >= 0 && e->boat_ride == m->slot);
+        status = bl_tick_world(&b, e, ridden, ridden ? forward : 0.0f,
+                               ridden ? strafe : 0.0f);
+        m->x = b.x; m->y = b.y; m->z = b.z;
+        m->mx = b.vx; m->my = b.vy; m->mz = b.vz;
+        m->yaw = b.yaw;
+        m->on_ground = b.on_ground;
+        e->boat_delta_rot[i] = b.delta_rot;
+        e->boat_glide[i] = b.glide;
+        if (ridden) {
+            e->pl.yaw = m->yaw;
+            e->pl.ent.posX = m->x - (double)e->ox;
+            e->pl.ent.posY = m->y + BL_RIDE_Y;
+            e->pl.ent.posZ = m->z - (double)e->oz;
+            e->pl.ent.motionX = e->pl.ent.motionY = e->pl.ent.motionZ = 0.0;
+            e->pl.ent.onGround = (status == BL_STATUS_ON_LAND);
+        }
+    }
+}
+
 /* Magma gm_mobs_tick_spine: zero-intent travel for loaded living slots.
  * Collect loop matches magma/game/mob_live.c:83-101 (x,y,z, BF_SOLID). */
 MC_HD MC_NOINLINE static void cu_mob_spine_tick(Blaze *e, const McSinTable *st) {
@@ -3281,6 +3455,24 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     int n = 0, i;
 
     if (env->dead) return;                       /* r->dead || r->won gate */
+
+    /* Magma runtime.c:927-944: use mounts a nearby boat; sneak dismounts;
+     * riding suppresses player WASD so controlBoat owns motion. */
+    if (act.use && cu_boat_mount(env))
+        act.use = 0;
+    if (act.sneak && env->boat_ride >= 0)
+        cu_boat_dismount(env);
+    {
+        float boat_fwd = 0.0f, boat_str = 0.0f;
+        if (env->boat_ride >= 0) {
+            boat_fwd = act.forward;
+            boat_str = act.strafe;
+            act.forward = 0.0f;
+            act.strafe = 0.0f;
+        }
+        env->boat_fwd = boat_fwd;
+        env->boat_str = boat_str;
+    }
 
     /* bow draw / release (runtime.c spawn_bow_arrow). Magma fires on the
      * use falling edge while holding item 261. Eye-of-ender (381) stays
@@ -3418,6 +3610,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     cu_randtick_pass(env);
     if (env->mobs_enabled) cu_mob_ai_tick(env, st);
     else cu_mob_spine_tick(env, st);
+    cu_boat_tick(env, env->boat_fwd, env->boat_str);
+    cu_xp_tick(env);
     cu_explosion_tick(env);
     {
         int pi;
@@ -4602,6 +4796,70 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
             r->active_mask |= BP_BIT(BP_WEATHER);
     }
 
+    {
+        int nents = 0, iorb;
+        h = bp_xp_digest_begin();
+        for (iorb = 0; iorb < XL_MAX; ++iorb) {
+            const McOrb *o = &e->orbs[iorb];
+            if (o->dead || o->xpValue <= 0) continue;
+            ++nents;
+            h = bp_hash_xp_orb(
+                h, o->posX, o->posY, o->posZ, o->motionX, o->motionY, o->motionZ,
+                o->onGround, o->xpOrbAge, o->delayBeforeCanPickup,
+                o->xpValue, o->eid, o->dead);
+        }
+        h = bp_xp_digest_finish(
+            h, nents, (int32_t)e->parity_xp_pickups,
+            e->pl.experienceLevel, e->pl.experience,
+            e->pl.experienceTotal, e->pl.xpCooldown);
+        r->digest[BP_XP] = h;
+        r->evidence[BP_XP] =
+            (uint32_t)nents + e->parity_xp_pickups +
+            (uint32_t)e->pl.experienceTotal;
+        if (nents || e->parity_xp_pickups || e->pl.experienceTotal)
+            r->active_mask |= BP_BIT(BP_XP);
+    }
+
+    {
+        int nents = 0;
+        unsigned i;
+        h = bp_boats_digest_begin();
+        for (i = 0; i < e->n_mobs; ++i) {
+            const RlSnapMob *m = &e->mobs[i];
+            int status, riding;
+            if (!m->alive || m->type != EW_TYPE_BOAT) continue;
+            ++nents;
+            status = bl_world_status(e, m->x, m->y, m->z);
+            riding = (e->boat_ride >= 0 && e->boat_ride == m->slot) ? 1 : 0;
+            h = bp_hash_boat(
+                h, m->slot, 1, m->x, m->y, m->z, m->mx, m->my, m->mz,
+                m->yaw, m->on_ground, status,
+                e->boat_delta_rot[i], e->boat_glide[i], riding);
+        }
+        h = bp_hash_i32(h, nents);
+        h = bp_hash_i32(h, e->boat_ride);
+        r->digest[BP_BOATS] = h;
+        r->evidence[BP_BOATS] =
+            (uint32_t)nents + (e->boat_ride >= 0 ? 1u : 0u);
+        if (nents)
+            r->active_mask |= BP_BIT(BP_BOATS);
+    }
+
+    {
+        h = bp_elytra_digest(
+            e->pl.elytra_equipped, e->pl.elytra_flying,
+            e->pl.elytra_flying_pending, e->pl.elytra_pose,
+            e->pl.ticks_elytra_flying, e->pl.elytra_wall_damage,
+            e->pl.ent.motionX, e->pl.ent.motionY, e->pl.ent.motionZ,
+            e->pl.ent.onGround);
+        r->digest[BP_ELYTRA] = h;
+        r->evidence[BP_ELYTRA] =
+            (uint32_t)(e->pl.elytra_equipped || e->pl.elytra_flying ||
+                       e->pl.ticks_elytra_flying);
+        if (e->pl.elytra_equipped || e->pl.elytra_flying)
+            r->active_mask |= BP_BIT(BP_ELYTRA);
+    }
+
     (void)blaze_coal_list(e, coal);
     h = bp_hash_begin();
     for (i = 0; i < CU_NCOAL; ++i)
@@ -4725,6 +4983,8 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                                             int light_valid,
                                             const RlSnapMob *mobs,
                                             unsigned n_mobs,
+                                            const RlSnapOrb *orbs,
+                                            unsigned n_orbs,
                                             int success_item) {
     int i, dx, dz;
     unsigned u;
@@ -4855,6 +5115,47 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         env->n_mobs = nm;
         memcpy(env->mobs, mobs, (size_t)nm * sizeof env->mobs[0]);
     }
+    {
+        unsigned k;
+        env->next_orb_id = 1000;
+        env->parity_xp_pickups = 0;
+        env->boat_ride = -1;
+        for (k = 0; k < BLAZE_SNAP_MAX_MOBS; ++k) {
+            env->boat_delta_rot[k] = 0.0f;
+            env->boat_glide[k] = 0.0f;
+        }
+        for (k = 0; k < XL_MAX; ++k) {
+            memset(&env->orbs[k], 0, sizeof env->orbs[k]);
+            env->orbs[k].dead = 1;
+            env->orb_dim[k] = 0;
+        }
+        if (orbs && n_orbs) {
+            unsigned no = n_orbs;
+            if (no > XL_MAX) no = XL_MAX;
+            for (k = 0; k < no; ++k) {
+                const RlSnapOrb *d = &orbs[k];
+                McOrb *o = &env->orbs[k];
+                memset(o, 0, sizeof *o);
+                o->xpValue = d->xpValue;
+                o->eid = d->eid;
+                o->delayBeforeCanPickup = d->delayBeforeCanPickup;
+                o->xpOrbAge = d->xpOrbAge;
+                o->xpColor = d->xpColor;
+                o->xpTargetColor = d->xpTargetColor;
+                o->has_closest = d->has_closest;
+                o->dead = d->dead || d->xpValue <= 0;
+                eo_set_position(o, d->x, d->y, d->z);
+                o->motionX = d->mx; o->motionY = d->my; o->motionZ = d->mz;
+                o->onGround = d->on_ground;
+                env->orb_dim[k] = 0;
+                if (d->eid >= env->next_orb_id) env->next_orb_id = d->eid + 1;
+            }
+        }
+        env->pl.xpCooldown = 0;
+        env->pl.experience = 0.0f;
+        env->pl.experienceLevel = 0;
+        env->pl.experienceTotal = 0;
+    }
     memset(env->projectiles, 0, sizeof env->projectiles);
     memset(env->proj_in_ground, 0, sizeof env->proj_in_ground);
     memset(env->proj_shake, 0, sizeof env->proj_shake);
@@ -4930,10 +5231,13 @@ MC_HD static inline void blaze_reset_from_snapshot(Blaze *env, const RlSnapHead 
                                                    const int *cont, int ncont,
                                                    const RlSnapMob *mobs,
                                                    unsigned n_mobs,
+                                                   const RlSnapOrb *orbs,
+                                                   unsigned n_orbs,
                                                    int success_item) {
     long i, nbulk;
     blaze_reset_scalar(env, h, items, ore, nore, ore_xy, cont, ncont,
-                       light_src != NULL, mobs, n_mobs, success_item);
+                       light_src != NULL, mobs, n_mobs, orbs, n_orbs,
+                       success_item);
     nbulk = cu_reset_bulk_count(env);
     for (i = 0; i < nbulk; ++i)
         blaze_reset_bulk(env, cells_src, light_src, i);

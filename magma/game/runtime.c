@@ -813,6 +813,7 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     gm_mobs_init(&r->mobs, cfg->seed);
     gm_fluid_init(&r->fluids);
     r->weather_enabled = cfg->weather;
+    r->elytra_kit = cfg->elytra;
     r->clock.freeze_daylight = !r->gamerules.doDaylightCycle;
     r->mobs_enabled = cfg->mobs;
     /* Live random ticks on by default; script.c clears this for tape replay. */
@@ -1142,6 +1143,11 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
          * creeper fuse is the explosions row (EntityCreeper.onUpdate). */
         gm_mobs_tick_spine(&r->mobs, r->world,
                            (const struct McSinTable *)&r->sin_table);
+        gm_mobs_tick_boats(&r->mobs, r->world,
+                           (struct PsvPlayer *)&r->player, r->ox, r->oz,
+                           boat_fwd, boat_str);
+        gm_mobs_tick_orbs(&r->mobs, r->world,
+                          (struct PsvPlayer *)&r->player, r->ox, r->oz);
         gm_mobs_tick_creeper_fuse(&r->mobs);
         {double x,y,z;if(gm_mobs_take_explosion(&r->mobs,&x,&y,&z))runtime_explode(r,x,y,z,3.0f);}
     }
@@ -1315,12 +1321,8 @@ void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
     out->riding_boat = r->tape_boat_ride_id >= 0 ||
                        gm_mobs_boat_riding(&r->mobs);
     out->mount_message_ticks = r->tape_boat_mount_message_ticks;
-    int xp=r->mobs.xp_total, level=0;
-    for (;;) {
-        int cap=level>=30?9*level-158:(level>=15?5*level-38:2*level+7);
-        if (xp<cap) {out->xp_level=level;out->xp_frac=cap?(float)xp/(float)cap:0.0f;break;}
-        xp-=cap;++level;
-    }
+    out->xp_level = r->player.experienceLevel;
+    out->xp_frac = r->player.experience;
 }
 
 void gm_runtime_set_pose(GmRuntime *r, double x, double y, double z,

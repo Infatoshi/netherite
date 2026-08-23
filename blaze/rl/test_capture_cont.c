@@ -114,8 +114,15 @@ static int write_bsnp_ex(const char *path, int ntab, const int *wx,
     return -1;
   }
   {
-    unsigned n_mobs = 0;
+    unsigned n_mobs = 0, n_orbs = 0;
     if (h.version >= 3 && fwrite(&n_mobs, sizeof n_mobs, 1, f) != 1) {
+      fclose(f);
+      free(cells);
+      free(light);
+      free(coal);
+      return -1;
+    }
+    if (h.version >= 4 && fwrite(&n_orbs, sizeof n_orbs, 1, f) != 1) {
       fclose(f);
       free(cells);
       free(light);

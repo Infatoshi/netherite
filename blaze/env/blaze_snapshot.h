@@ -8,7 +8,9 @@
  *   (index (ix*rny+iy)*rnz+iz) | u32 ncoal | ncoal x (i32 wx,wy,wz)
  *   | rnx*rny*rnz u8 packed light (sky<<4)|block       [version >= 2]
  *   | u32 n_mobs | n_mobs x RlSnapMob                   [version >= 3]
- * v1/v2 files load with n_mobs = 0. New writes use version 3.
+ *   | u32 n_orbs | n_orbs x RlSnapOrb                   [version >= 4]
+ * v1/v2 files load with n_mobs = 0. v3 loads with n_orbs = 0.
+ * New writes use version 4.
  * Player pose/box are WINDOW-LOCAL doubles plus the ox/oz origin: restoring
  * local+origin reproduces the exact double bits (world = local + origin
  * rounds, so world-coord storage would lose low mantissa bits; the box is
@@ -29,9 +31,11 @@ extern "C" {
                                    * scan (value-identical, just slow) */
 #define BLAZE_SNAP_MAX_MOBS  96   /* == EW_MAX_ENTITIES (ew_entity_store.h:21) */
 #define BLAZE_SNAP_PATH_CAP  48   /* magma det_nav_* cap (mob_live.h:90) */
+#define BLAZE_SNAP_MAX_ORBS  64   /* == GM_XP_ORBS (mob_live.h:10) */
 
 #define BLAZE_SNAP_VERSION_LIGHT 2  /* packed light plane after coal */
-#define BLAZE_SNAP_VERSION 3        /* + per-mob trailer after light */
+#define BLAZE_SNAP_VERSION_MOBS  3  /* + per-mob trailer after light */
+#define BLAZE_SNAP_VERSION 4        /* + XP-orb trailer after mobs */
 #pragma pack(push, 1)
 typedef struct {
     char magic[4];                 /* "BSNP" */
@@ -109,10 +113,25 @@ typedef struct RlSnapMob {
     unsigned char have_gauss;      /* ent_jr_have_gauss */
     double gauss;                  /* ent_jr_gauss */
 } RlSnapMob;
+/* One live XP orb. World coords. v3 files omit this trailer -> n_orbs=0. */
+typedef struct RlSnapOrb {
+    double x, y, z, mx, my, mz;
+    int on_ground;
+    int xpOrbAge;
+    int delayBeforeCanPickup;
+    int xpValue;
+    int eid;
+    int xpColor;
+    int xpTargetColor;
+    int has_closest;
+    int dead;
+} RlSnapOrb;
 #pragma pack(pop)
 
 typedef char RlSnapMob_must_be_544_bytes
     [(sizeof(RlSnapMob) == 544) ? 1 : -1];
+typedef char RlSnapOrb_must_be_84_bytes
+    [(sizeof(RlSnapOrb) == 84) ? 1 : -1];
 
 /* ---- host-side loader (blaze/env/blaze_snapshot.c; NOT linked into the
  * game binary - rl_mode.c uses only the structs above) ---- */
@@ -135,6 +154,8 @@ typedef struct {
     int            ncont;          /* -1 = > BLAZE_SNAP_MAX_CONT (fallback) */
     unsigned       n_mobs;         /* v3: occupied living slots; 0 on v1/v2 */
     RlSnapMob      mobs[BLAZE_SNAP_MAX_MOBS];
+    unsigned       n_orbs;         /* v4: live XP orbs; 0 on v1/v2/v3 */
+    RlSnapOrb      orbs[BLAZE_SNAP_MAX_ORBS];
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).

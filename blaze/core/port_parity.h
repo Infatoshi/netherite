@@ -87,7 +87,7 @@ enum BpDebugField {
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
      BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_EXPLOSIONS) | \
      BP_BIT(BP_WEATHER) | \
-     BP_BIT(BP_CHESTS) | \
+     BP_BIT(BP_CHESTS) | BP_BIT(BP_XP) | BP_BIT(BP_BOATS) | BP_BIT(BP_ELYTRA) | \
      BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
@@ -96,7 +96,7 @@ enum BpDebugField {
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
      BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_EXPLOSIONS) | \
      BP_BIT(BP_WEATHER) | \
-     BP_BIT(BP_CHESTS) | \
+     BP_BIT(BP_CHESTS) | BP_BIT(BP_XP) | BP_BIT(BP_BOATS) | BP_BIT(BP_ELYTRA) | \
      BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
@@ -568,6 +568,89 @@ BP_HD static inline uint64_t bp_weather_digest(
 BP_HD static inline uint64_t bp_chests_digest_begin(void) {
     uint64_t h = bp_hash_begin();
     return bp_hash_u32(h, UINT32_C(0x31534843)); /* "CHS1" */
+}
+
+/* Magma tick_xp_orbs + EntityPlayer addExperience. */
+BP_HD static inline uint64_t bp_hash_xp_orb(
+    uint64_t h, double x, double y, double z,
+    double mx, double my, double mz,
+    int32_t on_ground, int32_t age, int32_t delay,
+    int32_t value, int32_t eid, int32_t dead) {
+    h = bp_hash_double(h, x);
+    h = bp_hash_double(h, y);
+    h = bp_hash_double(h, z);
+    h = bp_hash_double(h, mx);
+    h = bp_hash_double(h, my);
+    h = bp_hash_double(h, mz);
+    h = bp_hash_i32(h, on_ground);
+    h = bp_hash_i32(h, age);
+    h = bp_hash_i32(h, delay);
+    h = bp_hash_i32(h, value);
+    h = bp_hash_i32(h, eid);
+    return bp_hash_i32(h, dead);
+}
+
+BP_HD static inline uint64_t bp_xp_digest_begin(void) {
+    uint64_t h = bp_hash_begin();
+    return bp_hash_u32(h, UINT32_C(0x314F5058)); /* "XPO1" */
+}
+
+BP_HD static inline uint64_t bp_xp_digest_finish(
+    uint64_t h, int32_t nents, int32_t pickups,
+    int32_t level, float experience, int32_t total, int32_t cooldown) {
+    h = bp_hash_i32(h, nents);
+    h = bp_hash_i32(h, pickups);
+    h = bp_hash_i32(h, level);
+    h = bp_hash_float(h, experience);
+    h = bp_hash_i32(h, total);
+    return bp_hash_i32(h, cooldown);
+}
+
+/* Magma tick_boat. */
+BP_HD static inline uint64_t bp_boats_digest_begin(void) {
+    uint64_t h = bp_hash_begin();
+    return bp_hash_u32(h, UINT32_C(0x31544F42)); /* "BOT1" */
+}
+
+BP_HD static inline uint64_t bp_hash_boat(
+    uint64_t h, int32_t slot, int32_t alive,
+    double x, double y, double z,
+    double mx, double my, double mz,
+    float yaw, int32_t on_ground, int32_t status,
+    float delta_rot, float glide, int32_t riding) {
+    h = bp_hash_i32(h, slot);
+    h = bp_hash_i32(h, alive);
+    h = bp_hash_double(h, x);
+    h = bp_hash_double(h, y);
+    h = bp_hash_double(h, z);
+    h = bp_hash_double(h, mx);
+    h = bp_hash_double(h, my);
+    h = bp_hash_double(h, mz);
+    h = bp_hash_float(h, yaw);
+    h = bp_hash_i32(h, on_ground);
+    h = bp_hash_i32(h, status);
+    h = bp_hash_float(h, delta_rot);
+    h = bp_hash_float(h, glide);
+    return bp_hash_i32(h, riding);
+}
+
+/* EntityPlayerSP START_FALL_FLYING + psv_elytra_travel. */
+BP_HD static inline uint64_t bp_elytra_digest(
+    int32_t equipped, int32_t flying, int32_t pending, int32_t pose,
+    int32_t ticks, float wall_damage,
+    double mx, double my, double mz, int32_t on_ground) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x31594C45)); /* "ELY1" */
+    h = bp_hash_i32(h, equipped);
+    h = bp_hash_i32(h, flying);
+    h = bp_hash_i32(h, pending);
+    h = bp_hash_i32(h, pose);
+    h = bp_hash_i32(h, ticks);
+    h = bp_hash_float(h, wall_damage);
+    h = bp_hash_double(h, mx);
+    h = bp_hash_double(h, my);
+    h = bp_hash_double(h, mz);
+    return bp_hash_i32(h, on_ground);
 }
 
 BP_HD static inline void bp_record_init(BpParityRecord *r, int64_t tick) {

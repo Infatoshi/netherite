@@ -104,6 +104,13 @@ typedef struct {
     int      elytra_pose;
     int      ticks_elytra_flying;
     float    elytra_wall_damage;  /* FLY_INTO_WALL damage emitted this tick */
+    /* EntityPlayer XP. xpCooldown EntityPlayer.java:128,223-226;
+     * experience/experienceLevel/experienceTotal java:153 and addExperience
+     * EntityPlayer.java:2145-2162. */
+    int      xpCooldown;
+    float    experience;
+    int      experienceLevel;
+    int      experienceTotal;
     IsrInv   inv;            /* inventory (verified stack rules) */
     u32      break_events;   /* cumulative successful block breaks (drop yielded) */
     u32      place_events;   /* cumulative successful block places */
@@ -1113,6 +1120,10 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->elytra_flag7_recorded = 0;
     pl->ticks_elytra_flying = 0;
     pl->elytra_wall_damage = 0.0f;
+    pl->xpCooldown = 0;
+    pl->experience = 0.0f;
+    pl->experienceLevel = 0;
+    pl->experienceTotal = 0;
     pl->break_events = pl->place_events = pl->swing_events = 0;
     isr_init(&pl->inv);
     pl->inv.current_item = 0;

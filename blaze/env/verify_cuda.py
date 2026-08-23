@@ -436,6 +436,17 @@ def run_chain(args, iron=False):
                 cpu.close()
                 cuda.close()
                 return False
+    if args.parity_features and "elytra" in args.parity_features:
+        for e in (cpu, cuda):
+            e.lib.blaze_set_elytra_enabled.argtypes = [
+                ctypes.c_void_p, ctypes.c_int]
+            e.lib.blaze_set_elytra_enabled.restype = ctypes.c_int
+            if e.lib.blaze_set_elytra_enabled(e.h, 1) != 0:
+                print("BLOCKED: blaze_set_elytra_enabled failed")
+                args.parity_blocked = True
+                cpu.close()
+                cuda.close()
+                return False
     requested = sum(1 << PARITY_INDEX[name] for name in features)
     if args.strict_capabilities and features:
         for source, env in (("CPU", cpu), ("CUDA", cuda)):

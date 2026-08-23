@@ -20,7 +20,9 @@ EXPECTED_ROWS = [
     "nether_route",
     "dragon_victory",
     "weather_optional",
-    "boats_elytra_xp",
+    "xp_orbs",
+    "boats",
+    "elytra",
 ]
 
 
@@ -54,9 +56,7 @@ def test_checked_in_schema_dag_and_ready_frontier():
 
     assert pm.validate_config(config) == EXPECTED_ROWS
     assert pm.ready_frontier(config) == [
-        "mobs",
         "portals_dimensions",
-        "boats_elytra_xp",
     ]
 
 
