@@ -1,10 +1,7 @@
-/* Spider + slime live-tick unit tests + fixture baker.
+/* Enderman lockstep fixture baker + units.
  *
- * Units: Java sizes/health/speed, hop delay, split offsets, slime-chunk,
- * swamp moon, spider climb pack, drops.
- * --write-fixture FROM OUT copies a magma region, grounds the s10 player
- * on a roofed stone floor, plants zombie +Z, skeleton +X, spider west,
- * slime size-2 NE. */
+ * --write-fixture FROM OUT copies the mobs_ss region and plants an
+ * enderman south of the player next to that set. */
 #define _POSIX_C_SOURCE 200809L
 #include "blaze_snapshot.h"
 #include "entity_spine.h"
@@ -155,11 +152,12 @@ static int write_fixture(const char *from, const char *out_path) {
     }
 
     s.head.version = BLAZE_SNAP_VERSION;
-    s.n_mobs = 4;
+    s.n_mobs = 5;
     plant_hostile(&s.mobs[0], 1, 1, EW_TYPE_ZOMBIE, 8.5, 65.0, 11.5, 0);
     plant_hostile(&s.mobs[1], 2, 2, EW_TYPE_SKELETON, 12.5, 65.0, 8.5, 0);
     plant_hostile(&s.mobs[2], 3, 3, EW_TYPE_SPIDER, 6.5, 65.0, 8.5, 0);
     plant_hostile(&s.mobs[3], 4, 4, EW_TYPE_SLIME, 11.5, 65.0, 11.5, 2);
+    plant_hostile(&s.mobs[4], 5, 5, EW_TYPE_ENDERMAN, 10.5, 65.0, 6.5, 0);
     s.n_orbs = 1;
     {
         RlSnapOrb *o = &s.orbs[0];
@@ -194,7 +192,7 @@ static int write_fixture(const char *from, const char *out_path) {
     fprintf(stderr,
             "WROTE %s zombie (8.5,65,11.5) skeleton (12.5,65,8.5) "
             "spider (6.5,65,8.5) slime2 (11.5,65,11.5) "
-            "player (8.5,65,8.5) n_mobs=%u digest=0x%016llx\n",
+            "enderman (10.5,65,6.5) player (8.5,65,8.5) n_mobs=%u digest=0x%016llx\n",
             out_path, s.n_mobs,
             (unsigned long long)blaze_snap_mobs_digest(s.mobs, s.n_mobs));
     blaze_snapshot_free(&s);
@@ -203,6 +201,11 @@ static int write_fixture(const char *from, const char *out_path) {
 
 static int run_units(void) {
     float w, h;
+    expect(ml_is_roster(EW_TYPE_ENDERMAN) && hs_is_roster(HS_ENDERMAN),
+           "enderman is on live and spawn roster");
+    expect(hs_weight_at(HS_ENDERMAN) == 10, "Biome.java:152 enderman weight 10");
+    ehs_size(EW_TYPE_ENDERMAN, &w, &h);
+    expect(bits_eq_f(w, 0.6f) && bits_eq_f(h, 2.9f), "enderman 0.6x2.9");
     ehs_size(EW_TYPE_SPIDER, &w, &h);
     expect(bits_eq_f(w, 1.4f) && bits_eq_f(h, 0.9f), "spider 1.4x0.9");
     expect(bits_eq_f(ehs_max_health(EW_TYPE_SPIDER), 16.0f), "spider health 16");
