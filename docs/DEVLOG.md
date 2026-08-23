@@ -2,6 +2,8 @@
 
 ## 2026-08-22 dragon death held-block chain (lane/dragondirt)
 
+Parent verification 2026-08-23 (anvil ui_hud, gamer ui_entities on the merged tree): the explicit quaternion chain moves hand pixels by rounding only: hand_bow_pull20 hard_px 20830 -> 20846, hand_eat_mid 73440 -> 73443 (px>1 21526 -> 21529), fireball_dragon 38365 -> 38260 (CAPTURE_BLOCKED); every c_vs_j unchanged at three decimals; dragon rows identical; verdicts unchanged.
+
 A6 dragon_death_50/100/190 after lane/dragonbob. Gamer baseline
 `out/verify/dragondirt_baseline.log`: geom ALL PASSED; hard_px
 84995/83667/84543, c_vs_j 2.157/2.165/2.150, ab_nz=0 RESIDUAL.
