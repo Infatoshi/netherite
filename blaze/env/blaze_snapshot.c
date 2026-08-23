@@ -80,7 +80,8 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
         }
     }
     out->n_mobs = 0;
-    if (out->head.version >= 3) {
+    out->n_orbs = 0;
+    if (out->head.version >= BLAZE_SNAP_VERSION_MOBS) {
         if (fread(&out->n_mobs, sizeof out->n_mobs, 1, f) != 1 ||
             out->n_mobs > BLAZE_SNAP_MAX_MOBS) {
             free(out->cells); out->cells = NULL;
@@ -97,6 +98,25 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             free(out->light); out->light = NULL;
             fclose(f);
             return snap_fail(err, err_cap, "truncated .bsnp mobs", path);
+        }
+    }
+    if (out->head.version >= BLAZE_SNAP_VERSION) {
+        if (fread(&out->n_orbs, sizeof out->n_orbs, 1, f) != 1 ||
+            out->n_orbs > BLAZE_SNAP_MAX_ORBS) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp orb count", path);
+        }
+        if (out->n_orbs &&
+            fread(out->orbs, sizeof out->orbs[0], out->n_orbs, f) !=
+                out->n_orbs) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp orbs", path);
         }
     }
     fclose(f);
@@ -162,6 +182,7 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
     }
     if (s->head.n_items > BLAZE_SNAP_MAX_ITEMS ||
         s->n_mobs > BLAZE_SNAP_MAX_MOBS ||
+        s->n_orbs > BLAZE_SNAP_MAX_ORBS ||
         s->head.rnx <= 0 || s->head.rny <= 0 || s->head.rnz <= 0) {
         if (err && err_cap > 0)
             snprintf(err, (size_t)err_cap, "implausible .bsnp counts: %s",
@@ -193,11 +214,17 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
                 fwrite(s->coal, 3 * sizeof *s->coal, s->ncoal, f) == s->ncoal);
     if (version >= BLAZE_SNAP_VERSION_LIGHT)
         ok = ok && fwrite(s->light, 1, (size_t)vol, f) == (size_t)vol;
-    if (version >= 3) {
+    if (version >= BLAZE_SNAP_VERSION_MOBS) {
         ok = ok && fwrite(&s->n_mobs, sizeof s->n_mobs, 1, f) == 1;
         ok = ok && (s->n_mobs == 0 ||
                     fwrite(s->mobs, sizeof s->mobs[0], s->n_mobs, f) ==
                         s->n_mobs);
+    }
+    if (version >= BLAZE_SNAP_VERSION) {
+        ok = ok && fwrite(&s->n_orbs, sizeof s->n_orbs, 1, f) == 1;
+        ok = ok && (s->n_orbs == 0 ||
+                    fwrite(s->orbs, sizeof s->orbs[0], s->n_orbs, f) ==
+                        s->n_orbs);
     }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)

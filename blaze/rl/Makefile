@@ -91,6 +91,9 @@ TEST_CHEST_BIN := $(OUT)/test_chests
 TEST_PROJ_BIN := $(OUT)/test_projectiles
 TEST_EXPL_BIN := $(OUT)/test_explosions
 TEST_MOBS_BIN := $(OUT)/test_mobs
+TEST_XP_BIN := $(OUT)/test_xp
+TEST_BOATS_BIN := $(OUT)/test_boats
+TEST_ELYTRA_BIN := $(OUT)/test_elytra
 TEST_SKY_BIN := $(OUT)/test_skylight_water
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
@@ -249,6 +252,21 @@ $(TEST_MOBS_BIN): $(ENV_SRC)/test_mobs.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_XP_BIN): $(ENV_SRC)/test_xp.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/xp_live.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_xp.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
+$(TEST_BOATS_BIN): $(ENV_SRC)/test_boats.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/boat_live.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_boats.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
+$(TEST_ELYTRA_BIN): $(ENV_SRC)/test_elytra.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/elytra_live.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_elytra.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 # Magma light.o graph matches magma/Makefile test-water-skylight.
 MAGMA := $(REPO)/magma
 SKY_MAGMA_OBJS := $(MAGMA)/world/mesh_mc.o $(MAGMA)/world/light.o \
@@ -305,7 +323,8 @@ test-chain: $(TEST_CHAIN_BIN)
 
 test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN) \
 		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN) \
-		$(TEST_MOBS_BIN) $(TEST_SKY_BIN)
+		$(TEST_MOBS_BIN) $(TEST_XP_BIN) $(TEST_BOATS_BIN) $(TEST_ELYTRA_BIN) \
+		$(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -315,6 +334,9 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_projectiles
 	cd $(REPO) && ./out/blaze/rl/test_explosions
 	cd $(REPO) && ./out/blaze/rl/test_mobs
+	cd $(REPO) && ./out/blaze/rl/test_xp
+	cd $(REPO) && ./out/blaze/rl/test_boats
+	cd $(REPO) && ./out/blaze/rl/test_elytra
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
 
 test-entity-spine: $(TEST_SPINE_BIN)

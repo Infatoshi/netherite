@@ -232,7 +232,9 @@ int main(int argc, char **argv) {
 
     expect(sizeof(RlSnapHead) == 752, "RlSnapHead is 752 bytes packed");
     expect(sizeof(RlSnapMob) == 544, "RlSnapMob is 544 bytes packed");
-    expect(BLAZE_SNAP_VERSION == 3, "snapshot version is 3");
+    expect(BLAZE_SNAP_VERSION == 4, "snapshot version is 4");
+    expect(sizeof(RlSnapOrb) == 84, "RlSnapOrb is 84 bytes packed");
+    expect(BLAZE_SNAP_MAX_ORBS == 64, "orb cap is GM_XP_ORBS 64");
     expect(BLAZE_SNAP_MAX_MOBS == 96, "mob cap is EW_MAX_ENTITIES 96");
     expect(BLAZE_SNAP_PATH_CAP == 48, "path cap is 48");
 

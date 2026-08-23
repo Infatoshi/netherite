@@ -17,6 +17,10 @@
 #define ML_W GmWorld
 #define ML_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
 #include "hostile_live.h"
+#include "xp_live.h"
+#define BL_W GmWorld
+#define BL_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
+#include "boat_live.h"
 
 #include <math.h>
 #include <string.h>
@@ -214,9 +218,7 @@ static int attack_cooldown_ticks(int type) {
     return 20;
 }
 
-/* EntityBoat.deltaRotation + land boatGlide (per-slot; not in EwStore). */
-static float s_boat_delta_rot[EW_MAX_ENTITIES];
-static float s_boat_glide[EW_MAX_ENTITIES];
+
 
 static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     if (slot < 0 || slot >= EW_MAX_ENTITIES) return;
@@ -275,8 +277,8 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->blaze_hof[slot] = 0.5f;
     m->hurt_time[slot] = 0;
     m->death_time[slot] = 0;
-    s_boat_delta_rot[slot] = 0.0f;
-    s_boat_glide[slot] = 0.8f;
+    m->boat_delta_rot[slot] = 0.0f;
+    m->boat_glide[slot] = 0.8f;
     if (!m->size[slot]) m->size[slot] = gm_is_slimey(s ? s->type[slot] : 0) ? 2 : 1;
 }
 
@@ -1928,26 +1930,24 @@ void gm_mobs_init(GmMobLive *m, long long seed) {
     m->boat_ride = -1;
 }
 
-static int xp_split(int value){
-    static const int split[]={2477,1237,617,307,149,73,37,17,7,3,1};
-    for(unsigned i=0;i<sizeof split/sizeof split[0];++i)if(value>=split[i])return split[i];
-    return 1;
-}
-
 void gm_mobs_spawn_xp(GmMobLive *m,double x,double y,double z,int value){
     if(!m||value<=0)return;
-    while(value>0){
-        int slot=-1;for(int i=0;i<GM_XP_ORBS;++i)if(m->xp_orbs[i].dead||m->xp_orbs[i].xpValue<=0){slot=i;break;}
-        if(slot<0)return;
-        int amount=xp_split(value);value-=amount;
-        McOrb *o=&m->xp_orbs[slot];memset(o,0,sizeof *o);
-        o->xpValue=amount;o->eid=m->next_orb_id++;o->motionY=0.2;
-        u64 h=mc_hash64((u64)m->seed^(u64)o->eid);
-        double angle=(double)(h&0xffffu)*(2.0*MC_PI/65536.0);
-        double speed=(double)((h>>16)&0xffffu)*(0.2/65535.0);
-        o->motionX=-sin(angle)*speed;o->motionZ=cos(angle)*speed;
-        m->orb_dimension[slot]=(signed char)m->active_dimension;
-        eo_set_position(o,x,y,z);
+    while (value > 0) {
+        int amount = xl_xp_split(value);
+        int eid;
+        u64 h;
+        double angle, speed, mx, mz;
+        value -= amount;
+        eid = m->next_orb_id;
+        h = mc_hash64((u64)m->seed ^ (u64)eid);
+        angle = (double)(h & 0xffffu) * (2.0 * MC_PI / 65536.0);
+        speed = (double)((h >> 16) & 0xffffu) * (0.2 / 65535.0);
+        mx = -sin(angle) * speed;
+        mz = cos(angle) * speed;
+        if (!xl_spawn(m->xp_orbs, GM_XP_ORBS, &m->next_orb_id, m->orb_dimension,
+                      (signed char)m->active_dimension, x, y, z, amount,
+                      mx, 0.2, mz))
+            return;
     }
 }
 
@@ -2104,14 +2104,23 @@ int gm_mobs_place_boat(GmMobLive *m, double x, double y, double z, float yaw) {
     now_store(m)->yaw[slot] = yaw;
     next_store(m)->yaw[slot] = yaw;
     if (slot >= 0 && slot < EW_MAX_ENTITIES) {
-        s_boat_delta_rot[slot] = 0.0f;
-        s_boat_glide[slot] = 0.8f;
+        m->boat_delta_rot[slot] = 0.0f;
+        m->boat_glide[slot] = 0.8f;
     }
     return slot;
 }
 
 int gm_mobs_boat_riding(const GmMobLive *m) {
     return m && m->boat_ride >= 0;
+}
+
+int gm_mobs_boat_status(const GmMobLive *m, struct GmWorld *w, int slot) {
+    const EwStore *s;
+    if (!m || !w || slot < 1 || slot >= EW_MAX_ENTITIES) return BL_STATUS_IN_AIR;
+    s = const_store(m);
+    if (!s->alive[slot] || s->type[slot] != EW_TYPE_BOAT)
+        return BL_STATUS_IN_AIR;
+    return bl_world_status(w, s->x[slot], s->y[slot], s->z[slot]);
 }
 
 int gm_mobs_boat_mount(GmMobLive *m, struct PsvPlayer *player_, int ox, int oz) {
@@ -2592,6 +2601,10 @@ static int collect_orb_blocks(GmWorld *w,const McAABB *q,McAABB *out,int cap){
 
 static void tick_xp_orbs(GmMobLive *m,GmWorld *w,PsvPlayer *p,int ox,int oz){
     McAABB player=p->ent.box;player.minX+=ox;player.maxX+=ox;player.minZ+=oz;player.maxZ+=oz;
+    XlPlayer xp;
+    xp.xpCooldown=p->xpCooldown; xp.experience=p->experience;
+    xp.experienceLevel=p->experienceLevel; xp.experienceTotal=p->experienceTotal;
+    xl_player_tick(&xp);
     for(int i=0;i<GM_XP_ORBS;++i){McOrb *o=&m->xp_orbs[i];
         if(o->dead||o->xpValue<=0||m->orb_dimension[i]!=m->active_dimension)continue;
         McAABB q=mc_aabb_addcoord(&o->box,o->motionX,o->motionY,o->motionZ),blocks[64];
@@ -2599,12 +2612,13 @@ static void tick_xp_orbs(GmMobLive *m,GmWorld *w,PsvPlayer *p,int ox,int oz){
         int ux=mc_floor(o->posX),uy=mc_floor(o->box.minY)-1,uz=mc_floor(o->posZ);
         if(uy<0)uy=0;
         u16 under=mc_state(gm_world_block(w,ux,uy,uz),gm_world_meta(w,ux,uy,uz));
-        eo_tick(o,p->ent.posX+ox,p->ent.posY,p->ent.posZ+oz,PSV_EYE_HEIGHT,0,
-                blocks,nb,under,0);
-        if(!o->dead&&o->delayBeforeCanPickup<=0&&mc_aabb_intersects(&o->box,&player)){
-            m->xp_total+=o->xpValue;o->dead=1;
-        }
+        eo_tick(o,p->ent.posX+ox,p->ent.posY,p->ent.posZ+oz,
+                (float)psv_player_eye_height(p),0, blocks,nb,under,0);
+        if(xl_try_pickup(o,&xp,&player)) m->xp_pickups++;
     }
+    p->xpCooldown=xp.xpCooldown; p->experience=xp.experience;
+    p->experienceLevel=xp.experienceLevel; p->experienceTotal=xp.experienceTotal;
+    m->xp_total=p->experienceTotal;
 }
 
 int gm_mobs_register_spawner(GmMobLive *m, int x, int y, int z, int entity_type) {
@@ -2933,121 +2947,30 @@ static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
 }
 
 /* Status: 0 IN_WATER, 1 ON_LAND, 2 IN_AIR (subset of EntityBoat.Status). */
-static int boat_status(GmWorld *w, double x, double y, double z) {
-    /* Feet sample: water in body cell => IN_WATER; solid below empty feet => ON_LAND. */
-    int bx = mc_floor(x), by = mc_floor(y), bz = mc_floor(z);
-    int feet = gm_world_block(w, bx, by, bz);
-    int below = gm_world_block(w, bx, by - 1, bz);
-    int head = gm_world_block(w, bx, mc_floor(y + 0.5625), bz);
-    if (feet == 8 || feet == 9 || head == 8 || head == 9) return 0; /* IN_WATER */
-    if (solid_id(below) && feet == 0) return 1; /* ON_LAND */
-    return 2; /* IN_AIR */
-}
-
 static void tick_boat(GmMobLive *m, GmWorld *w, EwStore *nx, int i,
                       PsvPlayer *p, int ox, int oz, float forward, float strafe) {
-    /* Boat half-extents for AABB collision (1.375 wide, 0.5625 tall). */
-    const double half_w = 1.375 * 0.5;
-    const double height = 0.5625;
-    int status = boat_status(w, nx->x[i], nx->y[i], nx->z[i]);
-    float momentum = 0.05f;
-    double d1 = -0.03999999910593033; /* gravity */
-    double d2 = 0.0;                  /* buoyancy factor */
-
-    if (status == 0) { /* IN_WATER */
-        momentum = 0.9f;
-        /* Approximate waterLevel - minY: partial submersion buoyancy. */
-        {
-            int by = mc_floor(nx->y[i]);
-            double water_level = (double)by + 1.0;
-            d2 = (water_level - nx->y[i]) / height;
-            if (d2 < 0.0) d2 = 0.0;
-            if (d2 > 1.0) d2 = 1.0;
-        }
-    } else if (status == 1) { /* ON_LAND */
-        if (s_boat_glide[i] <= 0.0f) s_boat_glide[i] = 0.8f; /* default land glide */
-        momentum = s_boat_glide[i];
-        if (m->boat_ride == i)
-            s_boat_glide[i] *= 0.5f; /* player-controlled land glide halves each tick */
-    } else { /* IN_AIR */
-        momentum = 0.9f;
-    }
-
-    /* updateMotion: apply momentum then gravity/buoyancy. */
-    nx->vx[i] *= (double)momentum;
-    nx->vz[i] *= (double)momentum;
-    s_boat_delta_rot[i] *= momentum;
-    nx->vy[i] += d1;
-    if (d2 > 0.0) {
-        nx->vy[i] += d2 * 0.06153846016296973;
-        nx->vy[i] *= 0.75;
-    }
-
-    /* controlBoat when ridden: no auto-thrust without forward/back input. */
-    if (m->boat_ride == i && p) {
-        int left = strafe < -0.01f, right = strafe > 0.01f;
-        int fwd = forward > 0.01f, back = forward < -0.01f;
-        float f = 0.0f;
-        if (left) s_boat_delta_rot[i] += -1.0f;
-        if (right) s_boat_delta_rot[i] += 1.0f;
-        if (left != right && !fwd && !back) f += 0.005f;
-        nx->yaw[i] += s_boat_delta_rot[i];
-        if (fwd) f += 0.04f;
-        if (back) f -= 0.005f;
-        {
-            double yr = (double)nx->yaw[i] * 0.017453292;
-            nx->vx[i] += -sin(yr) * (double)f;
-            nx->vz[i] += cos(yr) * (double)f;
-        }
+    BlBoat b;
+    int status, ridden = (m->boat_ride == i) && p;
+    b.x = nx->x[i]; b.y = nx->y[i]; b.z = nx->z[i];
+    b.vx = nx->vx[i]; b.vy = nx->vy[i]; b.vz = nx->vz[i];
+    b.yaw = nx->yaw[i];
+    b.on_ground = nx->on_ground[i];
+    b.delta_rot = m->boat_delta_rot[i];
+    b.glide = m->boat_glide[i];
+    status = bl_tick_world(&b, w, ridden, forward, strafe);
+    nx->x[i] = b.x; nx->y[i] = b.y; nx->z[i] = b.z;
+    nx->vx[i] = b.vx; nx->vy[i] = b.vy; nx->vz[i] = b.vz;
+    nx->yaw[i] = b.yaw;
+    nx->on_ground[i] = (u8)(b.on_ground ? 1 : 0);
+    m->boat_delta_rot[i] = b.delta_rot;
+    m->boat_glide[i] = b.glide;
+    if (ridden) {
         p->yaw = nx->yaw[i];
         p->ent.posX = nx->x[i] - ox;
-        p->ent.posY = nx->y[i] + 0.35;
+        p->ent.posY = nx->y[i] + BL_RIDE_Y;
         p->ent.posZ = nx->z[i] - oz;
         p->ent.motionX = p->ent.motionY = p->ent.motionZ = 0.0;
-        p->ent.onGround = (status == 1);
-    }
-
-    /* AABB-style collide: sample corners of the 1.375 x 0.5625 box on XZ and Y. */
-    {
-        double try_x = nx->x[i] + nx->vx[i];
-        double try_z = nx->z[i] + nx->vz[i];
-        double try_y = nx->y[i] + nx->vy[i];
-        int blocked_xz = 0;
-        int mid_y = mc_floor(nx->y[i] + height * 0.5);
-        double corners[4][2] = {
-            { try_x - half_w, try_z - half_w },
-            { try_x + half_w, try_z - half_w },
-            { try_x - half_w, try_z + half_w },
-            { try_x + half_w, try_z + half_w }
-        };
-        for (int c = 0; c < 4; ++c) {
-            if (solid_id(gm_world_block(w, mc_floor(corners[c][0]), mid_y,
-                                        mc_floor(corners[c][1])))) {
-                blocked_xz = 1; break;
-            }
-        }
-        if (!blocked_xz) {
-            nx->x[i] = try_x;
-            nx->z[i] = try_z;
-        } else {
-            nx->vx[i] = nx->vz[i] = 0.0;
-        }
-        {
-            int foot = mc_floor(try_y);
-            int head = mc_floor(try_y + height);
-            int bx = mc_floor(nx->x[i]), bz = mc_floor(nx->z[i]);
-            if (!solid_id(gm_world_block(w, bx, foot, bz)) &&
-                !solid_id(gm_world_block(w, bx, head, bz))) {
-                nx->y[i] = try_y;
-                nx->on_ground[i] = 0;
-            } else if (nx->vy[i] < 0) {
-                nx->vy[i] = 0;
-                nx->on_ground[i] = 1;
-                nx->y[i] = (double)foot + 1.0;
-            } else {
-                nx->vy[i] = 0;
-            }
-        }
+        p->ent.onGround = (status == BL_STATUS_ON_LAND);
     }
 }
 
@@ -3482,6 +3405,31 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     (void)drops;
 }
 
+void gm_mobs_tick_orbs(GmMobLive *m, struct GmWorld *w, struct PsvPlayer *p,
+                       int ox, int oz) {
+    if (!m || !w || !p) return;
+    tick_xp_orbs(m, w, (PsvPlayer *)p, ox, oz);
+}
+
+void gm_mobs_tick_boats(GmMobLive *m, struct GmWorld *w, struct PsvPlayer *p,
+                        int ox, int oz, float forward, float strafe) {
+    EwStore *now, *nx;
+    int i;
+    float boat_fwd, boat_str;
+    PsvPlayer *pl = (PsvPlayer *)p;
+    if (!m || !w || !p) return;
+    now = now_store(m);
+    nx = next_store(m);
+    ew_store_copy(nx, now);
+    boat_fwd = m->boat_ride >= 0 ? forward : 0.0f;
+    boat_str = m->boat_ride >= 0 ? strafe : 0.0f;
+    for (i = 1; i < EW_MAX_ENTITIES; ++i)
+        if (now->alive[i] && m->entity_dimension[i] == m->active_dimension &&
+            now->type[i] == EW_TYPE_BOAT)
+            tick_boat(m, w, nx, i, pl, ox, oz, boat_fwd, boat_str);
+    ew_store_copy(now, nx);
+}
+
 void gm_mobs_tick_spine(GmMobLive *m, GmWorld *w, const struct McSinTable *st_) {
     const McSinTable *st = (const McSinTable *)st_;
     EwStore *now, *nx;
@@ -3774,4 +3722,62 @@ void gm_mobs_import_snap(GmMobLive *m, const struct RlSnapMob *in, unsigned n) {
         if (o->id >= m->next_id) m->next_id = o->id + 1;
     }
     ew_store_copy(next_store(m), s);
+}
+
+unsigned gm_mobs_export_orbs(const GmMobLive *m, struct RlSnapOrb *out,
+                             unsigned cap) {
+    unsigned n = 0;
+    int i;
+    if (!m || !out || cap == 0) return 0;
+    for (i = 0; i < GM_XP_ORBS && n < cap; ++i) {
+        const McOrb *o = &m->xp_orbs[i];
+        RlSnapOrb *d;
+        if (o->dead || o->xpValue <= 0) continue;
+        d = &out[n++];
+        memset(d, 0, sizeof *d);
+        d->x = o->posX; d->y = o->posY; d->z = o->posZ;
+        d->mx = o->motionX; d->my = o->motionY; d->mz = o->motionZ;
+        d->on_ground = o->onGround;
+        d->xpOrbAge = o->xpOrbAge;
+        d->delayBeforeCanPickup = o->delayBeforeCanPickup;
+        d->xpValue = o->xpValue;
+        d->eid = o->eid;
+        d->xpColor = o->xpColor;
+        d->xpTargetColor = o->xpTargetColor;
+        d->has_closest = o->has_closest;
+        d->dead = o->dead;
+    }
+    return n;
+}
+
+void gm_mobs_import_orbs(GmMobLive *m, const struct RlSnapOrb *in, unsigned n) {
+    unsigned k;
+    int i;
+    if (!m) return;
+    for (i = 0; i < GM_XP_ORBS; ++i) {
+        memset(&m->xp_orbs[i], 0, sizeof m->xp_orbs[i]);
+        m->xp_orbs[i].dead = 1;
+        m->orb_dimension[i] = (signed char)m->active_dimension;
+    }
+    if (!in || n == 0) return;
+    for (k = 0; k < n && k < (unsigned)GM_XP_ORBS; ++k) {
+        const RlSnapOrb *d = &in[k];
+        McOrb *o = &m->xp_orbs[k];
+        memset(o, 0, sizeof *o);
+        o->xpValue = d->xpValue;
+        o->eid = d->eid;
+        o->delayBeforeCanPickup = d->delayBeforeCanPickup;
+        o->xpOrbAge = d->xpOrbAge;
+        o->xpColor = d->xpColor;
+        o->xpTargetColor = d->xpTargetColor;
+        o->has_closest = d->has_closest;
+        o->dead = d->dead || d->xpValue <= 0;
+        o->motionX = d->mx; o->motionY = d->my; o->motionZ = d->mz;
+        o->onGround = d->on_ground;
+        eo_set_position(o, d->x, d->y, d->z);
+        o->motionX = d->mx; o->motionY = d->my; o->motionZ = d->mz;
+        o->onGround = d->on_ground;
+        m->orb_dimension[k] = (signed char)m->active_dimension;
+        if (d->eid >= m->next_orb_id) m->next_orb_id = d->eid + 1;
+    }
 }

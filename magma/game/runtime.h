@@ -243,6 +243,7 @@ typedef struct GmRuntime {
     long long seed;
     long long tick;
     int weather_enabled;
+    int elytra_kit;              /* --elytra on: chest 443 after snapshot-in */
     /* Tape getRainStrength(1)/getThunderStrength(1). Live stays 0: magma has
      * WorldInfo raining flags but no rainingStrength fade. */
     float rain_strength, thunder_strength;

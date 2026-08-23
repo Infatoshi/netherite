@@ -522,6 +522,9 @@ BLAZE_CHEST = ../blaze/core/tile_entity_chest.h ../blaze/core/container_click.h
 BLAZE_PROJECTILES = ../blaze/core/projectile_live.h
 BLAZE_EXPLOSIONS = ../blaze/core/explosion.h ../blaze/core/explosion_live.h
 BLAZE_MOBS = ../blaze/core/hostile_live.h
+BLAZE_XP = ../blaze/core/xp_live.h ../blaze/core/entity_xp_orb.h
+BLAZE_BOATS = ../blaze/core/boat_live.h
+BLAZE_ELYTRA = ../blaze/core/elytra_live.h
 ifeq ($(shell uname -s),Darwin)
 # Prefer Homebrew libomp; avoid `ls` (may inject color codes into Make vars).
 ifeq ($(wildcard /opt/homebrew/opt/libomp/include/omp.h),)
@@ -540,14 +543,14 @@ endif
 .PHONY: blaze_verify blaze_so
 blaze_verify: ../blaze/env/blaze_verify
 ../blaze/env/blaze_verify: ../blaze/env/blaze_verify.c $(BLAZE_SRCS) \
-                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY) $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_WEATHER) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) $(BLAZE_MOBS)
+                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY) $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_WEATHER) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env ../blaze/env/blaze_verify.c \
 	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
 blaze_so: ../blaze/env/blaze_cpu.so
 ../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
                         $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
-                        $(BLAZE_MOBS)
+                        $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
 	    -o $@ $(LDLIBS) $(BLAZE_OMP)
 
@@ -595,7 +598,7 @@ blaze_cuda_so: ../blaze/env/blaze_cuda.so
                         ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
                         $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
-                        $(BLAZE_MOBS)
+                        $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
 	    ../blaze/env/blaze_snapshot.c -o $@

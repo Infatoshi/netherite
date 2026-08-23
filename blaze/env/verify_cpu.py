@@ -914,6 +914,13 @@ def run_seed_parity(seed, snap, actions, label, features,
         extra = []
         if "weather" in features:
             extra.extend(["--weather", "on"])
+        if "elytra" in features:
+            extra.extend(["--set", "elytra=1"])
+            cu.lib.blaze_set_elytra_enabled.argtypes = [
+                ctypes.c_void_p, ctypes.c_int]
+            cu.lib.blaze_set_elytra_enabled.restype = ctypes.c_int
+            if cu.lib.blaze_set_elytra_enabled(ctypes.c_void_p(cu.h), 1) != 0:
+                raise RuntimeError("blaze_set_elytra_enabled failed")
         if mobs_on:
             extra.extend(["--set", "mobs=1"])
             cu.lib.blaze_set_mobs_enabled.argtypes = [

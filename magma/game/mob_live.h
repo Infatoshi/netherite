@@ -35,6 +35,7 @@ typedef struct {
     int next_id;
     int player_attack_cooldown;
     int xp_total;
+    unsigned xp_pickups;
     McOrb xp_orbs[GM_XP_ORBS];
     signed char orb_dimension[GM_XP_ORBS];
     int next_orb_id;
@@ -136,6 +137,9 @@ typedef struct {
      * these; snapshot v3 still carries them so a later spine port can restore. */
     int hurt_time[EW_MAX_ENTITIES];
     int death_time[EW_MAX_ENTITIES];
+    /* EntityBoat.deltaRotation / boatGlide. Not in EwStore. */
+    float boat_delta_rot[EW_MAX_ENTITIES];
+    float boat_glide[EW_MAX_ENTITIES];
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */
@@ -216,6 +220,11 @@ int gm_mobs_boat_mount(GmMobLive *m,struct PsvPlayer *player,int ox,int oz);
 /* Dismount if riding. */
 void gm_mobs_boat_dismount(GmMobLive *m,struct PsvPlayer *player,int ox,int oz);
 int gm_mobs_boat_riding(const GmMobLive *m);
+int gm_mobs_boat_status(const GmMobLive *m, struct GmWorld *w, int slot);
+void gm_mobs_tick_orbs(GmMobLive *m, struct GmWorld *w, struct PsvPlayer *p,
+                       int ox, int oz);
+void gm_mobs_tick_boats(GmMobLive *m, struct GmWorld *w, struct PsvPlayer *p,
+                        int ox, int oz, float forward, float strafe);
 
 /* Packed .bsnp v3 mob trailer (RlSnapMob in blaze/env/blaze_snapshot.h).
  * Export walks occupied slots 1..EW_MAX_ENTITIES-1 in slot order. */
@@ -223,5 +232,9 @@ struct RlSnapMob;
 unsigned gm_mobs_export_snap(const GmMobLive *m, struct RlSnapMob *out,
                              unsigned cap);
 void gm_mobs_import_snap(GmMobLive *m, const struct RlSnapMob *in, unsigned n);
+struct RlSnapOrb;
+unsigned gm_mobs_export_orbs(const GmMobLive *m, struct RlSnapOrb *out,
+                             unsigned cap);
+void gm_mobs_import_orbs(GmMobLive *m, const struct RlSnapOrb *in, unsigned n);
 
 #endif

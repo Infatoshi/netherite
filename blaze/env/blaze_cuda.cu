@@ -87,6 +87,8 @@ typedef struct {
     int ncont;                   /* -1 = overflow: full window scan fallback */
     unsigned n_mobs;
     RlSnapMob mobs[BLAZE_SNAP_MAX_MOBS];
+    unsigned n_orbs;
+    RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
 } CuSnapDev;
 
 typedef struct {
@@ -141,6 +143,7 @@ typedef struct {
     int success_item; /* +10/done=1 item id; 263 default (exact ppo_coal),
                        * 0 = never. Applied to envs at their next reset. */
     int mobs_enabled; /* magma --mobs on: hostile AI/combat live tick */
+    int elytra_kit;   /* magma --elytra on: chest 443 after reset */
     int legacy_recenter;  /* create opts: A/B fallback to the serial-recenter
                            * k_tick_legacy (host-side launch pick; zero tick
                            * cost) */
@@ -181,6 +184,7 @@ int blaze_assign(void *vh, const int *snap_idx);
 int blaze_set_reward_gate(void *vh, double dist_gate);
 int blaze_set_success_item(void *vh, int item);
 int blaze_set_mobs_enabled(void *vh, int on);
+int blaze_set_elytra_enabled(void *vh, int on);
 int blaze_reset(void *vh, const unsigned char *mask);
 int blaze_step(void *vh, const double *actions, int repeat,
                unsigned short *cam, unsigned char *depth, unsigned char *edge,
@@ -205,15 +209,22 @@ int blaze_op_trace(void *vh, unsigned long long *out);
 /* reset phase 1: one thread per RESETTING env (host-compacted active list) */
 __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                                const CuSnapDev *snaps, const int *assign,
-                               int success_item, int mobs_enabled) {
+                               int success_item, int mobs_enabled,
+                               int elytra_kit) {
     int gi = blockIdx.x * blockDim.x + threadIdx.x;
     if (gi >= nactive) return;
     int i = active[gi];
     const CuSnapDev *s = &snaps[assign[i]];
     blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
-                       s->mobs, s->n_mobs, success_item);
+                       s->mobs, s->n_mobs, s->orbs, s->n_orbs, success_item);
     envs[i].mobs_enabled = mobs_enabled;
+    envs[i].elytra_kit = elytra_kit;
+    if (elytra_kit) {
+        isr_set_stack(&envs[i].pl.inv, ISR_ARMOR_CHEST,
+                      ic_mk(ISR_ELYTRA_ITEM, 1, 0));
+        envs[i].pl.elytra_equipped = 1;
+    }
 }
 
 /* reset phase 2: one thread per bulk cell (region copy + window fill +
@@ -1064,6 +1075,9 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         d->n_mobs = s.n_mobs;
         if (s.n_mobs)
             memcpy(d->mobs, s.mobs, (size_t)s.n_mobs * sizeof d->mobs[0]);
+        d->n_orbs = s.n_orbs;
+        if (s.n_orbs)
+            memcpy(d->orbs, s.orbs, (size_t)s.n_orbs * sizeof d->orbs[0]);
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
         v->has_unrepresented[v->nsnaps] = s.head.container != 0;
@@ -1141,6 +1155,42 @@ int blaze_set_mobs_enabled(void *vh, int on) {
     return 0;
 }
 
+int blaze_set_elytra_enabled(void *vh, int on) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int i, flag;
+    if (!v) return -1;
+    v->elytra_kit = on ? 1 : 0;
+    flag = v->elytra_kit;
+    if (v->h_envs)
+        for (i = 0; i < v->n; ++i) {
+            v->h_envs[i].elytra_kit = flag;
+            if (flag) {
+                isr_set_stack(&v->h_envs[i].pl.inv, ISR_ARMOR_CHEST,
+                              ic_mk(ISR_ELYTRA_ITEM, 1, 0));
+                v->h_envs[i].pl.elytra_equipped = 1;
+            }
+        }
+    if (v->d_envs) {
+        cudaSetDevice(v->device);
+        for (i = 0; i < v->n; ++i) {
+            Blaze he;
+            if (cudaMemcpy(&he, v->d_envs + i, sizeof he,
+                           cudaMemcpyDeviceToHost) != cudaSuccess)
+                return -1;
+            he.elytra_kit = flag;
+            if (flag) {
+                isr_set_stack(&he.pl.inv, ISR_ARMOR_CHEST,
+                              ic_mk(ISR_ELYTRA_ITEM, 1, 0));
+                he.pl.elytra_equipped = 1;
+            }
+            if (cudaMemcpy(v->d_envs + i, &he, sizeof he,
+                           cudaMemcpyHostToDevice) != cudaSuccess)
+                return -1;
+        }
+    }
+    return 0;
+}
+
 int blaze_assign(void *vh, const int *snap_idx) {
     CuVecCu *v = (CuVecCu *)vh;
     int i;
@@ -1173,7 +1223,7 @@ int blaze_reset(void *vh, const unsigned char *mask) {
         return -1;
     k_reset_scalar<<<(nact + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
         v->d_envs, v->d_active, nact, v->d_snaps, v->d_assign,
-        v->success_item, v->mobs_enabled);
+        v->success_item, v->mobs_enabled, v->elytra_kit);
     /* all snapshots share the pool dims, so the bulk count is uniform - the
      * grass census grid is sized off the dims alone for exactly this reason
      * (cu_grass_grid_init); keep this in step with cu_reset_bulk_count. */

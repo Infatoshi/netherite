@@ -98,6 +98,8 @@ static int resolve_config(GmConfig *cfg, const CrConfig *r,
     cfg->enchanting = r->enchanting;
     cfg->brewing = r->brewing;
     cfg->weather = r->weather;
+    cfg->xp = r->xp;
+    cfg->elytra = r->elytra;
     cfg->daylight = r->daylight;
     cfg->mobs = r->mobs;
     cfg->stats = r->stats;
@@ -280,6 +282,7 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
             return fail(err, err_cap, "%s must be non-negative", a);
         if (!strcmp(key, "villages") || !strcmp(key, "enchanting") ||
             !strcmp(key, "brewing") || !strcmp(key, "weather") ||
+            !strcmp(key, "xp") || !strcmp(key, "elytra") ||
             !strcmp(key, "daylight") || !strcmp(key, "mobs") ||
             !strcmp(key, "stats")) {
             if (!strcmp(v, "on")) v = "1";

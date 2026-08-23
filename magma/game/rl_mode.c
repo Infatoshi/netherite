@@ -746,6 +746,70 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
             out->active_mask |= BP_BIT(BP_WEATHER);
     }
 
+    {
+        int nents = 0, iorb;
+        h = bp_xp_digest_begin();
+        for (iorb = 0; iorb < GM_XP_ORBS; ++iorb) {
+            const McOrb *o = &r->mobs.xp_orbs[iorb];
+            if (o->dead || o->xpValue <= 0) continue;
+            ++nents;
+            h = bp_hash_xp_orb(
+                h, o->posX, o->posY, o->posZ, o->motionX, o->motionY, o->motionZ,
+                o->onGround, o->xpOrbAge, o->delayBeforeCanPickup,
+                o->xpValue, o->eid, o->dead);
+        }
+        h = bp_xp_digest_finish(
+            h, nents, (int32_t)r->mobs.xp_pickups,
+            r->player.experienceLevel, r->player.experience,
+            r->player.experienceTotal, r->player.xpCooldown);
+        out->digest[BP_XP] = h;
+        out->evidence[BP_XP] =
+            (uint32_t)nents + r->mobs.xp_pickups +
+            (uint32_t)r->player.experienceTotal;
+        if (nents || r->mobs.xp_pickups || r->player.experienceTotal)
+            out->active_mask |= BP_BIT(BP_XP);
+    }
+
+    {
+        int nents = 0, i;
+        const EwStore *s = r->mobs.current ? &r->mobs.b : &r->mobs.a;
+        h = bp_boats_digest_begin();
+        for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+            int status, riding;
+            if (!s->alive[i] || s->type[i] != EW_TYPE_BOAT) continue;
+            ++nents;
+            status = gm_mobs_boat_status(&r->mobs, r->world, i);
+            riding = (r->mobs.boat_ride == i) ? 1 : 0;
+            h = bp_hash_boat(
+                h, i, 1, s->x[i], s->y[i], s->z[i],
+                s->vx[i], s->vy[i], s->vz[i], s->yaw[i], s->on_ground[i],
+                status, r->mobs.boat_delta_rot[i], r->mobs.boat_glide[i],
+                riding);
+        }
+        h = bp_hash_i32(h, nents);
+        h = bp_hash_i32(h, r->mobs.boat_ride);
+        out->digest[BP_BOATS] = h;
+        out->evidence[BP_BOATS] = (uint32_t)nents +
+            (r->mobs.boat_ride >= 0 ? 1u : 0u);
+        if (nents)
+            out->active_mask |= BP_BIT(BP_BOATS);
+    }
+
+    {
+        h = bp_elytra_digest(
+            r->player.elytra_equipped, r->player.elytra_flying,
+            r->player.elytra_flying_pending, r->player.elytra_pose,
+            r->player.ticks_elytra_flying, r->player.elytra_wall_damage,
+            r->player.ent.motionX, r->player.ent.motionY,
+            r->player.ent.motionZ, r->player.ent.onGround);
+        out->digest[BP_ELYTRA] = h;
+        out->evidence[BP_ELYTRA] =
+            (uint32_t)(r->player.elytra_equipped || r->player.elytra_flying ||
+                       r->player.ticks_elytra_flying);
+        if (r->player.elytra_equipped || r->player.elytra_flying)
+            out->active_mask |= BP_BIT(BP_ELYTRA);
+    }
+
     h = bp_hash_begin();
     for (i = 0; i < RL_NCOAL; ++i) {
         int present = i < rl_ncoal;
@@ -922,10 +986,18 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
         ok = ok && fwrite(&n_mobs, sizeof n_mobs, 1, f) == 1;
         ok = ok && (n_mobs == 0 ||
                     fwrite(packed, sizeof packed[0], n_mobs, f) == n_mobs);
-        fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
-                "%u mobs)\n",
-                ok ? "written" : "WRITE FAILED", path, h.tick, h.n_items, ncoal,
-                n_mobs);
+        {
+            RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
+            unsigned n_orbs = gm_mobs_export_orbs(&r->mobs, orbs,
+                                                  BLAZE_SNAP_MAX_ORBS);
+            ok = ok && fwrite(&n_orbs, sizeof n_orbs, 1, f) == 1;
+            ok = ok && (n_orbs == 0 ||
+                        fwrite(orbs, sizeof orbs[0], n_orbs, f) == n_orbs);
+            fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
+                    "%u mobs, %u orbs)\n",
+                    ok ? "written" : "WRITE FAILED", path, h.tick, h.n_items,
+                    ncoal, n_mobs, n_orbs);
+        }
     }
     free(cells);
     free(light);
@@ -1018,6 +1090,21 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         }
         gm_mobs_import_snap(&r->mobs, packed, n_mobs);
     }
+    if (h.version >= BLAZE_SNAP_VERSION) {
+        unsigned n_orbs = 0;
+        RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
+        if (fread(&n_orbs, sizeof n_orbs, 1, f) != 1 ||
+            n_orbs > BLAZE_SNAP_MAX_ORBS) {
+            snprintf(err, (size_t)err_cap, "truncated .bsnp orb count: %s",
+                     path);
+            free(cells); free(light); fclose(f); return 0;
+        }
+        if (n_orbs && fread(orbs, sizeof orbs[0], n_orbs, f) != n_orbs) {
+            snprintf(err, (size_t)err_cap, "truncated .bsnp orbs: %s", path);
+            free(cells); free(light); fclose(f); return 0;
+        }
+        gm_mobs_import_orbs(&r->mobs, orbs, n_orbs);
+    }
     fclose(f);
 
     ecx = psv_floordiv16(h.rx0 + h.rnx / 2);
@@ -1105,6 +1192,11 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     rl_loaded_bounds_valid = 1;
     rl_loaded_rx0 = h.rx0; rl_loaded_ry0 = h.ry0; rl_loaded_rz0 = h.rz0;
     rl_loaded_rnx = h.rnx; rl_loaded_rny = h.rny; rl_loaded_rnz = h.rnz;
+    if (r->elytra_kit) {
+        isr_set_stack(&r->player.inv, ISR_ARMOR_CHEST,
+                      ic_mk(ISR_ELYTRA_ITEM, 1, 0));
+        r->player.elytra_equipped = 1;
+    }
     return 1;
 }
 

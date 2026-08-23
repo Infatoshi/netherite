@@ -771,16 +771,179 @@ subsystems:
       - weather
     timeout: 1500
 
-  - name: boats_elytra_xp
-    supported: false
+  - name: xp_orbs
+    supported: true
     sources:
-      magma: [magma/game/player_ctl.c, magma/game/mob_live.c]
-      shared: [blaze/core/entity_base.h, blaze/core/entity_xp_orb.h, blaze/core/player_survival.h]
-      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+      magma: [magma/game/mob_live.c, magma/game/rl_mode.c]
+      shared: [blaze/core/xp_live.h, blaze/core/entity_xp_orb.h, blaze/core/port_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
     dependencies: [fluids, entity_spine]
-    required_features: [boats, elytra, xp]
-    required_artifacts: {m1: [], m2: []}
-    m1: []
-    m2: []
+    required_features: [xp]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_xp_orbs.bsnp
+        - blaze/rl/fixtures/xp_orbs_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_xp_orbs.bsnp
+        - blaze/rl/fixtures/xp_orbs_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_xp_orbs.bsnp
+      - --tape
+      - blaze/rl/fixtures/xp_orbs_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - xp
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_xp_orbs.bsnp
+      - --tape
+      - blaze/rl/fixtures/xp_orbs_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - xp
     timeout: 1500
-    block_reason: Boats, elytra flight, and XP lifecycle lack common end-to-end evidence.
+
+  - name: boats
+    supported: true
+    sources:
+      magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
+      shared: [blaze/core/boat_live.h, blaze/core/port_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
+    dependencies: [fluids, entity_spine]
+    required_features: [boats]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_boats.bsnp
+        - blaze/rl/fixtures/boats_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_boats.bsnp
+        - blaze/rl/fixtures/boats_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_boats.bsnp
+      - --tape
+      - blaze/rl/fixtures/boats_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - boats
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_boats.bsnp
+      - --tape
+      - blaze/rl/fixtures/boats_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - boats
+    timeout: 1500
+
+  - name: elytra
+    supported: true
+    sources:
+      magma: [magma/game/player_ctl.c, magma/game/rl_mode.c]
+      shared: [blaze/core/elytra_live.h, blaze/core/player_survival.h, blaze/core/port_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
+    dependencies: [fluids, entity_spine]
+    required_features: [elytra]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_elytra.bsnp
+        - blaze/rl/fixtures/elytra_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_elytra.bsnp
+        - blaze/rl/fixtures/elytra_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_elytra.bsnp
+      - --tape
+      - blaze/rl/fixtures/elytra_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - elytra
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_elytra.bsnp
+      - --tape
+      - blaze/rl/fixtures/elytra_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - elytra
+    timeout: 1500

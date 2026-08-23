@@ -1,5 +1,20 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 boats_elytra_xp M1+M2 (lane/boatsxp)
+
+Gamer. Split `boats_elytra_xp` into `xp_orbs`, `boats`, `elytra`. Baseline BLOCKED (`out/verify/boatsxp_baseline_boats_elytra_xp_m1.log`).
+
+XP: magma `tick_xp_orbs` summed `xp_total` and skipped `--mobs off`. Java `EntityXPOrb.getXPSplit` (`EntityXPOrb.java:298-301`), `onUpdate` delay/gravity/attract/despawn 6000 (`:87-174`), `onCollideWithPlayer` xpCooldown=2 (`:239-265`), `EntityPlayer.addExperience` / `xpBarCap` (`EntityPlayer.java:2145-2211`). Shared `blaze/core/xp_live.h`. Snapshot v4 orb trailer. Magma extras: hash spawn motion, no lava/water/Mending. Fixture `s10_t0_r64_xp_orbs.bsnp` one orb (8.5,66.5,11.5) value 17 delay 10. M1 VERIFIED 64 ticks t=0 digest `0x7f972093d78b1f51`. M2 VERIFIED 64 CUDA lanes.
+
+Boats: magma `tick_boat` was magma-only and skipped `--mobs off`. Java `EntityBoat.onUpdate` / `updateMotion` / `controlBoat` (`EntityBoat.java:272-367,643-701,704-748`). Shared `blaze/core/boat_live.h`. Magma extras: 3-way status, 4-corner collide, ride y+0.35. Fixture water pool + boat (12.5,65.2,12.5). M1 VERIFIED 64 ticks t=0 digest `0x642f0daadce74471`. M2 VERIFIED 64 CUDA lanes.
+
+Elytra: travel already in `player_survival.h`; blaze lacked START_FALL_FLYING. Java `EntityPlayerSP.java:1030-1036`, `NetHandlerPlayServer.java:1019-1027`, `updateElytra` 20-tick chest damage. Shared `blaze/core/elytra_live.h`. `--set elytra=1` equips chest 443 (armor not in .bsnp). Fixture player (8.5,80,8.5) air. M1 VERIFIED 64 ticks t=0 digest `0x9fba266b58990185`. M2 VERIFIED 64 CUDA lanes.
+
+`--no-deps` still VERIFIED: random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, mobs, explosions, chests, falling_blocks, weather_optional, mining_slice M1. projectiles M1 FAIL observation 22 magma evidence 2 vs blaze 1 (pre-existing, lane/projground). mining_slice M2 BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS (`out/verify/boatsxp_maketest.log`). No tape on this clone header-declares XP orbs, boats, or elytra flight.
+
+Open: handleWaterMovement on orbs; Mending; Java Math.random spawn; UNDER_WATER / UNDER_FLOWING_WATER boat status; Entity.move boat collision; snapshot armor slots; fly-into-wall tape evidence.
+
+
 ## 2026-08-22 random_ticks M1 skylight (lane/lightsync)
 
 Baseline anvil d456936: random_ticks M1 FAILED at observation 84. Magma digest `0x099236e78eba8377` evidence=11; blaze `0x03401e738ea70aca` evidence=10 (`out/verify/lightsync_baseline_random_ticks_m1.log`). VERIFIED at 42117bc; broke in 7435206 (lane/underwater merge). Magma `light_set_state` (`magma/world/light.c:751`) marks `column_dirty` on opacity change; `light_ensure` (`:690`) reruns `Chunk.generateSkylightMap` (`Chunk.java:238`, `cr_k17_skylight_column` `light.c:69`) for that chunk, then raise-only spread (`compute_skylight_spread` `:541`). Blaze still used `cu_light_raw_sky` + radius-15 `cu_light_relax_open/close`. Raise-only never lowered a 3x3x3 water cube (centre stuck at 12, magma centre 9). `randtick_live.h` reads `rt_live_light`, so the nibble mismatch changed which ticks fired.

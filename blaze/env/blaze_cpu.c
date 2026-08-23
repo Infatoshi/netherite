@@ -87,6 +87,7 @@ typedef struct {
                               * 0 = disabled. Applied at reset. */
     int    no_ore_xy;        /* create-time: skip ore spatial index on load */
     int    mobs_enabled;     /* magma --mobs on: hostile AI/combat live tick */
+    int    elytra_kit;       /* magma --elytra on: chest 443 after reset */
 } CuVec;
 
 /* OPT-IN training-reward mode: gate the +0.03 crosshair-attack bonus on
@@ -118,6 +119,23 @@ int blaze_set_mobs_enabled(void *vh, int on) {
     if (v->envs)
         for (i = 0; i < v->n; ++i)
             v->envs[i].mobs_enabled = v->mobs_enabled;
+    return 0;
+}
+
+int blaze_set_elytra_enabled(void *vh, int on) {
+    CuVec *v = (CuVec *)vh;
+    int i;
+    if (!v) return -1;
+    v->elytra_kit = on ? 1 : 0;
+    if (v->envs)
+        for (i = 0; i < v->n; ++i) {
+            v->envs[i].elytra_kit = v->elytra_kit;
+            if (v->elytra_kit) {
+                isr_set_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST,
+                              ic_mk(ISR_ELYTRA_ITEM, 1, 0));
+                v->envs[i].pl.elytra_equipped = 1;
+            }
+        }
     return 0;
 }
 
@@ -330,8 +348,14 @@ static void cu_reset_env(CuVec *v, int i) {
     blaze_reset_from_snapshot(&v->envs[i], &s->head, s->items, s->cells,
                               s->light, s->coal, (int)s->ncoal, s->xy_off,
                               s->cont, s->ncont, s->mobs, s->n_mobs,
-                              v->success_item);
+                              s->orbs, s->n_orbs, v->success_item);
     v->envs[i].mobs_enabled = v->mobs_enabled;
+    v->envs[i].elytra_kit = v->elytra_kit;
+    if (v->elytra_kit) {
+        isr_set_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST,
+                      ic_mk(ISR_ELYTRA_ITEM, 1, 0));
+        v->envs[i].pl.elytra_equipped = 1;
+    }
 }
 
 int blaze_reset(void *vh, const unsigned char *mask) {
