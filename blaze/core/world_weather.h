@@ -108,29 +108,62 @@ MC_HD static inline void ww_update_weather(WwState *s) {
 }
 
 /* One WorldServer-style tick slice: weather then totalTime/worldTime advance
- * (doDaylightCycle true). Sleep-skip and skylight are out of scope. */
+ * (doDaylightCycle true). Sleep-skip is ww_tick_gated_sleep; skylight stays
+ * out of this kernel. */
 MC_HD static inline void ww_tick(WwState *s) {
     ww_update_weather(s);
     s->totalTime += 1;
     s->worldTime += 1;
 }
 
+/* WorldServer.java:195-196: long i = getWorldTime() + 24000L; i - i % 24000L. */
+MC_HD static inline i64 ww_next_dawn(i64 world_time) {
+    i64 i = world_time + 24000LL;
+    return i - i % 24000LL;
+}
+
+/* WorldProvider.resetRainAndThunder WorldProvider.java:584-589. */
+MC_HD static inline void ww_reset_rain_and_thunder(WwState *s) {
+    s->rainTime = 0;
+    s->raining = 0;
+    s->thunderTime = 0;
+    s->thundering = 0;
+}
+
 /* Magma gm_world_tick: GameRules doWeatherCycle / doDaylightCycle.
  * freeze_weather skips timer/RNG work (World.updateWeatherBody :2747-2808)
  * but still advances totalTime, and worldTime when daylight is on
  * (WorldServer.java:218-223). Strength fade is not applied either way. */
-MC_HD static inline void ww_tick_gated(WwState *s, int freeze_weather,
-                                       int freeze_daylight) {
+MC_HD static inline void ww_tick_gated_sleep(WwState *s, int freeze_weather,
+                                             int freeze_daylight,
+                                             int sleep_skip) {
+    /* WorldServer.tick :182 super.tick (updateWeather) then :191-200
+     * areAllPlayersAsleep skip + wakeAllPlayers, then :218-223 time++.
+     * sleep_skip is 0 on every RL tick so weather_optional is unchanged. */
     if (freeze_weather) {
+        if (sleep_skip && !freeze_daylight)
+            s->worldTime = ww_next_dawn(s->worldTime);
         s->totalTime += 1;
         if (!freeze_daylight) s->worldTime += 1;
         return;
     }
     {
         i64 wt_prev = s->worldTime;
-        ww_tick(s);
+        ww_update_weather(s);
+        if (sleep_skip) {
+            if (!freeze_daylight)
+                s->worldTime = ww_next_dawn(s->worldTime);
+            ww_reset_rain_and_thunder(s);
+        }
+        s->totalTime += 1;
+        s->worldTime += 1;
         if (freeze_daylight) s->worldTime = wt_prev;
     }
+}
+
+MC_HD static inline void ww_tick_gated(WwState *s, int freeze_weather,
+                                       int freeze_daylight) {
+    ww_tick_gated_sleep(s, freeze_weather, freeze_daylight, 0);
 }
 
 MC_HD static inline void ww_dump(const WwState *s, u64 *out) {

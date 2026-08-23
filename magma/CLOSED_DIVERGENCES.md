@@ -5,6 +5,48 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Beds: CLOSED 2026-08-23 (lane/beds)
+
+Anvil. Sweep 2026-08-23 magma row 9.
+
+Java: `ItemBed.onItemUse` (`ItemBed.java:28-83`) requires click facing UP
+(`:34-37`), yaw `MathHelper.floor((double)(rotationYaw * 4.0F / 360.0F) +
+0.5D) & 3` then `EnumFacing.getHorizontal` (`:49-50`), both cells
+replaceable-or-air, `isFullyOpaque` below both (`:61`). FOOT then HEAD
+meta (`:63-65`). Not `World.mayPlace`. `BlockBed.onBlockActivated`
+(`BlockBed.java:47-121`) maps FOOT to HEAD along FACING (`:54-64`);
+occupied message (`:68-75`); `trySleep` then OCCUPIED (`:82-87`).
+Nether/End explode (`:108-119`) is `!canRespawnHere`; magma keeps that
+path for `dimension != 0`. `EntityPlayer.trySleep` (`EntityPlayer.java:1637-1707`)
+checks in order: OTHER_PROBLEM, NOT_POSSIBLE_HERE, NOT_POSSIBLE_NOW,
+TOO_FAR_AWAY, NOT_SAFE, then pose `0.5F + facingOffset * 0.4F` and Y
+`(float)y + 0.6875F` (`:1685-1688`). Monster AABB 8.0/5.0/8.0 (`:1665-1667`).
+`bedInRange` 3/2/3 (`:1710-1720`). `onUpdate` sleep branch (`:228-257`)
+is World.updateEntities after WorldServer.tick. `isPlayerFullyAsleep`
+at `sleepTimer >= 100` (`:1841-1843`). `WorldServer.tick` (`:191-200`)
+`areAllPlayersAsleep` then `setWorldTime((time+24000) - (time+24000)%24000)`
+then `wakeAllPlayers` (`:287-302`) `resetRainAndThunder` (`WorldProvider.java:584-589`).
+`isDaytime` is `getSkylightSubtracted() < 4` (`WorldProvider.java:450-453`).
+`getBedSpawnLocation` (`EntityPlayer.java:1779-1800`) /
+`getSafeExitLocation` (`BlockBed.java:195-228`) / `hasRoomForPlayer`
+(`:231-234`). Respawn (`PlayerList.java:538-580`) uses that, else world
+spawn; obstructed bed sends `SPacketChangeGameState(0,0)`.
+
+C: shared `blaze/core/player_bed.h`. Magma `player_ctl.c` ItemBed place;
+`runtime.c` trySleep / sleep onUpdate after `gm_world_tick` / spawn.
+`ww_tick_gated_sleep` is skip=0 on every RL tick so `BP_WEATHER` stays
+equal. RL has no sleep action. `ibp_may_place` does not fit ItemBed.
+
+Stay out: nether explode as an RL path; potion/shield; snapshot sleep
+fields (resumegate).
+
+Gate: unit tests `make -C magma test-beds` and `make -C blaze/rl test-beds`.
+No bed/sleep tape in `verify/tapes` (only dropped item 355 on detmob
+wander). Tape physics unchanged vs parent. M1 `--no-deps` VERIFIED all
+listed rows including `weather_optional`. M2 VERIFIED raw/warp/scalar
+for those except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp`
+missing). Root `make test` PASS.
+
 ### Explosion residuals: CLOSED 2026-08-23 (lane/expresid)
 
 Anvil. Sweep 2026-08-23 magma row 4.

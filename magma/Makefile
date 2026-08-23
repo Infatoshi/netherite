@@ -54,7 +54,7 @@ OBJ_ASSETS = assets/blockmodels.o
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/world_spawn.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o game/audio_live.o
 
-.PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-fall-reanchor test-sky-weather test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui
+.PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-fall-reanchor test-sky-weather test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui test-beds
 all: game
 
 # --- CUDA raster for the game ---
@@ -415,6 +415,11 @@ test-placement:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_placement.c -o tests/test_placement $(LDLIBS)
 	./tests/test_placement
 
+.PHONY: test-beds
+test-beds:
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_beds.c -o tests/test_beds $(LDLIBS)
+	./tests/test_beds
+
 .PHONY: test-explosions
 test-explosions:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_explosions.c -o tests/test_explosions $(LDLIBS)
@@ -429,7 +434,7 @@ test-furnace-registry:
 	    -o tests/test_furnace_registry $(LDLIBS)
 	./tests/test_furnace_registry
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items test-beds
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 .PHONY: test-live-items
@@ -543,6 +548,7 @@ BLAZE_PARITY = ../blaze/core/port_parity.h
 BLAZE_RANDTICK = ../blaze/core/randtick_live.h
 BLAZE_FALLING = ../blaze/core/falling_live.h
 BLAZE_WEATHER = ../blaze/core/world_weather.h
+BLAZE_BED = ../blaze/core/player_bed.h
 BLAZE_CHEST = ../blaze/core/tile_entity_chest.h ../blaze/core/container_click.h
 BLAZE_PROJECTILES = ../blaze/core/projectile_live.h
 BLAZE_EXPLOSIONS = ../blaze/core/explosion.h ../blaze/core/explosion_live.h
@@ -570,13 +576,13 @@ endif
 .PHONY: blaze_verify blaze_so
 blaze_verify: ../blaze/env/blaze_verify
 ../blaze/env/blaze_verify: ../blaze/env/blaze_verify.c $(BLAZE_SRCS) \
-                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY) $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
+                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY) $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_BED) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env ../blaze/env/blaze_verify.c \
 	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
 blaze_so: ../blaze/env/blaze_cpu.so
 ../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
-                        $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
+                        $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_BED) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
                         $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
 	    -o $@ $(LDLIBS) $(BLAZE_OMP)
@@ -624,7 +630,7 @@ blaze_cuda_so: ../blaze/env/blaze_cuda.so
 ../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
                         ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
-                        $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
+                        $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_BED) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
                         $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \

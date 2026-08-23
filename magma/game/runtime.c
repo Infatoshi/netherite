@@ -11,6 +11,7 @@
 #include "game/portal_live.h"
 #include "game/structures_live.h"
 #include "game/world_spawn.h"
+#include "player_bed.h"
 #include "explosion.h"
 #include "port_parity.h"
 #include "items_tools_armor.h"
@@ -109,6 +110,160 @@ static int runtime_can_spawn(void *ctx, int x, int z) {
     y = 63;
     while (y < 255 && gm_world_block(w, x, y + 1, z) != 0) y++;
     return gm_world_block(w, x, y, z) == 2;
+}
+
+static int runtime_bed_has_room(const GmRuntime *r, int x, int y, int z) {
+    if (!r || !r->world) return 0;
+    return bed_has_room_ids(gm_world_block(r->world, x, y - 1, z),
+                            gm_world_block(r->world, x, y, z),
+                            gm_world_block(r->world, x, y + 1, z));
+}
+
+static int runtime_bed_safe_exit(const GmRuntime *r, int x, int y, int z,
+                                 int facing, int *ox, int *oy, int *oz) {
+    int l, i1, j1, k1, l1, i2, j2;
+    int dx = bed_facing_dx(facing);
+    int dz = bed_facing_dz(facing);
+    for (l = 0; l <= 1; ++l) {
+        i1 = x - dx * l - 1;
+        j1 = z - dz * l - 1;
+        k1 = i1 + 2;
+        l1 = j1 + 2;
+        for (i2 = i1; i2 <= k1; ++i2) {
+            for (j2 = j1; j2 <= l1; ++j2) {
+                if (runtime_bed_has_room(r, i2, y, j2)) {
+                    *ox = i2;
+                    *oy = y;
+                    *oz = j2;
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int runtime_bed_spawn_loc(const GmRuntime *r, int bx, int by, int bz,
+                                 int force, int *ox, int *oy, int *oz) {
+    int id, meta, facing;
+    if (!r || !r->world) return 0;
+    id = gm_world_block(r->world, bx, by, bz);
+    if (id != BED_BLK) {
+        if (!force) return 0;
+        if (bed_can_spawn_in(id) &&
+            bed_can_spawn_in(gm_world_block(r->world, bx, by + 1, bz))) {
+            *ox = bx;
+            *oy = by;
+            *oz = bz;
+            return 1;
+        }
+        return 0;
+    }
+    meta = gm_world_meta(r->world, bx, by, bz);
+    facing = bed_facing_meta(meta);
+    return runtime_bed_safe_exit(r, bx, by, bz, facing, ox, oy, oz);
+}
+
+static int runtime_bed_mob_near(const GmRuntime *r, int bx, int by, int bz) {
+    const EwStore *s;
+    int i;
+    if (!r) return 0;
+    s = r->mobs.current ? &r->mobs.b : &r->mobs.a;
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        float w, h;
+        if (!s->alive[i] || !ehs_is_hostile(s->type[i])) continue;
+        ehs_size_scaled(s->type[i], r->mobs.size[i], &w, &h);
+        if (bed_mob_hits_sleep_box(s->x[i], s->y[i], s->z[i], w, h, bx, by, bz))
+            return 1;
+    }
+    return 0;
+}
+
+static void runtime_wake_player(GmRuntime *r, int immediately, int set_spawn) {
+    int hx, hy, hz, facing, ex, ey, ez;
+    double px, py, pz;
+    if (!r) return;
+    hx = r->bed_head_x;
+    hy = r->bed_head_y;
+    hz = r->bed_head_z;
+    if (r->world && gm_world_block(r->world, hx, hy, hz) == BED_BLK) {
+        int meta = gm_world_meta(r->world, hx, hy, hz);
+        facing = bed_facing_meta(meta);
+        gm_world_set_block_meta(r->world, hx, hy, hz, BED_BLK,
+                                meta & ~BED_META_OCCUPIED);
+        if (runtime_bed_safe_exit(r, hx, hy, hz, facing, &ex, &ey, &ez))
+            bed_exit_pose(ex, ey, ez, &px, &py, &pz);
+        else
+            bed_exit_pose(hx, hy + 1, hz, &px, &py, &pz);
+        r->player.ent.posX = px - (double)r->ox;
+        r->player.ent.posY = py;
+        r->player.ent.posZ = pz - (double)r->oz;
+    } else {
+        set_spawn = 0;
+    }
+    r->player_sleeping = 0;
+    r->sleep_timer = immediately ? 0 : 100;
+    r->player.ent.box = psv_player_box(r->player.ent.posX, r->player.ent.posY,
+                                       r->player.ent.posZ);
+    if (set_spawn) {
+        r->spawn_chunk_set = 1;
+        r->spawn_chunk_x = hx;
+        r->spawn_chunk_y = hy;
+        r->spawn_chunk_z = hz;
+        r->spawn_forced = 0;
+    }
+}
+
+static void runtime_sleep_on_update(GmRuntime *r) {
+    int still;
+    if (!r) return;
+    if (r->player_sleeping) {
+        ++r->sleep_timer;
+        if (r->sleep_timer > 100) r->sleep_timer = 100;
+        still = r->world &&
+                gm_world_block(r->world, r->bed_head_x, r->bed_head_y,
+                               r->bed_head_z) == BED_BLK;
+        if (!still)
+            runtime_wake_player(r, 1, 0);
+        else if (bed_is_daytime_time(r->clock.world_time))
+            runtime_wake_player(r, 0, 1);
+    } else if (r->sleep_timer > 0) {
+        ++r->sleep_timer;
+        if (r->sleep_timer >= 110) r->sleep_timer = 0;
+    }
+}
+
+static int runtime_try_sleep(GmRuntime *r, int hx, int hy, int hz) {
+    int facing, daytime, alive;
+    double wx, wy, wz;
+    GmPlayerView v;
+    if (!r || !r->world) return BED_OTHER_PROBLEM;
+    facing = bed_facing_meta(gm_world_meta(r->world, hx, hy, hz));
+    alive = !r->dead && r->vitals.health > 0.0f;
+    daytime = bed_is_daytime_time(r->clock.world_time);
+    gm_runtime_view(r, &v);
+    if (r->player_sleeping || !alive) return BED_OTHER_PROBLEM;
+    if (r->dimension != 0) return BED_NOT_POSSIBLE_HERE;
+    if (daytime) return BED_NOT_POSSIBLE_NOW;
+    if (!bed_in_range(v.x, v.y, v.z, hx, hy, hz, facing))
+        return BED_TOO_FAR_AWAY;
+    if (runtime_bed_mob_near(r, hx, hy, hz)) return BED_NOT_SAFE;
+    if (gm_mobs_boat_riding(&r->mobs))
+        gm_mobs_boat_dismount(&r->mobs, (struct PsvPlayer *)&r->player,
+                              r->ox, r->oz);
+    bed_sleep_pose(hx, hy, hz, facing, &wx, &wy, &wz);
+    r->player.ent.posX = wx - (double)r->ox;
+    r->player.ent.posY = wy;
+    r->player.ent.posZ = wz - (double)r->oz;
+    r->player.ent.box = bed_sleep_box(r->player.ent.posX, r->player.ent.posY,
+                                      r->player.ent.posZ);
+    r->player.ent.motionX = r->player.ent.motionY = r->player.ent.motionZ = 0.0;
+    r->player_sleeping = 1;
+    r->sleep_timer = 0;
+    r->bed_head_x = hx;
+    r->bed_head_y = hy;
+    r->bed_head_z = hz;
+    return BED_OK;
 }
 
 static int vanilla_blocks_movement(int id) {
@@ -837,6 +992,9 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
         r->player.ent.posY = (double)surface + 1.0;
         r->player.ent.posZ = 8.5;
         r->player.ent.box = psv_player_box(8.5, r->player.ent.posY, 8.5);
+        r->world_spawn_x = 8;
+        r->world_spawn_y = surface + 1;
+        r->world_spawn_z = 8;
     } else {
         int sx, sy, sz, feet_y, nccx, nccz;
         double px, pz;
@@ -860,7 +1018,14 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
         r->player.ent.posZ = pz - (double)r->oz;
         r->player.ent.box = psv_player_box(r->player.ent.posX, r->player.ent.posY,
                                            r->player.ent.posZ);
+        r->world_spawn_x = sx;
+        r->world_spawn_y = feet_y;
+        r->world_spawn_z = sz;
     }
+    r->player_sleeping = 0;
+    r->sleep_timer = 0;
+    r->spawn_chunk_set = 0;
+    r->spawn_forced = 0;
     r->player.ent.onGround = 0;
     r->player.yaw = 180.0f; r->player.pitch = 0.0f;
     pv_init(&r->vitals);
@@ -868,7 +1033,7 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->gamerules.doDaylightCycle = cfg->daylight;
     gm_world_clock_init(&r->clock, cfg->seed);
     if (cr_cfg()->set_time != -1)
-        r->clock.world_time = cr_cfg()->set_time;
+        gm_world_clock_set_world_time(&r->clock, cr_cfg()->set_time);
     memset(&r->entities, 0, sizeof r->entities);
     gm_mobs_init(&r->mobs, cfg->seed);
     gm_fluid_init(&r->fluids);
@@ -917,6 +1082,8 @@ void gm_runtime_destroy(GmRuntime *r) {
 }
 
 void gm_runtime_respawn(GmRuntime *r) {
+    int x, y, z;
+    double px, py, pz;
     if (!r) return;
     r->dead = 0;
     r->death_screen_ticks = 0;
@@ -933,6 +1100,20 @@ void gm_runtime_respawn(GmRuntime *r) {
     r->player.air = PSV_AIR_MAX;
     r->mobs.player_hurt_resistant = 0;
     r->mobs.player_last_damage = 0.0f;
+    r->player_sleeping = 0;
+    r->sleep_timer = 0;
+    /* PlayerList.recreatePlayerEntity :568-580. Bed spawn, else world spawn. */
+    if (r->spawn_chunk_set &&
+        runtime_bed_spawn_loc(r, r->spawn_chunk_x, r->spawn_chunk_y,
+                              r->spawn_chunk_z, r->spawn_forced, &x, &y, &z)) {
+        bed_exit_pose(x, y, z, &px, &py, &pz);
+        gm_runtime_set_pose(r, px, py, pz, 0.0f, 0.0f);
+        return;
+    }
+    px = (double)r->world_spawn_x + 0.5;
+    py = (double)r->world_spawn_y;
+    pz = (double)r->world_spawn_z + 0.5;
+    gm_runtime_set_pose(r, px, py, pz, 0.0f, 0.0f);
 }
 
 void gm_runtime_tick(GmRuntime *r, GmAction action) {
@@ -1058,7 +1239,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
             r->win_gen = g;
         }
     }
-    if(action.do_place){
+    if(action.do_place && !r->player_sleeping){
         int hx,hy,hz,ax,ay,az;
         if(gm_raycast_sel_reach(r->window,&r->sin_table,&r->player,PSV_REACH,
                                 &hx,&hy,&hz,&ax,&ay,&az)>=0){
@@ -1067,6 +1248,16 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 action.do_place=0;action.use=0;
             }
         }
+    }
+    /* EntityPlayer.isMovementBlocked :476-478. Zero walk/jump; pose stays
+     * on the bed. Java slot: onLivingUpdate before travel, inside
+     * updateEntities AFTER WorldServer.tick. Inputs are sampled earlier. */
+    if (r->player_sleeping) {
+        action.forward = 0.0f;
+        action.strafe = 0.0f;
+        action.jump = 0;
+        action.do_place = 0;
+        action.use = 0;
     }
     /* EntityLivingBase.onUpdate ages hurtResistantTime every tick even when
      * --mobs off suppresses natural mob AI during a tape replay. */
@@ -1239,8 +1430,32 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                                edits[i].wz + 0.5, edits[i].drop_id,
                                edits[i].drop_count, edits[i].drop_meta, 10);
     }
+    /* WorldServer.tick :191-200 areAllPlayersAsleep BEFORE updateEntities.
+     * sleepTimer was last incremented on the previous tick's onUpdate. */
+    r->clock.sleep_skip = r->player_sleeping && r->sleep_timer >= 100;
     if (r->weather_enabled) gm_world_tick(&r->clock);
     else gm_world_tick_clear(&r->clock);
+    if (r->player_sleeping && r->sleep_timer >= 100)
+        runtime_wake_player(r, 0, 1);
+    /* EntityPlayer.onUpdate sleep branch :228-257, World.updateEntities. */
+    runtime_sleep_on_update(r);
+    if (r->player_sleeping) {
+        int facing = 0;
+        double wx, wy, wz;
+        if (r->world)
+            facing = bed_facing_meta(
+                gm_world_meta(r->world, r->bed_head_x, r->bed_head_y,
+                              r->bed_head_z));
+        bed_sleep_pose(r->bed_head_x, r->bed_head_y, r->bed_head_z, facing,
+                       &wx, &wy, &wz);
+        r->player.ent.posX = wx - (double)r->ox;
+        r->player.ent.posY = wy;
+        r->player.ent.posZ = wz - (double)r->oz;
+        r->player.ent.box = bed_sleep_box(r->player.ent.posX, r->player.ent.posY,
+                                          r->player.ent.posZ);
+        r->player.ent.motionX = r->player.ent.motionY =
+            r->player.ent.motionZ = 0.0;
+    }
     gm_fluid_tick(&r->fluids, r->world, r->dimension, r->tick);
     /* Random block ticks: LIVE/WINDOW only (r->randtick_enabled). Replay keeps
      * this off; do not approximate Java's unseedable world RNG on tapes. */
@@ -2053,7 +2268,7 @@ int gm_runtime_set_dimension(GmRuntime *r, int dimension) {
 
 void gm_runtime_set_time(GmRuntime *r, long long world_time) {
     if (!r) return;
-    r->clock.world_time=world_time;
+    gm_world_clock_set_world_time(&r->clock, world_time);
 }
 
 void gm_runtime_set_total_time(GmRuntime *r, long long total_time) {
@@ -2462,14 +2677,36 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
         return 1;
     }
     if(id==26){
-        if(r->dimension==0){
-            long long day=r->clock.world_time/24000LL;
-            r->clock.world_time=(day+1)*24000LL;return 1;
+        int meta = gm_world_meta(r->world, wx, wy, wz);
+        int hx, hy, hz, hmeta, st;
+        bed_head_pos(wx, wy, wz, meta, &hx, &hy, &hz);
+        if (gm_world_block(r->world, hx, hy, hz) != BED_BLK) return 1;
+        hmeta = gm_world_meta(r->world, hx, hy, hz);
+        /* BlockBed.java:66-119. Nether/End explode is magma-only (RL has
+         * no bed in DIM -1/1). canRespawnHere is overworld. */
+        if (r->dimension != 0) {
+            int oxb = hx - bed_facing_dx(bed_facing_meta(hmeta));
+            int ozb = hz - bed_facing_dz(bed_facing_meta(hmeta));
+            gm_world_set_block(r->world, hx, hy, hz, 0);
+            if (gm_world_block(r->world, oxb, hy, ozb) == BED_BLK)
+                gm_world_set_block(r->world, oxb, hy, ozb, 0);
+            runtime_explode(r, hx + 0.5, hy + 0.5, hz + 0.5, 5.0f, 1, 1);
+            return 1;
         }
-        for(int x=wx-1;x<=wx+1;++x)for(int z=wz-1;z<=wz+1;++z)
-            if(gm_world_block(r->world,x,wy,z)==26)gm_world_set_block(r->world,x,wy,z,0);
-        /* BlockBed.java:118 newExplosion(..., 5.0F, true, true) */
-        runtime_explode(r,wx+0.5,wy+0.5,wz+0.5,5.0f,1,1);return 1;
+        if (bed_occupied_meta(hmeta)) {
+            if (r->player_sleeping && r->bed_head_x == hx &&
+                r->bed_head_y == hy && r->bed_head_z == hz)
+                return 1;
+            hmeta &= ~BED_META_OCCUPIED;
+            gm_world_set_block_meta(r->world, hx, hy, hz, BED_BLK, hmeta);
+        }
+        st = runtime_try_sleep(r, hx, hy, hz);
+        if (st == BED_OK) {
+            hmeta = gm_world_meta(r->world, hx, hy, hz);
+            gm_world_set_block_meta(r->world, hx, hy, hz, BED_BLK,
+                                    hmeta | BED_META_OCCUPIED);
+        }
+        return 1;
     }
     return 0;
 }

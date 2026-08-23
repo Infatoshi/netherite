@@ -1276,6 +1276,7 @@ void gm_world_clock_init(GmWorldClock *c, i64 seed) {
     c->thundering   = g_clock.ww.thundering;
     c->freeze_daylight = 0;
     c->freeze_weather = 0;
+    c->sleep_skip = 0;
 }
 
 void gm_world_tick(GmWorldClock *c) {
@@ -1283,17 +1284,21 @@ void gm_world_tick(GmWorldClock *c) {
     if (!g_clock.inited) gm_world_clock_init(c, 0);
     /* World.updateWeatherBody :2747 skips timers when doWeatherCycle is
      * false; WorldServer.tick :218-223 still advances time. */
-    ww_tick_gated(&g_clock.ww, c->freeze_weather, c->freeze_daylight);
+    ww_tick_gated_sleep(&g_clock.ww, c->freeze_weather, c->freeze_daylight,
+                        c->sleep_skip);
     c->total_time   = g_clock.ww.totalTime;
     c->world_time   = g_clock.ww.worldTime;
     c->rain_time    = g_clock.ww.rainTime;
     c->thunder_time = g_clock.ww.thunderTime;
     c->raining      = g_clock.ww.raining;
     c->thundering   = g_clock.ww.thundering;
+    c->sleep_skip   = 0;
 }
 
 void gm_world_tick_clear(GmWorldClock *c) {
     if (!c) return;
+    if (c->sleep_skip && !c->freeze_daylight)
+        c->world_time = ww_next_dawn(c->world_time);
     ++c->total_time;
     if (!c->freeze_daylight) ++c->world_time;
     if (!c->freeze_weather) {
@@ -1302,6 +1307,7 @@ void gm_world_tick_clear(GmWorldClock *c) {
         c->raining = 0;
         c->thundering = 0;
     }
+    c->sleep_skip = 0;
 }
 
 void gm_world_clock_set_total_time(GmWorldClock *c, long long total_time) {
@@ -1309,6 +1315,13 @@ void gm_world_clock_set_total_time(GmWorldClock *c, long long total_time) {
     if (!g_clock.inited) gm_world_clock_init(c, 0);
     c->total_time = total_time;
     g_clock.ww.totalTime = total_time;
+}
+
+void gm_world_clock_set_world_time(GmWorldClock *c, long long world_time) {
+    if (!c) return;
+    if (!g_clock.inited) gm_world_clock_init(c, 0);
+    c->world_time = world_time;
+    g_clock.ww.worldTime = world_time;
 }
 
 void gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,

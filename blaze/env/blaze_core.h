@@ -69,6 +69,7 @@
 #include "interact_blocks.h"    /* ib_apply (use on doors/levers/...) verbatim */
 #include "item_block_place.h"   /* ibp_placed_meta (place orientation) verbatim */
 #include "block_may_place.h"    /* World.mayPlace + TNT flint ignite */
+#include "player_bed.h"         /* ItemBed two-cell place; RL has no sleep */
 #include "crafting_recipes_full.h" /* crf_build/crf_findMatching verbatim */
 #include "furnace_full_tick.h"  /* fft_tick + sr_* smelt/fuel verbatim */
 #include "tile_entity_chest.h"  /* TeChest 27-slot TE (TileEntityChest) */
@@ -2781,22 +2782,39 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                                           ic_mk(325, 1, 0));
                             cu_emit_edit(edits, &ne, max_edits, ox, oy, oz,
                                          ax, ay, az, fluid, 0, 0, 0, 0);
-                        } else if (held.item == 355 &&
-                                   psv_get_block(window, ax, ay, az) == BLK_AIR) {
-                            /* bed: two-cell place (player_ctl.c:518) */
-                            static const int bdx[4] = {0, -1, 0, 1};
-                            static const int bdz[4] = {1, 0, -1, 0};
-                            int q = cu_yaw_to_quad(pl->yaw);
-                            int hx2 = ax + bdx[q], hz2 = az + bdz[q];
-                            if (psv_get_block(window, hx2, ay, hz2) == BLK_AIR) {
-                                cu_win_set_state(window, ax, ay, az, 26, q);
-                                cu_win_set_state(window, hx2, ay, hz2, 26, q | 8);
-                                (void)isr_decr_stack_size(&pl->inv,
-                                                          pl->inv.current_item, 1);
-                                cu_emit_edit(edits, &ne, max_edits, ox, oy, oz,
-                                             ax, ay, az, 26, q, 0, 0, 0);
-                                cu_emit_edit(edits, &ne, max_edits, ox, oy, oz,
-                                             hx2, ay, hz2, 26, q | 8, 0, 0, 0);
+                        } else if (held.item == BED_ITEM) {
+                            /* ItemBed.onItemUse :34-71. Not World.mayPlace. */
+                            int face = cu_face_from_adj(hx, hy, hz, ax, ay, az);
+                            if (face == IBP_UP) {
+                                int q = cu_yaw_to_quad(pl->yaw);
+                                int fx, fy, fz, hx2, hz2, foot, head;
+                                if (ibp_is_replaceable(hit_id)) {
+                                    fx = hx;
+                                    fy = hy;
+                                    fz = hz;
+                                } else {
+                                    fx = hx;
+                                    fy = hy + 1;
+                                    fz = hz;
+                                }
+                                if (bed_item_can_place(window, fx, fy, fz, q)) {
+                                    hx2 = fx + bed_facing_dx(q);
+                                    hz2 = fz + bed_facing_dz(q);
+                                    foot = bed_foot_meta(q);
+                                    head = bed_head_meta(q);
+                                    cu_win_set_state(window, fx, fy, fz,
+                                                     BED_BLK, foot);
+                                    cu_win_set_state(window, hx2, fy, hz2,
+                                                     BED_BLK, head);
+                                    (void)isr_decr_stack_size(
+                                        &pl->inv, pl->inv.current_item, 1);
+                                    cu_emit_edit(edits, &ne, max_edits, ox, oy,
+                                                 oz, fx, fy, fz, BED_BLK, foot,
+                                                 0, 0, 0);
+                                    cu_emit_edit(edits, &ne, max_edits, ox, oy,
+                                                 oz, hx2, fy, hz2, BED_BLK,
+                                                 head, 0, 0, 0);
+                                }
                             }
                         } else if (!isr_is_empty(&held) &&
                                    psv_get_block(window, ax, ay, az) == BLK_AIR &&
