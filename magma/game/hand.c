@@ -396,24 +396,96 @@ static CrMat4 build_held_item_base(float swing, float equip) {
     return M;
 }
 
+/* GlStateManager.quatToGlMatrix (GlStateManager.java:641-670) for the
+ * ItemCameraTransforms.makeQuaternion XYZ (java:97-108) of JSON rotation. */
+static CrMat4 mat_quat_xyz(float rx, float ry, float rz) {
+    float f  = rx * D2R, f1 = ry * D2R, f2 = rz * D2R;
+    float f3 = sinf(0.5f * f),  f4 = cosf(0.5f * f);
+    float f5 = sinf(0.5f * f1), f6 = cosf(0.5f * f1);
+    float f7 = sinf(0.5f * f2), f8 = cosf(0.5f * f2);
+    float qx = f3 * f6 * f8 + f4 * f5 * f7;
+    float qy = f4 * f5 * f8 - f3 * f6 * f7;
+    float qz = f3 * f5 * f8 + f4 * f6 * f7;
+    float qw = f4 * f6 * f8 - f3 * f5 * f7;
+    float xx = qx * qx, xy = qx * qy, xz = qx * qz, xw = qx * qw;
+    float yy = qy * qy, yz = qy * qz, yw = qy * qw;
+    float zz = qz * qz, zw = qz * qw;
+    CrMat4 m = cr_mat4_identity();
+    /* column-major, same puts as quatToGlMatrix.java:653-663 */
+    m.m[0]  = 1.0f - 2.0f * (yy + zz);
+    m.m[1]  = 2.0f * (xy + zw);
+    m.m[2]  = 2.0f * (xz - yw);
+    m.m[4]  = 2.0f * (xy - zw);
+    m.m[5]  = 1.0f - 2.0f * (xx + zz);
+    m.m[6]  = 2.0f * (yz + xw);
+    m.m[8]  = 2.0f * (xz + yw);
+    m.m[9]  = 2.0f * (yz - xw);
+    m.m[10] = 1.0f - 2.0f * (xx + yy);
+    return m;
+}
+
+/* TRSRTransformation.blockCenterToCorner (java:622-630):
+ * T(+0.5) * M * T(-0.5). Converts a centre-origin transform to 0..1 verts. */
+static CrMat4 block_center_to_corner(CrMat4 M) {
+    return mul(mat_translate(0.5f, 0.5f, 0.5f),
+               mul(M, mat_translate(-0.5f, -0.5f, -0.5f)));
+}
+
+/* TRSRTransformation.blockCornerToCenter (java:636-644):
+ * T(-0.5) * M * T(+0.5). Inverse of blockCenterToCorner. */
+static CrMat4 block_corner_to_center(CrMat4 M) {
+    return mul(mat_translate(-0.5f, -0.5f, -0.5f),
+               mul(M, mat_translate(0.5f, 0.5f, 0.5f)));
+}
+
+/* Vanilla applyTransformSide (ItemCameraTransforms.java:76-93), right hand:
+ * translate, rotate(makeQuaternion XYZ), scale. JSON translation is already
+ * in block units (ItemTransformVec3f.java:73 scales the JSON values *0.0625).
+ * leftHanded is false for the main-hand RIGHT path (ItemRenderer.java:441
+ * passes !flag1 with flag1=RIGHT); no GlStateManager.scale(-1). */
+static CrMat4 apply_transform_side(float tx, float ty, float tz,
+                                   float rx, float ry, float rz,
+                                   float sx, float sy, float sz) {
+    CrMat4 m = cr_mat4_identity();
+    m = mul(m, mat_translate(tx, ty, tz));
+    m = mul(m, mat_quat_xyz(rx, ry, rz));
+    m = mul(m, mat_scale(sx, sy, sz));
+    return m;
+}
+
 /* models/item/generated.json + handheld.json firstperson_righthand (identical):
  *   rotation [0, -90, 25], translation [1.13, 3.2, 1.13]/16, scale 0.68
  * models/block/block.json firstperson_righthand:
  *   rotation [0, 45, 0], translation 0, scale 0.40
- * Then RenderItem.renderItem: T(-0.5,-0.5,-0.5) so model is 0..1 space. */
+ *
+ * 1.11 Forge dirt is IPerspectiveAwareModel.MapWrapper (ModelLoader.java:608).
+ * getTransforms(ItemCameraTransforms) stores
+ *   blockCenterToCorner(TRSR(json))  (IPerspectiveAwareModel.java:90)
+ * handlePerspective then
+ *   blockCornerToCenter(tr).getMatrix()  (java:99)
+ * so the GL matrix is the vanilla TRSR (T*R*S). RenderItem.renderItem
+ * (RenderItem.java:144) then translate(-0.5,-0.5,-0.5) so 0..1 model verts
+ * rotate about the cube centre. */
 static CrMat4 apply_fp_camera(CrMat4 M, int is_block) {
+    CrMat4 cam;
     if (is_block) {
-        /* block firstperson_righthand */
-        M = mul(M, mat_translate(0.0f, 0.0f, 0.0f));
-        M = mul(M, mat_rot_xyz(0.0f, 45.0f, 0.0f));
-        M = mul(M, mat_scale(0.40f, 0.40f, 0.40f));
+        /* block.json firstperson_righthand {rotation [0,45,0], scale 0.40}.
+         * Dirt is IPerspectiveAwareModel.MapWrapper (ModelLoader.java:608).
+         * getTransforms stores blockCenterToCorner(TRSR) (java:90);
+         * handlePerspective unwraps with blockCornerToCenter (java:99).
+         * Net GL matrix = vanilla T*R*S. Right hand: leftHanded=false,
+         * no scale(-1) (ItemRenderer.java:441). */
+        cam = apply_transform_side(0.0f, 0.0f, 0.0f, 0.0f, 45.0f, 0.0f,
+                                   0.40f, 0.40f, 0.40f);
+        cam = block_corner_to_center(block_center_to_corner(cam));
     } else {
-        /* item generated/handheld firstperson_righthand; translation /16 */
-        M = mul(M, mat_translate(1.13f * ARM_SCALE, 3.2f * ARM_SCALE, 1.13f * ARM_SCALE));
-        M = mul(M, mat_rot_xyz(0.0f, -90.0f, 25.0f));
-        M = mul(M, mat_scale(0.68f, 0.68f, 0.68f));
+        cam = apply_transform_side(1.13f * ARM_SCALE, 3.2f * ARM_SCALE,
+                                   1.13f * ARM_SCALE,
+                                   0.0f, -90.0f, 25.0f,
+                                   0.68f, 0.68f, 0.68f);
     }
-    M = mul(M, mat_translate(-0.5f, -0.5f, -0.5f));
+    M = mul(M, cam);
+    M = mul(M, mat_translate(-0.5f, -0.5f, -0.5f)); /* RenderItem.java:144 */
     return M;
 }
 
