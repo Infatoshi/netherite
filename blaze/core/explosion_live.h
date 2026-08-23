@@ -21,19 +21,22 @@
  *     doExplosionA then doExplosionB(false) + SPacketExplosion
  *   Explosion.doExplosionA            Explosion.java:82-191
  *     16x16x16 face rays, step 0.3D / 0.22500001F, resistance
- *     entity exposure, damage, knockback
+ *     World.getBlockDensity, d10=(1-d12)*density, damage d2i,
+ *     EnchantmentProtection.getBlastDamageReduction, motion += d5*d11,
+ *     playerKnockbackMap (d5*d10)
  *   Explosion.doExplosionB            Explosion.java:196-248
  *     sound/particles/drops/fire  CUT (magma does not port)
  *
  * Magma extras (M1 is magma semantics; do not "fix" to Java here):
- *   density rand fixed at 0.5F (explosion.h ex_density_scale)
- *   exposure always 1.0 (no World.getBlockDensity)
- *   no knockback applied (Java Explosion.java:174-176)
+ *   density rand fixed at 0.5F (explosion.h ex_density_scale);
+ *     world.rand.nextFloat() per ray is not consumed
+ *   getBlockDensity is full-cube BF_SOLID on the 16^3 sample (no non-cube BB)
+ *   blast-prot level 0 (no armor enchant scan)
  *   no doExplosionB drops / particles / flaming
  *   explosion Y is feetY + 0.5 (not Entity.posY)
  *   unpowered radius 3.0F, always destroys (no mobGriefing / powered 2x)
- *   player + dragon/crystal damage only (no other living entities)
  *   --mobs off: ignited living creepers (hasIgnited), not AICreeperSwell
+ *   explosion attackEntityFrom 0.4F knockBack stays on the mobs row
  *
  * Include after defining EXL_W for the apply half:
  *   exl_block / exl_meta / exl_set_air
@@ -42,11 +45,23 @@
 #define MC_EXPLOSION_LIVE_H
 
 #include "explosion.h"
+#include "entity_hostile_spine.h"
 #include "port_parity.h"
 
 #define EXL_FUSE_TIME 30          /* EntityCreeper.java:52 */
 #define EXL_RADIUS 3.0f           /* EntityCreeper.java:54 */
 #define EXL_Y_OFF 0.5             /* magma gm_mobs_take_explosion y */
+
+/* EntityPlayer.java:2488 eyeHeight 1.62; zombie/skeleton 1.74F
+ * (EntityZombie.java:461, AbstractSkeleton.java:303); else Entity.java:3193
+ * height * 0.85F. */
+MC_HD static inline float exl_eye_height(int type, float height) {
+    if (type == EW_TYPE_PLAYER) return 1.62f;
+    if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON
+        || type == EW_TYPE_WITHER_SKELETON)
+        return 1.74f;
+    return height * 0.85f;
+}
 
 /* EntityCreeper.onUpdate ignited path (:164-186). ignited is hasIgnited. */
 MC_HD static inline int exl_fuse_tick(int *fuse, int ignited) {

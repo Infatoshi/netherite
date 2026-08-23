@@ -140,14 +140,33 @@ static void recenter(GmRuntime *r) {
 static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float size){
     u16 grid[EX_VOL];u8 hit[EX_VOL];int ox,oy,oz;
     uint32_t nd=0;uint64_t rays=bp_hash_begin();
-    GmPlayerView v;float damage;
+    float dens,damage;ExBlast blast;
+    double px,py,pz,minx,miny,minz,maxx,maxy,maxz;
     exl_fill_and_rays(r,grid,hit,ex,ey,ez,size,&ox,&oy,&oz);
-    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays);
-    gm_runtime_view(r,&v);
-    damage=ex_entity_damage(v.x,v.y+v.eye_height,v.z,ex,ey,ez,size,1.0f);
+    /* doExplosionA entity loop sees the intact world (Explosion.java:132-190)
+     * before doExplosionB destroys. */
+    px=r->player.ent.posX+(double)r->ox;
+    py=r->player.ent.posY;
+    pz=r->player.ent.posZ+(double)r->oz;
+    minx=r->player.ent.box.minX+(double)r->ox;
+    miny=r->player.ent.box.minY;
+    minz=r->player.ent.box.minZ+(double)r->oz;
+    maxx=r->player.ent.box.maxX+(double)r->ox;
+    maxy=r->player.ent.box.maxY;
+    maxz=r->player.ent.box.maxZ+(double)r->oz;
+    dens=ex_block_density(grid,ox,oy,oz,ex,ey,ez,minx,miny,minz,maxx,maxy,maxz);
+    ex_entity_blast(px,py,pz,(float)psv_player_eye_height(&r->player),
+                    ex,ey,ez,size,dens,0,&blast);
+    damage=blast.damage;
     /* ExplosionDamage is not unblockable; armor absorb + durability apply. */
     damage = runtime_armor_damage(r, damage, 0);
     pv_attack(&r->vitals,damage);r->player.health=r->vitals.health;
+    if(blast.hit){
+        r->player.ent.motionX+=blast.addx;
+        r->player.ent.motionY+=blast.addy;
+        r->player.ent.motionZ+=blast.addz;
+    }
+    gm_mobs_explosion_knockback(&r->mobs,&r->entities,grid,ox,oy,oz,ex,ey,ez,size);
     if(r->dimension==1&&r->dragon.initialized){
         EdDragon *d=&r->dragon.state.arena.dragon;
         float dd=ex_entity_damage(d->x,d->y+2,d->z,ex,ey,ez,size,1.0f);
@@ -157,6 +176,7 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
             if(dx*dx+dy*dy+dz*dz<=size*size*4.0)r->dragon.state.arena.crystals[i].alive=0;
         }
     }
+    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays);
     r->parity_ex_blasts++;
     r->parity_ex_destroyed += nd;
     r->parity_ex_rays = rays;
@@ -165,9 +185,9 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
     r->parity_ex_last_y = ey;
     r->parity_ex_last_z = ez;
     r->parity_ex_last_size = size;
-    r->parity_ex_kb_x = 0.0;
-    r->parity_ex_kb_y = 0.0;
-    r->parity_ex_kb_z = 0.0;
+    r->parity_ex_kb_x = blast.mapx;
+    r->parity_ex_kb_y = blast.mapy;
+    r->parity_ex_kb_z = blast.mapz;
 }
 
 /* Vanilla BlockBush.checkAndDropBlock on neighborChanged: after a block edit,

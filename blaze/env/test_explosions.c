@@ -105,10 +105,11 @@ static int write_fixture(const char *from, const char *out_path) {
             for (y = 65; y <= 68; ++y)
                 plant_cell(&s, x, y, z, 0, 0);
         }
-    /* Destructible dirt next to the creeper so rays leave a crater. */
-    plant_cell(&s, 8, 65, 12, BLK_DIRT, 0);
+    /* Dirt off the player-+Z LOS so getBlockDensity is not 0, still a crater.
+     * Explosion centre (8.5,65.5,12.5) is cell (8,65,12); keep that air. */
     plant_cell(&s, 9, 65, 12, BLK_DIRT, 0);
-    plant_cell(&s, 8, 65, 13, BLK_DIRT, 0);
+    plant_cell(&s, 9, 65, 13, BLK_DIRT, 0);
+    plant_cell(&s, 10, 65, 12, BLK_DIRT, 0);
 
     s.head.version = BLAZE_SNAP_VERSION;
     s.n_mobs = 1;
@@ -129,6 +130,8 @@ static int write_fixture(const char *from, const char *out_path) {
 static int run_units(void) {
     int fuse, t;
     float dens, dmg;
+    u16 grid[EX_VOL];
+    ExBlast blast;
 
     fuse = 0;
     expect(!exl_fuse_tick(&fuse, 0), "idle creeper does not swell");
@@ -147,6 +150,30 @@ static int run_units(void) {
     dmg = ex_entity_damage(8.0, 8.0, 8.0, 8.0, 8.0, 8.0, EXL_RADIUS, 1.0f);
     expect(dmg > 0.0f, "center size-3 damage is positive");
     expect(bits_eq_f(EXL_RADIUS, 3.0f), "creeper radius is 3.0F");
+
+    ex_fill(grid, mc_state(BLK_AIR, 0));
+    dens = ex_block_density(grid, 0, 0, 0, 8.0, 8.0, 8.0,
+                            7.7, 8.0, 7.7, 8.3, 9.8, 8.3);
+    expect(bits_eq_f(dens, 1.0f), "air AABB getBlockDensity is 1.0F");
+
+    ex_fill(grid, mc_state(BLK_STONE, 0));
+    dens = ex_block_density(grid, 0, 0, 0, 8.0, 8.0, 8.0,
+                            0.2, 0.2, 0.2, 0.8, 1.8, 0.8);
+    expect(bits_eq_f(dens, 0.0f), "stone-occluded getBlockDensity is 0.0F");
+
+    ex_entity_blast(8.5, 65.0, 8.5, 1.62f, 8.5, 65.5, 12.5, EXL_RADIUS,
+                    1.0f, 0, &blast);
+    expect(blast.hit, "size-3 blast 4 blocks -Z is inside f3");
+    expect(blast.damage > 0.0f, "open-exposure d2i damage is positive");
+    expect(blast.addz < 0.0, "motion add is away from +Z explosion");
+    expect(blast.mapz == blast.addz,
+           "blast-prot 0: playerKnockbackMap equals motion add");
+    expect(ex_blast_reduction(1.0, 0) == 1.0,
+           "EnchantmentProtection level 0 is identity");
+    expect(bits_eq_f(exl_eye_height(EW_TYPE_ZOMBIE, 1.95f), 1.74f),
+           "zombie getEyeHeight is 1.74F");
+    expect(bits_eq_f(exl_eye_height(EW_TYPE_CREEPER, 1.7f), 1.7f * 0.85f),
+           "creeper eye is height * 0.85F");
     return fails ? 1 : 0;
 }
 

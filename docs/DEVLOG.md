@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 explosion knockback (lane/tntknock piece 1)
+
+Baseline anvil 8a86487 explosions M1 VERIFIED (`out/verify/tntknock_baseline_explosions_m1.log`); kb fields hashed as 0. Magma extras on close: exposure 1.0, no knockback.
+
+Cause: Java `Explosion.doExplosionA` (`Explosion.java:144-188`) does `d12 = getDistance / f3`, `d5/d7/d9` with `d7 = posY + (double)eyeHeight - explosionY`, `d13 = (double)MathHelper.sqrt` (`:157`, javap f2d), `d14 = (double)World.getBlockDensity` (`World.java:2456-2494`, `rayTraceBlocks(start,end,false,false,false)` `:998`), `d10 = (1-d12)*d14`, damage `(float)((int)((d10*d10+d10)/2*7*(double)f3+1))` (javap d2i i2f), `d11 = EnchantmentProtection.getBlastDamageReduction` (`EnchantmentProtection.java:99-108`; level 0 identity), `motion += d5*d11` (`:174-176`), `playerKnockbackMap` stores `d5*d10` (`:184`). `world.rand.nextFloat` per face ray stays magma-fixed 0.5F (`ex_density_scale`); that stream is not consumed. `getBlockDensity` uses `java.lang.Math.floor` for d3/d4, no Random.
+
+After: shared `ex_block_density` / `ex_entity_blast` in `blaze/core/explosion.h`. Magma `runtime_explode` and blaze `cu_explode` density+damage+motion on the intact grid, then `exl_apply_hits`. Living slots via `gm_mobs_explosion_knockback` / `cu_explode` mob loop. Fixture baker plants crater dirt off the player-+Z LOS so density is not 0; recaptured `s10_t0_r64_explosions.bsnp` via `--write-fixture` (not hand-edited). EXP1 layout unchanged (kb fields now nonzero). Units: air density 1.0F, stone 0.0F, +Z blast addz < 0, prot 0 identity. Magma `test_runtime` creeper PASS including knockback. explosions M1 VERIFIED (`out/verify/tntknock_explosions_m1.log`). mobs M1 still VERIFIED.
+
+Open: melee `EntityLivingBase.knockBack`; TNT; fireball; doExplosionB drops; density rand; blast-prot scan; attackEntityFrom 0.4F from the exploder.
+
 ## 2026-08-22 projectiles M1 inGround (lane/projground)
 
 Baseline anvil 0e099f6 (7edfd2b simsmalls is an ancestor): projectiles M1 FAILED at observation 22. Magma digest `0x8e2d11e7e393fea1` evidence=2; blaze `0xd9e47b3676353ee4` evidence=1 (`out/verify/projground_baseline_projectiles_m1.log`). VERIFIED before simsmalls; broke when magma `runtime.c` restuck arrows on block hit (`2162b7f`).

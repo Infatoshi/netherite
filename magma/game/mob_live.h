@@ -203,6 +203,10 @@ int gm_mobs_living_count(const GmMobLive *m);
 int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
                         float damage,GmLiveSim *drops);
 int gm_mobs_take_explosion(GmMobLive *m,double *x,double *y,double *z);
+/* Explosion.doExplosionA living loop: density + damage + motion add. */
+void gm_mobs_explosion_knockback(GmMobLive *m, GmLiveSim *drops,
+                                 const u16 *grid, int ox, int oy, int oz,
+                                 double ex, double ey, double ez, float size);
 /* Consume pending fireball. Returns kind 3 (small/blaze) or 5 (large/ghast), else 0. */
 int gm_mobs_take_fireball(GmMobLive *m,double *x,double *y,double *z,
                           double *vx,double *vy,double *vz);

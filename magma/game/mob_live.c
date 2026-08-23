@@ -3624,6 +3624,53 @@ int gm_mobs_take_explosion(GmMobLive *m,double *x,double *y,double *z){
     m->explosion_pending=0;return 1;
 }
 
+void gm_mobs_explosion_knockback(GmMobLive *m, GmLiveSim *drops,
+                                 const u16 *grid, int ox, int oy, int oz,
+                                 double ex, double ey, double ez, float size) {
+    EwStore *s;
+    int i;
+    if (!m || !grid) return;
+    s = now_store(m);
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        float width, height, eye, dens;
+        double minx, miny, minz, maxx, maxy, maxz;
+        ExBlast blast;
+        if (!s->alive[i] || m->entity_dimension[i] != m->active_dimension)
+            continue;
+        if (!gm_living(s->type[i]) || s->type[i] == EW_TYPE_BOAT) continue;
+        ehs_size((u8)s->type[i], &width, &height);
+        if (m->det_box_on[i]) {
+            minx = m->det_box[i].minX;
+            miny = m->det_box[i].minY;
+            minz = m->det_box[i].minZ;
+            maxx = m->det_box[i].maxX;
+            maxy = m->det_box[i].maxY;
+            maxz = m->det_box[i].maxZ;
+            height = (float)(maxy - miny);
+        } else {
+            minx = s->x[i] - (double)(width * 0.5f);
+            miny = s->y[i];
+            minz = s->z[i] - (double)(width * 0.5f);
+            maxx = s->x[i] + (double)(width * 0.5f);
+            maxy = s->y[i] + (double)height;
+            maxz = s->z[i] + (double)(width * 0.5f);
+        }
+        eye = exl_eye_height(s->type[i], height);
+        dens = ex_block_density(grid, ox, oy, oz, ex, ey, ez,
+                                minx, miny, minz, maxx, maxy, maxz);
+        ex_entity_blast(s->x[i], s->y[i], s->z[i], eye, ex, ey, ez, size,
+                        dens, 0, &blast);
+        if (!blast.hit) continue;
+        s->vx[i] += blast.addx;
+        s->vy[i] += blast.addy;
+        s->vz[i] += blast.addz;
+        s->health[i] -= blast.damage;
+        mark_hurt(m, s, i);
+        if (s->health[i] <= 0.0f) mob_drop(m, s, i, drops);
+    }
+    ew_store_copy(next_store(m), s);
+}
+
 int gm_mobs_take_fireball(GmMobLive *m,double *x,double *y,double *z,
                           double *vx,double *vy,double *vz){
     /* Returns pending kind: 0=none, 3=small fireball, 5=large fireball. */

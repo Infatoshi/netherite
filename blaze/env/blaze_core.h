@@ -909,25 +909,81 @@ MC_HD static inline float cu_armor_damage(Blaze *e, float amount) {
     return ita_apply_armor_absorb(amount, slots, 0);
 }
 
+MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m);
+MC_HD static inline void cu_mobs_compact(Blaze *e);
+
 MC_HD static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
                                     float size) {
     int ox, oy, oz;
     uint32_t nd = 0;
     uint64_t rays = bp_hash_begin();
-    float vx, vy, vz, eh, damage;
+    double px, py, pz, minx, miny, minz, maxx, maxy, maxz;
+    float dens, eh, damage;
+    ExBlast blast;
+    unsigned mi;
     if (!e) return;
     exl_fill_and_rays(e, e->ex_grid, e->ex_hit, ex, ey, ez, size,
                       &ox, &oy, &oz);
-    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays);
-    vx = (float)(e->pl.ent.posX + (double)e->ox);
-    vy = (float)e->pl.ent.posY;
-    vz = (float)(e->pl.ent.posZ + (double)e->oz);
+    /* doExplosionA entity loop sees the intact world (Explosion.java:132-190). */
+    px = e->pl.ent.posX + (double)e->ox;
+    py = e->pl.ent.posY;
+    pz = e->pl.ent.posZ + (double)e->oz;
+    minx = e->pl.ent.box.minX + (double)e->ox;
+    miny = e->pl.ent.box.minY;
+    minz = e->pl.ent.box.minZ + (double)e->oz;
+    maxx = e->pl.ent.box.maxX + (double)e->ox;
+    maxy = e->pl.ent.box.maxY;
+    maxz = e->pl.ent.box.maxZ + (double)e->oz;
     eh = (float)psv_player_eye_height(&e->pl);
-    damage = ex_entity_damage((double)vx, (double)vy + (double)eh, (double)vz,
-                              ex, ey, ez, size, 1.0f);
+    dens = ex_block_density(e->ex_grid, ox, oy, oz, ex, ey, ez,
+                            minx, miny, minz, maxx, maxy, maxz);
+    ex_entity_blast(px, py, pz, eh, ex, ey, ez, size, dens, 0, &blast);
+    damage = blast.damage;
     damage = cu_armor_damage(e, damage);
     pv_attack(&e->vit, damage);
     e->pl.health = e->vit.health;
+    if (blast.hit) {
+        e->pl.ent.motionX += blast.addx;
+        e->pl.ent.motionY += blast.addy;
+        e->pl.ent.motionZ += blast.addz;
+    }
+    for (mi = 0; mi < e->n_mobs; ++mi) {
+        RlSnapMob *m = &e->mobs[mi];
+        float width, height, eye, mdens;
+        ExBlast mb;
+        if (!m->alive || m->type == EW_TYPE_NONE || m->type == EW_TYPE_PLAYER
+            || m->type == EW_TYPE_BOAT)
+            continue;
+        ehs_size((u8)m->type, &width, &height);
+        if (m->box_on) {
+            minx = m->box_minx;
+            miny = m->box_miny;
+            minz = m->box_minz;
+            maxx = m->box_maxx;
+            maxy = m->box_maxy;
+            maxz = m->box_maxz;
+            height = (float)(maxy - miny);
+        } else {
+            minx = m->x - (double)(width * 0.5f);
+            miny = m->y;
+            minz = m->z - (double)(width * 0.5f);
+            maxx = m->x + (double)(width * 0.5f);
+            maxy = m->y + (double)height;
+            maxz = m->z + (double)(width * 0.5f);
+        }
+        eye = exl_eye_height(m->type, height);
+        mdens = ex_block_density(e->ex_grid, ox, oy, oz, ex, ey, ez,
+                                 minx, miny, minz, maxx, maxy, maxz);
+        ex_entity_blast(m->x, m->y, m->z, eye, ex, ey, ez, size, mdens, 0, &mb);
+        if (!mb.hit) continue;
+        m->mx += mb.addx;
+        m->my += mb.addy;
+        m->mz += mb.addz;
+        m->health -= mb.damage;
+        if (m->health <= 0.0f) cu_mob_drop(e, m);
+    }
+    cu_mobs_compact(e);
+    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays);
     e->parity_ex_blasts++;
     e->parity_ex_destroyed += nd;
     e->parity_ex_rays = rays;
@@ -936,9 +992,9 @@ MC_HD static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
     e->parity_ex_last_y = ey;
     e->parity_ex_last_z = ez;
     e->parity_ex_last_size = size;
-    e->parity_ex_kb_x = 0.0;
-    e->parity_ex_kb_y = 0.0;
-    e->parity_ex_kb_z = 0.0;
+    e->parity_ex_kb_x = blast.mapx;
+    e->parity_ex_kb_y = blast.mapy;
+    e->parity_ex_kb_z = blast.mapz;
 }
 
 MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
