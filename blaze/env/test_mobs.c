@@ -144,13 +144,30 @@ static int run_units(void) {
     expect(ml_follow_range(EW_TYPE_ZOMBIE) == 40.0, "magma zombie follow 40");
     expect(ml_attack_cooldown(EW_TYPE_ZOMBIE) == 20, "zombie melee interval 20");
 
-    expect(ml_hurt_gate(&hurt, &last, 3.0f, &applied) && applied == 3.0f
+    expect(ml_hurt_gate(&hurt, &last, 3.0f, &applied) == 1 && applied == 3.0f
            && hurt == ML_HURT_MAX,
-           "first hit sets hurtResistantTime=20");
+           "first hit sets hurtResistantTime=20 flag1");
     expect(!ml_hurt_gate(&hurt, &last, 3.0f, &applied),
            "same-or-less damage during i-frames is rejected");
-    expect(ml_hurt_gate(&hurt, &last, 5.0f, &applied) && applied == 2.0f,
-           "greater hit during i-frames applies the delta");
+    expect(ml_hurt_gate(&hurt, &last, 5.0f, &applied) == 2 && applied == 2.0f,
+           "greater hit during i-frames applies the delta flag1=false");
+
+    {
+        double mx = 0.2, my = 0.0, mz = 0.0;
+        expect(ml_knockback(&mx, &my, &mz, 1, 0.4f, 0.0, 3.0),
+               "knockBack on ground applies at KR=0");
+        expect(mx == 0.1, "knockBack halves motionX");
+        expect(mz == -0.4000000059604645,
+               "knockBack -Z is -xRatio/f*(double)0.4F");
+        expect(my == 0.4000000059604645,
+               "on-ground motionY caps at (double)0.4F");
+        mx = 0.2;
+        my = 0.1;
+        mz = 0.0;
+        expect(ml_knockback(&mx, &my, &mz, 0, 0.4f, 0.0, 3.0),
+               "air knockBack skips Y");
+        expect(my == 0.1, "air knockBack leaves motionY");
+    }
     return fails ? 1 : 0;
 }
 

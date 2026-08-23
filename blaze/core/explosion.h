@@ -1,15 +1,16 @@
-/* explosion: MC 1.11.2 Explosion.doExplosionA crater + entity damage math.
+/* explosion: MC 1.11.2 Explosion.doExplosionA crater + entity damage + knockback.
  *
- * PORT TARGET: net/minecraft/world/Explosion.java doExplosionA (block rays + entity damage).
- * Synthetic cubic grid (EX_DIM^3 packed states). Resistance = mc_bpt_props hardness
- * (air = 0 / Material.AIR skips the resistance subtract). No particles/sound/drops/fire.
+ * PORT TARGET: net/minecraft/world/Explosion.java doExplosionA (block rays + entity
+ * damage + motion). Synthetic cubic grid (EX_DIM^3 packed states). Resistance =
+ * mc_bpt_props hardness (air = 0 / Material.AIR skips the resistance subtract).
  *
- * RAND-FREE density: vanilla uses world.rand.nextFloat() for the per-ray size scale
+ * RAND-FREE ray density: vanilla uses world.rand.nextFloat() per face ray
  *   f = size * (0.7F + rand * 0.6F). We fix rand = 0.5F so
- *   f = size * (0.7F + 0.5F * 0.6F)  (no JavaRandom, deterministic rays).
- * Drop/flame RNG paths CUT (doExplosionB not ported).
+ *   f = size * (0.7F + 0.5F * 0.6F). world.rand is not consumed.
+ * getBlockDensity / knockback / blast-prot use no Random.
+ * Drop/flame RNG paths CUT (doExplosionB not ported). explosionRNG (new Random()
+ * in Explosion.java:65) is only the flaming nextInt(3) in doExplosionB:253.
  *
- * Output: sorted destroyed non-air block coords + entity damage floats (open exposure=1).
  * READ-ONLY deps: block_props_table.h (hardness), mc_math.h (floor).
  * Build: -ffp-contract=off / CUDA --fmad=false. */
 #ifndef MC_EXPLOSION_H
@@ -155,6 +156,177 @@ MC_HD static inline float ex_entity_damage(double ent_x, double ent_y, double en
     /* cast to int truncates toward zero (damage is non-negative) */
     float dmg = (float)((int)((d10 * d10 + d10) / 2.0 * 7.0 * (double)f3 + 1.0));
     return dmg;
+}
+
+/* Full-cube BF_SOLID for World.rayTraceBlocks. Web is NULL_AABB (player_survival). */
+MC_HD static inline int ex_cell_solid(const u16 *grid, int ox, int oy, int oz,
+                                      int wx, int wy, int wz) {
+    int lx = wx - ox, ly = wy - oy, lz = wz - oz;
+    int id;
+    if (!ex_in(lx, ly, lz)) return 0;
+    id = mc_state_id(grid[ex_idx(lx, ly, lz)]);
+    if (id <= 0 || id == BLK_WEB) return 0;
+    return (mc_bpt_props(id).flags & BF_SOLID) != 0;
+}
+
+/* World.rayTraceBlocks(start, end, false, false, false) World.java:998-1014
+ * on the 16^3 sample. Magma extra: full-cube BF_SOLID only. Returns 1 if the
+ * ray hits a solid (Java RayTraceResult != null). */
+MC_HD MC_NOINLINE static inline int ex_ray_blocked(const u16 *grid, int ox, int oy, int oz,
+                                       double sx, double sy, double sz,
+                                       double tx, double ty, double tz) {
+    int i, j, k, l, i1, j1, k1;
+    double curX, curY, curZ;
+    if (sx != sx || sy != sy || sz != sz) return 0;
+    if (tx != tx || ty != ty || tz != tz) return 0;
+    i = mc_floor(tx);
+    j = mc_floor(ty);
+    k = mc_floor(tz);
+    l = mc_floor(sx);
+    i1 = mc_floor(sy);
+    j1 = mc_floor(sz);
+    if (ex_cell_solid(grid, ox, oy, oz, l, i1, j1)) return 1;
+    curX = sx;
+    curY = sy;
+    curZ = sz;
+    k1 = 200;
+    while (k1-- >= 0) {
+        int flag2 = 1, flag = 1, flag1 = 1, nf;
+        double d0 = 999.0, d1 = 999.0, d2 = 999.0;
+        double d3 = 999.0, d4 = 999.0, d5 = 999.0;
+        double d6, d7, d8;
+        if (curX != curX || curY != curY || curZ != curZ) return 0;
+        if (l == i && i1 == j && j1 == k) return 0;
+        if (i > l) d0 = (double)l + 1.0;
+        else if (i < l) d0 = (double)l + 0.0;
+        else flag2 = 0;
+        if (j > i1) d1 = (double)i1 + 1.0;
+        else if (j < i1) d1 = (double)i1 + 0.0;
+        else flag = 0;
+        if (k > j1) d2 = (double)j1 + 1.0;
+        else if (k < j1) d2 = (double)j1 + 0.0;
+        else flag1 = 0;
+        d6 = tx - curX;
+        d7 = ty - curY;
+        d8 = tz - curZ;
+        if (flag2) d3 = (d0 - curX) / d6;
+        if (flag) d4 = (d1 - curY) / d7;
+        if (flag1) d5 = (d2 - curZ) / d8;
+        if (d3 == -0.0) d3 = -1.0E-4;
+        if (d4 == -0.0) d4 = -1.0E-4;
+        if (d5 == -0.0) d5 = -1.0E-4;
+        if (d3 < d4 && d3 < d5) {
+            nf = (i > l) ? 4 : 5;
+            curX = d0;
+            curY = curY + d7 * d3;
+            curZ = curZ + d8 * d3;
+        } else if (d4 < d5) {
+            nf = (j > i1) ? 0 : 1;
+            curX = curX + d6 * d4;
+            curY = d1;
+            curZ = curZ + d8 * d4;
+        } else {
+            nf = (k > j1) ? 2 : 3;
+            curX = curX + d6 * d5;
+            curY = curY + d7 * d5;
+            curZ = d2;
+        }
+        l = mc_floor(curX) - (nf == 5 ? 1 : 0);
+        i1 = mc_floor(curY) - (nf == 1 ? 1 : 0);
+        j1 = mc_floor(curZ) - (nf == 3 ? 1 : 0);
+        if (ex_cell_solid(grid, ox, oy, oz, l, i1, j1)) return 1;
+    }
+    return 0;
+}
+
+/* World.getBlockDensity World.java:2456-2494. d3/d4 use java.lang.Math.floor.
+ * Sample increment is (float)((double)f + d0). Return (float)i / (float)j. */
+MC_HD MC_NOINLINE static inline float ex_block_density(const u16 *grid, int ox, int oy, int oz,
+                                           double vx, double vy, double vz,
+                                           double minx, double miny, double minz,
+                                           double maxx, double maxy, double maxz) {
+    double d0 = 1.0 / ((maxx - minx) * 2.0 + 1.0);
+    double d1 = 1.0 / ((maxy - miny) * 2.0 + 1.0);
+    double d2 = 1.0 / ((maxz - minz) * 2.0 + 1.0);
+    double d3, d4;
+    float f, f1, f2;
+    int i = 0, j = 0;
+    if (d0 < 0.0 || d1 < 0.0 || d2 < 0.0) return 0.0F;
+    d3 = (1.0 - floor(1.0 / d0) * d0) / 2.0;
+    d4 = (1.0 - floor(1.0 / d2) * d2) / 2.0;
+    for (f = 0.0F; f <= 1.0F; f = (float)((double)f + d0)) {
+        for (f1 = 0.0F; f1 <= 1.0F; f1 = (float)((double)f1 + d1)) {
+            for (f2 = 0.0F; f2 <= 1.0F; f2 = (float)((double)f2 + d2)) {
+                double d5 = minx + (maxx - minx) * (double)f;
+                double d6 = miny + (maxy - miny) * (double)f1;
+                double d7 = minz + (maxz - minz) * (double)f2;
+                if (!ex_ray_blocked(grid, ox, oy, oz,
+                                    d5 + d3, d6, d7 + d4, vx, vy, vz))
+                    ++i;
+                ++j;
+            }
+        }
+    }
+    if (j == 0) return 0.0F;
+    return (float)i / (float)j;
+}
+
+/* EnchantmentProtection.getBlastDamageReduction EnchantmentProtection.java:99-108.
+ * MathHelper.floor of damage * (float)level * 0.15F. level 0 is identity. */
+MC_HD static inline double ex_blast_reduction(double damage, int prot) {
+    if (prot > 0)
+        damage -= (double)mc_floor(damage * (double)((float)prot * 0.15F));
+    return damage;
+}
+
+typedef struct {
+    int hit;
+    float damage;
+    double d10;
+    double mapx, mapy, mapz; /* playerKnockbackMap: d5*d10 Explosion.java:184 */
+    double addx, addy, addz; /* motion += d5*d11 Explosion.java:174-176 */
+} ExBlast;
+
+/* Explosion.doExplosionA entity loop Explosion.java:144-188.
+ * d12 = getDistance(feet) / f3 (Entity.java getDistance + MathHelper.sqrt).
+ * d7 uses posY + (double)eyeHeight. exposure is getBlockDensity (float->double).
+ * Damage d2i then i2f. d11 = blast-prot on living; map uses unreduced d10. */
+MC_HD static inline void ex_entity_blast(double posx, double posy, double posz,
+                                         float eye,
+                                         double ex, double ey, double ez,
+                                         float size, float exposure, int prot,
+                                         ExBlast *out) {
+    float f3;
+    double d12, d5, d7, d9, d13, d10, d11;
+    out->hit = 0;
+    out->damage = 0.0f;
+    out->d10 = 0.0;
+    out->mapx = out->mapy = out->mapz = 0.0;
+    out->addx = out->addy = out->addz = 0.0;
+    f3 = size * 2.0F;
+    if (f3 <= 0.0F) return;
+    d12 = ex_sqrt_dist(posx - ex, posy - ey, posz - ez) / (double)f3;
+    if (d12 > 1.0) return;
+    d5 = posx - ex;
+    d7 = posy + (double)eye - ey;
+    d9 = posz - ez;
+    d13 = (double)(float)sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+    if (d13 == 0.0) return;
+    d5 = d5 / d13;
+    d7 = d7 / d13;
+    d9 = d9 / d13;
+    d10 = (1.0 - d12) * (double)exposure;
+    out->hit = 1;
+    out->d10 = d10;
+    /* javap Explosion.doExplosionA: d2i then i2f into attackEntityFrom */
+    out->damage = (float)((int)((d10 * d10 + d10) / 2.0 * 7.0 * (double)f3 + 1.0));
+    d11 = ex_blast_reduction(d10, prot);
+    out->addx = d5 * d11;
+    out->addy = d7 * d11;
+    out->addz = d9 * d11;
+    out->mapx = d5 * d10;
+    out->mapy = d7 * d10;
+    out->mapz = d9 * d10;
 }
 
 /* ---- scenarios (battery) ----

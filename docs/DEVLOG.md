@@ -1,5 +1,34 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 TNT primed tick (lane/tntknock piece 3)
+
+Baseline after piece 2: explosions M1 VERIFIED without EntityTNTPrimed.
+
+Cause: Java `EntityTNTPrimed` fuse 80 (`EntityTNTPrimed.java:25`), `onUpdate` gravity `0.03999999910593033D` (`:78`), drag `(double)0.98F` (`:82-84`), on-ground `0.699999988079071D` / `motionY*=-0.5D` (`:86-90`), `explode` size `4.0F` smoking (`:111-114`), Y `posY+(double)(height/16.0F)` (javap fdiv f2d). Ctor `Math.random()` horizontal (`:34-37`) is `java.lang.Math.random`, not `world.rand`. Chain fuse is `world.rand.nextInt(fuse/4)+fuse/8` (`BlockTNT.java:72`). Fire uses `BlockFire.tryCatchFire` `random.nextInt` (`BlockFire.java:289`). `doExplosionB` drops use `world.rand.nextFloat` (`Block.java:698`) then three more in `spawnAsEntity` (`:719-721`). Magma/blaze live tick has no `world.rand` cursor (randtick is a hash stream).
+
+After: planted `EW_TYPE_TNT_PRIMED` slot (fuse in swell=20 so the 64-tick chain observes explode). Shared `exl_tnt_on_update`. Magma extra: Y clamp to collision top, not `Entity.move`. EXP2 hashes TNT slot/fuse/pos. explosions M1 VERIFIED (`out/verify/tntknock_explosions_m1_tnt.log`). explosions M2 needed locals for packed `RlSnapMob.x` (offset 20, CUDA ld.f64) plus 128 KB stack for getBlockDensity DDA (`out/verify/tntknock_explosions_m2.log`). mobs M1 still VERIFIED.
+
+Stay out (no common evidence): chain fuse `world.rand.nextInt`; fire `tryCatchFire` rand; `doExplosionB` item drops; ctor `Math.random()` xz kick (spawn my is the cited 0.20000000298023224D only). Flint&steel still only `setBlockToAir` in player_ctl (tape supplies the view).
+
+## 2026-08-22 melee knockBack (lane/tntknock piece 2)
+
+Baseline after piece 1: mobs M1 VERIFIED with no EntityLivingBase.knockBack on the generic path.
+
+Cause: Java `EntityLivingBase.knockBack` (`EntityLivingBase.java:1296-1316`, javap: `MathHelper.sqrt` float then `xRatio/(double)f*(double)strength`, Y cap `0.4000000059604645D`) consumes `this.rand.nextDouble()` vs KR (default 0, always applies). `attackEntityFrom` flag1 (`:1056-1067`) calls `knockBack(entity, 0.4F, d1, d0)` with `d1=attacker.posX-this.posX`. Overflow i-frame hits set flag1=false (no knockBack). `EntityMob.attackEntityAsMob` extra knockBack only when knockback enchant i>0 (`EntityMob.java:113-117`). `EntityPlayer.attackTargetEntityWithCurrentItem` adds +1 when sprinting (`:1368-1432`) then `motionX/Z*=0.6D` `setSprinting(false)`. 1.11.2 `Entity.setBeenAttacked` is `velocityChanged=true` with no rand (`Entity.java:1666-1668`). Degenerate xz < 1e-4 uses `Math.random()` jitter; CUT when xz is large. Player has no JavaRandom in the sim.
+
+After: shared `ml_knockback` / `ml_hurt_gate` returns 1=flag1 / 2=overflow. Generic mob->player and player->mob apply 0.4F; sprint adds yaw knockBack. Mob `entity.rand` is `seed48` / `ent_jr_seed`. Units pin Y cap and i-frame flag. mobs M1 VERIFIED (`out/verify/tntknock_mobs_m1_knockback.log`). explosions M1 still VERIFIED. MBM1 layout unchanged.
+
+Open: TNT; knockback enchant on held items; fire aspect; MathHelper SIN_TABLE yaw; player.rand; det_entity_rng path unchanged.
+
+## 2026-08-22 explosion knockback (lane/tntknock piece 1)
+
+Baseline anvil 8a86487 explosions M1 VERIFIED (`out/verify/tntknock_baseline_explosions_m1.log`); kb fields hashed as 0. Magma extras on close: exposure 1.0, no knockback.
+
+Cause: Java `Explosion.doExplosionA` (`Explosion.java:144-188`) does `d12 = getDistance / f3`, `d5/d7/d9` with `d7 = posY + (double)eyeHeight - explosionY`, `d13 = (double)MathHelper.sqrt` (`:157`, javap f2d), `d14 = (double)World.getBlockDensity` (`World.java:2456-2494`, `rayTraceBlocks(start,end,false,false,false)` `:998`), `d10 = (1-d12)*d14`, damage `(float)((int)((d10*d10+d10)/2*7*(double)f3+1))` (javap d2i i2f), `d11 = EnchantmentProtection.getBlastDamageReduction` (`EnchantmentProtection.java:99-108`; level 0 identity), `motion += d5*d11` (`:174-176`), `playerKnockbackMap` stores `d5*d10` (`:184`). `world.rand.nextFloat` per face ray stays magma-fixed 0.5F (`ex_density_scale`); that stream is not consumed. `getBlockDensity` uses `java.lang.Math.floor` for d3/d4, no Random.
+
+After: shared `ex_block_density` / `ex_entity_blast` in `blaze/core/explosion.h`. Magma `runtime_explode` and blaze `cu_explode` density+damage+motion on the intact grid, then `exl_apply_hits`. Living slots via `gm_mobs_explosion_knockback` / `cu_explode` mob loop. Fixture baker plants crater dirt off the player-+Z LOS so density is not 0; recaptured `s10_t0_r64_explosions.bsnp` via `--write-fixture` (not hand-edited). EXP1 layout unchanged (kb fields now nonzero). Units: air density 1.0F, stone 0.0F, +Z blast addz < 0, prot 0 identity. Magma `test_runtime` creeper PASS including knockback. explosions M1 VERIFIED (`out/verify/tntknock_explosions_m1.log`). mobs M1 still VERIFIED.
+
+Open: melee `EntityLivingBase.knockBack`; TNT; fireball; doExplosionB drops; density rand; blast-prot scan; attackEntityFrom 0.4F from the exploder.
 ## 2026-08-22 boats_elytra_xp M1+M2 (lane/boatsxp)
 
 Gamer. Split `boats_elytra_xp` into `xp_orbs`, `boats`, `elytra`. Baseline BLOCKED (`out/verify/boatsxp_baseline_boats_elytra_xp_m1.log`).

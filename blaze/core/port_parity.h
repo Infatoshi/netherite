@@ -507,7 +507,7 @@ BP_HD static inline uint64_t bp_projectiles_digest_finish(
 /* Magma runtime_explode + creeper fuse (EntityCreeper onUpdate ignited). */
 BP_HD static inline uint64_t bp_explosions_digest_begin(void) {
     uint64_t h = bp_hash_begin();
-    return bp_hash_u32(h, UINT32_C(0x31585045)); /* "EXP1" */
+    return bp_hash_u32(h, UINT32_C(0x32585045)); /* "EXP2" */
 }
 
 BP_HD static inline uint64_t bp_hash_explosion_pending(
@@ -539,6 +539,16 @@ BP_HD static inline uint64_t bp_hash_creeper_fuse(
     h = bp_hash_i32(h, fuse);
     h = bp_hash_i32(h, ignited);
     return bp_hash_i32(h, alive);
+}
+
+BP_HD static inline uint64_t bp_hash_tnt(
+    uint64_t h, int32_t slot, int32_t fuse,
+    double x, double y, double z) {
+    h = bp_hash_i32(h, slot);
+    h = bp_hash_i32(h, fuse);
+    h = bp_hash_double(h, x);
+    h = bp_hash_double(h, y);
+    return bp_hash_double(h, z);
 }
 
 /* World clock / weather. Magma live hashes rain_strength=0 (no fade). */

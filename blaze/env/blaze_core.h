@@ -932,25 +932,98 @@ MC_HD static inline float cu_armor_damage(Blaze *e, float amount) {
     return ita_apply_armor_absorb(amount, slots, 0);
 }
 
-MC_HD static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
+MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m);
+MC_HD static inline void cu_mobs_compact(Blaze *e);
+
+MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
                                     float size) {
     int ox, oy, oz;
     uint32_t nd = 0;
     uint64_t rays = bp_hash_begin();
-    float vx, vy, vz, eh, damage;
+    double px, py, pz, minx, miny, minz, maxx, maxy, maxz;
+    float dens, eh, damage;
+    ExBlast blast;
+    unsigned mi;
     if (!e) return;
     exl_fill_and_rays(e, e->ex_grid, e->ex_hit, ex, ey, ez, size,
                       &ox, &oy, &oz);
-    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays);
-    vx = (float)(e->pl.ent.posX + (double)e->ox);
-    vy = (float)e->pl.ent.posY;
-    vz = (float)(e->pl.ent.posZ + (double)e->oz);
+    /* doExplosionA entity loop sees the intact world (Explosion.java:132-190). */
+    px = e->pl.ent.posX + (double)e->ox;
+    py = e->pl.ent.posY;
+    pz = e->pl.ent.posZ + (double)e->oz;
+    minx = e->pl.ent.box.minX + (double)e->ox;
+    miny = e->pl.ent.box.minY;
+    minz = e->pl.ent.box.minZ + (double)e->oz;
+    maxx = e->pl.ent.box.maxX + (double)e->ox;
+    maxy = e->pl.ent.box.maxY;
+    maxz = e->pl.ent.box.maxZ + (double)e->oz;
     eh = (float)psv_player_eye_height(&e->pl);
-    damage = ex_entity_damage((double)vx, (double)vy + (double)eh, (double)vz,
-                              ex, ey, ez, size, 1.0f);
+    dens = ex_block_density(e->ex_grid, ox, oy, oz, ex, ey, ez,
+                            minx, miny, minz, maxx, maxy, maxz);
+    ex_entity_blast(px, py, pz, eh, ex, ey, ez, size, dens, 0, &blast);
+    damage = blast.damage;
     damage = cu_armor_damage(e, damage);
     pv_attack(&e->vit, damage);
     e->pl.health = e->vit.health;
+    if (blast.hit) {
+        e->pl.ent.motionX += blast.addx;
+        e->pl.ent.motionY += blast.addy;
+        e->pl.ent.motionZ += blast.addz;
+    }
+    for (mi = 0; mi < e->n_mobs; ++mi) {
+        RlSnapMob *m = &e->mobs[mi];
+        float width, height, eye, mdens;
+        ExBlast mb;
+        if (!m->alive || m->type == EW_TYPE_NONE || m->type == EW_TYPE_PLAYER
+            || m->type == EW_TYPE_BOAT)
+            continue;
+        if (m->type == EW_TYPE_TNT_PRIMED) {
+            float mdens;
+            ExBlast mb;
+            minx = m->x - 0.49; miny = m->y; minz = m->z - 0.49;
+            maxx = m->x + 0.49; maxy = m->y + (double)EXL_TNT_HEIGHT;
+            maxz = m->z + 0.49;
+            mdens = ex_block_density(e->ex_grid, ox, oy, oz, ex, ey, ez,
+                                     minx, miny, minz, maxx, maxy, maxz);
+            ex_entity_blast(m->x, m->y, m->z, 0.0f, ex, ey, ez, size, mdens, 0,
+                            &mb);
+            if (mb.hit) {
+                m->mx += mb.addx;
+                m->my += mb.addy;
+                m->mz += mb.addz;
+            }
+            continue;
+        }
+        ehs_size((u8)m->type, &width, &height);
+        if (m->box_on) {
+            minx = m->box_minx;
+            miny = m->box_miny;
+            minz = m->box_minz;
+            maxx = m->box_maxx;
+            maxy = m->box_maxy;
+            maxz = m->box_maxz;
+            height = (float)(maxy - miny);
+        } else {
+            minx = m->x - (double)(width * 0.5f);
+            miny = m->y;
+            minz = m->z - (double)(width * 0.5f);
+            maxx = m->x + (double)(width * 0.5f);
+            maxy = m->y + (double)height;
+            maxz = m->z + (double)(width * 0.5f);
+        }
+        eye = exl_eye_height(m->type, height);
+        mdens = ex_block_density(e->ex_grid, ox, oy, oz, ex, ey, ez,
+                                 minx, miny, minz, maxx, maxy, maxz);
+        ex_entity_blast(m->x, m->y, m->z, eye, ex, ey, ez, size, mdens, 0, &mb);
+        if (!mb.hit) continue;
+        m->mx += mb.addx;
+        m->my += mb.addy;
+        m->mz += mb.addz;
+        m->health -= mb.damage;
+        if (m->health <= 0.0f) cu_mob_drop(e, m);
+    }
+    cu_mobs_compact(e);
+    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays);
     e->parity_ex_blasts++;
     e->parity_ex_destroyed += nd;
     e->parity_ex_rays = rays;
@@ -959,9 +1032,9 @@ MC_HD static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
     e->parity_ex_last_y = ey;
     e->parity_ex_last_z = ez;
     e->parity_ex_last_size = size;
-    e->parity_ex_kb_x = 0.0;
-    e->parity_ex_kb_y = 0.0;
-    e->parity_ex_kb_z = 0.0;
+    e->parity_ex_kb_x = blast.mapx;
+    e->parity_ex_kb_y = blast.mapy;
+    e->parity_ex_kb_z = blast.mapz;
 }
 
 MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
@@ -971,6 +1044,54 @@ MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
 MC_HD static inline void cu_explosion_tick(Blaze *e) {
     unsigned i;
     if (!e) return;
+    for (i = 0; i < e->n_mobs; ) {
+        RlSnapMob *m = &e->mobs[i];
+        int wx, wy, wz, id, solid, og;
+        double floor_y;
+        if (!m->alive || m->type != EW_TYPE_TNT_PRIMED) {
+            ++i;
+            continue;
+        }
+        {
+            double x = m->x, y = m->y, z = m->z;
+            double mx = m->mx, my = m->my, mz = m->mz;
+            int fuse = m->swell;
+            wx = mc_floor(x);
+            wy = mc_floor(y - 0.01);
+            wz = mc_floor(z);
+            id = cu_world_block(e, wx, wy, wz);
+            solid = id > 0 && id != BLK_WEB
+                && (mc_bpt_props(id).flags & BF_SOLID)
+                && !(mc_bpt_props(id).flags & BF_LIQUID);
+            floor_y = (double)wy + 1.0;
+            og = m->on_ground;
+            if (!exl_tnt_on_update(&x, &y, &z, &mx, &my, &mz,
+                                   &og, &fuse, solid, floor_y)) {
+                m->x = x; m->y = y; m->z = z;
+                m->mx = mx; m->my = my; m->mz = mz;
+                m->on_ground = og;
+                m->swell = fuse;
+                ++i;
+                continue;
+            }
+            m->x = x; m->y = y; m->z = z;
+            m->mx = mx; m->my = my; m->mz = mz;
+            m->on_ground = og;
+            m->swell = fuse;
+            e->explosion_pending = 1;
+            e->explosion_x = x;
+            e->explosion_y = y + EXL_TNT_Y_OFF;
+            e->explosion_z = z;
+        }
+        e->explosion_size = EXL_TNT_SIZE;
+        {
+            unsigned k;
+            for (k = i; k + 1u < e->n_mobs; ++k)
+                e->mobs[k] = e->mobs[k + 1];
+        }
+        e->n_mobs--;
+        break;
+    }
     if (e->mobs_enabled) goto apply;
     for (i = 0; i < e->n_mobs; ) {
         RlSnapMob *m = &e->mobs[i];
@@ -1024,15 +1145,16 @@ MC_HD static inline void cu_mobs_compact(Blaze *e) {
 
 MC_HD static inline int cu_hurt_player(Blaze *e, float amount, int bypass_armor) {
     float applied;
+    int gate;
     if (!e || amount <= 0.0f) return 0;
-    if (!ml_hurt_gate(&e->player_hurt_resistant, &e->player_last_damage,
-                      amount, &applied))
-        return 0;
+    gate = ml_hurt_gate(&e->player_hurt_resistant, &e->player_last_damage,
+                        amount, &applied);
+    if (!gate) return 0;
     if (!bypass_armor)
         applied = cu_armor_damage(e, applied);
     if (applied > 0.0f) pv_attack(&e->vit, applied);
     e->pl.health = e->vit.health;
-    return 1;
+    return gate;
 }
 
 MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
@@ -1058,6 +1180,30 @@ MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
     if (e->player_attack_cooldown > 0) return 1;
     held = isr_get_stack(&e->pl.inv, e->pl.inv.current_item).item;
     e->mobs[best].health -= ml_held_damage(held);
+    {
+        double xRatio = px - e->mobs[best].x;
+        double zRatio = pz - e->mobs[best].z;
+        JavaRandom jr;
+        int kb_i = 0;
+        jr.seed = e->mobs[best].seed48;
+        if (xRatio * xRatio + zRatio * zRatio >= 1.0e-4) {
+            (void)jrand_double(&jr); /* KR default 0, EntityLivingBase.java:1298 */
+            ml_knockback(&e->mobs[best].mx, &e->mobs[best].my,
+                         &e->mobs[best].mz, e->mobs[best].on_ground, 0.4f,
+                         xRatio, zRatio);
+        }
+        if (e->pl.sprinting) ++kb_i;
+        if (kb_i > 0) {
+            (void)jrand_double(&jr);
+            ml_knockback_yaw(&e->mobs[best].mx, &e->mobs[best].my,
+                             &e->mobs[best].mz, e->mobs[best].on_ground,
+                             (float)kb_i * 0.5f, e->pl.yaw);
+            e->pl.ent.motionX *= 0.6;
+            e->pl.ent.motionZ *= 0.6;
+            e->pl.sprinting = 0;
+        }
+        e->mobs[best].seed48 = jr.seed;
+    }
     e->player_attack_cooldown = ML_PLAYER_ATK_CD;
     if (e->mobs[best].health <= 0.0f)
         cu_mob_drop(e, &e->mobs[best]);
@@ -1188,8 +1334,17 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             cu_mob_to_env(e, i, &mm);
             continue;
         }
-        if (o.hit_player)
-            (void)cu_hurt_player(e, o.hit_dmg, 0);
+        if (o.hit_player) {
+            int acc = cu_hurt_player(e, o.hit_dmg, 0);
+            if (acc == 1) {
+                double d1 = mm.snap.x - px;
+                double d0 = mm.snap.z - pz;
+                if (d1 * d1 + d0 * d0 >= 1.0e-4)
+                    ml_knockback(&e->pl.ent.motionX, &e->pl.ent.motionY,
+                                 &e->pl.ent.motionZ, e->pl.ent.onGround, 0.4f,
+                                 d1, d0);
+            }
+        }
         if (o.skel_fire)
             cu_skel_spawn_arrow(e, &mm.snap);
         ml_move_hostile(&mm, e, st, o.moving, o.jump);
@@ -4776,11 +4931,22 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
                 e->mobs[mi].target_idx ? 1 : 0, e->mobs[mi].alive);
         }
         h = bp_hash_i32(h, ncreep);
-        r->digest[BP_EXPLOSIONS] = h;
-        r->evidence[BP_EXPLOSIONS] =
-            e->parity_ex_blasts + e->parity_ex_destroyed + (uint32_t)ncreep;
-        if (e->parity_ex_blasts || e->parity_ex_destroyed || ncreep)
-            r->active_mask |= BP_BIT(BP_EXPLOSIONS);
+        {
+            int ntnt = 0;
+            for (mi = 0; mi < e->n_mobs; ++mi) {
+                if (e->mobs[mi].type != EW_TYPE_TNT_PRIMED) continue;
+                ++ntnt;
+                h = bp_hash_tnt(h, e->mobs[mi].slot, e->mobs[mi].swell,
+                                e->mobs[mi].x, e->mobs[mi].y, e->mobs[mi].z);
+            }
+            h = bp_hash_i32(h, ntnt);
+            r->digest[BP_EXPLOSIONS] = h;
+            r->evidence[BP_EXPLOSIONS] =
+                e->parity_ex_blasts + e->parity_ex_destroyed
+                + (uint32_t)ncreep + (uint32_t)ntnt;
+            if (e->parity_ex_blasts || e->parity_ex_destroyed || ncreep || ntnt)
+                r->active_mask |= BP_BIT(BP_EXPLOSIONS);
+        }
     }
 
     {

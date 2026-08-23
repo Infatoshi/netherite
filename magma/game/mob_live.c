@@ -177,13 +177,14 @@ int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals_,
                           int bypass_armor) {
     PvStats *v=(PvStats *)vitals_;
     float applied;
+    int gate;
     if (!m || !v || amount <= 0.0f) return 0;
-    if (!ml_hurt_gate(&m->player_hurt_resistant, &m->player_last_damage,
-                      amount, &applied))
-        return 0;
+    gate = ml_hurt_gate(&m->player_hurt_resistant, &m->player_last_damage,
+                        amount, &applied);
+    if (!gate) return 0;
     applied = mob_apply_armor((IsrInv *)player_inv, applied, bypass_armor);
     if (applied > 0.0f) pv_attack(v, applied);
-    return 1;
+    return gate;
 }
 
 void gm_mobs_player_hurt_tick(GmMobLive *m) {
@@ -1862,6 +1863,7 @@ static void hai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
             m->explosion_x = s->x[i];
             m->explosion_y = s->y[i] + 0.5;
             m->explosion_z = s->z[i];
+            m->explosion_size = EXL_RADIUS;
             *moving = 0; *jump = 0; *wandering = 0; *swim_jump = 0; *nav_speed = 0.0;
             return;
         }
@@ -2324,6 +2326,34 @@ int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player_,
         }
         (void)jrand_float(jr);
         (void)jrand_float(jr);
+    } else if (!pai_det()) {
+        /* Generic path: 1.11.2 setBeenAttacked is velocityChanged=true
+         * with no rand (Entity.java:1666-1668). knockBack consumes
+         * entity.rand.nextDouble vs KR=0 (EntityLivingBase.java:1298). */
+        PsvPlayer *pl = (PsvPlayer *)p;
+        double xRatio = (pl->ent.posX + ox) - s->x[best];
+        double zRatio = (pl->ent.posZ + oz) - s->z[best];
+        JavaRandom jr;
+        int kb_i = 0;
+        jr.seed = m->ent_jr_seed[best];
+        if (xRatio * xRatio + zRatio * zRatio >= 1.0e-4) {
+            (void)jrand_double(&jr); /* KR default 0, EntityLivingBase.java:1298 */
+            ml_knockback(&s->vx[best], &s->vy[best], &s->vz[best],
+                         s->on_ground[best], 0.4f, xRatio, zRatio);
+        }
+        /* EntityPlayer.attackTargetEntityWithCurrentItem
+         * (EntityPlayer.java:1366-1432): knockback enchant + sprint. */
+        if (pl->sprinting) ++kb_i;
+        if (kb_i > 0) {
+            (void)jrand_double(&jr);
+            ml_knockback_yaw(&s->vx[best], &s->vy[best], &s->vz[best],
+                             s->on_ground[best], (float)kb_i * 0.5f,
+                             pl->yaw);
+            pl->ent.motionX *= 0.6;
+            pl->ent.motionZ *= 0.6;
+            pl->sprinting = 0;
+        }
+        m->ent_jr_seed[best] = jr.seed;
     }
     damage_held_weapon((PsvPlayer *)p);
     m->player_attack_cooldown = 10;
@@ -3126,6 +3156,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 m->explosion_x = mm.snap.x;
                 m->explosion_y = mm.snap.y + 0.5;
                 m->explosion_z = mm.snap.z;
+                m->explosion_size = EXL_RADIUS;
                 continue;
             }
             if (!nx->alive[i]) {
@@ -3137,9 +3168,20 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             jump = o.jump;
             wandering = o.wandering;
             if (o.hit_player) {
-                (void)gm_mobs_attack_player(m, (struct PvStats *)v, &p->inv,
-                                            o.hit_dmg, 0);
+                int acc = gm_mobs_attack_player(m, (struct PvStats *)v, &p->inv,
+                                                o.hit_dmg, 0);
                 p->health = v->health;
+                /* EntityLivingBase.attackEntityFrom flag1 knockBack 0.4F
+                 * (EntityLivingBase.java:1056-1067). Math.random jitter CUT
+                 * when xz >= 1e-4. Player has no JavaRandom. */
+                if (acc == 1) {
+                    double d1 = nx->x[i] - px;
+                    double d0 = nx->z[i] - pz;
+                    if (d1 * d1 + d0 * d0 >= 1.0e-4)
+                        ml_knockback(&p->ent.motionX, &p->ent.motionY,
+                                     &p->ent.motionZ, p->ent.onGround, 0.4f,
+                                     d1, d0);
+                }
             }
         }else if(pai_det() && hai_ok(type)){
             /* EntityAIAttackMelee.updateTask: lookHelper then tryMoveToEntityLiving
@@ -3266,6 +3308,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             if(++m->creeper_fuse[i]>=30){
                 nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;m->creeper_fuse[i]=0;m->explosion_pending=1;
                 m->explosion_x=now->x[i];m->explosion_y=now->y[i]+0.5;m->explosion_z=now->z[i];
+                m->explosion_size=EXL_RADIUS;
             }
         }else if(aggro&&gm_is_slimey(type)){
             /* Slime hop toward player. Squish edges use wasOnGround after
@@ -3485,6 +3528,7 @@ void gm_mobs_tick_creeper_fuse(GmMobLive *m) {
         m->explosion_x = s->x[i];
         m->explosion_y = s->y[i] + EXL_Y_OFF;
         m->explosion_z = s->z[i];
+        m->explosion_size = EXL_RADIUS;
         break;
     }
 }
@@ -3565,11 +3609,124 @@ int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
 }
 
 int gm_mobs_take_explosion(GmMobLive *m,double *x,double *y,double *z){
+    float sz;
+    return gm_mobs_take_explosion_size(m,x,y,z,&sz);
+}
+
+int gm_mobs_take_explosion_size(GmMobLive *m,double *x,double *y,double *z,
+                                float *size){
     if(!m||!m->explosion_pending)return 0;
     if(x)*x=m->explosion_x;
     if(y)*y=m->explosion_y;
     if(z)*z=m->explosion_z;
+    if(size)*size=m->explosion_size>0.0f?m->explosion_size:EXL_RADIUS;
     m->explosion_pending=0;return 1;
+}
+
+void gm_mobs_tick_tnt(GmMobLive *m, GmWorld *w) {
+    EwStore *s;
+    int i;
+    if (!m || !w) return;
+    s = now_store(m);
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        int wx, wy, wz, id, solid;
+        double floor_y;
+        if (!s->alive[i] || s->type[i] != EW_TYPE_TNT_PRIMED) continue;
+        wx = mc_floor(s->x[i]);
+        wy = mc_floor(s->y[i] - 0.01);
+        wz = mc_floor(s->z[i]);
+        id = gm_world_block(w, wx, wy, wz);
+        solid = id > 0 && id != BLK_WEB
+            && (mc_bpt_props(id).flags & BF_SOLID)
+            && !(mc_bpt_props(id).flags & BF_LIQUID);
+        floor_y = (double)wy + 1.0;
+        {
+            int og = (int)s->on_ground[i];
+            if (!exl_tnt_on_update(&s->x[i], &s->y[i], &s->z[i],
+                                   &s->vx[i], &s->vy[i], &s->vz[i],
+                                   &og, &m->creeper_fuse[i],
+                                   solid, floor_y)) {
+                s->on_ground[i] = (u8)(og ? 1 : 0);
+                continue;
+            }
+            s->on_ground[i] = (u8)(og ? 1 : 0);
+        }
+        m->explosion_pending = 1;
+        m->explosion_x = s->x[i];
+        m->explosion_y = s->y[i] + EXL_TNT_Y_OFF;
+        m->explosion_z = s->z[i];
+        m->explosion_size = EXL_TNT_SIZE;
+        s->alive[i] = 0;
+        s->type[i] = EW_TYPE_NONE;
+        m->creeper_fuse[i] = 0;
+        break;
+    }
+    ew_store_copy(next_store(m), s);
+}
+
+void gm_mobs_explosion_knockback(GmMobLive *m, GmLiveSim *drops,
+                                 const u16 *grid, int ox, int oy, int oz,
+                                 double ex, double ey, double ez, float size) {
+    EwStore *s;
+    int i;
+    if (!m || !grid) return;
+    s = now_store(m);
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        float width, height, eye, dens;
+        double minx, miny, minz, maxx, maxy, maxz;
+        ExBlast blast;
+        if (!s->alive[i] || m->entity_dimension[i] != m->active_dimension)
+            continue;
+        if (s->type[i] == EW_TYPE_TNT_PRIMED) {
+            float dens;
+            double minx, miny, minz, maxx, maxy, maxz;
+            ExBlast blast;
+            minx = s->x[i] - 0.49; miny = s->y[i]; minz = s->z[i] - 0.49;
+            maxx = s->x[i] + 0.49; maxy = s->y[i] + (double)EXL_TNT_HEIGHT;
+            maxz = s->z[i] + 0.49;
+            dens = ex_block_density(grid, ox, oy, oz, ex, ey, ez,
+                                    minx, miny, minz, maxx, maxy, maxz);
+            ex_entity_blast(s->x[i], s->y[i], s->z[i], 0.0f, ex, ey, ez, size,
+                            dens, 0, &blast);
+            if (blast.hit) {
+                s->vx[i] += blast.addx;
+                s->vy[i] += blast.addy;
+                s->vz[i] += blast.addz;
+            }
+            continue;
+        }
+        if (!gm_living(s->type[i]) || s->type[i] == EW_TYPE_BOAT) continue;
+        ehs_size((u8)s->type[i], &width, &height);
+        if (m->det_box_on[i]) {
+            minx = m->det_box[i].minX;
+            miny = m->det_box[i].minY;
+            minz = m->det_box[i].minZ;
+            maxx = m->det_box[i].maxX;
+            maxy = m->det_box[i].maxY;
+            maxz = m->det_box[i].maxZ;
+            height = (float)(maxy - miny);
+        } else {
+            minx = s->x[i] - (double)(width * 0.5f);
+            miny = s->y[i];
+            minz = s->z[i] - (double)(width * 0.5f);
+            maxx = s->x[i] + (double)(width * 0.5f);
+            maxy = s->y[i] + (double)height;
+            maxz = s->z[i] + (double)(width * 0.5f);
+        }
+        eye = exl_eye_height(s->type[i], height);
+        dens = ex_block_density(grid, ox, oy, oz, ex, ey, ez,
+                                minx, miny, minz, maxx, maxy, maxz);
+        ex_entity_blast(s->x[i], s->y[i], s->z[i], eye, ex, ey, ez, size,
+                        dens, 0, &blast);
+        if (!blast.hit) continue;
+        s->vx[i] += blast.addx;
+        s->vy[i] += blast.addy;
+        s->vz[i] += blast.addz;
+        s->health[i] -= blast.damage;
+        mark_hurt(m, s, i);
+        if (s->health[i] <= 0.0f) mob_drop(m, s, i, drops);
+    }
+    ew_store_copy(next_store(m), s);
 }
 
 int gm_mobs_take_fireball(GmMobLive *m,double *x,double *y,double *z,

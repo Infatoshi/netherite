@@ -36,7 +36,8 @@ enum {
     EW_TYPE_WITHER_SKELETON = 32,
     EW_TYPE_SLIME    = 35,
     EW_TYPE_SILVERFISH = 36,
-    EW_TYPE_BOAT     = 37
+    EW_TYPE_BOAT     = 37,
+    EW_TYPE_TNT_PRIMED = 38  /* EntityTNTPrimed; not living */
 };
 
 /* AI phase tags already in ew_entity_store (IDLE/CHASE/ATTACK). Skeleton "ranged hold" and
@@ -105,6 +106,9 @@ MC_HD static inline void ehs_size(u8 type, float *width, float *height) {
         break;
     case EW_TYPE_BOAT:
         *width = 1.375f; *height = 0.5625f;
+        break;
+    case EW_TYPE_TNT_PRIMED:
+        *width = 0.98f; *height = 0.98f; /* EntityTNTPrimed.java:27 */
         break;
     case EW_TYPE_SHEEP:
     case EW_TYPE_PIG:

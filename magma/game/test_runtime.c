@@ -500,6 +500,11 @@ int main(void) {
         for(int t=0;t<30;++t)gm_runtime_tick(&r,idle);
         CHECK(gm_mobs_alive(&r.mobs)==0,"creeper is consumed after its 30-tick fuse");
         CHECK(r.vitals.health<hp,"creeper explosion applies verified explosion damage");
+        CHECK(r.parity_ex_blasts>=1u,"creeper explosion records a blast");
+        CHECK(r.player.ent.motionX!=0.0||r.player.ent.motionY!=0.0||
+              r.player.ent.motionZ!=0.0||
+              r.parity_ex_kb_x!=0.0||r.parity_ex_kb_y!=0.0||r.parity_ex_kb_z!=0.0,
+              "creeper explosion applies doExplosionA knockback");
     }
     gm_runtime_destroy(&r);
 

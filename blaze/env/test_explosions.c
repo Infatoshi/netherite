@@ -105,22 +105,45 @@ static int write_fixture(const char *from, const char *out_path) {
             for (y = 65; y <= 68; ++y)
                 plant_cell(&s, x, y, z, 0, 0);
         }
-    /* Destructible dirt next to the creeper so rays leave a crater. */
-    plant_cell(&s, 8, 65, 12, BLK_DIRT, 0);
+    /* Dirt off the player-+Z LOS so getBlockDensity is not 0, still a crater.
+     * Explosion centre (8.5,65.5,12.5) is cell (8,65,12); keep that air. */
     plant_cell(&s, 9, 65, 12, BLK_DIRT, 0);
-    plant_cell(&s, 8, 65, 13, BLK_DIRT, 0);
+    plant_cell(&s, 9, 65, 13, BLK_DIRT, 0);
+    plant_cell(&s, 10, 65, 12, BLK_DIRT, 0);
 
     s.head.version = BLAZE_SNAP_VERSION;
-    s.n_mobs = 1;
+    s.n_mobs = 2;
     plant_creeper(&s.mobs[0], 1, 1, 8.5, 65.0, 12.5);
+    /* Planted EntityTNTPrimed already counting down (fuse 20) so the 64-tick
+     * chain observes explode size 4.0F. Java spawn fuse is 80. */
+    {
+        RlSnapMob *t = &s.mobs[1];
+        memset(t, 0, sizeof *t);
+        t->slot = 2;
+        t->id = 2;
+        t->type = EW_TYPE_TNT_PRIMED;
+        t->alive = 1;
+        t->x = 6.5;
+        t->y = 65.0;
+        t->z = 8.5;
+        t->on_ground = 1;
+        t->swell = 20;
+        t->box_on = 1;
+        t->box_minx = 6.5 - 0.49;
+        t->box_miny = 65.0;
+        t->box_minz = 8.5 - 0.49;
+        t->box_maxx = 6.5 + 0.49;
+        t->box_maxy = 65.0 + (double)EXL_TNT_HEIGHT;
+        t->box_maxz = 8.5 + 0.49;
+    }
     if (!blaze_snapshot_write(out_path, &s, err, (int)sizeof err)) {
         fprintf(stderr, "write %s: %s\n", out_path, err);
         blaze_snapshot_free(&s);
         return 0;
     }
     fprintf(stderr,
-            "WROTE %s ignited creeper (8.5,65,12.5) player (8.5,65,8.5) "
-            "n_mobs=%u\n",
+            "WROTE %s ignited creeper (8.5,65,12.5) TNT fuse20 (6.5,65,8.5) "
+            "player (8.5,65,8.5) n_mobs=%u\n",
             out_path, s.n_mobs);
     blaze_snapshot_free(&s);
     return 1;
@@ -129,6 +152,8 @@ static int write_fixture(const char *from, const char *out_path) {
 static int run_units(void) {
     int fuse, t;
     float dens, dmg;
+    u16 grid[EX_VOL];
+    ExBlast blast;
 
     fuse = 0;
     expect(!exl_fuse_tick(&fuse, 0), "idle creeper does not swell");
@@ -147,6 +172,43 @@ static int run_units(void) {
     dmg = ex_entity_damage(8.0, 8.0, 8.0, 8.0, 8.0, 8.0, EXL_RADIUS, 1.0f);
     expect(dmg > 0.0f, "center size-3 damage is positive");
     expect(bits_eq_f(EXL_RADIUS, 3.0f), "creeper radius is 3.0F");
+
+    ex_fill(grid, mc_state(BLK_AIR, 0));
+    dens = ex_block_density(grid, 0, 0, 0, 8.0, 8.0, 8.0,
+                            7.7, 8.0, 7.7, 8.3, 9.8, 8.3);
+    expect(bits_eq_f(dens, 1.0f), "air AABB getBlockDensity is 1.0F");
+
+    ex_fill(grid, mc_state(BLK_STONE, 0));
+    dens = ex_block_density(grid, 0, 0, 0, 8.0, 8.0, 8.0,
+                            0.2, 0.2, 0.2, 0.8, 1.8, 0.8);
+    expect(bits_eq_f(dens, 0.0f), "stone-occluded getBlockDensity is 0.0F");
+
+    ex_entity_blast(8.5, 65.0, 8.5, 1.62f, 8.5, 65.5, 12.5, EXL_RADIUS,
+                    1.0f, 0, &blast);
+    expect(blast.hit, "size-3 blast 4 blocks -Z is inside f3");
+    expect(blast.damage > 0.0f, "open-exposure d2i damage is positive");
+    expect(blast.addz < 0.0, "motion add is away from +Z explosion");
+    expect(blast.mapz == blast.addz,
+           "blast-prot 0: playerKnockbackMap equals motion add");
+    expect(ex_blast_reduction(1.0, 0) == 1.0,
+           "EnchantmentProtection level 0 is identity");
+    expect(bits_eq_f(exl_eye_height(EW_TYPE_ZOMBIE, 1.95f), 1.74f),
+           "zombie getEyeHeight is 1.74F");
+    expect(bits_eq_f(exl_eye_height(EW_TYPE_CREEPER, 1.7f), 1.7f * 0.85f),
+           "creeper eye is height * 0.85F");
+    expect(bits_eq_f(EXL_TNT_SIZE, 4.0f), "TNT explosion size is 4.0F");
+    expect(EXL_TNT_FUSE == 80, "TNT fuse is 80");
+    {
+        double x = 8.5, y = 65.0, z = 8.5, mx = 0.0, my = EXL_TNT_SPAWN_MY,
+               mz = 0.0;
+        int og = 0, fuse = 2;
+        expect(exl_tnt_on_update(&x, &y, &z, &mx, &my, &mz, &og, &fuse, 1, 65.0)
+               == 0,
+               "TNT fuse 2 does not explode on first tick");
+        expect(fuse == 1, "TNT fuse decrements");
+        expect(exl_tnt_on_update(&x, &y, &z, &mx, &my, &mz, &og, &fuse, 1, 65.0),
+               "TNT fuse 0 explodes");
+    }
     return fails ? 1 : 0;
 }
 
