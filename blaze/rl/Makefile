@@ -90,6 +90,7 @@ TEST_WEATHER_BIN := $(OUT)/test_weather
 TEST_CHEST_BIN := $(OUT)/test_chests
 TEST_PROJ_BIN := $(OUT)/test_projectiles
 TEST_EXPL_BIN := $(OUT)/test_explosions
+TEST_RANDTICK_BIN := $(OUT)/test_randtick
 TEST_MOBS_BIN := $(OUT)/test_mobs
 TEST_MOBS_SS_BIN := $(OUT)/test_mobs_ss
 TEST_PASSIVES_BIN := $(OUT)/test_passives
@@ -109,7 +110,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-projectiles test-explosions test-mobs test-mobs-ss test-passives test-skylight-water smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-projectiles test-explosions test-randtick test-mobs test-mobs-ss test-passives test-skylight-water smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval
 
@@ -250,6 +251,11 @@ $(TEST_EXPL_BIN): $(ENV_SRC)/test_explosions.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_explosions.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_RANDTICK_BIN): $(ENV_SRC)/test_randtick.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/randtick_live.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_randtick.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 $(TEST_MOBS_BIN): $(ENV_SRC)/test_mobs.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/hostile_live.h \
 		$(CORE_SRC)/hostile_spawn.h | $(OUT)
@@ -339,6 +345,7 @@ test-chain: $(TEST_CHAIN_BIN)
 
 test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN) \
 		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN) \
+		$(TEST_RANDTICK_BIN) \
 		$(TEST_MOBS_BIN) $(TEST_MOBS_SS_BIN) $(TEST_PASSIVES_BIN) $(TEST_XP_BIN) $(TEST_BOATS_BIN) $(TEST_ELYTRA_BIN) \
 		$(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
@@ -349,6 +356,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_chests
 	cd $(REPO) && ./out/blaze/rl/test_projectiles
 	cd $(REPO) && ./out/blaze/rl/test_explosions
+	cd $(REPO) && ./out/blaze/rl/test_randtick
 	cd $(REPO) && ./out/blaze/rl/test_mobs
 	cd $(REPO) && ./out/blaze/rl/test_mobs_ss
 	cd $(REPO) && ./out/blaze/rl/test_passives
@@ -373,6 +381,9 @@ test-projectiles: $(TEST_PROJ_BIN)
 
 test-explosions: $(TEST_EXPL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_explosions
+
+test-randtick: $(TEST_RANDTICK_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_randtick
 
 test-mobs: $(TEST_MOBS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_mobs

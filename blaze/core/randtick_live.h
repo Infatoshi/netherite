@@ -6,24 +6,40 @@
  *   rt_live_meta(w,x,y,z)     meta 0..15
  *   rt_live_light(w,x,y,z)    max(sky, block) at the cell
  *   rt_live_set(w,x,y,z,id,meta)
+ * Optional:
+ *   RT_SECTION_NEEDS(w,cx,sec,cz)  non-zero iff the 16^3 has a ticker
+ *                                  (ExtendedBlockStorage.getNeedsRandomTick
+ *                                  :86). Default scans with bp_is_randtick_id.
  *
- * Magma live/RL substitutes the Java updateLCG + World.rand stream with
- * mc_hash_seed (randtick.h:10). Blaze must match that schedule for M1, not
- * the Java LCG. Java citations document the oracle; hash keys are magma's.
+ * Java World.rand (World.java:108) and World.updateLCG (World.java:95-97)
+ * are the live streams. Position picks are the int32 LCG, not JavaRandom.
+ * Ticker bodies draw from the shared JavaRandom passed into the pass.
  *
  * Java:
  *   World.java:95-97 updateLCG / DIST_HASH_MAGIC 1013904223
  *   World.java:108 World.rand
+ *   WorldServer.java:180 tick, :228 updateBlocks
  *   WorldServer.java:404 randomTickSpeed
+ *   WorldServer.java:409-500 chunk loop
+ *   WorldServer.java:421 thunder nextInt(100000)
+ *   WorldServer.java:449 iceandsnow nextInt(16)
  *   WorldServer.java:472-494 per-section LCG pick + Block.randomTick
+ *   PlayerChunkMap.java:73-114 getChunkIterator (this.entries)
+ *   PlayerChunkMap.java:295-301 addPlayer x-outer z-inner insertion
+ *   WorldProvider.java:592 canDoLightning, :597 canDoRainSnowIce (both true)
  *   GameRules.java:13 doFireTick, :25 randomTickSpeed "3"
  *   Block.java:434 getTickRandomly, :595 randomTick -> updateTick
  *   ExtendedBlockStorage.java:86 getNeedsRandomTick
  *   BlockGrass.java:41-73, BlockCrops.java:72-90 / :111-164
  *   BlockFire.java:146-253 / :286-314, BlockLeaves.java:69-176
  *
- * Ported tickers (magma/game/randtick.c dispatch): grass, leaves/leaves2,
- * fire, wheat/carrot/potato. Sapling/farmland/ice/snow stay unported.
+ * Ported tickers: grass, leaves/leaves2, fire, wheat/carrot/potato.
+ * Sapling/farmland/ice/snow/mycelium stay unported: LCG still picks the
+ * cell; their Java updateTick draws are not consumed.
+ *
+ * Chunk order: stationary 1-player PlayerChunkMap.entries is addPlayer
+ * insertion (cx outer, cz inner). Moving-player append/remove of that
+ * list is not ported. Forge persistent-chunk prepend is identity here.
  */
 #ifndef MC_RANDTICK_LIVE_H
 #define MC_RANDTICK_LIVE_H
@@ -35,17 +51,11 @@
 #include "mc_blocks.h"
 #include "block_props_table.h"
 #include "mc_gamerules.h"
+#include "port_parity.h"
 
 #ifndef RT_W
 #error "randtick_live.h requires RT_W and rt_live_* accessors"
 #endif
-
-enum {
-    RT_PURPOSE_POS   = 0x5254504Fu, /* 'RTPO' section cell pick */
-    RT_PURPOSE_GRASS = 0x52544752u, /* 'RTGR' grass spread offsets */
-    RT_PURPOSE_FIRE  = 0x52544652u, /* 'RTFR' fire age/spread stream */
-    RT_PURPOSE_CROP  = 0x52544352u  /* 'RTCR' crop growth roll */
-};
 
 #define RT_BLK_FIRE     51
 #define RT_BLK_WHEAT    59
@@ -57,6 +67,7 @@ enum {
 #define RT_BLK_LOG      17
 #define RT_BLK_LOG2     162
 #define RT_LIVE_SURR    32768
+#define RT_DIST_HASH_MAGIC 1013904223u /* World.java:97 */
 
 MC_HD static inline int rt_live_opacity(int id) {
     if (id == 0) return 0;
@@ -68,6 +79,16 @@ MC_HD static inline int rt_live_fully_opaque(int id) {
     if (id == 0) return 0;
     p = mc_bpt_props(id);
     return (p.flags & BF_SOLID) && !(p.flags & BF_LIQUID) && p.light_opacity >= 255;
+}
+
+/* World.java:96: updateLCG = updateLCG * 3 + 1013904223 (int32 wrap), then >> 2. */
+MC_HD static inline i32 rt_live_step_lcg(i32 *lcg) {
+    u32 u;
+    if (!lcg) return 0;
+    u = (u32)(*lcg);
+    u = u * 3u + RT_DIST_HASH_MAGIC;
+    *lcg = (i32)u;
+    return (*lcg) >> 2;
 }
 
 /* BlockFire.init setFireInfo tables, magma/game/randtick.c:50-88. */
@@ -138,16 +159,12 @@ MC_HD static inline int rt_live_neighbor_encouragement(RT_W *w, int x, int y, in
     return best;
 }
 
-MC_HD static inline void rt_live_fire_rng(JavaRandom *r, long long seed, long long tick,
-                                          int x, int y, int z) {
-    u64 h = mc_hash_seed((u64)seed, tick, x, y, z, RT_PURPOSE_FIRE);
-    jrand_set(r, (i64)h);
-}
-
 /* BlockFire.tryCatchFire :286-314; humidity/rain omitted (clear weather). */
 MC_HD static inline void rt_live_try_catch_fire(RT_W *w, JavaRandom *rng, int x, int y, int z,
                                                 int chance, int age) {
-    int flam = rt_live_fire_flammability(rt_live_id(w, x, y, z));
+    int flam;
+    if (!rng) return;
+    flam = rt_live_fire_flammability(rt_live_id(w, x, y, z));
     if (jrand_int_bound(rng, chance) < flam) {
         if (jrand_int_bound(rng, age + 10) < 5) {
             int j = age + jrand_int_bound(rng, 5) / 4;
@@ -159,16 +176,17 @@ MC_HD static inline void rt_live_try_catch_fire(RT_W *w, JavaRandom *rng, int x,
     }
 }
 
-/* BlockFire.updateTick :146-253 overworld, clear weather, NORMAL=2. */
+/* BlockFire.updateTick :146-253 overworld, clear weather, NORMAL=2.
+ * Age used by tryCatchFire/spread is the original `i` (BlockFire.java:158),
+ * not the post-increment value written back at :168. scheduleUpdate delay
+ * nextInt(10) (:172) is consumed even though scheduled ticks stay out. */
 MC_HD MC_NOINLINE static void rt_live_tick_fire(RT_W *w, int x, int y, int z,
-                                                long long seed, long long tick,
+                                                JavaRandom *rng,
                                                 const McGameRules *gr) {
-    JavaRandom rng;
     int age, k, l, i1;
     if (!gr || !gr->doFireTick) return;
+    if (!rng) return;
     if (rt_live_id(w, x, y, z) != RT_BLK_FIRE) return;
-
-    rt_live_fire_rng(&rng, seed, tick, x, y, z);
 
     if (!rt_live_fully_opaque(rt_live_id(w, x, y - 1, z)) &&
         !rt_live_can_neighbor_catch_fire(w, x, y, z)) {
@@ -178,11 +196,11 @@ MC_HD MC_NOINLINE static void rt_live_tick_fire(RT_W *w, int x, int y, int z,
 
     age = rt_live_meta(w, x, y, z) & 15;
     if (age < 15) {
-        int na = age + jrand_int_bound(&rng, 3) / 2;
+        int na = age + jrand_int_bound(rng, 3) / 2;
         if (na > 15) na = 15;
         rt_live_set(w, x, y, z, RT_BLK_FIRE, na);
-        age = na;
     }
+    (void)jrand_int_bound(rng, 10); /* BlockFire.java:172 tickRate+nextInt(10) */
 
     if (!rt_live_can_neighbor_catch_fire(w, x, y, z)) {
         if (!rt_live_fully_opaque(rt_live_id(w, x, y - 1, z)) || age > 3)
@@ -190,17 +208,17 @@ MC_HD MC_NOINLINE static void rt_live_tick_fire(RT_W *w, int x, int y, int z,
         return;
     }
     if (!rt_live_can_catch_fire(w, x, y - 1, z) && age == 15 &&
-        jrand_int_bound(&rng, 4) == 0) {
+        jrand_int_bound(rng, 4) == 0) {
         rt_live_set(w, x, y, z, 0, 0);
         return;
     }
 
-    rt_live_try_catch_fire(w, &rng, x + 1, y, z, 300, age);
-    rt_live_try_catch_fire(w, &rng, x - 1, y, z, 300, age);
-    rt_live_try_catch_fire(w, &rng, x, y - 1, z, 250, age);
-    rt_live_try_catch_fire(w, &rng, x, y + 1, z, 250, age);
-    rt_live_try_catch_fire(w, &rng, x, y, z + 1, 300, age);
-    rt_live_try_catch_fire(w, &rng, x, y, z - 1, 300, age);
+    rt_live_try_catch_fire(w, rng, x + 1, y, z, 300, age);
+    rt_live_try_catch_fire(w, rng, x - 1, y, z, 300, age);
+    rt_live_try_catch_fire(w, rng, x, y - 1, z, 250, age);
+    rt_live_try_catch_fire(w, rng, x, y + 1, z, 250, age);
+    rt_live_try_catch_fire(w, rng, x, y, z + 1, 300, age);
+    rt_live_try_catch_fire(w, rng, x, y, z - 1, 300, age);
 
     for (k = -1; k <= 1; ++k)
         for (l = -1; l <= 1; ++l)
@@ -212,18 +230,19 @@ MC_HD MC_NOINLINE static void rt_live_tick_fire(RT_W *w, int x, int y, int z,
                 k1 = rt_live_neighbor_encouragement(w, x + k, y + i1, z + l);
                 if (k1 <= 0) continue;
                 l1 = (k1 + 40 + 2 * 7) / (age + 30);
-                if (l1 > 0 && jrand_int_bound(&rng, j1) <= l1) {
-                    i2 = age + jrand_int_bound(&rng, 5) / 4;
+                if (l1 > 0 && jrand_int_bound(rng, j1) <= l1) {
+                    i2 = age + jrand_int_bound(rng, 5) / 4;
                     if (i2 > 15) i2 = 15;
                     rt_live_set(w, x + k, y + i1, z + l, RT_BLK_FIRE, i2);
                 }
             }
 }
 
-/* BlockGrass.updateTick :41-73. Magma hashes the four spread draws. */
-MC_HD static inline void rt_live_tick_grass(RT_W *w, int x, int y, int z,
-                                            long long seed, long long tick) {
+/* BlockGrass.updateTick :41-73. Four spread attempts each draw three nextInt. */
+MC_HD static inline void rt_live_tick_grass(RT_W *w, JavaRandom *rng,
+                                            int x, int y, int z) {
     int above_id, light_up, i;
+    if (!rng) return;
     if (rt_live_id(w, x, y, z) != BLK_GRASS) return;
     above_id = rt_live_id(w, x, y + 1, z);
     light_up = rt_live_light(w, x, y + 1, z);
@@ -235,15 +254,11 @@ MC_HD static inline void rt_live_tick_grass(RT_W *w, int x, int y, int z,
     if (light_up < 9) return;
 
     for (i = 0; i < 4; ++i) {
-        u64 h = mc_hash_seed((u64)seed, tick, x, y, z, RT_PURPOSE_GRASS);
         i32 dx, dy, dz;
         int nx, ny, nz, tid, tmeta, a_id;
-        h = mc_hash64(h ^ (u64)i);
-        dx = mc_hash_bound(h, 3) - 1;
-        h = mc_hash64(h + 1);
-        dy = mc_hash_bound(h, 5) - 3;
-        h = mc_hash64(h + 2);
-        dz = mc_hash_bound(h, 3) - 1;
+        dx = jrand_int_bound(rng, 3) - 1;
+        dy = jrand_int_bound(rng, 5) - 3;
+        dz = jrand_int_bound(rng, 3) - 1;
         nx = x + dx; ny = y + dy; nz = z + dz;
         if (ny < 0 || ny >= 256) continue;
         tid = rt_live_id(w, nx, ny, nz);
@@ -263,7 +278,8 @@ MC_HD static inline int rt_live_is_log(int id) {
     return id == RT_BLK_LOG || id == RT_BLK_LOG2;
 }
 
-/* BlockLeaves.updateTick :69-176. surroundings is Java `new int[32768]`. */
+/* BlockLeaves.updateTick :69-176. surroundings is Java `new int[32768]`.
+ * No World.rand draws. */
 MC_HD MC_NOINLINE static void rt_live_tick_leaves(RT_W *w, int x, int y, int z,
                                                   int *surroundings) {
     int id = rt_live_id(w, x, y, z);
@@ -358,13 +374,13 @@ MC_HD static inline float rt_live_growth_chance(RT_W *w, int x, int y, int z, in
     return f;
 }
 
-/* BlockCrops.updateTick :72-90. Magma hashes the growth roll. */
-MC_HD static inline void rt_live_tick_crop(RT_W *w, int x, int y, int z,
-                                           long long seed, long long tick) {
+/* BlockCrops.updateTick :72-90. Growth roll is world.rand.nextInt. */
+MC_HD static inline void rt_live_tick_crop(RT_W *w, JavaRandom *rng,
+                                           int x, int y, int z) {
     int id = rt_live_id(w, x, y, z);
     int age, soil, bound;
     float gf;
-    u64 h;
+    if (!rng) return;
     if (!rt_live_is_crop(id)) return;
     soil = rt_live_id(w, x, y - 1, z);
     if (soil != RT_BLK_FARMLAND) {
@@ -377,13 +393,12 @@ MC_HD static inline void rt_live_tick_crop(RT_W *w, int x, int y, int z,
     gf = rt_live_growth_chance(w, x, y, z, id);
     bound = (int)(25.0f / gf) + 1;
     if (bound < 1) bound = 1;
-    h = mc_hash_seed((u64)seed, tick, x, y, z, RT_PURPOSE_CROP);
-    if (mc_hash_bound(h, bound) == 0)
+    if (jrand_int_bound(rng, bound) == 0)
         rt_live_set(w, x, y, z, id, age + 1);
 }
 
 MC_HD static inline void rt_live_tick_block(RT_W *w, int wx, int wy, int wz,
-                                            long long seed, long long tick,
+                                            JavaRandom *rng,
                                             const McGameRules *gr,
                                             int *leaf_surr) {
     int id;
@@ -394,55 +409,84 @@ MC_HD static inline void rt_live_tick_block(RT_W *w, int wx, int wy, int wz,
     id = rt_live_id(w, wx, wy, wz);
     switch (id) {
         case BLK_GRASS:
-            rt_live_tick_grass(w, wx, wy, wz, seed, tick);
+            rt_live_tick_grass(w, rng, wx, wy, wz);
             break;
         case RT_BLK_LEAVES:
         case RT_BLK_LEAVES2:
             rt_live_tick_leaves(w, wx, wy, wz, leaf_surr);
             break;
         case RT_BLK_FIRE:
-            rt_live_tick_fire(w, wx, wy, wz, seed, tick, gr);
+            rt_live_tick_fire(w, wx, wy, wz, rng, gr);
             break;
         case RT_BLK_WHEAT:
         case RT_BLK_CARROT:
         case RT_BLK_POTATO:
-            rt_live_tick_crop(w, wx, wy, wz, seed, tick);
+            rt_live_tick_crop(w, rng, wx, wy, wz);
             break;
         default:
             break;
     }
 }
 
-/* WorldServer.updateBlocks randomTick loop :474-494, magma hash schedule.
- * radius is Chebyshev chunk radius around (ccx,ccz). */
-MC_HD static inline void rt_live_pass(RT_W *w, long long seed, long long tick,
+#ifndef RT_SECTION_NEEDS
+MC_HD static inline int rt_live_section_needs(RT_W *w, int cx, int sec, int cz) {
+    int lx, ly, lz, base_y = sec * 16;
+    for (lx = 0; lx < 16; ++lx)
+        for (ly = 0; ly < 16; ++ly)
+            for (lz = 0; lz < 16; ++lz)
+                if (bp_is_randtick_id(rt_live_id(w, cx * 16 + lx,
+                                                 base_y + ly, cz * 16 + lz)))
+                    return 1;
+    return 0;
+}
+#define RT_SECTION_NEEDS(w, cx, sec, cz) rt_live_section_needs((w), (cx), (sec), (cz))
+#endif
+
+/* WorldServer.updateBlocks thunder :421 / iceandsnow :449. Placement of
+ * lightning, ice, and snow stays out; the World.rand / updateLCG draws
+ * still consume the shared stream in Java order. */
+MC_HD static inline void rt_live_chunk_worldrand_prefix(JavaRandom *rng, i32 *lcg,
+                                                        int raining, int thundering) {
+    if (!rng || !lcg) return;
+    if (raining && thundering) {
+        if (jrand_int_bound(rng, 100000) == 0)
+            (void)rt_live_step_lcg(lcg);
+    }
+    if (jrand_int_bound(rng, 16) == 0)
+        (void)rt_live_step_lcg(lcg);
+}
+
+/* WorldServer.updateBlocks randomTick loop :409-500.
+ * Chunk order is addPlayer insertion (PlayerChunkMap.java:295-301): cx outer,
+ * cz inner. Section skip is getNeedsRandomTick. Position is updateLCG, not
+ * World.rand. randomTick draws World.rand. */
+MC_HD static inline void rt_live_pass(RT_W *w, JavaRandom *rng, i32 *update_lcg,
+                                      int raining, int thundering,
                                       int ccx, int ccz, int radius,
                                       const McGameRules *gr, int *leaf_surr) {
     McGameRules def;
     int rts, cx, cz, sec, att;
-    if (!w) return;
+    if (!w || !rng || !update_lcg) return;
     if (!gr) { def = mc_gamerules_default(); gr = &def; }
     rts = gr->randomTickSpeed;
     if (rts <= 0) return;
     if (radius < 0) radius = 0;
 
-    for (cz = ccz - radius; cz <= ccz + radius; ++cz) {
-        for (cx = ccx - radius; cx <= ccx + radius; ++cx) {
+    for (cx = ccx - radius; cx <= ccx + radius; ++cx) {
+        for (cz = ccz - radius; cz <= ccz + radius; ++cz) {
+            rt_live_chunk_worldrand_prefix(rng, update_lcg, raining, thundering);
             for (sec = 0; sec < 16; ++sec) {
                 int base_y = sec * 16;
+                if (!RT_SECTION_NEEDS(w, cx, sec, cz)) continue;
                 for (att = 0; att < rts; ++att) {
-                    u64 h = mc_hash_seed((u64)seed, tick, cx, sec, cz,
-                                         RT_PURPOSE_POS ^ (u32)att);
-                    int lx = (int)mc_hash_bound(h, 16);
-                    int ly, lz, wx, wy, wz;
-                    h = mc_hash64(h + 1ULL);
-                    ly = (int)mc_hash_bound(h, 16);
-                    h = mc_hash64(h + 2ULL);
-                    lz = (int)mc_hash_bound(h, 16);
-                    wx = cx * 16 + lx;
-                    wy = base_y + ly;
-                    wz = cz * 16 + lz;
-                    rt_live_tick_block(w, wx, wy, wz, seed, tick, gr, leaf_surr);
+                    i32 j1 = rt_live_step_lcg(update_lcg);
+                    int lx = j1 & 15;
+                    int lz = (j1 >> 8) & 15;
+                    int ly = (j1 >> 16) & 15;
+                    int wx = cx * 16 + lx;
+                    int wy = base_y + ly;
+                    int wz = cz * 16 + lz;
+                    rt_live_tick_block(w, wx, wy, wz, rng, gr, leaf_surr);
                 }
             }
         }

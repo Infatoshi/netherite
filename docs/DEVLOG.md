@@ -1,5 +1,31 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 Random ticks on World.rand (lane/rtworldrand)
+
+Anvil. Baseline random_ticks M1 VERIFIED (`out/verify/rtworldrand_baseline_random_ticks_m1.log`); explosions M1 VERIFIED (`out/verify/rtworldrand_baseline_explosions_m1.log`). mining_slice M2 BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing).
+
+Java `World.rand` is `public Random rand = new Random()` (`World.java:108`). `updateLCG` is `protected int updateLCG = (new Random()).nextInt()` (`World.java:95`), then `updateLCG = updateLCG * 3 + 1013904223` (`:96`, magic `:97`). Tape-exact values are Class C: both RNGs are unseeded. Magma/blaze share the snapshot cursor.
+
+Server tick (`WorldServer.java:180`): `super.tick()` weather on `this.rand` (`World.java:2709`, isolated `ww.rand` here, not this stream), then `updateBlocks` (`WorldServer.java:228`, `:389-505`), then later `updateEntities` explosions.
+
+`updateBlocks` chunk loop (`WorldServer.java:409`) is `getPersistentChunkIterable(playerChunkMap.getChunkIterator())`. `PlayerChunkMap.getChunkIterator` (`PlayerChunkMap.java:73-114`) walks `this.entries`. For a stationary 1-player view, that list is `addPlayer` insertion (`:295-301`): cx outer, cz inner. Forge persistent-chunk prepend is identity here. Moving-player append/remove of `entries` is not ported.
+
+Per chunk, Java order:
+1. Thunder (`WorldServer.java:421`): `canDoLightning` true (`WorldProvider.java:592`). `this.rand.nextInt(100000)` only if raining AND thundering (`&&` short-circuit). Hit advances `updateLCG` (`:423`). Lightning/horse stay out.
+2. Ice/snow (`:449`): `canDoRainSnowIce` true (`WorldProvider.java:597`). `this.rand.nextInt(16)` every chunk. Hit advances `updateLCG` (`:451`). Ice/snow placement stay out. `weather_optional` models WorldInfo timers on isolated `ww.rand`, not these `updateBlocks` draws; this lane consumes the shared stream in order.
+3. Random ticks (`:472-494`): sections with `getNeedsRandomTick` (`ExtendedBlockStorage.java:86`). Each attempt: `updateLCG` pick (`k1=j1&15` x, `l1=j1>>8&15` z, `i2=j1>>16&15` y), then `block.randomTick(..., this.rand)` (`Block.java:595`).
+
+Ported tickers (header list): grass (`BlockGrass.java:41-73`), leaves/leaves2 (`BlockLeaves.java:69-176`, no rand), fire (`BlockFire.java:146-253` / `:286-314`), wheat/carrot/potato (`BlockCrops.java:72-90`). Fire consumes `nextInt(3)` age (`:168`), `nextInt(10)` `scheduleUpdate` delay (`:172`) even though scheduled ticks stay out, then `tryCatchFire` (`:286`). Spread uses the original age `i` (`:158`), not the written-back age. Sapling/farmland/ice/snow/mycelium stay unported: LCG still picks the cell; their Java `updateTick` draws are not consumed.
+
+`updateLCG` was not in snapshot v5. v6 trailer after `world_rand_seed`. v5 loads `update_lcg=0`. Class C initial. `BP_RANDOM_TICKS` tag RTK1 -> RTK2 hashes world_rand cursor + updateLCG after the cells. `BP_EXPLOSIONS` EXP4 still hashes the cursor after explosions; explosion code unchanged.
+
+Fixture `s10_t0_r64_randtick.bsnp` rebaked by `out/blaze/rl/test_randtick --write-fixture` (v6, cells unchanged, `update_lcg=0`).
+
+After: random_ticks M1+M2 VERIFIED; explosions M1+M2 VERIFIED. Listed `--no-deps` M1 stay VERIFIED; M2 stay VERIFIED except mining_slice BLOCKED. Root `make test` PASS (`out/verify/rtworldrand_maketest.log`).
+
+Tapes (`replay_tape.py --cpu --no-gate --report`; script sets `randtick_enabled=0`): TNT both physics NO divergence 309 ticks, inventory 1-mismatch stays t=28 slot 0 flint-and-steel (259) tape meta 0 vs magma meta 1. That is item durability (`ItemFlintAndSteel.onItemUse` `damageItem(1)` `:44` after optional fire place on air `:38-42`; `canPlaceBlockAt` is `BlockFire.updateTick` `:150`, not onItemUse). Magma matches Java; tape did not record the damage. creeper_encounter FIRST DIVERGENCE stays t=76 y 2.1e-09. smoke_zombie x2 and bow physics NO divergence. Canon physics NO divergence 3617 ticks, entities PASS 16526; world_hash c-only unverified (`first_mismatch` null, 46 c-side hash_deltas). No tape first-mismatch moved earlier.
+
+Stay out: fireball; EntityItem `Math.random` motion; tape-exact World.rand / updateLCG (unseeded); sapling/farmland/ice/snow/mycelium ticker bodies; lightning/ice/snow placement; PlayerChunkMap moving-player list order.
 ## 2026-08-23 spider + slime live insert (lane/spiderslime)
 
 Gamer. Port leftover on `mobs` "Not closed" of lane/natspawn and lane/passives: Java 1.11.2 EntitySpider and EntitySlime into the shared C magma and blaze both compile (`blaze/core/hostile_live.h` + MONSTER insert in `hostile_spawn.h`). Existing `mobs_s10.json` is unchanged. New row `mobs_ss`. `BP_MOBS` tag stays `MBM1` (slime size in `swell`, jumpDelay in `melee_delay`, wasOnGround in `see_time`, spider climbing in `anger` bit 0).

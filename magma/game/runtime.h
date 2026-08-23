@@ -248,6 +248,9 @@ typedef struct GmRuntime {
     /* World.rand (World.java:108). Unseeded in Java; live cursor is the
      * snapshot v5 trailer. Tape-exact values are Class C. */
     JavaRandom world_rand;
+    /* World.updateLCG (World.java:95). Unseeded nextInt() in the World ctor;
+     * live default 0 so magma and blaze share it. Snapshot v6. */
+    i32 update_lcg;
     int weather_enabled;
     int elytra_kit;              /* --elytra on: chest 443 after snapshot-in */
     /* Tape getRainStrength(1)/getThunderStrength(1). Live stays 0: magma has

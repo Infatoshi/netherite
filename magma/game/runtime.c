@@ -858,6 +858,7 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
      * default is jrand_set(0) so magma and blaze share a cursor; tapes
      * do not record the oracle seed (Class C). */
     jrand_set(&r->world_rand, 0);
+    r->update_lcg = 0;
     r->mobs.natural_spawn_passive = cfg->natural_spawn_passive;
     /* Live random ticks on by default; script.c clears this for tape replay. */
     r->randtick_enabled = 1;
@@ -1171,8 +1172,10 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     /* Random block ticks: LIVE/WINDOW only (r->randtick_enabled). Replay keeps
      * this off; do not approximate Java's unseedable world RNG on tapes. */
     if (r->randtick_enabled)
-        gm_randtick_pass(r->world, r->seed, r->tick, r->ccx, r->ccz,
-                         r->randtick_radius, &r->gamerules);
+        gm_randtick_pass(r->world, &r->world_rand, &r->update_lcg,
+                         r->weather_enabled ? r->clock.raining : 0,
+                         r->weather_enabled ? r->clock.thundering : 0,
+                         r->ccx, r->ccz, r->randtick_radius, &r->gamerules);
     if (r->mobs_enabled) {
         r->mobs.natural_spawn = r->natural_spawn;
         r->mobs.natural_spawn_passive = r->natural_spawn_passive;

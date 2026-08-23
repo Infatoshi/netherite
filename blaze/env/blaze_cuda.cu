@@ -90,6 +90,7 @@ typedef struct {
     unsigned n_orbs;
     RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
     unsigned long long world_rand_seed;
+    int update_lcg;
 } CuSnapDev;
 
 typedef struct {
@@ -228,6 +229,7 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
                        s->mobs, s->n_mobs, s->orbs, s->n_orbs,
                        s->world_rand_seed, success_item);
+    envs[i].update_lcg = s->update_lcg;
     envs[i].mobs_enabled = mobs_enabled;
     envs[i].natural_spawn = natural_spawn;
     envs[i].natural_spawn_passive = natural_spawn_passive;
@@ -1096,6 +1098,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         if (s.n_orbs)
             memcpy(d->orbs, s.orbs, (size_t)s.n_orbs * sizeof d->orbs[0]);
         d->world_rand_seed = s.world_rand_seed;
+        d->update_lcg = s.update_lcg;
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
         v->has_unrepresented[v->nsnaps] = s.head.container != 0;

@@ -596,7 +596,8 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
         if (gm_world_rt_parity_state(r->world, &cells_xor, &nrt, &muts)) {
             h = bp_randtick_digest_finish(
                 bp_randtick_digest_begin(), cells_xor, (uint32_t)nrt,
-                (uint32_t)muts);
+                (uint32_t)muts, r->world_rand.seed & MC_JR_MASK,
+                (int32_t)r->update_lcg);
             out->digest[BP_RANDOM_TICKS] = h;
             out->evidence[BP_RANDOM_TICKS] = muts;
             if (muts) out->active_mask |= BP_BIT(BP_RANDOM_TICKS);
@@ -1009,13 +1010,16 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                         fwrite(orbs, sizeof orbs[0], n_orbs, f) == n_orbs);
             {
                 unsigned long long wr = r->world_rand.seed & MC_JR_MASK;
+                int lcg = r->update_lcg;
                 ok = ok && fwrite(&wr, sizeof wr, 1, f) == 1;
+                ok = ok && fwrite(&lcg, sizeof lcg, 1, f) == 1;
             }
             fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
-                    "%u mobs, %u orbs, wr=%llu)\n",
+                    "%u mobs, %u orbs, wr=%llu lcg=%d)\n",
                     ok ? "written" : "WRITE FAILED", path, h.tick, h.n_items,
                     ncoal, n_mobs, n_orbs,
-                    (unsigned long long)(r->world_rand.seed & MC_JR_MASK));
+                    (unsigned long long)(r->world_rand.seed & MC_JR_MASK),
+                    r->update_lcg);
         }
     }
     free(cells);
@@ -1132,7 +1136,8 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         gm_mobs_import_orbs(&r->mobs, orbs, n_orbs);
     }
     jrand_set(&r->world_rand, 0);
-    if (h.version >= BLAZE_SNAP_VERSION) {
+    r->update_lcg = 0;
+    if (h.version >= BLAZE_SNAP_VERSION_WORLD_RAND) {
         unsigned long long wr = 0;
         if (fread(&wr, sizeof wr, 1, f) != 1) {
             snprintf(err, (size_t)err_cap, "truncated .bsnp world_rand: %s",
@@ -1140,6 +1145,15 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             free(cells); free(light); fclose(f); return 0;
         }
         r->world_rand.seed = wr & MC_JR_MASK;
+    }
+    if (h.version >= BLAZE_SNAP_VERSION_UPDATE_LCG) {
+        int lcg = 0;
+        if (fread(&lcg, sizeof lcg, 1, f) != 1) {
+            snprintf(err, (size_t)err_cap, "truncated .bsnp update_lcg: %s",
+                     path);
+            free(cells); free(light); fclose(f); return 0;
+        }
+        r->update_lcg = lcg;
     }
     fclose(f);
 

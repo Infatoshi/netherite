@@ -691,6 +691,40 @@ int gm_world_rt_parity_state(const GmWorld *w, uint64_t *digest,
     return 1;
 }
 
+static int gm_rt_in_parity(const GmWorld *w, int wx, int wy, int wz) {
+    if (!w || !w->parity_valid) return 1;
+    return wx >= w->parity_x0 && wx - w->parity_x0 < w->parity_nx &&
+           wy >= w->parity_y0 && wy - w->parity_y0 < w->parity_ny &&
+           wz >= w->parity_z0 && wz - w->parity_z0 < w->parity_nz;
+}
+
+int gm_world_rt_block(const GmWorld *w, int wx, int wy, int wz) {
+    if (!w) return 0;
+    if (!gm_rt_in_parity(w, wx, wy, wz)) return 0;
+    return gm_world_block(w, wx, wy, wz);
+}
+
+int gm_world_rt_meta(const GmWorld *w, int wx, int wy, int wz) {
+    if (!w) return 0;
+    if (!gm_rt_in_parity(w, wx, wy, wz)) return 0;
+    return gm_world_meta(w, wx, wy, wz);
+}
+
+int gm_world_rt_light(const GmWorld *w, int wx, int wy, int wz) {
+    int sky, blk;
+    if (!w) return 15;
+    if (!gm_rt_in_parity(w, wx, wy, wz)) return 15;
+    sky = gm_world_sky_light(w, wx, wy, wz);
+    blk = gm_world_block_light(w, wx, wy, wz);
+    return sky > blk ? sky : blk;
+}
+
+void gm_world_rt_set(GmWorld *w, int wx, int wy, int wz, int id, int meta) {
+    if (!w) return;
+    if (!gm_rt_in_parity(w, wx, wy, wz)) return;
+    gm_world_set_block_meta(w, wx, wy, wz, id, meta);
+}
+
 int gm_world_fall_parity_state(const GmWorld *w, uint64_t *digest,
                                unsigned *ncells, unsigned *mutations) {
     if (!w || !w->parity_valid || !digest || !ncells || !mutations) return 0;
