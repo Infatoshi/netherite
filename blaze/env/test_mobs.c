@@ -184,10 +184,50 @@ static int run_units(void) {
 
     expect(bits_eq_f(ml_melee_damage(EW_TYPE_ZOMBIE), 3.0f),
            "zombie ATTACK_DAMAGE is 3.0F");
+    expect(bits_eq_f(ml_melee_damage(EW_TYPE_SPIDER), 2.0f),
+           "spider ATTACK_DAMAGE is 2.0F (SharedMonsterAttributes default)");
+    expect(bits_eq_f(ehs_max_health(EW_TYPE_SPIDER), 16.0f),
+           "spider MAX_HEALTH is 16.0F");
+    {
+        float w, h;
+        ehs_size(EW_TYPE_SPIDER, &w, &h);
+        expect(bits_eq_f(w, 1.4f) && bits_eq_f(h, 0.9f),
+               "EntitySpider setSize 1.4x0.9");
+    }
+    expect(ml_is_roster(EW_TYPE_SPIDER), "spider is on the live roster");
+    expect(hs_is_roster(HS_SPIDER), "spider is on the spawn roster");
     expect(ml_drop_item(EW_TYPE_ZOMBIE) == 367, "zombie drops rotten flesh 367");
     expect(ml_drop_item(EW_TYPE_SKELETON) == 352, "skeleton drops bone 352");
     expect(ml_follow_range(EW_TYPE_ZOMBIE) == 40.0, "magma zombie follow 40");
     expect(ml_attack_cooldown(EW_TYPE_ZOMBIE) == 20, "zombie melee interval 20");
+    expect(ml_xp_points(EW_TYPE_SPIDER, 0) == 5, "EntityMob experienceValue is 5");
+    expect(ml_light_brightness(11) < 0.5f && ml_light_brightness(13) >= 0.5f,
+           "spider daylight threshold 0.5F is between light 11 and 13");
+    {
+        JavaRandom er;
+        MlDrop d[2];
+        int n, i, str, eye;
+        jrand_set(&er, 1);
+        n = ml_spider_drop(&er, 1, d, 2);
+        str = eye = 0;
+        for (i = 0; i < n; ++i) {
+            if (d[i].item == ML_ITEM_STRING) str = d[i].count;
+            if (d[i].item == ML_ITEM_SPIDER_EYE) eye = d[i].count;
+        }
+        expect(str >= 0 && str <= 2, "spider string drop is 0..2");
+        expect(eye == 0 || eye == 1, "spider eye is 0 or 1 on player kill");
+        expect(ml_xp_points(EW_TYPE_SPIDER, 0) == 5, "spider XP is 5");
+    }
+    {
+        RlSnapMob sp;
+        memset(&sp, 0, sizeof sp);
+        sp.type = EW_TYPE_SPIDER;
+        expect(!ml_spider_climbing(&sp), "spider climbing starts off");
+        ml_spider_set_climbing(&sp, 1);
+        expect(ml_spider_climbing(&sp), "setBesideClimbableBlock sets anger bit 0");
+        ml_spider_set_climbing(&sp, 0);
+        expect(!ml_spider_climbing(&sp), "clear climbing clears the bit");
+    }
 
     expect(ml_hurt_gate(&hurt, &last, 3.0f, &applied) == 1 && applied == 3.0f
            && hurt == ML_HURT_MAX,

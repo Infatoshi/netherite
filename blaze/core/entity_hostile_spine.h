@@ -71,11 +71,21 @@ MC_HD static inline float ehs_max_health(u8 type) {
     if (type == EW_TYPE_CHICKEN) return 4.0f;   /* EntityChicken.java:75 */
     if (type == EW_TYPE_PIG || type == EW_TYPE_COW) return 10.0f;
                                                /* EntityPig.java:73 EntityCow.java:56 */
+    if (type == EW_TYPE_SPIDER) return 16.0f;   /* EntitySpider.java:104 */
     if (type == EW_TYPE_ENDERMAN) return 40.0f;
     if (type == EW_TYPE_GHAST) return 10.0f;
     if (type == EW_TYPE_SILVERFISH) return 8.0f;
     if (type == EW_TYPE_BOAT) return 40.0f;
     return 20.0f;
+}
+
+/* EntitySlime.setSlimeSize MAX_HEALTH = size*size (EntitySlime.java:74). */
+MC_HD static inline float ehs_max_health_of(u8 type, int slime_size) {
+    if (type == EW_TYPE_SLIME || type == EW_TYPE_MAGMA) {
+        int s = slime_size > 0 ? slime_size : 2;
+        return (float)(s * s);
+    }
+    return ehs_max_health(type);
 }
 
 /* SharedMonsterAttributes.MOVEMENT_SPEED base from oracle applyEntityAttributes. */
@@ -98,6 +108,15 @@ MC_HD static inline float ehs_land_speed(u8 type) {
     case EW_TYPE_CHICKEN:  return 0.25f;                /* EntityChicken.java:76 */
     default:               return 0.23000000417232513f;
     }
+}
+
+/* EntitySlime.setSlimeSize MOVEMENT_SPEED = 0.2F + 0.1F * size (EntitySlime.java:75). */
+MC_HD static inline float ehs_land_speed_of(u8 type, int slime_size) {
+    if (type == EW_TYPE_SLIME || type == EW_TYPE_MAGMA) {
+        int s = slime_size > 0 ? slime_size : 1;
+        return 0.2f + 0.1f * (float)s;
+    }
+    return ehs_land_speed(type);
 }
 
 /* Entity*.setSize defaults used by the living spine box.
