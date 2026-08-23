@@ -270,7 +270,14 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_hash_one_mob(
     h = bp_hash_double(h, m->box_maxz);
     h = bp_hash_u64(h, m->seed48);
     h = bp_hash_i32(h, (int32_t)m->have_gauss);
-    return bp_hash_double(h, m->gauss);
+    h = bp_hash_double(h, m->gauss);
+    h = bp_hash_i32(h, m->screaming);
+    h = bp_hash_i32(h, m->carried);
+    h = bp_hash_i32(h, m->carried_meta);
+    h = bp_hash_i32(h, m->target_change_time);
+    h = bp_hash_i32(h, m->ticks_existed);
+    h = bp_hash_i32(h, m->find_aggro);
+    return bp_hash_i32(h, m->teleport_time);
 }
 
 BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest(
@@ -290,7 +297,7 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest_ext(
     float player_health, int32_t hurt_res, int32_t atk_cd,
     uint64_t items_h, int32_t n_items) {
     uint64_t h = blaze_snap_mobs_digest(mobs, n);
-    h = bp_hash_u32(h, UINT32_C(0x314d424d)); /* "MBM1" */
+    h = bp_hash_u32(h, UINT32_C(0x324d424d)); /* "MBM2" */
     h = bp_hash_float(h, player_health);
     h = bp_hash_i32(h, hurt_res);
     h = bp_hash_i32(h, atk_cd);
