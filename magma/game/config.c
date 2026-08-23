@@ -103,6 +103,7 @@ static int resolve_config(GmConfig *cfg, const CrConfig *r,
     cfg->daylight = r->daylight;
     cfg->mobs = r->mobs;
     cfg->natural_spawn = r->natural_spawn;
+    cfg->natural_spawn_passive = r->natural_spawn_passive;
     cfg->stats = r->stats;
 
     if (!strcmp(r->render, "window")) cfg->render = GM_RENDER_WINDOW;

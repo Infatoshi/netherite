@@ -365,6 +365,7 @@ typedef struct {
     unsigned n_mobs;
     int    mobs_enabled;
     int    natural_spawn;            /* WorldEntitySpawner MONSTER cycle */
+    int    natural_spawn_passive;    /* WorldEntitySpawner CREATURE cycle */
     unsigned long long spawn_world_seed48;
     unsigned long long spawn_math_seed48;
     unsigned long long spawn_shuffle_seed48;
@@ -912,6 +913,14 @@ MC_HD static inline int cu_hs_count(const Blaze *e) {
         if (e->mobs[i].alive && ehs_is_hostile((u8)e->mobs[i].type)) ++n;
     return n;
 }
+MC_HD static inline int cu_ps_count(const Blaze *e) {
+    unsigned i;
+    int n = 0;
+    if (!e) return 0;
+    for (i = 0; i < e->n_mobs; ++i)
+        if (e->mobs[i].alive && ehs_is_passive((u8)e->mobs[i].type)) ++n;
+    return n;
+}
 MC_HD static inline int cu_hs_hit(const Blaze *e, double x0, double y0, double z0,
                                   double x1, double y1, double z1) {
     unsigned i;
@@ -935,7 +944,7 @@ MC_HD static inline int cu_hs_hit(const Blaze *e, double x0, double y0, double z
 }
 MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, double z,
                                     float yaw, unsigned long long seed48, int have_g,
-                                    double g) {
+                                    double g, int extra) {
     unsigned i, used;
     int slot, id, max_id;
     float w, h;
@@ -970,7 +979,8 @@ MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, doub
     o->y = y;
     o->z = z;
     o->yaw = yaw;
-    o->health = 20.0f;
+    o->health = ehs_max_health((u8)type);
+    o->swell = extra;
     o->on_ground = 1;
     o->wander_x = x;
     o->wander_z = z;
@@ -998,14 +1008,18 @@ MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, doub
 #define HS_BLK(e, x, y, z) cu_world_blk((e), (x), (y), (z))
 #define HS_HOSTILE_COUNT(e) cu_hs_count(e)
 #define HS_MOB_HIT(e, x0, y0, z0, x1, y1, z1) cu_hs_hit((e), (x0), (y0), (z0), (x1), (y1), (z1))
-#define HS_PLACE(e, type, x, y, z, yaw, seed48, have_g, g) \
-    cu_hs_place((e), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g))
+#define HS_PLACE(e, type, x, y, z, yaw, seed48, have_g, g, extra) \
+    cu_hs_place((e), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g), (extra))
+#define HS_CREATURE_COUNT(e) cu_ps_count(e)
 #include "hostile_spawn.h"
+#define ML_SKY(e, x, y, z) cu_world_sky((e), (x), (y), (z))
+#define ML_BLK(e, x, y, z) cu_world_blk((e), (x), (y), (z))
+#include "passive_live.h"
 
 MC_HD static inline void cu_hs_run(Blaze *e) {
     HsState st;
     double px, py, pz;
-    if (!e || !e->natural_spawn) return;
+    if (!e || (!e->natural_spawn && !e->natural_spawn_passive)) return;
     memset(&st, 0, sizeof st);
     st.world_rand.seed = e->spawn_world_seed48;
     st.math_rand.seed = e->spawn_math_seed48;
@@ -1020,7 +1034,10 @@ MC_HD static inline void cu_hs_run(Blaze *e) {
     px = e->pl.ent.posX + (double)e->ox;
     py = e->pl.ent.posY;
     pz = e->pl.ent.posZ + (double)e->oz;
-    hs_find_chunks_for_spawning(e, &st, px, py, pz);
+    if (e->natural_spawn)
+        hs_find_chunks_for_spawning(e, &st, px, py, pz);
+    if (e->natural_spawn_passive && (e->ww.worldTime % 400LL) == 0LL)
+        hs_find_chunks_for_creatures(e, &st, px, py, pz);
     e->spawn_world_seed48 = st.world_rand.seed;
     e->spawn_math_seed48 = st.math_rand.seed;
     e->spawn_shuffle_seed48 = st.shuffle_rand.seed;
@@ -1293,9 +1310,43 @@ MC_HD static inline int cu_hurt_player(Blaze *e, float amount, int bypass_armor)
     return gate;
 }
 
+MC_HD static inline void cu_spawn_xp(Blaze *e, double x, double y, double z, int value) {
+    if (!e || value <= 0) return;
+    while (value > 0) {
+        int amount = xl_xp_split(value);
+        int eid = e->next_orb_id;
+        u64 h = mc_hash64((u64)e->seed ^ (u64)eid);
+        double angle = (double)(h & 0xffffu) * (2.0 * MC_PI / 65536.0);
+        double speed = (double)((h >> 16) & 0xffffu) * (0.2 / 65535.0);
+        double mx = -sin(angle) * speed;
+        double mz = cos(angle) * speed;
+        value -= amount;
+        if (!xl_spawn(e->orbs, XL_MAX, &e->next_orb_id, e->orb_dim, 0,
+                      x, y, z, amount, mx, 0.2, mz))
+            return;
+    }
+}
+
 MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
     int item;
     if (!e || !m) return;
+    if (pl_is_roster(m->type)) {
+        JavaRandom er;
+        PlDrop drops[4];
+        int n, i, xp;
+        er.seed = m->seed48;
+        n = pl_drop_few(m->type, pl_sheep_sheared(m->swell),
+                        pl_sheep_color(m->swell), &er, drops, 4);
+        xp = pl_xp_points(&er);
+        m->seed48 = er.seed;
+        for (i = 0; i < n; ++i)
+            cu_spawn_item(e, m->x, m->y + 0.25, m->z,
+                          drops[i].item, drops[i].count, drops[i].meta, 10);
+        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
+        m->alive = 0;
+        m->type = EW_TYPE_NONE;
+        return;
+    }
     item = ml_drop_item(m->type);
     if (item)
         cu_spawn_item(e, m->x, m->y + 0.25, m->z, item, 1, 0, 10);
@@ -1316,6 +1367,10 @@ MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
     if (e->player_attack_cooldown > 0) return 1;
     held = isr_get_stack(&e->pl.inv, e->pl.inv.current_item).item;
     e->mobs[best].health -= ml_held_damage(held);
+    if (pl_is_roster(e->mobs[best].type)) {
+        e->mobs[best].panic = PL_REVENGE_TICKS;
+        e->mobs[best].task_bits = EW_AI_IDLE;
+    }
     {
         double xRatio = px - e->mobs[best].x;
         double zRatio = pz - e->mobs[best].z;
@@ -1414,6 +1469,19 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
         MlMob mm;
         MlAiOut o;
         int pre, drop_type;
+        if (e->mobs[i].alive && pl_is_roster(e->mobs[i].type)) {
+            PlAiOut po;
+            cu_mob_from_env(&mm, e, i);
+            pl_passive_pre(&mm);
+            pl_passive_ai(&mm, e, &po);
+            if (!mm.snap.alive) {
+                cu_mob_to_env(e, i, &mm);
+                continue;
+            }
+            pl_move_passive(&mm, e, st, po.moving, po.jump, po.speed_mul);
+            cu_mob_to_env(e, i, &mm);
+            continue;
+        }
         if (!e->mobs[i].alive || !ml_is_roster(e->mobs[i].type)) {
             /* Boats tick in cu_boat_tick, not the living spine. */
             if (e->mobs[i].type == EW_TYPE_BOAT) continue;
@@ -1445,6 +1513,7 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
                                    mc_floor(liv.base.phys.posZ));
             slip = ess_slip_on_ground(&liv, under);
             ess_tick_living(&liv, slip, blocks, n, st);
+            ess_chicken_glide(&liv, m->type);
             ess_store_snap(m, &liv);
             continue;
         }

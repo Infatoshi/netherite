@@ -143,6 +143,8 @@ typedef struct {
     float boat_glide[EW_MAX_ENTITIES];
     /* WorldEntitySpawner MONSTER cycle (hostile_spawn.h). Default 0. */
     int natural_spawn;
+    /* WorldEntitySpawner CREATURE cycle. Default 0 so tape gates stay PASS. */
+    int natural_spawn_passive;
     unsigned long long spawn_world_seed48;
     unsigned long long spawn_math_seed48;
     unsigned long long spawn_shuffle_seed48;

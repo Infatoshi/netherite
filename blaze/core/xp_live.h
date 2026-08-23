@@ -63,16 +63,27 @@ typedef struct {
 #define XL_MOB_XP 5                       /* EntityMob.java:27 */
 #define XL_SPLIT_N 11
 
-/* EntityXPOrb.getXPSplit EntityXPOrb.java:298-301. */
-static const int xl_split_tab[XL_SPLIT_N] = {
-    2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3, 1
-};
+/* EntityXPOrb.getXPSplit EntityXPOrb.java:298-301. Function not array:
+ * nvcc rejects host static const tables in device code. */
+MC_HD static inline int xl_split_at(int i) {
+    if (i == 0) return 2477;
+    if (i == 1) return 1237;
+    if (i == 2) return 617;
+    if (i == 3) return 307;
+    if (i == 4) return 149;
+    if (i == 5) return 73;
+    if (i == 6) return 37;
+    if (i == 7) return 17;
+    if (i == 8) return 7;
+    if (i == 9) return 3;
+    return 1;
+}
 
 MC_HD static inline int xl_xp_split(int value) {
     int i;
     if (value <= 0) return 1;
     for (i = 0; i < XL_SPLIT_N; ++i)
-        if (value >= xl_split_tab[i]) return xl_split_tab[i];
+        if (value >= xl_split_at(i)) return xl_split_at(i);
     return 1;
 }
 

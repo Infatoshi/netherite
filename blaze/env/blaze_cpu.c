@@ -88,6 +88,7 @@ typedef struct {
     int    no_ore_xy;        /* create-time: skip ore spatial index on load */
     int    mobs_enabled;     /* magma --mobs on: hostile AI/combat live tick */
     int    natural_spawn;    /* WorldEntitySpawner MONSTER cycle */
+    int    natural_spawn_passive;
     i64    world_time_pin;   /* -1 unset; else ww.worldTime after reset */
     int    elytra_kit;       /* magma --elytra on: chest 443 after reset */
 } CuVec;
@@ -132,6 +133,17 @@ int blaze_set_natural_spawn(void *vh, int on) {
     if (v->envs)
         for (i = 0; i < v->n; ++i)
             v->envs[i].natural_spawn = v->natural_spawn;
+    return 0;
+}
+
+int blaze_set_natural_spawn_passive(void *vh, int on) {
+    CuVec *v = (CuVec *)vh;
+    int i;
+    if (!v) return -1;
+    v->natural_spawn_passive = on ? 1 : 0;
+    if (v->envs)
+        for (i = 0; i < v->n; ++i)
+            v->envs[i].natural_spawn_passive = v->natural_spawn_passive;
     return 0;
 }
 
@@ -376,6 +388,7 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->orbs, s->n_orbs, v->success_item);
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
+    v->envs[i].natural_spawn_passive = v->natural_spawn_passive;
     if (v->world_time_pin >= 0)
         v->envs[i].ww.worldTime = v->world_time_pin;
     v->envs[i].elytra_kit = v->elytra_kit;

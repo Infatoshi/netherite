@@ -31,6 +31,7 @@ typedef struct {
      * replays and planted-mob lockstep fixtures keep their entity set.
      * Magma/blaze share the knob; not an env var. */
     int natural_spawn;
+    int natural_spawn_passive;
     /* Live per-second frame timing stats on stderr (--stats on). Window loop
      * only; piggybacks on the bench stamp slots, no sim state touched. */
     int stats;

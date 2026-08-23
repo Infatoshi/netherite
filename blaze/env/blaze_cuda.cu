@@ -144,6 +144,7 @@ typedef struct {
                        * 0 = never. Applied to envs at their next reset. */
     int mobs_enabled; /* magma --mobs on: hostile AI/combat live tick */
     int natural_spawn;
+    int natural_spawn_passive;
     long long world_time_pin;
     int elytra_kit;   /* magma --elytra on: chest 443 after reset */
     int legacy_recenter;  /* create opts: A/B fallback to the serial-recenter
@@ -187,6 +188,7 @@ int blaze_set_reward_gate(void *vh, double dist_gate);
 int blaze_set_success_item(void *vh, int item);
 int blaze_set_mobs_enabled(void *vh, int on);
 int blaze_set_natural_spawn(void *vh, int on);
+int blaze_set_natural_spawn_passive(void *vh, int on);
 int blaze_set_world_time(void *vh, long long world_time);
 int blaze_set_elytra_enabled(void *vh, int on);
 int blaze_reset(void *vh, const unsigned char *mask);
@@ -214,7 +216,8 @@ int blaze_op_trace(void *vh, unsigned long long *out);
 __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                                const CuSnapDev *snaps, const int *assign,
                                int success_item, int mobs_enabled,
-                               int natural_spawn, long long world_time_pin,
+                               int natural_spawn, int natural_spawn_passive,
+                               long long world_time_pin,
                                int elytra_kit) {
     int gi = blockIdx.x * blockDim.x + threadIdx.x;
     if (gi >= nactive) return;
@@ -225,6 +228,7 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                        s->mobs, s->n_mobs, s->orbs, s->n_orbs, success_item);
     envs[i].mobs_enabled = mobs_enabled;
     envs[i].natural_spawn = natural_spawn;
+    envs[i].natural_spawn_passive = natural_spawn_passive;
     if (world_time_pin >= 0)
         envs[i].ww.worldTime = world_time_pin;
     envs[i].elytra_kit = elytra_kit;
@@ -1186,6 +1190,26 @@ int blaze_set_natural_spawn(void *vh, int on) {
     return 0;
 }
 
+int blaze_set_natural_spawn_passive(void *vh, int on) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int i, flag;
+    if (!v) return -1;
+    v->natural_spawn_passive = on ? 1 : 0;
+    flag = v->natural_spawn_passive;
+    if (v->h_envs)
+        for (i = 0; i < v->n; ++i)
+            v->h_envs[i].natural_spawn_passive = flag;
+    if (v->d_envs) {
+        cudaSetDevice(v->device);
+        for (i = 0; i < v->n; ++i) {
+            if (cudaMemcpy(&v->d_envs[i].natural_spawn_passive, &flag,
+                           sizeof flag, cudaMemcpyHostToDevice) != cudaSuccess)
+                return -1;
+        }
+    }
+    return 0;
+}
+
 int blaze_set_world_time(void *vh, long long world_time) {
     CuVecCu *v = (CuVecCu *)vh;
     int i;
@@ -1275,7 +1299,7 @@ int blaze_reset(void *vh, const unsigned char *mask) {
     k_reset_scalar<<<(nact + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
         v->d_envs, v->d_active, nact, v->d_snaps, v->d_assign,
         v->success_item, v->mobs_enabled, v->natural_spawn,
-        v->world_time_pin, v->elytra_kit);
+        v->natural_spawn_passive, v->world_time_pin, v->elytra_kit);
     /* all snapshots share the pool dims, so the bulk count is uniform - the
      * grass census grid is sized off the dims alone for exactly this reason
      * (cu_grass_grid_init); keep this in step with cu_reset_bulk_count. */

@@ -249,6 +249,7 @@ typedef struct GmRuntime {
     float rain_strength, thunder_strength;
     int mobs_enabled; /* --mobs off skips AI/spawn; spine still ticks */
     int natural_spawn; /* WorldEntitySpawner MONSTER cycle; default 0 */
+    int natural_spawn_passive; /* WorldEntitySpawner CREATURE; default 0 */
     /* Live/window random block ticks (game/randtick.c). Default ON for interactive
      * play and unit tests; script/tape replay sets 0 so the unseedable oracle
      * world RNG is not approximated here. */

@@ -26,8 +26,9 @@ typedef struct {
 
 static int gm_hs_place(GmHsWorld *h, int type, double x, double y, double z,
                        float yaw, unsigned long long seed48, int have_g,
-                       double g);
+                       double g, int extra);
 static int gm_hs_count(const GmHsWorld *h);
+static int gm_ps_count(const GmHsWorld *h);
 static int gm_hs_hit(const GmHsWorld *h, double x0, double y0, double z0,
                      double x1, double y1, double z1);
 static int gm_hs_in_clip(const GmHsWorld *h, int x, int y, int z);
@@ -41,9 +42,13 @@ static int gm_hs_blk(const GmHsWorld *h, int x, int y, int z);
 #define HS_BLK(h, x, y, z) gm_hs_blk((h), (x), (y), (z))
 #define HS_HOSTILE_COUNT(h) gm_hs_count(h)
 #define HS_MOB_HIT(h, x0, y0, z0, x1, y1, z1) gm_hs_hit((h), (x0), (y0), (z0), (x1), (y1), (z1))
-#define HS_PLACE(h, type, x, y, z, yaw, seed48, have_g, g) \
-    gm_hs_place((h), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g))
+#define HS_PLACE(h, type, x, y, z, yaw, seed48, have_g, g, extra) \
+    gm_hs_place((h), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g), (extra))
+#define HS_CREATURE_COUNT(h) gm_ps_count(h)
 #include "hostile_spawn.h"
+#define ML_SKY(w, x, y, z) gm_world_sky_light((w), (x), (y), (z))
+#define ML_BLK(w, x, y, z) gm_world_block_light((w), (x), (y), (z))
+#include "passive_live.h"
 #include "xp_live.h"
 #define BL_W GmWorld
 #define BL_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
@@ -328,8 +333,12 @@ static int is_slime_chunk(long long world_seed, int cx, int cz) {
 }
 
 static void mark_hurt(GmMobLive *m, EwStore *s, int slot) {
+    if (gm_passive(s->type[slot])) {
+        m->panic_ticks[slot] = GM_MOB_REVENGE_TICKS;
+        s->path_len[slot] = 0;
+        s->ai_state[slot] = EW_AI_IDLE;
+    }
     m->hurt_aggro[slot] = 1;
-    if (gm_passive(s->type[slot])) m->panic_ticks[slot] = GM_MOB_REVENGE_TICKS;
     /* EntityPigZombie.becomeAngryAt + AIHurtByAggressor group help. */
     if (s->type[slot] == EW_TYPE_PIGMAN) {
         u64 h = mc_hash_seed((u64)m->seed, m->tick, slot, s->id[slot], 0, 0x414E4752u);
@@ -2286,15 +2295,23 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
     case EW_TYPE_SILVERFISH:
         item = 0; xp = 5; break;
     case EW_TYPE_SHEEP:
-        item = 35; xp = 1;
-        gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i], 423, 1, 0, 10); break;
-    case EW_TYPE_PIG: item = 319; xp = 1; break;
+    case EW_TYPE_PIG:
     case EW_TYPE_COW:
-        item = 363; xp = 1;
-        gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i], 334, 1, 0, 10); break;
-    case EW_TYPE_CHICKEN:
-        item = 365; xp = 1;
-        gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i], 288, 1, 0, 10); break;
+    case EW_TYPE_CHICKEN: {
+        JavaRandom er;
+        PlDrop pd[4];
+        int nd, di;
+        er.seed = m->ent_jr_seed[i];
+        nd = pl_drop_few(type, pl_sheep_sheared(m->creeper_fuse[i]),
+                         pl_sheep_color(m->creeper_fuse[i]), &er, pd, 4);
+        xp = pl_xp_points(&er);
+        m->ent_jr_seed[i] = er.seed;
+        for (di = 0; di < nd; ++di)
+            gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i],
+                               pd[di].item, pd[di].count, pd[di].meta, 10);
+        item = 0;
+        break;
+    }
     case EW_TYPE_BOAT:
         item = 333; xp = 0; break;
     default: break;
@@ -2995,6 +3012,16 @@ static int gm_hs_count(const GmHsWorld *h) {
     return n;
 }
 
+static int gm_ps_count(const GmHsWorld *h) {
+    const EwStore *s;
+    int i, n = 0;
+    if (!h || !h->s) return 0;
+    s = h->s;
+    for (i = 1; i < EW_MAX_ENTITIES; ++i)
+        if (s->alive[i] && ehs_is_passive(s->type[i])) ++n;
+    return n;
+}
+
 static int gm_hs_hit(const GmHsWorld *h, double x0, double y0, double z0,
                      double x1, double y1, double z1) {
     const EwStore *s;
@@ -3020,14 +3047,15 @@ static int gm_hs_hit(const GmHsWorld *h, double x0, double y0, double z0,
 
 static int gm_hs_place(GmHsWorld *h, int type, double x, double y, double z,
                        float yaw, unsigned long long seed48, int have_g,
-                       double g) {
+                       double g, int extra) {
     EwStore *s;
     GmMobLive *m;
     int slot;
     if (!h || !h->m || !h->s) return 0;
     m = h->m;
     s = h->s;
-    slot = ew_store_spawn(s, (u8)type, m->next_id++, x, y, z, max_health(type, 1));
+    slot = ew_store_spawn(s, (u8)type, m->next_id++, x, y, z,
+                          ehs_max_health((u8)type));
     if (slot < 0) return 0;
     m->entity_dimension[slot] = (signed char)m->active_dimension;
     reset_slot_state_s(m, s, slot);
@@ -3055,6 +3083,9 @@ static int gm_hs_place(GmHsWorld *h, int type, double x, double y, double z,
                                         x + (double)hf, y + (double)bh, z + (double)hf);
         m->det_box_on[slot] = 1;
     }
+    if (type == EW_TYPE_SHEEP)
+        m->creeper_fuse[slot] = extra; /* packed fleece + sheared */
+    (void)extra;
     return 1;
 }
 
@@ -3082,7 +3113,11 @@ static void gm_hs_run(GmMobLive *m, GmWorld *w, EwStore *s,
     st.spawn_x = 0.0;
     st.spawn_y = 64.0;
     st.spawn_z = 0.0;
-    hs_find_chunks_for_spawning(&hw, &st, px, py, pz);
+    if (m->natural_spawn)
+        hs_find_chunks_for_spawning(&hw, &st, px, py, pz);
+    /* WorldServer.java:206 spawnOnSetTickRate = totalTime % 400L == 0. */
+    if (m->natural_spawn_passive && (world_time % 400LL) == 0LL)
+        hs_find_chunks_for_creatures(&hw, &st, px, py, pz);
     m->spawn_world_seed48 = st.world_rand.seed;
     m->spawn_math_seed48 = st.math_rand.seed;
     m->spawn_shuffle_seed48 = st.shuffle_rand.seed;
@@ -3093,10 +3128,11 @@ static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
     discover_spawners(m, w, px, py, pz, dimension);
     tick_spawners(m, w, s, px, py, pz);
 
-    if (!m->natural_spawn) return;
+    if (!m->natural_spawn && !m->natural_spawn_passive) return;
 
     if (dimension == -1) {
-        nether_natural_spawn(m, w, s, px, py, pz);
+        if (m->natural_spawn)
+            nether_natural_spawn(m, w, s, px, py, pz);
         return;
     }
     if (dimension != 0) return;
@@ -3275,9 +3311,35 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 }
             }
         }
-        if(passive || (pai_det() && pai_det_ai(type) && !aggro)){
+        if(pai_det() && pai_det_ai(type) && !aggro){
             pai_tick(m,w,nx,i,px,py,pz,mob_griefing,
                      &moving,&jump,&wandering,&swim_jump,&nav_speed);
+        }else if(passive && !pai_det()){
+            MlMob mm;
+            PlAiOut po;
+            ml_load_slot(&mm, m, nx, i);
+            mm.snap.panic = m->panic_ticks[i];
+            mm.snap.swell = m->creeper_fuse[i];
+            mm.snap.see_time = m->det_see_time[i];
+            pl_passive_pre(&mm);
+            pl_passive_ai(&mm, w, &po);
+            ml_save_slot(m, nx, i, &mm);
+            m->panic_ticks[i] = mm.snap.panic;
+            m->creeper_fuse[i] = mm.snap.swell;
+            m->det_see_time[i] = mm.snap.see_time;
+            m->entity_age[i] = mm.despawn_ticks;
+            if (!nx->alive[i]) {
+                if (mm.snap.health <= 0.0f)
+                    mob_drop(m, nx, i, drops);
+                continue;
+            }
+            pl_move_passive(&mm, w, st, po.moving, po.jump, po.speed_mul);
+            ml_save_slot(m, nx, i, &mm);
+            m->panic_ticks[i] = mm.snap.panic;
+            m->creeper_fuse[i] = mm.snap.swell;
+            m->det_see_time[i] = mm.snap.see_time;
+            m->entity_age[i] = mm.despawn_ticks;
+            continue;
         }else if(hai_ok(type) && !pai_det()){
             MlMob mm;
             MlAiOut o;
@@ -3643,6 +3705,7 @@ void gm_mobs_tick_spine(GmMobLive *m, GmWorld *w, const struct McSinTable *st_) 
                                mc_floor(liv.base.phys.posZ));
         slip = ess_slip_on_ground(&liv, under);
         ess_tick_living(&liv, slip, blocks, n, st);
+        ess_chicken_glide(&liv, (int)now->type[i]);
         ehs_store_living(nx, i, &liv);
         m->det_box[i] = liv.base.phys.box;
         m->det_box_on[i] = 1;
