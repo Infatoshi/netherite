@@ -22,8 +22,11 @@ static int fail;
 static void force_ticks(GmWorld *w, long long seed, int x, int y, int z,
                         int n, const McGameRules *gr) {
     int t;
-    for (t = 0; t < n; ++t)
-        gm_randtick_block(w, x, y, z, seed, (long long)t, gr);
+    JavaRandom rng;
+    for (t = 0; t < n; ++t) {
+        jrand_set(&rng, seed + (long long)t);
+        gm_randtick_block(w, x, y, z, &rng, gr);
+    }
 }
 
 int main(void)
@@ -66,7 +69,11 @@ int main(void)
         CHECK(gm_runtime_set_block(&r, X + 3, Y + 1, Z, 0, 0), "air above dirt");
         /* force many ticks so at least one of the 4 spread attempts hits X+3 */
         for (t = 0; t < 200 && !became; ++t) {
-            gm_randtick_block(r.world, X + 2, Y, Z, SEED, (long long)t, &gr);
+            {
+                JavaRandom rng;
+                jrand_set(&rng, SEED + (long long)t);
+                gm_randtick_block(r.world, X + 2, Y, Z, &rng, &gr);
+            }
             if (gm_world_block(r.world, X + 3, Y, Z) == 2) became = 1;
         }
         CHECK(became, "grass spreads to adjacent lit dirt within 200 forced ticks");
@@ -79,7 +86,11 @@ int main(void)
         int meta = 8;
         CHECK(gm_runtime_set_block(&r, X + 5, Y + 2, Z, 18, meta), "place checking leaves");
         /* clear any nearby logs that worldgen might have left in superflat (none) */
-        gm_randtick_block(r.world, X + 5, Y + 2, Z, SEED, 0, &gr);
+        {
+            JavaRandom rng;
+            jrand_set(&rng, SEED);
+            gm_randtick_block(r.world, X + 5, Y + 2, Z, &rng, &gr);
+        }
         CHECK(gm_world_block(r.world, X + 5, Y + 2, Z) == 0,
               "unsupported leaves decay to air (no sapling drop path)");
     }
@@ -89,7 +100,11 @@ int main(void)
         int meta = 8;
         CHECK(gm_runtime_set_block(&r, X + 6, Y + 2, Z, 17, 0), "log support");
         CHECK(gm_runtime_set_block(&r, X + 7, Y + 2, Z, 18, meta), "leaves next to log");
-        gm_randtick_block(r.world, X + 7, Y + 2, Z, SEED, 1, &gr);
+        {
+            JavaRandom rng;
+            jrand_set(&rng, SEED + 1);
+            gm_randtick_block(r.world, X + 7, Y + 2, Z, &rng, &gr);
+        }
         CHECK(gm_world_block(r.world, X + 7, Y + 2, Z) == 18, "supported leaves remain");
         CHECK((gm_world_meta(r.world, X + 7, Y + 2, Z) & 8) == 0,
               "supported leaves clear CHECK_DECAY");
@@ -105,7 +120,11 @@ int main(void)
         CHECK(gm_runtime_set_block(&r, X + 11, Y, Z, 5, 0), "planks neighbor 2");
 
         for (t = 0; t < 80; ++t) {
-            gm_randtick_block(r.world, X + 10, Y, Z, SEED, (long long)t, &gr);
+            {
+                JavaRandom rng;
+                jrand_set(&rng, SEED + (long long)t);
+                gm_randtick_block(r.world, X + 10, Y, Z, &rng, &gr);
+            }
             /* fire may move onto the planks cell or age on the origin */
             if (gm_world_block(r.world, X + 10, Y, Z + 1) == 51 ||
                 gm_world_block(r.world, X + 11, Y, Z) == 51)
@@ -153,11 +172,20 @@ int main(void)
         gm_runtime_set_block(&r, X, Y + 5, Z, 2, 0);
         gm_runtime_set_block(&r, X, Y + 6, Z, 1, 0);
         before = gm_world_block(r.world, X, Y + 5, Z);
-        gm_randtick_pass(r.world, SEED, 0, 0, 0, 2, &zero);
+        {
+            JavaRandom rng;
+            i32 lcg = 0;
+            jrand_set(&rng, SEED);
+            gm_randtick_pass(r.world, &rng, &lcg, 0, 0, 0, 0, 2, &zero);
+        }
         after = gm_world_block(r.world, X, Y + 5, Z);
         CHECK(before == 2 && after == 2, "randomTickSpeed 0 leaves grass alone");
         /* with default speed, forced block still dies */
-        gm_randtick_block(r.world, X, Y + 5, Z, SEED, 0, &gr);
+        {
+            JavaRandom rng;
+            jrand_set(&rng, SEED);
+            gm_randtick_block(r.world, X, Y + 5, Z, &rng, &gr);
+        }
         CHECK(gm_world_block(r.world, X, Y + 5, Z) == 3,
               "direct block tick still works when pass is gated by speed");
     }
@@ -169,8 +197,12 @@ int main(void)
         int wx, wy, wz, mismatch = 0;
         GmConfig c2 = cfg;
         c2.seed = 7;
+        JavaRandom ra, rb;
+        i32 lcga = 0, lcgb = 0;
         CHECK(gm_runtime_init(&a, &c2, e2, sizeof e2), "det runtime A");
         CHECK(gm_runtime_init(&b, &c2, e2, sizeof e2), "det runtime B");
+        jrand_set(&ra, 7);
+        jrand_set(&rb, 7);
         gm_world_ensure(a.world, 0, 0, 1);
         gm_world_ensure(b.world, 0, 0, 1);
         /* plant a small grass/dirt/fire fixture in both worlds identically */
@@ -186,8 +218,8 @@ int main(void)
         gm_runtime_set_block(&a, 5, 5, 7, 0, 0);
         gm_runtime_set_block(&b, 5, 5, 7, 0, 0);
         for (wy = 0; wy < 40; ++wy) {
-            gm_randtick_pass(a.world, 7, wy, 0, 0, 1, &gr);
-            gm_randtick_pass(b.world, 7, wy, 0, 0, 1, &gr);
+            gm_randtick_pass(a.world, &ra, &lcga, 0, 0, 0, 0, 1, &gr);
+            gm_randtick_pass(b.world, &rb, &lcgb, 0, 0, 0, 0, 1, &gr);
         }
         for (wx = 0; wx < 16 && !mismatch; ++wx)
             for (wz = 0; wz < 16 && !mismatch; ++wz)
@@ -210,11 +242,40 @@ int main(void)
         CHECK(gm_runtime_set_block(&r, X + 14, Y - 1, Z, 60, 7), "farmland moist");
         CHECK(gm_runtime_set_block(&r, X + 14, Y, Z, 141, 0), "carrot age 0");
         age0 = gm_world_meta(r.world, X + 14, Y, Z) & 15;
-        for (t = 0; t < 500; ++t)
-            gm_randtick_block(r.world, X + 14, Y, Z, SEED, (long long)t, &gr);
+        for (t = 0; t < 500; ++t) {
+            JavaRandom rng;
+            jrand_set(&rng, SEED + (long long)t);
+            gm_randtick_block(r.world, X + 14, Y, Z, &rng, &gr);
+        }
         age1 = gm_world_meta(r.world, X + 14, Y, Z) & 15;
         CHECK(gm_world_block(r.world, X + 14, Y, Z) == 141, "carrot still present");
         CHECK(age1 > age0, "carrot ages under forced BlockCrops rolls");
+    }
+
+    /* ---- 8. updateLCG sequence matches World.java:96 for seed 0 ---- */
+    {
+        i32 lcg = 0;
+        i32 j1;
+        int lx, ly, lz;
+        /* Same int32 wrap as rt_live_step_lcg / World.java:96. */
+        {
+            u32 u = (u32)lcg;
+            u = u * 3u + 1013904223u;
+            lcg = (i32)u;
+            j1 = lcg >> 2;
+        }
+        lx = j1 & 15; lz = (j1 >> 8) & 15; ly = (j1 >> 16) & 15;
+        CHECK(lcg == 1013904223, "updateLCG step 0 value");
+        CHECK(lx == 7 && ly == 11 && lz == 12, "updateLCG step 0 local xyz");
+        {
+            u32 u = (u32)lcg;
+            u = u * 3u + 1013904223u;
+            lcg = (i32)u;
+            j1 = lcg >> 2;
+        }
+        lx = j1 & 15; lz = (j1 >> 8) & 15; ly = (j1 >> 16) & 15;
+        CHECK(lcg == -239350404, "updateLCG step 1 wrap");
+        CHECK(lx == 15 && ly == 14 && lz == 3, "updateLCG step 1 local xyz");
     }
 
     gm_runtime_destroy(&r);

@@ -130,9 +130,19 @@ static int write_bsnp_ex(const char *path, int ntab, const int *wx,
       free(coal);
       return -1;
     }
-    if (h.version >= BLAZE_SNAP_VERSION) {
+    if (h.version >= BLAZE_SNAP_VERSION_WORLD_RAND) {
       unsigned long long wr = 0;
       if (fwrite(&wr, sizeof wr, 1, f) != 1) {
+        fclose(f);
+        free(cells);
+        free(light);
+        free(coal);
+        return -1;
+      }
+    }
+    if (h.version >= BLAZE_SNAP_VERSION_UPDATE_LCG) {
+      int lcg = 0;
+      if (fwrite(&lcg, sizeof lcg, 1, f) != 1) {
         fclose(f);
         free(cells);
         free(light);

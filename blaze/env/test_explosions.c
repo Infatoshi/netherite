@@ -239,15 +239,17 @@ static int run_units(void) {
         a.cells = (unsigned short *)calloc(8, sizeof(unsigned short));
         a.light = (unsigned char *)calloc(8, 1);
         a.world_rand_seed = 0x123456789abULL & ((1ULL << 48) - 1);
+        a.update_lcg = 0x12345678;
         expect(a.cells && a.light, "tiny snapshot alloc");
         expect(blaze_snapshot_write(pa, &a, err, (int)sizeof err),
-               "write v5 world_rand");
+               "write current snapshot");
         memset(&b, 0, sizeof b);
         expect(blaze_snapshot_load(pa, &b, err, (int)sizeof err, 1),
-               "load v5 world_rand");
-        expect(b.head.version == BLAZE_SNAP_VERSION, "loaded version is 5");
+               "load current snapshot");
+        expect(b.head.version == BLAZE_SNAP_VERSION, "loaded version is current");
         expect(b.world_rand_seed == a.world_rand_seed,
                "world_rand_seed round-trips");
+        expect(b.update_lcg == a.update_lcg, "update_lcg round-trips");
         expect(blaze_snapshot_write(pb, &b, err, (int)sizeof err),
                "rewrite v5");
         blaze_snapshot_free(&a);

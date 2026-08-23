@@ -391,14 +391,17 @@ BP_HD static inline uint64_t bp_randtick_cells_replace(
 
 BP_HD static inline uint64_t bp_randtick_digest_begin(void) {
     uint64_t h = bp_hash_begin();
-    return bp_hash_u32(h, UINT32_C(0x314b5452)); /* "RTK1" */
+    return bp_hash_u32(h, UINT32_C(0x324b5452)); /* "RTK2" World.rand+updateLCG */
 }
 
 BP_HD static inline uint64_t bp_randtick_digest_finish(
-    uint64_t h, uint64_t cells_xor, uint32_t ncells, uint32_t mutations) {
+    uint64_t h, uint64_t cells_xor, uint32_t ncells, uint32_t mutations,
+    uint64_t world_rand_seed, int32_t update_lcg) {
     h = bp_hash_u64(h, cells_xor);
     h = bp_hash_u32(h, ncells);
-    return bp_hash_u32(h, mutations);
+    h = bp_hash_u32(h, mutations);
+    h = bp_hash_u64(h, world_rand_seed);
+    return bp_hash_i32(h, update_lcg);
 }
 
 /* Magma live_sim.c: sand 12, gravel 13. */

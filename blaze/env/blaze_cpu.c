@@ -387,6 +387,7 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->cont, s->ncont, s->mobs, s->n_mobs,
                               s->orbs, s->n_orbs, s->world_rand_seed,
                               v->success_item);
+    v->envs[i].update_lcg = s->update_lcg;
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
     v->envs[i].natural_spawn_passive = v->natural_spawn_passive;

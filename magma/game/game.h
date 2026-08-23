@@ -324,6 +324,13 @@ int       gm_world_fluid_parity_state(const GmWorld *w, uint64_t *digest,
  * configured parity region plus live count and mutation count. */
 int       gm_world_rt_parity_state(const GmWorld *w, uint64_t *digest,
                                    unsigned *ncells, unsigned *mutations);
+/* Snapshot-region clip for the live random-tick pass: outside the configured
+ * parity AABB reads as air (blaze cu_world_block). parity_valid=0 is the
+ * full world (interactive / unit tests without a snapshot). */
+int       gm_world_rt_block(const GmWorld *w, int wx, int wy, int wz);
+int       gm_world_rt_meta(const GmWorld *w, int wx, int wy, int wz);
+int       gm_world_rt_light(const GmWorld *w, int wx, int wy, int wz);
+void      gm_world_rt_set(GmWorld *w, int wx, int wy, int wz, int id, int meta);
 /* XOR of gravity-block cell tokens (sand/gravel) in the configured parity
  * region plus live count and mutation count. */
 int       gm_world_fall_parity_state(const GmWorld *w, uint64_t *digest,

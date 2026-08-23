@@ -322,6 +322,8 @@ typedef struct {
     int ox, oz, ccx, ccz;        /* physics window origin */
     long long tick, seed;
     JavaRandom world_rand;       /* World.rand (World.java:108); snapshot v5 */
+    i32        update_lcg;       /* World.updateLCG (World.java:95); snapshot v6 */
+    int weather_enabled;         /* magma cfg.weather; thunder draws gated */
     int dead, deaths;
     WwState ww;                  /* magma GmWorldClock + isolated JavaRandom */
     float rain_strength, thunder_strength;  /* live stays 0; tape inject only */
@@ -458,14 +460,11 @@ MC_HD static inline long cu_region_idx(const Blaze *e, int wx, int wy, int wz) {
 }
 
 /* ---- random-tick occupancy census ----
- * cu_randtick_pass hashes 17x17 chunks x 16 sections x 3 attempts every
- * env-tick, and rt_live_tick_block is a pure no-op unless the hashed cell
- * holds a magma randtick.c ticker id. mc_hash_seed is COUNTER-based (a
- * stateless hash of seed/tick/coords), not an advancing stream, so skipping
- * an attempt-group perturbs no other group's draw. The census counts those
- * tickable cells per (chunk-x, section-y, chunk-z) 16^3 section; a section
- * with a zero count - or one the region does not intersect at all - cannot
- * produce a side effect, so its three attempts are skipped bit-exactly.
+ * cu_randtick_pass walks 17x17 chunks x 16 sections x randomTickSpeed
+ * attempts using World.updateLCG + World.rand. Empty sections skip the
+ * LCG loop (ExtendedBlockStorage.getNeedsRandomTick). The census counts
+ * tickable cells per (chunk-x, section-y, chunk-z) 16^3; a zero count
+ * (or a section the region does not intersect) skips those attempts.
  *
  * The grid is anchored at the region origin's section and sized by
  * CU_SEC_SPAN: a run of n block coords touches at most (n+15)/16 + 1 distinct
@@ -769,11 +768,19 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
     cu_win_set_state(e->window, wx - e->ox, wy, wz - e->oz, id, meta);
 }
 
-/* Live random-tick pass matching magma/game/randtick.c (hash schedule +
- * grass/leaves/fire/crops). v2 light nibbles required. */
+/* Live random-tick pass matching magma/game/randtick.c (updateLCG +
+ * World.rand, grass/leaves/fire/crops). v2 light nibbles required. */
 MC_HD static inline int cu_rt_light_at(const Blaze *e,
                                        int wx, int wy, int wz) {
     return cu_world_light(e, wx, wy, wz);
+}
+
+MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
+    long g;
+    if (!e->grass_sec) return 1;
+    g = cu_grass_sec_idx(e, cx, sec, cz);
+    if (g < 0) return 0;
+    return e->grass_sec[g] != 0;
 }
 
 #define RT_W Blaze
@@ -782,6 +789,8 @@ MC_HD static inline int cu_rt_light_at(const Blaze *e,
 #define rt_live_light(w, x, y, z) cu_rt_light_at((w), (x), (y), (z))
 #define rt_live_set(w, x, y, z, id, meta) \
     cu_world_set_state((w), (x), (y), (z), (id), (meta))
+#define RT_SECTION_NEEDS(w, cx, sec, cz) \
+    cu_rt_section_needs((w), (cx), (sec), (cz))
 #include "randtick_live.h"
 
 #define FL_W Blaze
@@ -1607,38 +1616,14 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
 
 MC_HD static inline void cu_randtick_pass(Blaze *e) {
     McGameRules gr;
-    int cx, cz, sec, att;
+    int raining, thundering;
     if (!e->light_valid) return;
     gr = mc_gamerules_default();
-    for (cz = e->ccz - 8; cz <= e->ccz + 8; ++cz)
-        for (cx = e->ccx - 8; cx <= e->ccx + 8; ++cx)
-            for (sec = 0; sec < 16; ++sec) {
-                /* Every attempt of this group draws lx/ly/lz in [0,16), so
-                 * all three targets live in section (cx, sec, cz) exactly.
-                 * No tickable cell there (or no region overlap) => all three
-                 * are no-ops; the counter-based hashes of every OTHER group
-                 * are unaffected, so skipping is bit-exact. */
-                if (e->grass_sec) {
-                    long g = cu_grass_sec_idx(e, cx, sec, cz);
-                    if (g < 0 || e->grass_sec[g] == 0) continue;
-                }
-                for (att = 0; att < 3; ++att) {
-                    u64 h = mc_hash_seed((u64)e->seed, e->tick, cx, sec, cz,
-                                         RT_PURPOSE_POS ^ (u32)att);
-                    int lx = (int)mc_hash_bound(h, 16);
-                    int ly, lz, wx, wy, wz;
-                    h = mc_hash64(h + 1ULL);
-                    ly = (int)mc_hash_bound(h, 16);
-                    h = mc_hash64(h + 2ULL);
-                    lz = (int)mc_hash_bound(h, 16);
-                    wx = cx * 16 + lx;
-                    wy = sec * 16 + ly;
-                    wz = cz * 16 + lz;
-                    if (cu_region_idx(e, wx, wy, wz) >= 0)
-                        rt_live_tick_block(e, wx, wy, wz, e->seed, e->tick,
-                                           &gr, e->rt_leaf);
-                }
-            }
+    raining = e->weather_enabled ? e->ww.raining : 0;
+    thundering = e->weather_enabled ? e->ww.thundering : 0;
+    /* radius 8 = magma view_distance default / randtick_radius. */
+    rt_live_pass(e, &e->world_rand, &e->update_lcg, raining, thundering,
+                 e->ccx, e->ccz, 8, &gr, e->rt_leaf);
 }
 
 /* The PSV 3x3-chunk physics window layout is exactly what
@@ -5050,7 +5035,8 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
         }
         h = bp_randtick_digest_finish(
             bp_randtick_digest_begin(), e->parity_rt_cells_digest,
-            e->parity_rt_cells, e->parity_rt_mutations);
+            e->parity_rt_cells, e->parity_rt_mutations,
+            e->world_rand.seed & MC_JR_MASK, e->update_lcg);
         r->digest[BP_RANDOM_TICKS] = h;
         r->evidence[BP_RANDOM_TICKS] = e->parity_rt_mutations;
         if (e->parity_rt_mutations)
@@ -5425,6 +5411,8 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->seed = h->seed;
     env->tick = h->tick;
     env->world_rand.seed = world_rand_seed & MC_JR_MASK;
+    env->update_lcg = 0;
+    env->weather_enabled = 0;
     env->dead = 0;
     env->deaths = 0;
     ww_init(&env->ww, env->seed);

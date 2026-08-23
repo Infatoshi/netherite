@@ -232,7 +232,9 @@ int main(int argc, char **argv) {
 
     expect(sizeof(RlSnapHead) == 752, "RlSnapHead is 752 bytes packed");
     expect(sizeof(RlSnapMob) == 544, "RlSnapMob is 544 bytes packed");
-    expect(BLAZE_SNAP_VERSION == 5, "snapshot version is 5");
+    expect(BLAZE_SNAP_VERSION == 6, "snapshot version is 6");
+    expect(BLAZE_SNAP_VERSION_WORLD_RAND == 5, "world_rand trailer is version 5");
+    expect(BLAZE_SNAP_VERSION_UPDATE_LCG == 6, "updateLCG trailer is version 6");
     expect(BLAZE_SNAP_VERSION_ORBS == 4, "orb trailer is version 4");
     expect(sizeof(RlSnapOrb) == 84, "RlSnapOrb is 84 bytes packed");
     expect(BLAZE_SNAP_MAX_ORBS == 64, "orb cap is GM_XP_ORBS 64");
@@ -295,6 +297,20 @@ int main(int argc, char **argv) {
                "load v5 world_rand");
         expect(loaded.world_rand_seed == s.world_rand_seed,
                "v5 world_rand_seed matches");
+        expect(loaded.update_lcg == 0, "v5 loads update_lcg=0");
+        blaze_snapshot_free(&loaded);
+    }
+
+    s.head.version = 6;
+    s.update_lcg = 0x12345678;
+    expect(roundtrip(p_a, p_b, &s), "v6 update_lcg save/load/save identical");
+    {
+        CuSnapshot loaded;
+        char err[256];
+        memset(&loaded, 0, sizeof loaded);
+        expect(blaze_snapshot_load(p_a, &loaded, err, (int)sizeof err, 1),
+               "load v6 update_lcg");
+        expect(loaded.update_lcg == 0x12345678, "v6 update_lcg matches");
         blaze_snapshot_free(&loaded);
     }
 
