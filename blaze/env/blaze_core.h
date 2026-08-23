@@ -4100,7 +4100,27 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 
     /* Magma gm_live_pre_player_tick: landing packets before player raycast. */
     fl_pre_player_tick(env, env);
+    env->pl.health = env->vit.health;
     blaze_player_tick(env, st, act, edits, &n, CU_MAX_EDITS, blocks);
+    {
+        PsvPlayer *pl = &env->pl;
+        if (pl->hz_fire > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_fire, 1);
+        if (pl->hz_lava > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_lava, 0);
+        if (pl->hz_void > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_void, 1);
+        if (pl->hz_wall > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_wall, 1);
+        if (pl->hz_drown > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_drown, 1);
+        if (pl->hz_cactus > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_cactus, 0);
+        if (pl->hz_magma > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_magma, 0);
+        env->pl.health = env->vit.health;
+        psv_env_clear_hits(pl);
+    }
     /* Minecraft.runTick pins this GUI sentinel after key processing. */
     if (env->container >= 1 && env->container <= 3)
         env->left_click_counter = 10000;
@@ -4985,6 +5005,7 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
                           ((e->cursor.meta & 0xffff) << 16));
 
     h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x31594C50)); /* "PLY1" + fire/air */
     h = bp_hash_double(h, e->pl.ent.posX + (double)e->ox);
     h = bp_hash_double(h, e->pl.ent.posY);
     h = bp_hash_double(h, e->pl.ent.posZ + (double)e->oz);
@@ -5000,6 +5021,8 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     h = bp_hash_float(h, e->vit.health);
     h = bp_hash_i32(h, e->vit.foodLevel);
     h = bp_hash_float(h, e->vit.exhaustion);
+    h = bp_hash_i32(h, e->pl.fire);
+    h = bp_hash_i32(h, e->pl.air);
     r->digest[BP_PLAYER] = h;
     r->evidence[BP_PLAYER] = 1;
     r->active_mask |= BP_BIT(BP_PLAYER);

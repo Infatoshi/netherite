@@ -1,5 +1,32 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 player environmental damage (lane/hazards)
+
+Gamer. Magma sweep row 5 + blaze rows 6-7. Shared `psv_env_pre_move` in
+`player_survival.h`. Snapshot v9 (`BLAZE_SNAP_VERSION_HAZARDS`) trailer
+fire+air; v8 loads 0/300. `BP_PLAYER` PLY1.
+
+Java: AIR 300 `Entity.java:256`; drown `EntityLivingBase.java:297-320`
+DROWN 2.0 at air==-20; IN_WALL `Entity.java:2156-2186`; LAVA 4.0 +
+setFire(15) `Entity.java:605-611`; ON_FIRE `Entity.java:554-557`; cactus
+`BlockCactus.java:133-136`; HOT_FLOOR `BlockMagma.java:45-50` skip sneak /
+frost walker; void `EntityLivingBase.java:1647-1649`. Apply via existing
+hurt gate + armor.
+
+Baseline tapes: bow NO divergence 1407 / entities 5525; smoke_zombie x2
+NO divergence through death 358; canon INFRASTRUCTURE FAILURE (golden
+frames missing). After: same, no earlier first divergence.
+
+Fixture baker `test_hazards --write-fixture` from
+`s10_t0_r64_no_liquid.bsnp` -> `s10_t0_r64_hazards.bsnp` +
+`hazards_s10.json` 448 actions. M1 448 ticks player digest
+`0x0ac36057b116e2d3`. M2 VERIFIED. Listed `--no-deps` M1 VERIFIED; M2
+VERIFIED except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp`
+missing). Units both sides PASS. Root `make test` PASS.
+
+Blaze death stays terminal (magma GUI respawn needs death_click; M1
+equals up to the death tick).
+
 ## 2026-08-23 biome plane snapshot v8 (lane/biomeplane)
 
 Anvil. Snapshot v8 carries one u8 per x,z column of the lockstep region (`ix*rnz+iz`). Magma `rl_snapshot_write` copies `LChunk.biome` (`magma/world/light.c:153`, index `(wx&15)+(wz&15)*16` = Java `Chunk.getBiome` `Chunk.java:1273-1278`). Magma load restores via `gm_world_set_biome`. Blaze env `biome[]` pool. v7 loads plains id 1 so old fixtures keep HS_BIOME/freeze plains semantics.

@@ -1537,14 +1537,9 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
    radius 6), `mobGriefing` only partly honored, `getBlockDensity` treats
    every block as a full cube, no blast-protection enchant reduction, no
    `isFlaming` fire placement, missing sound RNG draws. L.
-5. Environmental damage: `blaze/core/player_survival.h:378-398` handles
-   web/soul sand only. Missing drowning (`EntityLivingBase.onEntityUpdate`
-   air -> 2 damage), suffocation (`isEntityInsideOpaqueBlock` 1 per 20),
-   lava (4 + fire 15 s, `Entity.setOnFireFromLava`), cactus (`BlockCactus.
-   onEntityCollidedWithBlock` 1), magma block (`BlockMagma` 1 unless
-   sneaking/frost walker), void (`Entity.kill` below y=-64, 4 per 10 ticks
-   below -64), fire ticks on the player (`Entity.onUpdate` fire -> 1 per
-   20). M. Lane `hazards`.
+5. Environmental damage: CLOSED 2026-08-23 lane `hazards`. Shared
+   `player_survival.h` psv_env_pre_move + cactus/magma walk. Forensics in
+   `CLOSED_DIVERGENCES.md`.
 6. Crafting: no boat recipe (`crafting_recipes_full.h`), no
    `getRemainingItems` (bucket/bottle containers stay consumed). S/M.
 7. Live ground items: `magma/game/live_sim.c:155-258` runs its own item
@@ -1574,7 +1569,7 @@ cut; wet sponge; stronghold iron bars where Java places doors; portal
 nearest-selection.
 
 Ungated systems: furnace, crafting with containers, beds, potions,
-shield, environmental damage, stronghold placement, hotbar selection.
+shield, stronghold placement, hotbar selection.
 Tapes record player physics / inventory / ghost views / world hash only,
 so a rule that never moves the player or the hotbar is invisible to the
 replay gate; unit tests against Java-derived fixtures are the gate for

@@ -389,6 +389,8 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->cont, s->ncont, s->mobs, s->n_mobs,
                               s->orbs, s->n_orbs, s->biome,
                               s->world_rand_seed, v->success_item);
+    v->envs[i].pl.fire = s->player_fire;
+    v->envs[i].pl.air = s->player_air;
     v->envs[i].update_lcg = s->update_lcg;
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
@@ -484,6 +486,8 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(e, &s->head, s->items);
+    s->player_fire = e->pl.fire;
+    s->player_air = e->pl.air;
     s->n_mobs = e->n_mobs;
     if (e->n_mobs)
         memcpy(s->mobs, e->mobs, (size_t)e->n_mobs * sizeof s->mobs[0]);

@@ -18,7 +18,7 @@
 #define BP_FNV1A_PRIME        UINT64_C(1099511628211)
 
 enum BpSubsystem {
-    BP_PLAYER = 0,
+    BP_PLAYER = 0,          /* digest tag PLY1 (fire+air) */
     BP_DIG,
     BP_INVENTORY,
     BP_ITEMS,

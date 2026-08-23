@@ -12,13 +12,15 @@
  *   | u64 world_rand_seed (48-bit JavaRandom cursor)    [version >= 5]
  *   | i32 update_lcg (World.updateLCG)                  [version >= 6]
  *   | rnx*rnz u8 biome plane (one id per x,z column)    [version >= 8]
+ *   | i32 player_fire, i32 player_air                   [version >= 9]
  * v1/v2 files load with n_mobs = 0. v3 loads with n_orbs = 0.
  * v4 loads with world_rand_seed = jrand_set(0) internal cursor.
  * v5 loads with update_lcg = 0.
  * v6 loads enderman extras as 0.
  * v7 loads biome plane = plains (id 1) so old fixtures keep spawn/freeze
  * semantics (HS_BIOME / rt_live_biome used to hardcode plains).
- * New writes use version 8.
+ * v8 loads player fire=0 air=300 (Entity.java:256 AIR default).
+ * New writes use version 9.
  * Biome index is ix * rnz + iz (ix = wx - rx0, iz = wz - rz0). Java
  * Chunk.blockBiomeArray is (z&15)<<4 | (x&15) per chunk (Chunk.java:1273-1278);
  * the magma writer copies LChunk.biome[x + z*16] (light.c) into this plane.
@@ -51,7 +53,8 @@ extern "C" {
 #define BLAZE_SNAP_VERSION_UPDATE_LCG 6 /* + World.updateLCG after world_rand */
 #define BLAZE_SNAP_VERSION_ENDER 7      /* + enderman fields on RlSnapMob */
 #define BLAZE_SNAP_VERSION_BIOME 8      /* + rnx*rnz u8 column biome plane */
-#define BLAZE_SNAP_VERSION 8
+#define BLAZE_SNAP_VERSION_HAZARDS 9    /* + player fire ticks and air */
+#define BLAZE_SNAP_VERSION 9
 #define BLAZE_SNAP_MOB_SIZE_V6 544      /* packed RlSnapMob through v6 */
 #define BLAZE_SNAP_BIOME_PLAINS 1       /* Biomes.PLAINS; v7 load default */
 #pragma pack(push, 1)
@@ -185,6 +188,8 @@ typedef struct {
     int                update_lcg;      /* v6: World.updateLCG; 0 on v<=5 */
     unsigned char      *biome;          /* v8: rnx*rnz column ids; v7 load
                                          * fills plains 1. Index ix*rnz+iz. */
+    int                player_fire;     /* v9: Entity.fire; v8 load 0 */
+    int                player_air;      /* v9: Entity air; v8 load 300 */
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).

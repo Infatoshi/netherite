@@ -126,10 +126,14 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    restore, run M; compare with N+M continuous. M/L.
 5. Focused M2 compares `k_tick_raw`, not the production warp kernel
    (`blaze/env/verify_cuda.py:655-663`). M.
-6. Death/respawn is terminal only; magma respawns (`runtime.c`). S/M.
-7. Player fire ticks absent in blaze (only `mob_fire[]`,
-   `blaze_core.h:1623-1630`); magma burns the player. Coupling with
-   magma sweep row 5. M. Lane `hazards`.
+6. Death/respawn: blaze stays terminal (`blaze_core.h` health<=0 ->
+   dead=1). Magma `gm_runtime_respawn` is the GuiGameOver click path
+   (health/food/air/fire reset, same pose). An RL episode has no death
+   click, so magma also freezes at the death tick. Equality is gated up
+   to that tick. Auto-respawn in blaze would diverge M1. S.
+7. Player fire ticks: CLOSED 2026-08-23 lane `hazards` (PsvPlayer.fire /
+   air, snapshot v9, BP_PLAYER PLY1). Forensics in magma
+   `CLOSED_DIVERGENCES.md`.
 8. Mob sidecars (repath, despawn, fire, tick counters) not snapshotted and
    not digested. M.
 9. Item enchant payload and the 32-stack overflow queue missing in blaze.

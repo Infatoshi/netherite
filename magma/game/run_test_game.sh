@@ -74,6 +74,7 @@ run_one test_randtick        bash game/test_randtick.sh
 run_one test_furnace_live    bash game/test_furnace_live.sh
 run_one test_container_live  bash game/test_container_live.sh
 run_one test_armor_live      bash game/test_armor_live.sh
+run_one test_hazards         bash game/test_hazards.sh
 run_one test_screen          bash game/test_screen.sh
 run_one test_player_preview  bash game/test_player_preview.sh
 run_one test_chest_loot      bash game/test_chest_loot.sh

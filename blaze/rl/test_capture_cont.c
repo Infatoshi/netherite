@@ -172,6 +172,17 @@ static int write_bsnp_ex(const char *path, int ntab, const int *wx,
         return -1;
       }
     }
+    if (h.version >= BLAZE_SNAP_VERSION_HAZARDS) {
+      int fire = 0, air = 300;
+      if (fwrite(&fire, sizeof fire, 1, f) != 1 ||
+          fwrite(&air, sizeof air, 1, f) != 1) {
+        fclose(f);
+        free(cells);
+        free(light);
+        free(coal);
+        return -1;
+      }
+    }
   }
   fclose(f);
   free(cells);
