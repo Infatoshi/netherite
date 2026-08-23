@@ -182,7 +182,7 @@ MC_HD static inline void il_water_cell_flow(IL_W *w, int bx, int by, int bz,
  * World.handleMaterialAcceleration 0.014 * unit getFlow. Still source = 0. */
 MC_HD static inline void il_handle_water(IL_W *w, McItem *it) {
     double x0, x1, y0, y1, z0, z1, sx, sy, sz, l;
-    int bx, by, bz, flag;
+    int bx, by, bz;
     x0 = it->box.minX + 0.001;
     x1 = it->box.maxX - 0.001;
     z0 = it->box.minZ + 0.001;
@@ -194,20 +194,17 @@ MC_HD static inline void il_handle_water(IL_W *w, McItem *it) {
         y0 = y1;
         y1 = t;
     }
-    flag = 0;
     sx = sy = sz = 0.0;
     for (bx = mc_floor(x0); bx < (int)ceil(x1); ++bx)
         for (by = mc_floor(y0); by < (int)ceil(y1); ++by)
             for (bz = mc_floor(z0); bz < (int)ceil(z1); ++bz) {
                 double fx, fy, fz;
                 if (!il_water_id(il_id(w, bx, by, bz))) continue;
-                flag = 1;
                 il_water_cell_flow(w, bx, by, bz, &fx, &fy, &fz);
                 sx += fx;
                 sy += fy;
                 sz += fz;
             }
-    (void)flag;
     l = (double)(float)sqrt(sx * sx + sy * sy + sz * sz);
     if (l > 0.0) {
         sx /= l;

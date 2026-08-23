@@ -274,18 +274,18 @@ void gm_live_tick_player(GmLiveSim *s, GmWorld *w, struct PsvPlayer *pl_,
             int j, n;
             if (!e->active || e->type != 0) continue;
             live_to_mc(e, &it);
-            n = e->n_enchants;
-            if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
-            if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
+            if (it.delayBeforeCanPickup > 0) continue;
+            if (!mc_aabb_intersects(&it.box, &pbox)) continue;
             {
                 ICStack incoming = ic_mk(e->item, e->count, e->meta);
+                n = e->n_enchants;
+                if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
                 incoming.n_enchants = n;
                 for (j = 0; j < n; ++j) {
                     incoming.enchants[j].id = e->ench_id[j];
                     incoming.enchants[j].level = e->ench_lvl[j];
                 }
-                if (it.delayBeforeCanPickup > 0) continue;
-                if (!mc_aabb_intersects(&it.box, &pbox)) continue;
                 isr_add_item_stack_to_inventory(&pl->inv, &incoming);
                 e->count = incoming.count;
                 if (e->count <= 0) {

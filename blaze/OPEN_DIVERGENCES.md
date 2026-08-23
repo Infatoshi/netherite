@@ -143,7 +143,9 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
 8. Mob sidecars (repath, despawn, fire, tick counters) not snapshotted and
    not digested. M.
 9. Item enchant payload and the 32-stack overflow queue missing in blaze.
-   M.
+   M. lane/liveitems 2026-08-23 shared `item_live.h` EntityItem.onUpdate and
+   hashed 48-cap skip (`spawn_fail_count` in BP_ITEMS). Overflow queue and
+   live enchant copy into blaze pickup still magma-only.
 10. TNT flint-and-steel activation missing in blaze (`blaze_core.h:
     2618-2711`); magma `player_ctl.c` ignites. S. Lane `tntsupport`.
 11. Furnaces matrix row: CLOSED 2026-08-23 lane `furnaceids`. `furnaces`

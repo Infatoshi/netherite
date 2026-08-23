@@ -4131,6 +4131,83 @@ MC_HD MC_NOINLINE static void cu_mob_spine_tick(Blaze *e, const McSinTable *st) 
     }
 }
 
+/* Magma runtime.c:250-333 attack_hits_falling_block. EntityRenderer.getMouseOver
+ * takes a closer EntityFallingBlock AABB over the block hit (d1 < d0). */
+MC_HD static inline int cu_ray_axis(double start, double dir, double lo, double hi,
+                                    double *t0, double *t1) {
+    if (fabs(dir) < 1.0e-12)
+        return start >= lo && start <= hi;
+    {
+        double a = (lo - start) / dir;
+        double b = (hi - start) / dir;
+        if (a > b) { double tmp = a; a = b; b = tmp; }
+        if (a > *t0) *t0 = a;
+        if (b < *t1) *t1 = b;
+    }
+    return *t0 <= *t1;
+}
+
+MC_HD static inline int cu_attack_hits_falling_block(const Blaze *env,
+                                                     const McSinTable *st) {
+    const double border = 0.0;
+    float f, f1, f2, f3;
+    double dx, dy, dz, sx, sy, sz, t_block, t_ent;
+    int i, hit;
+    if (!env || !st) return 0;
+    f  = mc_cos(st, -env->pl.yaw * 0.017453292f - 3.1415927f);
+    f1 = mc_sin(st, -env->pl.yaw * 0.017453292f - 3.1415927f);
+    f2 = -mc_cos(st, -env->pl.pitch * 0.017453292f);
+    f3 = mc_sin(st, -env->pl.pitch * 0.017453292f);
+    dx = (double)(f1 * f2);
+    dy = (double)f3;
+    dz = (double)(f * f2);
+    sx = env->pl.ent.posX + (double)env->ox;
+    sy = env->pl.ent.posY + PSV_EYE_HEIGHT;
+    sz = env->pl.ent.posZ + (double)env->oz;
+    t_block = PSV_REACH;
+    if (env->window) {
+        int hx, hy, hz, ax, ay, az;
+        if (cu_raycast_sel_reach(env->window, st, &env->pl, PSV_REACH,
+                                 &hx, &hy, &hz, &ax, &ay, &az, NULL) >= 0) {
+            float b[6];
+            double t0 = 0.0, t1 = PSV_REACH;
+            double ex = env->pl.ent.posX;
+            double ey = env->pl.ent.posY + PSV_EYE_HEIGHT;
+            double ez = env->pl.ent.posZ;
+            cu_sel_box_at(env->window, hx, hy, hz, b);
+            if (cu_ray_axis(ex, dx, hx + (double)b[0], hx + (double)b[3],
+                            &t0, &t1) &&
+                cu_ray_axis(ey, dy, hy + (double)b[1], hy + (double)b[4],
+                            &t0, &t1) &&
+                cu_ray_axis(ez, dz, hz + (double)b[2], hz + (double)b[5],
+                            &t0, &t1) &&
+                t0 >= 0.0 && t0 <= PSV_REACH)
+                t_block = t0;
+        }
+    }
+    t_ent = t_block;
+    hit = 0;
+    for (i = 0; i < CU_MAX_ITEMS; ++i) {
+        const CuFallEnt *e = &env->falls[i];
+        double client_y, t0, t1;
+        if (!e->active || e->type != 2) continue;
+        client_y = e->y + (double)((1.0f - 0.98f) / 2.0f);
+        t0 = 0.0;
+        t1 = PSV_REACH;
+        if (cu_ray_axis(sx, dx, e->x - 0.49 - border,
+                        e->x + 0.49 + border, &t0, &t1) &&
+            cu_ray_axis(sy, dy, client_y - border,
+                        client_y + 0.98 + border, &t0, &t1) &&
+            cu_ray_axis(sz, dz, e->z - 0.49 - border,
+                        e->z + 0.49 + border, &t0, &t1) &&
+            t0 >= 0.0 && t0 < t_ent) {
+            t_ent = t0;
+            hit = 1;
+        }
+    }
+    return hit;
+}
+
 /* =================== one whole game tick (gm_runtime_tick slice) ========== */
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
@@ -4246,6 +4323,18 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 
     /* Magma gm_live_pre_player_tick: landing packets before player raycast. */
     fl_pre_player_tick(env, env);
+    /* Magma runtime.c:1071 attack_hits_falling_block after landings. */
+    {
+        int can_click = 0;
+        if (act.attack) {
+            int c = env->left_click_counter;
+            if (c > 0) --c;
+            can_click = (c <= 0);
+        }
+        if (can_click && !act.attack_entity &&
+            cu_attack_hits_falling_block(env, st))
+            act.attack_entity = 1;
+    }
     env->pl.health = env->vit.health;
     blaze_player_tick(env, st, act, edits, &n, CU_MAX_EDITS, blocks);
     {

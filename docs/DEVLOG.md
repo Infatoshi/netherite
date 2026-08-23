@@ -1,5 +1,64 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 live EntityItem tick (lane/liveitems)
+
+Gamer. Magma sweep 2026-08-23 row 7 + silent 48-item cap. One
+`item_live.h` kernel for magma live play, tape replay, and blaze.
+
+Baseline tapes (`replay_tape.py --cpu --no-gate --report`,
+`out/verify/liveitems_baseline_*.log`): bow physics NO divergence 1407,
+entities PASS 5525. smoke_zombie x2 physics NO divergence through death
+358, entities PASS. Canon INFRASTRUCTURE FAILURE (golden frames missing).
+
+Java: `EntityItem.onUpdate` EntityItem.java:97-204 (delay 108-111,
+gravity `(double)0.04F` :122, `Entity.move` :134, flammable
+Entity.java:1067-1078, lava hop :139-145 CLASS C rand skipped,
+`searchForOtherItemsNearby` :209-215, `combineItems` :221-292,
+slipperiness*0.98F :153-164, age 6000 :171-197, `handleWaterMovement`
+:306-322). Pickup `onCollideWithPlayer` :428-488 delay>0 return :432,
+AABB vs player, `InventoryPlayer.addItemStackToInventory`. Default delay
+10 :564-566; thrown 40 EntityPlayer.java:829. Health 5 :54. Fire ctor
+`-getFireImmuneTicks` Entity.java:239. `World.spawnEntity` has no 48
+cap. spawnAsEntity xz `Math.random` EntityItem.java:59-61 CLASS C; live
+table zeros mx/my/mz.
+
+Cause: magma `live_sim.c` had its own gravity/snap and 1.0 xz pickup.
+Blaze `cu_live_tick_player` copied that. Both now wrap `il_tick_item`.
+Pickup is AABB (`il_try_pickup`). 49th `cu_spawn_item` /
+`gm_live_spawn_item_capped` increments `spawn_fail_count`, hashed in
+BP_ITEMS (no silent unmeasure). Magma overflow queue 32 stays magma-only.
+
+After tapes (`out/verify/liveitems_after_*.log`): same bow 1407 / 5525,
+smoke_zombie x2 death 358 entities PASS, canon INFRASTRUCTURE FAILURE.
+No earlier first divergence.
+
+`ground_items` baker `test_ground_items --write-fixture` from
+`s10_t0_r64_no_liquid.bsnp`: two cobble stacks, walk after delay 10,
+one lava drop. M1+M2 VERIFIED 64 ticks
+(`out/verify/liveitems_ground_items_m1.log`,
+`out/verify/liveitems_m2_ground_items.log`). Units
+`test_live_items` and `test_ground_items` PASS.
+
+Listed `--no-deps` M1 VERIFIED except spawn_to_torch. Kernel-only M1
+failed at t=795 dig: both rays hit 8,59,14; magma
+`attack_hits_falling_block` (runtime.c:267) saw falling sand at
+9.5,60.62,14.5 closer than the block; blaze did not. Ported that
+getMouseOver to blaze (`cu_attack_hits_falling_block`). After that,
+2058-tick lockstep then BLOCKED crafting/containers evidence 0
+(`out/verify/liveitems_spawn_to_torch_m1_after_fallmouse.log`). AABB
+pickup is Java; the baked chain assumed the old 1.0 xz radius. Not a
+PASS. After falling-mouseover CUDA rebuild, listed M2 VERIFIED except
+spawn_to_torch BLOCKED missing capability/evidence and mining_slice
+BLOCKED `blaze/rl/out/snaps/*_d*.bsnp`
+(`out/verify/liveitems_m2_after_fallmouse.log`).
+ground_items/mining_slice/falling_blocks M1 re-VERIFIED after the
+mouseover port. Root `make test` PASS
+(`out/verify/liveitems_maketest_after_fallmouse.log`).
+
+Stay out: XP orb lava (needs orb tick; did not touch mob/spawn). Magma
+overflow 32. spawnAsEntity xz Class C zeros. Did not touch placement or
+crafting recipes.
+
 ## 2026-08-23 furnace registry, buckets, food, hotbar (lane/furnaceids)
 
 Anvil. Sweep 2026-08-23 magma rows 2, 3, 12 and silent hotbar; blaze row 11.
