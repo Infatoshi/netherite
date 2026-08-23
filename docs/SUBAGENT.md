@@ -20,6 +20,13 @@ merges. You never merge. Follow this routine in order.
   the log file is.
 - First remote run builds from scratch: `make assets && make -j8` for magma;
   for blaze rows read `blaze/README.md` and `blaze/env/port_matrix.yaml`.
+- A fresh clone is missing untracked inputs that live only in the host's
+  `~/dev/netherite`: `java/oracle-src`, `java/Minecraft/run`, the ui_hud
+  goldens (`verify/ui_hud/goldens`, 38 files; a clone has 6) and the
+  ui_entities goldens, and the canon tape jsonl under `verify/tapes`.
+  `rsync -a --ignore-existing ~/dev/netherite/<dir>/ <dir>/` for each
+  before the first gate; then `make assets` from YOUR branch (host-tree
+  headers are stale). A gate that prints `MISSING JAVA` measured nothing.
 - Python is `uv run --no-project --with <pkgs> python ...`. No pip. Pin
   `UV_CACHE_DIR=$HOME/.cache/uv TMPDIR=$HOME/dev/nw/.tmp` on anvil.
 
