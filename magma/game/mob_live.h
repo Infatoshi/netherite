@@ -140,6 +140,16 @@ typedef struct {
     /* EntityBoat.deltaRotation / boatGlide. Not in EwStore. */
     float boat_delta_rot[EW_MAX_ENTITIES];
     float boat_glide[EW_MAX_ENTITIES];
+    /* WorldEntitySpawner MONSTER cycle (hostile_spawn.h). Default 0. */
+    int natural_spawn;
+    unsigned long long spawn_world_seed48;
+    unsigned long long spawn_math_seed48;
+    unsigned long long spawn_shuffle_seed48;
+    /* Snapshot AABB clip so WorldEntitySpawner sees the same air-outside
+     * region blaze does (M1). 0 = full world (interactive play). */
+    int spawn_clip;
+    int spawn_rx0, spawn_ry0, spawn_rz0;
+    int spawn_rnx, spawn_rny, spawn_rnz;
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */

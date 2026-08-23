@@ -27,6 +27,10 @@ typedef struct {
      * the recorded oracle session ran with doMobSpawning=false: magma's spawn
      * RNG cannot match the oracle's, and phantom mobs corrupt the replay. */
     int mobs;
+    /* WorldEntitySpawner MONSTER cycle. Default off so existing tape
+     * replays and planted-mob lockstep fixtures keep their entity set.
+     * Magma/blaze share the knob; not an env var. */
+    int natural_spawn;
     /* Live per-second frame timing stats on stderr (--stats on). Window loop
      * only; piggybacks on the bench stamp slots, no sim state touched. */
     int stats;

@@ -364,6 +364,10 @@ typedef struct {
     RlSnapMob mobs[BLAZE_SNAP_MAX_MOBS];
     unsigned n_mobs;
     int    mobs_enabled;
+    int    natural_spawn;            /* WorldEntitySpawner MONSTER cycle */
+    unsigned long long spawn_world_seed48;
+    unsigned long long spawn_math_seed48;
+    unsigned long long spawn_shuffle_seed48;
     int    player_hurt_resistant;
     float  player_last_damage;
     int    player_attack_cooldown;
@@ -890,6 +894,138 @@ MC_HD static inline void cu_try_pickup_arrow(Blaze *e, int index) {
 #define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #include "hostile_live.h"
 
+MC_HD static inline int cu_world_sky(const Blaze *e, int wx, int wy, int wz) {
+    long i = cu_region_idx(e, wx, wy, wz);
+    if (i < 0 || !e->light) return 15;
+    return (int)(e->light[i] >> 4);
+}
+MC_HD static inline int cu_world_blk(const Blaze *e, int wx, int wy, int wz) {
+    long i = cu_region_idx(e, wx, wy, wz);
+    if (i < 0 || !e->light) return 0;
+    return (int)(e->light[i] & 15);
+}
+MC_HD static inline int cu_hs_count(const Blaze *e) {
+    unsigned i;
+    int n = 0;
+    if (!e) return 0;
+    for (i = 0; i < e->n_mobs; ++i)
+        if (e->mobs[i].alive && ehs_is_hostile((u8)e->mobs[i].type)) ++n;
+    return n;
+}
+MC_HD static inline int cu_hs_hit(const Blaze *e, double x0, double y0, double z0,
+                                  double x1, double y1, double z1) {
+    unsigned i;
+    if (!e) return 0;
+    for (i = 0; i < e->n_mobs; ++i) {
+        float w, h;
+        double mx0, my0, mz0, mx1, my1, mz1;
+        const RlSnapMob *m = &e->mobs[i];
+        if (!m->alive) continue;
+        ehs_size((u8)m->type, &w, &h);
+        mx0 = m->x - (double)w * 0.5;
+        my0 = m->y;
+        mz0 = m->z - (double)w * 0.5;
+        mx1 = m->x + (double)w * 0.5;
+        my1 = m->y + (double)h;
+        mz1 = m->z + (double)w * 0.5;
+        if (x0 < mx1 && x1 > mx0 && y0 < my1 && y1 > my0 && z0 < mz1 && z1 > mz0)
+            return 1;
+    }
+    return 0;
+}
+MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, double z,
+                                    float yaw, unsigned long long seed48, int have_g,
+                                    double g) {
+    unsigned i, used;
+    int slot, id, max_id;
+    float w, h;
+    RlSnapMob *o;
+    if (!e || e->n_mobs >= BLAZE_SNAP_MAX_MOBS) return 0;
+    used = 0;
+    max_id = 0;
+    slot = -1;
+    for (i = 0; i < e->n_mobs; ++i) {
+        if (e->mobs[i].slot > 0) used |= (1u << (e->mobs[i].slot & 31));
+        if (e->mobs[i].id > max_id) max_id = e->mobs[i].id;
+    }
+    /* Lowest free slot in 1..31 for the bitmask, then scan 32..95. */
+    for (slot = 1; slot < EW_MAX_ENTITIES; ++slot) {
+        int taken = 0;
+        for (i = 0; i < e->n_mobs; ++i)
+            if (e->mobs[i].slot == slot) { taken = 1; break; }
+        if (!taken) break;
+    }
+    if (slot >= EW_MAX_ENTITIES) return 0;
+    id = max_id + 1;
+    if (id < 1) id = 1;
+    o = &e->mobs[e->n_mobs];
+    memset(o, 0, sizeof *o);
+    ehs_size((u8)type, &w, &h);
+    o->slot = slot;
+    o->id = id;
+    o->type = type;
+    o->alive = 1;
+    o->persist = 0;
+    o->x = x;
+    o->y = y;
+    o->z = z;
+    o->yaw = yaw;
+    o->health = 20.0f;
+    o->on_ground = 1;
+    o->wander_x = x;
+    o->wander_z = z;
+    o->box_on = 1;
+    o->box_minx = x - (double)w * 0.5;
+    o->box_miny = y;
+    o->box_minz = z - (double)w * 0.5;
+    o->box_maxx = x + (double)w * 0.5;
+    o->box_maxy = y + (double)h;
+    o->box_maxz = z + (double)w * 0.5;
+    o->seed48 = seed48;
+    o->have_gauss = (unsigned char)(have_g ? 1 : 0);
+    o->gauss = g;
+    e->mob_repath[e->n_mobs] = ML_WANDER_INTERVAL;
+    e->mob_despawn[e->n_mobs] = 0;
+    e->mob_fire[e->n_mobs] = 0;
+    e->n_mobs++;
+    (void)used;
+    return 1;
+}
+
+#define HS_W Blaze
+#define HS_BLOCK(e, x, y, z) cu_world_block((e), (x), (y), (z))
+#define HS_SKY(e, x, y, z) cu_world_sky((e), (x), (y), (z))
+#define HS_BLK(e, x, y, z) cu_world_blk((e), (x), (y), (z))
+#define HS_HOSTILE_COUNT(e) cu_hs_count(e)
+#define HS_MOB_HIT(e, x0, y0, z0, x1, y1, z1) cu_hs_hit((e), (x0), (y0), (z0), (x1), (y1), (z1))
+#define HS_PLACE(e, type, x, y, z, yaw, seed48, have_g, g) \
+    cu_hs_place((e), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g))
+#include "hostile_spawn.h"
+
+MC_HD static inline void cu_hs_run(Blaze *e) {
+    HsState st;
+    double px, py, pz;
+    if (!e || !e->natural_spawn) return;
+    memset(&st, 0, sizeof st);
+    st.world_rand.seed = e->spawn_world_seed48;
+    st.math_rand.seed = e->spawn_math_seed48;
+    st.shuffle_rand.seed = e->spawn_shuffle_seed48;
+    st.seed = e->seed;
+    st.world_time = e->ww.worldTime;
+    st.difficulty = 2;
+    st.thundering = 0;
+    st.spawn_x = 0.0;
+    st.spawn_y = 64.0;
+    st.spawn_z = 0.0;
+    px = e->pl.ent.posX + (double)e->ox;
+    py = e->pl.ent.posY;
+    pz = e->pl.ent.posZ + (double)e->oz;
+    hs_find_chunks_for_spawning(e, &st, px, py, pz);
+    e->spawn_world_seed48 = st.world_rand.seed;
+    e->spawn_math_seed48 = st.math_rand.seed;
+    e->spawn_shuffle_seed48 = st.shuffle_rand.seed;
+}
+
 #define BL_W Blaze
 #define BL_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #include "boat_live.h"
@@ -1117,6 +1253,7 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     int day, tod;
     if (!e) return;
     if (e->player_attack_cooldown > 0) --e->player_attack_cooldown;
+    cu_hs_run(e);
     if (!e->n_mobs) {
         e->mob_tick++;
         return;
@@ -5008,6 +5145,15 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     ww_init(&env->ww, env->seed);
     env->rain_strength = 0.0f;
     env->thunder_strength = 0.0f;
+    {
+        JavaRandom r;
+        jrand_set(&r, env->seed);
+        env->spawn_world_seed48 = r.seed;
+        jrand_set(&r, env->seed ^ (i64)0x4D415448);
+        env->spawn_math_seed48 = r.seed;
+        jrand_set(&r, env->seed ^ (i64)0x5348464C);
+        env->spawn_shuffle_seed48 = r.seed;
+    }
 
     env->ccx = psv_floordiv16(h->ox); env->ccz = psv_floordiv16(h->oz);
     env->ox = h->ox; env->oz = h->oz;

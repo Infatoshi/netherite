@@ -8,6 +8,37 @@
 #include "entity_spine.h"
 #include "hostile_live.h"
 #include "mc_blocks.h"
+#include "mc_rng.h"
+
+typedef struct {
+    int stone_y;
+} HsTestW;
+
+static int hs_test_block(const HsTestW *w, int x, int y, int z) {
+    (void)x;
+    (void)z;
+    if (!w) return 0;
+    if (y == w->stone_y) return BLK_STONE;
+    if (y == w->stone_y - 1) return BLK_BEDROCK;
+    return 0;
+}
+
+static int g_hs_placed;
+
+static int hs_test_place(HsTestW *w, int type, double x, double y, double z,
+                         float yaw, unsigned long long seed48, int have_g,
+                         double g) {
+    (void)w; (void)type; (void)x; (void)y; (void)z;
+    (void)yaw; (void)seed48; (void)have_g; (void)g;
+    ++g_hs_placed;
+    return 1;
+}
+
+#define HS_W HsTestW
+#define HS_BLOCK(w, x, y, z) hs_test_block((w), (x), (y), (z))
+#define HS_PLACE(w, type, x, y, z, yaw, seed48, have_g, g) \
+    hs_test_place((w), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g))
+#include "hostile_spawn.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -119,6 +150,20 @@ static int write_fixture(const char *from, const char *out_path) {
     s.n_mobs = 2;
     plant_hostile(&s.mobs[0], 1, 1, EW_TYPE_ZOMBIE, 8.5, 65.0, 11.5);
     plant_hostile(&s.mobs[1], 2, 2, EW_TYPE_SKELETON, 12.5, 65.0, 8.5);
+
+    {
+        int plat_x = s.head.ox + (int)s.head.px + 32;
+        int plat_z = s.head.oz + (int)s.head.pz;
+        int px, pz, py;
+        if (plat_x < s.head.rx0 + 2 || plat_x >= s.head.rx0 + s.head.rnx - 2)
+            plat_x = s.head.ox + (int)s.head.px - 32;
+        for (px = plat_x - 2; px <= plat_x + 2; ++px)
+            for (pz = plat_z - 2; pz <= plat_z + 2; ++pz) {
+                plant_cell(&s, px, 64, pz, BLK_STONE, 0);
+                for (py = 65; py <= 67; ++py)
+                    plant_cell(&s, px, py, pz, 0, 0);
+            }
+    }
     if (!blaze_snapshot_write(out_path, &s, err, (int)sizeof err)) {
         fprintf(stderr, "write %s: %s\n", out_path, err);
         blaze_snapshot_free(&s);
@@ -151,6 +196,92 @@ static int run_units(void) {
            "same-or-less damage during i-frames is rejected");
     expect(ml_hurt_gate(&hurt, &last, 5.0f, &applied) && applied == 2.0f,
            "greater hit during i-frames applies the delta");
+
+    expect(hs_round_up(1, 16) == 16, "MathHelper.roundUp(1,16)=16");
+    expect(hs_round_up(0, 16) == 16, "MathHelper.roundUp(0,16)=16");
+    expect(hs_round_up(16, 16) == 16, "MathHelper.roundUp(16,16)=16");
+    expect(hs_round_up(65, 16) == 80, "MathHelper.roundUp(65,16)=80");
+    expect(hs_monster_cap(289) == 70, "MONSTER cap 70 * 289 / 289 = 70");
+    expect(hs_ceil_d(0.0) == 0, "ceil(0)=0");
+    expect(hs_ceil_d(0.1) == 1, "ceil(0.1)=1");
+    expect(hs_ceil_d(3.0) == 3, "ceil(3)=3");
+    expect(hs_ceil_d(3.01) == 4, "ceil(3.01)=4");
+    expect(hs_valid_empty(0), "air is a valid empty spawn block");
+    expect(!hs_valid_empty(BLK_STONE), "stone is not empty");
+    expect(hs_is_normal_cube(BLK_STONE), "stone isBlockNormalCube");
+    expect(!hs_is_normal_cube(0), "air is not a normal cube");
+    expect(hs_clamped_add(2, 18000LL) == 0.0f,
+           "NORMAL worldTime 18000 clamped additional difficulty is 0");
+    expect(hs_skylight_sub(18000LL) == 11, "midnight skylightSubtracted is 11");
+    expect(hs_skylight_sub(6000LL) == 0, "noon skylightSubtracted is 0");
+    expect(hs_skylight_sub(13000LL) == 6, "dusk 13000 skylightSubtracted is 6");
+    expect(HS_TABLE_CAP == EW_MAX_ENTITIES, "shared table cap is EW_MAX_ENTITIES");
+    {
+        HsTestW tw;
+        tw.stone_y = 64;
+        expect(hs_can_spawn_at(&tw, 10, 65, 10),
+               "ON_GROUND: stone below, air at pos and pos.up");
+        expect(!hs_can_spawn_at(&tw, 10, 64, 10),
+               "cannot spawn inside the stone");
+        expect(!hs_can_spawn_at(&tw, 10, 63, 10),
+               "bedrock below is not a spawn floor");
+    }
+    {
+        JavaRandom r;
+        int seen[HS_NTYPES];
+        int i, t;
+        memset(seen, 0, sizeof seen);
+        jrand_set(&r, 12345);
+        for (i = 0; i < 2000; ++i) {
+            t = hs_weighted_pick(&r);
+            if (t >= 0 && t < HS_NTYPES) seen[t] = 1;
+        }
+        expect(seen[HS_ZOMBIE] && seen[HS_SKELETON] && seen[HS_CREEPER],
+               "WeightedRandom hits zombie/skeleton/creeper");
+        expect(seen[HS_SPIDER] && seen[HS_SLIME],
+               "WeightedRandom also hits spider/slime on the biome list");
+    }
+    {
+        int age = 0;
+        u64 seed48;
+        JavaRandom r;
+        jrand_set(&r, 1);
+        seed48 = r.seed;
+        expect(!hs_despawn_tick(1, 200.0, &age, &seed48) && age == 0,
+               "persist skips despawn and zeros age");
+        age = 0;
+        expect(hs_despawn_tick(0, 129.0, &age, &seed48),
+               "128-block hard despawn");
+        age = 601;
+        expect(!hs_despawn_tick(0, 10.0, &age, &seed48) && age == 0,
+               "inside 32 blocks resets age");
+    }
+    {
+        HsTestW tw;
+        HsState st;
+        int i;
+        tw.stone_y = 64;
+        hs_init(&st, 10);
+        st.world_time = 18000;
+        g_hs_placed = 0;
+        for (i = 0; i < 50 && g_hs_placed == 0; ++i)
+            (void)hs_find_chunks_for_spawning(&tw, &st, 8.5, 65.0, 8.5);
+        expect(g_hs_placed > 0,
+               "night findChunksForSpawning places a roster hostile");
+    }
+#ifndef __CUDA_ARCH__
+    (void)mc_probe_fn;
+    (void)mc_probe_cx;
+    (void)mc_probe_cz;
+    (void)mc_redirect_apply;
+    (void)mc_redirect_pending;
+    (void)mc_redirect_restore;
+    (void)mc_jr_watch_n;
+    (void)mc_jr_watch_before;
+    (void)mc_jr_watch_after;
+    (void)mc_jr_watch_fired;
+    (void)mc_jr_watch_hookfn;
+#endif
     return fails ? 1 : 0;
 }
 

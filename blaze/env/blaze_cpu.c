@@ -87,6 +87,8 @@ typedef struct {
                               * 0 = disabled. Applied at reset. */
     int    no_ore_xy;        /* create-time: skip ore spatial index on load */
     int    mobs_enabled;     /* magma --mobs on: hostile AI/combat live tick */
+    int    natural_spawn;    /* WorldEntitySpawner MONSTER cycle */
+    i64    world_time_pin;   /* -1 unset; else ww.worldTime after reset */
     int    elytra_kit;       /* magma --elytra on: chest 443 after reset */
 } CuVec;
 
@@ -122,6 +124,28 @@ int blaze_set_mobs_enabled(void *vh, int on) {
     return 0;
 }
 
+int blaze_set_natural_spawn(void *vh, int on) {
+    CuVec *v = (CuVec *)vh;
+    int i;
+    if (!v) return -1;
+    v->natural_spawn = on ? 1 : 0;
+    if (v->envs)
+        for (i = 0; i < v->n; ++i)
+            v->envs[i].natural_spawn = v->natural_spawn;
+    return 0;
+}
+
+int blaze_set_world_time(void *vh, long long world_time) {
+    CuVec *v = (CuVec *)vh;
+    int i;
+    if (!v) return -1;
+    v->world_time_pin = world_time;
+    if (v->envs)
+        for (i = 0; i < v->n; ++i)
+            v->envs[i].ww.worldTime = world_time;
+    return 0;
+}
+
 int blaze_set_elytra_enabled(void *vh, int on) {
     CuVec *v = (CuVec *)vh;
     int i;
@@ -151,6 +175,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     if (!v) return NULL;
     v->n = n;
     v->success_item = 263;
+    v->world_time_pin = -1;
     v->no_ore_xy = o.no_ore_xy ? 1 : 0;
     mc_sin_table_init(&v->st);
     v->nrecipes = crf_build(v->recipes);
@@ -350,6 +375,9 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->cont, s->ncont, s->mobs, s->n_mobs,
                               s->orbs, s->n_orbs, v->success_item);
     v->envs[i].mobs_enabled = v->mobs_enabled;
+    v->envs[i].natural_spawn = v->natural_spawn;
+    if (v->world_time_pin >= 0)
+        v->envs[i].ww.worldTime = v->world_time_pin;
     v->envs[i].elytra_kit = v->elytra_kit;
     if (v->elytra_kit) {
         isr_set_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST,

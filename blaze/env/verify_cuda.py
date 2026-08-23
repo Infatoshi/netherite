@@ -436,6 +436,26 @@ def run_chain(args, iron=False):
                 cpu.close()
                 cuda.close()
                 return False
+    if getattr(args, "natural_spawn", False):
+        for e in (cpu, cuda):
+            e.lib.blaze_set_natural_spawn.argtypes = [
+                ctypes.c_void_p, ctypes.c_int]
+            e.lib.blaze_set_natural_spawn.restype = ctypes.c_int
+            if e.lib.blaze_set_natural_spawn(e.h, 1) != 0:
+                print("BLOCKED: blaze_set_natural_spawn failed")
+                args.parity_blocked = True
+                cpu.close()
+                cuda.close()
+                return False
+            e.lib.blaze_set_world_time.argtypes = [
+                ctypes.c_void_p, ctypes.c_longlong]
+            e.lib.blaze_set_world_time.restype = ctypes.c_int
+            if e.lib.blaze_set_world_time(e.h, 18000) != 0:
+                print("BLOCKED: blaze_set_world_time failed")
+                args.parity_blocked = True
+                cpu.close()
+                cuda.close()
+                return False
     if args.parity_features and "elytra" in args.parity_features:
         for e in (cpu, cuda):
             e.lib.blaze_set_elytra_enabled.argtypes = [
@@ -838,6 +858,9 @@ def build_parser():
     ap.add_argument(
         "--mobs-on", action="store_true",
         help="enable blaze hostile AI (mobs row; magma --set mobs=1 is CPU-only)")
+    ap.add_argument(
+        "--natural-spawn", action="store_true",
+        help="enable WorldEntitySpawner + pin worldTime=18000")
     ap.add_argument("--bench", action="store_true")
     ap.add_argument("--t0", action="store_true",
                     help="bench on t0 snapshots with full action decode")

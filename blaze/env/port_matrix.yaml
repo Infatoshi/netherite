@@ -552,6 +552,7 @@ subsystems:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared:
         - blaze/core/hostile_live.h
+        - blaze/core/hostile_spawn.h
         - blaze/core/entity_hostile_spine.h
         - blaze/core/entity_spine.h
         - blaze/core/port_parity.h
@@ -589,6 +590,7 @@ subsystems:
       - --features
       - mobs
       - --mobs-on
+      - --natural-spawn
     m2:
       - uv
       - run
@@ -609,6 +611,7 @@ subsystems:
       - --features
       - mobs
       - --mobs-on
+      - --natural-spawn
     timeout: 1500
 
   - name: chests
