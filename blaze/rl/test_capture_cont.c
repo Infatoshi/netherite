@@ -401,6 +401,42 @@ int main(void) {
     unlink(p_hi);
   }
 
+  {
+    /* 65 container blocks: snapshot ncont = -1 (scan fallback). Capture
+     * must not die (n_cont > BLAZE_SNAP_MAX_CONT used to cudaError). */
+    char p_many[160];
+    int many_wx[65], many_wy[65], many_wz[65];
+    int t;
+    for (t = 0; t < 65; ++t) {
+      many_wx[t] = t % 16;
+      many_wy[t] = 5;
+      many_wz[t] = t / 16;
+    }
+    snprintf(p_many, sizeof p_many, "%s/many.bsnp", dir);
+    expect_eq_i(write_bsnp(p_many, 65, many_wx, many_wy, many_wz), 0,
+                "write 65-cont snapshot");
+    expect_true(blaze_snapshot_load(p_many, &chk, err, (int)sizeof err, 0),
+                "load 65-cont");
+    expect_eq_i(chk.ncont, -1, "65 containers poison ncont to -1");
+    blaze_snapshot_free(&chk);
+    {
+      const char *paths[1] = {p_many};
+      void *env = ready_env(&f, paths, 1, 0);
+      expect_true(env != NULL, "65-cont create");
+      if (env) {
+        expect_eq_i(interact_container(&f, env), 1,
+                    "n_cont=-1 scan still opens a table");
+        expect_eq_i(f.capture(env, 0, 0), 0,
+                    "capture overflow n_cont=-1 does not die");
+        expect_eq_i(f.reset(env, NULL), 0, "reset after overflow capture");
+        expect_eq_i(interact_container(&f, env), 1,
+                    "captured overflow slot still opens");
+        f.destroy(env);
+      }
+    }
+    unlink(p_many);
+  }
+
   dlclose(f.lib);
   unlink(p_none);
   unlink(p_one);
