@@ -447,6 +447,7 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
                           ((cursor.meta & 0xffff) << 16));
 
     h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x31594C50)); /* "PLY1" + fire/air */
     h = bp_hash_double(h, r->player.ent.posX + (double)r->ox);
     h = bp_hash_double(h, r->player.ent.posY);
     h = bp_hash_double(h, r->player.ent.posZ + (double)r->oz);
@@ -462,6 +463,8 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     h = bp_hash_float(h, r->vitals.health);
     h = bp_hash_i32(h, r->vitals.foodLevel);
     h = bp_hash_float(h, r->vitals.exhaustion);
+    h = bp_hash_i32(h, r->player.fire);
+    h = bp_hash_i32(h, r->player.air);
     out->digest[BP_PLAYER] = h;
     out->evidence[BP_PLAYER] = 1;
     out->active_mask |= BP_BIT(BP_PLAYER);
@@ -1070,6 +1073,12 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                                    (size_t)bvol;
                     free(biome);
                 }
+                {
+                    int fire = r->player.fire;
+                    int air = r->player.air;
+                    ok = ok && fwrite(&fire, sizeof fire, 1, f) == 1;
+                    ok = ok && fwrite(&air, sizeof air, 1, f) == 1;
+                }
             }
             fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
                     "%u mobs, %u orbs, wr=%llu lcg=%d, biome %dx%d)\n",
@@ -1241,6 +1250,20 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         }
     } else {
         memset(biome, BLAZE_SNAP_BIOME_PLAINS, (size_t)bvol);
+    }
+    {
+        int fire = 0, air = 300;
+        if (h.version >= BLAZE_SNAP_VERSION_HAZARDS) {
+            if (fread(&fire, sizeof fire, 1, f) != 1 ||
+                fread(&air, sizeof air, 1, f) != 1) {
+                snprintf(err, (size_t)err_cap,
+                         "truncated .bsnp hazards: %s", path);
+                free(cells); free(light); free(biome); fclose(f); return 0;
+            }
+        }
+        r->player.fire = fire;
+        r->player.air = air;
+        r->player_fire_ticks = fire;
     }
     fclose(f);
 

@@ -373,7 +373,7 @@ static int run_units(void) {
     expect(blaze_snapshot_write(pa, &a, err, (int)sizeof err), "write v8");
     memset(&b, 0, sizeof b);
     expect(blaze_snapshot_load(pa, &b, err, (int)sizeof err, 1), "load v8");
-    expect(b.head.version == BLAZE_SNAP_VERSION, "loaded version is 8");
+    expect(b.head.version == BLAZE_SNAP_VERSION, "loaded version is current");
     expect(b.biome && b.biome[0] == 6 && b.biome[3] == 12,
            "v8 swamp/ice columns round-trip");
     expect(blaze_snapshot_write(pb, &b, err, (int)sizeof err), "rewrite v8");

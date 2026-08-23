@@ -192,6 +192,19 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             memset(out->biome, BLAZE_SNAP_BIOME_PLAINS, (size_t)bvol);
         }
     }
+    out->player_fire = 0;
+    out->player_air = 300;
+    if (out->head.version >= BLAZE_SNAP_VERSION_HAZARDS) {
+        if (fread(&out->player_fire, sizeof out->player_fire, 1, f) != 1 ||
+            fread(&out->player_air, sizeof out->player_air, 1, f) != 1) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp hazards", path);
+        }
+    }
     fclose(f);
 
     /* spatial index over the static ore list (bucketed coal-candidate
@@ -328,6 +341,12 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
                 free(tmp);
             }
         }
+    }
+    if (version >= BLAZE_SNAP_VERSION_HAZARDS) {
+        int fire = s->player_fire;
+        int air = s->player_air;
+        ok = ok && fwrite(&fire, sizeof fire, 1, f) == 1;
+        ok = ok && fwrite(&air, sizeof air, 1, f) == 1;
     }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)

@@ -58,6 +58,8 @@
 #define PSV_FALL_SAFE    3.0f                  /* blocks of fall absorbed before damage */
 #define PSV_MAX_HEALTH   20.0f
 #define PSV_MAX_FOOD     20.0f
+#define PSV_AIR_MAX      300                   /* Entity.java:256 AIR default */
+#define PSV_PLAYER_WIDTH 0.6f                  /* EntityPlayer.java:527 setSize */
 #define PSV_PURPOSE      0x50535601u           /* "PSV" action-tape hash purpose */
 
 /* Per-tick emitted fields (fixed order; see psv_emit). */
@@ -111,6 +113,15 @@ typedef struct {
     float    experience;
     int      experienceLevel;
     int      experienceTotal;
+    /* Entity.fire Entity.java:617-629 (setFire stores seconds*20). */
+    int      fire;
+    /* Entity AIR default 300 Entity.java:256; drown EntityLivingBase.java:297-320. */
+    int      air;
+    int      in_water;       /* Entity.inWater after handleWaterMovement */
+    int      frost_walker;   /* EnchantmentHelper.hasFrostWalkerEnchantment */
+    int      wet_rain;       /* World.isRainingAt feet or head; caller sets */
+    /* Pending env hits this tick (Java order). Game tick applies them. */
+    float    hz_fire, hz_lava, hz_void, hz_wall, hz_drown, hz_cactus, hz_magma;
     IsrInv   inv;            /* inventory (verified stack rules) */
     u32      break_events;   /* cumulative successful block breaks (drop yielded) */
     u32      place_events;   /* cumulative successful block places */
@@ -394,6 +405,10 @@ MC_HD static inline void psv_do_block_collisions(const Chunk *now, PsvPlayer *pl
                 } else if (id == BLK_SOUL_SAND) {
                     pl->ent.motionX *= 0.4;
                     pl->ent.motionZ *= 0.4;
+                } else if (id == BLK_CACTUS) {
+                    /* BlockCactus.onEntityCollidedWithBlock
+                     * BlockCactus.java:133-136 CACTUS 1.0F. */
+                    pl->hz_cactus = 1.0f;
                 }
             }
 }
@@ -456,6 +471,141 @@ MC_HD static inline int psv_in_liquid(const Chunk *now, const McEntity *e, int w
                 if (want_water ? is_w : is_l) return 1;
             }
     return 0;
+}
+
+/* ---- environmental damage (Java Entity / EntityLivingBase / EntityPlayer) ----
+ * Detection lives here; magma gm_mobs_attack_player / blaze cu_hurt_player
+ * apply the pending hz_* amounts after the physics tick. */
+
+MC_HD static inline int psv_causes_suffocation(int id) {
+    /* Block.causesSuffocation Block.java:353-355: blocksMovement && isFullCube.
+     * Overrides: BlockLeaves.java:255 false; web Material.WEB. */
+    if (id <= 0) return 0;
+    if (id == 8 || id == 9 || id == 10 || id == 11) return 0;
+    if (id == 18 || id == 161) return 0;
+    if (id == 20 || id == 95 || id == 102 || id == 160) return 0;
+    if (id == 30) return 0;
+    if (id == 31 || id == 32 || id == 37 || id == 38 || id == 39 || id == 40)
+        return 0;
+    if (id == 44 || id == 126 || id == 182) return 0;
+    if (id == 50 || id == 76) return 0;
+    if (id == 54 || id == 146 || id == 130) return 0;
+    if (id == 65) return 0;
+    if (id == 78) return 0;
+    if (id == 81) return 0;
+    if (id == 85 || id == 113 || id == 139 || id == 107) return 0;
+    if (id == 96 || id == 167) return 0;
+    if (psv_is_stairs(id)) return 0;
+    return psv_solid(id);
+}
+
+MC_HD static inline int psv_is_entity_inside_opaque(const Chunk *now,
+                                                    const PsvPlayer *pl) {
+    /* Entity.isEntityInsideOpaqueBlock Entity.java:2156-2186. 8 samples,
+     * y offset 0.1F, xz offset width*0.8F, plus eye height. */
+    float width = PSV_PLAYER_WIDTH;
+    double eye = psv_player_eye_height(pl);
+    int i;
+    for (i = 0; i < 8; ++i) {
+        int j = mc_floor(pl->ent.posY +
+                         (double)(((float)((i >> 0) % 2) - 0.5f) * 0.1f) +
+                         eye);
+        int k = mc_floor(pl->ent.posX +
+                         (double)(((float)((i >> 1) % 2) - 0.5f) *
+                                  width * 0.8f));
+        int l = mc_floor(pl->ent.posZ +
+                         (double)(((float)((i >> 2) % 2) - 0.5f) *
+                                  width * 0.8f));
+        if (psv_causes_suffocation(psv_get_block(now, k, j, l)))
+            return 1;
+    }
+    return 0;
+}
+
+MC_HD static inline int psv_eyes_in_water(const Chunk *now, const PsvPlayer *pl) {
+    /* Entity.isInsideOfMaterial WATER: BlockPos of (x, y+eye, z) then
+     * ForgeHooks.isInsideOfMaterial ForgeHooks.java:972-997 with
+     * BlockLiquid.getLiquidHeightPercent BlockLiquid.java:60-68. */
+    double eyes = pl->ent.posY + psv_player_eye_height(pl);
+    int bx = mc_floor(pl->ent.posX);
+    int by = mc_floor(eyes);
+    int bz = mc_floor(pl->ent.posZ);
+    int id = psv_get_block(now, bx, by, bz);
+    int meta;
+    float filled;
+    if (id != 8 && id != 9) return 0;
+    meta = psv_get_meta(now, bx, by, bz);
+    if (meta >= 8) meta = 0;
+    filled = (float)(meta + 1) / 9.0f;
+    return eyes < (double)by + 1.0 + (double)filled;
+}
+
+MC_HD static inline void psv_set_fire(PsvPlayer *pl, int seconds) {
+    /* Entity.setFire Entity.java:617-629. No fire-protection enchant here. */
+    int i = seconds * 20;
+    if (pl->fire < i) pl->fire = i;
+}
+
+MC_HD static inline void psv_extinguish(PsvPlayer *pl) {
+    /* Entity.extinguish Entity.java:635-638. */
+    pl->fire = 0;
+}
+
+MC_HD static inline int psv_decrease_air(int air) {
+    /* EntityLivingBase.decreaseAirSupply EntityLivingBase.java:460-464
+     * with respiration 0: always air-1. */
+    return air - 1;
+}
+
+MC_HD static inline void psv_env_clear_hits(PsvPlayer *pl) {
+    pl->hz_fire = pl->hz_lava = pl->hz_void = 0.0f;
+    pl->hz_wall = pl->hz_drown = pl->hz_cactus = pl->hz_magma = 0.0f;
+}
+
+MC_HD static inline void psv_env_pre_move(const Chunk *now, PsvPlayer *pl) {
+    /* Entity.onEntityUpdate Entity.java:460-580 then
+     * EntityLivingBase.onEntityUpdate EntityLivingBase.java:259-344.
+     * Called after handleWaterMovement, before travel. */
+    int alive = pl->health > 0.0f;
+    psv_env_clear_hits(pl);
+
+    /* Entity.java:541-560 fire counter: damage when fire%20==0 then --fire. */
+    if (pl->fire > 0) {
+        if (pl->fire % 20 == 0)
+            pl->hz_fire = 1.0f; /* DamageSource.ON_FIRE bypasses armor */
+        --pl->fire;
+    }
+
+    /* Entity.java:563-567 isInLava -> setOnFireFromLava :605-611. */
+    if (psv_in_liquid(now, &pl->ent, 0)) {
+        pl->hz_lava = 4.0f; /* DamageSource.LAVA, armor applies */
+        psv_set_fire(pl, 15);
+        pl->fall_distance *= 0.5f;
+    }
+
+    /* Entity.java:569-572 posY < -64 -> EntityLivingBase.kill :1647-1649. */
+    if (pl->ent.posY < -64.0)
+        pl->hz_void = 4.0f; /* DamageSource.OUT_OF_WORLD unblockable */
+
+    if (alive) {
+        /* EntityLivingBase.java:268-271 IN_WALL 1.0F unblockable. */
+        if (psv_is_entity_inside_opaque(now, pl))
+            pl->hz_wall = 1.0f;
+        /* EntityLivingBase.java:297-320 air / DROWN 2.0F unblockable. */
+        if (!psv_eyes_in_water(now, pl))
+            pl->air = PSV_AIR_MAX;
+        else {
+            pl->air = psv_decrease_air(pl->air);
+            if (pl->air == -20) {
+                pl->air = 0;
+                pl->hz_drown = 2.0f;
+            }
+        }
+    }
+
+    /* EntityLivingBase.java:341-344 isWet -> extinguish. */
+    if (alive && (pl->in_water || pl->wet_rain))
+        psv_extinguish(pl);
 }
 
 /* ---- flowing-water current (BlockLiquid.getFlow + handleMaterialAcceleration) ----
@@ -705,6 +855,10 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
      * motion snap, so the current push lands first and CAN be snapped. */
     int in_water = psv_handle_water(now, e);
     int in_lava  = !in_water && psv_in_liquid(now, e, 0);
+    pl->in_water = in_water;
+    /* Entity.onEntityUpdate fire/lava/void then EntityLivingBase drown/wall
+     * before travel. Amounts land in hz_*; the game tick applies them. */
+    psv_env_pre_move(now, pl);
 
     /* EntityLivingBase.updateElytra clears flag 7 only for ground/riding or a
      * missing/broken chest item. Water and lava deliberately do not clear it
@@ -903,6 +1057,17 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
     }
 
     psv_do_block_collisions(now, pl);
+
+    /* Entity.move onEntityWalk Entity.java:1010-1024. Sneaking players skip
+     * the walking trigger, so BlockMagma HOT_FLOOR is skipped when sneaking.
+     * Frost walker: BlockMagma.java:47. */
+    if (e->onGround && !act->sneak && !pl->frost_walker) {
+        int bx = mc_floor(e->posX);
+        int by = mc_floor(e->posY - 0.20000000298023224);
+        int bz = mc_floor(e->posZ);
+        if (psv_get_block(now, bx, by, bz) == BLK_MAGMA)
+            pl->hz_magma = 1.0f;
+    }
 
     e->motionY -= 0.08;
     e->motionY *= 0.9800000190734863;
@@ -1124,6 +1289,12 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->experience = 0.0f;
     pl->experienceLevel = 0;
     pl->experienceTotal = 0;
+    pl->fire = 0;
+    pl->air = PSV_AIR_MAX;
+    pl->in_water = 0;
+    pl->frost_walker = 0;
+    pl->wet_rain = 0;
+    psv_env_clear_hits(pl);
     pl->break_events = pl->place_events = pl->swing_events = 0;
     isr_init(&pl->inv);
     pl->inv.current_item = 0;

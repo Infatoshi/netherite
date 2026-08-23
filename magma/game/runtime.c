@@ -540,7 +540,10 @@ static void tick_projectiles(GmRuntime *r) {
                         (struct PvStats *)&r->vitals, &r->player.inv,
                         dmg, 0);
                     r->player.health=r->vitals.health;
-                    if(hit&&p->type==3)r->player_fire_ticks=5*20;
+                    if(hit&&p->type==3){
+                        r->player_fire_ticks=5*20;
+                        r->player.fire=r->player_fire_ticks;
+                    }
                     if(p->type==5)runtime_explode(r,p->x,p->y,p->z,1.0f);
                     p->active=0;
                 }else if(block){
@@ -898,7 +901,14 @@ void gm_runtime_respawn(GmRuntime *r) {
     r->quit_to_title = 0;
     r->vitals.health = 20.0f;
     r->player.health = 20.0f;
+    r->vitals.foodLevel = 20;
+    r->vitals.saturation = 5.0f;
+    r->vitals.exhaustion = 0.0f;
+    r->vitals.foodTimer = 0;
+    r->player.food = 20.0f;
     r->player_fire_ticks = 0;
+    r->player.fire = 0;
+    r->player.air = PSV_AIR_MAX;
     r->mobs.player_hurt_resistant = 0;
     r->mobs.player_last_damage = 0.0f;
 }
@@ -1039,16 +1049,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     /* EntityLivingBase.onUpdate ages hurtResistantTime every tick even when
      * --mobs off suppresses natural mob AI during a tape replay. */
     gm_mobs_player_hurt_tick(&r->mobs);
-    /* Entity.onEntityUpdate: burning is fire>0, damage lands while the
-     * pre-decrement counter is divisible by 20, then the counter ages. */
-    if(r->player_fire_ticks>0){
-        /* DamageSource.ON_FIRE bypasses armor. */
-        if(r->player_fire_ticks%20==0)
-            (void)gm_mobs_attack_player(&r->mobs,
-                (struct PvStats *)&r->vitals, &r->player.inv, 1.0f, 1);
-        --r->player_fire_ticks;
-        r->player.health=r->vitals.health;
-    }
+    r->player.fire = r->player_fire_ticks;
+    r->player.health = r->vitals.health;
     /* Minecraft.runTick order: leftClickCounter-- then processKeyBinds
      * (clickMouse on press, sendClickBlockToController on hold). Entity
      * selection/damage is clickMouse's ENTITY branch and must share the
@@ -1081,6 +1083,34 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                       (struct PsvPlayer *)&r->player,
                       (struct PvStats *)&r->vitals, &r->gamerules, action,
                       r->ox, 0, r->oz, edits, &n, GM_RUNTIME_MAX_EDITS);
+    /* Apply env hits computed inside psv_physics_tick (Java order). */
+    {
+        PsvPlayer *pl = &r->player;
+        if (pl->hz_fire > 0.0f)
+            (void)gm_mobs_attack_player(&r->mobs,
+                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_fire, 1);
+        if (pl->hz_lava > 0.0f)
+            (void)gm_mobs_attack_player(&r->mobs,
+                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_lava, 0);
+        if (pl->hz_void > 0.0f)
+            (void)gm_mobs_attack_player(&r->mobs,
+                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_void, 1);
+        if (pl->hz_wall > 0.0f)
+            (void)gm_mobs_attack_player(&r->mobs,
+                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_wall, 1);
+        if (pl->hz_drown > 0.0f)
+            (void)gm_mobs_attack_player(&r->mobs,
+                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_drown, 1);
+        if (pl->hz_cactus > 0.0f)
+            (void)gm_mobs_attack_player(&r->mobs,
+                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_cactus, 0);
+        if (pl->hz_magma > 0.0f)
+            (void)gm_mobs_attack_player(&r->mobs,
+                (struct PvStats *)&r->vitals, &r->player.inv, pl->hz_magma, 0);
+        r->player.health = r->vitals.health;
+        r->player_fire_ticks = r->player.fire;
+        psv_env_clear_hits(pl);
+    }
     /* Minecraft pins this sentinel every runTick while a block GUI is open,
      * after attack-release handling would otherwise clear it. */
     if (r->container >= 1 && r->container <= 3)
@@ -1364,7 +1394,9 @@ void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
     out->deaths = r->deaths;
     out->score = r->score;
     out->death_ticks = r->death_screen_ticks;
-    out->fire = r->player_fire_ticks > 0;
+    out->fire = r->player.fire > 0 || r->player_fire_ticks > 0;
+    if (r->player.air >= 0)
+        out->air = r->player.air;
     out->creative = 0;
     out->hurt_resistant_time = r->mobs.player_hurt_resistant;
     out->hurt_time = r->mobs.player_hurt_resistant > 0
@@ -1935,6 +1967,8 @@ void gm_runtime_set_vitals(GmRuntime *r, float health, int food) {
         r->death_screen_ticks = 0;
         r->quit_to_title = 0;
         r->player_fire_ticks = 0;
+        r->player.fire = 0;
+        r->player.air = PSV_AIR_MAX;
         r->mobs.player_hurt_resistant = 0;
         r->mobs.player_last_damage = 0.0f;
     }

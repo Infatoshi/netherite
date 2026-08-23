@@ -1122,7 +1122,7 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
 
     out->xp_level = 0;
     out->xp_frac  = 0.0f;
-    out->air      = -1;
+    out->air      = pl->air;
 
     out->dead   = 0;
     out->deaths = 0;

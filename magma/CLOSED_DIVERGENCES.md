@@ -5,6 +5,62 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Environmental damage on the player: CLOSED 2026-08-23 (lane/hazards)
+
+Gamer. Magma sweep 2026-08-23 row 5 + blaze rows 6 (terminal death, documented)
+and 7 (player fire). Shared rules in `blaze/core/player_survival.h`
+(`psv_env_pre_move`, cactus in `psv_do_block_collisions`, magma
+`onEntityWalk`). Magma `runtime.c` and blaze `blaze_runtime_tick_nr` apply
+pending `hz_*` through `gm_mobs_attack_player` / `cu_hurt_player`.
+
+Java 1.11.2 (server EntityPlayerMP.onUpdate decrements hurtResistantTime
+then onUpdateEntity -> EntityPlayer.onUpdate -> Entity.onUpdate):
+- AIR default 300 `Entity.java:256`. Drown `EntityLivingBase.java:297-320`:
+  `decreaseAirSupply` (`:460-464`, respiration 0 => air-1); at air==-20
+  reset 0 and `DROWN` 2.0F unblockable (`DamageSource.java:24`). Eyes in
+  water: `ForgeHooks.isInsideOfMaterial` `:972-997` with
+  `BlockLiquid.getLiquidHeightPercent` `:60-68`.
+- IN_WALL 1.0F unblockable `EntityLivingBase.java:268-271` via
+  `isEntityInsideOpaqueBlock` `Entity.java:2156-2186` (8 samples, 0.1F y
+  and width*0.8F xz). `causesSuffocation` `Block.java:353-355`.
+- LAVA 4.0F armor-applies + `setFire(15)` `Entity.java:563-567,605-629`.
+  `isInLava` box expand -0.1/-0.4/-0.1 `:1416-1418`.
+- ON_FIRE 1.0F unblockable when `fire%20==0` then `--fire` `:541-560`.
+  `isWet` extinguish `EntityLivingBase.java:341-344` (`inWater` or caller
+  `wet_rain`).
+- CACTUS 1.0F `BlockCactus.java:133-136` from `doBlockCollisions`.
+- HOT_FLOOR 1.0F `BlockMagma.java:45-50` unless sneak (Entity.java:1010
+  walking trigger) or frost walker.
+- OUT_OF_WORLD 4.0F `Entity.java:569-572` / `EntityLivingBase.kill :1647-1649`.
+
+Snapshot v9 trailer after biome: `i32 fire, i32 air`. v8 loads fire=0
+air=300. `BP_PLAYER` tag PLY1 hashes fire+air. Magma respawn now also
+resets food/air/fire (`FoodStats` ctor + Entity AIR). Blaze stays
+terminal: magma GUI respawn is a death_click; without it both freeze at
+the death tick, so M1 stays equal.
+
+Fixture `s10_t0_r64_hazards.bsnp` baked by `test_hazards --write-fixture`
+from `s10_t0_r64_no_liquid.bsnp` (not hand-edited): +Z water tank, lava,
+cactus, magma. Chain `hazards_s10.json` 448 actions. M1 VERIFIED 448
+ticks t=0 player digest `0x0ac36057b116e2d3`
+(`out/verify/hazards_hazards_m1_detail.log`). M2 VERIFIED. `--no-deps` M1
+VERIFIED for spawn_to_torch world_dynamics fluids entity_spine
+random_ticks random_ticks_bodies falling_blocks weather_optional
+projectiles explosions chests mobs mobs_ss mobs_end passives xp_orbs
+boats elytra biome_plane mining_slice. M2 VERIFIED for those except
+mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). Magma
+`test_hazards` PASS. `make -C blaze/rl test-hazards` PASS. Root `make
+test` PASS.
+
+Tapes (`replay_tape.py --cpu --no-gate --report`): bow physics NO
+divergence 1407, entities PASS 5525. smoke_zombie x2 physics NO
+divergence through death (358), entities PASS. Canon INFRASTRUCTURE
+FAILURE (golden frames missing on this host): harness, not a verdict.
+First-divergence ticks did not move earlier.
+
+Stay out: potion fireResistance, respiration RNG, frost-walker enchant
+NBT (test hook `pl->frost_walker`), blaze auto-respawn.
+
 ### Sim smalls arrow consume + HUD heart-flash: CLOSED 2026-08-22 (lane/simsmalls)
 
 Tapes (gamer, client inventory at ClientTick END, Recorder.java:8387-8678):
