@@ -273,13 +273,30 @@ def run_magma_resume(seed, dump_path, acts_tail, extra):
     return pars
 
 
+def dump_blaze(cu, path):
+    lib = cu.lib
+    lib.blaze_dump_snapshot.argtypes = [
+        ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p,
+        ctypes.c_char_p, ctypes.c_int]
+    lib.blaze_dump_snapshot.restype = ctypes.c_int
+    err = ctypes.create_string_buffer(256)
+    r = lib.blaze_dump_snapshot(
+        ctypes.c_void_p(cu.h), 0, path.encode(), err, 256)
+    if r != 0:
+        raise RuntimeError(
+            f"blaze_dump_snapshot: {err.value.decode() or 'rc=' + str(r)}")
+
+
 def run_blaze_continuous(snap, acts, n_plus_m, features, mobs_on,
-                         natural_spawn, natural_spawn_passive, so_path=None):
+                         natural_spawn, natural_spawn_passive, so_path=None,
+                         dump_path=None, dump_at=None):
     cu = make_blaze(snap, features, mobs_on, natural_spawn,
                     natural_spawn_passive, so_path=so_path)
     pars = [cu.parity()]
     try:
-        for act in acts[:n_plus_m]:
+        for t, act in enumerate(acts[:n_plus_m]):
+            if dump_path is not None and dump_at is not None and t == dump_at:
+                dump_blaze(cu, dump_path)
             cu.step(_strip_snap(act))
             pars.append(cu.parity())
     finally:
@@ -349,13 +366,18 @@ def run_one(args):
             if not os.path.isfile(SO):
                 print(f"  FAIL missing {SO}")
                 return FAILED
-            print("  blaze-cpu continuous")
+            blaze_ck = os.path.join(tmp, f"ck_{n}_blaze.bsnp")
+            print("  blaze-cpu continuous + dump")
             blaze_cont = run_blaze_continuous(
                 snap, acts, n + m, features, args.mobs_on,
-                args.natural_spawn, args.natural_spawn_passive, so_path=SO)
-            print("  blaze-cpu resume from magma dump")
+                args.natural_spawn, args.natural_spawn_passive, so_path=SO,
+                dump_path=blaze_ck, dump_at=n)
+            if not os.path.isfile(blaze_ck):
+                print(f"  FAIL missing blaze dump {blaze_ck}")
+                return FAILED
+            print("  blaze-cpu resume from blaze dump")
             blaze_res = run_blaze_resume(
-                dump_path, acts[n:n + m], features, args.mobs_on,
+                blaze_ck, acts[n:n + m], features, args.mobs_on,
                 args.natural_spawn, args.natural_spawn_passive, so_path=SO)
             st, msg = compare_parity_slice(
                 "blaze-cpu continuous-vs-resume",
@@ -367,14 +389,15 @@ def run_one(args):
             if not os.path.isfile(CUDA_SO):
                 print(f"  FAIL missing {CUDA_SO}")
                 return FAILED
-            print("  blaze-cuda continuous")
+            print("  blaze-cuda continuous + dump")
+            cuda_ck = os.path.join(tmp, f"ck_{n}_cuda.bsnp")
             cuda_cont = run_blaze_continuous(
                 snap, acts, n + m, features, args.mobs_on,
                 args.natural_spawn, args.natural_spawn_passive,
-                so_path=CUDA_SO)
-            print("  blaze-cuda resume from magma dump")
+                so_path=CUDA_SO, dump_path=cuda_ck, dump_at=n)
+            print("  blaze-cuda resume from cuda dump")
             cuda_res = run_blaze_resume(
-                dump_path, acts[n:n + m], features, args.mobs_on,
+                cuda_ck, acts[n:n + m], features, args.mobs_on,
                 args.natural_spawn, args.natural_spawn_passive,
                 so_path=CUDA_SO)
             st, msg = compare_parity_slice(

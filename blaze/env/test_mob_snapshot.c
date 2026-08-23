@@ -231,10 +231,12 @@ int main(int argc, char **argv) {
     }
 
     expect(sizeof(RlSnapHead) == 752, "RlSnapHead is 752 bytes packed");
-    expect(sizeof(RlSnapMob) == 592, "RlSnapMob is 592 bytes packed");
+    expect(sizeof(RlSnapMob) == 604, "RlSnapMob is 604 bytes packed");
     expect(BLAZE_SNAP_MOB_SIZE_V7 == 572, "v7 on-disk mob record is 572 bytes");
-    expect(BLAZE_SNAP_VERSION == 9, "snapshot version is 9");
+    expect(BLAZE_SNAP_MOB_SIZE_V10 == 604, "v10 on-disk mob record is 604 bytes");
+    expect(BLAZE_SNAP_VERSION == 10, "snapshot version is 10 on this lane");
     expect(BLAZE_SNAP_VERSION_HAZARDS == 9, "hazards trailer is version 9");
+    expect(BLAZE_SNAP_VERSION_RESUME == 10, "v10 clock/sidecar trailer");
     expect(BLAZE_SNAP_VERSION_WORLD_RAND == 5, "world_rand trailer is version 5");
     expect(BLAZE_SNAP_VERSION_UPDATE_LCG == 6, "updateLCG trailer is version 6");
     expect(BLAZE_SNAP_VERSION_ENDER == 7, "enderman fields are version 7");
@@ -329,6 +331,50 @@ int main(int argc, char **argv) {
                "load v7");
         expect(loaded.biome && loaded.biome[0] == BLAZE_SNAP_BIOME_PLAINS,
                "v7 load biome plane is plains 1");
+        blaze_snapshot_free(&loaded);
+    }
+
+    s.head.version = 9;
+    s.player_fire = 15;
+    s.player_air = 280;
+    expect(roundtrip(p_a, p_b, &s), "v9 save/load/save identical");
+    {
+        CuSnapshot loaded;
+        char err[256];
+        memset(&loaded, 0, sizeof loaded);
+        expect(blaze_snapshot_load(p_a, &loaded, err, (int)sizeof err, 1),
+               "load v9");
+        expect(loaded.mobs[0].repath_timer == 0 &&
+               loaded.mobs[0].despawn_ticks == 0 &&
+               loaded.mobs[0].fire_ticks == 0,
+               "v9 load zero-extends sidecars");
+        expect(loaded.rt_mutations == 0, "v9 load rt_mutations=0");
+        loaded.head.version = 10;
+        loaded.mobs[0].repath_timer = 40;
+        loaded.mobs[0].despawn_ticks = 12;
+        loaded.mobs[0].fire_ticks = 160;
+        loaded.ww_world_time = 18000;
+        loaded.ww_total_time = 18000;
+        loaded.ww_rain_time = 50;
+        loaded.ww_thunder_time = 100;
+        loaded.ww_raining = 1;
+        loaded.ww_rand_seed48 = 0x5DEECE66DULL & ((1ULL << 48) - 1);
+        loaded.rt_mutations = 7;
+        expect(roundtrip(p_a, p_b, &loaded), "v9->v10 rewrite identity");
+        {
+            CuSnapshot v10;
+            memset(&v10, 0, sizeof v10);
+            expect(blaze_snapshot_load(p_a, &v10, err, (int)sizeof err, 1),
+                   "load v10 after v9 rewrite");
+            expect(v10.head.version == 10, "rewritten file is v10");
+            expect(v10.mobs[0].repath_timer == 40, "v10 repath");
+            expect(v10.mobs[0].despawn_ticks == 12, "v10 despawn");
+            expect(v10.mobs[0].fire_ticks == 160, "v10 fire");
+            expect(v10.ww_world_time == 18000, "v10 worldTime");
+            expect(v10.rt_mutations == 7, "v10 rt_mutations");
+            expect(roundtrip(p_a, p_b, &v10), "v10->v10 save/load/save identical");
+            blaze_snapshot_free(&v10);
+        }
         blaze_snapshot_free(&loaded);
     }
 

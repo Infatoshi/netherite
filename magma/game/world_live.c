@@ -1326,3 +1326,46 @@ void gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,
     g_clock.ww.worldTime = c->world_time;
     g_clock.ww.totalTime = c->total_time;
 }
+
+void gm_world_clock_export(const GmWorldClock *c,
+                           long long *total_time, long long *world_time,
+                           int *rain_time, int *thunder_time,
+                           int *raining, int *thundering,
+                           unsigned long long *rand_seed48) {
+    if (!c) return;
+    if (total_time) *total_time = c->total_time;
+    if (world_time) *world_time = c->world_time;
+    if (rain_time) *rain_time = c->rain_time;
+    if (thunder_time) *thunder_time = c->thunder_time;
+    if (raining) *raining = c->raining;
+    if (thundering) *thundering = c->thundering;
+    if (rand_seed48)
+        *rand_seed48 = g_clock.inited ? (g_clock.ww.rand.seed & MC_JR_MASK) : 0;
+}
+
+void gm_world_clock_restore(GmWorldClock *c,
+                            long long total_time, long long world_time,
+                            int rain_time, int thunder_time,
+                            int raining, int thundering,
+                            unsigned long long rand_seed48) {
+    if (!c) return;
+    if (!g_clock.inited) gm_world_clock_init(c, 0);
+    c->total_time = total_time;
+    c->world_time = world_time;
+    c->rain_time = rain_time;
+    c->thunder_time = thunder_time;
+    c->raining = raining ? 1 : 0;
+    c->thundering = thundering ? 1 : 0;
+    g_clock.ww.totalTime = c->total_time;
+    g_clock.ww.worldTime = c->world_time;
+    g_clock.ww.rainTime = c->rain_time;
+    g_clock.ww.thunderTime = c->thunder_time;
+    g_clock.ww.raining = c->raining;
+    g_clock.ww.thundering = c->thundering;
+    g_clock.ww.rand.seed = rand_seed48 & MC_JR_MASK;
+}
+
+void gm_world_set_rt_mutations(GmWorld *w, unsigned mutations) {
+    if (!w) return;
+    w->parity_rt_mutations = mutations;
+}

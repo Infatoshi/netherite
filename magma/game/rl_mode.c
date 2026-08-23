@@ -1043,9 +1043,11 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
         ok = ok && fwrite(&n_mobs, sizeof n_mobs, 1, f) == 1;
         if (n_mobs) {
             unsigned mi;
+            size_t mob_sz = (h.version >= BLAZE_SNAP_VERSION_RESUME)
+                                ? (size_t)BLAZE_SNAP_MOB_SIZE_V10
+                                : (size_t)BLAZE_SNAP_MOB_SIZE_V7;
             for (mi = 0; mi < n_mobs; ++mi)
-                ok = ok && fwrite(&packed[mi], BLAZE_SNAP_MOB_SIZE_V7, 1, f) ==
-                    1;
+                ok = ok && fwrite(&packed[mi], mob_sz, 1, f) == 1;
         }
         {
             RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
@@ -1083,6 +1085,26 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                     ok = ok && fwrite(&fire, sizeof fire, 1, f) == 1;
                     ok = ok && fwrite(&air, sizeof air, 1, f) == 1;
                 }
+                if (h.version >= BLAZE_SNAP_VERSION_RESUME) {
+                    long long tot = 0, wtm = 0;
+                    int rtm = 0, ttm = 0, rn = 0, th = 0;
+                    unsigned long long wrand = 0;
+                    unsigned rtmute = 0, nrt = 0;
+                    uint64_t cells_xor = 0;
+                    gm_world_clock_export(&r->clock, &tot, &wtm, &rtm, &ttm,
+                                          &rn, &th, &wrand);
+                    (void)gm_world_rt_parity_state(r->world, &cells_xor, &nrt,
+                                                   &rtmute);
+                    ok = ok && fwrite(&tot, sizeof tot, 1, f) == 1;
+                    ok = ok && fwrite(&wtm, sizeof wtm, 1, f) == 1;
+                    ok = ok && fwrite(&rtm, sizeof rtm, 1, f) == 1;
+                    ok = ok && fwrite(&ttm, sizeof ttm, 1, f) == 1;
+                    ok = ok && fwrite(&rn, sizeof rn, 1, f) == 1;
+                    ok = ok && fwrite(&th, sizeof th, 1, f) == 1;
+                    wrand &= MC_JR_MASK;
+                    ok = ok && fwrite(&wrand, sizeof wrand, 1, f) == 1;
+                    ok = ok && fwrite(&rtmute, sizeof rtmute, 1, f) == 1;
+                }
             }
             fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
                     "%u mobs, %u orbs, wr=%llu lcg=%d, biome %dx%d)\n",
@@ -1109,6 +1131,8 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     int ecx, ecz, erad;
     FILE *f = fopen(path, "rb");
     int i, x, y, z;
+    unsigned snap_rtmute = 0;
+    int snap_have_v10 = 0;
 
     if (!f) { snprintf(err, (size_t)err_cap, "cannot open %s", path); return 0; }
     if (fread(&h, sizeof h, 1, f) != 1 || memcmp(h.magic, "BSNP", 4) != 0 ||
@@ -1179,25 +1203,18 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             free(cells); free(light); fclose(f); return 0;
         }
         if (n_mobs) {
-            if (h.version >= BLAZE_SNAP_VERSION_ENDER) {
-                unsigned mi;
-                memset(packed, 0, sizeof packed);
-                for (mi = 0; mi < n_mobs; ++mi) {
-                    if (fread(&packed[mi], BLAZE_SNAP_MOB_SIZE_V7, 1, f) != 1) {
-                        snprintf(err, (size_t)err_cap,
-                                 "truncated .bsnp mobs: %s", path);
-                        free(cells); free(light); fclose(f); return 0;
-                    }
-                }
-            } else {
-                unsigned mi;
-                memset(packed, 0, sizeof packed);
-                for (mi = 0; mi < n_mobs; ++mi) {
-                    if (fread(&packed[mi], BLAZE_SNAP_MOB_SIZE_V6, 1, f) != 1) {
-                        snprintf(err, (size_t)err_cap,
-                                 "truncated .bsnp mobs: %s", path);
-                        free(cells); free(light); fclose(f); return 0;
-                    }
+            unsigned mi;
+            size_t mob_sz = BLAZE_SNAP_MOB_SIZE_V6;
+            if (h.version >= BLAZE_SNAP_VERSION_RESUME)
+                mob_sz = BLAZE_SNAP_MOB_SIZE_V10;
+            else if (h.version >= BLAZE_SNAP_VERSION_ENDER)
+                mob_sz = BLAZE_SNAP_MOB_SIZE_V7;
+            memset(packed, 0, sizeof packed);
+            for (mi = 0; mi < n_mobs; ++mi) {
+                if (fread(&packed[mi], mob_sz, 1, f) != 1) {
+                    snprintf(err, (size_t)err_cap,
+                             "truncated .bsnp mobs: %s", path);
+                    free(cells); free(light); fclose(f); return 0;
                 }
             }
         }
@@ -1273,7 +1290,32 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         r->player.air = air;
         r->player_fire_ticks = fire;
     }
-    fclose(f);
+    {
+        long long tot = 0, wtm = 0;
+        int rtm = 0, ttm = 0, rn = 0, th = 0;
+        unsigned long long wrand = 0;
+        unsigned rtmute = 0;
+        if (h.version >= BLAZE_SNAP_VERSION_RESUME) {
+            if (fread(&tot, sizeof tot, 1, f) != 1 ||
+                fread(&wtm, sizeof wtm, 1, f) != 1 ||
+                fread(&rtm, sizeof rtm, 1, f) != 1 ||
+                fread(&ttm, sizeof ttm, 1, f) != 1 ||
+                fread(&rn, sizeof rn, 1, f) != 1 ||
+                fread(&th, sizeof th, 1, f) != 1 ||
+                fread(&wrand, sizeof wrand, 1, f) != 1 ||
+                fread(&rtmute, sizeof rtmute, 1, f) != 1) {
+                snprintf(err, (size_t)err_cap,
+                         "truncated .bsnp v10 clock: %s", path);
+                free(cells); free(light); free(biome); fclose(f); return 0;
+            }
+            snap_have_v10 = 1;
+            snap_rtmute = rtmute;
+        }
+        fclose(f);
+        if (snap_have_v10)
+            gm_world_clock_restore(&r->clock, tot, wtm, rtm, ttm, rn, th,
+                                   wrand);
+    }
 
     ecx = psv_floordiv16(h.rx0 + h.rnx / 2);
     ecz = psv_floordiv16(h.rz0 + h.rnz / 2);
@@ -1327,6 +1369,8 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         free(biome);
         return 0;
     }
+    if (snap_have_v10)
+        gm_world_set_rt_mutations(r->world, snap_rtmute);
     for (x = 0; x < h.rnx; ++x)
         for (z = 0; z < h.rnz; ++z)
             gm_world_set_biome(r->world, h.rx0 + x, h.rz0 + z,

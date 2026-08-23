@@ -397,6 +397,16 @@ static void cu_reset_env(CuVec *v, int i) {
     v->envs[i].pl.fire = s->player_fire;
     v->envs[i].pl.air = s->player_air;
     v->envs[i].update_lcg = s->update_lcg;
+    if (s->head.version >= BLAZE_SNAP_VERSION_RESUME) {
+        v->envs[i].ww.totalTime = s->ww_total_time;
+        v->envs[i].ww.worldTime = s->ww_world_time;
+        v->envs[i].ww.rainTime = s->ww_rain_time;
+        v->envs[i].ww.thunderTime = s->ww_thunder_time;
+        v->envs[i].ww.raining = s->ww_raining ? 1 : 0;
+        v->envs[i].ww.thundering = s->ww_thundering ? 1 : 0;
+        v->envs[i].ww.rand.seed = s->ww_rand_seed48 & MC_JR_MASK;
+        v->envs[i].parity_rt_mutations = s->rt_mutations;
+    }
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
     v->envs[i].natural_spawn_passive = v->natural_spawn_passive;
@@ -491,11 +501,27 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(e, &s->head, s->items);
+    s->head.version = BLAZE_SNAP_VERSION;
     s->player_fire = e->pl.fire;
     s->player_air = e->pl.air;
+    s->ww_total_time = e->ww.totalTime;
+    s->ww_world_time = e->ww.worldTime;
+    s->ww_rain_time = e->ww.rainTime;
+    s->ww_thunder_time = e->ww.thunderTime;
+    s->ww_raining = e->ww.raining;
+    s->ww_thundering = e->ww.thundering;
+    s->ww_rand_seed48 = e->ww.rand.seed & MC_JR_MASK;
+    s->rt_mutations = e->parity_rt_mutations;
     s->n_mobs = e->n_mobs;
-    if (e->n_mobs)
+    if (e->n_mobs) {
+        unsigned mi;
         memcpy(s->mobs, e->mobs, (size_t)e->n_mobs * sizeof s->mobs[0]);
+        for (mi = 0; mi < e->n_mobs; ++mi) {
+            s->mobs[mi].repath_timer = e->mob_repath[mi];
+            s->mobs[mi].despawn_ticks = e->mob_despawn[mi];
+            s->mobs[mi].fire_ticks = e->mob_fire[mi];
+        }
+    }
     if (!s->cells) {
         s->cells = (unsigned short *)malloc((size_t)v->rvol *
                                             sizeof *s->cells);
@@ -553,6 +579,70 @@ int blaze_capture(void *vh, int env, int slot) {
                    (size_t)e->n_cont * 3 * sizeof *s->cont);
     }
     s->has_liquid = v->snaps[v->assign[env]].has_liquid;
+    return 0;
+}
+
+/* Mid-episode dump for the resume gate. Aliases the env's region buffers
+ * for the write; they are not freed. */
+int blaze_dump_snapshot(void *vh, int env, const char *path,
+                        char *err, int err_cap) {
+    CuVec *v = (CuVec *)vh;
+    Blaze *e;
+    CuSnapshot s;
+    unsigned mi, k;
+    if (!v || env < 0 || env >= v->n || !path)
+        return -1;
+    e = &v->envs[env];
+    memset(&s, 0, sizeof s);
+    (void)blaze_capture_head(e, &s.head, s.items);
+    s.head.version = BLAZE_SNAP_VERSION;
+    s.player_fire = e->pl.fire;
+    s.player_air = e->pl.air;
+    s.ww_total_time = e->ww.totalTime;
+    s.ww_world_time = e->ww.worldTime;
+    s.ww_rain_time = e->ww.rainTime;
+    s.ww_thunder_time = e->ww.thunderTime;
+    s.ww_raining = e->ww.raining;
+    s.ww_thundering = e->ww.thundering;
+    s.ww_rand_seed48 = e->ww.rand.seed & MC_JR_MASK;
+    s.rt_mutations = e->parity_rt_mutations;
+    s.world_rand_seed = e->world_rand.seed & MC_JR_MASK;
+    s.update_lcg = e->update_lcg;
+    s.cells = e->cells;
+    s.light = e->light;
+    s.biome = e->biome;
+    s.ncoal = (unsigned)e->nore;
+    s.coal = (int *)e->ore;
+    s.n_mobs = e->n_mobs;
+    if (e->n_mobs) {
+        memcpy(s.mobs, e->mobs, (size_t)e->n_mobs * sizeof s.mobs[0]);
+        for (mi = 0; mi < e->n_mobs; ++mi) {
+            s.mobs[mi].repath_timer = e->mob_repath[mi];
+            s.mobs[mi].despawn_ticks = e->mob_despawn[mi];
+            s.mobs[mi].fire_ticks = e->mob_fire[mi];
+        }
+    }
+    s.n_orbs = 0;
+    for (k = 0; k < XL_MAX && s.n_orbs < BLAZE_SNAP_MAX_ORBS; ++k) {
+        const McOrb *o = &e->orbs[k];
+        RlSnapOrb *d;
+        if (o->dead || o->xpValue <= 0) continue;
+        d = &s.orbs[s.n_orbs++];
+        memset(d, 0, sizeof *d);
+        d->x = o->posX; d->y = o->posY; d->z = o->posZ;
+        d->mx = o->motionX; d->my = o->motionY; d->mz = o->motionZ;
+        d->on_ground = o->onGround;
+        d->xpOrbAge = o->xpOrbAge;
+        d->delayBeforeCanPickup = o->delayBeforeCanPickup;
+        d->xpValue = o->xpValue;
+        d->eid = o->eid;
+        d->xpColor = o->xpColor;
+        d->xpTargetColor = o->xpTargetColor;
+        d->has_closest = o->has_closest;
+        d->dead = o->dead;
+    }
+    if (!blaze_snapshot_write(path, &s, err, err_cap))
+        return -1;
     return 0;
 }
 

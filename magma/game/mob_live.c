@@ -4286,6 +4286,9 @@ unsigned gm_mobs_export_snap(const GmMobLive *m, struct RlSnapMob *out,
         o->effect_id = m->effect_id[i];
         o->effect_duration = m->effect_duration[i];
         o->effect_amplifier = m->effect_amplifier[i];
+        o->repath_timer = s->repath_timer[i];
+        o->despawn_ticks = m->despawn_ticks[i];
+        o->fire_ticks = m->fire_ticks[i];
         o->task_bits = m->passive_tasks[i];
         o->target_tasks = m->det_target_tasks[i];
         o->wander_x = m->passive_idle_x[i];
@@ -4375,6 +4378,9 @@ void gm_mobs_import_snap(GmMobLive *m, const struct RlSnapMob *in, unsigned n) {
         m->effect_id[i] = o->effect_id;
         m->effect_duration[i] = o->effect_duration;
         m->effect_amplifier[i] = o->effect_amplifier;
+        s->repath_timer[i] = o->repath_timer;
+        m->despawn_ticks[i] = o->despawn_ticks;
+        m->fire_ticks[i] = o->fire_ticks;
         m->passive_tasks[i] = o->task_bits;
         m->det_target_tasks[i] = o->target_tasks;
         m->passive_idle_x[i] = o->wander_x;

@@ -10,14 +10,19 @@
  *   | u32 n_mobs | n_mobs x on-disk mob record          [version >= 3]
  *     v3-v6: BLAZE_SNAP_MOB_SIZE_V6 (544 bytes)
  *     v7+:   BLAZE_SNAP_MOB_SIZE_V7 (572 bytes through teleport_time).
- *     In-memory RlSnapMob is 592: witch extras sit after teleport_time
- *     and the loader zero-extends them (no on-disk bump).
+ *     In-memory RlSnapMob is 604: witch extras sit after teleport_time
+ *     (v7 disk 572 zero-extends them). v10 disk is 604 with sidecars.
  *   | u32 n_orbs | n_orbs x RlSnapOrb                   [version >= 4]
  *   | u64 world_rand_seed (48-bit JavaRandom cursor)    [version >= 5]
  *   | i32 update_lcg (World.updateLCG)                  [version >= 6]
  *   | rnx*rnz u8 biome plane (one id per x,z column)    [version >= 8]
  *   | i32 player_fire, i32 player_air                   [version >= 9]
- * Loader reads v7, v8, and v9. New writes use version 9.
+ *   | v10 trailer: world clock + rt mutations            [version >= 10]
+ *     i64 ww_total, ww_world; i32 rain_time, thunder_time,
+ *     raining, thundering; u64 ww_rand_seed48; u32 rt_mutations.
+ *     On-disk mob records grow to BLAZE_SNAP_MOB_SIZE_V10 (604) and
+ *     carry repath/despawn/fire sidecars. v9 loads those as 0.
+ * Loader reads v7, v8, v9, and v10 on this lane. New writes use version 10.
  * v1/v2 files load with n_mobs = 0. v3 loads with n_orbs = 0.
  * v4 loads with world_rand_seed = jrand_set(0) internal cursor.
  * v5 loads with update_lcg = 0.
@@ -26,6 +31,7 @@
  * semantics (HS_BIOME / rt_live_biome used to hardcode plains), and
  * player fire=0 air=300.
  * v8 loads player fire=0 air=300 (Entity.java:256 AIR default).
+ * v9 loads v10 clock from ww_init(seed) and rt_mutations=0.
  * Biome index is ix * rnz + iz (ix = wx - rx0, iz = wz - rz0). Java
  * Chunk.blockBiomeArray is (z&15)<<4 | (x&15) per chunk (Chunk.java:1273-1278);
  * the magma writer copies LChunk.biome[x + z*16] (light.c) into this plane.
@@ -59,9 +65,11 @@ extern "C" {
 #define BLAZE_SNAP_VERSION_ENDER 7      /* + enderman fields on RlSnapMob */
 #define BLAZE_SNAP_VERSION_BIOME 8      /* + rnx*rnz u8 column biome plane */
 #define BLAZE_SNAP_VERSION_HAZARDS 9    /* + player fire ticks and air */
-#define BLAZE_SNAP_VERSION 9
+#define BLAZE_SNAP_VERSION_RESUME 10    /* + clock/rt mutations + mob sidecars */
+#define BLAZE_SNAP_VERSION 10           /* v10 on this lane; not a final pin */
 #define BLAZE_SNAP_MOB_SIZE_V6 544      /* packed RlSnapMob through v6 */
 #define BLAZE_SNAP_MOB_SIZE_V7 572      /* packed through teleport_time */
+#define BLAZE_SNAP_MOB_SIZE_V10 604     /* packed through fire_ticks */
 #define BLAZE_SNAP_BIOME_PLAINS 1       /* Biomes.PLAINS; v7 load default */
 #pragma pack(push, 1)
 typedef struct {
@@ -147,12 +155,16 @@ typedef struct RlSnapMob {
     int find_aggro;                /* AIFindPlayer.aggroTime */
     int teleport_time;             /* AIFindPlayer.teleportTime */
     /* In-memory extras. On-disk v7 stays BLAZE_SNAP_MOB_SIZE_V7 (572);
-     * the loader zero-extends these without a version bump. */
+     * the loader zero-extends these without a version bump. v10 writes
+     * the full 604-byte record including the sidecars below. */
     int witch_attack_timer;        /* EntityWitch.witchAttackTimer */
     int witch_drink;               /* 0 none; else pending drink kind */
     int effect_id;                 /* Potion.getIdFromPotion; 0 = none */
     int effect_duration;
     int effect_amplifier;
+    int repath_timer;              /* EwStore.repath_timer / blaze mob_repath */
+    int despawn_ticks;             /* EntityMob despawn >32 blocks */
+    int fire_ticks;                /* Entity.fire / daylight burn */
 } RlSnapMob;
 /* One live XP orb. World coords. v3 files omit this trailer -> n_orbs=0. */
 typedef struct RlSnapOrb {
@@ -169,10 +181,12 @@ typedef struct RlSnapOrb {
 } RlSnapOrb;
 #pragma pack(pop)
 
-typedef char RlSnapMob_must_be_592_bytes
-    [(sizeof(RlSnapMob) == 592) ? 1 : -1];
+typedef char RlSnapMob_must_be_604_bytes
+    [(sizeof(RlSnapMob) == 604) ? 1 : -1];
 typedef char RlSnapMob_v7_disk_is_572
     [(BLAZE_SNAP_MOB_SIZE_V7 == 572) ? 1 : -1];
+typedef char RlSnapMob_v10_disk_is_604
+    [(BLAZE_SNAP_MOB_SIZE_V10 == 604) ? 1 : -1];
 typedef char RlSnapOrb_must_be_84_bytes
     [(sizeof(RlSnapOrb) == 84) ? 1 : -1];
 
@@ -205,6 +219,14 @@ typedef struct {
                                          * fills plains 1. Index ix*rnz+iz. */
     int                player_fire;     /* v9: Entity.fire; v8 load 0 */
     int                player_air;      /* v9: Entity air; v8 load 300 */
+    long long          ww_total_time;   /* v10: WorldInfo.totalTime */
+    long long          ww_world_time;   /* v10: WorldInfo.worldTime */
+    int                ww_rain_time;
+    int                ww_thunder_time;
+    int                ww_raining;
+    int                ww_thundering;
+    unsigned long long ww_rand_seed48;  /* v10: isolated weather JavaRandom */
+    unsigned           rt_mutations;    /* v10: BP_RANDOM_TICKS mutation count */
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).
@@ -312,14 +334,17 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_hash_one_mob(
     h = bp_hash_i32(h, m->witch_drink);
     h = bp_hash_i32(h, m->effect_id);
     h = bp_hash_i32(h, m->effect_duration);
-    return bp_hash_i32(h, m->effect_amplifier);
+    h = bp_hash_i32(h, m->effect_amplifier);
+    h = bp_hash_i32(h, m->repath_timer);
+    h = bp_hash_i32(h, m->despawn_ticks);
+    return bp_hash_i32(h, m->fire_ticks);
 }
 
 BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest(
     const RlSnapMob *mobs, unsigned n) {
     uint64_t h = bp_hash_begin();
     unsigned i;
-    h = bp_hash_u32(h, UINT32_C(0x33424f4d)); /* "MOB3" */
+    h = bp_hash_u32(h, UINT32_C(0x34424f4d)); /* "MOB4" sidecars */
     h = bp_hash_i32(h, (int32_t)n);
     for (i = 0; i < n; ++i)
         h = blaze_snap_hash_one_mob(h, &mobs[i]);
@@ -332,9 +357,9 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest_ext(
     float player_health, int32_t hurt_res, int32_t atk_cd,
     uint64_t items_h, int32_t n_items) {
     uint64_t h = blaze_snap_mobs_digest(mobs, n);
-    /* "MBM3": combat extras here; witch fields are in hash_one_mob;
+    /* "MBM4": combat extras here; witch + sidecar fields are in hash_one_mob;
      * callers then fold the v8 biome plane via bp_hash_biome_plane. */
-    h = bp_hash_u32(h, UINT32_C(0x334d424d)); /* "MBM3" */
+    h = bp_hash_u32(h, UINT32_C(0x344d424d)); /* "MBM4" */
     h = bp_hash_float(h, player_health);
     h = bp_hash_i32(h, hurt_res);
     h = bp_hash_i32(h, atk_cd);

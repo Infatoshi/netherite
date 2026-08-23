@@ -100,6 +100,14 @@ typedef struct {
     int update_lcg;
     int player_fire;
     int player_air;
+    long long ww_total_time;
+    long long ww_world_time;
+    int ww_rain_time;
+    int ww_thunder_time;
+    int ww_raining;
+    int ww_thundering;
+    unsigned long long ww_rand_seed48;
+    unsigned rt_mutations;
 } CuSnapDev;
 
 typedef struct {
@@ -247,6 +255,16 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     envs[i].pl.fire = s->player_fire;
     envs[i].pl.air = s->player_air;
     envs[i].update_lcg = s->update_lcg;
+    if (s->head.version >= BLAZE_SNAP_VERSION_RESUME) {
+        envs[i].ww.totalTime = s->ww_total_time;
+        envs[i].ww.worldTime = s->ww_world_time;
+        envs[i].ww.rainTime = s->ww_rain_time;
+        envs[i].ww.thunderTime = s->ww_thunder_time;
+        envs[i].ww.raining = s->ww_raining ? 1 : 0;
+        envs[i].ww.thundering = s->ww_thundering ? 1 : 0;
+        envs[i].ww.rand.seed = s->ww_rand_seed48 & MC_JR_MASK;
+        envs[i].parity_rt_mutations = s->rt_mutations;
+    }
     envs[i].mobs_enabled = mobs_enabled;
     envs[i].natural_spawn = natural_spawn;
     envs[i].natural_spawn_passive = natural_spawn_passive;
@@ -1156,6 +1174,14 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         d->update_lcg = s.update_lcg;
         d->player_fire = s.player_fire;
         d->player_air = s.player_air;
+        d->ww_total_time = s.ww_total_time;
+        d->ww_world_time = s.ww_world_time;
+        d->ww_rain_time = s.ww_rain_time;
+        d->ww_thunder_time = s.ww_thunder_time;
+        d->ww_raining = s.ww_raining;
+        d->ww_thundering = s.ww_thundering;
+        d->ww_rand_seed48 = s.ww_rand_seed48;
+        d->rt_mutations = s.rt_mutations;
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
         v->has_unrepresented[v->nsnaps] = s.head.container != 0;
@@ -1465,12 +1491,27 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(&he, &d->head, d->items);
+    d->head.version = BLAZE_SNAP_VERSION;
     d->player_fire = he.pl.fire;
     d->player_air = he.pl.air;
+    d->ww_total_time = he.ww.totalTime;
+    d->ww_world_time = he.ww.worldTime;
+    d->ww_rain_time = he.ww.rainTime;
+    d->ww_thunder_time = he.ww.thunderTime;
+    d->ww_raining = he.ww.raining;
+    d->ww_thundering = he.ww.thundering;
+    d->ww_rand_seed48 = he.ww.rand.seed;
+    d->rt_mutations = he.parity_rt_mutations;
     d->n_mobs = he.n_mobs;
-    if (he.n_mobs)
+    if (he.n_mobs) {
+        unsigned mi;
         memcpy(d->mobs, he.mobs, (size_t)he.n_mobs * sizeof d->mobs[0]);
-    else
+        for (mi = 0; mi < he.n_mobs; ++mi) {
+            d->mobs[mi].repath_timer = he.mob_repath[mi];
+            d->mobs[mi].despawn_ticks = he.mob_despawn[mi];
+            d->mobs[mi].fire_ticks = he.mob_fire[mi];
+        }
+    } else
         memset(d->mobs, 0, sizeof d->mobs);
     if (!d->cells) {
         u16 *cells = NULL;
