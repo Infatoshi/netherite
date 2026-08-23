@@ -65,10 +65,10 @@ int  gm_player_dig_state_ex(int *lx, int *ly, int *lz, float *progress, int *fac
  * machine (curBlockDamageMP / currentBlock / isHittingBlock / blockHitDelay,
  * attack edge, leftClickCounter), the rightClickMouse timer + use edge, and
  * the hurt-velocity server-motion shadow. Excluded (documented): s_fov_hand /
- * s_bow_ticks (render-only), s_eat_* (cleared on any tick without use held),
- * s_cursor (empty outside container_click composition). dig_hx/hy/hz are
- * window-LOCAL; only valid against the same ox/oz origin they were exported
- * with. */
+ * s_bow_ticks (render-only), s_cursor (empty outside container_click
+ * composition). s_eat_* is in the v10 snapshot trailer so a mid-eat
+ * resume keeps the 32-tick use timer. dig_hx/hy/hz are window-LOCAL;
+ * only valid against the same ox/oz origin they were exported with. */
 typedef struct {
     float  dig_progress;
     int    dig_hx, dig_hy, dig_hz;   /* INT_MIN sentinel = no target */
@@ -82,6 +82,8 @@ typedef struct {
     int    use_prev;
     int    hurt_vel_reset;
     double server_motion_x, server_motion_z;
+    int    eat_ticks;                /* ItemFood.onItemUseFinish countdown */
+    int    eat_item;
 } GmPlayerCtlSnap;
 
 void gm_player_ctl_dig_export(GmPlayerCtlSnap *out);

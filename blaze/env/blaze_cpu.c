@@ -504,11 +504,24 @@ static void cu_reset_env(CuVec *v, int i) {
                     e->chests[ui].wz = s->chest[ui].wz;
                     e->chests[ui].te.num_players_using =
                         s->chest[ui].num_using;
-                    for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si)
-                        e->chests[ui].te.slots[si] = tec_mk(
+                    for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si) {
+                        int ei, n;
+                        TecStack ts = tec_mk(
                             s->chest[ui].slot[si][0],
                             s->chest[ui].slot[si][1],
                             s->chest[ui].slot[si][2]);
+                        n = s->chest[ui].slot_ench[si].n;
+                        if (n < 0) n = 0;
+                        if (n > TEC_MAX_ENCHANTS) n = TEC_MAX_ENCHANTS;
+                        ts.n_enchants = n;
+                        for (ei = 0; ei < n; ++ei) {
+                            ts.enchants[ei].id =
+                                s->chest[ui].slot_ench[si].id[ei];
+                            ts.enchants[ei].level =
+                                s->chest[ui].slot_ench[si].level[ei];
+                        }
+                        e->chests[ui].te.slots[si] = ts;
+                    }
                 }
                 for (si = 0; si < 9; ++si)
                     e->craft_grid[si] = ic_mk(s->craft[si][0], s->craft[si][1],
@@ -552,6 +565,88 @@ static void cu_reset_env(CuVec *v, int i) {
                 e->explosion_y = s->explosion_y;
                 e->explosion_z = s->explosion_z;
                 e->explosion_size = s->explosion_size;
+                e->parity_xp_pickups = s->xtra.xp_pickups;
+                e->next_orb_id = s->xtra.next_orb_id;
+                e->spawn_world_seed48 = s->xtra.spawn_world_seed48;
+                e->spawn_math_seed48 = s->xtra.spawn_math_seed48;
+                e->spawn_shuffle_seed48 = s->xtra.spawn_shuffle_seed48;
+                e->parity_ex_blasts = s->xtra.parity_ex_blasts;
+                e->parity_ex_destroyed = s->xtra.parity_ex_destroyed;
+                e->parity_ex_drop_n = s->xtra.parity_ex_drop_n;
+                e->parity_ex_drop_ids = s->xtra.parity_ex_drop_ids;
+                e->parity_ex_damage = s->xtra.parity_ex_damage;
+                e->parity_ex_kb_x = s->xtra.parity_ex_kb_x;
+                e->parity_ex_kb_y = s->xtra.parity_ex_kb_y;
+                e->parity_ex_kb_z = s->xtra.parity_ex_kb_z;
+                e->parity_ex_rays = s->xtra.parity_ex_rays;
+                e->parity_ex_last_x = s->xtra.parity_ex_last_x;
+                e->parity_ex_last_y = s->xtra.parity_ex_last_y;
+                e->parity_ex_last_z = s->xtra.parity_ex_last_z;
+                e->parity_ex_last_size = s->xtra.parity_ex_last_size;
+                e->dead = s->xtra.player_dead ? 1 : 0;
+                e->player_hurt_resistant = s->xtra.player_hurt_resistant;
+                e->player_attack_cooldown = s->xtra.player_attack_cooldown;
+                e->player_last_damage = s->xtra.player_last_damage;
+                e->mob_tick = s->xtra.mob_tick;
+                for (si = 0; si < s->n_mobs && si < BLAZE_SNAP_MAX_MOBS; ++si) {
+                    e->boat_delta_rot[si] = s->xtra.boat_delta_rot[si];
+                    e->boat_glide[si] = s->xtra.boat_glide[si];
+                    e->mob_repath[si] = s->xtra.sidecar_repath[si];
+                    e->mob_despawn[si] = s->xtra.sidecar_despawn[si];
+                    e->mob_fire[si] = s->xtra.sidecar_fire[si];
+                }
+                for (si = 0; si < 37; ++si) {
+                    int slot = si < 36 ? (int)si : ISR_OFFHAND_SLOT;
+                    int ei, n;
+                    ICStack st = isr_get_stack(&e->pl.inv, slot);
+                    n = s->xtra.inv_ench[si].n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    st.n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        st.enchants[ei].id = s->xtra.inv_ench[si].id[ei];
+                        st.enchants[ei].level = s->xtra.inv_ench[si].level[ei];
+                    }
+                    isr_set_stack(&e->pl.inv, slot, st);
+                }
+                for (si = 0; si < 4; ++si) {
+                    int ei, n;
+                    ICStack st = isr_get_stack(&e->pl.inv, ISR_ARMOR0 + (int)si);
+                    n = s->xtra.armor_ench[si].n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    st.n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        st.enchants[ei].id = s->xtra.armor_ench[si].id[ei];
+                        st.enchants[ei].level = s->xtra.armor_ench[si].level[ei];
+                    }
+                    isr_set_stack(&e->pl.inv, ISR_ARMOR0 + (int)si, st);
+                }
+                for (si = 0; si < 9; ++si) {
+                    int ei, n;
+                    n = s->xtra.craft_ench[si].n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    e->craft_grid[si].n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        e->craft_grid[si].enchants[ei].id =
+                            s->xtra.craft_ench[si].id[ei];
+                        e->craft_grid[si].enchants[ei].level =
+                            s->xtra.craft_ench[si].level[ei];
+                    }
+                }
+                {
+                    int ei, n;
+                    n = s->xtra.cursor_ench.n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    e->cursor.n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        e->cursor.enchants[ei].id = s->xtra.cursor_ench.id[ei];
+                        e->cursor.enchants[ei].level =
+                            s->xtra.cursor_ench.level[ei];
+                    }
+                }
             }
         }
     }
@@ -562,9 +657,14 @@ static void cu_reset_env(CuVec *v, int i) {
         v->envs[i].ww.worldTime = v->world_time_pin;
     v->envs[i].elytra_kit = v->elytra_kit;
     if (v->elytra_kit) {
-        isr_set_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST,
-                      ic_mk(ISR_ELYTRA_ITEM, 1, 0));
-        v->envs[i].pl.elytra_equipped = 1;
+        if (s->head.version < BLAZE_SNAP_VERSION_RESUME) {
+            isr_set_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST,
+                          ic_mk(ISR_ELYTRA_ITEM, 1, 0));
+            v->envs[i].pl.elytra_equipped = 1;
+        } else {
+            ICStack st = isr_get_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST);
+            v->envs[i].pl.elytra_equipped = (st.item == ISR_ELYTRA_ITEM);
+        }
     }
 }
 
@@ -737,7 +837,7 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
     CuVec *v = (CuVec *)vh;
     Blaze *e;
     CuSnapshot s;
-    unsigned mi, k;
+    unsigned k;
     if (!v || env < 0 || env >= v->n || !path)
         return -1;
     e = &v->envs[env];
@@ -762,14 +862,8 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
     s.ncoal = (unsigned)e->nore;
     s.coal = (int *)e->ore;
     s.n_mobs = e->n_mobs;
-    if (e->n_mobs) {
+    if (e->n_mobs)
         memcpy(s.mobs, e->mobs, (size_t)e->n_mobs * sizeof s.mobs[0]);
-        for (mi = 0; mi < e->n_mobs; ++mi) {
-            s.mobs[mi].repath_timer = e->mob_repath[mi];
-            s.mobs[mi].despawn_ticks = e->mob_despawn[mi];
-            s.mobs[mi].fire_ticks = e->mob_fire[mi];
-        }
-    }
     s.n_proj = 0;
     for (k = 0; k < CU_MAX_PROJECTILES && s.n_proj < BLAZE_SNAP_MAX_PROJ; ++k) {
         if (!e->projectiles[k].active) continue;
@@ -869,9 +963,20 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
         s.chest[s.n_chest].wz = e->chests[k].wz;
         s.chest[s.n_chest].num_using = e->chests[k].te.num_players_using;
         for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si) {
-            s.chest[s.n_chest].slot[si][0] = e->chests[k].te.slots[si].item;
-            s.chest[s.n_chest].slot[si][1] = e->chests[k].te.slots[si].count;
-            s.chest[s.n_chest].slot[si][2] = e->chests[k].te.slots[si].meta;
+            const TecStack *ts = &e->chests[k].te.slots[si];
+            int ei, n;
+            s.chest[s.n_chest].slot[si][0] = ts->item;
+            s.chest[s.n_chest].slot[si][1] = ts->count;
+            s.chest[s.n_chest].slot[si][2] = ts->meta;
+            n = ts->n_enchants;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.chest[s.n_chest].slot_ench[si].n = n;
+            for (ei = 0; ei < n; ++ei) {
+                s.chest[s.n_chest].slot_ench[si].id[ei] = ts->enchants[ei].id;
+                s.chest[s.n_chest].slot_ench[si].level[ei] =
+                    ts->enchants[ei].level;
+            }
         }
         s.n_chest++;
     }
@@ -922,6 +1027,83 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
     s.explosion_y = e->explosion_y;
     s.explosion_z = e->explosion_z;
     s.explosion_size = e->explosion_size;
+    {
+        unsigned si, ei;
+        int n;
+        memset(&s.xtra, 0, sizeof s.xtra);
+        s.xtra.xp_pickups = e->parity_xp_pickups;
+        s.xtra.next_orb_id = e->next_orb_id;
+        s.xtra.spawn_world_seed48 = e->spawn_world_seed48;
+        s.xtra.spawn_math_seed48 = e->spawn_math_seed48;
+        s.xtra.spawn_shuffle_seed48 = e->spawn_shuffle_seed48;
+        s.xtra.parity_ex_blasts = e->parity_ex_blasts;
+        s.xtra.parity_ex_destroyed = e->parity_ex_destroyed;
+        s.xtra.parity_ex_drop_n = e->parity_ex_drop_n;
+        s.xtra.parity_ex_drop_ids = e->parity_ex_drop_ids;
+        s.xtra.parity_ex_damage = e->parity_ex_damage;
+        s.xtra.parity_ex_kb_x = e->parity_ex_kb_x;
+        s.xtra.parity_ex_kb_y = e->parity_ex_kb_y;
+        s.xtra.parity_ex_kb_z = e->parity_ex_kb_z;
+        s.xtra.parity_ex_rays = e->parity_ex_rays;
+        s.xtra.parity_ex_last_x = e->parity_ex_last_x;
+        s.xtra.parity_ex_last_y = e->parity_ex_last_y;
+        s.xtra.parity_ex_last_z = e->parity_ex_last_z;
+        s.xtra.parity_ex_last_size = e->parity_ex_last_size;
+        s.xtra.player_dead = e->dead;
+        s.xtra.player_hurt_resistant = e->player_hurt_resistant;
+        s.xtra.player_attack_cooldown = e->player_attack_cooldown;
+        s.xtra.player_last_damage = e->player_last_damage;
+        s.xtra.mob_tick = (int)e->mob_tick;
+        for (si = 0; si < e->n_mobs && si < BLAZE_SNAP_MAX_MOBS; ++si) {
+            s.xtra.boat_delta_rot[si] = e->boat_delta_rot[si];
+            s.xtra.boat_glide[si] = e->boat_glide[si];
+            s.xtra.sidecar_repath[si] = e->mob_repath[si];
+            s.xtra.sidecar_despawn[si] = e->mob_despawn[si];
+            s.xtra.sidecar_fire[si] = e->mob_fire[si];
+        }
+        for (si = 0; si < 37; ++si) {
+            ICStack st = isr_get_stack(&e->pl.inv,
+                                       si < 36 ? (int)si : ISR_OFFHAND_SLOT);
+            n = st.n_enchants;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.xtra.inv_ench[si].n = n;
+            for (ei = 0; ei < (unsigned)n; ++ei) {
+                s.xtra.inv_ench[si].id[ei] = st.enchants[ei].id;
+                s.xtra.inv_ench[si].level[ei] = st.enchants[ei].level;
+            }
+        }
+        for (si = 0; si < 4; ++si) {
+            ICStack st = isr_get_stack(&e->pl.inv, ISR_ARMOR0 + (int)si);
+            n = st.n_enchants;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.xtra.armor_ench[si].n = n;
+            for (ei = 0; ei < (unsigned)n; ++ei) {
+                s.xtra.armor_ench[si].id[ei] = st.enchants[ei].id;
+                s.xtra.armor_ench[si].level[ei] = st.enchants[ei].level;
+            }
+        }
+        for (si = 0; si < 9; ++si) {
+            n = e->craft_grid[si].n_enchants;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.xtra.craft_ench[si].n = n;
+            for (ei = 0; ei < (unsigned)n; ++ei) {
+                s.xtra.craft_ench[si].id[ei] = e->craft_grid[si].enchants[ei].id;
+                s.xtra.craft_ench[si].level[ei] =
+                    e->craft_grid[si].enchants[ei].level;
+            }
+        }
+        n = e->cursor.n_enchants;
+        if (n < 0) n = 0;
+        if (n > 8) n = 8;
+        s.xtra.cursor_ench.n = n;
+        for (ei = 0; ei < (unsigned)n; ++ei) {
+            s.xtra.cursor_ench.id[ei] = e->cursor.enchants[ei].id;
+            s.xtra.cursor_ench.level[ei] = e->cursor.enchants[ei].level;
+        }
+    }
     s.n_orbs = 0;
     for (k = 0; k < XL_MAX && s.n_orbs < BLAZE_SNAP_MAX_ORBS; ++k) {
         const McOrb *o = &e->orbs[k];

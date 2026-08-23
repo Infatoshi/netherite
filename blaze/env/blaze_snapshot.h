@@ -22,6 +22,9 @@
  *     raining, thundering; u64 ww_rand_seed48; u32 rt_mutations.
  *     On-disk mob records grow to BLAZE_SNAP_MOB_SIZE_V10 (604) and
  *     carry repath/despawn/fire sidecars. v9 loads those as 0.
+ *     After clock: projectiles, falls, TE/player/fluid/boat/explosion pose,
+ *     then RlSnapV10Xtra (xp pickups, spawn RNGs, blast counters, dead,
+ *     boat extras, enchant payload). v9 loads xtra as 0.
  * Loader reads v7, v8, v9, and v10 on this lane. New writes use version 10.
  * v1/v2 files load with n_mobs = 0. v3 loads with n_orbs = 0.
  * v4 loads with world_rand_seed = jrand_set(0) internal cursor.
@@ -199,13 +202,62 @@ typedef struct RlSnapFurnace {
     int out_item, out_count, out_meta;
     int burn_time, current_burn_time, cook_time, total_cook;
 } RlSnapFurnace;
+typedef struct RlSnapEnch {
+    int n;
+    short id[8];
+    short level[8];
+} RlSnapEnch;
 typedef struct RlSnapChest {
     int active, wx, wy, wz, num_using;
     int slot[BLAZE_SNAP_CHEST_SLOTS][3];
+    RlSnapEnch slot_ench[BLAZE_SNAP_CHEST_SLOTS];
 } RlSnapChest;
 typedef struct RlSnapFluidReg {
     int active, x0, y0, z0, x1, y1, z1, has_water, quiet_steps;
 } RlSnapFluidReg;
+/* Packed after explosion pose. v9 has none; v10 on this lane always writes it. */
+typedef struct RlSnapV10Xtra {
+    unsigned xp_pickups;
+    int next_orb_id;
+    int next_mob_id;
+    unsigned long long spawn_world_seed48;
+    unsigned long long spawn_math_seed48;
+    unsigned long long spawn_shuffle_seed48;
+    unsigned parity_ex_blasts;
+    unsigned parity_ex_destroyed;
+    unsigned parity_ex_drop_n;
+    unsigned long long parity_ex_drop_ids;
+    float parity_ex_damage;
+    double parity_ex_kb_x, parity_ex_kb_y, parity_ex_kb_z;
+    unsigned long long parity_ex_rays;
+    double parity_ex_last_x, parity_ex_last_y, parity_ex_last_z;
+    float parity_ex_last_size;
+    int player_dead;
+    int death_screen_ticks;
+    int player_hurt_resistant;
+    int player_attack_cooldown;
+    float player_last_damage;
+    float boat_delta_rot[BLAZE_SNAP_MAX_MOBS];
+    float boat_glide[BLAZE_SNAP_MAX_MOBS];
+    RlSnapEnch inv_ench[37];
+    RlSnapEnch armor_ench[4];
+    RlSnapEnch craft_ench[9];
+    RlSnapEnch cursor_ench;
+    /* Live blaze sidecars (digest still hashes packed repath which can lag). */
+    int sidecar_repath[BLAZE_SNAP_MAX_MOBS];
+    int sidecar_despawn[BLAZE_SNAP_MAX_MOBS];
+    int sidecar_fire[BLAZE_SNAP_MAX_MOBS];
+    /* Magma EwStore AI waypoint (not in RlSnapMob). Packed index order. */
+    unsigned ew_ai_state[BLAZE_SNAP_MAX_MOBS];
+    unsigned ew_path_len[BLAZE_SNAP_MAX_MOBS];
+    double ew_path_tx[BLAZE_SNAP_MAX_MOBS];
+    double ew_path_ty[BLAZE_SNAP_MAX_MOBS];
+    double ew_path_tz[BLAZE_SNAP_MAX_MOBS];
+    double look_px, look_py, look_pz;
+    int look_have;
+    int mob_tick;
+    int entity_age[BLAZE_SNAP_MAX_MOBS];
+} RlSnapV10Xtra;
 #pragma pack(pop)
 
 /* One live XP orb. World coords. v3 files omit this trailer -> n_orbs=0. */
@@ -231,6 +283,8 @@ typedef char RlSnapMob_v10_disk_is_604
     [(BLAZE_SNAP_MOB_SIZE_V10 == 604) ? 1 : -1];
 typedef char RlSnapOrb_must_be_84_bytes
     [(sizeof(RlSnapOrb) == 84) ? 1 : -1];
+typedef char RlSnapEnch_must_be_36_bytes
+    [(sizeof(RlSnapEnch) == 36) ? 1 : -1];
 
 /* ---- host-side loader (blaze/env/blaze_snapshot.c; NOT linked into the
  * game binary - rl_mode.c uses only the structs above) ---- */
@@ -301,6 +355,7 @@ typedef struct {
     int                explosion_pending, explosion_smoking, explosion_flaming;
     double             explosion_x, explosion_y, explosion_z;
     float              explosion_size;
+    RlSnapV10Xtra      xtra;
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).

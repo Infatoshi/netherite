@@ -988,6 +988,8 @@ void gm_player_ctl_dig_export(GmPlayerCtlSnap *out) {
     out->hurt_vel_reset = s_hurt_vel_reset;
     out->server_motion_x = s_server_motion_x;
     out->server_motion_z = s_server_motion_z;
+    out->eat_ticks = s_eat_ticks;
+    out->eat_item = s_eat_item;
 }
 
 int gm_player_left_click_allows(int attack_held) {
@@ -1024,6 +1026,8 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     s_hurt_vel_reset = in->hurt_vel_reset;
     s_server_motion_x = in->server_motion_x;
     s_server_motion_z = in->server_motion_z;
+    s_eat_ticks = in->eat_ticks;
+    s_eat_item = in->eat_item;
 }
 
 void gm_player_ctl_recenter(int dx, int dz) {

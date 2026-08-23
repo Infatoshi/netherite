@@ -902,6 +902,33 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
  *     walks off-center.
  * Player pose/items/inv are always the live pre-tick values. v3 appends
  * occupied living-mob slots after the light plane. */
+static void rl_ench_from_stack(RlSnapEnch *e, const ICStack *s) {
+    int i, n;
+    memset(e, 0, sizeof *e);
+    if (!s) return;
+    n = s->n_enchants;
+    if (n < 0) n = 0;
+    if (n > 8) n = 8;
+    e->n = n;
+    for (i = 0; i < n; ++i) {
+        e->id[i] = s->enchants[i].id;
+        e->level[i] = s->enchants[i].level;
+    }
+}
+
+static void rl_ench_to_stack(ICStack *s, const RlSnapEnch *e) {
+    int i, n;
+    if (!s || !e) return;
+    n = e->n;
+    if (n < 0) n = 0;
+    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+    s->n_enchants = n;
+    for (i = 0; i < IC_MAX_ENCHANTS; ++i) {
+        s->enchants[i].id = (i < n) ? e->id[i] : 0;
+        s->enchants[i].level = (i < n) ? e->level[i] : 0;
+    }
+}
+
 static int rl_snapshot_write(GmRuntime *r, const char *path,
                              int use_bounds, int radius,
                              int brx0, int bry0, int brz0,
@@ -1270,6 +1297,8 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                                         ch[n_chest].slot[si][0] = st.item;
                                         ch[n_chest].slot[si][1] = st.count;
                                         ch[n_chest].slot[si][2] = st.meta;
+                                        rl_ench_from_stack(
+                                            &ch[n_chest].slot_ench[si], &st);
                                     }
                                     ++n_chest;
                                 }
@@ -1285,8 +1314,8 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                             cursor[2] = cur.meta;
                             gm_player_ctl_dig_export(&ctl);
                             left_click = ctl.left_click_counter;
-                            eat_ticks = 0;
-                            eat_item = 0;
+                            eat_ticks = ctl.eat_ticks;
+                            eat_item = ctl.eat_item;
                             bow_ticks = r->bow_ticks;
                             bow_drawing = r->bow_drawing;
                             xp_level = r->player.experienceLevel;
@@ -1378,6 +1407,87 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                             ok = ok && fwrite(&r->mobs.explosion_size,
                                               sizeof r->mobs.explosion_size, 1,
                                               f) == 1;
+                            {
+                                RlSnapV10Xtra x;
+                                unsigned mk, si;
+                                memset(&x, 0, sizeof x);
+                                x.xp_pickups = r->mobs.xp_pickups;
+                                x.next_orb_id = r->mobs.next_orb_id;
+                                x.next_mob_id = r->mobs.next_id;
+                                x.spawn_world_seed48 = r->mobs.spawn_world_seed48;
+                                x.spawn_math_seed48 = r->mobs.spawn_math_seed48;
+                                x.spawn_shuffle_seed48 =
+                                    r->mobs.spawn_shuffle_seed48;
+                                x.parity_ex_blasts = r->parity_ex_blasts;
+                                x.parity_ex_destroyed = r->parity_ex_destroyed;
+                                x.parity_ex_drop_n = r->parity_ex_drop_n;
+                                x.parity_ex_drop_ids = r->parity_ex_drop_ids;
+                                x.parity_ex_damage = r->parity_ex_damage;
+                                x.parity_ex_kb_x = r->parity_ex_kb_x;
+                                x.parity_ex_kb_y = r->parity_ex_kb_y;
+                                x.parity_ex_kb_z = r->parity_ex_kb_z;
+                                x.parity_ex_rays = r->parity_ex_rays;
+                                x.parity_ex_last_x = r->parity_ex_last_x;
+                                x.parity_ex_last_y = r->parity_ex_last_y;
+                                x.parity_ex_last_z = r->parity_ex_last_z;
+                                x.parity_ex_last_size = r->parity_ex_last_size;
+                                x.player_dead = r->dead;
+                                x.death_screen_ticks = r->death_screen_ticks;
+                                x.player_hurt_resistant =
+                                    r->mobs.player_hurt_resistant;
+                                x.player_attack_cooldown =
+                                    r->mobs.player_attack_cooldown;
+                                x.player_last_damage =
+                                    r->mobs.player_last_damage;
+                                x.look_px = r->mobs.look_px;
+                                x.look_py = r->mobs.look_py;
+                                x.look_pz = r->mobs.look_pz;
+                                x.look_have = r->mobs.look_have;
+                                x.mob_tick = r->mobs.tick;
+                                {
+                                    const EwStore *es = r->mobs.current
+                                        ? &r->mobs.b : &r->mobs.a;
+                                    for (mk = 0; mk < n_mobs &&
+                                                 mk < BLAZE_SNAP_MAX_MOBS;
+                                         ++mk) {
+                                        int sl = packed[mk].slot;
+                                        if (sl < 0 || sl >= BLAZE_SNAP_MAX_MOBS)
+                                            continue;
+                                        x.boat_delta_rot[mk] =
+                                            r->mobs.boat_delta_rot[sl];
+                                        x.boat_glide[mk] =
+                                            r->mobs.boat_glide[sl];
+                                        x.sidecar_repath[mk] =
+                                            es->repath_timer[sl];
+                                        x.sidecar_despawn[mk] =
+                                            r->mobs.despawn_ticks[sl];
+                                        x.sidecar_fire[mk] =
+                                            r->mobs.fire_ticks[sl];
+                                        x.ew_ai_state[mk] = es->ai_state[sl];
+                                        x.ew_path_len[mk] = es->path_len[sl];
+                                        x.ew_path_tx[mk] = es->path_tx[sl];
+                                        x.ew_path_ty[mk] = es->path_ty[sl];
+                                        x.ew_path_tz[mk] = es->path_tz[sl];
+                                        x.entity_age[mk] = r->mobs.entity_age[sl];
+                                    }
+                                }
+                                for (si = 0; si < 37; ++si) {
+                                    ICStack st = isr_get_stack(
+                                        &r->player.inv,
+                                        si < 36 ? (int)si : ISR_OFFHAND_SLOT);
+                                    rl_ench_from_stack(&x.inv_ench[si], &st);
+                                }
+                                for (si = 0; si < 4; ++si) {
+                                    ICStack st = isr_get_stack(
+                                        &r->player.inv, ISR_ARMOR0 + (int)si);
+                                    rl_ench_from_stack(&x.armor_ench[si], &st);
+                                }
+                                for (si = 0; si < 9; ++si)
+                                    rl_ench_from_stack(&x.craft_ench[si],
+                                                       &r->craft_grid[si]);
+                                rl_ench_from_stack(&x.cursor_ench, &cur);
+                                ok = ok && fwrite(&x, sizeof x, 1, f) == 1;
+                            }
                             (void)eat_ticks;
                             (void)eat_item;
                         }
@@ -1430,11 +1540,16 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     int snap_ex_pend = 0, snap_ex_smoke = 1, snap_ex_flame = 0;
     double snap_ex_x = 0, snap_ex_y = 0, snap_ex_z = 0;
     float snap_ex_sz = 0;
+    RlSnapV10Xtra snap_xtra;
+    unsigned snap_n_mobs = 0;
+    RlSnapMob snap_mobs[BLAZE_SNAP_MAX_MOBS];
     RlSnapProj snap_proj[BLAZE_SNAP_MAX_PROJ];
     RlSnapFall snap_fall[BLAZE_SNAP_MAX_FALL];
     RlSnapFallUpdate snap_upd[BLAZE_SNAP_MAX_FALL_UPD];
     RlSnapFallLanding snap_land[BLAZE_SNAP_MAX_FALL];
 
+    memset(&snap_xtra, 0, sizeof snap_xtra);
+    memset(snap_mobs, 0, sizeof snap_mobs);
     if (!f) { snprintf(err, (size_t)err_cap, "cannot open %s", path); return 0; }
     if (fread(&h, sizeof h, 1, f) != 1 || memcmp(h.magic, "BSNP", 4) != 0 ||
         h.version < 1 || h.version > BLAZE_SNAP_VERSION) {
@@ -1520,6 +1635,9 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             }
         }
         gm_mobs_import_snap(&r->mobs, packed, n_mobs);
+        snap_n_mobs = n_mobs;
+        if (n_mobs)
+            memcpy(snap_mobs, packed, (size_t)n_mobs * sizeof packed[0]);
         r->mobs.spawn_clip = 1;
         r->mobs.spawn_rx0 = h.rx0;
         r->mobs.spawn_ry0 = h.ry0;
@@ -1685,7 +1803,8 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
                 fread(&snap_ex_x, sizeof snap_ex_x, 1, f) != 1 ||
                 fread(&snap_ex_y, sizeof snap_ex_y, 1, f) != 1 ||
                 fread(&snap_ex_z, sizeof snap_ex_z, 1, f) != 1 ||
-                fread(&snap_ex_sz, sizeof snap_ex_sz, 1, f) != 1) {
+                fread(&snap_ex_sz, sizeof snap_ex_sz, 1, f) != 1 ||
+                fread(&snap_xtra, sizeof snap_xtra, 1, f) != 1) {
                 snprintf(err, (size_t)err_cap,
                          "truncated .bsnp v10 te/player: %s", path);
                 free(cells); free(light); free(biome); fclose(f); return 0;
@@ -1919,11 +2038,13 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
                     C->wy = snap_ch[ui].wy;
                     C->wz = snap_ch[ui].wz;
                     C->state.te.num_players_using = snap_ch[ui].num_using;
-                    for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si)
-                        chest_live_set(&C->state, (int)si,
-                                       ic_mk(snap_ch[ui].slot[si][0],
-                                             snap_ch[ui].slot[si][1],
-                                             snap_ch[ui].slot[si][2]));
+                    for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si) {
+                        ICStack st = ic_mk(snap_ch[ui].slot[si][0],
+                                           snap_ch[ui].slot[si][1],
+                                           snap_ch[ui].slot[si][2]);
+                        rl_ench_to_stack(&st, &snap_ch[ui].slot_ench[si]);
+                        chest_live_set(&C->state, (int)si, st);
+                    }
                 }
             }
             for (si = 0; si < 9; ++si)
@@ -1935,6 +2056,8 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             r->parity_craft_successes = snap_craft_ok;
             r->parity_container_opens = snap_cont_open;
             d.left_click_counter = snap_left;
+            d.eat_ticks = snap_eat_t;
+            d.eat_item = snap_eat_i;
             gm_player_ctl_dig_import(&d);
             r->bow_ticks = snap_bow_t;
             r->bow_drawing = snap_bow_d;
@@ -1967,8 +2090,76 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             r->mobs.explosion_y = snap_ex_y;
             r->mobs.explosion_z = snap_ex_z;
             r->mobs.explosion_size = snap_ex_sz;
-            (void)snap_eat_t;
-            (void)snap_eat_i;
+            r->mobs.xp_pickups = snap_xtra.xp_pickups;
+            r->mobs.next_orb_id = snap_xtra.next_orb_id;
+            r->mobs.next_id = snap_xtra.next_mob_id;
+            r->mobs.spawn_world_seed48 = snap_xtra.spawn_world_seed48;
+            r->mobs.spawn_math_seed48 = snap_xtra.spawn_math_seed48;
+            r->mobs.spawn_shuffle_seed48 = snap_xtra.spawn_shuffle_seed48;
+            r->parity_ex_blasts = snap_xtra.parity_ex_blasts;
+            r->parity_ex_destroyed = snap_xtra.parity_ex_destroyed;
+            r->parity_ex_drop_n = snap_xtra.parity_ex_drop_n;
+            r->parity_ex_drop_ids = snap_xtra.parity_ex_drop_ids;
+            r->parity_ex_damage = snap_xtra.parity_ex_damage;
+            r->parity_ex_kb_x = snap_xtra.parity_ex_kb_x;
+            r->parity_ex_kb_y = snap_xtra.parity_ex_kb_y;
+            r->parity_ex_kb_z = snap_xtra.parity_ex_kb_z;
+            r->parity_ex_rays = snap_xtra.parity_ex_rays;
+            r->parity_ex_last_x = snap_xtra.parity_ex_last_x;
+            r->parity_ex_last_y = snap_xtra.parity_ex_last_y;
+            r->parity_ex_last_z = snap_xtra.parity_ex_last_z;
+            r->parity_ex_last_size = snap_xtra.parity_ex_last_size;
+            r->dead = snap_xtra.player_dead ? 1 : 0;
+            r->death_screen_ticks = snap_xtra.death_screen_ticks;
+            r->mobs.player_hurt_resistant = snap_xtra.player_hurt_resistant;
+            r->mobs.player_attack_cooldown = snap_xtra.player_attack_cooldown;
+            r->mobs.player_last_damage = snap_xtra.player_last_damage;
+            r->mobs.look_px = snap_xtra.look_px;
+            r->mobs.look_py = snap_xtra.look_py;
+            r->mobs.look_pz = snap_xtra.look_pz;
+            r->mobs.look_have = snap_xtra.look_have ? 1 : 0;
+            r->mobs.tick = snap_xtra.mob_tick;
+
+            {
+                EwStore *es = r->mobs.current ? &r->mobs.b : &r->mobs.a;
+                for (si = 0; si < snap_n_mobs && si < BLAZE_SNAP_MAX_MOBS;
+                     ++si) {
+                    int sl = snap_mobs[si].slot;
+                    if (sl < 0 || sl >= BLAZE_SNAP_MAX_MOBS) continue;
+                    r->mobs.boat_delta_rot[sl] = snap_xtra.boat_delta_rot[si];
+                    r->mobs.boat_glide[sl] = snap_xtra.boat_glide[si];
+                    es->repath_timer[sl] = snap_xtra.sidecar_repath[si];
+                    r->mobs.despawn_ticks[sl] = snap_xtra.sidecar_despawn[si];
+                    r->mobs.fire_ticks[sl] = snap_xtra.sidecar_fire[si];
+                    es->ai_state[sl] = snap_xtra.ew_ai_state[si];
+                    es->path_len[sl] = snap_xtra.ew_path_len[si];
+                    es->path_tx[sl] = snap_xtra.ew_path_tx[si];
+                    es->path_ty[sl] = snap_xtra.ew_path_ty[si];
+                    es->path_tz[sl] = snap_xtra.ew_path_tz[si];
+                    r->mobs.entity_age[sl] = snap_xtra.entity_age[si];
+                }
+                ew_store_copy(r->mobs.current ? &r->mobs.a : &r->mobs.b, es);
+            }
+            for (si = 0; si < 37; ++si) {
+                int slot = si < 36 ? (int)si : ISR_OFFHAND_SLOT;
+                ICStack st = isr_get_stack(&r->player.inv, slot);
+                rl_ench_to_stack(&st, &snap_xtra.inv_ench[si]);
+                isr_set_stack(&r->player.inv, slot, st);
+            }
+            for (si = 0; si < 4; ++si) {
+                ICStack st = isr_get_stack(&r->player.inv,
+                                           ISR_ARMOR0 + (int)si);
+                rl_ench_to_stack(&st, &snap_xtra.armor_ench[si]);
+                isr_set_stack(&r->player.inv, ISR_ARMOR0 + (int)si, st);
+            }
+            for (si = 0; si < 9; ++si)
+                rl_ench_to_stack(&r->craft_grid[si],
+                                 &snap_xtra.craft_ench[si]);
+            {
+                ICStack cur = gm_player_cursor();
+                rl_ench_to_stack(&cur, &snap_xtra.cursor_ench);
+                gm_player_cursor_set(cur);
+            }
         }
     }
     return 1;

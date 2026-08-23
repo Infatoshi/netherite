@@ -369,7 +369,8 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             fread(&out->explosion_y, sizeof out->explosion_y, 1, f) != 1 ||
             fread(&out->explosion_z, sizeof out->explosion_z, 1, f) != 1 ||
             fread(&out->explosion_size, sizeof out->explosion_size, 1, f) !=
-                1) {
+                1 ||
+            fread(&out->xtra, sizeof out->xtra, 1, f) != 1) {
             free(out->cells); out->cells = NULL;
             free(out->coal); out->coal = NULL;
             free(out->light); out->light = NULL;
@@ -600,6 +601,7 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
         ok = ok && fwrite(&s->explosion_z, sizeof s->explosion_z, 1, f) == 1;
         ok = ok && fwrite(&s->explosion_size, sizeof s->explosion_size, 1, f) ==
                        1;
+        ok = ok && fwrite(&s->xtra, sizeof s->xtra, 1, f) == 1;
     }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)

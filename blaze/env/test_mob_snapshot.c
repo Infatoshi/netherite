@@ -372,7 +372,29 @@ int main(int argc, char **argv) {
             expect(v10.mobs[0].fire_ticks == 160, "v10 fire");
             expect(v10.ww_world_time == 18000, "v10 worldTime");
             expect(v10.rt_mutations == 7, "v10 rt_mutations");
+            v10.xtra.xp_pickups = 3;
+            v10.xtra.next_orb_id = 1007;
+            v10.xtra.spawn_world_seed48 = 0x111ULL;
+            v10.xtra.parity_ex_blasts = 2;
+            v10.xtra.player_dead = 1;
+            v10.xtra.inv_ench[0].n = 1;
+            v10.xtra.inv_ench[0].id[0] = 16;
+            v10.xtra.inv_ench[0].level[0] = 1;
             expect(roundtrip(p_a, p_b, &v10), "v10->v10 save/load/save identical");
+            {
+                CuSnapshot v10b;
+                memset(&v10b, 0, sizeof v10b);
+                expect(blaze_snapshot_load(p_a, &v10b, err, (int)sizeof err, 1),
+                       "reload v10 xtra");
+                expect(v10b.xtra.xp_pickups == 3, "v10 xtra xp_pickups");
+                expect(v10b.xtra.next_orb_id == 1007, "v10 xtra next_orb_id");
+                expect(v10b.xtra.parity_ex_blasts == 2, "v10 xtra blasts");
+                expect(v10b.xtra.player_dead == 1, "v10 xtra dead");
+                expect(v10b.xtra.inv_ench[0].n == 1 &&
+                       v10b.xtra.inv_ench[0].id[0] == 16,
+                       "v10 xtra inv enchant");
+                blaze_snapshot_free(&v10b);
+            }
             blaze_snapshot_free(&v10);
         }
         blaze_snapshot_free(&loaded);
