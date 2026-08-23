@@ -135,6 +135,12 @@ default in `blaze.conf` / `blaze/rl/ppo.conf` / `blaze/env/blaze_abi.h`).
 VERIFIED only when every listed kernel passes. mining_slice M2 stays BLOCKED
 on a fresh clone (`blaze/rl/out/snaps/*_d*.bsnp` missing).
 
+Mid-episode snapshot resume is a per-row flag, not a third tier:
+`resume: true` in `port_matrix.yaml` runs `verify_resume_parity.py` after
+M1 (magma+blaze-cpu) and after M2 (`--cuda`). Snapshot writes are version
+10 on lane `resumegate` (v7/v8/v9 still load). mining_slice resume is
+BLOCKED on the v1 `s14_t0_r48_no_liquid.bsnp` (no recapture on gamer).
+
 | # | Remaining | Gate | Class | Host |
 |---|-----------|------|-------|------|
 | 1 | Native `out/blaze/rl/ppo` reproduces spawn->torch (t0 ~0.4, transfer ~11/13). Wood-break t0 0.495 matched. Staged-curriculum chain4 (2026-08-22) reached t0 0.215 at 510M ticks, stage4->torch 8/8 seeds; spawn->torch t0 ~0.4 still open. | 2 | grindable | anvil gpu0 |
