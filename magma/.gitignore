@@ -18,5 +18,6 @@ tests/test_model_oracle
 tests/test_look_helper
 tests/test_pathfinder_null
 tests/test_furnace_registry
+tests/test_live_items
 game/test_block_registry
 game/test_play_compose

@@ -1434,6 +1434,65 @@ subsystems:
       - xp
     timeout: 1500
 
+  - name: ground_items
+    supported: true
+    sources:
+      magma: [magma/game/live_sim.c, magma/game/rl_mode.c]
+      shared: [blaze/core/entity_item.h, blaze/core/item_live.h, blaze/core/port_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
+    dependencies: [fluids, entity_spine]
+    required_features: [items, inventory]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_ground_items.bsnp
+        - blaze/rl/fixtures/ground_items_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_ground_items.bsnp
+        - blaze/rl/fixtures/ground_items_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_ground_items.bsnp
+      - --tape
+      - blaze/rl/fixtures/ground_items_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - items,inventory
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_ground_items.bsnp
+      - --tape
+      - blaze/rl/fixtures/ground_items_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - items,inventory
+    timeout: 1500
+
   - name: boats
     supported: true
     sources:

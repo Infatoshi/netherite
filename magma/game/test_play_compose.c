@@ -368,6 +368,48 @@ static void test_live_item_pickup(void) {
     gm_world_destroy(w);
 }
 
+static void test_live_item_merge_lava_cap(void) {
+    GmWorld *w = gm_world_create_type(0, 1);
+    GmLiveSim live;
+    int i, n_item, fails;
+    CHECK(w != NULL, "merge world create");
+    if (!w) return;
+    gm_world_ensure(w, 0, 0, 1);
+    memset(&live, 0, sizeof live);
+    CHECK(gm_live_spawn_item(&live, 8.5, 5.0, 8.5, 4, 32, 0, 10),
+          "spawn cobble stack A");
+    CHECK(gm_live_spawn_item(&live, 8.7, 5.0, 8.5, 4, 32, 0, 10),
+          "spawn cobble stack B");
+    for (i = 0; i < 26; ++i)
+        gm_live_tick(&live, w);
+    n_item = 0;
+    for (i = 0; i < GM_LIVE_MAX; ++i)
+        if (live.ents[i].active && live.ents[i].type == 0) {
+            n_item++;
+            CHECK(live.ents[i].count == 64 || live.ents[i].count == 32,
+                  "merged or unmerged cobble count");
+        }
+    CHECK(n_item == 1, "nearby cobble stacks combineItems to one entity");
+
+    memset(&live, 0, sizeof live);
+    gm_world_set_block_meta(w, 8, 4, 8, 11, 0); /* lava */
+    CHECK(gm_live_spawn_item(&live, 8.5, 4.1, 8.5, 4, 1, 0, 32767),
+          "spawn cobble in lava");
+    for (i = 0; i < 8; ++i)
+        gm_live_tick(&live, w);
+    CHECK(live.n_active == 0, "lava dealFireDamage kills the item");
+
+    memset(&live, 0, sizeof live);
+    fails = 0;
+    for (i = 0; i < 49; ++i) {
+        if (!gm_live_spawn_item_capped(&live, 0.5, 64.0, 0.5, 4, 1, 0, 10))
+            fails++;
+    }
+    CHECK(fails == 1 && gm_live_spawn_fail_count(&live) == 1,
+          "49th capped spawn increments spawn_fail_count");
+    gm_world_destroy(w);
+}
+
 int main(void) {
     g_fail = 0;
     test_progressive_dig();
@@ -380,6 +422,7 @@ int main(void) {
     test_live_world_edits();
     test_live_sim_side_effects();
     test_live_item_pickup();
+    test_live_item_merge_lava_cap();
     if (g_fail) {
         fprintf(stderr, "test_play_compose: FAILED\n");
         return 1;

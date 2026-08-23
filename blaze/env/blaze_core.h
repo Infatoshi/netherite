@@ -168,6 +168,7 @@ typedef struct {
     int    active;
     double x, y, z, mx, my, mz;
     int    on_ground, age, item, count, meta, pickup_delay, lifespan;
+    int    health, fire, ticks_existed;
 } CuItem;
 
 /* Falling-block slots (GmLiveEnt type=2 + GmLiveFallUpdate/Landing). */
@@ -358,7 +359,7 @@ typedef struct {
 
     CuItem items[CU_MAX_ITEMS];
     int    n_items;
-    int    items_unrepresented;
+    int    spawn_fail_count;     /* 49th+ spawn skipped; hashed into BP_ITEMS */
 
     CuFallEnt falls[CU_MAX_ITEMS];
     int    n_falls;
@@ -832,6 +833,58 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 #define FL_MAX CU_MAX_ITEMS
 #define FL_UPDATES CU_FALL_UPDATES
 #include "falling_live.h"
+
+#define IL_W Blaze
+#define il_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define il_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
+#include "item_live.h"
+
+MC_HD static inline void cu_item_to_mc(const CuItem *e, McItem *it) {
+    memset(it, 0, sizeof *it);
+    ei_set_position(it, e->x, e->y, e->z);
+    it->motionX = e->mx;
+    it->motionY = e->my;
+    it->motionZ = e->mz;
+    it->onGround = e->on_ground;
+    it->age = e->age;
+    it->delayBeforeCanPickup = e->pickup_delay;
+    it->ticksExisted = e->ticks_existed;
+    it->lifespan = e->lifespan > 0 ? e->lifespan : EI_LIFESPAN;
+    it->dead = 0;
+    it->item = e->item;
+    it->count = e->count;
+    it->meta = e->meta;
+    it->hasSubtypes = 1;
+    it->hasTag = 0;
+    it->maxStack = isr_max_stack_size(e->item, e->meta);
+    it->health = e->health > 0 ? e->health : EI_HEALTH;
+    it->fire = e->fire;
+}
+
+MC_HD static inline void cu_item_from_mc(CuItem *e, const McItem *it, Blaze *env) {
+    if (it->dead || it->count <= 0) {
+        e->active = 0;
+        e->count = 0;
+        if (env->n_items > 0) env->n_items--;
+        return;
+    }
+    e->x = it->posX;
+    e->y = it->posY;
+    e->z = it->posZ;
+    e->mx = it->motionX;
+    e->my = it->motionY;
+    e->mz = it->motionZ;
+    e->on_ground = it->onGround;
+    e->age = it->age;
+    e->pickup_delay = it->delayBeforeCanPickup;
+    e->ticks_existed = it->ticksExisted;
+    e->lifespan = it->lifespan;
+    e->item = it->item;
+    e->count = it->count;
+    e->meta = it->meta;
+    e->health = it->health;
+    e->fire = it->fire;
+}
 
 MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
                                         double radius, float damage) {
@@ -2833,7 +2886,7 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
 
 /* =================== live items (game/live_sim.c port) ==================== */
 
-/* verbatim gm_live_spawn_item (live_sim.c:43) */
+/* gm_live_spawn_item_capped: first free slot or skip. Java has no cap. */
 MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
                                       int item, int count, int meta,
                                       int pickup_delay) {
@@ -2848,82 +2901,55 @@ MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
         e->on_ground = 0; e->age = 0;
         e->item = item; e->count = count; e->meta = meta & 15;
         e->pickup_delay = pickup_delay < 0 ? 0 : pickup_delay;
-        e->lifespan = 6000;
+        e->lifespan = EI_LIFESPAN;
+        e->health = EI_HEALTH;
+        e->fire = -EI_FIRE_IMMUNE_TICKS;
+        e->ticks_existed = 0;
         env->n_items++;
         return 1;
     }
-    env->items_unrepresented = 1;
+    env->spawn_fail_count++;
     return 0;
 }
 
-/* verbatim solid_at (live_sim.c:61) - note: ANY non-air non-liquid id */
-MC_HD static inline int cu_item_solid_at(const Blaze *env, int x, int y, int z) {
-    int id = cu_world_block(env, x, y, z);
-    return id != 0 && id != 8 && id != 9 && id != 10 && id != 11;
-}
-
-/* verbatim gm_live_tick item slice + gm_live_tick_player pickup
- * (live_sim.c:66-148; the wheat plot is inactive in rl mode - gm_runtime_init
- * memsets r->entities, so plant_active==0 always). Falling scheduled updates
- * and EntityFallingBlock ticks run first, same order as magma gm_live_tick. */
+/* gm_live_tick item slice + gm_live_tick_player pickup via item_live.h.
+ * Falling scheduled updates and EntityFallingBlock ticks run first. */
 MC_HD static inline void cu_live_tick_player(Blaze *env) {
-    int i;
+    int i, k, n;
     double px, py, pz;
+    McItem its[CU_MAX_ITEMS];
+    int map[CU_MAX_ITEMS];
+    McAABB pbox;
     fl_tick_scheduled(env, env);
     fl_tick_falling_ents(env, env);
+    n = 0;
     for (i = 0; i < CU_MAX_ITEMS; ++i) {
         CuItem *e = &env->items[i];
-        int by, bx, bz, under;
-        float slip, f;
         if (!e->active) continue;
         CU_OP(env, CU_OP_ITEM_TICK);
-        if (e->pickup_delay > 0) e->pickup_delay--;
-        e->my -= 0.03999999910593033;
-        e->x += e->mx;
-        e->y += e->my;
-        e->z += e->mz;
-        by = (int)floor(e->y);
-        bx = (int)floor(e->x);
-        bz = (int)floor(e->z);
-        if (cu_item_solid_at(env, bx, by, bz)) {
-            e->y = (double)(by + 1);
-            e->my = 0.0;
-            e->on_ground = 1;
-        } else if (cu_item_solid_at(env, bx, by - 1, bz) && e->y - floor(e->y) < 0.01) {
-            e->on_ground = 1;
-            e->my = 0.0;
-        } else {
-            e->on_ground = 0;
-        }
-        slip = 0.6f;
-        under = cu_world_block(env, bx, by - 1, bz);
-        if (under == BLK_ICE || under == 174 || under == 212) slip = 0.98f;
-        f = e->on_ground ? (slip * 0.98f) : 0.98f;
-        e->mx *= (double)f;
-        e->mz *= (double)f;
-        e->my *= 0.9800000190734863;
-        if (e->on_ground) e->my *= -0.5;
-        e->age++;
-        if (e->lifespan > 0 && e->age >= e->lifespan) {
-            e->active = 0;
-            if (env->n_items > 0) env->n_items--;
-        }
+        cu_item_to_mc(e, &its[n]);
+        map[n] = i;
+        n++;
     }
+    for (k = 0; k < n; ++k)
+        il_tick_item(env, its, n, k);
+    for (k = 0; k < n; ++k)
+        cu_item_from_mc(&env->items[map[k]], &its[k], env);
     px = env->pl.ent.posX + (double)env->ox;
     py = env->pl.ent.posY;
     pz = env->pl.ent.posZ + (double)env->oz;
+    pbox = psv_player_box(px, py, pz);
     for (i = 0; i < CU_MAX_ITEMS; ++i) {
         CuItem *e = &env->items[i];
-        ICStack incoming;
-        if (!e->active || e->pickup_delay > 0) continue;
-        if (fabs(e->x - px) > 1.0 || fabs(e->z - pz) > 1.0 ||
-            e->y < py - 0.25 || e->y > py + 2.8) continue;
-        incoming = ic_mk(e->item, e->count, e->meta);
-        isr_add_item_stack_to_inventory(&env->pl.inv, &incoming);
-        e->count = incoming.count;
-        if (e->count <= 0) {
+        McItem it;
+        if (!e->active) continue;
+        cu_item_to_mc(e, &it);
+        if (il_try_pickup(&it, &env->pl.inv, &pbox)) {
             e->active = 0;
+            e->count = 0;
             if (env->n_items > 0) env->n_items--;
+        } else {
+            e->count = it.count;
         }
     }
     env->live_ticks++;
@@ -5203,13 +5229,10 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
             it->on_ground, it->age, it->item, it->count, it->meta,
             it->pickup_delay, it->lifespan);
     }
+    h = bp_hash_i32(h, e->spawn_fail_count);
     r->digest[BP_ITEMS] = h;
     r->evidence[BP_ITEMS] = (uint32_t)any;
-    if (any) r->active_mask |= BP_BIT(BP_ITEMS);
-    if (e->items_unrepresented) {
-        r->measured_mask &= ~BP_BIT(BP_ITEMS);
-        r->evidence[BP_ITEMS] = 0;
-    }
+    if (any || e->spawn_fail_count) r->active_mask |= BP_BIT(BP_ITEMS);
 
     h = bp_hash_begin();
     h = bp_hash_u32(h, e->parity_craft_attempts);
@@ -5796,7 +5819,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         tec_init(&env->chests[i].te);
     }
     env->active_chest = -1;
-    env->items_unrepresented = 0;
+    env->spawn_fail_count = 0;
 
     env->pl.inv.current_item = h->hotbar_sel;
     for (i = 0; i < 37; ++i)
@@ -5820,6 +5843,9 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         e->item = items[u].item; e->count = items[u].count; e->meta = items[u].meta;
         e->age = items[u].age; e->pickup_delay = items[u].pickup_delay;
         e->lifespan = items[u].lifespan; e->on_ground = items[u].on_ground;
+        e->health = EI_HEALTH;
+        e->fire = -EI_FIRE_IMMUNE_TICKS;
+        e->ticks_existed = 0;
         env->n_items++;
     }
 

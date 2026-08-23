@@ -54,7 +54,16 @@ typedef struct {
     int hasSubtypes;          /* Item.getHasSubtypes() */
     int hasTag;               /* NBTTagCompound present (0 for our scenes) */
     int maxStack;             /* ItemStack.getMaxStackSize() */
+    int health;               /* EntityItem.health EntityItem.java:40 default 5 */
+    int fire;                 /* Entity.fire Entity.java:172; 0 idle, -1 immune rest */
 } McItem;
+
+#define EI_HEALTH 5                          /* EntityItem.java:54 */
+#define EI_LIFESPAN 6000                     /* EntityItem.java:49 */
+#define EI_PICKUP_DEFAULT 10                 /* setDefaultPickupDelay EntityItem.java:564-566 */
+#define EI_PICKUP_THROWN 40                  /* EntityPlayer.dropItem EntityPlayer.java:829 */
+#define EI_FIRE_IMMUNE_TICKS 1               /* Entity.getFireImmuneTicks Entity.java:3694 */
+#define EI_FLAMMABLE_FIRE_SEC 8              /* Entity.move setFire(8) Entity.java:1077 */
 
 /* Block.getSlipperiness: 0.98F for the ice family, 0.6F default (Block.slipperiness). */
 MC_HD static inline float ei_slipperiness(u16 under_state) {
@@ -149,6 +158,51 @@ MC_HD static inline int ei_combine(McItem *a, McItem *b) {
         b->age = a->age;
     a->dead = 1;
     return 1;
+}
+
+/* EntityItem.attackEntityFrom EntityItem.java:336-358 minus nether-star/explosion. */
+MC_HD static inline void ei_attack(McItem *it, float amount) {
+    if (!it || it->dead) return;
+    it->health = (int)((float)it->health - amount);
+    if (it->health <= 0)
+        it->dead = 1;
+}
+
+/* Entity.setFire Entity.java:617-629. No fire-protection on items. */
+MC_HD static inline void ei_set_fire(McItem *it, int seconds) {
+    int i;
+    if (!it) return;
+    i = seconds * 20;
+    if (it->fire < i)
+        it->fire = i;
+}
+
+/* Entity.onEntityUpdate fire pulse Entity.java:541-560. */
+MC_HD static inline void ei_fire_pulse(McItem *it) {
+    if (!it || it->dead) return;
+    if (it->fire > 0) {
+        if (it->fire % 20 == 0)
+            ei_attack(it, 1.0f); /* DamageSource.ON_FIRE Entity.java:556 */
+        --it->fire;
+    }
+}
+
+/* EntityItem.searchForOtherItemsNearby EntityItem.java:209-215:
+ * expand(0.5D, 0.0D, 0.5D) then combineItems. List order = slot order. */
+MC_HD static inline void ei_search(McItem *items, int n, int i) {
+    McItem *a;
+    McAABB exp;
+    int j;
+    if (!items || i < 0 || i >= n) return;
+    a = &items[i];
+    if (a->dead) return;
+    exp = mc_aabb_make(a->box.minX - 0.5, a->box.minY, a->box.minZ - 0.5,
+                       a->box.maxX + 0.5, a->box.maxY, a->box.maxZ + 0.5);
+    for (j = 0; j < n; ++j) {
+        if (j == i || items[j].dead) continue;
+        if (mc_aabb_intersects(&exp, &items[j].box))
+            ei_combine(a, &items[j]);
+    }
 }
 
 #endif /* MC_ENTITY_ITEM_H */
