@@ -68,6 +68,7 @@
 #include "obs_camera.h"         /* OcRegion, oc_pixel verbatim */
 #include "interact_blocks.h"    /* ib_apply (use on doors/levers/...) verbatim */
 #include "item_block_place.h"   /* ibp_placed_meta (place orientation) verbatim */
+#include "block_may_place.h"    /* World.mayPlace + TNT flint ignite */
 #include "crafting_recipes_full.h" /* crf_build/crf_findMatching verbatim */
 #include "furnace_full_tick.h"  /* fft_tick + sr_* smelt/fuel verbatim */
 #include "tile_entity_chest.h"  /* TeChest 27-slot TE (TileEntityChest) */
@@ -156,6 +157,7 @@ enum {
 typedef struct {
     float forward, strafe, dyaw, dpitch;
     int   jump, sneak, sprint, attack, use;
+    int   do_place;              /* magma use_fire -> do_place (player_ctl.c:687) */
     int   attack_entity;         /* runtime.c: entity hit, dig takes ENTITY path */
     int   hotbar_sel;            /* 0..8 or -1 = unchanged */
     /* Container.slotClick this tick (gm_runtime_tick -> gm_container_click).
@@ -2269,10 +2271,7 @@ MC_HD static inline int cu_yaw_to_quad(float yaw_deg) {
 }
 
 /* verbatim psv_replaceable (player_ctl.c:135) */
-MC_HD static inline int cu_replaceable(int id) {
-    return id == 0 || (id >= 8 && id <= 11) || id == 31 || id == 32 ||
-           id == 51 || id == 78;
-}
+MC_HD static inline int cu_replaceable(int id) { return ibp_is_replaceable(id); }
 
 /* verbatim bucket_raycast (player_ctl.c:153) */
 MC_HD static inline int cu_bucket_raycast(const Chunk *w, const McSinTable *st,
@@ -2598,18 +2597,17 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
     }
     env->atk_prev = act.attack;
 
-    /* rightClickMouse timer/edge (player_ctl.c:472-479) + FIRE path
-     * (player_ctl.c:481-568): bucket scoop, interactable toggle, and block
-     * place with the mayPlace player-bb gate - ported exactly for the full
-     * chain's "use":1 (table placement). Scripted do_place does not exist
-     * here (protocol actions only). */
+    /* rightClickMouse timer/edge + FIRE path. Magma player_ctl.c:687 maps
+     * use_fire to do_place; RL ABI a[8] is use (verify_cpu.py:383,
+     * obs_pack.h:48). */
     if (env->rc_delay > 0) --env->rc_delay;
     {
         int use_fire = act.use && (!env->use_prev || env->rc_delay == 0) &&
                        !use_gate_hitting;
         if (use_fire) env->rc_delay = 4;
         env->use_prev = act.use;
-        if (use_fire) {
+        if (use_fire) act.do_place = 1;
+        if (act.do_place) {
             ICStack held0 = isr_get_stack(&pl->inv, pl->inv.current_item);
             int done_use = 0;
             if (held0.item == 325) {
@@ -2643,7 +2641,24 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                 if (r >= 0) {
                     int hit_id = psv_get_block(window, hx, hy, hz);
                     int hit_meta = psv_get_meta(window, hx, hy, hz);
-                    if (cu_ib_is_interactable(hit_id)) {
+                    ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
+                    if (r == 1 && ibp_tnt_flint_activate(hit_id, held.item)) {
+                        int nmeta;
+                        double sx, sy, sz;
+                        cu_win_set_state(window, hx, hy, hz, BLK_AIR, 0);
+                        if (ibp_flint_broke(held.meta, &nmeta))
+                            (void)isr_decr_stack_size(&pl->inv,
+                                                      pl->inv.current_item, 1);
+                        else {
+                            held.meta = nmeta;
+                            isr_set_stack(&pl->inv, pl->inv.current_item, held);
+                        }
+                        cu_emit_edit(edits, &ne, max_edits, ox, oy, oz,
+                                     hx, hy, hz, BLK_AIR, 0, 0, 0, 0);
+                        ibp_tnt_primed_pos(ox + hx, oy + hy, oz + hz,
+                                           &sx, &sy, &sz);
+                        (void)cu_spawn_tnt_primed(env, sx, sy, sz, IBP_TNT_FUSE);
+                    } else if (cu_ib_is_interactable(hit_id)) {
                         IbCase ic;
                         IbResult ir;
                         ic.block_id = hit_id;
@@ -2660,8 +2675,6 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                         }
                     } else if (r == 1) {
                         /* place against hit face into the air cell */
-                        ICStack held = isr_get_stack(&pl->inv,
-                                                     pl->inv.current_item);
                         if ((held.item == 326 || held.item == 327) &&
                             cu_replaceable(psv_get_block(window, ax, ay, az))) {
                             int fluid = held.item == 326 ? 8 : 10;
@@ -2692,50 +2705,48 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                                    held.item == 259) {
                             /* flint&steel: fire edit (portal ignite is a
                              * runtime-side follower - see blaze_runtime_tick) */
+                            int nmeta;
                             cu_win_set_state(window, ax, ay, az, 51, 0);
-                            held.meta++;
-                            if (held.meta > 64)
+                            if (ibp_flint_broke(held.meta, &nmeta))
                                 (void)isr_decr_stack_size(&pl->inv,
                                                           pl->inv.current_item, 1);
-                            else
+                            else {
+                                held.meta = nmeta;
                                 isr_set_stack(&pl->inv, pl->inv.current_item,
                                               held);
+                            }
                             cu_emit_edit(edits, &ne, max_edits, ox, oy, oz,
                                          ax, ay, az, 51, 0, 0, 0, 0);
                         } else if (!isr_is_empty(&held) &&
                                    cu_replaceable(psv_get_block(window, ax, ay,
                                                                 az))) {
                             int place_id = held.item;
-                            /* World.mayPlace entity-collision gate (strict
-                             * AABB intersects, PRE-move pose) */
-                            if (psv_solid(place_id)) {
-                                const McAABB *pb = &pl->ent.box;
-                                if (pb->minX < (double)ax + 1.0 &&
-                                    pb->maxX > (double)ax &&
-                                    pb->minY < (double)ay + 1.0 &&
-                                    pb->maxY > (double)ay &&
-                                    pb->minZ < (double)az + 1.0 &&
-                                    pb->maxZ > (double)az)
-                                    place_id = 0;
-                            }
-                            /* block ids only (1..255); tools stay tools */
                             if (place_id > 0 && place_id < 256 &&
                                 !ita_is_pickaxe(place_id)) {
                                 int face = cu_face_from_adj(hx, hy, hz,
                                                             ax, ay, az);
                                 int yq = cu_yaw_to_quad(pl->yaw);
-                                int pmeta = ibp_placed_meta(place_id, face, yq,
-                                                            act.sneak,
-                                                            held.meta) & 15;
-                                ICStack used = isr_decr_stack_size(
-                                    &pl->inv, pl->inv.current_item, 1);
-                                if (!isr_is_empty(&used)) {
-                                    cu_win_set_state(window, ax, ay, az,
-                                                     place_id, pmeta);
-                                    pl->place_events++;
-                                    cu_emit_edit(edits, &ne, max_edits,
-                                                 ox, oy, oz, ax, ay, az,
-                                                 place_id, pmeta, 0, 0, 0);
+                                int pmeta;
+                                if (!ibp_may_place(window, place_id, ax, ay, az,
+                                                   face, &pl->ent.box))
+                                    place_id = 0;
+                                pmeta = place_id == IBP_BLK_TORCH
+                                    ? ibp_torch_placement_meta(window, ax, ay,
+                                                               az, face)
+                                    : ibp_placed_meta(place_id, face, yq,
+                                                      act.sneak, held.meta) & 15;
+                                if (pmeta < 0) place_id = 0;
+                                if (place_id) {
+                                    ICStack used = isr_decr_stack_size(
+                                        &pl->inv, pl->inv.current_item, 1);
+                                    if (!isr_is_empty(&used)) {
+                                        cu_win_set_state(window, ax, ay, az,
+                                                         place_id, pmeta);
+                                        pl->place_events++;
+                                        cu_emit_edit(edits, &ne, max_edits,
+                                                     ox, oy, oz, ax, ay, az,
+                                                     place_id, pmeta, 0, 0, 0);
+                                    }
                                 }
                             }
                         }
@@ -4136,7 +4147,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 
     /* bow draw / release (runtime.c spawn_bow_arrow). Magma fires on the
      * use falling edge while holding item 261. Eye-of-ender (381) stays
-     * unreachable: the RL protocol never sets do_place. */
+     * reachable via act.use (a[8]) the same way magma maps use_fire. */
     {
         ICStack held_now = isr_get_stack(&env->pl.inv, env->pl.inv.current_item);
         if (held_now.item == 261 && act.use) {

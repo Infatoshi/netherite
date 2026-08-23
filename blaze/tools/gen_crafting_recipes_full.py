@@ -32,7 +32,10 @@ I = dict(
     EMERALD=388, CARROT=391, BAKED_POTATO=393, EGG=344, PUMPKIN_PIE=400,
     COOKED_RABBIT=412, RABBIT_STEW=413, BEETROOT=434, BEETROOT_SOUP=436,
     SPECTRAL_ARROW=439, DYE=351, SLIME_BALL=341, IRON_NUGGET=452,
-    BUCKET=325, BED=355, ENDER_PEARL=368, ENDER_EYE=381,
+    BUCKET=325, WATER_BUCKET=326, LAVA_BUCKET=327, MILK_BUCKET=335,
+    BED=355, CAKE=354, ENDER_PEARL=368, ENDER_EYE=381,
+    BOAT=333, SPRUCE_BOAT=444, BIRCH_BOAT=445, JUNGLE_BOAT=446,
+    ACACIA_BOAT=447, DARK_OAK_BOAT=448,
 )
 W = 32767
 
@@ -198,6 +201,18 @@ def emit_c_build():
     shaped(dict(item=I['BED']), ["###", "XXX"],
             {'#': stk(B['WOOL'], block=True), 'X': stk(B['PLANKS'], block=True), ' ': E})
     shapeless(dict(item=I['ENDER_EYE']), [stk(I['ENDER_PEARL']), stk(I['BLAZE_POWDER'])])
+
+    # CraftingManager.java:140-145 boats. Meta-specific planks; disjoint from KEEP.
+    for out_id, meta in (
+        (I['BOAT'], 0), (I['SPRUCE_BOAT'], 1), (I['BIRCH_BOAT'], 2),
+        (I['JUNGLE_BOAT'], 3), (I['ACACIA_BOAT'], 4), (I['DARK_OAK_BOAT'], 5),
+    ):
+        shaped(dict(item=out_id), ["# #", "###"],
+               {'#': stk(B['PLANKS'], meta=meta, explicit=True), ' ': E})
+    # CraftingManager.java:115 cake. Milk buckets return empty via getRemainingItems.
+    shaped(dict(item=I['CAKE']), ["AAA", "BEB", "CCC"],
+           {'A': stk(I['MILK_BUCKET']), 'B': stk(I['SUGAR']),
+            'E': stk(I['EGG']), 'C': stk(I['WHEAT']), ' ': E})
 
     return '\n'.join(lines), n
 

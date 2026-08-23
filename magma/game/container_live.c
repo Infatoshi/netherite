@@ -9,6 +9,7 @@
 
 #include "container_click.h"
 #include "crafting_recipes_full.h"
+#include "crafting_remaining.h"
 #include "inventory_stack_rules.h"
 #include "items_tools_armor.h"
 
@@ -147,12 +148,27 @@ ICStack gm_container_result(const struct GmRuntime *r)
     return grid_match(r);
 }
 
-/* SlotCrafting.onTake: consume one item from every non-empty grid cell. */
+/* SlotCrafting.onTake: consume one from each cell, then put getRemainingItems
+ * (ForgeHooks.getContainerItem) back. SlotCrafting.java:132-166. */
 static void grid_consume_one(GmRuntime *r)
 {
-    for (int i = 0; i < 9; ++i)
-        if (!cc_is_empty(&r->craft_grid[i]))
-            cc_shrink(&r->craft_grid[i], 1);
+    for (int i = 0; i < 9; ++i) {
+        int cont;
+        ICStack rem;
+        if (cc_is_empty(&r->craft_grid[i])) continue;
+        cont = crf_container_item(r->craft_grid[i].item);
+        cc_shrink(&r->craft_grid[i], 1);
+        if (!cont) continue;
+        rem = ic_mk(cont, 1, 0);
+        if (cc_is_empty(&r->craft_grid[i])) {
+            r->craft_grid[i] = rem;
+        } else if (cc_stack_match(&r->craft_grid[i], &rem)) {
+            r->craft_grid[i].count += rem.count;
+        } else if (!isr_add_item_stack_to_inventory(&r->player.inv, &rem) ||
+                   !isr_is_empty(&rem)) {
+            ct_drop(r, rem);
+        }
+    }
 }
 
 /* ---- mergeItemStack over an explicit slot-id order ----------------------
