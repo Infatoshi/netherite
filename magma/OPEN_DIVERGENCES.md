@@ -1555,15 +1555,15 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
     lane `furnaceids`. Potion *effects* still render-only (row 10).
 
 Silent deviations found (not yet measured by any gate): fluids step
-synchronously instead of via scheduled ticks (`fluid_live.h`);
-light uses Jacobi sweeps, not Java's per-update queue timing; fixed caps
-(96 entities, 48 items, 64 collision boxes) silently drop state; XP orb
-lava cut; stronghold iron bars where Java places doors; portal
+synchronously instead of via scheduled ticks (`fluid_live.h`); light uses
+Jacobi sweeps, not Java's per-update queue timing; fixed caps (96
+entities, 48 items, 64 collision boxes) silently drop state; XP orb lava
+cut; stronghold iron bars where Java places doors; portal
 nearest-selection.
-block placement `mayPlace`: CLOSED 2026-08-23 lane `tntsupport` for the
-subset (torch, sapling/plants on dirt/grass, cactus, ladder, door
-canPlaceBlockAt, player AABB). ItemDoor / snow-layer / anvil-on-circuits
-stay out.
+block placement `mayPlace` (`ItemBlock.onItemUse`): CLOSED 2026-08-23
+lane `tntsupport` for the subset (torch, sapling/plants on dirt/grass,
+cactus, ladder, door canPlaceBlockAt, player AABB). ItemDoor /
+snow-layer / anvil-on-circuits stay out.
 
 Ungated systems: beds, potions, shield, stronghold placement.
 Tapes record player physics / inventory / ghost views / world hash only,
