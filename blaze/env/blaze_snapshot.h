@@ -257,6 +257,11 @@ typedef struct RlSnapV10Xtra {
     int look_have;
     int mob_tick;
     int entity_age[BLAZE_SNAP_MAX_MOBS];
+    int last_craft[3];
+    RlSnapEnch last_craft_ench;
+    int elytra_equipped, elytra_flying, elytra_pending, elytra_pose;
+    int ticks_elytra_flying;
+    float elytra_wall_damage;
 } RlSnapV10Xtra;
 #pragma pack(pop)
 

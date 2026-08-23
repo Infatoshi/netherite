@@ -588,6 +588,27 @@ static void cu_reset_env(CuVec *v, int i) {
                 e->player_attack_cooldown = s->xtra.player_attack_cooldown;
                 e->player_last_damage = s->xtra.player_last_damage;
                 e->mob_tick = s->xtra.mob_tick;
+                {
+                    int ei, n;
+                    ICStack lc = ic_mk(s->xtra.last_craft[0],
+                                       s->xtra.last_craft[1],
+                                       s->xtra.last_craft[2]);
+                    n = s->xtra.last_craft_ench.n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    lc.n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        lc.enchants[ei].id = s->xtra.last_craft_ench.id[ei];
+                        lc.enchants[ei].level = s->xtra.last_craft_ench.level[ei];
+                    }
+                    e->parity_last_craft = lc;
+                }
+                e->pl.elytra_equipped = s->xtra.elytra_equipped ? 1 : 0;
+                e->pl.elytra_flying = s->xtra.elytra_flying ? 1 : 0;
+                e->pl.elytra_flying_pending = s->xtra.elytra_pending ? 1 : 0;
+                e->pl.elytra_pose = s->xtra.elytra_pose;
+                e->pl.ticks_elytra_flying = s->xtra.ticks_elytra_flying;
+                e->pl.elytra_wall_damage = s->xtra.elytra_wall_damage;
                 for (si = 0; si < s->n_mobs && si < BLAZE_SNAP_MAX_MOBS; ++si) {
                     e->boat_delta_rot[si] = s->xtra.boat_delta_rot[si];
                     e->boat_glide[si] = s->xtra.boat_glide[si];
@@ -1054,6 +1075,27 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
         s.xtra.player_attack_cooldown = e->player_attack_cooldown;
         s.xtra.player_last_damage = e->player_last_damage;
         s.xtra.mob_tick = (int)e->mob_tick;
+        s.xtra.last_craft[0] = e->parity_last_craft.item;
+        s.xtra.last_craft[1] = e->parity_last_craft.count;
+        s.xtra.last_craft[2] = e->parity_last_craft.meta;
+        {
+            int n = e->parity_last_craft.n_enchants, ei;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.xtra.last_craft_ench.n = n;
+            for (ei = 0; ei < n; ++ei) {
+                s.xtra.last_craft_ench.id[ei] =
+                    e->parity_last_craft.enchants[ei].id;
+                s.xtra.last_craft_ench.level[ei] =
+                    e->parity_last_craft.enchants[ei].level;
+            }
+        }
+        s.xtra.elytra_equipped = e->pl.elytra_equipped;
+        s.xtra.elytra_flying = e->pl.elytra_flying;
+        s.xtra.elytra_pending = e->pl.elytra_flying_pending;
+        s.xtra.elytra_pose = e->pl.elytra_pose;
+        s.xtra.ticks_elytra_flying = e->pl.ticks_elytra_flying;
+        s.xtra.elytra_wall_damage = e->pl.elytra_wall_damage;
         for (si = 0; si < e->n_mobs && si < BLAZE_SNAP_MAX_MOBS; ++si) {
             s.xtra.boat_delta_rot[si] = e->boat_delta_rot[si];
             s.xtra.boat_glide[si] = e->boat_glide[si];

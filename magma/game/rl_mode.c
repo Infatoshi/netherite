@@ -1486,6 +1486,17 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                                     rl_ench_from_stack(&x.craft_ench[si],
                                                        &r->craft_grid[si]);
                                 rl_ench_from_stack(&x.cursor_ench, &cur);
+                                x.last_craft[0] = r->parity_last_craft.item;
+                                x.last_craft[1] = r->parity_last_craft.count;
+                                x.last_craft[2] = r->parity_last_craft.meta;
+                                rl_ench_from_stack(&x.last_craft_ench,
+                                                   &r->parity_last_craft);
+                                x.elytra_equipped = r->player.elytra_equipped;
+                                x.elytra_flying = r->player.elytra_flying;
+                                x.elytra_pending = r->player.elytra_flying_pending;
+                                x.elytra_pose = r->player.elytra_pose;
+                                x.ticks_elytra_flying = r->player.ticks_elytra_flying;
+                                x.elytra_wall_damage = r->player.elytra_wall_damage;
                                 ok = ok && fwrite(&x, sizeof x, 1, f) == 1;
                             }
                             (void)eat_ticks;
@@ -2160,6 +2171,19 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
                 rl_ench_to_stack(&cur, &snap_xtra.cursor_ench);
                 gm_player_cursor_set(cur);
             }
+            {
+                ICStack lc = ic_mk(snap_xtra.last_craft[0],
+                                   snap_xtra.last_craft[1],
+                                   snap_xtra.last_craft[2]);
+                rl_ench_to_stack(&lc, &snap_xtra.last_craft_ench);
+                r->parity_last_craft = lc;
+            }
+            r->player.elytra_equipped = snap_xtra.elytra_equipped ? 1 : 0;
+            r->player.elytra_flying = snap_xtra.elytra_flying ? 1 : 0;
+            r->player.elytra_flying_pending = snap_xtra.elytra_pending ? 1 : 0;
+            r->player.elytra_pose = snap_xtra.elytra_pose;
+            r->player.ticks_elytra_flying = snap_xtra.ticks_elytra_flying;
+            r->player.elytra_wall_damage = snap_xtra.elytra_wall_damage;
         }
     }
     return 1;
