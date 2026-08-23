@@ -91,6 +91,7 @@ TEST_CHEST_BIN := $(OUT)/test_chests
 TEST_PROJ_BIN := $(OUT)/test_projectiles
 TEST_EXPL_BIN := $(OUT)/test_explosions
 TEST_MOBS_BIN := $(OUT)/test_mobs
+TEST_PASSIVES_BIN := $(OUT)/test_passives
 TEST_XP_BIN := $(OUT)/test_xp
 TEST_BOATS_BIN := $(OUT)/test_boats
 TEST_ELYTRA_BIN := $(OUT)/test_elytra
@@ -107,7 +108,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-projectiles test-explosions test-mobs test-skylight-water smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-projectiles test-explosions test-mobs test-passives test-skylight-water smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval
 
@@ -254,6 +255,12 @@ $(TEST_MOBS_BIN): $(ENV_SRC)/test_mobs.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_PASSIVES_BIN): $(ENV_SRC)/test_passives.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/passive_live.h \
+		$(CORE_SRC)/hostile_spawn.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_passives.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 $(TEST_XP_BIN): $(ENV_SRC)/test_xp.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/xp_live.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_xp.c \
@@ -325,7 +332,7 @@ test-chain: $(TEST_CHAIN_BIN)
 
 test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN) \
 		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN) \
-		$(TEST_MOBS_BIN) $(TEST_XP_BIN) $(TEST_BOATS_BIN) $(TEST_ELYTRA_BIN) \
+		$(TEST_MOBS_BIN) $(TEST_PASSIVES_BIN) $(TEST_XP_BIN) $(TEST_BOATS_BIN) $(TEST_ELYTRA_BIN) \
 		$(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
@@ -336,6 +343,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_projectiles
 	cd $(REPO) && ./out/blaze/rl/test_explosions
 	cd $(REPO) && ./out/blaze/rl/test_mobs
+	cd $(REPO) && ./out/blaze/rl/test_passives
 	cd $(REPO) && ./out/blaze/rl/test_xp
 	cd $(REPO) && ./out/blaze/rl/test_boats
 	cd $(REPO) && ./out/blaze/rl/test_elytra
@@ -360,6 +368,9 @@ test-explosions: $(TEST_EXPL_BIN)
 
 test-mobs: $(TEST_MOBS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_mobs
+
+test-passives: $(TEST_PASSIVES_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_passives
 
 test-skylight-water: $(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
