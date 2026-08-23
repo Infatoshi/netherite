@@ -409,7 +409,16 @@ test-pathfinder-null:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_pathfinder_null.c -o tests/test_pathfinder_null $(LDLIBS)
 	./tests/test_pathfinder_null
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight
+.PHONY: test-furnace-registry
+test-furnace-registry:
+	mkdir -p ../out/verify
+	uv run --no-project python ../verify/furnace_registry.py --c-header \
+	    > ../out/verify/furnace_registry_expect.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core -I. tests/test_furnace_registry.c \
+	    -o tests/test_furnace_registry $(LDLIBS)
+	./tests/test_furnace_registry
+
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 # Standalone-game semantic gates. These deliberately exercise the real streamed

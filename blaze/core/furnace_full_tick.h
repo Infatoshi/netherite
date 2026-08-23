@@ -6,8 +6,9 @@
  * burn_time, cook_time.
  *
  * Harness: seed picks cookable input + fuel from sr batteries and stack depths; default
- * FFT_NUM_TICKS=400. CUT: world.isRemote gate, BlockFurnace.setState, lava-bucket container
- * item, sponge+bucket special case, markDirty/NBT. CPU==CUDA. */
+ * FFT_NUM_TICKS=400. CUT: world.isRemote gate, BlockFurnace.setState, markDirty/NBT.
+ * Lava-bucket container (TileEntityFurnace.update:232-234) and wet-sponge +
+ * empty-bucket (smeltItem:327-330) are ported. CPU==CUDA. */
 #ifndef MC_FURNACE_FULL_TICK_H
 #define MC_FURNACE_FULL_TICK_H
 
@@ -65,6 +66,10 @@ MC_HD static inline void fft_smelt(FftFurnace *f) {
         f->slot2 = result;
     else if (f->slot2.item == result.item && f->slot2.meta == result.meta)
         f->slot2.count += result.count;
+    /* TileEntityFurnace.smeltItem:327-330 wet sponge + bucket -> water bucket */
+    if (f->slot0.item == SR_SPONGE && f->slot0.meta == 1 &&
+        !fft_is_empty(&f->slot1) && f->slot1.item == SR_BUCKET)
+        f->slot1 = sr_mk(SR_WATER_BUCKET, 1, 0);
     f->slot0.count--;
     if (f->slot0.count <= 0) f->slot0 = sr_empty();
 }
@@ -108,9 +113,17 @@ MC_HD static inline void fft_tick(FftFurnace *f) {
             f->burn_time = burn;
             f->current_burn_time = burn;
             if (fft_is_burning(f)) {
+                /* capture item before shrink; getContainerItem on empty
+                 * (TileEntityFurnace.update:227-234). lava_bucket -> bucket
+                 * (Item.java:1569 setContainerItem). */
+                i32 fuel_id = f->slot1.item;
                 f->slot1.count--;
-                if (f->slot1.count <= 0)
-                    f->slot1 = sr_empty();
+                if (f->slot1.count <= 0) {
+                    if (fuel_id == SR_LAVA_BUCKET)
+                        f->slot1 = sr_mk(SR_BUCKET, 1, 0);
+                    else
+                        f->slot1 = sr_empty();
+                }
             }
         }
         if (fft_is_burning(f) && fft_can_smelt(f)) {

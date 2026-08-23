@@ -12,6 +12,7 @@
 #include "player_survival.h"   /* Chunk, McSinTable, PsvPlayer, PsvAction + verified kernels */
 #include "player_vitals.h"     /* PvStats + verified vanilla vitals */
 #include "game/game.h"         /* GmAction, GmBlockEdit, GmPlayerView */
+#include "mc_rng.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +42,8 @@ void gm_player_view(const struct PsvPlayer *pl, int ox, int oz, GmPlayerView *ou
 /* Live inventory: Container.slotClick on hotbar slots 0..8 + cursor
  * (click_type: CC_CLICK_PICKUP / QUICK_MOVE / THROW from container_click.h). */
 void gm_player_inv_click(struct PsvPlayer *pl, int slot_id, int button, int click_type);
+void gm_player_bind_world_rand(JavaRandom *world_rand);
+int  gm_player_take_drop(ICStack *out);
 ICStack gm_player_cursor(void);
 void gm_player_cursor_set(ICStack s);
 void gm_player_dig_reset(void);

@@ -117,10 +117,76 @@ MC_HD static inline float ic_tool_dig_speed(i32 tool_id, int block_id) {
     return ic_is_pickaxe_effective(block_id) ? eff : 1.0f;
 }
 
+/* ItemFood hunger/saturation from Item.java registrations. potion_prob < 0
+ * means no ItemFood.onFoodEaten nextFloat (ItemFood.java:66). Golden apple
+ * overrides onFoodEaten and does not draw (ItemAppleGold.java:43-61). */
+typedef struct {
+    i32 hunger;
+    float saturation;
+    float potion_prob; /* -1.f = no draw */
+    int soup;          /* ItemSoup.java:19-22 returns bowl */
+} IcFood;
+
+MC_HD static inline IcFood ic_food_info(i32 item_id, i32 meta) {
+    IcFood z = {0, 0.0f, -1.0f, 0};
+    switch (item_id) {
+    case 260: z.hunger = 4; z.saturation = 0.3f; break; /* apple Item.java:1501 */
+    case 282: z.hunger = 6; z.saturation = 0.6f; z.soup = 1; break; /* mushroom_stew ItemSoup.java:9-12 */
+    case 297: z.hunger = 5; z.saturation = 0.6f; break; /* bread Item.java:1538 */
+    case 319: z.hunger = 3; z.saturation = 0.3f; break; /* porkchop Item.java:1560 */
+    case 320: z.hunger = 8; z.saturation = 0.8f; break; /* cooked_porkchop Item.java:1561 */
+    case 322: z.hunger = 4; z.saturation = 1.2f; break; /* golden_apple Item.java:1563 */
+    case 349: /* ItemFishFood.java:77-80 */
+        if (meta == 0) { z.hunger = 2; z.saturation = 0.1f; }
+        else if (meta == 1) { z.hunger = 2; z.saturation = 0.1f; }
+        else { z.hunger = 1; z.saturation = 0.1f; }
+        break;
+    case 350:
+        if (meta == 1) { z.hunger = 6; z.saturation = 0.8f; }
+        else { z.hunger = 5; z.saturation = 0.6f; }
+        break;
+    case 357: z.hunger = 2; z.saturation = 0.1f; break; /* cookie Item.java:1599 */
+    case 360: z.hunger = 2; z.saturation = 0.3f; break; /* melon Item.java:1602 */
+    case 363: z.hunger = 3; z.saturation = 0.3f; break; /* beef Item.java:1605 */
+    case 364: z.hunger = 8; z.saturation = 0.8f; break; /* cooked_beef Item.java:1606 */
+    case 365: z.hunger = 2; z.saturation = 0.3f; z.potion_prob = 0.3f; break; /* chicken Item.java:1607 */
+    case 366: z.hunger = 6; z.saturation = 0.6f; break; /* cooked_chicken Item.java:1608 */
+    case 367: z.hunger = 4; z.saturation = 0.1f; z.potion_prob = 0.8f; break; /* rotten_flesh Item.java:1609 */
+    case 375: z.hunger = 2; z.saturation = 0.8f; z.potion_prob = 1.0f; break; /* spider_eye Item.java:1618 */
+    case 391: z.hunger = 3; z.saturation = 0.6f; break; /* carrot Item.java:1634 */
+    case 392: z.hunger = 1; z.saturation = 0.3f; break; /* potato Item.java:1635 */
+    case 393: z.hunger = 5; z.saturation = 0.6f; break; /* baked_potato Item.java:1636 */
+    case 394: z.hunger = 2; z.saturation = 0.3f; z.potion_prob = 0.6f; break; /* poisonous_potato Item.java:1637 */
+    case 396: z.hunger = 6; z.saturation = 1.2f; break; /* golden_carrot Item.java:1639 */
+    case 400: z.hunger = 8; z.saturation = 0.3f; break; /* pumpkin_pie Item.java:1643 */
+    case 411: z.hunger = 3; z.saturation = 0.3f; break; /* rabbit Item.java:1654 */
+    case 412: z.hunger = 5; z.saturation = 0.6f; break; /* cooked_rabbit Item.java:1655 */
+    case 413: z.hunger = 10; z.saturation = 0.6f; z.soup = 1; break; /* rabbit_stew Item.java:1656 */
+    case 423: z.hunger = 2; z.saturation = 0.3f; break; /* mutton Item.java:1666 */
+    case 424: z.hunger = 6; z.saturation = 0.8f; break; /* cooked_mutton Item.java:1667 */
+    case 432: z.hunger = 4; z.saturation = 0.3f; break; /* chorus_fruit Item.java:1675 */
+    case 434: z.hunger = 1; z.saturation = 0.6f; break; /* beetroot Item.java:1677 */
+    case 436: z.hunger = 6; z.saturation = 0.6f; z.soup = 1; break; /* beetroot_soup Item.java:1679 */
+    default: break;
+    }
+    return z;
+}
+
 MC_HD static inline i32 ic_food_heal(i32 item_id) {
-    if (item_id == IC_APPLE) return 4;
-    if (item_id == IC_BREAD) return 5;
-    return 0;
+    return ic_food_info(item_id, 0).hunger;
+}
+
+/* ItemBucket.fillBucket (ItemBucket.java:117-140) survival path.
+ * shrink 1; if the stack is empty return the filled bucket in-hand;
+ * otherwise leave remaining empties in-hand and set *add to the filled
+ * bucket for addItemStackToInventory (caller drops if add fails). */
+MC_HD static inline ICStack ic_fill_bucket(ICStack empty, i32 filled_id, ICStack *add) {
+    if (add) *add = ic_empty();
+    if (empty.item != IC_BUCKET || empty.count <= 0) return empty;
+    empty.count--;
+    if (empty.count <= 0) return ic_mk(filled_id, 1, 0);
+    if (add) *add = ic_mk(filled_id, 1, 0);
+    return empty;
 }
 
 MC_HD static inline ICStack ic_bucket_fill(ICWorld *w, ICStack bucket, int x, int y, int z) {

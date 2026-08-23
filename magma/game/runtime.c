@@ -1074,6 +1074,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
      * t is still consumed during row t, matching the recorder's post-tick
      * semantics. This is mode propagation, not a block-specific shortcut. */
     action.creative = r->tape_creative;
+    gm_player_bind_world_rand(&r->world_rand);
     gm_player_tick_gr((struct Chunk *)r->window,
                       (const struct McSinTable *)&r->sin_table,
                       (struct PsvPlayer *)&r->player,
@@ -1083,6 +1084,15 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
      * after attack-release handling would otherwise clear it. */
     if (r->container >= 1 && r->container <= 3)
         gm_player_set_gui_blocked(1);
+    {
+        ICStack dropped;
+        if (gm_player_take_drop(&dropped))
+            gm_live_spawn_stack(&r->entities,
+                                r->player.ent.posX + (double)r->ox,
+                                r->player.ent.posY + 1.3,
+                                r->player.ent.posZ + (double)r->oz,
+                                dropped, 40);
+    }
     /* PlayerControllerMP.onPlayerDamageBlock hit sound, drained per tick. The
      * counter lives in player_ctl because that is where the dig cadence lives;
      * it is render/audio-only state and the RL snapshot excludes it. */

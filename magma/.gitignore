@@ -17,5 +17,6 @@ tests/test_mesh_models
 tests/test_model_oracle
 tests/test_look_helper
 tests/test_pathfinder_null
+tests/test_furnace_registry
 game/test_block_registry
 game/test_play_compose

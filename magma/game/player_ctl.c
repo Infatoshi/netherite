@@ -19,6 +19,7 @@
 #include "items_tools_armor.h"
 #include "elytra_live.h"
 #include "mc_blocks.h"
+#include "mc_rng.h"
 #include <math.h>
 #include <limits.h>
 
@@ -85,6 +86,18 @@ static int   s_use_max;
 
 /* Optional cursor for live inventory composition (hotbar is IsrInv slots 0..8). */
 static ICStack s_cursor;
+/* World.rand for ItemFood.onItemUseFinish draws (ItemFood.java:55,66). */
+static JavaRandom *s_world_rand;
+static ICStack s_pending_drop;
+
+void gm_player_bind_world_rand(JavaRandom *r) { s_world_rand = r; }
+
+int gm_player_take_drop(ICStack *out) {
+    if (!out || isr_is_empty(&s_pending_drop)) return 0;
+    *out = s_pending_drop;
+    s_pending_drop = ic_empty();
+    return 1;
+}
 
 /* VANILLA vitals for the game (verified player_vitals oracle). */
 static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
@@ -680,8 +693,17 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
         if(held0.item==325){
             int bx,by,bz,bid=bucket_raycast(window,st,pl,&bx,&by,&bz);
             if(bid){
+                ICStack add, held;
+                i32 filled = bid==8||bid==9 ? 326 : 327;
                 psv_set_state(window,bx,by,bz,0,0);
-                isr_set_stack(&pl->inv,pl->inv.current_item,ic_mk(bid==8||bid==9?326:327,1,0));
+                /* ItemBucket.fillBucket ItemBucket.java:117-140 */
+                held = ic_fill_bucket(held0, filled, &add);
+                isr_set_stack(&pl->inv,pl->inv.current_item,held);
+                if (!isr_is_empty(&add)) {
+                    if (!isr_add_item_stack_to_inventory(&pl->inv, &add) ||
+                        !isr_is_empty(&add))
+                        s_pending_drop = add;
+                }
                 emit_edit(edits,&ne,max_edits,ox,oy,oz,bx,by,bz,0,0,0,0,0);
                 goto use_done;
             }
@@ -833,21 +855,26 @@ use_done:
 
     {
         ICStack food=isr_get_stack(&pl->inv,pl->inv.current_item);
-        int hunger=0;float sat=0.0f;
-        switch(food.item){
-        case 260:hunger=4;sat=0.3f;break;case 297:hunger=5;sat=0.6f;break;
-        case 319:case 363:hunger=3;sat=0.3f;break;case 320:case 364:hunger=8;sat=0.8f;break;
-        case 365:case 423:hunger=2;sat=0.3f;break;case 366:case 424:hunger=6;sat=0.6f;break;
-        default:break;
-        }
+        IcFood fi=ic_food_info(food.item, food.meta);
+        int hunger=fi.hunger;float sat=fi.saturation;
         if(act.use&&hunger&&vit->foodLevel<20){
             if(s_eat_item!=food.item){s_eat_item=food.item;s_eat_ticks=0;}
             if(++s_eat_ticks>=32){
+                /* ItemFood.onItemUseFinish:55 burp nextFloat always, then
+                 * onFoodEaten:66 potion nextFloat if potionId != null. */
+                if (s_world_rand) (void)jrand_float(s_world_rand);
+                if (s_world_rand && fi.potion_prob >= 0.0f)
+                    (void)jrand_float(s_world_rand);
                 (void)isr_decr_stack_size(&pl->inv,pl->inv.current_item,1);
                 vit->foodLevel+=hunger;if(vit->foodLevel>20)vit->foodLevel=20;
                 vit->saturation+=(float)hunger*sat*2.0f;
                 if(vit->saturation>(float)vit->foodLevel)vit->saturation=(float)vit->foodLevel;
-                pl->food=(float)vit->foodLevel;s_eat_ticks=0;s_eat_item=0;
+                pl->food=(float)vit->foodLevel;
+                if (fi.soup) {
+                    ICStack bowl = ic_mk(281, 1, 0);
+                    isr_set_stack(&pl->inv, pl->inv.current_item, bowl);
+                }
+                s_eat_ticks=0;s_eat_item=0;
                 s_use_action=0;s_use_remaining=0;s_use_max=0;
             }else{
                 /* getItemInUseCount counts down from max (32); elapsed = s_eat_ticks. */
