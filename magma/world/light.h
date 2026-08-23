@@ -46,6 +46,10 @@ int      light_block(const CrLight *, int wx, int wy, int wz); /* CB/PB id, 0 ai
  * separate from light_block(), whose compact value is only a renderer model key. */
 uint16_t light_state(const CrLight *, int wx, int wy, int wz);
 int      light_biome(const CrLight *, int wx, int wz);         /* voronoi biome id, -1 unloaded */
+/* Snapshot restore: write Java Chunk.blockBiomeArray column id (0..255).
+ * Chunk must already be ensured. Index (wx&15)+(wz&15)*16 matches
+ * Chunk.getBiome (Chunk.java:1273-1278: (z&15)<<4 | (x&15)). */
+void     light_set_biome(CrLight *, int wx, int wz, int biome);
 
 /* DEBUG/CAPS: number of chunks currently loaded (LChunk store size). */
 int      light_loaded_chunks(const CrLight *);
@@ -76,6 +80,7 @@ void     light_recheck_break_surfaces(CrLight *, int wx, int wy, int wz);
  * horizontal spread is monotonic-raising, so a restored value then survives.
  * No-op without sky light (Nether/End keep a zero store). */
 void     light_load_sky(CrLight *, int wx, int wy, int wz, int sky);
+void     light_load_blk(CrLight *, int wx, int wy, int wz, int blk);
 /* Meta nibble at world cell (0 if unloaded). */
 int      light_meta(const CrLight *, int wx, int wy, int wz);
 int      light_sky  (const CrLight *, int wx, int wy, int wz); /* 0..15 sky light   */

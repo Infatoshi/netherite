@@ -210,6 +210,7 @@ typedef struct {
  * table (worldgen generation is a named gap). */
 #define CU_MAX_CHESTS BP_CHEST_TABLE  /* GM_RUNTIME_CHESTS_INITIAL */
 #define CU_GMC_INV_SLOTS 36
+#define CU_GMC_FURNACE0 46            /* GMC_FURNACE0 input/fuel/output */
 #define CU_GMC_CHEST0 53              /* GMC_CHEST0 */
 #define CU_GMC_CHEST_SLOTS BP_CHEST_SLOTS
 #define CU_GMC_OUTSIDE -999
@@ -264,6 +265,8 @@ typedef struct {
     u16   *cells;                /* region packed states (id<<4)|meta; also
                                   * the oc_pixel input (oc_block does >>4)  */
     u8    *light;                /* region packed light (sky<<4)|block       */
+    u8    *biome;                /* rnx*rnz column biome ids; v7 load = plains 1.
+                                  * index ix * rnz + iz. Java Chunk.getBiome. */
     u16   *grass_sec;            /* per-16^3-section randtick-occupancy census
                                   * (grass/leaves/fire/crops/sapling/farmland/
                                   * ice/snow/mycelium) over the region's
@@ -458,6 +461,18 @@ MC_HD static inline long cu_region_idx(const Blaze *e, int wx, int wy, int wz) {
     if (ix < 0 || iy < 0 || iz < 0 || ix >= e->rnx || iy >= e->rny || iz >= e->rnz)
         return -1;
     return ((long)ix * e->rny + iy) * e->rnz + iz;
+}
+
+/* Snapshot column biome. Out of region / missing plane -> plains 1 (v7). */
+MC_HD static inline int cu_biome_at(const Blaze *e, int wx, int wz) {
+    int ix, iz;
+    if (!e || !e->biome || e->rnx <= 0 || e->rnz <= 0)
+        return BLAZE_SNAP_BIOME_PLAINS;
+    ix = wx - e->rx0;
+    iz = wz - e->rz0;
+    if (ix < 0 || iz < 0 || ix >= e->rnx || iz >= e->rnz)
+        return BLAZE_SNAP_BIOME_PLAINS;
+    return (int)e->biome[(long)ix * e->rnz + iz];
 }
 
 /* ---- random-tick occupancy census ----
@@ -798,6 +813,7 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 #define rt_live_block_light(w, x, y, z) cu_rt_block_light_at((w), (x), (y), (z))
 #define rt_live_set(w, x, y, z, id, meta) \
     cu_world_set_state((w), (x), (y), (z), (id), (meta))
+#define rt_live_biome(w, x, z) cu_biome_at((w), (x), (z))
 #define RT_SECTION_NEEDS(w, cx, sec, cz) \
     cu_rt_section_needs((w), (cx), (sec), (cz))
 #include "randtick_live.h"
@@ -1047,6 +1063,7 @@ MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, doub
 #define HS_PLACE(e, type, x, y, z, yaw, seed48, have_g, g, extra) \
     cu_hs_place((e), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g), (extra))
 #define HS_CREATURE_COUNT(e) cu_ps_count(e)
+#define HS_BIOME(e, x, z) cu_biome_at((e), (x), (z))
 #include "hostile_spawn.h"
 #ifndef ML_SKY
 #define ML_SKY(e, x, y, z) cu_world_sky((e), (x), (y), (z))
@@ -2620,9 +2637,20 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                 int bx, by, bz;
                 int bid = cu_bucket_raycast(window, st, pl, &bx, &by, &bz);
                 if (bid) {
+                    ICStack add, held;
+                    i32 filled = bid == 8 || bid == 9 ? 326 : 327;
                     cu_win_set_state(window, bx, by, bz, 0, 0);
-                    isr_set_stack(&pl->inv, pl->inv.current_item,
-                                  ic_mk(bid == 8 || bid == 9 ? 326 : 327, 1, 0));
+                    held = ic_fill_bucket(held0, filled, &add);
+                    isr_set_stack(&pl->inv, pl->inv.current_item, held);
+                    if (!isr_is_empty(&add)) {
+                        if (!isr_add_item_stack_to_inventory(&pl->inv, &add) ||
+                            !isr_is_empty(&add))
+                            cu_spawn_item(env,
+                                          pl->ent.posX + (double)ox,
+                                          pl->ent.posY + 1.3,
+                                          pl->ent.posZ + (double)oz,
+                                          add.item, add.count, add.meta, 40);
+                    }
                     cu_emit_edit(edits, &ne, max_edits, ox, oy, oz, bx, by, bz,
                                  0, 0, 0, 0, 0);
                     done_use = 1;
@@ -2766,23 +2794,18 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
      * statics evolving identically for any inventory). */
     {
         ICStack food = isr_get_stack(&pl->inv, pl->inv.current_item);
-        int hunger = 0;
-        float sat = 0.0f;
-        switch (food.item) {
-        case 260: hunger = 4; sat = 0.3f; break;
-        case 297: hunger = 5; sat = 0.6f; break;
-        case 319: case 363: hunger = 3; sat = 0.3f; break;
-        case 320: case 364: hunger = 8; sat = 0.8f; break;
-        case 365: case 423: hunger = 2; sat = 0.3f; break;
-        case 366: case 424: hunger = 6; sat = 0.6f; break;
-        default: break;
-        }
+        IcFood fi = ic_food_info(food.item, food.meta);
+        int hunger = fi.hunger;
+        float sat = fi.saturation;
         if (act.use && hunger && vit->foodLevel < 20) {
             if (env->eat_item != food.item) {
                 env->eat_item = food.item;
                 env->eat_ticks = 0;
             }
             if (++env->eat_ticks >= 32) {
+                (void)jrand_float(&env->world_rand); /* ItemFood.java:55 */
+                if (fi.potion_prob >= 0.0f)
+                    (void)jrand_float(&env->world_rand); /* ItemFood.java:66 */
                 (void)isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
                 vit->foodLevel += hunger;
                 if (vit->foodLevel > 20) vit->foodLevel = 20;
@@ -2790,6 +2813,9 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                 if (vit->saturation > (float)vit->foodLevel)
                     vit->saturation = (float)vit->foodLevel;
                 pl->food = (float)vit->foodLevel;
+                if (fi.soup)
+                    isr_set_stack(&pl->inv, pl->inv.current_item,
+                                  ic_mk(281, 1, 0));
                 env->eat_ticks = 0;
                 env->eat_item = 0;
             }
@@ -2977,7 +3003,7 @@ MC_HD static inline void cu_furnace_init(CuFurnace *f) {
     f->burn_time = 0;
     f->current_burn_time = 0;
     f->cook_time = 0;
-    f->total_cook = fft_get_cook_time(&f->input);
+    f->total_cook = 0; /* furnace_live_init; Java starts 0 until input set */
 }
 
 /* verbatim furnace_live_stack_limit */
@@ -2988,11 +3014,12 @@ MC_HD static inline int cu_furnace_stack_limit(SRStack stack) {
 /* verbatim furnace_live_insert (slot 0 input, 1 fuel; output insert-blocked) */
 MC_HD static inline int cu_furnace_insert(CuFurnace *f, int slot, SRStack stack) {
     SRStack *dst;
-    int limit, moved;
+    int limit, moved, reset_cook;
     if (slot == 2 || sr_isEmpty(stack)) return 0;
     dst = slot == 0 ? &f->input : slot == 1 ? &f->fuel : NULL;
     if (dst == NULL) return 0;
     if (slot == 1 && sr_getItemBurnTime(stack) <= 0) return 0;
+    reset_cook = slot == 0 && sr_isEmpty(*dst);
     limit = cu_furnace_stack_limit(stack);
     if (!sr_isEmpty(*dst)) {
         if (dst->item != stack.item || dst->meta != stack.meta) return 0;
@@ -3003,6 +3030,10 @@ MC_HD static inline int cu_furnace_insert(CuFurnace *f, int slot, SRStack stack)
     if (moved > limit) moved = limit;
     if (sr_isEmpty(*dst)) *dst = sr_mk(stack.item, moved, stack.meta);
     else dst->count += moved;
+    if (reset_cook) {
+        f->total_cook = fft_get_cook_time(&stack);
+        f->cook_time = 0;
+    }
     return moved;
 }
 
@@ -3322,24 +3353,121 @@ MC_HD static inline ICStack blaze_ct_transfer(Blaze *env, int slot_id) {
         isr_set_stack(&env->pl.inv, slot_id, rem);
         return original;
     }
+    /* ContainerFurnace QUICK_MOVE (container_live.c:284-307 / 218-229). */
+    if (slot_id >= CU_GMC_FURNACE0 && slot_id < CU_GMC_FURNACE0 + 3 &&
+        env->container == 2 && env->active_furnace >= 0) {
+        CuFurnace *f = &env->furnaces[env->active_furnace];
+        int fslot = slot_id - CU_GMC_FURNACE0;
+        SRStack src = fslot == 0 ? f->input : fslot == 1 ? f->fuel : f->output;
+        ICStack v, original;
+        int n = 0;
+        if (sr_isEmpty(src)) return ic_empty();
+        v = ic_mk(src.item, src.count, src.meta);
+        original = v;
+        if (fslot == 2) {
+            for (s = 8; s >= 0; --s) order[n++] = s;
+            for (s = 35; s >= 9; --s) order[n++] = s;
+        } else {
+            for (s = 9; s < 36; ++s) order[n++] = s;
+            for (s = 0; s < 9; ++s) order[n++] = s;
+        }
+        before = v.count;
+        blaze_inv_merge_order(env, &v, order, 36);
+        if (v.count == before) return ic_empty();
+        (void)cu_furnace_extract(f, fslot, before - v.count);
+        return original;
+    }
+    if (slot_id >= 0 && slot_id < CU_GMC_INV_SLOTS && env->container == 2 &&
+        env->active_furnace >= 0) {
+        CuFurnace *f = &env->furnaces[env->active_furnace];
+        ICStack v = isr_get_stack(&env->pl.inv, slot_id);
+        SRRecipe recipes[SR_NRECIPES];
+        SRStack in, smelted;
+        int nrecipes, target, moved;
+        if (cc_is_empty(&v)) return ic_empty();
+        nrecipes = sr_build(recipes);
+        in = sr_mk(v.item, v.count, v.meta);
+        smelted = sr_getSmeltingResult(recipes, nrecipes, in);
+        target = -1;
+        if (!sr_isEmpty(smelted) && smelted.item != (i32)0xffffffff)
+            target = 0;
+        else if (sr_getItemBurnTime(in) > 0)
+            target = 1;
+        if (target < 0) return ic_empty();
+        moved = cu_furnace_insert(f, target, in);
+        if (moved <= 0) return ic_empty();
+        cc_shrink(&v, moved);
+        isr_set_stack(&env->pl.inv, slot_id, v);
+        return ic_mk(in.item, in.count, in.meta);
+    }
     return ic_empty();
 }
 
-/* gm_container_click subset: chest + player inv, PICKUP + QUICK_MOVE. */
+MC_HD static inline void blaze_click_pickup_furnace(Blaze *env, int slot_id,
+                                                    int button) {
+    CuFurnace *f;
+    int fslot;
+    ICStack cur, v;
+    if (env->container != 2 || env->active_furnace < 0) return;
+    f = &env->furnaces[env->active_furnace];
+    fslot = slot_id - CU_GMC_FURNACE0;
+    cur = env->cursor;
+    {
+        SRStack src = fslot == 0 ? f->input : fslot == 1 ? f->fuel : f->output;
+        v = sr_isEmpty(src) ? ic_empty() : ic_mk(src.item, src.count, src.meta);
+    }
+    if (cc_is_empty(&v)) {
+        int amount, moved;
+        if (cc_is_empty(&cur)) return;
+        amount = button == 0 ? cur.count : 1;
+        moved = cu_furnace_insert(f, fslot, sr_mk(cur.item, amount, cur.meta));
+        if (moved > 0) cc_shrink(&cur, moved);
+    } else if (cc_is_empty(&cur)) {
+        int take = button == 0 ? v.count : (v.count + 1) / 2;
+        SRStack got = cu_furnace_extract(f, fslot, take);
+        if (!sr_isEmpty(got)) cur = ic_mk(got.item, got.count, got.meta);
+    } else if (cc_stack_match(&v, &cur)) {
+        int amount = button == 0 ? cur.count : 1;
+        int moved = cu_furnace_insert(f, fslot, sr_mk(cur.item, amount, cur.meta));
+        if (moved > 0) cc_shrink(&cur, moved);
+    } else {
+        SRStack got;
+        int moved;
+        if (fslot == 2) return;
+        if (fslot == 1 &&
+            sr_getItemBurnTime(sr_mk(cur.item, cur.count, cur.meta)) <= 0)
+            return;
+        got = cu_furnace_extract(f, fslot, v.count);
+        moved = cu_furnace_insert(f, fslot, sr_mk(cur.item, cur.count, cur.meta));
+        if (moved == cur.count)
+            cur = ic_mk(got.item, got.count, got.meta);
+        else {
+            if (moved > 0) (void)cu_furnace_extract(f, fslot, moved);
+            (void)cu_furnace_insert(f, fslot, got);
+        }
+    }
+    env->cursor = cur;
+}
+
+/* gm_container_click subset: chest + furnace + player inv, PICKUP + QUICK_MOVE. */
 MC_HD static inline int blaze_container_click(Blaze *env, int slot_id,
                                               int button, int click_type) {
-    int is_inv, is_chest;
+    int is_inv, is_chest, is_furnace;
     if (!env) return 0;
     if (button != 0 && button != 1) return 0;
     if (slot_id == CU_GMC_OUTSIDE) return 0;
     is_inv = slot_id >= 0 && slot_id < CU_GMC_INV_SLOTS;
     is_chest = slot_id >= CU_GMC_CHEST0 &&
                slot_id < CU_GMC_CHEST0 + CU_GMC_CHEST_SLOTS;
+    is_furnace = slot_id >= CU_GMC_FURNACE0 && slot_id < CU_GMC_FURNACE0 + 3;
     if (is_chest && !(env->container == 3 && env->active_chest >= 0))
         return 0;
-    if (!is_inv && !is_chest) return 0;
+    if (is_furnace && !(env->container == 2 && env->active_furnace >= 0))
+        return 0;
+    if (!is_inv && !is_chest && !is_furnace) return 0;
     if (click_type == CC_CLICK_PICKUP) {
         if (is_chest) blaze_click_pickup_chest(env, slot_id, button);
+        else if (is_furnace) blaze_click_pickup_furnace(env, slot_id, button);
         else          blaze_click_pickup_inv(env, slot_id, button);
         return 1;
     }
@@ -3349,10 +3477,18 @@ MC_HD static inline int blaze_container_click(Blaze *env, int slot_id,
             ICStack moved = blaze_ct_transfer(env, slot_id);
             ICStack now;
             if (cc_is_empty(&moved)) break;
-            now = is_chest
-                ? cu_chest_get(cu_open_chest_te(env),
-                               slot_id - CU_GMC_CHEST0)
-                : isr_get_stack(&env->pl.inv, slot_id);
+            if (is_chest)
+                now = cu_chest_get(cu_open_chest_te(env),
+                                   slot_id - CU_GMC_CHEST0);
+            else if (is_furnace) {
+                CuFurnace *f = &env->furnaces[env->active_furnace];
+                int fslot = slot_id - CU_GMC_FURNACE0;
+                SRStack src = fslot == 0 ? f->input : fslot == 1 ? f->fuel
+                                                                : f->output;
+                now = sr_isEmpty(src) ? ic_empty()
+                                      : ic_mk(src.item, src.count, src.meta);
+            } else
+                now = isr_get_stack(&env->pl.inv, slot_id);
             if (cc_is_empty(&now) || now.item != moved.item) break;
         }
         return 1;
@@ -4105,7 +4241,27 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 
     /* Magma gm_live_pre_player_tick: landing packets before player raycast. */
     fl_pre_player_tick(env, env);
+    env->pl.health = env->vit.health;
     blaze_player_tick(env, st, act, edits, &n, CU_MAX_EDITS, blocks);
+    {
+        PsvPlayer *pl = &env->pl;
+        if (pl->hz_fire > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_fire, 1);
+        if (pl->hz_lava > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_lava, 0);
+        if (pl->hz_void > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_void, 1);
+        if (pl->hz_wall > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_wall, 1);
+        if (pl->hz_drown > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_drown, 1);
+        if (pl->hz_cactus > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_cactus, 0);
+        if (pl->hz_magma > 0.0f)
+            (void)cu_hurt_player(env, pl->hz_magma, 0);
+        env->pl.health = env->vit.health;
+        psv_env_clear_hits(pl);
+    }
     /* Minecraft.runTick pins this GUI sentinel after key processing. */
     if (env->container >= 1 && env->container <= 3)
         env->left_click_counter = 10000;
@@ -4990,6 +5146,7 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
                           ((e->cursor.meta & 0xffff) << 16));
 
     h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x31594C50)); /* "PLY1" + fire/air */
     h = bp_hash_double(h, e->pl.ent.posX + (double)e->ox);
     h = bp_hash_double(h, e->pl.ent.posY);
     h = bp_hash_double(h, e->pl.ent.posZ + (double)e->oz);
@@ -5005,6 +5162,8 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     h = bp_hash_float(h, e->vit.health);
     h = bp_hash_i32(h, e->vit.foodLevel);
     h = bp_hash_float(h, e->vit.exhaustion);
+    h = bp_hash_i32(h, e->pl.fire);
+    h = bp_hash_i32(h, e->pl.air);
     r->digest[BP_PLAYER] = h;
     r->evidence[BP_PLAYER] = 1;
     r->active_mask |= BP_BIT(BP_PLAYER);
@@ -5190,7 +5349,8 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
         h = bp_randtick_digest_finish(
             bp_randtick_digest_begin(), e->parity_rt_cells_digest,
             e->parity_rt_cells, e->parity_rt_mutations,
-            e->world_rand.seed & MC_JR_MASK, e->update_lcg);
+            e->world_rand.seed & MC_JR_MASK, e->update_lcg,
+            e->biome, e->rnx, e->rnz);
         r->digest[BP_RANDOM_TICKS] = h;
         r->evidence[BP_RANDOM_TICKS] = e->parity_rt_mutations;
         if (e->parity_rt_mutations)
@@ -5267,10 +5427,11 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
                 it->on_ground, it->age, it->item, it->count, it->meta,
                 it->pickup_delay, it->lifespan);
         }
-        r->digest[BP_MOBS] = blaze_snap_mobs_digest_ext(
+        h = blaze_snap_mobs_digest_ext(
             e->mobs, e->n_mobs, e->vit.health,
             e->player_hurt_resistant, e->player_attack_cooldown,
             items_h, n_items);
+        r->digest[BP_MOBS] = bp_hash_biome_plane(h, e->biome, e->rnx, e->rnz);
         r->evidence[BP_MOBS] = 1 + (uint32_t)e->n_mobs + (uint32_t)n_items;
         if (e->n_mobs || n_items || e->player_hurt_resistant)
             r->active_mask |= BP_BIT(BP_MOBS);
@@ -5545,14 +5706,24 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                                             unsigned n_mobs,
                                             const RlSnapOrb *orbs,
                                             unsigned n_orbs,
+                                            const u8 *biome_src,
                                             unsigned long long world_rand_seed,
                                             int success_item) {
     int i, dx, dz;
     unsigned u;
+    long bvol;
 
     env->rx0 = h->rx0; env->ry0 = h->ry0; env->rz0 = h->rz0;
     env->rnx = h->rnx; env->rny = h->rny; env->rnz = h->rnz;
     env->rvol = (long)h->rnx * h->rny * h->rnz;
+    bvol = (long)h->rnx * (long)h->rnz;
+    if (env->biome && bvol > 0) {
+        if (biome_src)
+            for (i = 0; i < (int)bvol; ++i) env->biome[i] = biome_src[i];
+        else
+            for (i = 0; i < (int)bvol; ++i)
+                env->biome[i] = (u8)BLAZE_SNAP_BIOME_PLAINS;
+    }
     cu_grass_grid_init(env);     /* bulk phase fills grass_sec from this */
     env->ore = ore;
     env->nore = nore;
@@ -5808,12 +5979,13 @@ MC_HD static inline void blaze_reset_from_snapshot(Blaze *env, const RlSnapHead 
                                                    unsigned n_mobs,
                                                    const RlSnapOrb *orbs,
                                                    unsigned n_orbs,
+                                                   const u8 *biome_src,
                                                    unsigned long long world_rand_seed,
                                                    int success_item) {
     long i, nbulk;
     blaze_reset_scalar(env, h, items, ore, nore, ore_xy, cont, ncont,
                        light_src != NULL, mobs, n_mobs, orbs, n_orbs,
-                       world_rand_seed, success_item);
+                       biome_src, world_rand_seed, success_item);
     nbulk = cu_reset_bulk_count(env);
     for (i = 0; i < nbulk; ++i)
         blaze_reset_bulk(env, cells_src, light_src, i);

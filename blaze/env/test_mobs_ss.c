@@ -326,8 +326,9 @@ static int run_units(void) {
     expect(hs_total_weight(HS_BIOME_SWAMP) == 516,
            "BiomeSwamp extra slime weight 1 -> 516");
     expect(hs_weight_at_biome(HS_SLIME, 1) == 100, "plains slime weight 100");
-    expect(hs_weight_at_biome(HS_SLIME, HS_BIOME_SWAMP) == 101,
-           "swamp slime weight 100+1");
+    expect(hs_monster_entry_type(HS_BIOME_SWAMP, 8) == HS_SLIME &&
+               hs_monster_entry_weight(HS_BIOME_SWAMP, 8) == 1,
+           "swamp extra slime is appended weight 1");
     {
         JavaRandom wr, er;
         int have = 0;

@@ -77,6 +77,7 @@ typedef struct {
     RlSnapItem items[BLAZE_SNAP_MAX_ITEMS];
     const u16 *cells;            /* device, head.rnx*rny*rnz packed states */
     const u8 *light;             /* device, packed (sky<<4)|block or NULL */
+    const u8 *biome;             /* device, rnx*rnz column ids; v7 = plains */
     const int *coal;             /* device, ncoal x 3 */
     int ncoal;
     const int *xy_off;           /* device, rnx*rny+1 CSR (ix,iy)->coal-range
@@ -91,6 +92,8 @@ typedef struct {
     RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
     unsigned long long world_rand_seed;
     int update_lcg;
+    int player_fire;
+    int player_air;
 } CuSnapDev;
 
 typedef struct {
@@ -113,7 +116,7 @@ typedef struct {
     u16 *d_grass;            /* per-env grass_sec census (CU_SEC_SPAN cube) */
     u16 *d_fluid_cur, *d_fluid_tmp; /* n * CU_FLUID_VOL CA grids; same as CPU */
     int *d_rt_leaf;              /* n * RT_LIVE_SURR BlockLeaves scratch */
-    u8 *d_light, *d_dep, *d_edg;
+    u8 *d_light, *d_biome, *d_dep, *d_edg;
     Chunk *d_window;
     CuCand *d_cand;
     int *d_cont;                 /* per-env BLAZE_SNAP_MAX_CONT container cells */
@@ -228,7 +231,9 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
                        s->mobs, s->n_mobs, s->orbs, s->n_orbs,
-                       s->world_rand_seed, success_item);
+                       s->biome, s->world_rand_seed, success_item);
+    envs[i].pl.fire = s->player_fire;
+    envs[i].pl.air = s->player_air;
     envs[i].update_lcg = s->update_lcg;
     envs[i].mobs_enabled = mobs_enabled;
     envs[i].natural_spawn = natural_spawn;
@@ -920,6 +925,7 @@ void blaze_destroy(void *vh) {
     for (i = 0; i < v->nsnaps; ++i) {
         cudaFree((void *)v->h_snaps[i].cells);
         cudaFree((void *)v->h_snaps[i].light);
+        cudaFree((void *)v->h_snaps[i].biome);
         cudaFree((void *)v->h_snaps[i].coal);
         cudaFree((void *)v->h_snaps[i].xy_off);
         cudaFree((void *)v->h_snaps[i].cont);
@@ -945,6 +951,7 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_grass);
     cudaFree(v->d_cells);
     cudaFree(v->d_light);
+    cudaFree(v->d_biome);
     cudaFree(v->d_active);
     cudaFree(v->d_assign);
     cudaFree(v->d_st);
@@ -963,6 +970,7 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
                                  char *err, int err_cap) {
     int i;
     long rvol = (long)rnx * rny * rnz;
+    long bvol = (long)rnx * (long)rnz;
     /* worst-case section grid for these dims over any region origin */
     long nsec = (long)CU_SEC_SPAN(rnx) * CU_SEC_SPAN(rny) * CU_SEC_SPAN(rnz);
     double gb = (sizeof(u16) + sizeof(u8)) *
@@ -971,6 +979,8 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
                    (size_t)v->n * rvol * sizeof(u16)) != cudaSuccess ||
         cudaMalloc(&v->d_light,
                    (size_t)v->n * rvol * sizeof(u8)) != cudaSuccess ||
+        cudaMalloc(&v->d_biome,
+                   (size_t)v->n * (size_t)bvol) != cudaSuccess ||
         cudaMalloc(&v->d_grass,
                    (size_t)v->n * nsec * sizeof(u16)) != cudaSuccess) {
         if (err && err_cap > 0)
@@ -978,6 +988,7 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
                      "region pool cudaMalloc failed (%dx%dx%d x %d envs = "
                      "%.1f GB)", rnx, rny, rnz, v->n, gb);
         cudaFree(v->d_light); v->d_light = NULL;
+        cudaFree(v->d_biome); v->d_biome = NULL;
         cudaFree(v->d_grass); v->d_grass = NULL;
         cudaFree(v->d_cells); v->d_cells = NULL;
         return 0;
@@ -987,6 +998,7 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
     for (i = 0; i < v->n; ++i) {
         v->h_envs[i].cells = v->d_cells + (size_t)i * rvol;
         v->h_envs[i].light = v->d_light + (size_t)i * rvol;
+        v->h_envs[i].biome = v->d_biome + (size_t)i * (size_t)bvol;
         v->h_envs[i].grass_sec = v->d_grass + (size_t)i * nsec;
     }
     if (cudaMemcpy(v->d_envs, v->h_envs, (size_t)v->n * sizeof(Blaze),
@@ -1011,6 +1023,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         long svol;
         u16 *d_cells = NULL;
         u8 *d_light = NULL;
+        u8 *d_biome = NULL;
         int *d_coal = NULL;
         if (!blaze_snapshot_load(paths[i], &s, err, err_cap, v->no_ore_xy))
             return -1;
@@ -1042,6 +1055,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         int *d_xy = NULL;
         int *d_cn = NULL;
         size_t xy_nb = ((size_t)h->rnx * h->rny + 1) * sizeof(int);
+        size_t bvol = (size_t)h->rnx * (size_t)h->rnz;
         if (cudaMalloc(&d_cells, (size_t)svol * sizeof(u16)) !=
                 cudaSuccess ||
             cudaMemcpy(d_cells, s.cells, (size_t)svol * sizeof(u16),
@@ -1049,6 +1063,10 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
             (s.light &&
              (cudaMalloc(&d_light, (size_t)svol) != cudaSuccess ||
               cudaMemcpy(d_light, s.light, (size_t)svol,
+                         cudaMemcpyHostToDevice) != cudaSuccess)) ||
+            (s.biome && bvol &&
+             (cudaMalloc(&d_biome, bvol) != cudaSuccess ||
+              cudaMemcpy(d_biome, s.biome, bvol,
                          cudaMemcpyHostToDevice) != cudaSuccess)) ||
             (s.ncoal &&
              (cudaMalloc(&d_coal, (size_t)s.ncoal * 3 * sizeof(int)) !=
@@ -1075,6 +1093,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                          paths[i]);
             cudaFree(d_cells);
             cudaFree(d_light);
+            cudaFree(d_biome);
             cudaFree(d_coal);
             cudaFree(d_xy);
             cudaFree(d_cn);
@@ -1086,6 +1105,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         memcpy(d->items, s.items, sizeof d->items);
         d->cells = d_cells;
         d->light = d_light;
+        d->biome = d_biome;
         d->coal = d_coal;
         d->ncoal = (int)s.ncoal;
         d->xy_off = d_xy;
@@ -1099,6 +1119,8 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
             memcpy(d->orbs, s.orbs, (size_t)s.n_orbs * sizeof d->orbs[0]);
         d->world_rand_seed = s.world_rand_seed;
         d->update_lcg = s.update_lcg;
+        d->player_fire = s.player_fire;
+        d->player_air = s.player_air;
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
         v->has_unrepresented[v->nsnaps] = s.head.container != 0;
@@ -1406,6 +1428,8 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(&he, &d->head, d->items);
+    d->player_fire = he.pl.fire;
+    d->player_air = he.pl.air;
     d->n_mobs = he.n_mobs;
     if (he.n_mobs)
         memcpy(d->mobs, he.mobs, (size_t)he.n_mobs * sizeof d->mobs[0]);
@@ -1422,6 +1446,21 @@ int blaze_capture(void *vh, int env, int slot) {
                          (size_t)v->rvol * sizeof(u16),
                          cudaMemcpyDeviceToDevice), "capture cells copy"))
         return -1;
+    {
+        size_t bvol = (size_t)v->rnx * (size_t)v->rnz;
+        if (bvol && he.biome) {
+            if (!d->biome) {
+                u8 *biome = NULL;
+                if (cu_ck(cudaMalloc(&biome, bvol), "capture biome alloc"))
+                    return -1;
+                d->biome = biome;
+            }
+            if (cu_ck(cudaMemcpy((void *)d->biome, he.biome, bvol,
+                                 cudaMemcpyDeviceToDevice),
+                      "capture biome copy"))
+                return -1;
+        }
+    }
     if (d->ncoal != he.nore) {
         /* Grow without freeing: live envs may still alias d->coal. Shrink
          * keeps the existing allocation and just updates ncoal. */

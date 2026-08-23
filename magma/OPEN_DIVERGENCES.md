@@ -1513,6 +1513,62 @@ Recipe: `verify/scenarios/rain_thunder.yaml` (`/weather thunder 1000000`,
   Java wander tasks=8 then 0. HashSet getStart unused (WALKABLE pri=0).
   Do not widen PNP_DY (CUDA twins / GPU_MOB_AI 32x24x32).
 
+## Sweep 2026-08-23 (codex full read, oracle -> magma; unverified by gate unless noted)
+
+Ranked by tape impact. Each row: Java site; magma site; what is missing.
+Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
+
+1. Stronghold placement: `blaze/core/map_gen_stronghold.h:153-179` uses a
+   simplified 3-position ring; Java `MapGenStronghold` (128 strongholds,
+   `getValidStrongholdGen` biome relocation) not ported. Eye-of-ender
+   targets differ. L.
+2. Furnace registry: CLOSED 2026-08-23 lane `furnaceids`. 51 recipes + fuel
+   table + XP from Java ids. See `CLOSED_DIVERGENCES.md`.
+3. Buckets: CLOSED 2026-08-23 lane `furnaceids`. Empty stack 16, fillBucket
+   shrink+add. See `CLOSED_DIVERGENCES.md`.
+4. Explosion residuals: creeper explosion uses Y+0.5 (`magma/game/
+   mob_live.c:3564-3569`), no charged creeper (`EntityCreeper.getPowered`
+   radius 6), `mobGriefing` only partly honored, `getBlockDensity` treats
+   every block as a full cube, no blast-protection enchant reduction, no
+   `isFlaming` fire placement, missing sound RNG draws. L.
+5. Environmental damage: CLOSED 2026-08-23 lane `hazards`. Shared
+   `player_survival.h` psv_env_pre_move + cactus/magma walk. Forensics in
+   `CLOSED_DIVERGENCES.md`.
+6. Crafting: no boat recipe (`crafting_recipes_full.h`), no
+   `getRemainingItems` (bucket/bottle containers stay consumed). S/M.
+7. Live ground items: `magma/game/live_sim.c:155-258` runs its own item
+   physics and bypasses the verified `blaze/core/entity_item.h` kernel.
+   Pickup delay, merge, and lava cut differ between the two paths. M.
+8. Tick order: `magma/game/runtime.c:904-1216` is not `WorldServer.tick`
+   order (Java: weather, updateBlocks(random ticks) per chunk, tile
+   entities in `updateEntities` after entities, scheduled ticks before
+   entities). M; coupling with every M1 row.
+9. Beds: `magma/game/runtime.c:2379-2387` skips the Java sleep state
+   machine (`EntityPlayer.trySleep`, `sleepTimer` 100, wake all players
+   check, spawn point set). M.
+10. Potion effects are render-only; no `PotionEffect.performEffect`
+    tick. M.
+11. Shield: no `EntityPlayer.canBlockDamageSource` / `damageShield`. S.
+12. Food table + `ItemFood.onItemUseFinish` rand draws: CLOSED 2026-08-23
+    lane `furnaceids`. Potion *effects* still render-only (row 10).
+
+Silent deviations found (not yet measured by any gate): fluids step
+synchronously instead of via scheduled ticks (`fluid_live.h`);
+block placement skips `mayPlace` (`ItemBlock.onItemUse`); light uses
+Jacobi sweeps, not Java's per-update queue timing; fixed caps (96
+entities, 48 items, 64 collision boxes) silently drop state; XP orb lava
+cut; stronghold iron bars where Java places doors; portal
+nearest-selection.
+
+Ungated systems: crafting with containers, beds, potions,
+shield, environmental damage, stronghold placement.
+Ungated systems: furnace, crafting with containers, beds, potions,
+shield, stronghold placement, hotbar selection.
+Tapes record player physics / inventory / ghost views / world hash only,
+so a rule that never moves the player or the hotbar is invisible to the
+replay gate; unit tests against Java-derived fixtures are the gate for
+these.
+
 ## Oracle, recorder, and world-state blockers
 
 These are not established C product bugs, but they block direct parity claims:

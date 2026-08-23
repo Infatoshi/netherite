@@ -290,6 +290,7 @@ int       gm_world_block_light(const GmWorld *w, int wx, int wy, int wz);
 /* Voronoi biome id at a column (-1 unloaded) and the blended 0xRRGGBB grass
  * tint the mesher would use — exposed for the script.c oracle-diff probes. */
 int       gm_world_biome(const GmWorld *w, int wx, int wz);
+void      gm_world_set_biome(GmWorld *w, int wx, int wz, int biome);
 int       gm_world_grass_color(const GmWorld *w, int wx, int wy, int wz);
 /* Blended 0xRRGGBB foliage tint (light_foliage_color); ParticleDigging leaves. */
 int       gm_world_foliage_color(const GmWorld *w, int wx, int wy, int wz);
@@ -305,6 +306,7 @@ void      gm_world_load_block_meta(GmWorld *w, int wx, int wy, int wz, int id, i
 /* Restore a snapshot's saved skylight nibble (light_load_sky contract): call
  * after the bulk gm_world_load_block_meta batch has been relit, never before. */
 void      gm_world_load_sky_light(GmWorld *w, int wx, int wy, int wz, int sky);
+void      gm_world_load_block_light(GmWorld *w, int wx, int wy, int wz, int blk);
 /* Monotonic block-mutation counter; bumps on every set_block(_meta). Callers
  * holding a copied window (runtime physics window) refill when it changes. */
 long long gm_world_block_gen(const GmWorld *w);

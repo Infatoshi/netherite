@@ -4,6 +4,11 @@
 #include <stdio.h>
 #include <string.h>
 
+typedef struct { int dummy; } HsClipW;
+#define HS_W HsClipW
+#define HS_BLOCK(w, x, y, z) 0
+#include "hostile_spawn.h"
+
 static int fail;
 #define CHECK(C, M) do { if (!(C)) { fprintf(stderr, "FAIL: %s\n", M); fail=1; } } while (0)
 
@@ -255,6 +260,11 @@ int main(int argc, char **argv) {
         return ok?0:1;
     }
     if(argc!=1){fprintf(stderr,"usage: %s [--blaze-receipt PATH]\n",argv[0]);return 2;}
+    CHECK(hs_biome_or_plains(0, 6) == 1, "magma: OOR spawn biome clips to plains");
+    CHECK(hs_biome_or_plains(1, 6) == 6, "magma: in-region swamp stays swamp");
+    CHECK(hs_monster_entry_weight(HS_BIOME_ICE_PLAINS, 8) == 80 &&
+          !hs_is_roster(HS_STRAY),
+          "magma: ice plains stray weight 80, not roster");
     GmRuntime r;
     if(!init_flat(&r))return 1;
     CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,14.5)>=0,"spawn component zombie");

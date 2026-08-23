@@ -122,6 +122,16 @@ BSNP_MAGIC = b"BSNP"
 BSNP_VERSION_LIGHT = 2
 SNAP_HEAD_SIZE = 752       # sizeof(RlSnapHead), packed
 SNAP_RDIMS_OFF = 728       # 6 x i32: rx0,ry0,rz0,rnx,rny,rnz
+SNAP_NITEMS_OFF = 724      # u32 n_items just before rdims
+SNAP_ITEM_SIZE = 76        # packed RlSnapItem
+SNAP_MOB_SIZE = 572        # packed RlSnapMob
+MOB_TYPE_NAMES = {
+    0: "none", 1: "player", 2: "zombie", 3: "skeleton", 4: "creeper",
+    5: "spider", 6: "enderman", 7: "blaze", 10: "sheep", 11: "pig",
+    12: "cow", 13: "chicken", 15: "pigman", 26: "ghast", 27: "magma",
+    32: "wither_skeleton", 35: "slime", 36: "silverfish", 37: "boat",
+    38: "tnt_primed",
+}
 
 # obs_camera.h: rays terminate at OC_FAR; outside the blaze region -> air.
 OC_FAR = 48.0
@@ -497,6 +507,85 @@ def read_snap_region(path):
     return struct.unpack_from("<6i", head, SNAP_RDIMS_OFF)
 
 
+def parse_bsnp_mobs(path):
+    """Read the packed living-slot trailer from a .bsnp (harness dump)."""
+    with open(path, "rb") as f:
+        head = f.read(SNAP_HEAD_SIZE)
+        if len(head) < SNAP_HEAD_SIZE:
+            raise RuntimeError(f"short .bsnp head: {path}")
+        n_items = struct.unpack_from("<I", head, SNAP_NITEMS_OFF)[0]
+        _rx0, _ry0, _rz0, rnx, rny, rnz = struct.unpack_from(
+            "<6i", head, SNAP_RDIMS_OFF)
+        f.read(n_items * SNAP_ITEM_SIZE)
+        vol = rnx * rny * rnz
+        f.read(vol * 2)
+        ncoal = struct.unpack("<I", f.read(4))[0]
+        f.read(ncoal * 12)
+        f.read(vol)
+        n_mobs = struct.unpack("<I", f.read(4))[0]
+        rows = []
+        for _ in range(n_mobs):
+            raw = f.read(SNAP_MOB_SIZE)
+            if len(raw) != SNAP_MOB_SIZE:
+                raise RuntimeError(f"truncated .bsnp mobs: {path}")
+            slot, _id, typ, alive = struct.unpack_from("<iiii", raw, 0)
+            x, y, z = struct.unpack_from("<ddd", raw, 20)
+            rows.append({
+                "slot": slot, "type": typ, "alive": alive,
+                "x": x, "y": y, "z": z,
+            })
+        return rows
+
+
+def fmt_mob_row(row):
+    name = MOB_TYPE_NAMES.get(row["type"], f"type{row['type']}")
+    return (f"slot={row['slot']} type={name}({row['type']}) "
+            f"alive={row['alive']} "
+            f"xyz=({row['x']:.5f},{row['y']:.5f},{row['z']:.5f})")
+
+
+def blaze_live_mobs(cu):
+    """Live blaze table via blaze_mobs_count/get (harness, not sim)."""
+    lib = cu.lib
+    lib.blaze_mobs_count.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    lib.blaze_mobs_count.restype = ctypes.c_int
+    lib.blaze_mobs_get.argtypes = [
+        ctypes.c_void_p, ctypes.c_int, ctypes.c_int,
+        ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double)]
+    lib.blaze_mobs_get.restype = ctypes.c_int
+    n = lib.blaze_mobs_count(ctypes.c_void_p(cu.h), 0)
+    if n < 0:
+        raise RuntimeError("blaze_mobs_count failed")
+    rows = []
+    for i in range(n):
+        slot = ctypes.c_int()
+        typ = ctypes.c_int()
+        alive = ctypes.c_int()
+        x = ctypes.c_double()
+        y = ctypes.c_double()
+        z = ctypes.c_double()
+        r = lib.blaze_mobs_get(
+            ctypes.c_void_p(cu.h), 0, i,
+            ctypes.byref(slot), ctypes.byref(typ), ctypes.byref(alive),
+            ctypes.byref(x), ctypes.byref(y), ctypes.byref(z))
+        if r != 0:
+            raise RuntimeError(f"blaze_mobs_get({i}) failed")
+        rows.append({
+            "slot": slot.value, "type": typ.value, "alive": alive.value,
+            "x": x.value, "y": y.value, "z": z.value,
+        })
+    return rows
+
+
+def print_mob_dump(tag, rows):
+    print(f"    {tag} mobs n={len(rows)}")
+    for row in rows:
+        print(f"      {fmt_mob_row(row)}")
+
+
 def region_margin(x, z, rx0, rz0, rnx, rnz):
     """Min horizontal distance from (x,z) to the region AABB edge (blocks)."""
     return min(x - rx0, rx0 + rnx - x, z - rz0, rz0 + rnz - z)
@@ -840,7 +929,8 @@ def print_initial_parity(seed, label, real_rec, blaze_rec, features):
 def run_seed_parity(seed, snap, actions, label, features,
                     strict_capabilities=False, require_evidence=True,
                     track_liquid=False, result=None, mobs_on=False,
-                    natural_spawn=False, natural_spawn_passive=False):
+                    natural_spawn=False, natural_spawn_passive=False,
+                    dump_mobs=False):
     """Lockstep Magma vs Blaze CPU on PARY digests. Existing callers unchanged.
 
     require_evidence: default True is the --port-parity gate (zero evidence
@@ -961,6 +1051,9 @@ def run_seed_parity(seed, snap, actions, label, features,
         blaze_parity = cu.parity()
         print_initial_parity(
             seed, label, real_parity, blaze_parity, features)
+        if dump_mobs:
+            print_mob_dump("Magma fixture", parse_bsnp_mobs(snap))
+            print_mob_dump("Blaze live", blaze_live_mobs(cu))
         note_evidence(real_parity, blaze_parity)
         note_liquid("INITIAL")
         status, detail, _ = parity_pair_status(
@@ -979,6 +1072,11 @@ def run_seed_parity(seed, snap, actions, label, features,
             blaze_parity = cu.parity()
             note_evidence(real_parity, blaze_parity)
             note_liquid(observation - 1)
+            if dump_mobs and "mobs" in features:
+                mi = PARITY_INDEX["mobs"]
+                print(f"    t={real_parity.tick} mobs evidence "
+                      f"Magma={real_parity.evidence[mi]} "
+                      f"Blaze={blaze_parity.evidence[mi]}")
             status, detail, subsystem = parity_pair_status(
                 real_parity, blaze_parity, features)
             if status != VERIFIED:
@@ -1003,6 +1101,24 @@ def run_seed_parity(seed, snap, actions, label, features,
                                 real_parity, blaze_parity, subsystem)[:8]:
                         print(f"    differing scalar {field}: "
                               f"Magma={magma_value!r}, Blaze={blaze_value!r}")
+                    if dump_mobs and subsystem == "mobs":
+                        dump_path = os.path.join(
+                            os.environ.get("TMPDIR", "/tmp"),
+                            f"natspawn2_magma_mobs_t{real_parity.tick}.bsnp")
+                        try:
+                            real.step({
+                                "snapshot": dump_path,
+                                "snapshot_bounds": "inherit",
+                            })
+                            print_mob_dump("Magma live",
+                                           parse_bsnp_mobs(dump_path))
+                        except Exception as exc:  # noqa: BLE001
+                            print(f"    Magma mob dump failed: {exc}")
+                        try:
+                            print_mob_dump("Blaze live",
+                                           blaze_live_mobs(cu))
+                        except Exception as exc:  # noqa: BLE001
+                            print(f"    Blaze mob dump failed: {exc}")
                     if subsystem == "observations":
                         for field in ("cam", "depth", "edge"):
                             lo, hi = OFF[field]
@@ -1112,7 +1228,8 @@ def run_port_parity(args, seeds, features):
             seed, snap, acts, f"iron stage x{len(acts)}", features,
             args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False),
             natural_spawn=getattr(args, "natural_spawn", False),
-            natural_spawn_passive=getattr(args, "natural_spawn_passive", False))
+            natural_spawn_passive=getattr(args, "natural_spawn_passive", False),
+            dump_mobs=getattr(args, "dump_mobs", False))
         return port_parity_result([status], "iron fixture")
 
     if args.chain:
@@ -1137,7 +1254,8 @@ def run_port_parity(args, seeds, features):
             seed, snap, acts, f"full chain x{len(acts)}", features,
             args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False),
             natural_spawn=getattr(args, "natural_spawn", False),
-            natural_spawn_passive=getattr(args, "natural_spawn_passive", False))
+            natural_spawn_passive=getattr(args, "natural_spawn_passive", False),
+            dump_mobs=getattr(args, "dump_mobs", False))
         return port_parity_result([status], "chain fixture")
 
     statuses = []
@@ -1237,6 +1355,10 @@ def main():
     ap.add_argument(
         "--natural-spawn-passive", action="store_true",
         help="enable CREATURE WorldEntitySpawner (natural_spawn_passive=1 set_time=6000)")
+    ap.add_argument(
+        "--dump-mobs", action="store_true",
+        help="print Magma/Blaze living-slot tables at observation 0 and "
+             "at the first mobs PARY mismatch (harness only)")
     ap.add_argument(
         "--no-state-digest", action="store_true",
         help="opt out of the default-on per-tick PARY state-digest pass "

@@ -50,7 +50,9 @@
  * not a Java rule.
  *
  * Roster insert is zombie/skeleton/creeper/spider/slime/enderman/witch
- * (hostile_live.h). Zombie villager picks still consume world.rand /
+ * (hostile_live.h). Witch is on the default Biome.java:146-153 list
+ * (weight 5, min 1, max 1 at :153). Zombie villager / stray picks still
+ * consume world.rand /
  * entity.rand in Java order, then skip the insert.
  *
  * Include after HS_W / HS_BLOCK. Optional: HS_SKY, HS_BLK, HS_PLACE,
@@ -114,13 +116,26 @@ enum {
     HS_SLIME = 5,
     HS_ENDERMAN = 6,
     HS_WITCH = 7,
-    HS_NTYPES = 8
+    HS_STRAY = 8,                    /* BiomeSnow.java:49; not on the live roster */
+    HS_NTYPES = 9
 };
 
 #ifndef HS_BIOME
-#define HS_BIOME(w, x, z) 1              /* plains. Swamp is 6 (B_SWAMP). */
+#define HS_BIOME(w, x, z) 1              /* plains. Override from the snapshot plane. */
 #endif
 #define HS_BIOME_SWAMP 6
+#define HS_BIOME_OCEAN 0
+#define HS_BIOME_RIVER 7
+#define HS_BIOME_FROZEN_OCEAN 10
+#define HS_BIOME_ICE_PLAINS 12
+#define HS_BIOME_ICE_MOUNTAINS 13
+#define HS_BIOME_BEACH 16
+#define HS_BIOME_STONE_BEACH 25
+#define HS_BIOME_COLD_BEACH 26
+#define HS_BIOME_DEEP_OCEAN 24
+#define HS_BIOME_MESA 37
+#define HS_BIOME_MESA_ROCK 38
+#define HS_BIOME_MESA_CLEAR 39
 
 /* Biome.java:146-153 weights. A function, not a host array: nvcc device. */
 MC_HD static inline int hs_weight_at(int i) {
@@ -132,23 +147,78 @@ MC_HD static inline int hs_weight_at(int i) {
     if (i == HS_SLIME) return 100;
     if (i == HS_ENDERMAN) return 10;
     if (i == HS_WITCH) return 5;
-    return 0;
+    return 0;                             /* stray 0 on the default list */
 }
 #define HS_TOTAL_WEIGHT 515
 
-/* BiomeSwamp.java:34 adds a second EntitySlime SpawnListEntry weight 1
- * (min 1 max 1) on top of Biome.java:151 100/4-4. 1.11.2
- * WorldEntitySpawner.java:172 pack cap is EntityLiving.getMaxSpawnedInChunk
- * (default 4, EntityLiving.java:965); list min/max is not read. Combined
- * slime weight 101 is type-equivalent to the two-entry list. Plains lockstep
- * (HS_BIOME default 1) stays 515. */
+MC_HD static inline int hs_is_snow_biome(int biome) {
+    /* BiomeSnow.java:23-49 covers ice plains (12) and ice mountains (13). */
+    return biome == HS_BIOME_ICE_PLAINS || biome == HS_BIOME_ICE_MOUNTAINS;
+}
+
+/* Snapshot lockstep: outside the region AABB, HS_BIOME is plains 1. Java
+ * uses the biome at the candidate BlockPos (WorldEntitySpawner.java:132-133
+ * -> WorldServer.java:245-249 -> Chunk.getBiome Chunk.java:1273-1278). Magma
+ * gm_world_rt_block clips the same way (world_live.c:705-708). */
+MC_HD static inline int hs_biome_or_plains(int in_region, int biome) {
+    if (!in_region) return 1;
+    return biome < 0 ? 1 : biome;
+}
+
+/* WeightedRandom walks the SpawnListEntry list in add-order, not type-id
+ * order. BiomeSwamp.java:34 appends a second slime (weight 1) after witch.
+ * BiomeSnow.java:36-49 removes skeleton then appends skeleton 20 + stray 80.
+ * Combining swamp slime to 101 in the Biome.java slot is not equivalent:
+ * the extra entry sits after enderman+witch, so the w ranges differ. */
+MC_HD static inline int hs_monster_entry_count(int biome) {
+    if (biome == HS_BIOME_SWAMP) return 9;
+    if (hs_is_snow_biome(biome)) return 9;
+    return 8;
+}
+
+MC_HD static inline int hs_monster_entry_type(int biome, int i) {
+    if (hs_is_snow_biome(biome)) {
+        if (i == 0) return HS_SPIDER;
+        if (i == 1) return HS_ZOMBIE;
+        if (i == 2) return HS_ZOMBIE_VILLAGER;
+        if (i == 3) return HS_CREEPER;     /* skeleton removed :42-45 */
+        if (i == 4) return HS_SLIME;
+        if (i == 5) return HS_ENDERMAN;
+        if (i == 6) return HS_WITCH;
+        if (i == 7) return HS_SKELETON;    /* re-added weight 20 :48 */
+        if (i == 8) return HS_STRAY;       /* :49 */
+        return HS_ZOMBIE;
+    }
+    if (i == 0) return HS_SPIDER;
+    if (i == 1) return HS_ZOMBIE;
+    if (i == 2) return HS_ZOMBIE_VILLAGER;
+    if (i == 3) return HS_SKELETON;
+    if (i == 4) return HS_CREEPER;
+    if (i == 5) return HS_SLIME;
+    if (i == 6) return HS_ENDERMAN;
+    if (i == 7) return HS_WITCH;
+    if (i == 8) return HS_SLIME;           /* BiomeSwamp.java:34 */
+    return HS_ZOMBIE;
+}
+
+MC_HD static inline int hs_monster_entry_weight(int biome, int i) {
+    int t = hs_monster_entry_type(biome, i);
+    if (hs_is_snow_biome(biome)) {
+        if (t == HS_SKELETON) return 20;   /* BiomeSnow.java:48 */
+        if (t == HS_STRAY) return 80;      /* BiomeSnow.java:49 */
+    }
+    if (biome == HS_BIOME_SWAMP && i == 8) return 1;
+    return hs_weight_at(t);
+}
+
 MC_HD static inline int hs_total_weight(int biome) {
     return HS_TOTAL_WEIGHT + (biome == HS_BIOME_SWAMP ? 1 : 0);
 }
 
+/* Type-indexed default weight. Swamp extra slime is a second list entry,
+ * not 101 on HS_SLIME. Ice plains skeleton is 20 only on the snow list. */
 MC_HD static inline int hs_weight_at_biome(int i, int biome) {
-    if (i == HS_SLIME && biome == HS_BIOME_SWAMP)
-        return 101;                       /* Biome.java:151 + BiomeSwamp.java:34 */
+    (void)biome;
     return hs_weight_at(i);
 }
 
@@ -214,13 +284,15 @@ MC_HD static inline int hs_to_ew(int hs_type) {
 
 /* WeightedRandom.getRandomItem WeightedRandom.java:28-37 then :41-56. */
 MC_HD static inline int hs_weighted_pick_biome(JavaRandom *r, int biome) {
-    int w, i, tot;
+    int w, i, tot, n, t;
     if (!r) return HS_ZOMBIE;
     tot = hs_total_weight(biome);
+    n = hs_monster_entry_count(biome);
     w = jrand_int_bound(r, tot);
-    for (i = 0; i < HS_NTYPES; ++i) {
-        w -= hs_weight_at_biome(i, biome);
-        if (w < 0) return i;
+    for (i = 0; i < n; ++i) {
+        t = hs_monster_entry_type(biome, i);
+        w -= hs_monster_entry_weight(biome, i);
+        if (w < 0) return t;
     }
     return HS_ZOMBIE;
 }
@@ -545,8 +617,12 @@ MC_HD static inline int hs_on_initial_spawn(int hs_type, JavaRandom *wr,
         return 0;
     } else if (hs_type == HS_SLIME) {
         return hs_slime_init(er, have, g, world_time, difficulty);
+    } else if (hs_type == HS_STRAY) {
+        /* EntityStray extends AbstractSkeleton. Skip insert (not roster). */
+        hs_skeleton_init(er, have, g, difficulty, world_time);
+        return 0;
     }
-    hs_living_init(er, have, g);              /* witch / enderman */
+    hs_living_init(er, have, g);              /* witch */
     return 0;
 }
 
@@ -852,19 +928,52 @@ MC_HD static inline int hs_creature_weight_at(int i) {
 }
 #define HS_CREATURE_TOTAL_WEIGHT 40
 
+/* Biomes that clear spawnableCreatureList in their ctor. Horse/donkey/wolf/
+ * rabbit extras are not in the lockstep roster (same as plains horse). */
+MC_HD static inline int hs_creature_list_empty(int biome) {
+    /* BiomeOcean.java:8, BiomeRiver.java:8, BiomeBeach.java:10,
+     * BiomeStoneBeach.java:10, BiomeMesa.java:41 / :49. */
+    if (biome == HS_BIOME_OCEAN || biome == HS_BIOME_DEEP_OCEAN ||
+        biome == HS_BIOME_RIVER || biome == HS_BIOME_FROZEN_OCEAN ||
+        biome == HS_BIOME_BEACH || biome == HS_BIOME_STONE_BEACH ||
+        biome == HS_BIOME_COLD_BEACH || biome == HS_BIOME_MESA ||
+        biome == HS_BIOME_MESA_ROCK || biome == HS_BIOME_MESA_CLEAR)
+        return 1;
+    /* BiomeSnow.java:33-35: clear then rabbit+polar bear. Roster has none. */
+    if (biome == HS_BIOME_ICE_PLAINS || biome == HS_BIOME_ICE_MOUNTAINS)
+        return 1;
+    return 0;
+}
+
+MC_HD static inline int hs_creature_weight_at_biome(int i, int biome) {
+    if (hs_creature_list_empty(biome)) return 0;
+    return hs_creature_weight_at(i);
+}
+
+MC_HD static inline int hs_creature_total_weight(int biome) {
+    if (hs_creature_list_empty(biome)) return 0;
+    return HS_CREATURE_TOTAL_WEIGHT;
+}
+
 MC_HD static inline int hs_creature_cap(int chunk_count_i) {
     return HS_CREATURE_CAP * chunk_count_i / HS_MOB_COUNT_DIV;
 }
 
-MC_HD static inline int hs_creature_weighted_pick(JavaRandom *r) {
-    int w, i;
+MC_HD static inline int hs_creature_weighted_pick_biome(JavaRandom *r, int biome) {
+    int w, i, tot;
     if (!r) return HS_CREATURE_SHEEP;
-    w = jrand_int_bound(r, HS_CREATURE_TOTAL_WEIGHT);
+    tot = hs_creature_total_weight(biome);
+    if (tot <= 0) return -1;
+    w = jrand_int_bound(r, tot);
     for (i = 0; i < HS_CREATURE_NTYPES; ++i) {
-        w -= hs_creature_weight_at(i);
+        w -= hs_creature_weight_at_biome(i, biome);
         if (w < 0) return i;
     }
     return HS_CREATURE_SHEEP;
+}
+
+MC_HD static inline int hs_creature_weighted_pick(JavaRandom *r) {
+    return hs_creature_weighted_pick_biome(r, 1); /* plains */
 }
 
 MC_HD static inline int hs_creature_to_ew(int c) {
@@ -1011,8 +1120,12 @@ MC_HD MC_NOINLINE static int hs_find_chunks_for_creatures(HS_W *w, HsState *st,
                 if (dsq < HS_PLAYER_RANGE * HS_PLAYER_RANGE
                     || dspawn < HS_SPAWN_PT_RANGE_SQ)
                     continue;
-                if (type < 0)
-                    type = hs_creature_weighted_pick(&st->world_rand);
+                if (type < 0) {
+                    int biome = HS_BIOME(w, l2, j3);
+                    if (hs_creature_total_weight(biome) <= 0) break;
+                    type = hs_creature_weighted_pick_biome(&st->world_rand,
+                                                          biome);
+                }
                 if (type < 0) break;
                 rx = l2;
                 ry = i3;

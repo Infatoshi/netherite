@@ -13,6 +13,11 @@
 #define rt_live_block_light(w, x, y, z) gm_world_rt_block_light((w), (x), (y), (z))
 #define rt_live_set(w, x, y, z, id, meta) \
     gm_world_rt_set((w), (x), (y), (z), (id), (meta))
+static int gm_rt_biome(GmWorld *w, int x, int z) {
+    int b = gm_world_biome(w, x, z);
+    return b < 0 ? 1 : b;
+}
+#define rt_live_biome(w, x, z) gm_rt_biome((w), (x), (z))
 #include "randtick_live.h"
 
 static int gm_rt_surr[RT_LIVE_SURR];

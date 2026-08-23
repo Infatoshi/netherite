@@ -518,6 +518,10 @@ int gm_world_biome(const GmWorld *w, int wx, int wz) {
     return w ? light_biome(w->light, wx, wz) : -1;
 }
 
+void gm_world_set_biome(GmWorld *w, int wx, int wz, int biome) {
+    if (w) light_set_biome(w->light, wx, wz, biome);
+}
+
 int gm_world_grass_color(const GmWorld *w, int wx, int wy, int wz) {
     return w ? light_grass_color(w->light, wx, wy, wz) : 0;
 }
@@ -614,6 +618,11 @@ void gm_world_load_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int me
 void gm_world_load_sky_light(GmWorld *w, int wx, int wy, int wz, int sky) {
     if (!w) return;
     light_load_sky(w->light, wx, wy, wz, sky);
+}
+
+void gm_world_load_block_light(GmWorld *w, int wx, int wy, int wz, int blk) {
+    if (!w) return;
+    light_load_blk(w->light, wx, wy, wz, blk);
 }
 
 long long gm_world_block_gen(const GmWorld *w) {

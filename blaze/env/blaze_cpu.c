@@ -72,7 +72,7 @@ typedef struct {
     u16   *fluid_cur_pool, *fluid_tmp_pool;
     u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
     int   *rt_leaf_pool;     /* per-env BlockLeaves surroundings[32768] */
-    u8    *light_pool, *dep_pool, *edg_pool;
+    u8    *light_pool, *biome_pool, *dep_pool, *edg_pool;
     Chunk *window_pool;
     CuCand *cand_pool;
     int   *cont_pool;        /* per-env BLAZE_SNAP_MAX_CONT container cells */
@@ -267,12 +267,14 @@ static int cu_alloc_region_pools(CuVec *v, int rnx, int rny, int rnz) {
     v->cells_pool = (u16 *)malloc((size_t)v->n * v->rvol *
                                   sizeof *v->cells_pool);
     v->light_pool = (u8 *)malloc((size_t)v->n * v->rvol);
+    v->biome_pool = (u8 *)malloc((size_t)v->n * (size_t)rnx * (size_t)rnz);
     v->grass_pool = (u16 *)malloc((size_t)v->n * nsec * sizeof *v->grass_pool);
-    if (!v->cells_pool || !v->light_pool || !v->grass_pool)
+    if (!v->cells_pool || !v->light_pool || !v->biome_pool || !v->grass_pool)
         return 0;
     for (i = 0; i < v->n; ++i) {
         v->envs[i].cells = v->cells_pool + (size_t)i * v->rvol;
         v->envs[i].light = v->light_pool + (size_t)i * v->rvol;
+        v->envs[i].biome = v->biome_pool + (size_t)i * (size_t)rnx * (size_t)rnz;
         v->envs[i].grass_sec = v->grass_pool + (size_t)i * nsec;
     }
     return 1;
@@ -291,7 +293,7 @@ void blaze_destroy(void *vh) {
     for (i = 0; i < v->nsnaps; ++i) blaze_snapshot_free(&v->snaps[i]);
     for (i = 0; i < v->nretired; ++i) free(v->retired[i]);
     free(v->envs); free(v->assign);
-    free(v->cells_pool); free(v->light_pool);
+    free(v->cells_pool); free(v->light_pool); free(v->biome_pool);
     free(v->grass_pool);
     free(v->cam_pool); free(v->dep_pool); free(v->edg_pool);
     free(v->window_pool); free(v->cand_pool); free(v->cont_pool);
@@ -385,8 +387,10 @@ static void cu_reset_env(CuVec *v, int i) {
     blaze_reset_from_snapshot(&v->envs[i], &s->head, s->items, s->cells,
                               s->light, s->coal, (int)s->ncoal, s->xy_off,
                               s->cont, s->ncont, s->mobs, s->n_mobs,
-                              s->orbs, s->n_orbs, s->world_rand_seed,
-                              v->success_item);
+                              s->orbs, s->n_orbs, s->biome,
+                              s->world_rand_seed, v->success_item);
+    v->envs[i].pl.fire = s->player_fire;
+    v->envs[i].pl.air = s->player_air;
     v->envs[i].update_lcg = s->update_lcg;
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
@@ -482,6 +486,8 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(e, &s->head, s->items);
+    s->player_fire = e->pl.fire;
+    s->player_air = e->pl.air;
     s->n_mobs = e->n_mobs;
     if (e->n_mobs)
         memcpy(s->mobs, e->mobs, (size_t)e->n_mobs * sizeof s->mobs[0]);
@@ -491,6 +497,13 @@ int blaze_capture(void *vh, int env, int slot) {
         if (!s->cells) return -1;
     }
     memcpy(s->cells, e->cells, (size_t)v->rvol * sizeof *s->cells);
+    {
+        size_t bvol = (size_t)v->rnx * (size_t)v->rnz;
+        if (e->biome && bvol) {
+            if (!s->biome) s->biome = (unsigned char *)malloc(bvol);
+            if (s->biome) memcpy(s->biome, e->biome, bvol);
+        }
+    }
     if ((int)s->ncoal != e->nore) {
         /* Grow without freeing: live envs may still alias s->coal via
          * env->ore (bound at reset). Shrink keeps the existing allocation. */
@@ -632,6 +645,29 @@ int blaze_debug_state(void *vh, int env, double *out, int cap) {
     CuVec *v = (CuVec *)vh;
     if (!v || env < 0 || env >= v->n || !out || cap < 21) return -1;
     return blaze_debug_fill(&v->envs[env], out);
+}
+
+/* Harness-only live table dump (verify_cpu.py --dump-mobs). Not sim state. */
+int blaze_mobs_count(void *vh, int env) {
+    CuVec *v = (CuVec *)vh;
+    if (!v || env < 0 || env >= v->n) return -1;
+    return (int)v->envs[env].n_mobs;
+}
+
+int blaze_mobs_get(void *vh, int env, int i, int *slot, int *type, int *alive,
+                   double *x, double *y, double *z) {
+    CuVec *v = (CuVec *)vh;
+    const RlSnapMob *m;
+    if (!v || env < 0 || env >= v->n || i < 0) return -1;
+    if ((unsigned)i >= v->envs[env].n_mobs) return -1;
+    m = &v->envs[env].mobs[i];
+    if (slot) *slot = m->slot;
+    if (type) *type = m->type;
+    if (alive) *alive = m->alive;
+    if (x) *x = m->x;
+    if (y) *y = m->y;
+    if (z) *z = m->z;
+    return 0;
 }
 
 int blaze_parity_state(void *vh, int env, void *out) {

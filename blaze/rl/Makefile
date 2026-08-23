@@ -88,9 +88,11 @@ TEST_SPINE_BIN := $(OUT)/test_entity_spine
 TEST_FALL_BIN := $(OUT)/test_falling
 TEST_WEATHER_BIN := $(OUT)/test_weather
 TEST_CHEST_BIN := $(OUT)/test_chests
+TEST_FURNACE_BIN := $(OUT)/test_furnaces
 TEST_PROJ_BIN := $(OUT)/test_projectiles
 TEST_EXPL_BIN := $(OUT)/test_explosions
 TEST_RANDTICK_BIN := $(OUT)/test_randtick
+TEST_BIOME_BIN := $(OUT)/test_biome_plane
 TEST_MOBS_BIN := $(OUT)/test_mobs
 TEST_MOBS_SS_BIN := $(OUT)/test_mobs_ss
 TEST_MOBS_END_BIN := $(OUT)/test_mobs_end
@@ -99,6 +101,7 @@ TEST_PASSIVES_BIN := $(OUT)/test_passives
 TEST_XP_BIN := $(OUT)/test_xp
 TEST_BOATS_BIN := $(OUT)/test_boats
 TEST_ELYTRA_BIN := $(OUT)/test_elytra
+TEST_HAZARDS_BIN := $(OUT)/test_hazards
 TEST_SKY_BIN := $(OUT)/test_skylight_water
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
@@ -112,7 +115,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-projectiles test-explosions test-randtick test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-skylight-water smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-skylight-water smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval
 
@@ -241,6 +244,15 @@ $(TEST_CHEST_BIN): $(ENV_SRC)/test_chests.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_chests.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_FURNACE_BIN): $(ENV_SRC)/test_furnaces.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/smelting_recipes.h \
+		$(CORE_SRC)/furnace_full_tick.h | $(OUT)
+	mkdir -p $(REPO)/out/verify
+	uv run --no-project python $(REPO)/verify/furnace_registry.py --c-header \
+	    > $(REPO)/out/verify/furnace_registry_expect.h
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_furnaces.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 $(TEST_PROJ_BIN): $(ENV_SRC)/test_projectiles.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/projectile_live.h \
 		$(CORE_SRC)/inventory_stack_rules.h | $(OUT)
@@ -256,6 +268,12 @@ $(TEST_EXPL_BIN): $(ENV_SRC)/test_explosions.c $(ENV_SRC)/blaze_snapshot.c \
 $(TEST_RANDTICK_BIN): $(ENV_SRC)/test_randtick.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/randtick_live.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_randtick.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
+$(TEST_BIOME_BIN): $(ENV_SRC)/test_biome_plane.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/randtick_live.h \
+		$(CORE_SRC)/hostile_spawn.h $(CORE_SRC)/genlayer_biomes.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_biome_plane.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_MOBS_BIN): $(ENV_SRC)/test_mobs.c $(ENV_SRC)/blaze_snapshot.c \
@@ -301,6 +319,11 @@ $(TEST_BOATS_BIN): $(ENV_SRC)/test_boats.c $(ENV_SRC)/blaze_snapshot.c \
 $(TEST_ELYTRA_BIN): $(ENV_SRC)/test_elytra.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/elytra_live.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_elytra.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
+$(TEST_HAZARDS_BIN): $(ENV_SRC)/test_hazards.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/player_survival.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_hazards.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 # Magma light.o graph matches magma/Makefile test-water-skylight.
@@ -358,9 +381,10 @@ test-chain: $(TEST_CHAIN_BIN)
 	cd $(CURDIR) && $(TEST_CHAIN_BIN)
 
 test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN) \
-		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN) \
-		$(TEST_RANDTICK_BIN) \
+		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_FURNACE_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN) \
+		$(TEST_RANDTICK_BIN) $(TEST_BIOME_BIN) \
 		$(TEST_MOBS_BIN) $(TEST_MOBS_SS_BIN) $(TEST_MOBS_END_BIN) $(TEST_MOBS_WITCH_BIN) $(TEST_PASSIVES_BIN) $(TEST_XP_BIN) $(TEST_BOATS_BIN) $(TEST_ELYTRA_BIN) \
+		$(TEST_HAZARDS_BIN) \
 		$(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
@@ -368,9 +392,11 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_falling
 	cd $(REPO) && ./out/blaze/rl/test_weather
 	cd $(REPO) && ./out/blaze/rl/test_chests
+	cd $(REPO) && ./out/blaze/rl/test_furnaces
 	cd $(REPO) && ./out/blaze/rl/test_projectiles
 	cd $(REPO) && ./out/blaze/rl/test_explosions
 	cd $(REPO) && ./out/blaze/rl/test_randtick
+	cd $(REPO) && ./out/blaze/rl/test_biome_plane
 	cd $(REPO) && ./out/blaze/rl/test_mobs
 	cd $(REPO) && ./out/blaze/rl/test_mobs_ss
 	cd $(REPO) && ./out/blaze/rl/test_mobs_end
@@ -379,7 +405,11 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_xp
 	cd $(REPO) && ./out/blaze/rl/test_boats
 	cd $(REPO) && ./out/blaze/rl/test_elytra
+	cd $(REPO) && ./out/blaze/rl/test_hazards
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
+
+test-hazards: $(TEST_HAZARDS_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_hazards
 
 test-entity-spine: $(TEST_SPINE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -392,6 +422,9 @@ test-weather: $(TEST_WEATHER_BIN)
 test-chests: $(TEST_CHEST_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_chests
 
+test-furnaces: $(TEST_FURNACE_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_furnaces
+
 test-projectiles: $(TEST_PROJ_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_projectiles
 
@@ -400,6 +433,9 @@ test-explosions: $(TEST_EXPL_BIN)
 
 test-randtick: $(TEST_RANDTICK_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_randtick
+
+test-biome-plane: $(TEST_BIOME_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_biome_plane
 
 test-mobs: $(TEST_MOBS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_mobs

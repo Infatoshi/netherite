@@ -233,10 +233,12 @@ int main(int argc, char **argv) {
     expect(sizeof(RlSnapHead) == 752, "RlSnapHead is 752 bytes packed");
     expect(sizeof(RlSnapMob) == 592, "RlSnapMob is 592 bytes packed");
     expect(BLAZE_SNAP_MOB_SIZE_V7 == 572, "v7 on-disk mob record is 572 bytes");
-    expect(BLAZE_SNAP_VERSION == 7, "snapshot version is 7");
+    expect(BLAZE_SNAP_VERSION == 9, "snapshot version is 9");
+    expect(BLAZE_SNAP_VERSION_HAZARDS == 9, "hazards trailer is version 9");
     expect(BLAZE_SNAP_VERSION_WORLD_RAND == 5, "world_rand trailer is version 5");
     expect(BLAZE_SNAP_VERSION_UPDATE_LCG == 6, "updateLCG trailer is version 6");
     expect(BLAZE_SNAP_VERSION_ENDER == 7, "enderman fields are version 7");
+    expect(BLAZE_SNAP_VERSION_BIOME == 8, "biome plane is version 8");
     expect(BLAZE_SNAP_MOB_SIZE_V6 == 544, "v6 mob record is 544 bytes");
     expect(BLAZE_SNAP_VERSION_ORBS == 4, "orb trailer is version 4");
     expect(sizeof(RlSnapOrb) == 84, "RlSnapOrb is 84 bytes packed");
@@ -314,6 +316,19 @@ int main(int argc, char **argv) {
         expect(blaze_snapshot_load(p_a, &loaded, err, (int)sizeof err, 1),
                "load v6 update_lcg");
         expect(loaded.update_lcg == 0x12345678, "v6 update_lcg matches");
+        blaze_snapshot_free(&loaded);
+    }
+
+    s.head.version = 7;
+    expect(roundtrip(p_a, p_b, &s), "v7 save/load/save identical");
+    {
+        CuSnapshot loaded;
+        char err[256];
+        memset(&loaded, 0, sizeof loaded);
+        expect(blaze_snapshot_load(p_a, &loaded, err, (int)sizeof err, 1),
+               "load v7");
+        expect(loaded.biome && loaded.biome[0] == BLAZE_SNAP_BIOME_PLAINS,
+               "v7 load biome plane is plains 1");
         blaze_snapshot_free(&loaded);
     }
 

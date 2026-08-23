@@ -17,6 +17,8 @@ Definitions, so the list stays honest:
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
 Last verified: lane/witch 2026-08-23 (mobs_witch M1+M2 after EntityWitch shared live tick + MONSTER insert + drink 32 + ENTITIES_WITCH loot stick weight 2 + type-1 arrow vs enderman 64-try teleport. Snapshot v7 disk 572, in-memory extras zero-extend. BP_MOBS MBM3. mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, random_ticks, random_ticks_bodies, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp. EntityPotion / A* stay out).
+Last verified: lane/natspawn2 2026-08-23 (biome_plane_spawn + biome_plane_ice M1+M2 after magma spawn_light packed blight + HS_BIOME clip-to-region plains + BiomeSnow skeleton/stray list + BiomeSwamp appended slime weight 1. Existing biome_plane row stays no-spawn. random_ticks, random_ticks_bodies, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
+Last verified: lane/biomeplane 2026-08-23 (biome_plane M1+M2 after snapshot v8 per-column biome plane + HS_BIOME/rt_live_biome + TEMPERATURE_NOISE Perlin. BP_MOBS MBM3, BP_RANDOM_TICKS RTK4. v7 loads plains 1. Swamp/ice natural-spawn lockstep still diverges. random_ticks, random_ticks_bodies, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/enderman 2026-08-23 (mobs_end M1+M2 after EntityEnderman shared live tick + MONSTER insert + deathTime 20 + BiomeSwamp slime weight 1. Snapshot v7 enderman fields. BP_MOBS MBM2. mobs, mobs_ss, passives, xp_orbs, boats, elytra, projectiles, random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/rtbodies 2026-08-23 (random_ticks_bodies M1+M2 after sapling STAGE / farmland / ice / snow / mycelium updateTick + updateBlocks ice/snow placement. RTK3 hashes the extra cell ids. Tree gen and lightning stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
 Last verified: lane/rtworldrand 2026-08-23 (random_ticks M1+M2 after shared World.rand + updateLCG replace purpose-hash streams. Snapshot v6 update_lcg. RTK2 hashes the cursor. BlockFire world.rand closed. Class C: Java World.rand and updateLCG are unseeded. Fireball and EntityItem Math.random motion stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
@@ -59,6 +61,11 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | mobs_ss | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | mobs_end | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | mobs_witch | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
+| biome_plane | VERIFIED (chain 64, `--features random_ticks,mobs --mobs-on`, seed 7 swamp plane) | VERIFIED (64 CUDA lanes) |
+| biome_plane_spawn | VERIFIED (chain 64, seed 7 swamp, `--features random_ticks,mobs --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
+| biome_plane_ice | VERIFIED (chain 64, seed 42 ice plains, `--features random_ticks,mobs --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
+| hazards | VERIFIED (chain 448, `--features hazards`) | VERIFIED (64 CUDA lanes) |
+| furnaces | VERIFIED (chain 223, `--features furnaces`) | VERIFIED (64 CUDA lanes) |
 
 ## Unported rows (coverage gaps), in dependency order
 
@@ -101,6 +108,63 @@ Two consequences worth stating plainly:
   sequential mob tick with A* inline, magma-semantics (32x24x32 window,
   48-point path cap), IntHashMap aliasing reproduced, all 8 detmob tapes
   must be blaze-exact.
+
+## Sweep 2026-08-23 (codex full read, magma -> blaze; unverified by gate unless noted)
+
+Ranked by RL fidelity. Each row: magma site; blaze site or absent; what
+closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
+
+1. Episode region is fixed; no chunk streaming (`blaze/env/blaze_core.h:
+   456-516, 4652-4659`). Magma streams chunks around the player. Every
+   row is VERIFIED only inside the snapshot region. L; blocks long-horizon
+   transfer.
+2. Policy actions are privileged helpers (craft/interact/smelt in
+   `blaze/rl/obs_pack.h:20-51`); no strafe, sneak, sprint, or slot-click
+   as magma `player_ctl` sees them. `do_place` is unreachable from the RL
+   ABI. M; transfer gap, not parity.
+3. Block light does not propagate in blaze (`blaze_core.h:689-703`) and no
+   digest covers light. Magma `light.c` propagates. Spawn light checks
+   therefore read different values off-region. M/L. lane/natspawn2
+   2026-08-23 made magma spawn read the packed snapshot block light
+   (`spawn_light`) in lockstep mode as a shared deviation; propagation in
+   blaze stays open.
+4. Snapshot restore drops active state: furnaces, chests, craft grid,
+   bow/eat/left-click timers, projectiles, falling blocks, fluid regions,
+   mob sidecars (repath/despawn/fire/tick), boat, explosion state, player
+   XP/fire, armor/enchants (`blaze_snapshot.h` vs `runtime.h`). Lockstep
+   starts from a different state and the difference is not digested.
+   Needs a continuous-vs-resume parity gate: run N ticks, snapshot,
+   restore, run M; compare with N+M continuous. M/L.
+5. Focused M2 compares `k_tick_raw`, not the production warp kernel
+   (`blaze/env/verify_cuda.py:655-663`). M.
+6. Death/respawn: blaze stays terminal (`blaze_core.h` health<=0 ->
+   dead=1). Magma `gm_runtime_respawn` is the GuiGameOver click path
+   (health/food/air/fire reset, same pose). An RL episode has no death
+   click, so magma also freezes at the death tick. Equality is gated up
+   to that tick. Auto-respawn in blaze would diverge M1. S.
+7. Player fire ticks: CLOSED 2026-08-23 lane `hazards` (PsvPlayer.fire /
+   air, snapshot v9, BP_PLAYER PLY1). Forensics in magma
+   `CLOSED_DIVERGENCES.md`.
+8. Mob sidecars (repath, despawn, fire, tick counters) not snapshotted and
+   not digested. M.
+9. Item enchant payload and the 32-stack overflow queue missing in blaze.
+   M.
+10. TNT flint-and-steel activation missing in blaze (`blaze_core.h:
+    2618-2711`); magma `player_ctl.c` ignites. S. Lane `tntsupport`.
+11. Furnaces matrix row: CLOSED 2026-08-23 lane `furnaceids`. `furnaces`
+    M1+M2 VERIFIED (223-tick coal+beef chain). Furnace TE still not in
+    `.bsnp` (row 4).
+12. Torch support check (`player_ctl.c:180-203`) missing in blaze
+    (`blaze_core.h:2693-2711`): blaze places torches on air. S. Lane
+    `tntsupport`.
+13. Potion / milk / shield use state absent. M.
+14. Chest cap fixed 64 in blaze vs magma growth. S.
+15. Boat mount vs bow release order differs between sides. S.
+
+Field aliasing in the shared mob table: `swell` (slime size), `melee_delay`
+(slime jumpDelay), `see_time`, `anger` bit0, `target_idx` carry per-kind
+state. Any new kind that uses the same field for its Java meaning collides.
+Observation exposes no mob, light, or health planes.
 
 ## Prerequisites discovered in design review (block the entity arc)
 

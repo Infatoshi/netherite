@@ -1,5 +1,11 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 merge origin/master into lane/witch (lane/witchmerge)
+
+Gamer. `git merge origin/master` (6d22931) into lane/witch (30ea6f7). Union of both sides. Snapshot writes v9; loader reads v7 (mob record 572, in-memory 592 witch extras zero-extend, biome plains 1, fire=0 air=300), v8 (biome plane), v9 (player fire+air). Witch stays on the Biome.java:146-153 roster (weight 5/1-1 at :153); BiomeSwamp.java:34 extra slime is a second list entry after witch; BiomeSnow.java:36-49 removes skeleton then appends skeleton 20 + stray 80 (stray consume-then-skip). Did not re-bake `s10_t0_r64_mobs_witch.bsnp` (v7 load). Master's biome/hazards/furnaces fixtures kept.
+
+M1 `--no-deps` VERIFIED: mobs_witch, mobs, mobs_ss, mobs_end, passives, biome_plane, biome_plane_spawn, biome_plane_ice, hazards, furnaces, xp_orbs, boats, elytra, projectiles, random_ticks, random_ticks_bodies, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice (`out/verify/witchmerge_m1.log`). M2 `--no-deps` VERIFIED for those except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing) (`out/verify/witchmerge_m2.log`). Root `make test` PASS (`out/verify/witchmerge_maketest.log`). Tapes (`out/verify/witchmerge_tapes.log`): bow NO divergence 1407 / entities 5525; smoke_zombie x2 NO divergence through death t=358 / entities 359; detmob_hostile_target NO divergence 89 / entities 232 / world FIRST MISMATCH t=56; detmob_end NO divergence 850 / entities 10248 / world_hash PASS; canon INFRASTRUCTURE FAILURE (golden frames missing).
+
 ## 2026-08-23 witch live insert + arrow vs enderman (lane/witch)
 
 Gamer. Continuation run 3: run 1 died on a provider API error, run 2 was killed mid M2 rerun. Kept commits 428b996 and 166b7b2. Port leftover on `mobs` "Not closed" of lane/enderman: Java 1.11.2 EntityWitch into shared C magma and blaze both compile (`blaze/core/hostile_live.h` + MONSTER insert in `hostile_spawn.h`). Arrow include order: blaze `hostile_live.h` world half now instantiates before `projectile_live.h` tick, so type-1 `PL_HIT_MOB` calls `ml_enderman_arrow_hit` the way magma `gm_mobs_damage_near` does. New row `mobs_witch`. Snapshot v7 disk size stays 572; in-memory extras zero-extend (no version bump). `BP_MOBS` tag MBM2 -> MBM3 hashes `witch_attack_timer`, `witch_drink`, `effect_id`, `effect_duration`, `effect_amplifier`.
@@ -15,6 +21,100 @@ M1 VERIFIED 64 ticks t=0 digest `0xc6fb3b4b43bc77f1` (`out/verify/witch_mobs_wit
 Tapes (`replay_tape.py --cpu --no-gate --report`): no tape under `verify/tapes` has EntityWitch or EntityPotion in the entity stream (headers searched). detmob_hostile_target physics NO divergence 89 ticks, entities PASS 232, world_hash FIRST MISMATCH t=56 same as lane/enderman. detmob_end physics NO divergence 850 ticks, entities PASS 10248, world_hash PASS. bow physics NO divergence 1407, entities PASS 5525. smoke_zombie physics NO divergence through death t=358, entities PASS 359. detmob_hostile_ambient INFRASTRUCTURE FAILURE (`script:1078: invalid spawn_particle`) before magma runs; physics unread. Canon jsonl INFRASTRUCTURE FAILURE (golden frames path not on this clone; rsync from `~/dev/netherite/verify/tapes` still has 0 frames). First-divergence ticks did not move earlier.
 
 Stay out: PathNavigateGround A*; EntityPotion entity and splash (`EntityPotion.java:169-213` expand 4x2x4, distance-scaled duration); player PotionEffect list; `setThrowableHeading` gaussians on the thrown entity's rand; LookIdle/WatchClosest draws. Did not edit spawn/biome/random-tick bodies or bump snapshot version.
+
+## 2026-08-23 furnace registry, buckets, food, hotbar (lane/furnaceids)
+
+Anvil. Sweep 2026-08-23 magma rows 2, 3, 12 and silent hotbar; blaze row 11.
+
+Baseline tapes (`replay_tape.py --cpu --no-gate --report`,
+`out/verify/furnaceids_baseline_*.log`): TNT both physics NO divergence 309,
+inventory 1-mismatch t=28 slot 0 flint-and-steel 259 tape meta 0 vs magma
+meta 1. creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2
+physics NO divergence through death (358 / 373), entities PASS. bow physics
+NO divergence 1407, entities PASS 5525. Canon physics NO divergence 3617,
+entities PASS 16526, world_hash first_mismatch null (c-only, 46 hash_deltas).
+Pixel `frames_checked=0` FATAL is `--no-gate` harness, not a parity verdict.
+
+Cause: `smelting_recipes.h` used the crafting_recipes registration-index
+shim (lava 332, fish 359, beef 373). Java `Item.java:1569` lava_bucket=327,
+`Item.java:1591` fish=349, `Item.java:1605` beef=363. Rebuild 51 recipes
+from `FurnaceRecipes.java:31-91` with XP and `TileEntityFurnace.getItemBurnTime:340-355`
+(script `verify/furnace_registry.py`). Lava fuel leaves empty bucket
+(`TileEntityFurnace.update:232-234`). Empty bucket max 16 (`Item.java:1566`);
+`fillBucket` (`ItemBucket.java:117-140`) shrinks and adds. Food table from
+`Item.java` ItemFood/ItemSoup/ItemAppleGold/ItemSeedFood/ItemFishFood;
+eat finish consumes World.rand burp (`ItemFood.java:55`) then potion
+(`:66`) if potionId set. Golden apple overrides onFoodEaten (no second
+draw). `getBestHotbarSlot` empty then unenchanted; subset has no ench flag.
+
+After: same tape numbers (`out/verify/furnaceids_after_*.log`). furnaces
+M1 VERIFIED 223 ticks t=0 digest `0xb9b23f3a46fd0825`
+(`out/verify/furnaceids_furnaces_m1_detail.log`). M2 VERIFIED
+(`out/verify/furnaceids_m2_all.log`). `--no-deps` M1 VERIFIED for furnaces,
+chests, mining_slice, spawn_to_torch, world_dynamics, fluids, entity_spine,
+random_ticks, random_ticks_bodies, falling_blocks, weather_optional,
+projectiles, explosions, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats,
+elytra, biome_plane. M2 VERIFIED for those except mining_slice BLOCKED
+(`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS including
+`test_furnace_registry` 51 recipes (`out/verify/furnaceids_maketest.log`).
+Fixture `s10_t0_r64_furnaces.bsnp` baked by `test_furnaces --write-fixture`
+from `s10_t0_r64_no_liquid.bsnp`. Furnace TE still not in snapshot (no
+version bump). Did not touch mob or spawn code.
+## 2026-08-23 player environmental damage (lane/hazards)
+
+Gamer. Magma sweep row 5 + blaze rows 6-7. Shared `psv_env_pre_move` in
+`player_survival.h`. Snapshot v9 (`BLAZE_SNAP_VERSION_HAZARDS`) trailer
+fire+air; v8 loads 0/300. `BP_PLAYER` PLY1.
+
+Java: AIR 300 `Entity.java:256`; drown `EntityLivingBase.java:297-320`
+DROWN 2.0 at air==-20; IN_WALL `Entity.java:2156-2186`; LAVA 4.0 +
+setFire(15) `Entity.java:605-611`; ON_FIRE `Entity.java:554-557`; cactus
+`BlockCactus.java:133-136`; HOT_FLOOR `BlockMagma.java:45-50` skip sneak /
+frost walker; void `EntityLivingBase.java:1647-1649`. Apply via existing
+hurt gate + armor.
+
+Baseline tapes: bow NO divergence 1407 / entities 5525; smoke_zombie x2
+NO divergence through death 358; canon INFRASTRUCTURE FAILURE (golden
+frames missing). After: same, no earlier first divergence.
+
+Fixture baker `test_hazards --write-fixture` from
+`s10_t0_r64_no_liquid.bsnp` -> `s10_t0_r64_hazards.bsnp` +
+`hazards_s10.json` 448 actions. M1 448 ticks player digest
+`0x0ac36057b116e2d3`. M2 VERIFIED. Listed `--no-deps` M1 VERIFIED; M2
+VERIFIED except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp`
+missing). Units both sides PASS. Root `make test` PASS.
+
+Blaze death stays terminal (magma GUI respawn needs death_click; M1
+equals up to the death tick).
+## 2026-08-23 swamp/ice natural-spawn lockstep (lane/natspawn2)
+
+Anvil. Baseline swamp `--natural-spawn` M1 FAIL t=7 magma evidence 12 vs blaze 10 (`out/verify/natspawn2_swamp_baseline.log`). Magma 11 living vs blaze 9: first 7 match, then magma 4 zombies in a y=9 cave vs blaze 2. Fixture packed blight at those cells is 3-10; magma t=7 dump blight is 0.
+
+Cause: `compute_blocklight` (`magma/world/light.c:434-443`) memsets every loaded chunk then BFS from in-chunk emitters. Torch light that bled into the snapshot AABB from outside is lost. Blaze keeps the packed nibble (`cu_world_blk`, `blaze_core.h:939-942`). `EntityMob.isValidLightLevel` (`EntityMob.java:159-180`) uses combined sky+block light, so magma treated the cave as dark and spawned extra. Magma spawn now reads a snapshot `spawn_light` copy (`mob_live.c` `gm_hs_blk`) sticky like blaze. Also clip `HS_BIOME` OOR to plains 1 (`hs_biome_or_plains`, same shared deviation as `gm_world_rt_block` `world_live.c:705-708`; Java is biome at candidate BlockPos `WorldEntitySpawner.java:132-133` -> `WorldServer.java:245-249` -> `Chunk.getBiome` `Chunk.java:1273-1278`). Spawn lists: BiomeSwamp.java:34 appends slime weight 1 after witch (not combined 101 in the Biome.java slot); BiomeSnow.java:36-49 removes skeleton then appends skeleton 20 + stray 80; stray consume-then-skip, not roster.
+
+Ice plains fixture `s42_t0_r64_biome_plane_ice.bsnp` baked by `test_biome_plane --write-fixture --seed 42` from `s10_t0_r64_randtick_bodies.bsnp`. Genlayer: seed 42 player column biome 12, region 128x128 ice_cols=16384. New rows `biome_plane_spawn` (swamp seed 7 + `--natural-spawn`) and `biome_plane_ice` (seed 42); existing `biome_plane` stays the no-spawn plane-hash gate.
+
+M1+M2 VERIFIED for biome_plane_spawn and biome_plane_ice (`out/verify/natspawn2_biome_plane_spawn_m1.log`, `_m2.log`, `out/verify/natspawn2_biome_plane_ice_m1.log`, `_m2.log`). Listed `--no-deps` M1 stay VERIFIED; M2 stay VERIFIED except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS (`out/verify/natspawn2_maketest.log`). `make -C magma test-mob-live` PASS. `make -C blaze/rl test-biome-plane test-mobs` PASS.
+
+Tapes (`replay_tape.py --cpu --no-gate --report`): TNT both physics NO divergence 309, inventory 1-mismatch t=28 slot 0 flint-and-steel 259 tape meta 0 vs magma meta 1. creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2 physics NO divergence through death (358 / 373), entities PASS. bow physics NO divergence 1407, entities PASS 5525. Canon physics NO divergence 3617, entities PASS 16526, world_hash first_mismatch null, 46 c-side hash_deltas. First-divergence ticks did not move earlier.
+
+Stay out: tape-exact World.rand; stray live insert; PathNavigate A*. Did not add witch code.
+
+## 2026-08-23 biome plane snapshot v8 (lane/biomeplane)
+
+Anvil. Snapshot v8 carries one u8 per x,z column of the lockstep region (`ix*rnz+iz`). Magma `rl_snapshot_write` copies `LChunk.biome` (`magma/world/light.c:153`, index `(wx&15)+(wz&15)*16` = Java `Chunk.getBiome` `Chunk.java:1273-1278`). Magma load restores via `gm_world_set_biome`. Blaze env `biome[]` pool. v7 loads plains id 1 so old fixtures keep HS_BIOME/freeze plains semantics.
+
+Java: `Chunk.blockBiomeArray` (`Chunk.java:53`). Consumers: `WorldEntitySpawner.getSpawnListEntryForTypeAt` (`WorldServer.java:245-249`) -> `Biome.getSpawnableList` (`Biome.java:204-220`); `HS_BIOME` in `hostile_spawn.h`. `World.canBlockFreeze` / `canSnowAt` -> `Biome.getFloatTemperature` (`Biome.java:258-268`): `TEMPERATURE_NOISE.getValue((float)x/8.0F, (float)z/8.0F)*4.0D` with `NoiseGeneratorPerlin(new Random(1234L), 1)` (`Biome.java` static, `NoiseGeneratorPerlin.java:21-32` / `NoiseGeneratorSimplex.java:24-40`). Port reuses `cp_simplex_init` / `cp_perlin_getValue` (`chunk_provider.h`). `EntitySlime.getCanSpawnHere` swamp `biome == Biomes.SWAMPLAND` (`EntitySlime.java:350`). CREATURE lists: default `Biome.java:142-145`; empty ocean/river/beach/mesa (`BiomeOcean.java:8` etc.); ice plains rabbit/polar bear only (`BiomeSnow.java:33-35`) so roster weight 0. Swamp extra slime weight 1 (`BiomeSwamp.java:34`) already on the monster list.
+
+Digest: `BP_MOBS` MBM2 -> MBM3, `BP_RANDOM_TICKS` RTK3 -> RTK4; both hash the plane. Fixture `s7_t0_r64_biome_plane.bsnp` baked by `test_biome_plane --write-fixture --seed 7` from `s10_t0_r64_randtick_bodies.bsnp` (cells unchanged; genlayer tiled 16x16 like `light.c:403-406`). Seed 7 at (0,0) is biome 6 swamp (`B_SWAMP`); region `rx0=-56` 128x128 has 11910 swamp columns; player column id 6. Plane digest live `0x445765477ed874fb` vs forced-plains `0x57dc49820e0ad2c5`. M1 t=0 swamp RT `0x30456b456d67ed57` / mobs `0xb41b5f6c48c1c715`; plains twin RT `0x0d483600952866f1` / mobs `0x9e8f2ea1c70bf687`.
+
+Units: Perlin `getValue(1,2) = -0.23526496123584156` matches Java 8 `NoiseGeneratorPerlin`; `getFloatTemperature` plains (8,80,16) float bits 1061576695; swamp/ocean/ice spawn lists; v7 load plains 1. `make -C blaze/rl test-biome-plane` PASS.
+
+M1+M2 VERIFIED (`out/verify/biomeplane_biome_plane_m1.log`, `out/verify/biomeplane_biome_plane_m2.log`) without `--natural-spawn`. Listed `--no-deps` M1 stay VERIFIED; M2 stay VERIFIED except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS (`out/verify/biomeplane_maketest.log`).
+
+Tapes (`replay_tape.py --cpu --no-gate --report`): TNT both physics NO divergence 309, inventory 1-mismatch t=28 slot 0 flint-and-steel 259 tape meta 0 vs magma meta 1. creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2 physics NO divergence through death (358 / 373), entities PASS. bow physics NO divergence 1407, entities PASS 5525. Canon physics NO divergence 3617, entities PASS 16526, world_hash first_mismatch null, 46 c-side hash_deltas. First-divergence ticks did not move earlier.
+
+Natural-spawn on swamp (t=7 magma evidence 12 vs blaze 10) and ice plains (t=2 magma 8 vs blaze 6) still diverges; birch 27 with natural-spawn VERIFIED (same monster weights as plains). Did not edit hostile_live.h / living_base.h. `mob_live.c` only `HS_BIOME` -> `gm_world_biome`. Stay out: tape-exact World.rand; swamp/ice natural-spawn lockstep.
 
 ## 2026-08-23 enderman live insert (lane/enderman)
 

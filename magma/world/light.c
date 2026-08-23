@@ -815,6 +815,21 @@ void light_load_sky(CrLight *L, int wx, int wy, int wz, int sky) {
     L->skylight_dirty = 1;
 }
 
+/* Restore the packed block-light nibble from a snapshot. compute_blocklight
+ * zeros every loaded chunk then BFS from in-chunk emitters, so torch light
+ * that bled in from outside the snapshot AABB is lost. Blaze keeps the
+ * packed nibble (cu_world_blk). Do not raise blocklight_dirty: the next
+ * ensure would memset blk[] again. */
+void light_load_blk(CrLight *L, int wx, int wy, int wz, int blk) {
+    LChunk *c;
+    if (!L || wy < 0 || wy >= WY) return;
+    c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return;
+    if (blk < 0) blk = 0;
+    if (blk > 15) blk = 15;
+    c->blk[CB_INDEX(wx & 15, wy, wz & 15)] = (u8)blk;
+}
+
 void light_set_render_state(CrLight *L, int dimension,
                             float torch_flicker_x, float gamma) {
     if (!L) return;
@@ -1031,6 +1046,14 @@ static int biome_at(const CrLight *L, int wx, int wz) {
 /* Public read-only biome id (voronoi full-res) at a world column; -1 if the chunk
  * is not loaded. Same value magma renders from (world_diff verifier hook). */
 int light_biome(const CrLight *L, int wx, int wz) { return biome_at(L, wx, wz); }
+
+void light_set_biome(CrLight *L, int wx, int wz, int biome) {
+    LChunk *c;
+    if (!L) return;
+    c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return;
+    c->biome[(wx & 15) + (wz & 15) * 16] = biome;
+}
 
 /* Color resolvers: BiomeColorHelper keeps BlockPos.y fixed across the 3x3 (only
  * x/z step ±1); TEMPERATURE_NOISE therefore samples each neighbour's column. */
