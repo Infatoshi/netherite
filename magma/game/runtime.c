@@ -1154,7 +1154,10 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                      (struct PsvPlayer *)&r->player,(struct PvStats *)&r->vitals,
                      r->ox,r->oz,r->dimension,r->clock.world_time,&r->entities,
                      boat_fwd, boat_str, r->gamerules.mobGriefing);
-        {double x,y,z;if(gm_mobs_take_explosion(&r->mobs,&x,&y,&z))runtime_explode(r,x,y,z,3.0f);}
+        gm_mobs_tick_tnt(&r->mobs, r->world);
+        {double x,y,z;float sz=EXL_RADIUS;
+         if(gm_mobs_take_explosion_size(&r->mobs,&x,&y,&z,&sz))
+             runtime_explode(r,x,y,z,sz);}
         spawn_hostile_projectiles(r);
     } else {
         /* --mobs off skips AI/spawn/combat; loaded snapshot living slots
@@ -1163,7 +1166,10 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         gm_mobs_tick_spine(&r->mobs, r->world,
                            (const struct McSinTable *)&r->sin_table);
         gm_mobs_tick_creeper_fuse(&r->mobs);
-        {double x,y,z;if(gm_mobs_take_explosion(&r->mobs,&x,&y,&z))runtime_explode(r,x,y,z,3.0f);}
+        gm_mobs_tick_tnt(&r->mobs, r->world);
+        {double x,y,z;float sz=EXL_RADIUS;
+         if(gm_mobs_take_explosion_size(&r->mobs,&x,&y,&z,&sz))
+             runtime_explode(r,x,y,z,sz);}
     }
     if(r->dimension==1){
         GmPlayerView dv;gm_runtime_view(r,&dv);

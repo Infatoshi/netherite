@@ -37,7 +37,8 @@
 
 MC_HD static inline int ess_is_spine_type(int type) {
     return type != EW_TYPE_NONE && type != EW_TYPE_PLAYER
-        && type != EW_TYPE_BOAT && type != EW_TYPE_GHAST;
+        && type != EW_TYPE_BOAT && type != EW_TYPE_GHAST
+        && type != EW_TYPE_TNT_PRIMED;
 }
 
 MC_HD static inline int ess_solid_id(int id) {

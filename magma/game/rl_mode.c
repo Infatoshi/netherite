@@ -726,11 +726,22 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
                 packed[mi].target_idx ? 1 : 0, packed[mi].alive);
         }
         h = bp_hash_i32(h, ncreep);
-        out->digest[BP_EXPLOSIONS] = h;
-        out->evidence[BP_EXPLOSIONS] =
-            r->parity_ex_blasts + r->parity_ex_destroyed + (uint32_t)ncreep;
-        if (r->parity_ex_blasts || r->parity_ex_destroyed || ncreep)
-            out->active_mask |= BP_BIT(BP_EXPLOSIONS);
+        {
+            int ntnt = 0;
+            for (mi = 0; mi < (int)nm; ++mi) {
+                if (packed[mi].type != EW_TYPE_TNT_PRIMED) continue;
+                ++ntnt;
+                h = bp_hash_tnt(h, packed[mi].slot, packed[mi].swell,
+                                packed[mi].x, packed[mi].y, packed[mi].z);
+            }
+            h = bp_hash_i32(h, ntnt);
+            out->digest[BP_EXPLOSIONS] = h;
+            out->evidence[BP_EXPLOSIONS] =
+                r->parity_ex_blasts + r->parity_ex_destroyed
+                + (uint32_t)ncreep + (uint32_t)ntnt;
+            if (r->parity_ex_blasts || r->parity_ex_destroyed || ncreep || ntnt)
+                out->active_mask |= BP_BIT(BP_EXPLOSIONS);
+        }
     }
 
     {

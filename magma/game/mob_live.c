@@ -1861,6 +1861,7 @@ static void hai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
             m->explosion_x = s->x[i];
             m->explosion_y = s->y[i] + 0.5;
             m->explosion_z = s->z[i];
+            m->explosion_size = EXL_RADIUS;
             *moving = 0; *jump = 0; *wandering = 0; *swim_jump = 0; *nav_speed = 0.0;
             return;
         }
@@ -3232,6 +3233,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 m->explosion_x = mm.snap.x;
                 m->explosion_y = mm.snap.y + 0.5;
                 m->explosion_z = mm.snap.z;
+                m->explosion_size = EXL_RADIUS;
                 continue;
             }
             if (!nx->alive[i]) {
@@ -3383,6 +3385,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             if(++m->creeper_fuse[i]>=30){
                 nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;m->creeper_fuse[i]=0;m->explosion_pending=1;
                 m->explosion_x=now->x[i];m->explosion_y=now->y[i]+0.5;m->explosion_z=now->z[i];
+                m->explosion_size=EXL_RADIUS;
             }
         }else if(aggro&&gm_is_slimey(type)){
             /* Slime hop toward player. Squish edges use wasOnGround after
@@ -3577,6 +3580,7 @@ void gm_mobs_tick_creeper_fuse(GmMobLive *m) {
         m->explosion_x = s->x[i];
         m->explosion_y = s->y[i] + EXL_Y_OFF;
         m->explosion_z = s->z[i];
+        m->explosion_size = EXL_RADIUS;
         break;
     }
 }
@@ -3657,11 +3661,59 @@ int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
 }
 
 int gm_mobs_take_explosion(GmMobLive *m,double *x,double *y,double *z){
+    float sz;
+    return gm_mobs_take_explosion_size(m,x,y,z,&sz);
+}
+
+int gm_mobs_take_explosion_size(GmMobLive *m,double *x,double *y,double *z,
+                                float *size){
     if(!m||!m->explosion_pending)return 0;
     if(x)*x=m->explosion_x;
     if(y)*y=m->explosion_y;
     if(z)*z=m->explosion_z;
+    if(size)*size=m->explosion_size>0.0f?m->explosion_size:EXL_RADIUS;
     m->explosion_pending=0;return 1;
+}
+
+void gm_mobs_tick_tnt(GmMobLive *m, GmWorld *w) {
+    EwStore *s;
+    int i;
+    if (!m || !w) return;
+    s = now_store(m);
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        int wx, wy, wz, id, solid;
+        double floor_y;
+        if (!s->alive[i] || s->type[i] != EW_TYPE_TNT_PRIMED) continue;
+        wx = mc_floor(s->x[i]);
+        wy = mc_floor(s->y[i] - 0.01);
+        wz = mc_floor(s->z[i]);
+        id = gm_world_block(w, wx, wy, wz);
+        solid = id > 0 && id != BLK_WEB
+            && (mc_bpt_props(id).flags & BF_SOLID)
+            && !(mc_bpt_props(id).flags & BF_LIQUID);
+        floor_y = (double)wy + 1.0;
+        {
+            int og = (int)s->on_ground[i];
+            if (!exl_tnt_on_update(&s->x[i], &s->y[i], &s->z[i],
+                                   &s->vx[i], &s->vy[i], &s->vz[i],
+                                   &og, &m->creeper_fuse[i],
+                                   solid, floor_y)) {
+                s->on_ground[i] = (u8)(og ? 1 : 0);
+                continue;
+            }
+            s->on_ground[i] = (u8)(og ? 1 : 0);
+        }
+        m->explosion_pending = 1;
+        m->explosion_x = s->x[i];
+        m->explosion_y = s->y[i] + EXL_TNT_Y_OFF;
+        m->explosion_z = s->z[i];
+        m->explosion_size = EXL_TNT_SIZE;
+        s->alive[i] = 0;
+        s->type[i] = EW_TYPE_NONE;
+        m->creeper_fuse[i] = 0;
+        break;
+    }
+    ew_store_copy(next_store(m), s);
 }
 
 void gm_mobs_explosion_knockback(GmMobLive *m, GmLiveSim *drops,
@@ -3677,6 +3729,24 @@ void gm_mobs_explosion_knockback(GmMobLive *m, GmLiveSim *drops,
         ExBlast blast;
         if (!s->alive[i] || m->entity_dimension[i] != m->active_dimension)
             continue;
+        if (s->type[i] == EW_TYPE_TNT_PRIMED) {
+            float dens;
+            double minx, miny, minz, maxx, maxy, maxz;
+            ExBlast blast;
+            minx = s->x[i] - 0.49; miny = s->y[i]; minz = s->z[i] - 0.49;
+            maxx = s->x[i] + 0.49; maxy = s->y[i] + (double)EXL_TNT_HEIGHT;
+            maxz = s->z[i] + 0.49;
+            dens = ex_block_density(grid, ox, oy, oz, ex, ey, ez,
+                                    minx, miny, minz, maxx, maxy, maxz);
+            ex_entity_blast(s->x[i], s->y[i], s->z[i], 0.0f, ex, ey, ez, size,
+                            dens, 0, &blast);
+            if (blast.hit) {
+                s->vx[i] += blast.addx;
+                s->vy[i] += blast.addy;
+                s->vz[i] += blast.addz;
+            }
+            continue;
+        }
         if (!gm_living(s->type[i]) || s->type[i] == EW_TYPE_BOAT) continue;
         ehs_size((u8)s->type[i], &width, &height);
         if (m->det_box_on[i]) {

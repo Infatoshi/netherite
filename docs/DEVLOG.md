@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 TNT primed tick (lane/tntknock piece 3)
+
+Baseline after piece 2: explosions M1 VERIFIED without EntityTNTPrimed.
+
+Cause: Java `EntityTNTPrimed` fuse 80 (`EntityTNTPrimed.java:25`), `onUpdate` gravity `0.03999999910593033D` (`:78`), drag `(double)0.98F` (`:82-84`), on-ground `0.699999988079071D` / `motionY*=-0.5D` (`:86-90`), `explode` size `4.0F` smoking (`:111-114`), Y `posY+(double)(height/16.0F)` (javap fdiv f2d). Ctor `Math.random()` horizontal (`:34-37`) is `java.lang.Math.random`, not `world.rand`. Chain fuse is `world.rand.nextInt(fuse/4)+fuse/8` (`BlockTNT.java:72`). Fire uses `BlockFire.tryCatchFire` `random.nextInt` (`BlockFire.java:289`). `doExplosionB` drops use `world.rand.nextFloat` (`Block.java:698`) then three more in `spawnAsEntity` (`:719-721`). Magma/blaze live tick has no `world.rand` cursor (randtick is a hash stream).
+
+After: planted `EW_TYPE_TNT_PRIMED` slot (fuse in swell=20 so the 64-tick chain observes explode). Shared `exl_tnt_on_update`. Magma extra: Y clamp to collision top, not `Entity.move`. EXP2 hashes TNT slot/fuse/pos. explosions M1 VERIFIED (`out/verify/tntknock_explosions_m1_tnt.log`). mobs M1 still VERIFIED.
+
+Stay out (no common evidence): chain fuse `world.rand.nextInt`; fire `tryCatchFire` rand; `doExplosionB` item drops; ctor `Math.random()` xz kick (spawn my is the cited 0.20000000298023224D only). Flint&steel still only `setBlockToAir` in player_ctl (tape supplies the view).
+
 ## 2026-08-22 melee knockBack (lane/tntknock piece 2)
 
 Baseline after piece 1: mobs M1 VERIFIED with no EntityLivingBase.knockBack on the generic path.

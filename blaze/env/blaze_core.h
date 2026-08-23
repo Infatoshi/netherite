@@ -954,6 +954,23 @@ MC_HD static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
         if (!m->alive || m->type == EW_TYPE_NONE || m->type == EW_TYPE_PLAYER
             || m->type == EW_TYPE_BOAT)
             continue;
+        if (m->type == EW_TYPE_TNT_PRIMED) {
+            float mdens;
+            ExBlast mb;
+            minx = m->x - 0.49; miny = m->y; minz = m->z - 0.49;
+            maxx = m->x + 0.49; maxy = m->y + (double)EXL_TNT_HEIGHT;
+            maxz = m->z + 0.49;
+            mdens = ex_block_density(e->ex_grid, ox, oy, oz, ex, ey, ez,
+                                     minx, miny, minz, maxx, maxy, maxz);
+            ex_entity_blast(m->x, m->y, m->z, 0.0f, ex, ey, ez, size, mdens, 0,
+                            &mb);
+            if (mb.hit) {
+                m->mx += mb.addx;
+                m->my += mb.addy;
+                m->mz += mb.addz;
+            }
+            continue;
+        }
         ehs_size((u8)m->type, &width, &height);
         if (m->box_on) {
             minx = m->box_minx;
@@ -1004,6 +1021,43 @@ MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
 MC_HD static inline void cu_explosion_tick(Blaze *e) {
     unsigned i;
     if (!e) return;
+    for (i = 0; i < e->n_mobs; ) {
+        RlSnapMob *m = &e->mobs[i];
+        int wx, wy, wz, id, solid, og;
+        double floor_y;
+        if (!m->alive || m->type != EW_TYPE_TNT_PRIMED) {
+            ++i;
+            continue;
+        }
+        wx = mc_floor(m->x);
+        wy = mc_floor(m->y - 0.01);
+        wz = mc_floor(m->z);
+        id = cu_world_block(e, wx, wy, wz);
+        solid = id > 0 && id != BLK_WEB
+            && (mc_bpt_props(id).flags & BF_SOLID)
+            && !(mc_bpt_props(id).flags & BF_LIQUID);
+        floor_y = (double)wy + 1.0;
+        og = m->on_ground;
+        if (!exl_tnt_on_update(&m->x, &m->y, &m->z, &m->mx, &m->my, &m->mz,
+                               &og, &m->swell, solid, floor_y)) {
+            m->on_ground = og;
+            ++i;
+            continue;
+        }
+        m->on_ground = og;
+        e->explosion_pending = 1;
+        e->explosion_x = m->x;
+        e->explosion_y = m->y + EXL_TNT_Y_OFF;
+        e->explosion_z = m->z;
+        e->explosion_size = EXL_TNT_SIZE;
+        {
+            unsigned k;
+            for (k = i; k + 1u < e->n_mobs; ++k)
+                e->mobs[k] = e->mobs[k + 1];
+        }
+        e->n_mobs--;
+        break;
+    }
     if (e->mobs_enabled) goto apply;
     for (i = 0; i < e->n_mobs; ) {
         RlSnapMob *m = &e->mobs[i];
@@ -4672,11 +4726,22 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
                 e->mobs[mi].target_idx ? 1 : 0, e->mobs[mi].alive);
         }
         h = bp_hash_i32(h, ncreep);
-        r->digest[BP_EXPLOSIONS] = h;
-        r->evidence[BP_EXPLOSIONS] =
-            e->parity_ex_blasts + e->parity_ex_destroyed + (uint32_t)ncreep;
-        if (e->parity_ex_blasts || e->parity_ex_destroyed || ncreep)
-            r->active_mask |= BP_BIT(BP_EXPLOSIONS);
+        {
+            int ntnt = 0;
+            for (mi = 0; mi < e->n_mobs; ++mi) {
+                if (e->mobs[mi].type != EW_TYPE_TNT_PRIMED) continue;
+                ++ntnt;
+                h = bp_hash_tnt(h, e->mobs[mi].slot, e->mobs[mi].swell,
+                                e->mobs[mi].x, e->mobs[mi].y, e->mobs[mi].z);
+            }
+            h = bp_hash_i32(h, ntnt);
+            r->digest[BP_EXPLOSIONS] = h;
+            r->evidence[BP_EXPLOSIONS] =
+                e->parity_ex_blasts + e->parity_ex_destroyed
+                + (uint32_t)ncreep + (uint32_t)ntnt;
+            if (e->parity_ex_blasts || e->parity_ex_destroyed || ncreep || ntnt)
+                r->active_mask |= BP_BIT(BP_EXPLOSIONS);
+        }
     }
 
     {

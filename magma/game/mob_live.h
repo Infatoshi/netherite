@@ -76,6 +76,7 @@ typedef struct {
     int player_wither_ticks;                      /* PotionEffect(WITHER, 200, 0) */
     int explosion_pending;
     double explosion_x, explosion_y, explosion_z;
+    float explosion_size; /* creeper 3.0F / TNT 4.0F */
     /* Pending fireball spawn consumed by runtime: 0=none, 3=small (blaze), 5=large (ghast). */
     int fireball_pending;
     double fireball_x, fireball_y, fireball_z;
@@ -203,6 +204,9 @@ int gm_mobs_living_count(const GmMobLive *m);
 int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
                         float damage,GmLiveSim *drops);
 int gm_mobs_take_explosion(GmMobLive *m,double *x,double *y,double *z);
+int gm_mobs_take_explosion_size(GmMobLive *m,double *x,double *y,double *z,
+                                float *size);
+void gm_mobs_tick_tnt(GmMobLive *m, GmWorld *w);
 /* Explosion.doExplosionA living loop: density + damage + motion add. */
 void gm_mobs_explosion_knockback(GmMobLive *m, GmLiveSim *drops,
                                  const u16 *grid, int ox, int oy, int oz,
