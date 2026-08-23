@@ -817,6 +817,25 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 #define FL_UPDATES CU_FALL_UPDATES
 #include "falling_live.h"
 
+MC_HD static inline int cu_world_sky(const Blaze *e, int wx, int wy, int wz) {
+    long i = cu_region_idx(e, wx, wy, wz);
+    if (i < 0 || !e->light) return 15;
+    return (int)(e->light[i] >> 4);
+}
+MC_HD static inline int cu_world_blk(const Blaze *e, int wx, int wy, int wz) {
+    long i = cu_region_idx(e, wx, wy, wz);
+    if (i < 0 || !e->light) return 0;
+    return (int)(e->light[i] & 15);
+}
+
+#define ML_W Blaze
+#define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define ML_SKY(w, x, y, z) cu_world_sky((w), (x), (y), (z))
+#define ML_BLK(w, x, y, z) cu_world_blk((w), (x), (y), (z))
+#define ML_SET_BLOCK(w, x, y, z, id) cu_world_set_state((w), (x), (y), (z), (id), 0)
+#define ML_BLOCK_META(w, x, y, z) cu_world_meta((w), (x), (y), (z))
+#include "hostile_live.h"
+
 MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
                                         double radius, float damage) {
     int best = -1;
@@ -838,11 +857,17 @@ MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
         }
     }
     if (best < 0) return 0;
-    /* Arrow vs enderman is EntityDamageSourceIndirect: teleport, no HP.
-     * ml_enderman_arrow_hit lives in the hostile_live world half, included
-     * below; lockstep fixtures do not fire arrows at endermen. */
-    if (e->mobs[best].type == EW_TYPE_ENDERMAN)
+    /* EntityEnderman.attackEntityFrom EntityDamageSourceIndirect
+     * EntityEnderman.java:371-381: 64 teleportRandomly, no HP. Magma
+     * gm_mobs_damage_near does the same. */
+    if (e->mobs[best].type == EW_TYPE_ENDERMAN) {
+        MlMob mm;
+        memset(&mm, 0, sizeof mm);
+        mm.snap = e->mobs[best];
+        (void)ml_enderman_arrow_hit(&mm, e);
+        e->mobs[best] = mm.snap;
         return 1;
+    }
     e->mobs[best].health -= damage;
     if (e->mobs[best].health <= 0.0f)
         e->mobs[best].health = 0.0f;
@@ -915,25 +940,6 @@ MC_HD static inline void cu_try_pickup_arrow(Blaze *e, int index) {
     }
     if (flag) p->active = 0;
 }
-
-MC_HD static inline int cu_world_sky(const Blaze *e, int wx, int wy, int wz) {
-    long i = cu_region_idx(e, wx, wy, wz);
-    if (i < 0 || !e->light) return 15;
-    return (int)(e->light[i] >> 4);
-}
-MC_HD static inline int cu_world_blk(const Blaze *e, int wx, int wy, int wz) {
-    long i = cu_region_idx(e, wx, wy, wz);
-    if (i < 0 || !e->light) return 0;
-    return (int)(e->light[i] & 15);
-}
-
-#define ML_W Blaze
-#define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
-#define ML_SKY(w, x, y, z) cu_world_sky((w), (x), (y), (z))
-#define ML_BLK(w, x, y, z) cu_world_blk((w), (x), (y), (z))
-#define ML_SET_BLOCK(w, x, y, z, id) cu_world_set_state((w), (x), (y), (z), (id), 0)
-#define ML_BLOCK_META(w, x, y, z) cu_world_meta((w), (x), (y), (z))
-#include "hostile_live.h"
 
 MC_HD static inline int cu_hs_count(const Blaze *e) {
     unsigned i;
@@ -1465,6 +1471,18 @@ MC_HD static inline void cu_mob_on_death(Blaze *e, RlSnapMob *m) {
                           drops[0].item, drops[0].count, drops[0].meta, 10);
         return;
     }
+    if (m->type == EW_TYPE_WITCH) {
+        JavaRandom er;
+        MlDrop drops[7];
+        int n, i;
+        er.seed = m->seed48;
+        n = ml_witch_drop(&er, drops, 7);
+        m->seed48 = er.seed;
+        for (i = 0; i < n; ++i)
+            cu_spawn_item(e, m->x, m->y + 0.25, m->z,
+                          drops[i].item, drops[i].count, drops[i].meta, 10);
+        return;
+    }
     if (pl_is_roster(m->type)) {
         JavaRandom er;
         PlDrop drops[4];
@@ -1715,6 +1733,9 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             ectx.griefing = 1;
             ectx.world_time = e->ww.worldTime;
             ectx.raining = e->weather_enabled ? e->ww.raining : 0;
+            ectx.player_health = e->pl.health;
+            ectx.pmx = e->pl.ent.motionX;
+            ectx.pmz = e->pl.ent.motionZ;
             ml_hostile_ai(&mm, e, px, py, pz, day, e->seed, e->mob_tick,
                           &ectx, &o);
         }

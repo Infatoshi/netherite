@@ -1,4 +1,5 @@
-/* hostile_live.h - magma live hostile tick subset (zombie/skeleton/creeper/spider/slime).
+/* hostile_live.h - magma live hostile tick subset
+ * (zombie/skeleton/creeper/spider/slime/enderman/witch).
  *
  * Magma magma/game/mob_live.c and blaze-CPU/CUDA compile this one source.
  * Magma wrappers stay thin; do not re-derive gm_mobs_tick.
@@ -111,6 +112,7 @@ MC_HD static inline float ml_melee_damage(int type) {
     if (type == EW_TYPE_SKELETON) return 4.0f;
     if (type == EW_TYPE_CREEPER) return 4.0f;
     if (type == EW_TYPE_ENDERMAN) return 7.0f;
+    if (type == EW_TYPE_WITCH) return 2.0f; /* SharedMonsterAttributes default */
     if (type == EW_TYPE_PIGMAN) return 5.0f;
     return 4.0f;
 }
@@ -119,11 +121,13 @@ MC_HD static inline double ml_follow_range(int type) {
     if (type == EW_TYPE_ZOMBIE) return 40.0;          /* magma; Java 35.0 */
     if (type == EW_TYPE_SKELETON || type == EW_TYPE_CREEPER) return 16.0;
     if (type == EW_TYPE_ENDERMAN) return 64.0; /* EntityEnderman.java:95 */
+    if (type == EW_TYPE_WITCH) return 16.0; /* EntityLiving default */
     return 16.0;
 }
 
 MC_HD static inline int ml_attack_cooldown(int type) {
     if (type == EW_TYPE_SKELETON) return 40;          /* magma bow reload edge */
+    if (type == EW_TYPE_WITCH) return 60;             /* EntityAIAttackRanged.java:70 */
     if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_CREEPER) return 20;
     return 20;                                        /* EntityAIAttackMelee.java:27 */
 }
@@ -147,7 +151,8 @@ MC_HD static inline int ml_drop_item(int type) {
 MC_HD static inline int ml_is_roster(int type) {
     return type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON
         || type == EW_TYPE_CREEPER || type == EW_TYPE_SPIDER
-        || type == EW_TYPE_SLIME || type == EW_TYPE_ENDERMAN;
+        || type == EW_TYPE_SLIME || type == EW_TYPE_ENDERMAN
+        || type == EW_TYPE_WITCH;
 }
 
 MC_HD static inline int ml_is_slimey(int type) {
@@ -246,6 +251,7 @@ MC_HD static inline int ml_xp_points(int type, int slime_size) {
     if (type == EW_TYPE_SLIME) return slime_size > 0 ? slime_size : 1;
     if (type == EW_TYPE_SPIDER) return 5;     /* EntityMob.java:27 */
     if (type == EW_TYPE_ENDERMAN) return 5;   /* EntityMob.java:27 */
+    if (type == EW_TYPE_WITCH) return 5;      /* EntityMob.java:27 */
     return 5;
 }
 
@@ -420,7 +426,54 @@ typedef struct {
     int raining;
     int griefing;
     long long world_time;
+    float player_health;
+    double pmx, pmz;
 } MlEndCtx;
+
+#define ML_ITEM_GLOWSTONE 348
+#define ML_ITEM_SUGAR 353
+#define ML_ITEM_REDSTONE 331
+#define ML_ITEM_GLASS_BOTTLE 374
+#define ML_ITEM_GUNPOWDER 289
+#define ML_ITEM_STICK 280
+#define ML_POTION_SPEED 1              /* Potion.java:399 */
+#define ML_POTION_FIRE_RESISTANCE 12   /* Potion.java:410 */
+#define ML_POTION_WATER_BREATHING 13   /* Potion.java:411 */
+#define ML_WITCH_DRINK_NONE 0
+#define ML_WITCH_DRINK_WATER_BREATHING 1
+#define ML_WITCH_DRINK_FIRE_RESISTANCE 2
+#define ML_WITCH_DRINK_HEALING 3
+#define ML_WITCH_DRINK_SWIFTNESS 4
+#define ML_WITCH_DRINK_TICKS 32         /* ItemPotion.java:90 */
+#define ML_WITCH_THROW_RANGE 10.0       /* EntityAIAttackRanged.java:70 10.0F */
+
+/* ENTITIES_WITCH looting 0: rolls min 1 max 3 (nextInt(3)+1), then
+ * WeightedRandom over 7 weight-1 entries, set_count 0..2 = nextInt(3). */
+MC_HD static inline int ml_witch_drop(JavaRandom *er, MlDrop *out, int cap) {
+    static const int table[7] = {
+        ML_ITEM_GLOWSTONE, ML_ITEM_SUGAR, ML_ITEM_REDSTONE,
+        ML_ITEM_SPIDER_EYE, ML_ITEM_GLASS_BOTTLE, ML_ITEM_GUNPOWDER,
+        ML_ITEM_STICK
+    };
+    int rolls, i, n = 0;
+    if (!er || !out || cap <= 0) return 0;
+    rolls = 1 + jrand_int_bound(er, 3);
+    for (i = 0; i < rolls; ++i) {
+        int k = jrand_int_bound(er, 7);
+        int c = jrand_int_bound(er, 3);
+        if (c > 0 && n < cap) {
+            out[n].item = table[k];
+            out[n].count = c;
+            out[n].meta = 0;
+            ++n;
+        }
+    }
+    return n;
+}
+
+MC_HD static inline int ml_witch_has_effect(const RlSnapMob *s, int id) {
+    return s && s->effect_id == id && s->effect_duration > 0;
+}
 
 /* EntityEnderman.dropFewItems / loot ENTITIES_ENDERMAN at looting 0:
  * nextInt(2 + looting) = nextInt(2) = 0..1 pearls. */
@@ -1065,7 +1118,171 @@ MC_HD static inline void ml_enderman_ai(MlMob *m, ML_W *w,
     }
 }
 
-/* Generic (det_entity_rng off) hostile body for zombie/skeleton/creeper/spider/enderman.
+/* EntityWitch.onLivingUpdate drink + EntityAIAttackRanged. PathNavigateGround
+ * A* is a design gap (GPU_MOB_AI.md): chase is the generic straight line.
+ * Splash EntityPotion is not a PlProj type (projectile_live.h type 1/2 only);
+ * consume throw RNG on the witch stream, do not spawn a potion entity. */
+MC_HD static inline void ml_witch_ai(MlMob *m, ML_W *w,
+                                    double px, double py, double pz,
+                                    const MlEndCtx *ctx, MlAiOut *out) {
+    RlSnapMob *s;
+    JavaRandom er;
+    int aggro = 0, moving = 0, jump = 0, wandering = 0;
+    int drinking, feet, eye, in_water, burning;
+    double dx, dy, dz, d, xz, dsq;
+    float mw, mh;
+    if (out) {
+        out->moving = 0;
+        out->jump = 0;
+        out->wandering = 0;
+        out->hit_player = 0;
+        out->hit_dmg = 0.0f;
+        out->skel_fire = 0;
+    }
+    if (!m || !m->snap.alive) return;
+    s = &m->snap;
+    ++s->ticks_existed;
+    er.seed = s->seed48;
+    ehs_size((u8)s->type, &mw, &mh);
+    dx = px - s->x;
+    dy = py - s->y;
+    dz = pz - s->z;
+    d = sqrt(dx * dx + dy * dy + dz * dz);
+    xz = sqrt(dx * dx + dz * dz);
+    dsq = d * d;
+    feet = ML_BLOCK(w, mc_floor(s->x), mc_floor(s->y), mc_floor(s->z));
+    eye = ML_BLOCK(w, mc_floor(s->x), mc_floor(s->y + 1.62), mc_floor(s->z));
+    in_water = ml_block_is_fluid(feet) || ml_block_is_fluid(eye);
+    burning = m->fire_ticks > 0;
+    drinking = s->witch_drink != ML_WITCH_DRINK_NONE;
+    /* EntityWitch.onLivingUpdate EntityWitch.java:123-191. */
+    if (drinking) {
+        if (s->witch_attack_timer-- <= 0) {
+            int kind = s->witch_drink;
+            s->witch_drink = ML_WITCH_DRINK_NONE;
+            s->witch_attack_timer = 0;
+            if (kind == ML_WITCH_DRINK_WATER_BREATHING) {
+                s->effect_id = ML_POTION_WATER_BREATHING;
+                s->effect_duration = 3600; /* PotionType.java:72 */
+                s->effect_amplifier = 0;
+            } else if (kind == ML_WITCH_DRINK_FIRE_RESISTANCE) {
+                s->effect_id = ML_POTION_FIRE_RESISTANCE;
+                s->effect_duration = 3600; /* PotionType.java:65 */
+                s->effect_amplifier = 0;
+            } else if (kind == ML_WITCH_DRINK_SWIFTNESS) {
+                s->effect_id = ML_POTION_SPEED;
+                s->effect_duration = 3600; /* PotionType.java:67 */
+                s->effect_amplifier = 0;
+            } else if (kind == ML_WITCH_DRINK_HEALING) {
+                /* Potion.affectEntity Instant Health I Potion.java:153:
+                 * heal((int)(1.0 * (4 << 0) + 0.5)) = 4. */
+                s->health += 4.0f;
+                if (s->health > 26.0f) s->health = 26.0f;
+            }
+        }
+    } else {
+        int pick = ML_WITCH_DRINK_NONE;
+        if (jrand_float(&er) < 0.15f && in_water &&
+            !ml_witch_has_effect(s, ML_POTION_WATER_BREATHING))
+            pick = ML_WITCH_DRINK_WATER_BREATHING; /* EntityWitch.java:155 */
+        else if (jrand_float(&er) < 0.15f && burning &&
+                 !ml_witch_has_effect(s, ML_POTION_FIRE_RESISTANCE))
+            pick = ML_WITCH_DRINK_FIRE_RESISTANCE; /* :159 */
+        else if (jrand_float(&er) < 0.05f && s->health < 26.0f)
+            pick = ML_WITCH_DRINK_HEALING; /* :163 */
+        else if (jrand_float(&er) < 0.5f && s->target_idx &&
+                 !ml_witch_has_effect(s, ML_POTION_SPEED) && dsq > 121.0)
+            pick = ML_WITCH_DRINK_SWIFTNESS; /* :167 */
+        if (pick != ML_WITCH_DRINK_NONE) {
+            s->witch_drink = pick;
+            s->witch_attack_timer = ML_WITCH_DRINK_TICKS;
+            (void)jrand_float(&er); /* drink sound :177 */
+        }
+    }
+    (void)jrand_float(&er); /* 7.5E-4F setEntityState :184 */
+    if (s->effect_duration > 0) {
+        --s->effect_duration;
+        if (s->effect_duration <= 0) {
+            s->effect_id = 0;
+            s->effect_amplifier = 0;
+        }
+    }
+    drinking = s->witch_drink != ML_WITCH_DRINK_NONE;
+    if (d <= ml_follow_range(EW_TYPE_WITCH))
+        aggro = ml_los_clear(w, s->x, s->y + (double)mh * 0.85, s->z,
+                             px, py + ML_EYE_HEIGHT, pz);
+    if (aggro && xz <= ML_WITCH_THROW_RANGE && fabs(dy) < 3.0) {
+        s->wander_x = px;
+        s->wander_z = pz;
+        s->panic = 0;
+        s->task_bits = EW_AI_ATTACK;
+        s->yaw = ehs_yaw_toward(dx, dz);
+        if (!drinking && s->attack_time <= 0) {
+            /* EntityWitch.attackEntityWithRangedAttack EntityWitch.java:238-267.
+             * EntityPotion is not representable on PlProj; consume witch
+             * draws only. EntityThrowable.setThrowableHeading gaussians are
+             * on the new entity's rand (Entity.java unseeded) - skip. */
+            double d1, d3, f;
+            float php = ctx ? ctx->player_health : 20.0f;
+            d1 = px + (ctx ? ctx->pmx : 0.0) - s->x;
+            d3 = pz + (ctx ? ctx->pmz : 0.0) - s->z;
+            f = (float)sqrt(d1 * d1 + d3 * d3);
+            if (f >= 8.0f) {
+                /* slowness :249; player has no effect table */
+            } else if (php >= 8.0f) {
+                /* poison :253 */
+            } else if (f <= 3.0f && jrand_float(&er) < 0.25f) {
+                /* weakness :257 */
+            }
+            (void)jrand_float(&er); /* throw sound :265 */
+            s->attack_time = ml_attack_cooldown(EW_TYPE_WITCH);
+        }
+    } else if (aggro) {
+        s->wander_x = px;
+        s->wander_z = pz;
+        s->panic = 0;
+        s->task_bits = EW_AI_CHASE;
+        moving = drinking ? 0 : 1;
+        s->yaw = ehs_yaw_toward(dx, dz);
+    } else {
+        s->task_bits = EW_AI_IDLE;
+        wandering = 1;
+        if (m->repath_timer > 0) --m->repath_timer;
+        if (s->panic == 1) {
+            double wx2 = s->wander_x - s->x, wz2 = s->wander_z - s->z;
+            if (wx2 * wx2 + wz2 * wz2 < 1.0) s->panic = 0;
+        }
+        if (s->panic != 1 && m->repath_timer <= 0) {
+            u64 h;
+            int ddx, ddz;
+            m->repath_timer = ML_WANDER_INTERVAL;
+            h = mc_hash_seed((u64)(ctx ? ctx->world_time : 0), s->ticks_existed,
+                             s->slot, 0, 0, ML_WANDER_PURPOSE);
+            ddx = mc_hash_bound(h, 2 * ML_WANDER_RADIUS + 1) - ML_WANDER_RADIUS;
+            ddz = mc_hash_bound(mc_hash64(h), 2 * ML_WANDER_RADIUS + 1)
+                - ML_WANDER_RADIUS;
+            if (ddx || ddz) {
+                int txc = mc_floor(s->x) + ddx, tzc = mc_floor(s->z) + ddz;
+                int ty = ml_wander_ground_y(w, txc, mc_floor(s->y), tzc);
+                if (ty > -999) {
+                    s->wander_x = txc + 0.5;
+                    s->wander_z = tzc + 0.5;
+                    s->panic = 1;
+                }
+            }
+        }
+        if (s->panic == 1 && !drinking) moving = 1;
+    }
+    s->target_idx = aggro ? 1 : 0;
+    s->seed48 = er.seed;
+    if (out) {
+        out->moving = moving;
+        out->jump = jump;
+        out->wandering = wandering;
+    }
+}
+
+/* Generic (det_entity_rng off) hostile body for zombie/skeleton/creeper/spider/enderman/witch.
  * Magma gm_mobs_tick inner branch, magma/game/mob_live.c. */
 MC_HD static inline void ml_hostile_ai(MlMob *m, ML_W *w,
                                        double px, double py, double pz,
@@ -1093,6 +1310,10 @@ MC_HD static inline void ml_hostile_ai(MlMob *m, ML_W *w,
     }
     if (type == EW_TYPE_ENDERMAN) {
         ml_enderman_ai(m, w, px, py, pz, ectx, out);
+        return;
+    }
+    if (type == EW_TYPE_WITCH) {
+        ml_witch_ai(m, w, px, py, pz, ectx, out);
         return;
     }
     (void)day;
@@ -1276,6 +1497,8 @@ MC_HD static inline void ml_move_hostile(MlMob *m, ML_W *w, const McSinTable *st
     liv.landMovementFactor = ehs_land_speed_of((u8)s->type, ml_slime_size(s));
     if (s->type == EW_TYPE_ENDERMAN && s->screaming)
         liv.landMovementFactor += 0.15000000596046448f; /* ATTACKING_SPEED_BOOST */
+    if (s->type == EW_TYPE_WITCH && s->witch_drink)
+        liv.landMovementFactor = 0.0f; /* EntityWitch.java:48 MODIFIER -0.25 */
     if (s->type == EW_TYPE_SLIME && !moving)
         liv.landMovementFactor = 0.0f;
     liv.onLadder = ml_spider_climbing(s) ? 1 : 0;

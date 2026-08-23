@@ -873,6 +873,28 @@ int main(int argc, char **argv) {
     CHECK(acquired,"autonomy: hurt enderman acquires and chases the player");
     gm_runtime_destroy(&r);
 
+    /* Arrow vs enderman: EntityEnderman.java:371-381 64-try teleport, no HP. */
+    if(!init_flat(&r))return 1;
+    {
+        int aslot=gm_mobs_spawn(&r.mobs,EW_TYPE_ENDERMAN,8.5,5.0,10.5);
+        EwStore *es;
+        float hp0;
+        unsigned long long seed0;
+        CHECK(aslot>=0,"arrow: spawn enderman");
+        es=test_mob_store(&r.mobs);
+        hp0=es->health[aslot];
+        r.mobs.ent_jr_seed[aslot]=1;
+        seed0=r.mobs.ent_jr_seed[aslot];
+        CHECK(gm_mobs_damage_near(&r.mobs,r.world,8.5,5.5,10.5,1.0,4.0f,&r.entities),
+              "arrow: damage_near hits enderman");
+        es=test_mob_store(&r.mobs);
+        CHECK(es->health[aslot]==hp0,
+              "arrow: enderman HP unchanged (EntityEnderman.java:371-381)");
+        CHECK(r.mobs.ent_jr_seed[aslot]!=seed0,
+              "arrow: 64-try teleport consumes entity.rand");
+    }
+    gm_runtime_destroy(&r);
+
     /* Blaze burst: AIFireballAttack charge 60 then 3-shot volley (type-3). */
     if(!init_flat(&r))return 1;
     r.dimension=-1;r.mobs.active_dimension=-1;

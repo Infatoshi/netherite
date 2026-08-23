@@ -145,6 +145,11 @@ typedef struct {
     int ticks_existed[EW_MAX_ENTITIES];
     int find_aggro[EW_MAX_ENTITIES];
     int teleport_time[EW_MAX_ENTITIES];
+    int witch_attack_timer[EW_MAX_ENTITIES];
+    int witch_drink[EW_MAX_ENTITIES];
+    int effect_id[EW_MAX_ENTITIES];
+    int effect_duration[EW_MAX_ENTITIES];
+    int effect_amplifier[EW_MAX_ENTITIES];
     /* EntityBoat.deltaRotation / boatGlide. Not in EwStore. */
     float boat_delta_rot[EW_MAX_ENTITIES];
     float boat_glide[EW_MAX_ENTITIES];
@@ -175,6 +180,7 @@ enum {
     GM_MOB_WITHER_SKELETON = EW_TYPE_WITHER_SKELETON,
     GM_MOB_SLIME = EW_TYPE_SLIME,
     GM_MOB_SILVERFISH = EW_TYPE_SILVERFISH,
+    GM_MOB_WITCH = EW_TYPE_WITCH,
     GM_ENTITY_BOAT = EW_TYPE_BOAT,
     GM_ENTITY_XP_ORB = 21
 };

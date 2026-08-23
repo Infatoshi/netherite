@@ -198,7 +198,7 @@ MC_HD static inline int hs_monster_cap(int chunk_count_i) {
 MC_HD static inline int hs_is_roster(int hs_type) {
     return hs_type == HS_ZOMBIE || hs_type == HS_SKELETON || hs_type == HS_CREEPER
         || hs_type == HS_SPIDER || hs_type == HS_SLIME
-        || hs_type == HS_ENDERMAN;
+        || hs_type == HS_ENDERMAN || hs_type == HS_WITCH;
 }
 
 MC_HD static inline int hs_to_ew(int hs_type) {
@@ -207,6 +207,7 @@ MC_HD static inline int hs_to_ew(int hs_type) {
     if (hs_type == HS_CREEPER) return EW_TYPE_CREEPER;
     if (hs_type == HS_SPIDER) return EW_TYPE_SPIDER;
     if (hs_type == HS_ENDERMAN) return EW_TYPE_ENDERMAN;
+    if (hs_type == HS_WITCH) return EW_TYPE_WITCH;
     if (hs_type == HS_SLIME) return EW_TYPE_SLIME;
     return EW_TYPE_NONE;
 }

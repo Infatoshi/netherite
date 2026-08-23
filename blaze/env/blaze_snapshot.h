@@ -46,6 +46,7 @@ extern "C" {
 #define BLAZE_SNAP_VERSION_ENDER 7      /* + enderman fields on RlSnapMob */
 #define BLAZE_SNAP_VERSION 7
 #define BLAZE_SNAP_MOB_SIZE_V6 544      /* packed RlSnapMob through v6 */
+#define BLAZE_SNAP_MOB_SIZE_V7 572      /* packed through teleport_time */
 #pragma pack(push, 1)
 typedef struct {
     char magic[4];                 /* "BSNP" */
@@ -129,6 +130,13 @@ typedef struct RlSnapMob {
     int ticks_existed;             /* Entity.ticksExisted */
     int find_aggro;                /* AIFindPlayer.aggroTime */
     int teleport_time;             /* AIFindPlayer.teleportTime */
+    /* In-memory extras. On-disk v7 stays BLAZE_SNAP_MOB_SIZE_V7 (572);
+     * the loader zero-extends these without a version bump. */
+    int witch_attack_timer;        /* EntityWitch.witchAttackTimer */
+    int witch_drink;               /* 0 none; else pending drink kind */
+    int effect_id;                 /* Potion.getIdFromPotion; 0 = none */
+    int effect_duration;
+    int effect_amplifier;
 } RlSnapMob;
 /* One live XP orb. World coords. v3 files omit this trailer -> n_orbs=0. */
 typedef struct RlSnapOrb {
@@ -145,8 +153,10 @@ typedef struct RlSnapOrb {
 } RlSnapOrb;
 #pragma pack(pop)
 
-typedef char RlSnapMob_must_be_572_bytes
-    [(sizeof(RlSnapMob) == 572) ? 1 : -1];
+typedef char RlSnapMob_must_be_592_bytes
+    [(sizeof(RlSnapMob) == 592) ? 1 : -1];
+typedef char RlSnapMob_v7_disk_is_572
+    [(BLAZE_SNAP_MOB_SIZE_V7 == 572) ? 1 : -1];
 typedef char RlSnapOrb_must_be_84_bytes
     [(sizeof(RlSnapOrb) == 84) ? 1 : -1];
 
@@ -277,7 +287,12 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_hash_one_mob(
     h = bp_hash_i32(h, m->target_change_time);
     h = bp_hash_i32(h, m->ticks_existed);
     h = bp_hash_i32(h, m->find_aggro);
-    return bp_hash_i32(h, m->teleport_time);
+    h = bp_hash_i32(h, m->teleport_time);
+    h = bp_hash_i32(h, m->witch_attack_timer);
+    h = bp_hash_i32(h, m->witch_drink);
+    h = bp_hash_i32(h, m->effect_id);
+    h = bp_hash_i32(h, m->effect_duration);
+    return bp_hash_i32(h, m->effect_amplifier);
 }
 
 BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest(
@@ -297,7 +312,7 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest_ext(
     float player_health, int32_t hurt_res, int32_t atk_cd,
     uint64_t items_h, int32_t n_items) {
     uint64_t h = blaze_snap_mobs_digest(mobs, n);
-    h = bp_hash_u32(h, UINT32_C(0x324d424d)); /* "MBM2" */
+    h = bp_hash_u32(h, UINT32_C(0x334d424d)); /* "MBM3" */
     h = bp_hash_float(h, player_health);
     h = bp_hash_i32(h, hurt_res);
     h = bp_hash_i32(h, atk_cd);
