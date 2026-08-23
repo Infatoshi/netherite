@@ -1,5 +1,27 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 sim smalls arrow consume + heart-flash (lane/simsmalls)
+
+Gamer. Tapes rsynced from anvil (host `~/dev/netherite` lacked bow/zombie
+jsonl). Baseline `out/verify/simsmalls_baseline_blaze_bow.log` /
+`simsmalls_baseline_smoke_zombie.log`. After
+`simsmalls_after_blaze_bow.log` / `simsmalls_after2_smoke_zombie.log`.
+
+blaze_bow: physics exact 1407/1407; inventory PASS 10 independent / 0
+mismatches before and after. Live slot-8 arrows match tape at t=77,117,
+216,316,565. smoke_zombie: physics exact through death t=358; t=40 heart
+row 7 LSB; t=320/340 whole 0.38/0.48 /ch unchanged.
+
+Cause: ItemBow.findAmmo / shrink (ItemBow.java:47-70, 148-155) and
+EntityArrow pickup (EntityArrow.java:604-618) were incomplete (main-only
+item 262 scan, no inGround). HUD flash already existed; it used hurtTime
+as the resistant proxy. Ported findAmmo/infinity/creative/pickup and
+hurtResistantTime into `gm_hud_state_step`. Low-hp jitter is Class C
+without recorded updateCounter.
+
+`bash magma/game/test_hud.sh` PASS; `bash magma/game/test_runtime.sh`
+PASS. Cannot run ui_hud on gamer.
+
 ## 2026-08-22 mobs M1+M2 (lane/mobs)
 
 Baseline anvil HEAD 27ddb52: `BLOCKED mobs: Mob spawning, AI, combat, and drops lack end-to-end common evidence` (`blaze/env/port_matrix.yaml`). Shared headers already had spawning (`mob_spawning_world.h`), hostile spine (`entity_hostile_spine.h`), synthetic A* (`mob_ai_zombie_astar.h`), and living `Entity.move` (`entity_spine.h`). Magma `gm_mobs_tick` (`magma/game/mob_live.c`) was the live AI/combat/spawn path; blaze hashed the v3 roster and ticked spine only.

@@ -68,8 +68,8 @@ recorder or re-recording; D-class by improving gates, not the product.
     md<=1 neighbour-only matches t=31; blanket dest-out-of-window null
     regresses t=595 (Java walks). (detmob arc, DEVLOG 2026-08-21/22.)
 11. Sim smalls: mob roster/AI incomplete, boat UNDER_WATER, aim-pin 1-tick
-    break lag, arrow-count drift, heart-flash blink. "Simulation and
-    replay".
+    break lag. Arrow-count consume and HUD heart-flash blink CLOSED
+    2026-08-22 (lane/simsmalls). "Simulation and replay".
 12. Isolated render features: dimension-transfer loading sky, enchantment
     glint, chest model/seed parity, arrow ghost pitch, held-item
     registration outside pinned poses, sheep pose, dig particles.
@@ -1353,9 +1353,10 @@ or the tape is re-recorded with block edits taped.
 The gate now reports `ticks_independent` and flags `seeded_only`, but 13 of 23
 tapes still carry only the tick-0 `inv` row and so verify nothing beyond the
 seed. The recorder emits an inventory keyframe every 20 ticks as of this
-change; the tapes have to be **re-recorded** before that takes effect. Count
-and metadata are also still not compared - only item identity per slot - so
-arrow-count drift and durability ticking remain ungated.
+change; the tapes have to be **re-recorded** before that takes effect.
+`_compare_inv_tick` now compares item, count, and meta.
+`scenario_blaze_bow_20260722T092838Z` consume ticks match; bow `damageItem`
+is still server-only (one client-tick lag, re-anchored).
 
 ### Truncated tapes verify only a prefix
 
@@ -1473,8 +1474,10 @@ Recipe: `verify/scenarios/rain_thunder.yaml` (`/weather thunder 1000000`,
 - Some end-to-end Oracle runs lose the dragon boss-bar registration.
 - Mob roster, AI/spawn details, and boat `UNDER_WATER` state remain incomplete.
 - Aim-pin target changes can add a one-tick block-break lag.
-- Hotbar arrow count can drift while the Oracle shoots.
-- HUD heart-flash blinking is not modeled.
+- Hotbar arrow count can drift while the Oracle shoots. CLOSED 2026-08-22
+  (lane/simsmalls). Forensics in CLOSED_DIVERGENCES.md.
+- HUD heart-flash blinking is not modeled. CLOSED 2026-08-22 (lane/simsmalls).
+  Forensics in CLOSED_DIVERGENCES.md.
 - detmob nether T182511Z t=745 blaze eid=3872 x tape=-291.488923016319
   magma=-291.54075023842785 draws_between=0. RPG first-of-10 (all
   score=0.4) dest walk-up to y=96; magma 32x24x32 A* n=10 same-Y +Z;

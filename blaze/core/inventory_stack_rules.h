@@ -260,6 +260,86 @@ MC_HD static inline int isr_add_item_stack_to_inventory(IsrInv *inv, ICStack *in
     return incoming->count < prev ? 1 : 0;
 }
 
+/* Item.registerItems ids used by ItemBow.findAmmo / EntityArrow.getArrowStack. */
+#define ISR_ITEM_BOW 261
+#define ISR_ITEM_ARROW 262
+#define ISR_ITEM_SPECTRAL_ARROW 439
+#define ISR_ITEM_TIPPED_ARROW 440
+#define ISR_ENCHANT_INFINITY 51 /* Enchantment.java:268 */
+
+MC_HD static inline int isr_is_arrow_item(i32 item) {
+    return item == ISR_ITEM_ARROW || item == ISR_ITEM_SPECTRAL_ARROW ||
+           item == ISR_ITEM_TIPPED_ARROW;
+}
+
+MC_HD static inline int isr_stack_enchant_level(const ICStack *s, i32 ench_id) {
+    int i;
+    if (!s) return 0;
+    for (i = 0; i < s->n_enchants; ++i)
+        if (s->enchants[i].id == ench_id) return (int)s->enchants[i].level;
+    return 0;
+}
+
+/* ItemBow.findAmmo ItemBow.java:47-70: off-hand, then main hand, then
+ * InventoryPlayer.getStackInSlot 0..getSizeInventory()-1 (main+armor+offhand). */
+MC_HD static inline int isr_find_ammo(const IsrInv *inv) {
+    ICStack s;
+    int i;
+    if (!inv) return -1;
+    s = inv->offhand;
+    if (isr_is_arrow_item(s.item) && s.count > 0) return ISR_OFFHAND_SLOT;
+    if (isr_is_hotbar(inv->current_item)) {
+        s = inv->main[inv->current_item];
+        if (isr_is_arrow_item(s.item) && s.count > 0) return inv->current_item;
+    }
+    for (i = 0; i < ISR_MAIN_SLOTS; ++i) {
+        s = inv->main[i];
+        if (isr_is_arrow_item(s.item) && s.count > 0) return i;
+    }
+    for (i = 0; i < ISR_ARMOR_SLOTS; ++i) {
+        s = inv->armor[i];
+        if (isr_is_arrow_item(s.item) && s.count > 0) return ISR_ARMOR0 + i;
+    }
+    return -1;
+}
+
+/* ItemArrow.isInfinite ItemArrow.java:23-27: Infinity on the bow, and the
+ * ammo item's class is ItemArrow (plain 262). Spectral/tipped are subclasses. */
+MC_HD static inline int isr_arrow_is_infinite(const ICStack *ammo, const ICStack *bow) {
+    if (!bow || isr_stack_enchant_level(bow, ISR_ENCHANT_INFINITY) <= 0) return 0;
+    return ammo && ammo->item == ISR_ITEM_ARROW;
+}
+
+/* ItemBow.onPlayerStoppedUsing consume + pickupStatus. Returns 1 if the shot
+ * fires. pickup_out: 1 ALLOWED, 2 CREATIVE_ONLY (EntityArrow.PickupStatus). */
+MC_HD static inline int isr_try_fire_bow(IsrInv *inv, int creative, const ICStack *bow,
+                                         int *pickup_out) {
+    int slot, flag, flag1;
+    ICStack ammo;
+    if (!inv) return 0;
+    slot = isr_find_ammo(inv);
+    flag = creative || (bow && isr_stack_enchant_level(bow, ISR_ENCHANT_INFINITY) > 0);
+    if (slot < 0 && !flag) return 0;
+    if (slot < 0) ammo = ic_mk(ISR_ITEM_ARROW, 1, 0);
+    else ammo = isr_get_stack(inv, slot);
+    /* ItemBow.java:104 */
+    flag1 = creative || (isr_is_arrow_item(ammo.item) &&
+                         isr_arrow_is_infinite(&ammo, bow));
+    if (pickup_out) {
+        /* ItemBow.java:138-141 */
+        if (flag1 || (creative && (ammo.item == ISR_ITEM_SPECTRAL_ARROW ||
+                                   ammo.item == ISR_ITEM_TIPPED_ARROW)))
+            *pickup_out = 2;
+        else
+            *pickup_out = 1;
+    }
+    /* ItemBow.java:148-155: shrink the findAmmo stack; deleteStack on empty
+     * (isr_decr_stack_size already writes EMPTY when count hits 0). */
+    if (!flag1 && !creative && slot >= 0)
+        (void)isr_decr_stack_size(inv, slot, 1);
+    return 1;
+}
+
 MC_HD static inline i32 isr_hotbar_total(const IsrInv *inv) {
     i32 sum = 0;
     for (int i = 0; i < 9; ++i) sum += inv->main[i].count;
