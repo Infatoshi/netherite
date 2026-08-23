@@ -1513,6 +1513,73 @@ Recipe: `verify/scenarios/rain_thunder.yaml` (`/weather thunder 1000000`,
   Java wander tasks=8 then 0. HashSet getStart unused (WALKABLE pri=0).
   Do not widen PNP_DY (CUDA twins / GPU_MOB_AI 32x24x32).
 
+## Sweep 2026-08-23 (codex full read, oracle -> magma; unverified by gate unless noted)
+
+Ranked by tape impact. Each row: Java site; magma site; what is missing.
+Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
+
+1. Stronghold placement: `blaze/core/map_gen_stronghold.h:153-179` uses a
+   simplified 3-position ring; Java `MapGenStronghold` (128 strongholds,
+   `getValidStrongholdGen` biome relocation) not ported. Eye-of-ender
+   targets differ. L.
+2. Furnace registry: `blaze/core/smelting_recipes.h:35-68` item ids are
+   from the wrong registry (lava bucket 332 vs Java 327, fish 359 vs 349,
+   beef 373 vs 363, ...). Missing recipes, fuels, and XP per
+   `FurnaceRecipes.java` / `TileEntityFurnace.getItemBurnTime`. M. Lane
+   `furnaceids`.
+3. Buckets: `blaze/core/inventory_stack_rules.h:64-73` caps empty bucket at
+   1; Java `ItemBucket` empty bucket stacks to 16, filled to 1. Fill
+   replaces the stack in `magma/game/player_ctl.c:677-686`; Java decrements
+   and adds the filled bucket (`ItemBucket.fillBucket`). S. Lane
+   `furnaceids`.
+4. Explosion residuals: creeper explosion uses Y+0.5 (`magma/game/
+   mob_live.c:3564-3569`), no charged creeper (`EntityCreeper.getPowered`
+   radius 6), `mobGriefing` only partly honored, `getBlockDensity` treats
+   every block as a full cube, no blast-protection enchant reduction, no
+   `isFlaming` fire placement, missing sound RNG draws. L.
+5. Environmental damage: `blaze/core/player_survival.h:378-398` handles
+   web/soul sand only. Missing drowning (`EntityLivingBase.onEntityUpdate`
+   air -> 2 damage), suffocation (`isEntityInsideOpaqueBlock` 1 per 20),
+   lava (4 + fire 15 s, `Entity.setOnFireFromLava`), cactus (`BlockCactus.
+   onEntityCollidedWithBlock` 1), magma block (`BlockMagma` 1 unless
+   sneaking/frost walker), void (`Entity.kill` below y=-64, 4 per 10 ticks
+   below -64), fire ticks on the player (`Entity.onUpdate` fire -> 1 per
+   20). M. Lane `hazards`.
+6. Crafting: no boat recipe (`crafting_recipes_full.h`), no
+   `getRemainingItems` (bucket/bottle containers stay consumed). S/M.
+7. Live ground items: `magma/game/live_sim.c:155-258` runs its own item
+   physics and bypasses the verified `blaze/core/entity_item.h` kernel.
+   Pickup delay, merge, and lava cut differ between the two paths. M.
+8. Tick order: `magma/game/runtime.c:904-1216` is not `WorldServer.tick`
+   order (Java: weather, updateBlocks(random ticks) per chunk, tile
+   entities in `updateEntities` after entities, scheduled ticks before
+   entities). M; coupling with every M1 row.
+9. Beds: `magma/game/runtime.c:2379-2387` skips the Java sleep state
+   machine (`EntityPlayer.trySleep`, `sleepTimer` 100, wake all players
+   check, spawn point set). M.
+10. Potion effects are render-only; no `PotionEffect.performEffect`
+    tick. M.
+11. Shield: no `EntityPlayer.canBlockDamageSource` / `damageShield`. S.
+12. Food table incomplete and `ItemFood.onItemUseFinish` `rand.nextFloat`
+    draw (potion probability, `ItemFood.java:66`) not consumed. S.
+
+Silent deviations found (not yet measured by any gate): hotbar best-slot
+loop returns `current_item` unconditionally (`inventory_stack_rules.h:
+148-161` vs `InventoryPlayer.getBestHotbarSlot` unenchanted preference);
+fluids step synchronously instead of via scheduled ticks (`fluid_live.h`);
+block placement skips `mayPlace` (`ItemBlock.onItemUse`); light uses
+Jacobi sweeps, not Java's per-update queue timing; fixed caps (96
+entities, 48 items, 64 collision boxes) silently drop state; XP orb lava
+cut; wet sponge; stronghold iron bars where Java places doors; portal
+nearest-selection.
+
+Ungated systems: furnace, crafting with containers, beds, potions,
+shield, environmental damage, stronghold placement, hotbar selection.
+Tapes record player physics / inventory / ghost views / world hash only,
+so a rule that never moves the player or the hotbar is invisible to the
+replay gate; unit tests against Java-derived fixtures are the gate for
+these.
+
 ## Oracle, recorder, and world-state blockers
 
 These are not established C product bugs, but they block direct parity claims:

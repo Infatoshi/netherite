@@ -101,6 +101,55 @@ Two consequences worth stating plainly:
   48-point path cap), IntHashMap aliasing reproduced, all 8 detmob tapes
   must be blaze-exact.
 
+## Sweep 2026-08-23 (codex full read, magma -> blaze; unverified by gate unless noted)
+
+Ranked by RL fidelity. Each row: magma site; blaze site or absent; what
+closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
+
+1. Episode region is fixed; no chunk streaming (`blaze/env/blaze_core.h:
+   456-516, 4652-4659`). Magma streams chunks around the player. Every
+   row is VERIFIED only inside the snapshot region. L; blocks long-horizon
+   transfer.
+2. Policy actions are privileged helpers (craft/interact/smelt in
+   `blaze/rl/obs_pack.h:20-51`); no strafe, sneak, sprint, or slot-click
+   as magma `player_ctl` sees them. `do_place` is unreachable from the RL
+   ABI. M; transfer gap, not parity.
+3. Block light does not propagate in blaze (`blaze_core.h:689-703`) and no
+   digest covers light. Magma `light.c` propagates. Spawn light checks
+   therefore read different values off-region. M/L; coupling natspawn2.
+4. Snapshot restore drops active state: furnaces, chests, craft grid,
+   bow/eat/left-click timers, projectiles, falling blocks, fluid regions,
+   mob sidecars (repath/despawn/fire/tick), boat, explosion state, player
+   XP/fire, armor/enchants (`blaze_snapshot.h` vs `runtime.h`). Lockstep
+   starts from a different state and the difference is not digested.
+   Needs a continuous-vs-resume parity gate: run N ticks, snapshot,
+   restore, run M; compare with N+M continuous. M/L.
+5. Focused M2 compares `k_tick_raw`, not the production warp kernel
+   (`blaze/env/verify_cuda.py:655-663`). M.
+6. Death/respawn is terminal only; magma respawns (`runtime.c`). S/M.
+7. Player fire ticks absent in blaze (only `mob_fire[]`,
+   `blaze_core.h:1623-1630`); magma burns the player. Coupling with
+   magma sweep row 5. M. Lane `hazards`.
+8. Mob sidecars (repath, despawn, fire, tick counters) not snapshotted and
+   not digested. M.
+9. Item enchant payload and the 32-stack overflow queue missing in blaze.
+   M.
+10. TNT flint-and-steel activation missing in blaze (`blaze_core.h:
+    2618-2711`); magma `player_ctl.c` ignites. S. Lane `tntsupport`.
+11. No furnaces matrix row. Coupling with magma sweep row 2. M. Lane
+    `furnaceids` adds the row.
+12. Torch support check (`player_ctl.c:180-203`) missing in blaze
+    (`blaze_core.h:2693-2711`): blaze places torches on air. S. Lane
+    `tntsupport`.
+13. Potion / milk / shield use state absent. M.
+14. Chest cap fixed 64 in blaze vs magma growth. S.
+15. Boat mount vs bow release order differs between sides. S.
+
+Field aliasing in the shared mob table: `swell` (slime size), `melee_delay`
+(slime jumpDelay), `see_time`, `anger` bit0, `target_idx` carry per-kind
+state. Any new kind that uses the same field for its Java meaning collides.
+Observation exposes no mob, light, or health planes.
+
 ## Prerequisites discovered in design review (block the entity arc)
 
 - **M1 transport (landed).** Snapshot v3 (`blaze/env/blaze_snapshot.h`)
