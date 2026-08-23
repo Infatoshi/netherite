@@ -810,6 +810,75 @@ subsystems:
       - --natural-spawn
     timeout: 1500
 
+  - name: mobs_end
+    supported: true
+    sources:
+      magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
+      shared:
+        - blaze/core/hostile_live.h
+        - blaze/core/hostile_spawn.h
+        - blaze/core/entity_hostile_spine.h
+        - blaze/core/entity_spine.h
+        - blaze/core/living_base.h
+        - blaze/core/port_parity.h
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
+    dependencies: [mobs, mobs_ss]
+    required_features: [mobs, xp]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_mobs_end.bsnp
+        - blaze/rl/fixtures/mobs_end_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_mobs_end.bsnp
+        - blaze/rl/fixtures/mobs_end_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_mobs_end.bsnp
+      - --tape
+      - blaze/rl/fixtures/mobs_end_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - mobs,xp
+      - --mobs-on
+      - --natural-spawn
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_mobs_end.bsnp
+      - --tape
+      - blaze/rl/fixtures/mobs_end_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - mobs,xp
+      - --mobs-on
+      - --natural-spawn
+    timeout: 1500
+
   - name: chests
     supported: true
     sources:

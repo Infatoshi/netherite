@@ -838,11 +838,14 @@ MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
         }
     }
     if (best < 0) return 0;
+    /* Arrow vs enderman is EntityDamageSourceIndirect: teleport, no HP.
+     * ml_enderman_arrow_hit lives in the hostile_live world half, included
+     * below; lockstep fixtures do not fire arrows at endermen. */
+    if (e->mobs[best].type == EW_TYPE_ENDERMAN)
+        return 1;
     e->mobs[best].health -= damage;
-    if (e->mobs[best].health <= 0.0f) {
-        e->mobs[best].alive = 0;
+    if (e->mobs[best].health <= 0.0f)
         e->mobs[best].health = 0.0f;
-    }
     return 1;
 }
 
@@ -928,6 +931,8 @@ MC_HD static inline int cu_world_blk(const Blaze *e, int wx, int wy, int wz) {
 #define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #define ML_SKY(w, x, y, z) cu_world_sky((w), (x), (y), (z))
 #define ML_BLK(w, x, y, z) cu_world_blk((w), (x), (y), (z))
+#define ML_SET_BLOCK(w, x, y, z, id) cu_world_set_state((w), (x), (y), (z), (id), 0)
+#define ML_BLOCK_META(w, x, y, z) cu_world_meta((w), (x), (y), (z))
 #include "hostile_live.h"
 
 MC_HD static inline int cu_hs_count(const Blaze *e) {
@@ -1159,6 +1164,8 @@ MC_HD static inline float cu_armor_damage(Blaze *e, float amount) {
 }
 
 MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m);
+MC_HD static inline void cu_mob_on_death(Blaze *e, RlSnapMob *m);
+MC_HD static inline void cu_mob_finish_dead(Blaze *e, RlSnapMob *m);
 MC_HD static inline void cu_mobs_compact(Blaze *e);
 
 MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
@@ -1246,7 +1253,7 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
         m->my += mb.addy;
         m->mz += mb.addz;
         m->health -= mb.damage;
-        if (m->health <= 0.0f) cu_mob_drop(e, m);
+        if (m->health <= 0.0f) m->health = 0.0f;
     }
     cu_mobs_compact(e);
     exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays, &e->world_rand,
@@ -1416,65 +1423,97 @@ MC_HD static inline void cu_slime_split(Blaze *e, const RlSnapMob *dead, JavaRan
     }
 }
 
-MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
+/* EntityLivingBase.onDeath EntityLivingBase.java:1224-1271: dropLoot now.
+ * XP and EntitySlime.setDead split wait for deathTime==20. */
+MC_HD static inline void cu_mob_on_death(Blaze *e, RlSnapMob *m) {
     int item;
     if (!e || !m) return;
     if (m->type == EW_TYPE_SPIDER) {
         JavaRandom er;
         MlDrop drops[2];
-        int n, i, xp;
+        int n, i;
         er.seed = m->seed48;
         n = ml_spider_drop(&er, 1, drops, 2);
-        xp = ml_xp_points(EW_TYPE_SPIDER, 0);
         m->seed48 = er.seed;
         for (i = 0; i < n; ++i)
             cu_spawn_item(e, m->x, m->y + 0.25, m->z,
                           drops[i].item, drops[i].count, drops[i].meta, 10);
-        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
-        m->alive = 0;
-        m->type = EW_TYPE_NONE;
         return;
     }
     if (m->type == EW_TYPE_SLIME) {
         JavaRandom er;
         MlDrop drops[1];
-        int n, sz, xp;
+        int n, sz;
         er.seed = m->seed48;
         sz = ml_slime_size(m);
         n = ml_slime_drop(&er, sz, drops, 1);
-        xp = ml_xp_points(EW_TYPE_SLIME, sz);
-        if (sz > 1) cu_slime_split(e, m, &er);
         m->seed48 = er.seed;
         if (n > 0)
             cu_spawn_item(e, m->x, m->y + 0.25, m->z,
                           drops[0].item, drops[0].count, drops[0].meta, 10);
-        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
-        m->alive = 0;
-        m->type = EW_TYPE_NONE;
+        return;
+    }
+    if (m->type == EW_TYPE_ENDERMAN) {
+        JavaRandom er;
+        MlDrop drops[1];
+        int n;
+        er.seed = m->seed48;
+        n = ml_enderman_drop(&er, drops, 1);
+        m->seed48 = er.seed;
+        if (n > 0)
+            cu_spawn_item(e, m->x, m->y + 0.25, m->z,
+                          drops[0].item, drops[0].count, drops[0].meta, 10);
         return;
     }
     if (pl_is_roster(m->type)) {
         JavaRandom er;
         PlDrop drops[4];
-        int n, i, xp;
+        int n, i;
         er.seed = m->seed48;
         n = pl_drop_few(m->type, pl_sheep_sheared(m->swell),
                         pl_sheep_color(m->swell), &er, drops, 4);
-        xp = pl_xp_points(&er);
         m->seed48 = er.seed;
         for (i = 0; i < n; ++i)
             cu_spawn_item(e, m->x, m->y + 0.25, m->z,
                           drops[i].item, drops[i].count, drops[i].meta, 10);
-        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
-        m->alive = 0;
-        m->type = EW_TYPE_NONE;
         return;
     }
     item = ml_drop_item(m->type);
     if (item)
         cu_spawn_item(e, m->x, m->y + 0.25, m->z, item, 1, 0, 10);
+}
+
+/* EntityLivingBase.onDeathUpdate deathTime==20: XP then setDead.
+ * EntitySlime.setDead split EntitySlime.java:217-247. */
+MC_HD static inline void cu_mob_finish_dead(Blaze *e, RlSnapMob *m) {
+    int xp = 5, sz;
+    if (!e || !m) return;
+    if (m->type == EW_TYPE_SLIME) {
+        JavaRandom er;
+        er.seed = m->seed48;
+        sz = ml_slime_size(m);
+        xp = ml_xp_points(EW_TYPE_SLIME, sz);
+        if (sz > 1) cu_slime_split(e, m, &er);
+        m->seed48 = er.seed;
+    } else if (m->type == EW_TYPE_SPIDER) {
+        xp = ml_xp_points(EW_TYPE_SPIDER, 0);
+    } else if (pl_is_roster(m->type)) {
+        JavaRandom er;
+        er.seed = m->seed48;
+        xp = pl_xp_points(&er);
+        m->seed48 = er.seed;
+    } else {
+        xp = ml_xp_points(m->type, 0);
+    }
+    if (xp > 0)
+        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
     m->alive = 0;
     m->type = EW_TYPE_NONE;
+}
+
+MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
+    cu_mob_on_death(e, m);
+    cu_mob_finish_dead(e, m);
 }
 
 MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
@@ -1519,9 +1558,13 @@ MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
         e->mobs[best].seed48 = jr.seed;
     }
     e->player_attack_cooldown = ML_PLAYER_ATK_CD;
+    if (e->mobs[best].type == EW_TYPE_ENDERMAN) {
+        e->mobs[best].screaming = 1;
+        e->mobs[best].target_change_time = e->mobs[best].ticks_existed;
+        e->mobs[best].target_idx = 1;
+    }
     if (e->mobs[best].health <= 0.0f)
-        cu_mob_drop(e, &e->mobs[best]);
-    cu_mobs_compact(e);
+        e->mobs[best].health = 0.0f;
     return 1;
 }
 
@@ -1591,10 +1634,18 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     for (i = 0; i < e->n_mobs; ++i) {
         MlMob mm;
         MlAiOut o;
-        int pre, drop_type;
+        int pre;
         if (e->mobs[i].alive && pl_is_roster(e->mobs[i].type)) {
             PlAiOut po;
             cu_mob_from_env(&mm, e, i);
+            if (mm.snap.health <= 0.0f) {
+                if (mm.snap.death_time == 0)
+                    cu_mob_on_death(e, &mm.snap);
+                if (!ml_on_death_update(&mm.snap))
+                    cu_mob_finish_dead(e, &mm.snap);
+                cu_mob_to_env(e, i, &mm);
+                continue;
+            }
             pl_passive_pre(&mm);
             pl_passive_ai(&mm, e, &po);
             if (!mm.snap.alive) {
@@ -1640,20 +1691,33 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             ess_store_snap(m, &liv);
             continue;
         }
-        drop_type = e->mobs[i].type;
         cu_mob_from_env(&mm, e, i);
         pre = ml_hostile_pre(&mm, e, px, py, pz, day);
         if (pre <= 0) {
             cu_mob_to_env(e, i, &mm);
-            if (pre < 0) {
-                mm.snap.type = drop_type;
-                cu_mob_drop(e, &mm.snap);
-                e->mobs[i] = mm.snap;
-            }
+            continue;
+        }
+        if (mm.snap.alive && mm.snap.health <= 0.0f) {
+            if (mm.snap.death_time == 0)
+                cu_mob_on_death(e, &mm.snap);
+            if (!ml_on_death_update(&mm.snap))
+                cu_mob_finish_dead(e, &mm.snap);
+            cu_mob_to_env(e, i, &mm);
             continue;
         }
         if (mm.snap.attack_time > 0) --mm.snap.attack_time;
-        ml_hostile_ai(&mm, e, px, py, pz, day, e->seed, e->mob_tick, &o);
+        {
+            MlEndCtx ectx;
+            memset(&ectx, 0, sizeof ectx);
+            ectx.yaw = e->pl.yaw;
+            ectx.pitch = e->pl.pitch;
+            ectx.helmet = isr_get_stack(&e->pl.inv, ISR_ARMOR_HEAD).item;
+            ectx.griefing = 1;
+            ectx.world_time = e->ww.worldTime;
+            ectx.raining = e->weather_enabled ? e->ww.raining : 0;
+            ml_hostile_ai(&mm, e, px, py, pz, day, e->seed, e->mob_tick,
+                          &ectx, &o);
+        }
         if (mm.exploded) {
             e->explosion_pending = 1;
             e->explosion_x = mm.snap.x;

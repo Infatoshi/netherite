@@ -134,10 +134,17 @@ typedef struct {
     double ent_jr_gauss[EW_MAX_ENTITIES];
     int blaze_hot[EW_MAX_ENTITIES];     /* EntityBlaze.heightOffsetUpdateTime */
     float blaze_hof[EW_MAX_ENTITIES];   /* EntityBlaze.heightOffset */
-    /* EntityLivingBase.hurtTime / deathTime. Live tick does not yet age
-     * these; snapshot v3 still carries them so a later spine port can restore. */
+    /* EntityLivingBase.hurtTime / deathTime. deathTime ages on health<=0
+     * and setDead runs at 20 (EntityLivingBase.onDeathUpdate). */
     int hurt_time[EW_MAX_ENTITIES];
     int death_time[EW_MAX_ENTITIES];
+    int screaming[EW_MAX_ENTITIES];
+    int carried[EW_MAX_ENTITIES];
+    int carried_meta[EW_MAX_ENTITIES];
+    int target_change_time[EW_MAX_ENTITIES];
+    int ticks_existed[EW_MAX_ENTITIES];
+    int find_aggro[EW_MAX_ENTITIES];
+    int teleport_time[EW_MAX_ENTITIES];
     /* EntityBoat.deltaRotation / boatGlide. Not in EwStore. */
     float boat_delta_rot[EW_MAX_ENTITIES];
     float boat_glide[EW_MAX_ENTITIES];
@@ -221,7 +228,8 @@ void gm_mobs_tick_creeper_fuse(GmMobLive *m);
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max);
 int gm_mobs_alive(const GmMobLive *m);
 int gm_mobs_living_count(const GmMobLive *m);
-int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
+int gm_mobs_damage_near(GmMobLive *m, GmWorld *w,
+                        double x,double y,double z,double radius,
                         float damage,GmLiveSim *drops);
 int gm_mobs_take_explosion(GmMobLive *m,double *x,double *y,double *z);
 int gm_mobs_take_explosion_size(GmMobLive *m,double *x,double *y,double *z,

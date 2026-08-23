@@ -118,6 +118,7 @@ MC_HD static inline float ml_melee_damage(int type) {
 MC_HD static inline double ml_follow_range(int type) {
     if (type == EW_TYPE_ZOMBIE) return 40.0;          /* magma; Java 35.0 */
     if (type == EW_TYPE_SKELETON || type == EW_TYPE_CREEPER) return 16.0;
+    if (type == EW_TYPE_ENDERMAN) return 64.0; /* EntityEnderman.java:95 */
     return 16.0;
 }
 
@@ -139,13 +140,14 @@ MC_HD static inline int ml_drop_item(int type) {
     if (type == EW_TYPE_CREEPER) return 289;
     if (type == EW_TYPE_SPIDER) return ML_ITEM_STRING;
     if (type == EW_TYPE_SLIME) return ML_ITEM_SLIME_BALL;
+    if (type == EW_TYPE_ENDERMAN) return 368; /* ender pearl */
     return 0;
 }
 
 MC_HD static inline int ml_is_roster(int type) {
     return type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON
         || type == EW_TYPE_CREEPER || type == EW_TYPE_SPIDER
-        || type == EW_TYPE_SLIME;
+        || type == EW_TYPE_SLIME || type == EW_TYPE_ENDERMAN;
 }
 
 MC_HD static inline int ml_is_slimey(int type) {
@@ -243,7 +245,19 @@ MC_HD static inline int ml_slime_drop(JavaRandom *er, int size,
 MC_HD static inline int ml_xp_points(int type, int slime_size) {
     if (type == EW_TYPE_SLIME) return slime_size > 0 ? slime_size : 1;
     if (type == EW_TYPE_SPIDER) return 5;     /* EntityMob.java:27 */
+    if (type == EW_TYPE_ENDERMAN) return 5;   /* EntityMob.java:27 */
     return 5;
+}
+
+/* EntityLivingBase.onDeathUpdate EntityLivingBase.java:419-437:
+ * ++deathTime; at deathTime==20 XP (recentlyHit/doMobLoot) then setDead.
+ * EntitySlime.setDead EntitySlime.java:217-247 (split) runs at that setDead,
+ * not on the health-hit / onDeath drop tick (EntityLivingBase.java:1224-1271).
+ * Returns 1 while dying (keep the slot), 0 when setDead fires this tick. */
+MC_HD static inline int ml_on_death_update(RlSnapMob *s) {
+    if (!s) return 0;
+    ++s->death_time;
+    return s->death_time < 20 ? 1 : 0;
 }
 
 /* EntitySlime.setDead EntitySlime.java:223,227-228. */
@@ -396,6 +410,55 @@ MC_HD static inline int ml_player_pick(const RlSnapMob *mobs, unsigned n,
     return best;
 }
 
+#define ML_ITEM_ENDER_PEARL 368
+#define ML_ENDER_EYE 2.55f            /* EntityEnderman.java:221-224 */
+#define ML_PUMPKIN_ITEM 86            /* Blocks.PUMPKIN item */
+
+typedef struct {
+    float yaw, pitch;
+    int helmet;
+    int raining;
+    int griefing;
+    long long world_time;
+} MlEndCtx;
+
+/* EntityEnderman.dropFewItems / loot ENTITIES_ENDERMAN at looting 0:
+ * nextInt(2 + looting) = nextInt(2) = 0..1 pearls. */
+MC_HD static inline int ml_enderman_drop(JavaRandom *er, MlDrop *out, int cap) {
+    int n, c;
+    if (!er || !out || cap <= 0) return 0;
+    n = 0;
+    c = jrand_int_bound(er, 2);
+    if (c > 0) {
+        out[0].item = ML_ITEM_ENDER_PEARL;
+        out[0].count = c;
+        out[0].meta = 0;
+        n = 1;
+    }
+    return n;
+}
+
+/* EntityEnderman.java:413-430 CARRIABLE_BLOCKS. */
+MC_HD static inline int ml_enderman_carriable(int id) {
+    return id == 2 || id == 3 || id == 12 || id == 13
+        || id == 37 || id == 38 || id == 39 || id == 40
+        || id == 46 || id == 81 || id == 82 || id == 86
+        || id == 103 || id == 110 || id == 87;
+}
+
+/* Entity.getVectorForRotation Entity.java:1707-1714. Magma extra: libm. */
+MC_HD static inline void ml_look_vec(float pitch, float yaw,
+                                     double *lx, double *ly, double *lz) {
+    float r = 0.017453292f;
+    float f = cosf(-yaw * r - (float)MC_PI);
+    float f1 = sinf(-yaw * r - (float)MC_PI);
+    float f2 = -cosf(-pitch * r);
+    float f3 = sinf(-pitch * r);
+    *lx = (double)(f1 * f2);
+    *ly = (double)f3;
+    *lz = (double)(f * f2);
+}
+
 #endif /* MC_MOB_LIVE_H */
 
 #ifdef ML_W
@@ -412,6 +475,12 @@ MC_HD static inline int ml_player_pick(const RlSnapMob *mobs, unsigned n,
 #endif
 #ifndef ML_BLK
 #define ML_BLK(w, x, y, z) 0
+#endif
+#ifndef ML_SET_BLOCK
+#define ML_SET_BLOCK(w, x, y, z, id) ((void)0)
+#endif
+#ifndef ML_BLOCK_META
+#define ML_BLOCK_META(w, x, y, z) 0
 #endif
 
 MC_HD static inline float ml_entity_brightness(ML_W *w, double x, double y, double z,
@@ -483,6 +552,7 @@ MC_HD static inline int ml_hostile_pre(MlMob *m, ML_W *w,
     if (!m || !m->snap.alive) return 0;
     s = &m->snap;
     type = s->type;
+    if (s->health <= 0.0f) return 1;          /* dying: onDeathUpdate, no despawn */
     dx = px - s->x;
     dy = py - s->y;
     dz = pz - s->z;
@@ -519,11 +589,8 @@ MC_HD static inline int ml_hostile_pre(MlMob *m, ML_W *w,
         --m->fire_ticks;
         if (m->fire_ticks % 20 == 0) {
             s->health -= 1.0f;
-            if (s->health <= 0.0f) {
-                s->alive = 0;
-                s->type = EW_TYPE_NONE;
-                return -1;
-            }
+            if (s->health <= 0.0f)
+                s->health = 0.0f; /* onDeathUpdate in the tick loop */
         }
     }
     return 1;
@@ -652,12 +719,358 @@ MC_HD static inline void ml_slime_ai(MlMob *m, ML_W *w,
     }
 }
 
-/* Generic (det_entity_rng off) hostile body for zombie/skeleton/creeper/spider.
+/* EntityLivingBase.attemptTeleport EntityLivingBase.java:3033-3105.
+ * Particle loop 128 x (3 nextFloat + 3 nextDouble) on success only. */
+MC_HD static inline int ml_attempt_teleport(MlMob *m, ML_W *w,
+                                            JavaRandom *er,
+                                            double x, double y, double z) {
+    RlSnapMob *s;
+    double ox, oy, oz;
+    float mw, mh;
+    int flag1 = 0;
+    if (!m || !er) return 0;
+    s = &m->snap;
+    ox = s->x; oy = s->y; oz = s->z;
+    s->x = x; s->y = y; s->z = z;
+    ehs_size((u8)s->type, &mw, &mh);
+    while (!flag1 && s->y > 0.0) {
+        int bx = mc_floor(s->x), by = mc_floor(s->y) - 1, bz = mc_floor(s->z);
+        if (ml_solid_id(ML_BLOCK(w, bx, by, bz)))
+            flag1 = 1;
+        else
+            s->y -= 1.0;
+    }
+    if (flag1) {
+        double x0 = s->x - (double)mw * 0.5, y0 = s->y;
+        double z0 = s->z - (double)mw * 0.5;
+        double x1 = s->x + (double)mw * 0.5, y1 = s->y + (double)mh;
+        double z1 = s->z + (double)mw * 0.5;
+        int ax, ay, az, id, hit = 0;
+        BptProps p;
+        int xa = mc_floor(x0), ya = mc_floor(y0), za = mc_floor(z0);
+        int xb = mc_floor(x1), yb = mc_floor(y1), zb = mc_floor(z1);
+        if (ya < 0) ya = 0;
+        if (yb > 255) yb = 255;
+        for (ax = xa; ax <= xb && !hit; ++ax)
+            for (ay = ya; ay <= yb && !hit; ++ay)
+                for (az = za; az <= zb; ++az) {
+                    id = ML_BLOCK(w, ax, ay, az);
+                    if (id == 0) continue;
+                    p = mc_bpt_props(id);
+                    if (p.flags & BF_LIQUID) { hit = 1; break; }
+                    if ((p.flags & BF_SOLID) && p.light_opacity == 255) {
+                        hit = 1; break;
+                    }
+                }
+        if (!hit) {
+            int j;
+            for (j = 0; j < 128; ++j) {
+                (void)jrand_float(er);
+                (void)jrand_float(er);
+                (void)jrand_float(er);
+                (void)jrand_double(er);
+                (void)jrand_double(er);
+                (void)jrand_double(er);
+            }
+            return 1;
+        }
+    }
+    s->x = ox; s->y = oy; s->z = oz;
+    (void)mh;
+    return 0;
+}
+
+/* EntityEnderman.teleportTo EntityEnderman.java:293-306. Forge event skipped. */
+MC_HD static inline int ml_enderman_teleport_to(MlMob *m, ML_W *w,
+                                                JavaRandom *er,
+                                                double x, double y, double z) {
+    return ml_attempt_teleport(m, w, er, x, y, z);
+}
+
+/* EntityEnderman.teleportRandomly EntityEnderman.java:268-274. */
+MC_HD static inline int ml_enderman_teleport_randomly(MlMob *m, ML_W *w,
+                                                      JavaRandom *er) {
+    double d0, d1, d2;
+    if (!m || !er) return 0;
+    d0 = m->snap.x + (jrand_double(er) - 0.5) * 64.0;
+    d1 = m->snap.y + (double)(jrand_int_bound(er, 64) - 32);
+    d2 = m->snap.z + (jrand_double(er) - 0.5) * 64.0;
+    return ml_enderman_teleport_to(m, w, er, d0, d1, d2);
+}
+
+/* EntityEnderman.teleportToEntity EntityEnderman.java:279-288. */
+MC_HD static inline int ml_enderman_teleport_to_entity(MlMob *m, ML_W *w,
+                                                       JavaRandom *er,
+                                                       double px, double py,
+                                                       double pz) {
+    double vx, vy, vz, len, d1, d2, d3;
+    float mh;
+    if (!m || !er) return 0;
+    {
+        float mw;
+        ehs_size((u8)m->snap.type, &mw, &mh);
+        (void)mw;
+    }
+    vx = m->snap.x - px;
+    vy = m->snap.y + (double)(mh / 2.0f) - (py + ML_EYE_HEIGHT);
+    vz = m->snap.z - pz;
+    len = sqrt(vx * vx + vy * vy + vz * vz);
+    if (len > 0.0) { vx /= len; vy /= len; vz /= len; }
+    d1 = m->snap.x + (jrand_double(er) - 0.5) * 8.0 - vx * 16.0;
+    d2 = m->snap.y + (double)(jrand_int_bound(er, 16) - 8) - vy * 16.0;
+    d3 = m->snap.z + (jrand_double(er) - 0.5) * 8.0 - vz * 16.0;
+    return ml_enderman_teleport_to(m, w, er, d1, d2, d3);
+}
+
+/* EntityEnderman.shouldAttackPlayer EntityEnderman.java:202-218. */
+MC_HD static inline int ml_enderman_should_attack(ML_W *w, const RlSnapMob *s,
+                                                  double px, double py, double pz,
+                                                  float pyaw, float ppitch,
+                                                  int helmet) {
+    double lx, ly, lz, vx, vy, vz, d0, d1;
+    if (!s) return 0;
+    if (helmet == ML_PUMPKIN_ITEM) return 0;
+    ml_look_vec(ppitch, pyaw, &lx, &ly, &lz);
+    vx = s->x - px;
+    vy = s->y + (double)ML_ENDER_EYE - (py + ML_EYE_HEIGHT);
+    vz = s->z - pz;
+    d0 = sqrt(vx * vx + vy * vy + vz * vz);
+    if (d0 <= 0.0) return 0;
+    vx /= d0; vy /= d0; vz /= d0;
+    d1 = lx * vx + ly * vy + lz * vz;
+    if (d1 > 1.0 - 0.025 / d0)
+        return ml_los_clear(w, px, py + ML_EYE_HEIGHT, pz,
+                            s->x, s->y + (double)ML_ENDER_EYE, s->z);
+    return 0;
+}
+
+/* EntityEnderman.attackEntityFrom indirect (arrow) EntityEnderman.java:371-381. */
+MC_HD static inline int ml_enderman_arrow_hit(MlMob *m, ML_W *w) {
+    JavaRandom er;
+    int i;
+    if (!m) return 0;
+    er.seed = m->snap.seed48;
+    for (i = 0; i < 64; ++i) {
+        if (ml_enderman_teleport_randomly(m, w, &er)) {
+            m->snap.seed48 = er.seed;
+            return 1;
+        }
+    }
+    m->snap.seed48 = er.seed;
+    return 0;
+}
+
+MC_HD static inline void ml_enderman_set_target(RlSnapMob *s, int on,
+                                                int ticks_existed) {
+    if (!s) return;
+    if (!on) {
+        s->target_change_time = 0;
+        s->screaming = 0;
+        s->target_idx = 0;
+    } else {
+        s->target_change_time = ticks_existed;
+        s->screaming = 1;
+        s->target_idx = 1;
+    }
+}
+
+/* EntityEnderman live tick. PathNavigateGround A* is a design gap
+ * (GPU_MOB_AI.md): WanderAvoidWater / melee path consume no navigator
+ * draws; chase is the generic straight line. */
+MC_HD static inline void ml_enderman_ai(MlMob *m, ML_W *w,
+                                        double px, double py, double pz,
+                                        const MlEndCtx *ctx, MlAiOut *out) {
+    RlSnapMob *s;
+    JavaRandom er;
+    int aggro = 0, moving = 0, jump = 0, wandering = 0;
+    double dx, dy, dz, d, xz, dsq;
+    float mw, mh;
+    int wet, sub, daytime, feet;
+    if (out) {
+        out->moving = 0;
+        out->jump = 0;
+        out->wandering = 0;
+        out->hit_player = 0;
+        out->hit_dmg = 0.0f;
+        out->skel_fire = 0;
+    }
+    if (!m || !m->snap.alive) return;
+    s = &m->snap;
+    ++s->ticks_existed;
+    er.seed = s->seed48;
+    ehs_size((u8)s->type, &mw, &mh);
+    dx = px - s->x;
+    dy = py - s->y;
+    dz = pz - s->z;
+    d = sqrt(dx * dx + dy * dy + dz * dz);
+    xz = sqrt(dx * dx + dz * dz);
+    dsq = d * d;
+    feet = ML_BLOCK(w, mc_floor(s->x), mc_floor(s->y), mc_floor(s->z));
+    wet = ml_block_is_fluid(feet) || (ctx && ctx->raining);
+    /* EntityEnderman.updateAITasks EntityEnderman.java:246-249:
+     * isWet -> attackEntityFrom DROWN 1.0F. DROWN is unblockable so
+     * attackEntityFrom.java:386-390 nextInt(10)!=0 then teleportRandomly. */
+    if (wet) {
+        s->health -= 1.0f;
+        if (s->health < 0.0f) s->health = 0.0f;
+        if (jrand_int_bound(&er, 10) != 0)
+            (void)ml_enderman_teleport_randomly(m, w, &er);
+    }
+    /* World.calculateSkylightSubtracted then WorldProvider.java:450-453. */
+    {
+        i32 ti;
+        float tf, tf1, ang;
+        long long wt = ctx ? ctx->world_time : 0;
+        ti = (i32)(wt % 24000LL);
+        if (ti < 0) ti += 24000;
+        tf = ((float)ti + 1.0f) / 24000.0f - 0.25f;
+        if (tf < 0.0f) tf += 1.0f;
+        if (tf > 1.0f) tf -= 1.0f;
+        tf1 = 1.0f - (float)((cos((double)tf * MC_PI) + 1.0) / 2.0);
+        ang = tf + (tf1 - tf) / 3.0f;
+        tf1 = 1.0f - (float)(cos((double)ang * (double)MC_PI * 2.0) * 2.0 + 0.5);
+        if (tf1 < 0.0f) tf1 = 0.0f;
+        if (tf1 > 1.0f) tf1 = 1.0f;
+        tf1 = 1.0f - tf1;
+        tf1 = 1.0f - tf1;
+        sub = (int)(tf1 * 11.0f);
+    }
+    daytime = sub < 4;                    /* WorldProvider.java:450-453 */
+    /* EntityEnderman.java:251-260 daytime + brightness teleport. */
+    if (daytime && s->ticks_existed >= s->target_change_time + 600) {
+        float f = ml_entity_brightness(w, s->x, s->y, s->z, ML_ENDER_EYE);
+        if (f > 0.5f && ml_sky_exposed(w, s->x, s->y, s->z) &&
+            jrand_float(&er) * 30.0f < (f - 0.4f) * 2.0f) {
+            ml_enderman_set_target(s, 0, s->ticks_existed);
+            (void)ml_enderman_teleport_randomly(m, w, &er);
+        }
+    }
+    /* AIFindPlayer EntityEnderman.java:432-538. No NAT nextInt(10).
+     * PathNavigateGround A* out: after stare, chase is a straight line. */
+    if (ctx && ml_enderman_should_attack(w, s, px, py, pz,
+                                         ctx->yaw, ctx->pitch, ctx->helmet)) {
+        if (s->find_aggro <= 0 && !s->screaming)
+            s->find_aggro = 5;
+        if (s->find_aggro > 0) --s->find_aggro;
+        if (s->find_aggro <= 0)
+            ml_enderman_set_target(s, 1, s->ticks_existed);
+        if (s->screaming) {
+            if (dsq < 16.0)
+                (void)ml_enderman_teleport_randomly(m, w, &er);
+            s->teleport_time = 0;
+            aggro = 1;
+        }
+    } else if (s->screaming) {
+        if (dsq > 256.0 && ++s->teleport_time >= 30) {
+            if (ml_enderman_teleport_to_entity(m, w, &er, px, py, pz))
+                s->teleport_time = 0;
+        }
+        aggro = 1;
+    } else {
+        s->find_aggro = 0;
+        aggro = 0;
+    }
+    /* AITakeBlock / AIPlaceBlock EntityEnderman.java:541-625.
+     * World write exists on magma and blaze (ML_SET_BLOCK). */
+    if (ctx && ctx->griefing) {
+        if (s->carried != 0) {
+            if (jrand_int_bound(&er, 2000) == 0) {
+                int i, j, k, here, down;
+                i = mc_floor(s->x - 1.0 + jrand_double(&er) * 2.0);
+                j = mc_floor(s->y + jrand_double(&er) * 2.0);
+                k = mc_floor(s->z - 1.0 + jrand_double(&er) * 2.0);
+                here = ML_BLOCK(w, i, j, k);
+                down = ML_BLOCK(w, i, j - 1, k);
+                if (here == 0 && down != 0 && ml_solid_id(down)) {
+                    ML_SET_BLOCK(w, i, j, k, s->carried);
+                    s->carried = 0;
+                    s->carried_meta = 0;
+                }
+            }
+        } else if (jrand_int_bound(&er, 20) == 0) {
+            int i, j, k, id;
+            i = mc_floor(s->x - 2.0 + jrand_double(&er) * 4.0);
+            j = mc_floor(s->y + jrand_double(&er) * 3.0);
+            k = mc_floor(s->z - 2.0 + jrand_double(&er) * 4.0);
+            id = ML_BLOCK(w, i, j, k);
+            if (ml_enderman_carriable(id) &&
+                ml_los_clear(w,
+                             (double)mc_floor(s->x) + 0.5, (double)j + 0.5,
+                             (double)mc_floor(s->z) + 0.5,
+                             (double)i + 0.5, (double)j + 0.5,
+                             (double)k + 0.5)) {
+                s->carried = id;
+                s->carried_meta = ML_BLOCK_META(w, i, j, k);
+                ML_SET_BLOCK(w, i, j, k, 0);
+            }
+        }
+    }
+    s->seed48 = er.seed;
+    if (aggro && xz <= ML_REACH && fabs(dy) < 3.0) {
+        s->wander_x = px;
+        s->wander_z = pz;
+        s->panic = 0;
+        s->task_bits = EW_AI_ATTACK;
+        s->yaw = ehs_yaw_toward(dx, dz);
+        if (s->attack_time <= 0) {
+            if (out) {
+                out->hit_player = 1;
+                out->hit_dmg = ml_melee_damage(EW_TYPE_ENDERMAN);
+            }
+            s->attack_time = ml_attack_cooldown(EW_TYPE_ENDERMAN);
+        }
+    } else if (aggro) {
+        s->wander_x = px;
+        s->wander_z = pz;
+        s->panic = 0;
+        s->task_bits = EW_AI_CHASE;
+        moving = 1;
+        s->yaw = ehs_yaw_toward(dx, dz);
+    } else {
+        s->task_bits = EW_AI_IDLE;
+        wandering = 1;
+        if (m->repath_timer > 0) --m->repath_timer;
+        if (s->panic == 1) {
+            double wx2 = s->wander_x - s->x, wz2 = s->wander_z - s->z;
+            if (wx2 * wx2 + wz2 * wz2 < 1.0) s->panic = 0;
+        }
+        if (s->panic != 1 && m->repath_timer <= 0) {
+            /* WanderAvoidWater A* out (GPU_MOB_AI.md). Hash wander like
+             * the other generic hostiles. */
+            u64 h;
+            int ddx, ddz;
+            m->repath_timer = ML_WANDER_INTERVAL;
+            h = mc_hash_seed((u64)(ctx ? ctx->world_time : 0), s->ticks_existed,
+                             s->slot, 0, 0, ML_WANDER_PURPOSE);
+            ddx = mc_hash_bound(h, 2 * ML_WANDER_RADIUS + 1) - ML_WANDER_RADIUS;
+            ddz = mc_hash_bound(mc_hash64(h), 2 * ML_WANDER_RADIUS + 1)
+                - ML_WANDER_RADIUS;
+            if (ddx || ddz) {
+                int txc = mc_floor(s->x) + ddx, tzc = mc_floor(s->z) + ddz;
+                int ty = ml_wander_ground_y(w, txc, mc_floor(s->y), tzc);
+                if (ty > -999) {
+                    s->wander_x = txc + 0.5;
+                    s->wander_z = tzc + 0.5;
+                    s->panic = 1;
+                }
+            }
+        }
+        if (s->panic == 1) moving = 1;
+    }
+    s->target_idx = aggro ? 1 : 0;
+    if (out) {
+        out->moving = moving;
+        out->jump = jump;
+        out->wandering = wandering;
+    }
+}
+
+/* Generic (det_entity_rng off) hostile body for zombie/skeleton/creeper/spider/enderman.
  * Magma gm_mobs_tick inner branch, magma/game/mob_live.c. */
 MC_HD static inline void ml_hostile_ai(MlMob *m, ML_W *w,
                                        double px, double py, double pz,
                                        int day, long long seed, long long tick,
-                                       MlAiOut *out) {
+                                       const MlEndCtx *ectx, MlAiOut *out) {
     RlSnapMob *s;
     int type, aggro = 0, moving = 0, jump = 0, wandering = 0;
     double dx, dy, dz, d, xz;
@@ -676,6 +1089,10 @@ MC_HD static inline void ml_hostile_ai(MlMob *m, ML_W *w,
     if (!ml_is_roster(type)) return;
     if (type == EW_TYPE_SLIME) {
         ml_slime_ai(m, w, px, py, pz, out);
+        return;
+    }
+    if (type == EW_TYPE_ENDERMAN) {
+        ml_enderman_ai(m, w, px, py, pz, ectx, out);
         return;
     }
     (void)day;
@@ -857,6 +1274,8 @@ MC_HD static inline void ml_move_hostile(MlMob *m, ML_W *w, const McSinTable *st
     liv.moveStrafing = intent.moveStrafing;
     liv.isJumping = intent.isJumping;
     liv.landMovementFactor = ehs_land_speed_of((u8)s->type, ml_slime_size(s));
+    if (s->type == EW_TYPE_ENDERMAN && s->screaming)
+        liv.landMovementFactor += 0.15000000596046448f; /* ATTACKING_SPEED_BOOST */
     if (s->type == EW_TYPE_SLIME && !moving)
         liv.landMovementFactor = 0.0f;
     liv.onLadder = ml_spider_climbing(s) ? 1 : 0;

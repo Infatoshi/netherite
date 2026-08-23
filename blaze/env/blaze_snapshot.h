@@ -14,7 +14,8 @@
  * v1/v2 files load with n_mobs = 0. v3 loads with n_orbs = 0.
  * v4 loads with world_rand_seed = jrand_set(0) internal cursor.
  * v5 loads with update_lcg = 0.
- * New writes use version 6.
+ * v6 loads enderman extras as 0.
+ * New writes use version 7.
  * Player pose/box are WINDOW-LOCAL doubles plus the ox/oz origin: restoring
  * local+origin reproduces the exact double bits (world = local + origin
  * rounds, so world-coord storage would lose low mantissa bits; the box is
@@ -42,7 +43,9 @@ extern "C" {
 #define BLAZE_SNAP_VERSION_ORBS  4  /* + XP-orb trailer after mobs */
 #define BLAZE_SNAP_VERSION_WORLD_RAND 5 /* + World.rand 48-bit cursor after orbs */
 #define BLAZE_SNAP_VERSION_UPDATE_LCG 6 /* + World.updateLCG after world_rand */
-#define BLAZE_SNAP_VERSION 6
+#define BLAZE_SNAP_VERSION_ENDER 7      /* + enderman fields on RlSnapMob */
+#define BLAZE_SNAP_VERSION 7
+#define BLAZE_SNAP_MOB_SIZE_V6 544      /* packed RlSnapMob through v6 */
 #pragma pack(push, 1)
 typedef struct {
     char magic[4];                 /* "BSNP" */
@@ -119,6 +122,13 @@ typedef struct RlSnapMob {
     unsigned long long seed48;     /* ent_jr_seed, 48-bit LCG cursor */
     unsigned char have_gauss;      /* ent_jr_have_gauss */
     double gauss;                  /* ent_jr_gauss */
+    int screaming;                 /* EntityEnderman SCREAMING */
+    int carried;                   /* carried block id; 0 = none */
+    int carried_meta;
+    int target_change_time;        /* EntityEnderman.targetChangeTime */
+    int ticks_existed;             /* Entity.ticksExisted */
+    int find_aggro;                /* AIFindPlayer.aggroTime */
+    int teleport_time;             /* AIFindPlayer.teleportTime */
 } RlSnapMob;
 /* One live XP orb. World coords. v3 files omit this trailer -> n_orbs=0. */
 typedef struct RlSnapOrb {
@@ -135,8 +145,8 @@ typedef struct RlSnapOrb {
 } RlSnapOrb;
 #pragma pack(pop)
 
-typedef char RlSnapMob_must_be_544_bytes
-    [(sizeof(RlSnapMob) == 544) ? 1 : -1];
+typedef char RlSnapMob_must_be_572_bytes
+    [(sizeof(RlSnapMob) == 572) ? 1 : -1];
 typedef char RlSnapOrb_must_be_84_bytes
     [(sizeof(RlSnapOrb) == 84) ? 1 : -1];
 
@@ -260,7 +270,14 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_hash_one_mob(
     h = bp_hash_double(h, m->box_maxz);
     h = bp_hash_u64(h, m->seed48);
     h = bp_hash_i32(h, (int32_t)m->have_gauss);
-    return bp_hash_double(h, m->gauss);
+    h = bp_hash_double(h, m->gauss);
+    h = bp_hash_i32(h, m->screaming);
+    h = bp_hash_i32(h, m->carried);
+    h = bp_hash_i32(h, m->carried_meta);
+    h = bp_hash_i32(h, m->target_change_time);
+    h = bp_hash_i32(h, m->ticks_existed);
+    h = bp_hash_i32(h, m->find_aggro);
+    return bp_hash_i32(h, m->teleport_time);
 }
 
 BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest(
@@ -280,7 +297,7 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest_ext(
     float player_health, int32_t hurt_res, int32_t atk_cd,
     uint64_t items_h, int32_t n_items) {
     uint64_t h = blaze_snap_mobs_digest(mobs, n);
-    h = bp_hash_u32(h, UINT32_C(0x314d424d)); /* "MBM1" */
+    h = bp_hash_u32(h, UINT32_C(0x324d424d)); /* "MBM2" */
     h = bp_hash_float(h, player_health);
     h = bp_hash_i32(h, hurt_res);
     h = bp_hash_i32(h, atk_cd);

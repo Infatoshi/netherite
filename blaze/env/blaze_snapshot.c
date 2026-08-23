@@ -99,14 +99,31 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             fclose(f);
             return snap_fail(err, err_cap, "truncated .bsnp mob count", path);
         }
-        if (out->n_mobs &&
-            fread(out->mobs, sizeof out->mobs[0], out->n_mobs, f) !=
-                out->n_mobs) {
-            free(out->cells); out->cells = NULL;
-            free(out->coal); out->coal = NULL;
-            free(out->light); out->light = NULL;
-            fclose(f);
-            return snap_fail(err, err_cap, "truncated .bsnp mobs", path);
+        if (out->n_mobs) {
+            unsigned mi;
+            if (out->head.version >= BLAZE_SNAP_VERSION_ENDER) {
+                if (fread(out->mobs, sizeof out->mobs[0], out->n_mobs, f) !=
+                    out->n_mobs) {
+                    free(out->cells); out->cells = NULL;
+                    free(out->coal); out->coal = NULL;
+                    free(out->light); out->light = NULL;
+                    fclose(f);
+                    return snap_fail(err, err_cap, "truncated .bsnp mobs", path);
+                }
+            } else {
+                memset(out->mobs, 0, sizeof out->mobs);
+                for (mi = 0; mi < out->n_mobs; ++mi) {
+                    if (fread(&out->mobs[mi], BLAZE_SNAP_MOB_SIZE_V6, 1, f) !=
+                        1) {
+                        free(out->cells); out->cells = NULL;
+                        free(out->coal); out->coal = NULL;
+                        free(out->light); out->light = NULL;
+                        fclose(f);
+                        return snap_fail(err, err_cap,
+                                         "truncated .bsnp mobs", path);
+                    }
+                }
+            }
         }
     }
     if (out->head.version >= BLAZE_SNAP_VERSION_ORBS) {
@@ -247,9 +264,17 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
         ok = ok && fwrite(s->light, 1, (size_t)vol, f) == (size_t)vol;
     if (version >= BLAZE_SNAP_VERSION_MOBS) {
         ok = ok && fwrite(&s->n_mobs, sizeof s->n_mobs, 1, f) == 1;
-        ok = ok && (s->n_mobs == 0 ||
-                    fwrite(s->mobs, sizeof s->mobs[0], s->n_mobs, f) ==
-                        s->n_mobs);
+        if (s->n_mobs) {
+            if (version >= BLAZE_SNAP_VERSION_ENDER)
+                ok = ok && fwrite(s->mobs, sizeof s->mobs[0], s->n_mobs, f) ==
+                    s->n_mobs;
+            else {
+                unsigned mi;
+                for (mi = 0; mi < s->n_mobs; ++mi)
+                    ok = ok && fwrite(&s->mobs[mi], BLAZE_SNAP_MOB_SIZE_V6, 1,
+                                      f) == 1;
+            }
+        }
     }
     if (version >= BLAZE_SNAP_VERSION_ORBS) {
         ok = ok && fwrite(&s->n_orbs, sizeof s->n_orbs, 1, f) == 1;

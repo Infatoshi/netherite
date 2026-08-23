@@ -385,7 +385,7 @@ static int runtime_proj_hit_player(GmRuntime *r, double x, double y, double z,
 #define PL_W GmRuntime
 #define PL_BLOCK(w, x, y, z) gm_world_block((w)->world, (x), (y), (z))
 #define PL_HIT_MOB(w, x, y, z, rad, dmg) \
-    gm_mobs_damage_near(&(w)->mobs, (x), (y), (z), (rad), (dmg), &(w)->entities)
+    gm_mobs_damage_near(&(w)->mobs, (w)->world, (x), (y), (z), (rad), (dmg), &(w)->entities)
 #define PL_HIT_DRAGON(w, x, y, z, rad, dmg) \
     gm_dragon_damage_near(&(w)->dragon, (x), (y), (z), (rad), (dmg))
 #define PL_HIT_PLAYER(w, x, y, z, rad, dmg) \
@@ -530,7 +530,7 @@ static void tick_projectiles(GmRuntime *r) {
             int block=gm_world_block(r->world,(int)floor(p->x),(int)floor(p->y),(int)floor(p->z));
             if(p->type==1){
                 if(block||gm_dragon_damage_near(&r->dragon,p->x,p->y,p->z,0.75,damage)||
-                   gm_mobs_damage_near(&r->mobs,p->x,p->y,p->z,0.75,damage,&r->entities))p->active=0;
+                   gm_mobs_damage_near(&r->mobs,r->world,p->x,p->y,p->z,0.75,damage,&r->entities))p->active=0;
             }else{
                 GmPlayerView v;gm_runtime_view(r,&v);
                 double dx=p->x-v.x,dy=p->y-(v.y+0.9),dz=p->z-v.z;

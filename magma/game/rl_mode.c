@@ -1107,9 +1107,24 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
                      path);
             free(cells); free(light); fclose(f); return 0;
         }
-        if (n_mobs && fread(packed, sizeof packed[0], n_mobs, f) != n_mobs) {
-            snprintf(err, (size_t)err_cap, "truncated .bsnp mobs: %s", path);
-            free(cells); free(light); fclose(f); return 0;
+        if (n_mobs) {
+            if (h.version >= BLAZE_SNAP_VERSION_ENDER) {
+                if (fread(packed, sizeof packed[0], n_mobs, f) != n_mobs) {
+                    snprintf(err, (size_t)err_cap, "truncated .bsnp mobs: %s",
+                             path);
+                    free(cells); free(light); fclose(f); return 0;
+                }
+            } else {
+                unsigned mi;
+                memset(packed, 0, sizeof packed);
+                for (mi = 0; mi < n_mobs; ++mi) {
+                    if (fread(&packed[mi], BLAZE_SNAP_MOB_SIZE_V6, 1, f) != 1) {
+                        snprintf(err, (size_t)err_cap,
+                                 "truncated .bsnp mobs: %s", path);
+                        free(cells); free(light); fclose(f); return 0;
+                    }
+                }
+            }
         }
         gm_mobs_import_snap(&r->mobs, packed, n_mobs);
         r->mobs.spawn_clip = 1;

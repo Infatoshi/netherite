@@ -381,7 +381,7 @@ static int run_units(void) {
         memset(&b, 0, sizeof b);
         expect(blaze_snapshot_load(pa, &b, err, (int)sizeof err, 1),
                "load v6 update_lcg");
-        expect(b.head.version == BLAZE_SNAP_VERSION, "loaded version is 6");
+        expect(b.head.version == BLAZE_SNAP_VERSION, "loaded version is current");
         expect(b.world_rand_seed == a.world_rand_seed, "world_rand round-trips");
         expect(b.update_lcg == a.update_lcg, "update_lcg round-trips");
         expect(blaze_snapshot_write(pb, &b, err, (int)sizeof err),
