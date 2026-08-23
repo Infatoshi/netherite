@@ -122,12 +122,23 @@ static int write_bsnp_ex(const char *path, int ntab, const int *wx,
       free(coal);
       return -1;
     }
-    if (h.version >= 4 && fwrite(&n_orbs, sizeof n_orbs, 1, f) != 1) {
+    if (h.version >= BLAZE_SNAP_VERSION_ORBS &&
+        fwrite(&n_orbs, sizeof n_orbs, 1, f) != 1) {
       fclose(f);
       free(cells);
       free(light);
       free(coal);
       return -1;
+    }
+    if (h.version >= BLAZE_SNAP_VERSION) {
+      unsigned long long wr = 0;
+      if (fwrite(&wr, sizeof wr, 1, f) != 1) {
+        fclose(f);
+        free(cells);
+        free(light);
+        free(coal);
+        return -1;
+      }
     }
   }
   fclose(f);

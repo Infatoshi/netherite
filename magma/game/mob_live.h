@@ -173,6 +173,10 @@ enum {
 void gm_mobs_init(GmMobLive *m, long long seed);
 /* Component/test hook. Runtime progression never calls this directly. */
 int gm_mobs_spawn(GmMobLive *m, int type, double x, double y, double z);
+/* EntityTNTPrimed from BlockTNT.onBlockDestroyedByExplosion (BlockTNT.java:71).
+ * fuse is already the chain draw; xz Math.random kick CUT. */
+int gm_mobs_spawn_tnt_primed(GmMobLive *m, double x, double y, double z,
+                             int fuse);
 /* Place a tape-hydrated passive with a live Entity.rand cursor. det_entity_rng. */
 int gm_mobs_det_place(GmMobLive *m, int eid, int type,
                       double x, double y, double z, float yaw, float pitch, float head_yaw,

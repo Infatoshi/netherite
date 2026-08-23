@@ -373,7 +373,8 @@ static void cu_reset_env(CuVec *v, int i) {
     blaze_reset_from_snapshot(&v->envs[i], &s->head, s->items, s->cells,
                               s->light, s->coal, (int)s->ncoal, s->xy_off,
                               s->cont, s->ncont, s->mobs, s->n_mobs,
-                              s->orbs, s->n_orbs, v->success_item);
+                              s->orbs, s->n_orbs, s->world_rand_seed,
+                              v->success_item);
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
     if (v->world_time_pin >= 0)

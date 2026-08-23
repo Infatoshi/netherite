@@ -4,10 +4,10 @@
  * damage + motion). Synthetic cubic grid (EX_DIM^3 packed states). Resistance =
  * mc_bpt_props hardness (air = 0 / Material.AIR skips the resistance subtract).
  *
- * RAND-FREE ray density: vanilla uses world.rand.nextFloat() per face ray
- *   f = size * (0.7F + rand * 0.6F). We fix rand = 0.5F so
- *   f = size * (0.7F + 0.5F * 0.6F). world.rand is not consumed.
- * getBlockDensity / knockback / blast-prot use no Random.
+ * Face-ray density: vanilla uses world.rand.nextFloat() per face ray
+ *   f = size * (0.7F + rand * 0.6F) (Explosion.java:102). Live sim consumes
+ *   that stream when a JavaRandom is passed. NULL rand keeps the old 0.5F
+ *   battery path. getBlockDensity / knockback / blast-prot use no Random.
  * Drop/flame RNG paths CUT (doExplosionB not ported). explosionRNG (new Random()
  * in Explosion.java:65) is only the flaming nextInt(3) in doExplosionB:253.
  *
@@ -21,6 +21,7 @@
 #include "mc_blocks.h"
 #include "mc_world.h"
 #include "mc_math.h"
+#include "mc_rng.h"
 #include "block_props_table.h"
 
 #define EX_DIM 16
@@ -82,9 +83,22 @@ MC_HD static inline double ex_sqrt_dist(double d0, double d1, double d2) {
     return (double)(float)sqrt(d0 * d0 + d1 * d1 + d2 * d2);
 }
 
-/* Fixed density scale: 0.7F + 0.5F * 0.6F (rand fixed at 0.5). */
+/* Face-cell count of the 16^3 doExplosionA loop: 16^3 - 14^3 = 1352.
+ * Explosion.java:88-94: j,k,l in [0,16), face when any coord is 0 or 15. */
+MC_HD static inline int ex_face_ray_count(void) {
+    return EX_FACE * EX_FACE * EX_FACE
+         - (EX_FACE - 2) * (EX_FACE - 2) * (EX_FACE - 2);
+}
+
+/* Fixed 0.5F density scale used when no World.rand is supplied. */
 MC_HD static inline float ex_density_scale(void) {
     return 0.7F + 0.5F * 0.6F;
+}
+
+/* Explosion.java:102 f = size * (0.7F + world.rand.nextFloat() * 0.6F). */
+MC_HD static inline float ex_ray_strength(float size, JavaRandom *rand) {
+    float u = rand ? jrand_float(rand) : 0.5F;
+    return size * (0.7F + u * 0.6F);
 }
 
 /* doExplosionA block-destroy rays on synthetic grid. Marks bitset[vol] for non-air
@@ -92,10 +106,10 @@ MC_HD static inline float ex_density_scale(void) {
 MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
                                                 double ex, double ey, double ez,
                                                 float size,
-                                                u8 *bitset) {
+                                                u8 *bitset,
+                                                JavaRandom *rand) {
     for (int i = 0; i < EX_VOL; ++i) bitset[i] = 0;
 
-    float dens = ex_density_scale();
     /* step decrement and advance match oracle float/double literals exactly */
     const float step_dec = 0.22500001F;
     const double step_adv = 0.30000001192092896;
@@ -111,7 +125,7 @@ MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
                     d0 = d0 / d3;
                     d1 = d1 / d3;
                     d2 = d2 / d3;
-                    float f = size * dens;
+                    float f = ex_ray_strength(size, rand);
                     double d4 = ex;
                     double d6 = ey;
                     double d8 = ez;
@@ -403,7 +417,7 @@ MC_HD static inline void ex_run_scenario(int idx, u16 *grid, u8 *bitset,
     float size = ex_scenario_size(idx);
     ex_scenario_origin(idx, &ox, &oy, &oz);
     ex_scenario_grid(idx, grid);
-    ex_do_explosion_blocks(grid, ox, oy, oz, size, bitset);
+    ex_do_explosion_blocks(grid, ox, oy, oz, size, bitset, NULL);
 
     /* count + emit sorted by x, then y, then z */
     u32 count = 0;

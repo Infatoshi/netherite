@@ -28,8 +28,8 @@
  *     sound/particles/drops/fire  CUT (magma does not port)
  *
  * Magma extras (M1 is magma semantics; do not "fix" to Java here):
- *   density rand fixed at 0.5F (explosion.h ex_density_scale);
- *     world.rand.nextFloat() per ray is not consumed
+ *   density rand consumes world.rand.nextFloat per face ray when the
+ *     live JavaRandom is passed (Explosion.java:102); NULL keeps 0.5F
  *   getBlockDensity is full-cube BF_SOLID on the 16^3 sample (no non-cube BB)
  *   blast-prot level 0 (no armor enchant scan)
  *   no doExplosionB drops / particles / flaming
@@ -60,6 +60,7 @@
 #define EXL_TNT_DRAG 0.9800000190734863      /* :82 (double)0.98F */
 #define EXL_TNT_GROUND_XZ 0.699999988079071  /* :88 (double)0.7F */
 #define EXL_TNT_SPAWN_MY 0.20000000298023224 /* ctor :36 */
+#define EXL_BLK_TNT 46                       /* Blocks.TNT */
 
 /* EntityPlayer.java:2488 eyeHeight 1.62; zombie/skeleton 1.74F
  * (EntityZombie.java:461, AbstractSkeleton.java:303); else Entity.java:3193
@@ -76,7 +77,15 @@ MC_HD static inline float exl_eye_height(int type, float height) {
 /* EntityTNTPrimed.onUpdate EntityTNTPrimed.java:70-108.
  * Magma extra: Y clamp to floor_y instead of Entity.move AABB.
  * Ctor Math.random() horizontal kick CUT (java.lang.Math.random, not
- * world.rand). Chain fuse world.rand.nextInt stays out. */
+ * world.rand). Chain fuse is world.rand.nextInt (BlockTNT.java:72). */
+
+/* BlockTNT.onBlockDestroyedByExplosion fuse: nextInt(fuse/4)+fuse/8
+ * (BlockTNT.java:72). Default fuse 80 -> [10, 29]. */
+MC_HD static inline int exl_chain_fuse(JavaRandom *r) {
+    int fuse = EXL_TNT_FUSE;
+    if (!r) return fuse / 8;
+    return jrand_int_bound(r, fuse / 4) + fuse / 8;
+}
 MC_HD static inline int exl_tnt_on_update(double *x, double *y, double *z,
                                           double *mx, double *my, double *mz,
                                           int *on_ground, int *fuse,
@@ -136,7 +145,8 @@ MC_HD static inline int exl_fuse_tick(int *fuse, int ignited) {
 MC_HD static inline void exl_fill_and_rays(EXL_W *w, u16 *grid, u8 *hit,
                                            double ex, double ey, double ez,
                                            float size,
-                                           int *ox, int *oy, int *oz) {
+                                           int *ox, int *oy, int *oz,
+                                           JavaRandom *rand) {
     int x, y, z;
     *ox = (int)floor(ex) - 8;
     *oy = (int)floor(ey) - 8;
@@ -148,18 +158,37 @@ MC_HD static inline void exl_fill_and_rays(EXL_W *w, u16 *grid, u8 *hit,
                     exl_block(w, *ox + x, *oy + y, *oz + z),
                     exl_meta(w, *ox + x, *oy + y, *oz + z));
     ex_do_explosion_blocks(grid, ex - (double)*ox, ey - (double)*oy,
-                           ez - (double)*oz, size, hit);
+                           ez - (double)*oz, size, hit, rand);
 }
 
-/* doExplosionB block destroy without drops: air + hash packed world cells. */
+/* doExplosionB block destroy: sound draws, optional chain TNT, air.
+ * Drops (Block.dropBlockAsItemWithChance) stay out: HashSet order plus
+ * getDrops/quantityDropped are not in the live item table contract. */
 MC_HD static inline void exl_apply_hits(EXL_W *w, const u8 *hit,
                                         int ox, int oy, int oz,
-                                        uint32_t *ndestroyed, uint64_t *rays) {
+                                        uint32_t *ndestroyed, uint64_t *rays,
+                                        JavaRandom *rand) {
     int x, y, z;
+    if (rand) {
+        /* Explosion.java:198 playSound pitch: two nextFloat. Server
+         * WorldServer.newExplosion doExplosionB(false) skips particle draws. */
+        (void)jrand_float(rand);
+        (void)jrand_float(rand);
+    }
     for (x = 0; x < EX_DIM; ++x)
         for (y = 0; y < EX_DIM; ++y)
             for (z = 0; z < EX_DIM; ++z) {
+                int id;
                 if (!hit[ex_idx(x, y, z)]) continue;
+                id = exl_block(w, ox + x, oy + y, oz + z);
+#ifdef exl_spawn_tnt
+                if (id == EXL_BLK_TNT && rand) {
+                    int fuse = exl_chain_fuse(rand);
+                    exl_spawn_tnt(w, ox + x, oy + y, oz + z, fuse);
+                }
+#else
+                (void)id;
+#endif
                 exl_set_air(w, ox + x, oy + y, oz + z);
                 if (ndestroyed) ++*ndestroyed;
                 if (rays) {
