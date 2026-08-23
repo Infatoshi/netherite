@@ -1,5 +1,46 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 mayPlace, TNT flint, boats, container leftovers (lane/tntsupport)
+
+Anvil. Sweep 2026-08-23 magma row 6 + silent mayPlace; blaze rows 10, 12
+and do_place on row 2.
+
+Baseline tapes (`replay_tape.py --cpu --no-gate --report`,
+`out/verify/tntsupport_baseline_*.log`): TNT both physics NO divergence 309,
+inventory 1-mismatch t=28 slot 0 flint-and-steel 259 tape_meta 0 vs magma_meta 1.
+creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2 physics
+NO divergence through death (358 / 373), entities PASS. bow physics NO
+divergence 1407, entities PASS 5525. Canon physics NO divergence 3617,
+entities PASS 16526, world_hash first_mismatch null. Pixel `frames_checked=0`
+FATAL is `--no-gate` harness, not a parity verdict.
+
+Cause: blaze use-path had no `BlockTNT.onBlockActivated` flint branch and
+placed torches with `ibp_placed_meta` only. Magma `player_ctl` already
+ignited TNT to air (no live spawn) and checked torch support locally.
+Java `ItemBlock.onItemUse` (`ItemBlock.java:49`) gates on `World.mayPlace`
+(`World.java:3363-3368`). Torch `canPlaceAt` (`BlockTorch.java:111-116`).
+TNT flint fuse 80 (`EntityTNTPrimed.java:25,38`), no world.rand (ctor
+`Math.random` xz CUT). Boats `CraftingManager.java:140-145`. Remaining
+items `ShapedRecipes.java:42-52` / `Item.java:1568-1577,1680`. RL place
+already reachable: `verify_cpu.py:383` `a[8]=use`, magma `player_ctl.c:687`
+use_fire -> do_place.
+
+After: same tape numbers (`out/verify/tntsupport_after_*.log`). TNT inventory
+mismatch unchanged (t=28 slot 0 item 259 tape_meta 0 magma_meta 1).
+`placement` M1 VERIFIED 96 ticks t=0 player digest `0x9f0939bbcbfb06b2`
+(`out/verify/tntsupport_placement_m1_detail.log`). M2 VERIFIED
+(`out/verify/tntsupport_m2_nodeps.log`). `--no-deps` M1 VERIFIED for
+spawn_to_torch, world_dynamics, explosions, furnaces, hazards, biome_plane,
+biome_plane_spawn, biome_plane_ice, fluids, entity_spine, random_ticks,
+random_ticks_bodies, falling_blocks, weather_optional, projectiles, chests,
+mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, mining_slice.
+M2 VERIFIED for those except mining_slice BLOCKED
+(`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS
+(`out/verify/tntsupport_maketest.log`). `test_container_live` PASS including
+oak boat + cake leftover buckets. Fixture
+`s10_t0_r64_placement.bsnp` baked by `test_placement --write-fixture`.
+Stay out: ItemDoor, snow-layer, anvil-on-circuits, Unbreaking flint.
+
 ## 2026-08-23 furnace registry, buckets, food, hotbar (lane/furnaceids)
 
 Anvil. Sweep 2026-08-23 magma rows 2, 3, 12 and silent hotbar; blaze row 11.

@@ -1534,8 +1534,10 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
 5. Environmental damage: CLOSED 2026-08-23 lane `hazards`. Shared
    `player_survival.h` psv_env_pre_move + cactus/magma walk. Forensics in
    `CLOSED_DIVERGENCES.md`.
-6. Crafting: no boat recipe (`crafting_recipes_full.h`), no
-   `getRemainingItems` (bucket/bottle containers stay consumed). S/M.
+6. Crafting: CLOSED 2026-08-23 lane `tntsupport`. Boat recipes
+   (`CraftingManager.java:140-145`) + cake (`:115`) +
+   `getRemainingItems` (`ShapedRecipes.java:42-52`, `Item.java:1568-1577,1680`).
+   See `CLOSED_DIVERGENCES.md`.
 7. Live ground items: `magma/game/live_sim.c:155-258` runs its own item
    physics and bypasses the verified `blaze/core/entity_item.h` kernel.
    Pickup delay, merge, and lava cut differ between the two paths. M.
@@ -1554,16 +1556,16 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
 
 Silent deviations found (not yet measured by any gate): fluids step
 synchronously instead of via scheduled ticks (`fluid_live.h`);
-block placement skips `mayPlace` (`ItemBlock.onItemUse`); light uses
-Jacobi sweeps, not Java's per-update queue timing; fixed caps (96
-entities, 48 items, 64 collision boxes) silently drop state; XP orb lava
-cut; stronghold iron bars where Java places doors; portal
+light uses Jacobi sweeps, not Java's per-update queue timing; fixed caps
+(96 entities, 48 items, 64 collision boxes) silently drop state; XP orb
+lava cut; stronghold iron bars where Java places doors; portal
 nearest-selection.
+block placement `mayPlace`: CLOSED 2026-08-23 lane `tntsupport` for the
+subset (torch, sapling/plants on dirt/grass, cactus, ladder, door
+canPlaceBlockAt, player AABB). ItemDoor / snow-layer / anvil-on-circuits
+stay out.
 
-Ungated systems: crafting with containers, beds, potions,
-shield, environmental damage, stronghold placement.
-Ungated systems: furnace, crafting with containers, beds, potions,
-shield, stronghold placement, hotbar selection.
+Ungated systems: beds, potions, shield, stronghold placement.
 Tapes record player physics / inventory / ghost views / world hash only,
 so a rule that never moves the player or the hotbar is invisible to the
 replay gate; unit tests against Java-derived fixtures are the gate for

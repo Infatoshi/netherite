@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/tntsupport 2026-08-23 (placement M1+M2 after World.mayPlace + TNT flint ignite + boat recipes + getRemainingItems. spawn_to_torch, world_dynamics, explosions, furnaces, hazards, biome_plane, biome_plane_spawn, biome_plane_ice, fluids, entity_spine, random_ticks, random_ticks_bodies, falling_blocks, weather_optional, projectiles, chests, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/natspawn2 2026-08-23 (biome_plane_spawn + biome_plane_ice M1+M2 after magma spawn_light packed blight + HS_BIOME clip-to-region plains + BiomeSnow skeleton/stray list + BiomeSwamp appended slime weight 1. Existing biome_plane row stays no-spawn. random_ticks, random_ticks_bodies, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/biomeplane 2026-08-23 (biome_plane M1+M2 after snapshot v8 per-column biome plane + HS_BIOME/rt_live_biome + TEMPERATURE_NOISE Perlin. BP_MOBS MBM3, BP_RANDOM_TICKS RTK4. v7 loads plains 1. Swamp/ice natural-spawn lockstep still diverges. random_ticks, random_ticks_bodies, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/enderman 2026-08-23 (mobs_end M1+M2 after EntityEnderman shared live tick + MONSTER insert + deathTime 20 + BiomeSwamp slime weight 1. Snapshot v7 enderman fields. BP_MOBS MBM2. mobs, mobs_ss, passives, xp_orbs, boats, elytra, projectiles, random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
@@ -42,6 +43,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 |---|---|---|
 | mining_slice | VERIFIED | VERIFIED |
 | spawn_to_torch | VERIFIED (chain 2058 actions) | VERIFIED |
+| placement | VERIFIED (chain 96 torch-air/torch-stone/flint-TNT, `--features player,items,explosions`) | VERIFIED |
 | world_dynamics | VERIFIED | VERIFIED |
 | fluids | VERIFIED | VERIFIED (chain 61 actions) |
 | entity_spine | VERIFIED (chain 32 actions, `--features mobs`) | VERIFIED (64 CUDA lanes) |
@@ -70,6 +72,7 @@ start any time; deeper rows wait on their deps.
 
 | row | deps | blocked on |
 |---|---|---|
+| placement | explosions | closed 2026-08-23: World.mayPlace + TNT flint fuse 80 + boat recipes + getRemainingItems; ItemDoor / snow-layer / anvil-on-circuits / Unbreaking flint stay out |
 | falling_blocks | world_dynamics | closed 2026-08-22: EntityFallingBlock / BlockFalling sand+gravel live tick; anvil/dragon-egg and item drop on failed mayPlace stay out |
 | weather_optional | world_dynamics | closed 2026-08-22: WorldInfo rain/thunder timers + worldTime; strength fade and sky stay magma-inert |
 | chests | spawn_to_torch | closed 2026-08-22: placed single-chest TE + PICKUP/QUICK_MOVE transfers; worldgen loot tables and double chests stay out |
@@ -115,8 +118,10 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    transfer.
 2. Policy actions are privileged helpers (craft/interact/smelt in
    `blaze/rl/obs_pack.h:20-51`); no strafe, sneak, sprint, or slot-click
-   as magma `player_ctl` sees them. `do_place` is unreachable from the RL
-   ABI. M; transfer gap, not parity.
+   as magma `player_ctl` sees them. `do_place` is reachable: RL `a[8]` is
+   `use` (`obs_pack.h:48`, `verify_cpu.py:383`) and blaze maps use_fire to
+   `act.do_place` like magma `player_ctl.c:687`. Strafe/sneak/sprint/slot-click
+   stay a transfer gap. M.
 3. Block light does not propagate in blaze (`blaze_core.h:689-703`) and no
    digest covers light. Magma `light.c` propagates. Spawn light checks
    therefore read different values off-region. M/L. lane/natspawn2
@@ -144,14 +149,13 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    not digested. M.
 9. Item enchant payload and the 32-stack overflow queue missing in blaze.
    M.
-10. TNT flint-and-steel activation missing in blaze (`blaze_core.h:
-    2618-2711`); magma `player_ctl.c` ignites. S. Lane `tntsupport`.
+10. TNT flint-and-steel: CLOSED 2026-08-23 lane `tntsupport`. Shared
+    `block_may_place.h` (`BlockTNT.java:105-119` / `:85-96`, fuse 80).
 11. Furnaces matrix row: CLOSED 2026-08-23 lane `furnaceids`. `furnaces`
     M1+M2 VERIFIED (223-tick coal+beef chain). Furnace TE still not in
     `.bsnp` (row 4).
-12. Torch support check (`player_ctl.c:180-203`) missing in blaze
-    (`blaze_core.h:2693-2711`): blaze places torches on air. S. Lane
-    `tntsupport`.
+12. Torch support / mayPlace: CLOSED 2026-08-23 lane `tntsupport`. Shared
+    `ibp_may_place` (`World.java:3363-3368`, `BlockTorch.java:98-116`).
 13. Potion / milk / shield use state absent. M.
 14. Chest cap fixed 64 in blaze vs magma growth. S.
 15. Boat mount vs bow release order differs between sides. S.
