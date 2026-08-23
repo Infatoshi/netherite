@@ -519,13 +519,11 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
             it->on_ground, it->age, it->item, it->count, it->meta,
             it->pickup_delay, it->lifespan);
     }
+    h = bp_hash_i32(h, r->entities.spawn_fail_count);
     out->digest[BP_ITEMS] = h;
     out->evidence[BP_ITEMS] = (uint32_t)any;
-    if (any) out->active_mask |= BP_BIT(BP_ITEMS);
-    if (r->entities.n_overflow || r->entities.spawn_fail_count) {
-        out->measured_mask &= ~BP_BIT(BP_ITEMS);
-        out->evidence[BP_ITEMS] = 0;
-    }
+    if (any || r->entities.spawn_fail_count)
+        out->active_mask |= BP_BIT(BP_ITEMS);
 
     h = bp_hash_begin();
     h = bp_hash_u32(h, r->parity_craft_attempts);
@@ -1140,6 +1138,9 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         e->item = it.item; e->count = it.count; e->meta = it.meta;
         e->age = it.age; e->pickup_delay = it.pickup_delay;
         e->lifespan = it.lifespan; e->on_ground = it.on_ground;
+        e->health = 5; /* EntityItem.java:54 */
+        e->fire = -1;  /* Entity.java:239 getFireImmuneTicks */
+        e->ticks_existed = 0;
         r->entities.n_active++;
     }
     cells = (u16 *)malloc((size_t)h.rnx * h.rny * h.rnz * sizeof *cells);

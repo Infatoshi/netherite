@@ -62,6 +62,12 @@ MC_HD static inline McAABB mc_aabb_offset(const McAABB *bb, double x, double y, 
                         bb->maxX + x, bb->maxY + y, bb->maxZ + z);
 }
 
+/* AxisAlignedBB.expand AxisAlignedBB.java:167-175 */
+MC_HD static inline McAABB mc_aabb_expand(const McAABB *bb, double x, double y, double z) {
+    return mc_aabb_make(bb->minX - x, bb->minY - y, bb->minZ - z,
+                        bb->maxX + x, bb->maxY + y, bb->maxZ + z);
+}
+
 /* AxisAlignedBB.addCoord(x,y,z) */
 MC_HD static inline McAABB mc_aabb_addcoord(const McAABB *bb, double x, double y, double z) {
     double d0 = bb->minX;

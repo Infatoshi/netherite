@@ -23,6 +23,9 @@ from look_at_tree import MagmaEnv, INV_IDS, EYE, log_dirs, wrap180
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
+# spawn_to_torch M1/M2 replay this snapshot, not live worldgen.
+S10_SNAP = os.path.join(HERE, "..", "..", "verify", "fixtures", "port",
+                        "s10_t0_r64_no_liquid.bsnp")
 
 # inv_counts indices (INV_IDS order: 17,5,280,4,58,270,274,263,50)
 IX_LOG, IX_PLANK, IX_STICK, IX_COBBLE, IX_TABLE, IX_WPICK, IX_SPICK, \
@@ -38,6 +41,12 @@ PREFIX = False
 LOG_TARGET = 4
 COBBLE_TARGET = 3
 REACH = 4.5
+# EntityPlayer.onUpdate EntityPlayer.java:613 expand(1.0D, 0.5D, 1.0D).
+# Walk until the drop at the target block is inside that xz half-extent
+# (player AABB half-width ~0.3 plus expand 1.0). Pickup waits delay 10
+# EntityItem.java:432 / setDefaultPickupDelay :564-566.
+PICKUP_XZ = 1.0
+PICKUP_DELAY = 10
 
 # stage_coal exit reason for the caller's log ("reached" / "already-mined" /
 # "scan-empty" / "budget-exhausted"). Diagnostic only: never read by the probe.
@@ -118,9 +127,35 @@ def select_hotbar(env, item_id):
     return False
 
 
+def walk_pickup(env, wx, wy, wz, ticks=None):
+    """Walk through the Java pickup volume of a drop at block (wx,wy,wz).
+
+    EntityPlayer.onUpdate EntityPlayer.java:613
+    getEntityBoundingBox().expand(1.0D, 0.5D, 1.0D).
+    EntityItem.onCollideWithPlayer EntityItem.java:432 delay>0 return.
+    """
+    if ticks is None:
+        ticks = PICKUP_DELAY + 16
+    for t in range(ticks):
+        dx = wx + 0.5 - env.obs["x"]
+        dz = wz + 0.5 - env.obs["z"]
+        ry, rp, _ = aim_error(env.obs, wx, wy, wz)
+        a = turn_act(ry, rp)
+        if abs(dx) > PICKUP_XZ or abs(dz) > PICKUP_XZ:
+            a["forward"] = 1
+            if t % 8 < 2:
+                a["jump"] = 1
+        step(env, a)
+
+
 # ---------------------------------------------------------------- stages
 def stage_chop(env, budget=1200):
-    """Greedy approach + hold-attack until LOG_TARGET logs are in inventory."""
+    """Greedy approach + hold-attack until LOG_TARGET logs are in inventory.
+
+    Walks to REACH-0.5 then attacks. Pickup is Java player AABB
+    expand(1.0D, 0.5D, 1.0D) EntityPlayer.java:613; later approach to the
+    next log passes through that volume of the drop.
+    """
     for t in range(budget):
         if inv(env, IX_LOG) >= LOG_TARGET:
             return True
@@ -326,15 +361,13 @@ def stage_coal(env, budget=3000, stop_dist=None):
         _, _, dist = aim_error(env.obs, tx, ty, tz)
         if dist <= 3.2:
             # close enough that the drop lands in pickup range: mine the ore,
-            # then walk onto where it stood to collect (vanilla ~10 tick
-            # pickup delay). Mining from farther away strands the drop on
-            # ledges above and the inventory check never fires.
+            # then walk through Java expand(1.0, 0.5, 1.0) of where it stood
+            # (vanilla ~10 tick pickup delay). Mining from farther away
+            # strands the drop on ledges above and the inventory check
+            # never fires.
             mine_block(env, tx, ty, tz, budget=120)
-            ry, _, _ = aim_error(env.obs, tx, ty, tz)
-            step(env, {"dyaw": float(np.clip(ry, -25, 25))})
-            for _ in range(14):
-                step(env, {"forward": 1, "jump": 1})
-            spent += 135
+            walk_pickup(env, tx, ty, tz)
+            spent += 120 + PICKUP_DELAY + 16
             continue
         # clear the next tunnel cell toward the ore
         dx, dz = tx + 0.5 - px, tz + 0.5 - pz
@@ -788,8 +821,10 @@ def configure_iron(iron=False, iron_dbg=False):
 
 def run_seed(seed, verbose=True):
     # IRON runs need the JSON obs (inv_iron field); the base chain keeps the
-    # fast binary protocol
-    env = MagmaEnv(seed, bin=not IRON)
+    # fast binary protocol. Seed 10 is the spawn_to_torch fixture: bake
+    # against the same --snapshot-in the M1/M2 gate replays.
+    snap = S10_SNAP if seed == 10 and os.path.isfile(S10_SNAP) else None
+    env = MagmaEnv(seed, bin=not IRON, snapshot=snap)
     results = []
     try:
         for name, fn in STAGES:

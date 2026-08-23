@@ -6,6 +6,7 @@
 #include "plant_growth.h"  /* PG_WHEAT, growth chance helpers */
 #include "mc_blocks.h"
 #include "mc_rng.h"
+#include "entity_item.h"
 #include <math.h>
 #include <string.h>
 
@@ -30,7 +31,10 @@ void gm_live_init(GmLiveSim *s, long long seed, int surface_y) {
     e->on_ground = 0;
     e->age = 0;
     e->item = 4; e->count = 1; e->meta = 0;
-    e->pickup_delay = 10; e->lifespan = 6000;
+    e->pickup_delay = EI_PICKUP_DEFAULT; e->lifespan = EI_LIFESPAN;
+    e->health = EI_HEALTH;
+    e->fire = -EI_FIRE_IMMUNE_TICKS;
+    e->ticks_existed = 0;
     s->n_active = 1;
 
     /* Wheat plot next to spawn: farmland + wheat age 0 */
@@ -61,7 +65,10 @@ static void live_fill_ent(GmLiveEnt *e, double x, double y, double z,
         e->ench_lvl[j] = stack.enchants[j].level;
     }
     e->pickup_delay = pickup_delay < 0 ? 0 : pickup_delay;
-    e->lifespan = 6000;
+    e->lifespan = EI_LIFESPAN;
+    e->health = EI_HEALTH;
+    e->fire = -EI_FIRE_IMMUNE_TICKS;
+    e->ticks_existed = 0;
 }
 
 static int live_try_active_slot(GmLiveSim *s, double x, double y, double z,
@@ -124,8 +131,11 @@ int gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
 int gm_live_spawn_item_capped(GmLiveSim *s, double x, double y, double z,
                               int item, int count, int meta, int pickup_delay) {
     if (!s || item <= 0 || count <= 0) return 0;
-    return live_try_active_slot(s, x, y, z, ic_mk(item, count, meta),
-                                pickup_delay);
+    if (live_try_active_slot(s, x, y, z, ic_mk(item, count, meta),
+                             pickup_delay))
+        return 1;
+    s->spawn_fail_count++;
+    return 0;
 }
 
 #define FL_W GmWorld
@@ -138,14 +148,61 @@ int gm_live_spawn_item_capped(GmLiveSim *s, double x, double y, double z,
 #define FL_UPDATES GM_LIVE_FALL_UPDATES
 #include "falling_live.h"
 
+#define IL_W GmWorld
+#define il_id(w, x, y, z) gm_world_block((w), (x), (y), (z))
+#define il_meta(w, x, y, z) (gm_world_meta((w), (x), (y), (z)) & 15)
+#include "item_live.h"
+
+static void live_to_mc(const GmLiveEnt *e, McItem *it) {
+    memset(it, 0, sizeof *it);
+    ei_set_position(it, e->x, e->y, e->z);
+    it->motionX = e->mx;
+    it->motionY = e->my;
+    it->motionZ = e->mz;
+    it->onGround = e->on_ground;
+    it->age = e->age;
+    it->delayBeforeCanPickup = e->pickup_delay;
+    it->ticksExisted = e->ticks_existed;
+    it->lifespan = e->lifespan > 0 ? e->lifespan : EI_LIFESPAN;
+    it->dead = 0;
+    it->item = e->item;
+    it->count = e->count;
+    it->meta = e->meta;
+    it->hasSubtypes = 1;
+    it->hasTag = e->n_enchants > 0;
+    it->maxStack = isr_max_stack_size(e->item, e->meta);
+    it->health = e->health > 0 ? e->health : EI_HEALTH;
+    it->fire = e->fire;
+}
+
+static void live_from_mc(GmLiveEnt *e, const McItem *it, GmLiveSim *s) {
+    if (it->dead || it->count <= 0) {
+        e->active = 0;
+        e->count = 0;
+        if (s->n_active > 0) s->n_active--;
+        return;
+    }
+    e->x = it->posX;
+    e->y = it->posY;
+    e->z = it->posZ;
+    e->mx = it->motionX;
+    e->my = it->motionY;
+    e->mz = it->motionZ;
+    e->on_ground = it->onGround;
+    e->age = it->age;
+    e->pickup_delay = it->delayBeforeCanPickup;
+    e->ticks_existed = it->ticksExisted;
+    e->lifespan = it->lifespan;
+    e->item = it->item;
+    e->count = it->count;
+    e->meta = it->meta;
+    e->health = it->health;
+    e->fire = it->fire;
+}
+
 void gm_live_block_changed(GmLiveSim *s, GmWorld *w,
                            int x, int y, int z) {
     fl_block_changed(s, w, x, y, z);
-}
-
-static int solid_at(GmWorld *w, int x, int y, int z) {
-    int id = gm_world_block(w, x, y, z);
-    return id != 0 && id != 8 && id != 9 && id != 10 && id != 11;
 }
 
 void gm_live_pre_player_tick(GmLiveSim *s, GmWorld *w) {
@@ -161,48 +218,26 @@ void gm_live_tick(GmLiveSim *s, GmWorld *w) {
      * takes its first gravity step in this same runtime tick. */
     fl_tick_scheduled(s, w);
 
-    /* ---- item entities: gravity + ground friction (EntityItem-like) ---- */
-    for (int i = 0; i < GM_LIVE_MAX; ++i) {
-        GmLiveEnt *e = &s->ents[i];
-        if (!e->active) continue;
-        if (e->type == 2) {
-            fl_tick_entity(s, w, i);
-            continue;
+    /* ---- item entities: shared EntityItem.onUpdate (item_live.h) ---- */
+    {
+        McItem its[GM_LIVE_MAX];
+        int map[GM_LIVE_MAX];
+        int n = 0, k;
+        for (int i = 0; i < GM_LIVE_MAX; ++i) {
+            GmLiveEnt *e = &s->ents[i];
+            if (!e->active) continue;
+            if (e->type == 2) {
+                fl_tick_entity(s, w, i);
+                continue;
+            }
+            live_to_mc(e, &its[n]);
+            map[n] = i;
+            n++;
         }
-        if (e->pickup_delay > 0) e->pickup_delay--;
-        double prev_y = e->y;
-        e->my -= 0.03999999910593033; /* (double)0.04f */
-        e->x += e->mx;
-        e->y += e->my;
-        e->z += e->mz;
-        /* ground: if feet enter solid, snap to top and zero vertical motion */
-        int by = (int)floor(e->y);
-        int bx = (int)floor(e->x);
-        int bz = (int)floor(e->z);
-        if (solid_at(w, bx, by, bz)) {
-            e->y = (double)(by + 1);
-            e->my = 0.0;
-            e->on_ground = 1;
-        } else if (solid_at(w, bx, by - 1, bz) && e->y - floor(e->y) < 0.01) {
-            e->on_ground = 1;
-            e->my = 0.0;
-        } else {
-            e->on_ground = 0;
-        }
-        float slip = 0.6f;
-        int under = gm_world_block(w, bx, by - 1, bz);
-        if (under == BLK_ICE || under == 174 || under == 212) slip = 0.98f;
-        float f = e->on_ground ? (slip * 0.98f) : 0.98f;
-        e->mx *= (double)f;
-        e->mz *= (double)f;
-        e->my *= 0.9800000190734863;
-        if (e->on_ground) e->my *= -0.5;
-        e->age++;
-        if (e->lifespan > 0 && e->age >= e->lifespan) {
-            e->active = 0;
-            if (s->n_active > 0) s->n_active--;
-        }
-        (void)prev_y;
+        for (k = 0; k < n; ++k)
+            il_tick_item(w, its, n, k);
+        for (k = 0; k < n; ++k)
+            live_from_mc(&s->ents[map[k]], &its[k], s);
     }
 
     /* ---- wheat growth (simplified BlockCrops.updateTick on our plot) ---- */
@@ -231,28 +266,34 @@ void gm_live_tick_player(GmLiveSim *s, GmWorld *w, struct PsvPlayer *pl_,
     double px = pl->ent.posX + (double)player_ox;
     double py = pl->ent.posY;
     double pz = pl->ent.posZ + (double)player_oz;
-    for (int i = 0; i < GM_LIVE_MAX; ++i) {
-        GmLiveEnt *e = &s->ents[i];
-        if (!e->active || e->type != 0 || e->pickup_delay > 0) continue;
-        if (fabs(e->x - px) > 1.0 || fabs(e->z - pz) > 1.0 ||
-            e->y < py - 0.25 || e->y > py + 2.8) continue;
-        {
-            ICStack incoming = ic_mk(e->item, e->count, e->meta);
-            int j, n = e->n_enchants;
-            if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
-            if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
-            incoming.n_enchants = n;
-            for (j = 0; j < n; ++j) {
-                incoming.enchants[j].id = e->ench_id[j];
-                incoming.enchants[j].level = e->ench_lvl[j];
-            }
-            isr_add_item_stack_to_inventory(&pl->inv, &incoming);
-            e->count = incoming.count;
-            /* leftover retains the same StoredEnchantments payload */
-            if (e->count <= 0) {
-                e->active = 0;
-                e->n_enchants = 0;
-                if (s->n_active > 0) s->n_active--;
+    {
+        McAABB pbox = psv_player_box(px, py, pz);
+        McAABB vol = il_pickup_volume(&pbox);
+        for (int i = 0; i < GM_LIVE_MAX; ++i) {
+            GmLiveEnt *e = &s->ents[i];
+            McItem it;
+            int j, n;
+            if (!e->active || e->type != 0) continue;
+            live_to_mc(e, &it);
+            if (it.delayBeforeCanPickup > 0) continue;
+            if (!mc_aabb_intersects(&it.box, &vol)) continue;
+            {
+                ICStack incoming = ic_mk(e->item, e->count, e->meta);
+                n = e->n_enchants;
+                if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
+                incoming.n_enchants = n;
+                for (j = 0; j < n; ++j) {
+                    incoming.enchants[j].id = e->ench_id[j];
+                    incoming.enchants[j].level = e->ench_lvl[j];
+                }
+                isr_add_item_stack_to_inventory(&pl->inv, &incoming);
+                e->count = incoming.count;
+                if (e->count <= 0) {
+                    e->active = 0;
+                    e->n_enchants = 0;
+                    if (s->n_active > 0) s->n_active--;
+                }
             }
         }
     }

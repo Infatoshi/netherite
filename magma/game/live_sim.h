@@ -35,6 +35,9 @@ typedef struct {
     short  ench_lvl[GM_LIVE_MAX_ENCHANTS];
     int    pickup_delay;
     int    lifespan;
+    int    health;         /* EntityItem.health default 5 */
+    int    fire;           /* Entity.fire; ctor -getFireImmuneTicks */
+    int    ticks_existed;  /* Entity.ticksExisted */
 } GmLiveEnt;
 
 typedef struct {

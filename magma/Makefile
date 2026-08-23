@@ -113,7 +113,8 @@ magma_game: app/game_main.o $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) \
 game/%.o: game/%.c core/types.h game/game.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(BLAZE)/core -c $< -o $@
 game/randtick.o: ../blaze/core/randtick_live.h
-game/live_sim.o: ../blaze/core/falling_live.h
+game/live_sim.o: ../blaze/core/falling_live.h ../blaze/core/item_live.h \
+                 ../blaze/core/entity_item.h
 game/world_live.o: ../blaze/core/world_weather.h
 game/runtime.o: ../blaze/core/projectile_live.h ../blaze/core/explosion_live.h ../blaze/core/explosion.h
 game/mob_live.o: ../blaze/core/explosion_live.h ../blaze/core/hostile_live.h
@@ -428,8 +429,13 @@ test-furnace-registry:
 	    -o tests/test_furnace_registry $(LDLIBS)
 	./tests/test_furnace_registry
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items
 	@echo "run per-module tests in tests/ (see SPEC.md)"
+
+.PHONY: test-live-items
+test-live-items:
+	$(CC) $(CFLAGS) -I$(BLAZE)/core -I. tests/test_live_items.c -o tests/test_live_items $(LDLIBS)
+	./tests/test_live_items
 
 # Standalone-game semantic gates. These deliberately exercise the real streamed
 # world boundary, not only synthetic vanilla-id chunks.
@@ -543,6 +549,7 @@ BLAZE_EXPLOSIONS = ../blaze/core/explosion.h ../blaze/core/explosion_live.h
 BLAZE_MOBS = ../blaze/core/hostile_live.h ../blaze/core/hostile_spawn.h \
              ../blaze/core/passive_live.h
 BLAZE_XP = ../blaze/core/xp_live.h ../blaze/core/entity_xp_orb.h
+BLAZE_ITEMS = ../blaze/core/entity_item.h ../blaze/core/item_live.h
 BLAZE_BOATS = ../blaze/core/boat_live.h
 BLAZE_ELYTRA = ../blaze/core/elytra_live.h
 ifeq ($(shell uname -s),Darwin)
@@ -563,13 +570,13 @@ endif
 .PHONY: blaze_verify blaze_so
 blaze_verify: ../blaze/env/blaze_verify
 ../blaze/env/blaze_verify: ../blaze/env/blaze_verify.c $(BLAZE_SRCS) \
-                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY) $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_WEATHER) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
+                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY) $(BLAZE_RANDTICK) $(BLAZE_FALLING) $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env ../blaze/env/blaze_verify.c \
 	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
 blaze_so: ../blaze/env/blaze_cpu.so
 ../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
-                        $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
+                        $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
                         $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
 	    -o $@ $(LDLIBS) $(BLAZE_OMP)
@@ -617,7 +624,7 @@ blaze_cuda_so: ../blaze/env/blaze_cuda.so
 ../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
                         ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
-                        $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
+                        $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
                         $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
 	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
@@ -631,6 +638,7 @@ clean:
 	find . -name '*.d' -delete
 	rm -f tests/test_raster_smoke tests/test_transform tests/test_present tests/test_scene tests/test_world \
 	      tests/test_raster_parity tests/test_assets tests/test_light tests/test_water_skylight tests/test_mesh_mc \
+	      tests/test_live_items \
 	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
 	      tests/test_sky_weather \
 	      tests/test_fog_radial \

@@ -1537,9 +1537,12 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
    (`CraftingManager.java:140-145`) + cake (`:115`) +
    `getRemainingItems` (`ShapedRecipes.java:42-52`, `Item.java:1568-1577,1680`).
    See `CLOSED_DIVERGENCES.md`.
-7. Live ground items: `magma/game/live_sim.c:155-258` runs its own item
-   physics and bypasses the verified `blaze/core/entity_item.h` kernel.
-   Pickup delay, merge, and lava cut differ between the two paths. M.
+7. Live ground items: VERIFIED pickup 2026-08-23 lane `liveitems`. Shared
+   `item_live.h` volume is player AABB `expand(1.0D, 0.5D, 1.0D)`
+   (`EntityPlayer.java:613`) + `delay>0` return (`EntityItem.java:432`) +
+   `addItemStackToInventory`. `ground_items` and spawn_to_torch M1+M2
+   VERIFIED (2058). Magma 32-slot overflow queue still magma-only. XP orb
+   lava cut still open. spawnAsEntity xz Math.random Class C zeros. M.
 8. Tick order: `magma/game/runtime.c:904-1216` is not `WorldServer.tick`
    order (Java: weather, updateBlocks(random ticks) per chunk, tile
    entities in `updateEntities` after entities, scheduled ticks before
@@ -1556,8 +1559,9 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
 Silent deviations found (not yet measured by any gate): fluids step
 synchronously instead of via scheduled ticks (`fluid_live.h`); light uses
 Jacobi sweeps, not Java's per-update queue timing; fixed caps (96
-entities, 48 items, 64 collision boxes) silently drop state; XP orb lava
-cut; stronghold iron bars where Java places doors; portal
+entities, 64 collision boxes) still silent; 48-item cap skip is hashed
+as `spawn_fail_count` in BP_ITEMS (Java `World.spawnEntity` has no cap);
+XP orb lava cut; stronghold iron bars where Java places doors; portal
 nearest-selection.
 block placement `mayPlace` (`ItemBlock.onItemUse`): CLOSED 2026-08-23
 lane `tntsupport` for the subset (torch, sapling/plants on dirt/grass,

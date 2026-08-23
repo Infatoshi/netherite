@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/liveitems 2026-08-23 (spawn_to_torch M1+M2 2058 after Java pickup expand 1.0/0.5/1.0 EntityPlayer.java:613 + delay EntityItem.java:432. ground_items M1+M2 stay VERIFIED. listed --no-deps M1 VERIFIED; M2 VERIFIED except mining_slice BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/expresid 2026-08-23 (explosions M1+M2 after creeper posY origin, charged 2x via screaming alias, mobGriefing isSmoking, density collision AABB, unenchanted blast-prot identity, isFlaming explosionRNG draw. EXP4 unchanged. placement, furnaces, hazards, biome_plane, biome_plane_spawn, biome_plane_ice, spawn_to_torch, world_dynamics, fluids, entity_spine, random_ticks, random_ticks_bodies, falling_blocks, weather_optional, projectiles, chests, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/warpm2 2026-08-23 (Sweep row 5: focused M2 now runs k_tick_raw, k_tick_warp, and k_tick. All supported chain rows PASS raw+warp+scalar. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp. M1 unchanged VERIFIED.)
 Last verified: lane/witch 2026-08-23 (mobs_witch M1+M2 after EntityWitch shared live tick + MONSTER insert + drink 32 + ENTITIES_WITCH loot stick weight 2 + type-1 arrow vs enderman 64-try teleport. Snapshot v7 disk 572, in-memory extras zero-extend. BP_MOBS MBM3. mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, random_ticks, random_ticks_bodies, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp. EntityPotion / A* stay out).
@@ -47,6 +48,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | mining_slice | VERIFIED | VERIFIED |
 | spawn_to_torch | VERIFIED (chain 2058 actions) | VERIFIED |
 | placement | VERIFIED (chain 96 torch-air/torch-stone/flint-TNT, `--features player,items,explosions`) | VERIFIED |
+| ground_items | VERIFIED (chain 64, `--features items`) | VERIFIED |
 | world_dynamics | VERIFIED | VERIFIED |
 | fluids | VERIFIED | VERIFIED (chain 61 actions) |
 | entity_spine | VERIFIED (chain 32 actions, `--features mobs`) | VERIFIED (64 CUDA lanes) |
@@ -161,7 +163,9 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
 8. Mob sidecars (repath, despawn, fire, tick counters) not snapshotted and
    not digested. M.
 9. Item enchant payload and the 32-stack overflow queue missing in blaze.
-   M.
+   M. lane/liveitems 2026-08-23 shared `item_live.h` EntityItem.onUpdate and
+   hashed 48-cap skip (`spawn_fail_count` in BP_ITEMS). Overflow queue and
+   live enchant copy into blaze pickup still magma-only.
 10. TNT flint-and-steel: CLOSED 2026-08-23 lane `tntsupport`. Shared
     `block_may_place.h` (`BlockTNT.java:105-119` / `:85-96`, fuse 80).
 11. Furnaces matrix row: CLOSED 2026-08-23 lane `furnaceids`. `furnaces`
