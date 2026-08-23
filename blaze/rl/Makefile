@@ -107,6 +107,7 @@ TEST_POTIONS_BIN := $(OUT)/test_potions
 TEST_PLACE_BIN := $(OUT)/test_placement
 TEST_BEDS_BIN := $(OUT)/test_beds
 TEST_SKY_BIN := $(OUT)/test_skylight_water
+TEST_BLK_BIN := $(OUT)/test_blocklight
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
 SAN_TEST_BIN := $(SAN_OUT)/test_train_config
@@ -376,6 +377,21 @@ $(TEST_SKY_BIN): $(ENV_SRC)/test_skylight_water.c \
 	$(CC) $(ENV_CFLAGS) -o $@ $(OUT)/test_skylight_water.o \
 	    $(OUT)/test_skylight_magma_oracle.o $(SKY_MAGMA_OBJS) -lm
 
+$(TEST_BLK_BIN): $(ENV_SRC)/test_blocklight.c \
+		$(ENV_SRC)/test_blocklight_magma_oracle.c \
+		$(ENV_SRC)/blaze_core.h | $(OUT)
+	$(MAKE) -C $(MAGMA) world/light.o world/mesh_mc.o world/populate_mc.o \
+	    world/gen_prefetch.o assets/blockmodels.o \
+	    renderkernels/rk_31_facebakery_make_quad.o \
+	    core/math.o core/shade.o core/config.o game/caps.o
+	$(CC) $(ENV_CFLAGS) -c -o $(OUT)/test_blocklight.o \
+	    $(CPPFLAGS) $(ENV_SRC)/test_blocklight.c
+	$(CC) $(ENV_CFLAGS) -c -o $(OUT)/test_blocklight_magma_oracle.o \
+	    -I$(MAGMA) -I$(MAGMA)/core -I$(CORE_SRC) \
+	    $(ENV_SRC)/test_blocklight_magma_oracle.c
+	$(CC) $(ENV_CFLAGS) -o $@ $(OUT)/test_blocklight.o \
+	    $(OUT)/test_blocklight_magma_oracle.o $(SKY_MAGMA_OBJS) -lm
+
 ifeq ($(UNAME_S),Darwin)
 $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
 		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
@@ -415,7 +431,8 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 		$(TEST_POTIONS_BIN) \
 		$(TEST_PLACE_BIN) \
 		$(TEST_BEDS_BIN) \
-		$(TEST_SKY_BIN)
+		$(TEST_SKY_BIN) \
+		$(TEST_BLK_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -441,6 +458,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_placement
 	cd $(REPO) && ./out/blaze/rl/test_beds
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
+	cd $(REPO) && ./out/blaze/rl/test_blocklight
 
 test-hazards: $(TEST_HAZARDS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_hazards
@@ -500,6 +518,9 @@ test-passives: $(TEST_PASSIVES_BIN)
 
 test-skylight-water: $(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
+
+test-blocklight: $(TEST_BLK_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_blocklight
 
 # Default smoke: committed ppo.conf (backend=cpu).
 smoke: smoke-cpu
