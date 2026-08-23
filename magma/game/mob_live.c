@@ -378,6 +378,8 @@ static void ml_load_slot(MlMob *o, const GmMobLive *m, const EwStore *s, int i) 
     o->snap.mz = s->vz[i];
     o->snap.on_ground = (int)s->on_ground[i];
     o->snap.health = s->health[i];
+    o->snap.hurt_time = m->hurt_time[i];
+    o->snap.death_time = m->death_time[i];
     o->snap.attack_time = s->attack_time[i];
     o->snap.swell = m->creeper_fuse[i];
     o->snap.target_idx = m->det_has_target[i] ? 1 : 0;
@@ -420,6 +422,8 @@ static void ml_save_slot(GmMobLive *m, EwStore *s, int i, const MlMob *o) {
     s->vz[i] = p->mz;
     s->on_ground[i] = (u8)(p->on_ground ? 1 : 0);
     s->health[i] = p->health;
+    m->hurt_time[i] = p->hurt_time;
+    m->death_time[i] = p->death_time;
     s->attack_time[i] = p->attack_time;
     s->ai_state[i] = p->task_bits;
     s->path_tx[i] = p->wander_x;
@@ -2306,8 +2310,10 @@ static void slime_split(GmMobLive *m, EwStore *s, int i, JavaRandom *er) {
     }
 }
 
-static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
-    int item = 0, count = 1, xp = 5;
+/* EntityLivingBase.onDeath EntityLivingBase.java:1224-1271 dropLoot.
+ * XP / EntitySlime.setDead split wait for deathTime==20. */
+static void mob_on_death(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
+    int item = 0, count = 1;
     int type = s->type[i];
     switch (type) {
     case EW_TYPE_ZOMBIE: item = 367; break;
@@ -2325,7 +2331,6 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         int nd, di;
         er.seed = m->ent_jr_seed[i];
         nd = ml_spider_drop(&er, 1, pd, 2);
-        xp = 5;
         m->ent_jr_seed[i] = er.seed;
         for (di = 0; di < nd; ++di)
             gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i],
@@ -2338,7 +2343,7 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         break;
     case EW_TYPE_BLAZE:
         if ((mc_hash64((u64)m->seed ^ (u64)s->id[i]) & 1ULL) != 0) item = 369;
-        xp = 10; break;
+        break;
     case EW_TYPE_PIGMAN:
         item = 367; /* rotten flesh */
         if ((mc_hash64((u64)m->seed ^ (u64)s->id[i] ^ 0x474F4C44ULL) & 3ULL) == 0)
@@ -2352,13 +2357,6 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
     case EW_TYPE_MAGMA:
         if (m->size[i] > 1 &&
             (mc_hash64((u64)m->seed ^ (u64)s->id[i]) & 1ULL) != 0) item = 378;
-        xp = m->size[i];
-        {
-            JavaRandom er;
-            er.seed = m->ent_jr_seed[i];
-            slime_split(m, s, i, &er);
-            m->ent_jr_seed[i] = er.seed;
-        }
         break;
     case EW_TYPE_SLIME: {
         JavaRandom er;
@@ -2367,8 +2365,6 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         er.seed = m->ent_jr_seed[i];
         sz = m->size[i] > 0 ? (int)m->size[i] : 1;
         nd = ml_slime_drop(&er, sz, pd, 1);
-        xp = sz;
-        if (sz > 1) slime_split(m, s, i, &er);
         m->ent_jr_seed[i] = er.seed;
         if (nd > 0)
             gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i],
@@ -2377,7 +2373,7 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         break;
     }
     case EW_TYPE_SILVERFISH:
-        item = 0; xp = 5; break;
+        item = 0; break;
     case EW_TYPE_SHEEP:
     case EW_TYPE_PIG:
     case EW_TYPE_COW:
@@ -2388,7 +2384,6 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         er.seed = m->ent_jr_seed[i];
         nd = pl_drop_few(type, pl_sheep_sheared(m->creeper_fuse[i]),
                          pl_sheep_color(m->creeper_fuse[i]), &er, pd, 4);
-        xp = pl_xp_points(&er);
         m->ent_jr_seed[i] = er.seed;
         for (di = 0; di < nd; ++di)
             gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i],
@@ -2397,14 +2392,75 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         break;
     }
     case EW_TYPE_BOAT:
-        item = 333; xp = 0; break;
+        item = 333; break;
     default: break;
     }
     if (item) gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i], item, count, 0, 10);
+}
+
+/* EntityLivingBase.onDeathUpdate deathTime==20 then setDead.
+ * EntitySlime.setDead split EntitySlime.java:217-247. */
+static void mob_finish_dead(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
+    int xp = 5;
+    int type = s->type[i];
+    (void)drops;
+    switch (type) {
+    case EW_TYPE_MAGMA:
+        xp = m->size[i];
+        {
+            JavaRandom er;
+            er.seed = m->ent_jr_seed[i];
+            slime_split(m, s, i, &er);
+            m->ent_jr_seed[i] = er.seed;
+        }
+        break;
+    case EW_TYPE_SLIME: {
+        JavaRandom er;
+        int sz = m->size[i] > 0 ? (int)m->size[i] : 1;
+        er.seed = m->ent_jr_seed[i];
+        xp = sz;
+        if (sz > 1) slime_split(m, s, i, &er);
+        m->ent_jr_seed[i] = er.seed;
+        break;
+    }
+    case EW_TYPE_SHEEP:
+    case EW_TYPE_PIG:
+    case EW_TYPE_COW:
+    case EW_TYPE_CHICKEN: {
+        JavaRandom er;
+        er.seed = m->ent_jr_seed[i];
+        xp = pl_xp_points(&er);
+        m->ent_jr_seed[i] = er.seed;
+        break;
+    }
+    case EW_TYPE_BOAT:
+        xp = 0; break;
+    case EW_TYPE_BLAZE:
+        xp = 10; break;
+    default:
+        xp = 5; break;
+    }
     if (xp > 0) gm_mobs_spawn_xp(m, s->x[i], s->y[i] + 0.25, s->z[i], xp);
     if (m->boat_ride == i) m->boat_ride = -1;
     s->alive[i] = 0;
     s->type[i] = EW_TYPE_NONE;
+}
+
+static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
+    mob_on_death(m, s, i, drops);
+    mob_finish_dead(m, s, i, drops);
+}
+
+/* EntityLivingBase.onDeath then onDeathUpdate ++deathTime; setDead at 20. */
+static int tick_corpse(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
+    if (!s || !s->alive[i] || s->health[i] > 0.0f) return 0;
+    if (s->type[i] == EW_TYPE_BOAT) return 0;
+    if (m->death_time[i] == 0)
+        mob_on_death(m, s, i, drops);
+    ++m->death_time[i];
+    if (m->death_time[i] >= 20)
+        mob_finish_dead(m, s, i, drops);
+    return 1;
 }
 
 int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player_,
@@ -2500,7 +2556,7 @@ int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player_,
     }
     damage_held_weapon((PsvPlayer *)p);
     m->player_attack_cooldown = 10;
-    if (s->health[best] <= 0.0f) mob_drop(m, s, best, drops);
+    if (s->health[best] <= 0.0f) s->health[best] = 0.0f;
     ew_store_copy(next_store(m), s);
     return 1;
 }
@@ -2736,14 +2792,16 @@ static void pai_player_collide_mobs(GmMobLive *m, EwStore *s,
 static int alive_count(const GmMobLive *m,const EwStore *s) {
     int n=0;
     for (int i=1;i<EW_MAX_ENTITIES;++i)
-        if (s->alive[i] && m->entity_dimension[i]==m->active_dimension &&
+        if (s->alive[i] && s->health[i] > 0.0f &&
+            m->entity_dimension[i]==m->active_dimension &&
             gm_hostile(s->type[i])) ++n;
     return n;
 }
 static int living_count(const GmMobLive *m,const EwStore *s) {
     int n=0;
     for(int i=1;i<EW_MAX_ENTITIES;++i)
-        if(s->alive[i]&&m->entity_dimension[i]==m->active_dimension&&
+        if(s->alive[i]&&s->health[i]>0.0f&&
+           m->entity_dimension[i]==m->active_dimension&&
            gm_living(s->type[i]))++n;
     return n;
 }
@@ -3320,6 +3378,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             tick_boat(m, w, nx, i, p, ox, oz, boat_fwd, boat_str);
             continue;
         }
+        if (tick_corpse(m, nx, i, drops)) continue;
         int hostile=gm_hostile(type), passive=gm_passive(type);
         /* AIFireballAttack owns its attackTime countdown only while its task
          * executes. Other mobs keep the EntityLiving-style global cooldown. */
@@ -3353,7 +3412,11 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             --m->fire_ticks[i];
             if(m->fire_ticks[i]%20==0){
                 nx->health[i]-=1.0f;
-                if(nx->health[i]<=0.0f){mob_drop(m,nx,i,drops);continue;}
+                if(nx->health[i]<=0.0f){
+                    nx->health[i]=0.0f;
+                    (void)tick_corpse(m, nx, i, drops);
+                    continue;
+                }
             }
         }
         int aggro=0;
@@ -3427,11 +3490,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             m->creeper_fuse[i] = mm.snap.swell;
             m->det_see_time[i] = mm.snap.see_time;
             m->entity_age[i] = mm.despawn_ticks;
-            if (!nx->alive[i]) {
-                if (mm.snap.health <= 0.0f)
-                    mob_drop(m, nx, i, drops);
-                continue;
-            }
+            if (!nx->alive[i]) continue;
+            if (tick_corpse(m, nx, i, drops)) continue;
             pl_move_passive(&mm, w, st, po.moving, po.jump, po.speed_mul);
             ml_save_slot(m, nx, i, &mm);
             m->panic_ticks[i] = mm.snap.panic;
@@ -3447,9 +3507,10 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             pre = ml_hostile_pre(&mm, w, px, py, pz, day);
             if (pre <= 0) {
                 ml_save_slot(m, nx, i, &mm);
-                if (pre < 0) mob_drop(m, nx, i, drops);
                 continue;
             }
+            ml_save_slot(m, nx, i, &mm);
+            if (tick_corpse(m, nx, i, drops)) continue;
             ml_hostile_ai(&mm, w, px, py, pz, day, m->seed, m->tick, &o);
             ml_save_slot(m, nx, i, &mm);
             if (mm.exploded) {
@@ -3460,11 +3521,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 m->explosion_size = EXL_RADIUS;
                 continue;
             }
-            if (!nx->alive[i]) {
-                if (mm.snap.health <= 0.0f)
-                    mob_drop(m, nx, i, drops);
-                continue;
-            }
+            if (!nx->alive[i]) continue;
             moving = o.moving;
             jump = o.jump;
             wandering = o.wandering;
@@ -3912,7 +3969,7 @@ int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
     }
     if(best<0)return 0;
     s->health[best]-=damage;mark_hurt(m,s,best);
-    if(s->health[best]<=0)mob_drop(m,s,best,drops);
+    if(s->health[best]<=0.0f) s->health[best]=0.0f;
     ew_store_copy(next_store(m),s);return 1;
 }
 
@@ -4032,7 +4089,7 @@ void gm_mobs_explosion_knockback(GmMobLive *m, GmLiveSim *drops,
         s->vz[i] += blast.addz;
         s->health[i] -= blast.damage;
         mark_hurt(m, s, i);
-        if (s->health[i] <= 0.0f) mob_drop(m, s, i, drops);
+        if (s->health[i] <= 0.0f) s->health[i] = 0.0f;
     }
     ew_store_copy(next_store(m), s);
 }

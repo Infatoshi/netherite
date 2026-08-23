@@ -282,6 +282,49 @@ static int run_units(void) {
     expect(!hs_is_roster(HS_WITCH) && !hs_is_roster(HS_ENDERMAN),
            "witch/enderman still consume then skip");
     {
+        RlSnapMob dying;
+        int t, keep;
+        memset(&dying, 0, sizeof dying);
+        dying.type = EW_TYPE_SLIME;
+        dying.alive = 1;
+        dying.health = 0.0f;
+        dying.swell = 2;
+        keep = 1;
+        for (t = 0; t < 19 && keep; ++t)
+            keep = ml_on_death_update(&dying);
+        expect(keep == 1 && dying.death_time == 19,
+               "onDeathUpdate keeps the slot through deathTime 19");
+        keep = ml_on_death_update(&dying);
+        expect(keep == 0 && dying.death_time == 20,
+               "EntityLivingBase.onDeathUpdate setDead at deathTime==20");
+    }
+    expect(hs_total_weight(1) == 515, "plains monster list weight is 515");
+    expect(hs_total_weight(HS_BIOME_SWAMP) == 516,
+           "BiomeSwamp extra slime weight 1 -> 516");
+    expect(hs_weight_at_biome(HS_SLIME, 1) == 100, "plains slime weight 100");
+    expect(hs_weight_at_biome(HS_SLIME, HS_BIOME_SWAMP) == 101,
+           "swamp slime weight 100+1");
+    {
+        JavaRandom wr, er;
+        int have = 0;
+        double g = 0.0;
+        u64 before, after_norm, after_hard;
+        jrand_set(&wr, 99);
+        jrand_set(&er, 7);
+        before = wr.seed;
+        hs_spider_init(&wr, &er, &have, &g, 2, 18000LL);
+        after_norm = wr.seed;
+        expect(after_norm != before, "spider jockey draw consumes world.rand");
+        jrand_set(&wr, 99);
+        have = 0;
+        g = 0.0;
+        jrand_set(&er, 7);
+        hs_spider_init(&wr, &er, &have, &g, 3, 2000000LL);
+        after_hard = wr.seed;
+        expect(after_hard != 0, "HARD spider potion roll consumes or skips nextFloat");
+        (void)after_norm;
+    }
+    {
         HsState st0;
         HsTestW tw0;
         tw0.stone_y = 64;

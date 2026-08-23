@@ -243,7 +243,19 @@ MC_HD static inline int ml_slime_drop(JavaRandom *er, int size,
 MC_HD static inline int ml_xp_points(int type, int slime_size) {
     if (type == EW_TYPE_SLIME) return slime_size > 0 ? slime_size : 1;
     if (type == EW_TYPE_SPIDER) return 5;     /* EntityMob.java:27 */
+    if (type == EW_TYPE_ENDERMAN) return 5;   /* EntityMob.java:27 */
     return 5;
+}
+
+/* EntityLivingBase.onDeathUpdate EntityLivingBase.java:419-437:
+ * ++deathTime; at deathTime==20 XP (recentlyHit/doMobLoot) then setDead.
+ * EntitySlime.setDead EntitySlime.java:217-247 (split) runs at that setDead,
+ * not on the health-hit / onDeath drop tick (EntityLivingBase.java:1224-1271).
+ * Returns 1 while dying (keep the slot), 0 when setDead fires this tick. */
+MC_HD static inline int ml_on_death_update(RlSnapMob *s) {
+    if (!s) return 0;
+    ++s->death_time;
+    return s->death_time < 20 ? 1 : 0;
 }
 
 /* EntitySlime.setDead EntitySlime.java:223,227-228. */
@@ -483,6 +495,7 @@ MC_HD static inline int ml_hostile_pre(MlMob *m, ML_W *w,
     if (!m || !m->snap.alive) return 0;
     s = &m->snap;
     type = s->type;
+    if (s->health <= 0.0f) return 1;          /* dying: onDeathUpdate, no despawn */
     dx = px - s->x;
     dy = py - s->y;
     dz = pz - s->z;
@@ -519,11 +532,8 @@ MC_HD static inline int ml_hostile_pre(MlMob *m, ML_W *w,
         --m->fire_ticks;
         if (m->fire_ticks % 20 == 0) {
             s->health -= 1.0f;
-            if (s->health <= 0.0f) {
-                s->alive = 0;
-                s->type = EW_TYPE_NONE;
-                return -1;
-            }
+            if (s->health <= 0.0f)
+                s->health = 0.0f; /* onDeathUpdate in the tick loop */
         }
     }
     return 1;

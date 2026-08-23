@@ -1150,6 +1150,8 @@ MC_HD static inline float cu_armor_damage(Blaze *e, float amount) {
 }
 
 MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m);
+MC_HD static inline void cu_mob_on_death(Blaze *e, RlSnapMob *m);
+MC_HD static inline void cu_mob_finish_dead(Blaze *e, RlSnapMob *m);
 MC_HD static inline void cu_mobs_compact(Blaze *e);
 
 MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
@@ -1237,7 +1239,7 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
         m->my += mb.addy;
         m->mz += mb.addz;
         m->health -= mb.damage;
-        if (m->health <= 0.0f) cu_mob_drop(e, m);
+        if (m->health <= 0.0f) m->health = 0.0f;
     }
     cu_mobs_compact(e);
     exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays, &e->world_rand,
@@ -1407,65 +1409,85 @@ MC_HD static inline void cu_slime_split(Blaze *e, const RlSnapMob *dead, JavaRan
     }
 }
 
-MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
+/* EntityLivingBase.onDeath EntityLivingBase.java:1224-1271: dropLoot now.
+ * XP and EntitySlime.setDead split wait for deathTime==20. */
+MC_HD static inline void cu_mob_on_death(Blaze *e, RlSnapMob *m) {
     int item;
     if (!e || !m) return;
     if (m->type == EW_TYPE_SPIDER) {
         JavaRandom er;
         MlDrop drops[2];
-        int n, i, xp;
+        int n, i;
         er.seed = m->seed48;
         n = ml_spider_drop(&er, 1, drops, 2);
-        xp = ml_xp_points(EW_TYPE_SPIDER, 0);
         m->seed48 = er.seed;
         for (i = 0; i < n; ++i)
             cu_spawn_item(e, m->x, m->y + 0.25, m->z,
                           drops[i].item, drops[i].count, drops[i].meta, 10);
-        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
-        m->alive = 0;
-        m->type = EW_TYPE_NONE;
         return;
     }
     if (m->type == EW_TYPE_SLIME) {
         JavaRandom er;
         MlDrop drops[1];
-        int n, sz, xp;
+        int n, sz;
         er.seed = m->seed48;
         sz = ml_slime_size(m);
         n = ml_slime_drop(&er, sz, drops, 1);
-        xp = ml_xp_points(EW_TYPE_SLIME, sz);
-        if (sz > 1) cu_slime_split(e, m, &er);
         m->seed48 = er.seed;
         if (n > 0)
             cu_spawn_item(e, m->x, m->y + 0.25, m->z,
                           drops[0].item, drops[0].count, drops[0].meta, 10);
-        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
-        m->alive = 0;
-        m->type = EW_TYPE_NONE;
         return;
     }
     if (pl_is_roster(m->type)) {
         JavaRandom er;
         PlDrop drops[4];
-        int n, i, xp;
+        int n, i;
         er.seed = m->seed48;
         n = pl_drop_few(m->type, pl_sheep_sheared(m->swell),
                         pl_sheep_color(m->swell), &er, drops, 4);
-        xp = pl_xp_points(&er);
         m->seed48 = er.seed;
         for (i = 0; i < n; ++i)
             cu_spawn_item(e, m->x, m->y + 0.25, m->z,
                           drops[i].item, drops[i].count, drops[i].meta, 10);
-        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
-        m->alive = 0;
-        m->type = EW_TYPE_NONE;
         return;
     }
     item = ml_drop_item(m->type);
     if (item)
         cu_spawn_item(e, m->x, m->y + 0.25, m->z, item, 1, 0, 10);
+}
+
+/* EntityLivingBase.onDeathUpdate deathTime==20: XP then setDead.
+ * EntitySlime.setDead split EntitySlime.java:217-247. */
+MC_HD static inline void cu_mob_finish_dead(Blaze *e, RlSnapMob *m) {
+    int xp = 5, sz;
+    if (!e || !m) return;
+    if (m->type == EW_TYPE_SLIME) {
+        JavaRandom er;
+        er.seed = m->seed48;
+        sz = ml_slime_size(m);
+        xp = ml_xp_points(EW_TYPE_SLIME, sz);
+        if (sz > 1) cu_slime_split(e, m, &er);
+        m->seed48 = er.seed;
+    } else if (m->type == EW_TYPE_SPIDER) {
+        xp = ml_xp_points(EW_TYPE_SPIDER, 0);
+    } else if (pl_is_roster(m->type)) {
+        JavaRandom er;
+        er.seed = m->seed48;
+        xp = pl_xp_points(&er);
+        m->seed48 = er.seed;
+    } else {
+        xp = ml_xp_points(m->type, 0);
+    }
+    if (xp > 0)
+        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
     m->alive = 0;
     m->type = EW_TYPE_NONE;
+}
+
+MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
+    cu_mob_on_death(e, m);
+    cu_mob_finish_dead(e, m);
 }
 
 MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
@@ -1511,8 +1533,7 @@ MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
     }
     e->player_attack_cooldown = ML_PLAYER_ATK_CD;
     if (e->mobs[best].health <= 0.0f)
-        cu_mob_drop(e, &e->mobs[best]);
-    cu_mobs_compact(e);
+        e->mobs[best].health = 0.0f;
     return 1;
 }
 
@@ -1582,10 +1603,18 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     for (i = 0; i < e->n_mobs; ++i) {
         MlMob mm;
         MlAiOut o;
-        int pre, drop_type;
+        int pre;
         if (e->mobs[i].alive && pl_is_roster(e->mobs[i].type)) {
             PlAiOut po;
             cu_mob_from_env(&mm, e, i);
+            if (mm.snap.health <= 0.0f) {
+                if (mm.snap.death_time == 0)
+                    cu_mob_on_death(e, &mm.snap);
+                if (!ml_on_death_update(&mm.snap))
+                    cu_mob_finish_dead(e, &mm.snap);
+                cu_mob_to_env(e, i, &mm);
+                continue;
+            }
             pl_passive_pre(&mm);
             pl_passive_ai(&mm, e, &po);
             if (!mm.snap.alive) {
@@ -1631,16 +1660,18 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             ess_store_snap(m, &liv);
             continue;
         }
-        drop_type = e->mobs[i].type;
         cu_mob_from_env(&mm, e, i);
         pre = ml_hostile_pre(&mm, e, px, py, pz, day);
         if (pre <= 0) {
             cu_mob_to_env(e, i, &mm);
-            if (pre < 0) {
-                mm.snap.type = drop_type;
-                cu_mob_drop(e, &mm.snap);
-                e->mobs[i] = mm.snap;
-            }
+            continue;
+        }
+        if (mm.snap.alive && mm.snap.health <= 0.0f) {
+            if (mm.snap.death_time == 0)
+                cu_mob_on_death(e, &mm.snap);
+            if (!ml_on_death_update(&mm.snap))
+                cu_mob_finish_dead(e, &mm.snap);
+            cu_mob_to_env(e, i, &mm);
             continue;
         }
         if (mm.snap.attack_time > 0) --mm.snap.attack_time;

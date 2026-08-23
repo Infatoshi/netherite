@@ -91,7 +91,9 @@ MC_HD static inline void elb_move_with_heading(EbLiving *e, float strafe, float 
     if (e->base.phys.collidedHorizontally && e->onLadder)
         e->base.phys.motionY = 0.2;
 
-    /* no levitation potion: apply gravity then drag */
+    /* no levitation potion: apply gravity then drag.
+     * EbLiving / living_base.h carry no PotionEffect list
+     * (EntitySpider.GroupData HARD roll is consumed, not applied). */
     if (!e->base.hasNoGravity)
         e->base.phys.motionY -= 0.08;
     e->base.phys.motionY *= 0.9800000190734863;

@@ -324,6 +324,8 @@ int main(int argc, char **argv) {
     for(int i=0;i<35 && gm_mobs_alive(&r.mobs);++i)gm_runtime_tick(&r,attack);
     float post_combat_health=r.vitals.health;
     CHECK(gm_mobs_alive(&r.mobs)==0,"held attack kills hostile under cooldown");
+    /* EntityLivingBase.onDeathUpdate XP at deathTime==20. */
+    for(int i=0;i<20;++i)gm_runtime_tick(&r,idle);
     n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
     int xp_visible=0;for(int i=0;i<n;++i)xp_visible|=v[i].type==GM_ENTITY_XP_ORB;
     CHECK(xp_visible&&r.mobs.xp_total==0,"hostile death creates XP entities before pickup");
@@ -341,6 +343,7 @@ int main(int argc, char **argv) {
     CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,10.5)>=0,"spawn component blaze");
     attack.forward = 1;
     for(int i=0;i<80&&gm_mobs_alive(&r.mobs);++i)gm_runtime_tick(&r,attack);
+    for(int i=0;i<20;++i)gm_runtime_tick(&r,idle);
     int rod=0;for(int i=0;i<GM_LIVE_MAX;++i)if(r.entities.ents[i].active&&r.entities.ents[i].item==369)rod=1;
     for(int i=0;i<200&&r.mobs.xp_total<10;++i)gm_runtime_tick(&r,idle);
     CHECK(gm_mobs_alive(&r.mobs)==0&&r.mobs.xp_total==10,"blaze XP entities reach the player");
@@ -376,6 +379,7 @@ int main(int argc, char **argv) {
     CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_SHEEP,8.5,5.0,10.5)>=0,"spawn loot sheep");
     CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,1.0,100.0f,&r.entities),
           "component lethal hit reaches sheep");
+    for(int i=0;i<20;++i)gm_runtime_tick(&r,idle);
     int wool=0,mutton=0;for(int i=0;i<GM_LIVE_MAX;++i)if(r.entities.ents[i].active){
         wool|=r.entities.ents[i].item==35;mutton|=r.entities.ents[i].item==423;
     }
@@ -575,6 +579,8 @@ int main(int argc, char **argv) {
     /* Deterministic death via damage_near (player melee reach is flaky on hoppers). */
     CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,2.0,100.0f,&r.entities),
           "magma takes lethal damage");
+    /* EntityLivingBase.onDeathUpdate ++deathTime == 20 then setDead/split. */
+    for(int t=0;t<20;++t) gm_runtime_tick(&r,idle);
     int smalls=0;
     {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
         for(int i=1;i<EW_MAX_ENTITIES;++i)
@@ -591,6 +597,7 @@ int main(int argc, char **argv) {
     }
     CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,2.0,100.0f,&r.entities),
           "slime takes lethal damage");
+    for(int t=0;t<20;++t) gm_runtime_tick(&r,idle);
     int ball=0;for(int i=0;i<GM_LIVE_MAX;++i)
         if(r.entities.ents[i].active&&r.entities.ents[i].item==341)ball=1;
     CHECK(gm_mobs_alive(&r.mobs)==0&&ball,"size-1 slime drops slime ball");

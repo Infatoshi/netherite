@@ -117,6 +117,11 @@ enum {
     HS_NTYPES = 8
 };
 
+#ifndef HS_BIOME
+#define HS_BIOME(w, x, z) 1              /* plains. Swamp is 6 (B_SWAMP). */
+#endif
+#define HS_BIOME_SWAMP 6
+
 /* Biome.java:146-153 weights. A function, not a host array: nvcc device. */
 MC_HD static inline int hs_weight_at(int i) {
     if (i == HS_SPIDER) return 100;
@@ -130,6 +135,22 @@ MC_HD static inline int hs_weight_at(int i) {
     return 0;
 }
 #define HS_TOTAL_WEIGHT 515
+
+/* BiomeSwamp.java:34 adds a second EntitySlime SpawnListEntry weight 1
+ * (min 1 max 1) on top of Biome.java:151 100/4-4. 1.11.2
+ * WorldEntitySpawner.java:172 pack cap is EntityLiving.getMaxSpawnedInChunk
+ * (default 4, EntityLiving.java:965); list min/max is not read. Combined
+ * slime weight 101 is type-equivalent to the two-entry list. Plains lockstep
+ * (HS_BIOME default 1) stays 515. */
+MC_HD static inline int hs_total_weight(int biome) {
+    return HS_TOTAL_WEIGHT + (biome == HS_BIOME_SWAMP ? 1 : 0);
+}
+
+MC_HD static inline int hs_weight_at_biome(int i, int biome) {
+    if (i == HS_SLIME && biome == HS_BIOME_SWAMP)
+        return 101;                       /* Biome.java:151 + BiomeSwamp.java:34 */
+    return hs_weight_at(i);
+}
 
 typedef struct {
     JavaRandom world_rand;            /* World.rand, isolated spawn stream */
@@ -190,15 +211,20 @@ MC_HD static inline int hs_to_ew(int hs_type) {
 }
 
 /* WeightedRandom.getRandomItem WeightedRandom.java:28-37 then :41-56. */
-MC_HD static inline int hs_weighted_pick(JavaRandom *r) {
-    int w, i;
+MC_HD static inline int hs_weighted_pick_biome(JavaRandom *r, int biome) {
+    int w, i, tot;
     if (!r) return HS_ZOMBIE;
-    w = jrand_int_bound(r, HS_TOTAL_WEIGHT);
+    tot = hs_total_weight(biome);
+    w = jrand_int_bound(r, tot);
     for (i = 0; i < HS_NTYPES; ++i) {
-        w -= hs_weight_at(i);
+        w -= hs_weight_at_biome(i, biome);
         if (w < 0) return i;
     }
     return HS_ZOMBIE;
+}
+
+MC_HD static inline int hs_weighted_pick(JavaRandom *r) {
+    return hs_weighted_pick_biome(r, 1);  /* plains */
 }
 
 MC_HD static inline int hs_is_rail(int id) {
@@ -476,8 +502,11 @@ MC_HD static inline void hs_spider_init(JavaRandom *wr, JavaRandom *er,
         jrand_set(&sk, wr->seed ^ 0x534B454C); /* scratch skeleton, not world.rand */
         hs_skeleton_init(&sk, &shave, &sg, difficulty, world_time);
     }
-    /* EntitySpider.GroupData potion roll EntitySpider.java:213-216: HARD only.
-     * Potion effects are not in RlSnapMob; consume the draws. */
+    /* EntitySpider.GroupData potion roll EntitySpider.java:213-216: HARD only
+     * (`nextFloat() < 0.1F * getClampedAdditionalDifficulty()`) then
+     * GroupData.setRandomEffect nextInt(5) (EntitySpider.java:291-308:
+     * speed/strength/regeneration/invisibility). living_base.h / RlSnapMob
+     * carry no PotionEffect list; consume the draws and skip addPotionEffect. */
     if (difficulty == 3 && jrand_float(wr) < 0.1f * f)
         (void)jrand_int_bound(wr, 5); /* GroupData.setRandomEffect :291 */
     (void)f;
@@ -518,11 +547,6 @@ MC_HD static inline int hs_on_initial_spawn(int hs_type, JavaRandom *wr,
     hs_living_init(er, have, g);              /* witch / enderman */
     return 0;
 }
-
-#ifndef HS_BIOME
-#define HS_BIOME(w, x, z) 1              /* plains. Swamp is 6 (B_SWAMP). */
-#endif
-#define HS_BIOME_SWAMP 6
 
 /* WorldProvider.getMoonPhase WorldProvider.java:113-116 + MOON_PHASE_FACTORS :24 */
 MC_HD static inline float hs_moon_phase_factor(i64 world_time) {
@@ -748,7 +772,8 @@ MC_HD MC_NOINLINE static int hs_find_chunks_for_spawning(HS_W *w, HsState *st,
                     || dspawn < HS_SPAWN_PT_RANGE_SQ)
                     continue;
                 if (type < 0)
-                    type = hs_weighted_pick(&st->world_rand);
+                    type = hs_weighted_pick_biome(&st->world_rand,
+                                                 HS_BIOME(w, l2, j3));
                 if (type < 0) break;
                 rx = l2;
                 ry = i3;

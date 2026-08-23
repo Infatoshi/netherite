@@ -134,8 +134,8 @@ typedef struct {
     double ent_jr_gauss[EW_MAX_ENTITIES];
     int blaze_hot[EW_MAX_ENTITIES];     /* EntityBlaze.heightOffsetUpdateTime */
     float blaze_hof[EW_MAX_ENTITIES];   /* EntityBlaze.heightOffset */
-    /* EntityLivingBase.hurtTime / deathTime. Live tick does not yet age
-     * these; snapshot v3 still carries them so a later spine port can restore. */
+    /* EntityLivingBase.hurtTime / deathTime. deathTime ages on health<=0
+     * and setDead runs at 20 (EntityLivingBase.onDeathUpdate). */
     int hurt_time[EW_MAX_ENTITIES];
     int death_time[EW_MAX_ENTITIES];
     /* EntityBoat.deltaRotation / boatGlide. Not in EwStore. */
