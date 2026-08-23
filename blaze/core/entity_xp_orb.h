@@ -4,10 +4,16 @@
  * Verified vs the live Java game (verify/entity_trace xp-orb scenario, item_trace_verify.c):
  * per-tick posX/Y/Z + motionX/Y/Z on raw Double.doubleToRawLongBits bits, up to the pickup event.
  *
- * RAND-FREEDOM: onUpdate's motion path draws NO rand for a sealed dry arena - rand appears only in
- * the LAVA branch (absent) and Entity.pushOutOfBlocks (the orb rests ON a block; collidesWithAnyBlock
- * is false via the strict-'<' intersectsWith, so no draw). Attraction reads the player's position
- * deterministically. => orb motion is fully deterministic given (summon state, player pos, entity id).
+ * RAND-FREEDOM: onUpdate's motion path draws NO rand for a sealed dry arena. rand appears only in:
+ *   1. Lava xz + burn pitch (EntityXPOrb.java:108-110) - Entity.rand is `new Random()`
+ *      unseeded (Entity.java:238). CLASS C like EntityItem lava hop (item_live.h): skip
+ *      nextFloat both sides. motionY = 0.20000000298023224D is deterministic (:107).
+ *   2. Entity.pushOutOfBlocks nextFloat (Entity.java:2697) when collidesWithAnyBlock.
+ *      Dry arena rests ON a block; AxisAlignedBB.intersectsWith is strict '<' so the
+ *      floor does not collide and there is no draw. Inside a solid, skip CLASS C
+ *      magnitude (facing is chosen first without rand).
+ * Attraction reads the player's position deterministically. => dry-arena orb motion
+ * is fully deterministic given (summon state, player pos, entity id).
  *
  * ATTRACTION GATE (motion-relevant, must be verbatim): closestPlayer starts null -> the orb is in
  * pure free-fall until the color gate first fires:
@@ -86,20 +92,57 @@ MC_HD static inline void eo_move(McOrb *o, double dx, double dy, double dz,
     o->onGround = e.onGround;
 }
 
-/* One EntityXPOrb.onUpdate tick. Player state (px,py,pz,eye,spectator) is constant while the player
- * is parked; eye is EntityPlayer.getEyeHeight() (float). colliding_push must be 0 (see header). */
+/* World.collidesWithAnyBlock: any gathered solid cube strictly intersecting the
+ * entity box (AxisAlignedBB.intersectsWith, AxisAlignedBB.java:341). */
+MC_HD static inline int eo_collides_with_any(const McOrb *o, const McAABB *blocks, int nblocks) {
+    int i;
+    if (!o || !blocks) return 0;
+    for (i = 0; i < nblocks; ++i)
+        if (mc_aabb_intersects(&o->box, &blocks[i])) return 1;
+    return 0;
+}
+
+/* EntityXPOrb.handleWaterMovement EntityXPOrb.java:179-182 ->
+ * World.handleMaterialAcceleration 0.014 * unit sum of getFlow (World.java:2388-2394).
+ * Caller passes the already-summed getFlow vector (each cell already unit). */
+MC_HD static inline void eo_apply_water(McOrb *o, double sx, double sy, double sz) {
+    double l;
+    if (!o) return;
+    l = (double)(float)sqrt(sx * sx + sy * sy + sz * sz); /* MathHelper.sqrt */
+    if (l > 0.0) {
+        o->motionX += (sx / l) * 0.014;
+        o->motionY += (sy / l) * 0.014;
+        o->motionZ += (sz / l) * 0.014;
+    }
+}
+
+/* One EntityXPOrb.onUpdate tick after super.onUpdate handleWaterMovement.
+ * Player state (px,py,pz,eye,spectator) is constant while the player is parked;
+ * eye is EntityPlayer.getEyeHeight() (float). in_lava is Material.LAVA at
+ * BlockPos(posX,posY,posZ) (EntityXPOrb.java:105, BlockPos.java:42-44).
+ * colliding_push is collidesWithAnyBlock; CLASS C magnitude is skipped. */
 MC_HD static inline void eo_tick(McOrb *o, double px, double py, double pz, float eye,
                                  int spectator, const McAABB *blocks, int nblocks,
-                                 u16 under_state, int colliding_push) {
+                                 u16 under_state, int colliding_push, int in_lava) {
     float f;
-    (void)colliding_push;   /* pushOutOfBlocks inert (no collide -> no rand) */
 
     if (o->delayBeforeCanPickup > 0)
         --o->delayBeforeCanPickup;
 
-    o->motionY -= (double)0.029999999329447746;   /* (double)0.03f */
+    o->motionY -= (double)0.029999999329447746;   /* (double)0.03f EntityXPOrb.java:102 */
 
-    /* lava branch CUT (no lava). pushOutOfBlocks: inert. */
+    /* EntityXPOrb.java:105-111. motionY cited. xz nextFloat CLASS C skipped. */
+    if (in_lava) {
+        o->motionY = 0.20000000298023224; /* (double)0.2F EntityXPOrb.java:107 */
+        /* motionX/Z (rand.nextFloat()-rand.nextFloat())*0.2F :108-109 skipped:
+         * Entity.rand is new Random() unseeded Entity.java:238. Same skip as
+         * item_live.h EntityItem lava hop. playSound nextFloat :110 skipped. */
+    }
+
+    /* Entity.pushOutOfBlocks Entity.java:2651-2720. collidesWithAnyBlock false
+     * returns at :2658 with no rand. True would draw rand.nextFloat at :2697
+     * CLASS C; skip the magnitude (do not fit 0.1..0.3). */
+    (void)colliding_push;
 
     if (o->xpTargetColor < o->xpColor - 20 + o->eid % 100) {
         if (!o->has_closest ||

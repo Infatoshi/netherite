@@ -367,7 +367,8 @@ static int run_orb(Scen *s) {
             int nb = it_gather(s, &o.box, o.motionX, o.motionY, o.motionZ, blocks, MC_PCM_MAX_BLOCKS);
             int coll = it_collides(s, &o.box);
             eo_tick(&o, px, py, pz, eye, spect, blocks, nb,
-                    it_get(s, mc_floor(o.posX), mc_floor(o.box.minY) - 1, mc_floor(o.posZ)), coll);
+                    it_get(s, mc_floor(o.posX), mc_floor(o.box.minY) - 1, mc_floor(o.posZ)),
+                    coll, 0);
         }
         e = frame_ent(s, t, eid0);
         if (!e) { if (pickup_tick < 0) pickup_tick = s->toff[t]; break; }   /* orb picked up / gone */

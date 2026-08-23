@@ -79,6 +79,10 @@ static int gm_hs_biome(const GmHsWorld *h, int x, int z);
 #define ML_BLK(w, x, y, z) gm_world_block_light((w), (x), (y), (z))
 #include "passive_live.h"
 #include "xp_live.h"
+#define XL_W GmWorld
+#define xl_id(w, x, y, z) gm_world_block((w), (x), (y), (z))
+#define xl_meta(w, x, y, z) (gm_world_meta((w), (x), (y), (z)) & 15)
+#include "xp_world_tick.h"
 #define BL_W GmWorld
 #define BL_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
 #include "boat_live.h"
@@ -2913,19 +2917,6 @@ int gm_mobs_living_count(const GmMobLive *m){
     return m?living_count(m,const_store(m)):0;
 }
 
-static int collect_orb_blocks(GmWorld *w,const McAABB *q,McAABB *out,int cap){
-    int n=0,x0=mc_floor(q->minX)-1,x1=mc_floor(q->maxX)+1;
-    int y0=mc_floor(q->minY)-1,y1=mc_floor(q->maxY)+1;
-    int z0=mc_floor(q->minZ)-1,z1=mc_floor(q->maxZ)+1;
-    if(y0<0)y0=0;
-    if(y1>255)y1=255;
-    for(int x=x0;x<=x1;++x)for(int y=y0;y<=y1;++y)for(int z=z0;z<=z1;++z){
-        if(!solid_id(gm_world_block(w,x,y,z)))continue;
-        if(n==cap)return n;
-        out[n++]=mc_aabb_make(x,y,z,x+1,y+1,z+1);
-    }return n;
-}
-
 static void tick_xp_orbs(GmMobLive *m,GmWorld *w,PsvPlayer *p,int ox,int oz){
     McAABB player=p->ent.box;player.minX+=ox;player.maxX+=ox;player.minZ+=oz;player.maxZ+=oz;
     XlPlayer xp;
@@ -2934,13 +2925,8 @@ static void tick_xp_orbs(GmMobLive *m,GmWorld *w,PsvPlayer *p,int ox,int oz){
     xl_player_tick(&xp);
     for(int i=0;i<GM_XP_ORBS;++i){McOrb *o=&m->xp_orbs[i];
         if(o->dead||o->xpValue<=0||m->orb_dimension[i]!=m->active_dimension)continue;
-        McAABB q=mc_aabb_addcoord(&o->box,o->motionX,o->motionY,o->motionZ),blocks[64];
-        int nb=collect_orb_blocks(w,&q,blocks,64);
-        int ux=mc_floor(o->posX),uy=mc_floor(o->box.minY)-1,uz=mc_floor(o->posZ);
-        if(uy<0)uy=0;
-        u16 under=mc_state(gm_world_block(w,ux,uy,uz),gm_world_meta(w,ux,uy,uz));
-        eo_tick(o,p->ent.posX+ox,p->ent.posY,p->ent.posZ+oz,
-                (float)psv_player_eye_height(p),0, blocks,nb,under,0);
+        xl_tick_orb(w,o,p->ent.posX+ox,p->ent.posY,p->ent.posZ+oz,
+                    (float)psv_player_eye_height(p),0);
         if(xl_try_pickup(o,&xp,&player)) m->xp_pickups++;
     }
     p->xpCooldown=xp.xpCooldown; p->experience=xp.experience;
