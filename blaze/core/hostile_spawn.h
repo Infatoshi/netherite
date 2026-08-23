@@ -49,8 +49,8 @@
  * full the spawn is skipped on BOTH sides. That is a magma/blaze shared cap,
  * not a Java rule.
  *
- * Roster insert is zombie/skeleton/creeper/spider/slime (hostile_live.h).
- * Witch / enderman / zombie villager picks still consume world.rand /
+ * Roster insert is zombie/skeleton/creeper/spider/slime/enderman/witch
+ * (hostile_live.h). Zombie villager picks still consume world.rand /
  * entity.rand in Java order, then skip the insert.
  *
  * Include after HS_W / HS_BLOCK. Optional: HS_SKY, HS_BLK, HS_PLACE,
