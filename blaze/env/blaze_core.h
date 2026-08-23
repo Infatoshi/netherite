@@ -741,13 +741,10 @@ MC_HD static inline int cu_proj_hit_mob(Blaze *e, double x, double y, double z,
 }
 
 MC_HD static inline int cu_take_arrow(Blaze *e) {
-    int i;
-    for (i = 0; i < ISR_MAIN_SLOTS; ++i) {
-        if (isr_get_stack(&e->pl.inv, i).item != 262) continue;
-        (void)isr_decr_stack_size(&e->pl.inv, i, 1);
-        return 1;
-    }
-    return 0;
+    ICStack bow;
+    if (!e) return 0;
+    bow = isr_get_stack(&e->pl.inv, e->pl.inv.current_item);
+    return isr_try_fire_bow(&e->pl.inv, 0, &bow, NULL);
 }
 
 #define PL_W Blaze

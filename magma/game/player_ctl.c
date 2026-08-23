@@ -1174,9 +1174,11 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
     out->fire = 0;
     out->creative = 0;
     out->hurt_time = 0;
+    out->hurt_resistant_time = 0;
     out->hud_health = out->hud_last_health = 0;
     out->hud_flash = out->hud_state_valid = 0;
     out->hud_transition_lead = 0;
+    out->hud_update_counter = 0;
     out->use_action = s_use_action;
     out->use_remaining = s_use_remaining;
     out->use_max = s_use_max;

@@ -135,6 +135,7 @@ typedef struct {
     int   creative;             /* capabilities.disableDamage           */
     int   hurt_time;            /* EntityLivingBase.hurtTime countdown  */
     int   max_hurt_time;        /* EntityLivingBase.maxHurtTime          */
+    int   hurt_resistant_time;  /* EntityLivingBase.hurtResistantTime     */
     float hurt_yaw;             /* EntityLivingBase.attackedAtYaw        */
     float attack_cooldown;      /* getCooledAttackStrength(1), 0..1      */
     int   potion_count;
@@ -143,6 +144,7 @@ typedef struct {
     int   hud_health, hud_last_health;
     int   hud_flash, hud_state_valid;
     int   hud_transition_lead; /* post-tick tape row trails GuiIngame by 1 */
+    long long hud_update_counter; /* GuiIngame.updateCounter for this draw */
     /* Live armor + active hand use (filled by gm_player_view / gm_runtime_view).
      * armor_points: ForgeHooks.getTotalArmorValue / ita_armor_set_points (0..20).
      * use_action: 0 none, 1 EAT/DRINK, 2 BLOCK (shield item 442 only in 1.11.2;

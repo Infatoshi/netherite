@@ -24,6 +24,7 @@
 #include "game/item_render.h"
 #include "assets/hud_atlas.h"
 #include "assets/gui_atlas.h"
+#include "mc_rng.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -630,11 +631,12 @@ void gm_hud_state_step(GmHudState *s, GmPlayerView *pv,
     }
 
     /* GuiIngame.renderPlayerStats computes the blink from the previous
-     * healthUpdateCounter, then refreshes the counter on a health transition. */
+     * healthUpdateCounter, then refreshes the counter on a health transition.
+     * GuiIngame.java:769-779 uses hurtResistantTime, not hurtTime. */
     pv->hud_flash = s->health_update_counter > update_counter &&
         ((s->health_update_counter - update_counter) / 3LL) % 2LL == 1LL;
     long long transition_counter = update_counter - pv->hud_transition_lead;
-    int hurt_resistant = pv->hurt_time > 0 ||
+    int hurt_resistant = pv->hurt_resistant_time > 0 || pv->hurt_time > 0 ||
         (pv->hud_transition_lead && s->previous_hurt_time > 0);
     if (health < s->player_health && hurt_resistant) {
         s->last_sync_counter = transition_counter;
@@ -643,8 +645,8 @@ void gm_hud_state_step(GmHudState *s, GmPlayerView *pv,
         s->last_sync_counter = transition_counter;
         s->health_update_counter = transition_counter + 10;
     }
-    /* Vanilla uses a 1000 ms wall-clock guard. Tape replay is a fixed 20 Hz
-     * client tick stream, so strictly-more-than-one-second is 21 ticks. */
+    /* GuiIngame.java:782 Minecraft.getSystemTime()-lastSystemTime > 1000L.
+     * Tape replay is a 20 Hz client tick stream; >1000 ms is 21 ticks. */
     if (update_counter - s->last_sync_counter > 20) {
         s->player_health = health;
         s->last_player_health = health;
@@ -653,8 +655,19 @@ void gm_hud_state_step(GmHudState *s, GmPlayerView *pv,
     s->player_health = health;
     pv->hud_health = health;
     pv->hud_last_health = s->last_player_health;
+    pv->hud_update_counter = update_counter;
     pv->hud_state_valid = 1;
-    s->previous_hurt_time = pv->hurt_time;
+    s->previous_hurt_time = (pv->hurt_resistant_time > 0 || pv->hurt_time > 0);
+}
+
+void gm_hud_lowhp_jitter(long long update_counter, int n_hearts, int *out) {
+    JavaRandom rng;
+    int i;
+    if (!out || n_hearts <= 0) return;
+    /* GuiIngame.java:791 this.rand.setSeed((long)(this.updateCounter * 312871)) */
+    jrand_set(&rng, update_counter * 312871LL);
+    for (i = 0; i < n_hearts; ++i)
+        out[i] = (int)jrand_int_bound(&rng, 2);
 }
 
 /* Pointer for GuiGameOver hover (framebuffer pixels). */
@@ -1007,10 +1020,24 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
      * ceil(absorption) and consumes gold slots from the high end. */
     {
         int l2 = abs_ceil;
+        int regen_bounce = -1;
+        long long uc = pv->hud_state_valid ? pv->hud_update_counter : 0;
+        /* GuiIngame.java:808-811. Live tapes do not record updateCounter, so
+         * the low-hp nextInt(2) phase is Class C (gm_hud_lowhp_jitter pins it).
+         * Regen potion wobble only needs the counter modulo, applied when the
+         * potion row is present. */
+        if (potion_active(pv, 10)) {
+            int wrap = (int)ceilf(pv->max_health + 5.0f);
+            if (wrap < 1) wrap = 1;
+            regen_bounce = (int)(uc % (long long)wrap);
+        }
         for (int j5 = heart_icons - 1; j5 >= 0; --j5) {
             int row = (int)ceilf((float)(j5 + 1) / 10.0f) - 1;
             int hx = hb_x + ((j5 % 10) * 8) * scale;
             int hy = (j1_s - row * row_gap) * scale;
+            /* GuiIngame.java:869-872 */
+            if (l2 <= 0 && j5 == regen_bounce)
+                hy -= 2 * scale;
             hud_blit(fb, pv->hud_flash ? HUD_HEART_BG_FLASH : HUD_HEART_BG,
                      hx, hy, scale);
             if (pv->hud_flash) {

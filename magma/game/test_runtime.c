@@ -530,6 +530,96 @@ int main(void) {
     }
     gm_runtime_destroy(&r);
 
+    CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),"bow findAmmo runtime initializes");
+    if(r.world){
+        /* ItemBow.findAmmo: off-hand before main inventory scan. */
+        isr_set_stack(&r.player.inv,0,ic_mk(261,1,0));
+        isr_set_stack(&r.player.inv,1,ic_mk(262,8,0));
+        isr_set_stack(&r.player.inv,ISR_OFFHAND_SLOT,ic_mk(262,3,0));
+        gm_runtime_set_pose(&r,8.5,4.0,8.5,0.0f,6.8f);
+        { GmAction draw;memset(&draw,0,sizeof draw);draw.use=1;draw.hotbar_sel=0;
+          for(int t=0;t<20;++t)gm_runtime_tick(&r,draw);
+          GmAction release;memset(&release,0,sizeof release);release.hotbar_sel=0;
+          gm_runtime_tick(&r,release); }
+        CHECK(isr_get_stack(&r.player.inv,ISR_OFFHAND_SLOT).count==2,
+              "findAmmo consumes off-hand arrows first");
+        CHECK(isr_get_stack(&r.player.inv,1).count==8,
+              "findAmmo leaves hotbar arrows when off-hand has ammo");
+    }
+    gm_runtime_destroy(&r);
+
+    CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),"creative bow runtime initializes");
+    if(r.world){
+        r.tape_creative=1;
+        isr_set_stack(&r.player.inv,0,ic_mk(261,1,0));
+        isr_set_stack(&r.player.inv,1,ic_mk(262,4,0));
+        gm_runtime_set_pose(&r,8.5,4.0,8.5,0.0f,6.8f);
+        { GmAction draw;memset(&draw,0,sizeof draw);draw.use=1;draw.hotbar_sel=0;
+          for(int t=0;t<20;++t)gm_runtime_tick(&r,draw);
+          GmAction release;memset(&release,0,sizeof release);release.hotbar_sel=0;
+          gm_runtime_tick(&r,release); }
+        CHECK(isr_get_stack(&r.player.inv,1).count==4,
+              "creative onPlayerStoppedUsing does not shrink arrows");
+    }
+    gm_runtime_destroy(&r);
+
+    CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),"infinity bow runtime initializes");
+    if(r.world){
+        ICStack bow=ic_mk(261,1,0);
+        bow.n_enchants=1; bow.enchants[0].id=51; bow.enchants[0].level=1;
+        isr_set_stack(&r.player.inv,0,bow);
+        isr_set_stack(&r.player.inv,1,ic_mk(262,4,0));
+        gm_runtime_set_pose(&r,8.5,4.0,8.5,0.0f,6.8f);
+        { GmAction draw;memset(&draw,0,sizeof draw);draw.use=1;draw.hotbar_sel=0;
+          for(int t=0;t<20;++t)gm_runtime_tick(&r,draw);
+          GmAction release;memset(&release,0,sizeof release);release.hotbar_sel=0;
+          gm_runtime_tick(&r,release); }
+        CHECK(isr_get_stack(&r.player.inv,1).count==4,
+              "Infinity skips ItemArrow shrink");
+        isr_set_stack(&r.player.inv,1,ic_mk(440,4,0));
+        { GmAction draw;memset(&draw,0,sizeof draw);draw.use=1;draw.hotbar_sel=0;
+          for(int t=0;t<20;++t)gm_runtime_tick(&r,draw);
+          GmAction release;memset(&release,0,sizeof release);release.hotbar_sel=0;
+          gm_runtime_tick(&r,release); }
+        CHECK(isr_get_stack(&r.player.inv,1).count==3,
+              "Infinity still consumes tipped arrows (not ItemArrow class)");
+    }
+    gm_runtime_destroy(&r);
+
+    CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),"arrow pickup runtime initializes");
+    if(r.world){
+        isr_set_stack(&r.player.inv,8,ic_mk(262,10,0));
+        r.player.inv.current_item=0;
+        r.projectiles[0].active=1;
+        r.projectiles[0].type=1;
+        r.projectiles[0].x=r.player.ent.posX+(double)r.ox;
+        r.projectiles[0].y=r.player.ent.posY+0.5;
+        r.projectiles[0].z=r.player.ent.posZ+(double)r.oz;
+        r.proj_in_ground[0]=1;
+        r.proj_shake[0]=2;
+        r.proj_pickup[0]=1;
+        { GmAction idle;memset(&idle,0,sizeof idle);idle.hotbar_sel=-1;
+          gm_runtime_tick(&r,idle);
+          CHECK(r.projectiles[0].active==1 && isr_get_stack(&r.player.inv,8).count==10,
+                "arrowShake>0 blocks onCollideWithPlayer pickup");
+          gm_runtime_tick(&r,idle);
+          CHECK(!r.projectiles[0].active && isr_get_stack(&r.player.inv,8).count==11,
+                "ALLOWED inGround arrow merges into the existing stack"); }
+        r.projectiles[1].active=1;
+        r.projectiles[1].type=1;
+        r.projectiles[1].x=r.player.ent.posX+(double)r.ox;
+        r.projectiles[1].y=r.player.ent.posY+0.5;
+        r.projectiles[1].z=r.player.ent.posZ+(double)r.oz;
+        r.proj_in_ground[1]=1;
+        r.proj_shake[1]=0;
+        r.proj_pickup[1]=2;
+        { GmAction idle;memset(&idle,0,sizeof idle);idle.hotbar_sel=-1;
+          gm_runtime_tick(&r,idle);
+          CHECK(r.projectiles[1].active==1 && isr_get_stack(&r.player.inv,8).count==11,
+                "CREATIVE_ONLY pickupStatus stays in the world in survival"); }
+    }
+    gm_runtime_destroy(&r);
+
     CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),"food runtime initializes");
     if(r.world){
         r.vitals.foodLevel=10;r.vitals.saturation=0;r.player.food=10;

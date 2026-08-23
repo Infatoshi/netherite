@@ -5,6 +5,47 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Sim smalls arrow consume + HUD heart-flash: CLOSED 2026-08-22 (lane/simsmalls)
+
+Tapes (gamer, client inventory at ClientTick END, Recorder.java:8387-8678):
+`scenario_blaze_bow_20260722T092838Z` (5 shots, survival) and
+`scenario_smoke_zombie_20260722T081735Z` (hp drops t=31, 358/803 death
+prefix). `--cpu --no-gate --report` (pixel_gate skipped: frames_checked=0
+FATAL is the `--no-gate` harness, not a parity verdict).
+
+**(a) Hotbar arrow count.** Tape `use` 1->0 at t=77/117/216/316/565; slot 8
+arrows 64->63->62->61->60->59 on those ticks. Magma live dump matches
+each consume tick. Inventory gate 10 independent / 11 compared / 0
+mismatches (after same as baseline). Hotbar slot-8 pixels at t=80 are
+1 LSB. Recorder dumps EntityPlayerSP, not the server player.
+
+Port: `isr_find_ammo` / `isr_try_fire_bow` from ItemBow.java:47-70,
+:86-87, :104, :138-155 (off-hand then main hand then 0..40; Infinity
+enchant 51; ItemArrow.isInfinite.java:23-27 plain 262 only; shrink via
+isr_decr). EntityArrow pickup EntityArrow.java:94, :471-472, :604-618
+(ALLOWED vs CREATIVE_ONLY; inGround + arrowShake<=0 after decrement;
+isr_add_item_stack_to_inventory merge). Magma-only inGround sidecar so
+PlProj layout stays blaze-identical. This bow tape never picks up
+(counts only fall). Bow `damageItem` (ItemBow.java:136) is `!isRemote`
+so the client tape lags one tick on bow meta; replay re-anchors it.
+
+**(b) HUD heart-flash.** smoke_zombie t=31 hp 20->17 hurt=9; t=40 frame
+in the 20-tick window. Heart row x[240,410] y[399,423]: 7 LSB,
+structure_corr=1, same after the port. Flash was already stepped every
+capture tick; the port uses hurtResistantTime (GuiIngame.java:769-779)
+with tape hurtTime as the damage-tick proxy (resistant is unrecorded).
+`lastSystemTime>1000L` (:782) is 21 ticks at 20 Hz. Low-hp
+`rand.setSeed(updateCounter*312871)` (:791) is tested
+(`gm_hud_lowhp_jitter` pin 1000 -> 0000110011) and not drawn on live
+tapes: updateCounter is unrecorded (TAPE_COMPLETENESS). Applying the
+replay tick as the seed moved t=320 hearts (464 px); reverted the draw.
+Regen potion wobble (:808-811, :869) is in the draw path; these tapes
+have no potion 10.
+
+ui_hud `hud_hurt_flash_on/off` stay behind `hud_flash` /
+`hud_update_counter=1000` (health 14, no jitter). Cannot run
+`run_ui_hud_gates.sh` on gamer (anvil llvmpipe only).
+
 ### Bow FOV recapture occupancy-gone 0.753: superseded 2026-08-22 (lane/bowpix)
 
 The bowgold close below claimed `c_vs_j` 7.007 -> 0.753 and J-stone/C-grass

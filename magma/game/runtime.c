@@ -14,6 +14,7 @@
 #include "port_parity.h"
 #include "items_tools_armor.h"
 #include "inventory_stack_rules.h"
+#include "physics_collision_math.h"
 
 #define EXL_W GmRuntime
 #define exl_block(w, x, y, z) gm_world_block((w)->world, (x), (y), (z))
@@ -298,13 +299,36 @@ static int attack_hits_falling_block(const GmRuntime *r) {
     return hit;
 }
 
-static int take_arrow(PsvPlayer *p) {
-    for (int i = 0; i < ISR_MAIN_SLOTS; ++i) {
-        if (isr_get_stack(&p->inv, i).item != 262) continue;
-        (void)isr_decr_stack_size(&p->inv, i, 1);
-        return 1;
+static int runtime_arrow_touches_player(const GmRuntime *r,
+                                        const GmRuntimeProjectile *p) {
+    McAABB player, arrow;
+    if (!r || !p) return 0;
+    player = r->player.ent.box;
+    player = mc_aabb_offset(&player, (double)r->ox, 0.0, (double)r->oz);
+    /* EntityArrow.setSize(0.5F, 0.5F) EntityArrow.java:78 */
+    arrow = mc_aabb_make(p->x - 0.25, p->y, p->z - 0.25,
+                         p->x + 0.25, p->y + 0.5, p->z + 0.25);
+    return mc_aabb_intersects(&player, &arrow);
+}
+
+static void runtime_try_pickup_arrow(GmRuntime *r, int index) {
+    GmRuntimeProjectile *p;
+    int status, creative, flag;
+    if (!r || index < 0 || index >= GM_RUNTIME_PROJECTILES) return;
+    p = &r->projectiles[index];
+    if (!p->active || !r->proj_in_ground[index] || r->proj_shake[index] > 0)
+        return;
+    if (!runtime_arrow_touches_player(r, p)) return;
+    /* EntityArrow.onCollideWithPlayer EntityArrow.java:604-618 */
+    status = r->proj_pickup[index];
+    creative = r->tape_creative;
+    flag = (status == 1) || (status == 2 && creative);
+    if (status == 1) {
+        ICStack stack = ic_mk(ISR_ITEM_ARROW, 1, 0);
+        if (!isr_add_item_stack_to_inventory(&r->player.inv, &stack))
+            flag = 0;
     }
-    return 0;
+    if (flag) p->active = 0;
 }
 
 static void runtime_close_container(GmRuntime *r);
@@ -340,13 +364,31 @@ typedef char gm_pl_proj_layout_ok[
 
 static void spawn_bow_arrow(GmRuntime *r, int draw) {
     float f = pl_bow_curve(draw);
-    if (f < 0.1f || !take_arrow(&r->player)) return;
+    ICStack bow;
+    int pickup = 1;
+    int was_active[GM_RUNTIME_PROJECTILES];
+    int i;
+    if (f < 0.1f) return;
+    bow = isr_get_stack(&r->player.inv, r->player.inv.current_item);
+    if (!isr_try_fire_bow(&r->player.inv, r->tape_creative, &bow, &pickup))
+        return;
     if (f > 1.0f) f = 1.0f;
-    (void)pl_spawn_arrow((PlProj *)r->projectiles, GM_RUNTIME_PROJECTILES,
+    for (i = 0; i < GM_RUNTIME_PROJECTILES; ++i)
+        was_active[i] = r->projectiles[i].active;
+    if (!pl_spawn_arrow((PlProj *)r->projectiles, GM_RUNTIME_PROJECTILES,
                          r->player.ent.posX + (double)r->ox,
                          r->player.ent.posY,
                          r->player.ent.posZ + (double)r->oz,
-                         r->player.yaw, r->player.pitch, f);
+                         r->player.yaw, r->player.pitch, f))
+        return;
+    for (i = 0; i < GM_RUNTIME_PROJECTILES; ++i) {
+        if (was_active[i] || !r->projectiles[i].active) continue;
+        r->proj_pickup[i] = pickup;
+        r->proj_in_ground[i] = 0;
+        r->proj_shake[i] = 0;
+        r->proj_ground_ticks[i] = 0;
+        break;
+    }
 }
 
 static void spawn_hostile_projectiles(GmRuntime *r) {
@@ -404,7 +446,36 @@ static void tick_projectiles(GmRuntime *r) {
         GmRuntimeProjectile *p = &r->projectiles[i];
         if (!p->active) continue;
         if (p->type == 1 || p->type == 2) {
-            pl_tick_arrow((PlProj *)p, r);
+            if (r->proj_in_ground[i]) {
+                /* EntityArrow.onUpdate EntityArrow.java:223-248 */
+                if (r->proj_shake[i] > 0) --r->proj_shake[i];
+                ++r->proj_ground_ticks[i];
+                if (r->proj_ground_ticks[i] >= 1200) {
+                    p->active = 0;
+                    continue;
+                }
+                runtime_try_pickup_arrow(r, i);
+                continue;
+            }
+            {
+                int was = p->active;
+                pl_tick_arrow((PlProj *)p, r);
+                if (was && !p->active) {
+                    int bx = (int)floor(p->x), by = (int)floor(p->y),
+                        bz = (int)floor(p->z);
+                    if (gm_world_block(r->world, bx, by, bz)) {
+                        /* EntityArrow.onHit block: inGround + arrowShake=7
+                         * EntityArrow.java:471-472 */
+                        p->active = 1;
+                        p->vx = 0.0;
+                        p->vy = 0.0;
+                        p->vz = 0.0;
+                        r->proj_in_ground[i] = 1;
+                        r->proj_shake[i] = 7;
+                        r->proj_ground_ticks[i] = 0;
+                    }
+                }
+            }
             continue;
         }
         if(p->type==4){
@@ -1233,6 +1304,7 @@ void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
     out->death_ticks = r->death_screen_ticks;
     out->fire = r->player_fire_ticks > 0;
     out->creative = 0;
+    out->hurt_resistant_time = r->mobs.player_hurt_resistant;
     out->hurt_time = r->mobs.player_hurt_resistant > 0
         ? (r->mobs.player_hurt_resistant < 10
            ? r->mobs.player_hurt_resistant : 10) : 0;
@@ -1745,6 +1817,10 @@ void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
         view->creative = r->tape_creative;
         view->hurt_time = r->tape_hurt_time;
         view->max_hurt_time = r->tape_max_hurt_time;
+        /* Recorder writes hurtTime, not hurtResistantTime. The damage tick
+         * always has hurtTime>0; keep live resistant if magma armed it. */
+        if (r->tape_hurt_time > view->hurt_resistant_time)
+            view->hurt_resistant_time = r->tape_hurt_time;
         view->hurt_yaw = r->tape_hurt_yaw;
         view->attack_cooldown = r->tape_attack_cooldown;
         view->potion_count = r->tape_potion_count;

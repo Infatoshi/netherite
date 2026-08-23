@@ -159,6 +159,7 @@ static void s_hurt_on(GmPlayerView *pv, CrFramebuffer *fb) {
     pv->hud_last_health = 20;
     pv->hud_flash = 1;
     pv->hud_state_valid = 1;
+    pv->hud_update_counter = 1000;
 }
 
 static void s_hurt_off(GmPlayerView *pv, CrFramebuffer *fb) {
@@ -170,6 +171,7 @@ static void s_hurt_off(GmPlayerView *pv, CrFramebuffer *fb) {
     pv->hud_last_health = 20;
     pv->hud_flash = 0;
     pv->hud_state_valid = 1;
+    pv->hud_update_counter = 1000;
 }
 
 static void s_hunger(GmPlayerView *pv, CrFramebuffer *fb) {

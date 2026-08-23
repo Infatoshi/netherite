@@ -204,6 +204,12 @@ typedef struct GmRuntime {
     GmMobLive mobs;
     GmDragonLive dragon;
     GmRuntimeProjectile projectiles[GM_RUNTIME_PROJECTILES];
+    /* Magma-only EntityArrow inGround/arrowShake/pickupStatus. PlProj layout
+     * stays blaze-identical; these ride beside the shared projectile slots. */
+    int proj_in_ground[GM_RUNTIME_PROJECTILES];
+    int proj_shake[GM_RUNTIME_PROJECTILES];
+    int proj_pickup[GM_RUNTIME_PROJECTILES]; /* 0 DISALLOWED 1 ALLOWED 2 CREATIVE_ONLY */
+    int proj_ground_ticks[GM_RUNTIME_PROJECTILES];
     unsigned parity_proj_hits;
     unsigned parity_ex_blasts;
     unsigned parity_ex_destroyed;

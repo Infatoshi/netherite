@@ -85,6 +85,56 @@ int main(void) {
             fprintf(stderr, "FAIL: post-tick tape heart-flash lead\n");
             return 1;
         }
+        /* GuiIngame.java:769 (delta/3)%2==1. Damage at t=1 sets
+         * healthUpdateCounter = 21; flash is off at t=1 (computed before
+         * the set) then on when (21-t)/3 is odd. */
+        {
+            GmHudState hs2 = {0};
+            GmPlayerView hv2 = {0};
+            int seq[8];
+            hv2.health = 20.0f;
+            gm_hud_state_step(&hs2, &hv2, 0);
+            hv2.health = 14.0f;
+            hv2.hurt_resistant_time = 20;
+            gm_hud_state_step(&hs2, &hv2, 1);
+            for (int t = 1; t <= 8; ++t) {
+                gm_hud_state_step(&hs2, &hv2, t);
+                seq[t - 1] = hv2.hud_flash;
+            }
+            /* t=1 flag uses pre-set counter (0): off. Then counter=21.
+             * t=2 delta=19 19/3=6 even off; t=3 delta=18 even off;
+             * t=4 delta=17 17/3=5 odd on. */
+            if (seq[0] != 0 || seq[1] != 0 || seq[2] != 0 || seq[3] != 1) {
+                fprintf(stderr, "FAIL: flash phase seq %d%d%d%d\n",
+                        seq[0], seq[1], seq[2], seq[3]);
+                return 1;
+            }
+        }
+        {
+            GmHudState hs2 = {0};
+            GmPlayerView hv2 = {0};
+            hv2.health = 20.0f;
+            gm_hud_state_step(&hs2, &hv2, 0);
+            hv2.health = 12.0f;
+            hv2.hurt_time = 0;
+            hv2.hurt_resistant_time = 20;
+            gm_hud_state_step(&hs2, &hv2, 1);
+            gm_hud_state_step(&hs2, &hv2, 4);
+            if (!hv2.hud_flash) {
+                fprintf(stderr, "FAIL: hurtResistantTime arms flash without hurtTime\n");
+                return 1;
+            }
+        }
+        {
+            int jit[10];
+            gm_hud_lowhp_jitter(1000, 10, jit);
+            if (jit[0] != 0 || jit[1] != 0 || jit[2] != 0 || jit[3] != 0 ||
+                jit[4] != 1 || jit[5] != 1 || jit[6] != 0 || jit[7] != 0 ||
+                jit[8] != 1 || jit[9] != 1) {
+                fprintf(stderr, "FAIL: updateCounter*312871 nextInt(2) sequence\n");
+                return 1;
+            }
+        }
     }
     gm_hud_draw(&fb, &pv);
 

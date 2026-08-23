@@ -60,6 +60,7 @@ run_one test_entity_render   bash game/test_entity_render.sh
 run_one test_item_render     bash game/test_item_render.sh
 run_one test_item_uv_census  bash game/test_item_uv_census.sh
 run_one test_hand            bash game/test_hand.sh
+run_one test_hud             bash game/test_hud.sh
 run_one test_player_ctl      bash game/test_player_ctl.sh
 run_one test_world_live      bash game/test_world_live.sh
 run_one test_play_compose    bash game/test_play_compose.sh

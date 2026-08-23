@@ -1,5 +1,27 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 sim smalls arrow consume + heart-flash (lane/simsmalls)
+
+Gamer. Tapes rsynced from anvil (host `~/dev/netherite` lacked bow/zombie
+jsonl). Baseline `out/verify/simsmalls_baseline_blaze_bow.log` /
+`simsmalls_baseline_smoke_zombie.log`. After
+`simsmalls_after_blaze_bow.log` / `simsmalls_after2_smoke_zombie.log`.
+
+blaze_bow: physics exact 1407/1407; inventory PASS 10 independent / 0
+mismatches before and after. Live slot-8 arrows match tape at t=77,117,
+216,316,565. smoke_zombie: physics exact through death t=358; t=40 heart
+row 7 LSB; t=320/340 whole 0.38/0.48 /ch unchanged.
+
+Cause: ItemBow.findAmmo / shrink (ItemBow.java:47-70, 148-155) and
+EntityArrow pickup (EntityArrow.java:604-618) were incomplete (main-only
+item 262 scan, no inGround). HUD flash already existed; it used hurtTime
+as the resistant proxy. Ported findAmmo/infinity/creative/pickup and
+hurtResistantTime into `gm_hud_state_step`. Low-hp jitter is Class C
+without recorded updateCounter.
+
+`bash magma/game/test_hud.sh` PASS; `bash magma/game/test_runtime.sh`
+PASS. Cannot run ui_hud on gamer.
+
 ## 2026-08-22 dragon death held-block chain (lane/dragondirt)
 
 Parent verification 2026-08-23 (anvil ui_hud, gamer ui_entities on the merged tree): the explicit quaternion chain moves hand pixels by rounding only: hand_bow_pull20 hard_px 20830 -> 20846, hand_eat_mid 73440 -> 73443 (px>1 21526 -> 21529), fireball_dragon 38365 -> 38260 (CAPTURE_BLOCKED); every c_vs_j unchanged at three decimals; dragon rows identical; verdicts unchanged.

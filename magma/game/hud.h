@@ -24,6 +24,10 @@ typedef struct {
 void gm_hud_state_step(GmHudState *state, GmPlayerView *pv,
                        long long update_counter);
 
+/* GuiIngame.java:791 Random.setSeed(updateCounter*312871) then nextInt(2)
+ * once per heart icon when ceil(health)<=4. Writes n_hearts 0/1 values. */
+void gm_hud_lowhp_jitter(long long update_counter, int n_hearts, int *out);
+
 /* Draw the survival HUD (hotbar + selection, hearts, hunger, XP bar+level,
  * crosshair) onto fb. Does NOT touch fb->depth. Safe for any fb size.
  * When pv->dead, draws GuiGameOver (gradient, title, score, buttons) instead
