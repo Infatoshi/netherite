@@ -234,7 +234,8 @@ $(TEST_CHEST_BIN): $(ENV_SRC)/test_chests.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_PROJ_BIN): $(ENV_SRC)/test_projectiles.c $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/projectile_live.h | $(OUT)
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/projectile_live.h \
+		$(CORE_SRC)/inventory_stack_rules.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_projectiles.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 

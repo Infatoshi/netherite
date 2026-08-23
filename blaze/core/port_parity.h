@@ -469,8 +469,8 @@ BP_HD static inline uint64_t bp_falling_digest_finish(
     return bp_hash_u32(h, mutations);
 }
 
-/* Magma runtime.c live arrows (type 1/2). inGround/tile/shake stay 0:
- * magma despawns on collision instead of sticking. */
+/* Magma runtime.c live arrows (type 1/2). Callers pass 0 for tile;
+ * inGround/shake/ticksInGround ride sidecars. nents counts stuck arrows. */
 BP_HD static inline uint64_t bp_hash_projectile(
     uint64_t h, int32_t type,
     double x, double y, double z,

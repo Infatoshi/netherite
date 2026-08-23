@@ -8,6 +8,7 @@
 #include "blaze_snapshot.h"
 #include "entity_spine.h"
 #include "mc_blocks.h"
+#include "inventory_stack_rules.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -208,6 +209,75 @@ static int run_units(void) {
     pl_tick_arrow(a, &w);
     expect(!a->active, "non-air cell despawns the arrow");
     expect(w.hits == 1, "block despawn notes a hit");
+
+    /* magma runtime.c:460-477 resticks after pl_tick_arrow on a block cell. */
+    {
+        int in_ground = 0, shake = 0, ground_ticks = 0, pickup = 1;
+        int t;
+        IsrInv inv;
+        ICStack add;
+        int add_ok;
+
+        memset(slots, 0, sizeof slots);
+        memset(&w, 0, sizeof w);
+        w.id[10][5][8] = (unsigned char)BLK_STONE;
+        expect(pl_spawn_arrow(slots, 4, 8.5, 5.0 - 1.62, 8.0, 0.0f, 0.0f, 1.0f),
+               "spawn into wall for inGround");
+        a = &slots[0];
+        a->x = 9.5;
+        a->y = 5.5;
+        a->z = 8.5;
+        a->vx = 3.0;
+        a->vy = 0.0;
+        a->vz = 0.0;
+        {
+            int was = a->active;
+            pl_tick_arrow(a, &w);
+            pl_restick_if_block(a, &w, was, &in_ground, &shake, &ground_ticks);
+        }
+        expect(a->active && in_ground == 1, "block hit stays ACTIVE inGround");
+        expect(shake == 7, "onHit sets arrowShake=7");
+        expect(a->vx == 0.0 && a->vy == 0.0 && a->vz == 0.0,
+               "stuck arrow zeros motion");
+        expect(w.hits == 1, "block restick still notes the hit");
+
+        for (t = 0; t < 7; ++t)
+            expect(pl_tick_in_ground(a, &shake, &ground_ticks) && a->active,
+                   "inGround tick stays alive through shake");
+        expect(shake == 0 && ground_ticks == 7, "arrowShake counts 7->0");
+
+        expect(pl_arrow_touches_player(a->x, a->y, a->z,
+                                       a->x - 0.3, a->y - 0.1, a->z - 0.3,
+                                       a->x + 0.3, a->y + 1.8, a->z + 0.3),
+               "player AABB intersects 0.5x0.5 arrow box");
+        /* EntityArrow.java:606 / magma runtime.c:319: shake>0 skips pickup. */
+        expect(!(shake > 0) && pl_pickup_kills_arrow(pickup, 0, 1),
+               "shake==0 allows ALLOWED pickup");
+        expect(!pl_pickup_kills_arrow(2, 0, 1),
+               "CREATIVE_ONLY stays in the world in survival");
+        isr_init(&inv);
+        isr_set_stack(&inv, 8, ic_mk(ISR_ITEM_ARROW, 10, 0));
+        add = ic_mk(ISR_ITEM_ARROW, 1, 0);
+        add_ok = isr_add_item_stack_to_inventory(&inv, &add);
+        expect(add_ok && pl_pickup_kills_arrow(pickup, 0, add_ok),
+               "ALLOWED pickup despawns the arrow");
+        expect(isr_get_stack(&inv, 8).count == 11,
+               "pickup merges into the existing arrow stack");
+        a->active = 0;
+
+        /* ticksInGround >= 1200 setDead EntityArrow.java:245-248
+         * magma runtime.c:453-455 */
+        memset(slots, 0, sizeof slots);
+        expect(pl_spawn_arrow(slots, 4, 8.5, 20.0, 8.5, 0.0f, 0.0f, 1.0f),
+               "spawn for inGround 1200 despawn");
+        a = &slots[0];
+        shake = 0;
+        ground_ticks = 1199;
+        expect(!pl_tick_in_ground(a, &shake, &ground_ticks),
+               "ticksInGround 1200 despawns");
+        expect(!a->active && ground_ticks == 1200,
+               "despawn is at ground_ticks>=1200");
+    }
 
     memset(slots, 0, sizeof slots);
     memset(&w, 0, sizeof w);

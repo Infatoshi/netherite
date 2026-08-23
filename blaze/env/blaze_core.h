@@ -366,8 +366,16 @@ typedef struct {
     long long mob_tick;
 
     CuProj projectiles[CU_MAX_PROJECTILES];
+    /* Magma runtime.h:209-212 sidecar next to PlProj (layout stays shared). */
+    int proj_in_ground[CU_MAX_PROJECTILES];
+    int proj_shake[CU_MAX_PROJECTILES];
+    int proj_pickup[CU_MAX_PROJECTILES]; /* 0 DISALLOWED 1 ALLOWED 2 CREATIVE_ONLY */
+    int proj_ground_ticks[CU_MAX_PROJECTILES];
     unsigned parity_proj_hits;
     int bow_ticks, bow_drawing;
+    /* magma r->tape_creative (runtime.c:1768 gm_runtime_tape_player_view).
+     * --rl-bin lockstep never writes the tape view, so this stays 0. */
+    int tape_creative;
 
     int explosion_pending;
     double explosion_x, explosion_y, explosion_z;
@@ -809,11 +817,12 @@ MC_HD static inline int cu_proj_hit_player(Blaze *e, double x, double y, double 
     return 1;
 }
 
-MC_HD static inline int cu_take_arrow(Blaze *e) {
+MC_HD static inline int cu_take_arrow(Blaze *e, int *pickup_out) {
     ICStack bow;
     if (!e) return 0;
     bow = isr_get_stack(&e->pl.inv, e->pl.inv.current_item);
-    return isr_try_fire_bow(&e->pl.inv, 0, &bow, NULL);
+    /* magma spawn_bow_arrow runtime.c:373: r->tape_creative, not a literal. */
+    return isr_try_fire_bow(&e->pl.inv, e->tape_creative, &bow, pickup_out);
 }
 
 #define PL_W Blaze
@@ -824,6 +833,39 @@ MC_HD static inline int cu_take_arrow(Blaze *e) {
     cu_proj_hit_player((w), (x), (y), (z), (rad), (dmg))
 #define PL_NOTE_HIT(w) do { (w)->parity_proj_hits++; } while (0)
 #include "projectile_live.h"
+
+/* magma runtime.c:302-331 EntityArrow pickup. */
+MC_HD static inline int cu_arrow_touches_player(const Blaze *e, const CuProj *p) {
+    McAABB player, arrow;
+    if (!e || !p) return 0;
+    player = e->pl.ent.box;
+    player = mc_aabb_offset(&player, (double)e->ox, 0.0, (double)e->oz);
+    /* EntityArrow.setSize(0.5F, 0.5F) EntityArrow.java:78
+     * magma runtime.c:309-311 */
+    arrow = mc_aabb_make(p->x - 0.25, p->y, p->z - 0.25,
+                         p->x + 0.25, p->y + 0.5, p->z + 0.25);
+    return mc_aabb_intersects(&player, &arrow);
+}
+
+MC_HD static inline void cu_try_pickup_arrow(Blaze *e, int index) {
+    CuProj *p;
+    int status, flag;
+    if (!e || index < 0 || index >= CU_MAX_PROJECTILES) return;
+    p = &e->projectiles[index];
+    if (!p->active || !e->proj_in_ground[index] || e->proj_shake[index] > 0)
+        return;
+    if (!cu_arrow_touches_player(e, p)) return;
+    /* EntityArrow.onCollideWithPlayer EntityArrow.java:604-618
+     * magma runtime.c:322-331 */
+    status = e->proj_pickup[index];
+    flag = (status == 1) || (status == 2 && e->tape_creative);
+    if (status == 1) {
+        ICStack stack = ic_mk(ISR_ITEM_ARROW, 1, 0);
+        if (!isr_add_item_stack_to_inventory(&e->pl.inv, &stack))
+            flag = 0;
+    }
+    if (flag) p->active = 0;
+}
 
 #define ML_W Blaze
 #define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
@@ -3250,13 +3292,29 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
             ++env->bow_ticks;
         } else if (env->bow_drawing) {
             float f = pl_bow_curve(env->bow_ticks);
-            if (!(f < 0.1f || !cu_take_arrow(env))) {
+            int pickup = 1;
+            int was_active[CU_MAX_PROJECTILES];
+            int si;
+            /* magma spawn_bow_arrow runtime.c:365-391 */
+            if (!(f < 0.1f || !cu_take_arrow(env, &pickup))) {
                 if (f > 1.0f) f = 1.0f;
-                (void)pl_spawn_arrow(env->projectiles, CU_MAX_PROJECTILES,
-                                     env->pl.ent.posX + (double)env->ox,
-                                     env->pl.ent.posY,
-                                     env->pl.ent.posZ + (double)env->oz,
-                                     env->pl.yaw, env->pl.pitch, f);
+                for (si = 0; si < CU_MAX_PROJECTILES; ++si)
+                    was_active[si] = env->projectiles[si].active;
+                if (pl_spawn_arrow(env->projectiles, CU_MAX_PROJECTILES,
+                                   env->pl.ent.posX + (double)env->ox,
+                                   env->pl.ent.posY,
+                                   env->pl.ent.posZ + (double)env->oz,
+                                   env->pl.yaw, env->pl.pitch, f)) {
+                    for (si = 0; si < CU_MAX_PROJECTILES; ++si) {
+                        if (was_active[si] || !env->projectiles[si].active)
+                            continue;
+                        pl_arrow_life_on_spawn(
+                            &env->proj_in_ground[si], &env->proj_shake[si],
+                            &env->proj_pickup[si],
+                            &env->proj_ground_ticks[si], pickup);
+                        break;
+                    }
+                }
             }
             env->bow_drawing = 0;
             env->bow_ticks = 0;
@@ -3364,11 +3422,26 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     {
         int pi;
         for (pi = 0; pi < CU_MAX_PROJECTILES; ++pi) {
-            if (!env->projectiles[pi].active) continue;
-            if (env->projectiles[pi].type != 1 &&
-                env->projectiles[pi].type != 2)
+            CuProj *pp = &env->projectiles[pi];
+            if (!pp->active) continue;
+            if (pp->type != 1 && pp->type != 2) continue;
+            /* magma tick_projectiles runtime.c:448-479 */
+            if (env->proj_in_ground[pi]) {
+                /* EntityArrow.onUpdate EntityArrow.java:223-248 */
+                if (!pl_tick_in_ground(pp, &env->proj_shake[pi],
+                                       &env->proj_ground_ticks[pi]))
+                    continue;
+                cu_try_pickup_arrow(env, pi);
                 continue;
-            pl_tick_arrow(&env->projectiles[pi], env);
+            }
+            {
+                int was = pp->active;
+                pl_tick_arrow(pp, env);
+                pl_restick_if_block(pp, env, was,
+                                    &env->proj_in_ground[pi],
+                                    &env->proj_shake[pi],
+                                    &env->proj_ground_ticks[pi]);
+            }
         }
     }
 
@@ -4783,9 +4856,14 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         memcpy(env->mobs, mobs, (size_t)nm * sizeof env->mobs[0]);
     }
     memset(env->projectiles, 0, sizeof env->projectiles);
+    memset(env->proj_in_ground, 0, sizeof env->proj_in_ground);
+    memset(env->proj_shake, 0, sizeof env->proj_shake);
+    memset(env->proj_pickup, 0, sizeof env->proj_pickup);
+    memset(env->proj_ground_ticks, 0, sizeof env->proj_ground_ticks);
     env->parity_proj_hits = 0;
     env->bow_ticks = 0;
     env->bow_drawing = 0;
+    env->tape_creative = 0;
     env->explosion_pending = 0;
     env->explosion_x = env->explosion_y = env->explosion_z = 0.0;
     env->explosion_size = 0.0f;
