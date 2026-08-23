@@ -158,7 +158,11 @@ CR_HD CrMat4 cr_camera_view(const CrCamera *cam)
     /* setupCameraTransform GL order (java:739-764): hurt, bob, portal RSR,
      * then orientCamera. C's look is orient; portal and hurt multiply on
      * the left. renderHand (java:791-804) builds a fresh matrix without
-     * this RSR — callers must leave portal_time=0 on the hand camera. */
+     * this RSR — callers must leave portal_time=0 on the hand camera.
+     * 1.11.2 is only this RSR: f2=5/(t^2+5)-t*0.04 then squared, rotate
+     * (count+pt)*20 about (0,1,1), scale(1/f2,1,1), rotate back
+     * (EntityRenderer.java:746-761). It is not the later nausea form
+     * (t*2, rotate t*5 about (1,0,0)/(0,1,0), or scale 1/(1+t*0.2)). */
     if (cam->portal_time > 0.0f) {
         float f = cam->portal_time;
         float f2 = 5.0f / (f * f + 5.0f) - f * 0.04f; /* java:757 */

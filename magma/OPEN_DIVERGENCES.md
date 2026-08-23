@@ -33,8 +33,9 @@ recorder or re-recording; D-class by improving gates, not the product.
 1. Underwater overlay: eye-in-water overlay brightness ported (1.202/ch,
    was 7.311); leftover maxch=46 ticks + 1-2 LSB. Not PASS-LSB. Overlay
    constants untouched. "Portal and underwater".
-2. Portal overlay: world RSR ported (0.972/ch); interior 1-2 LSB pack +
-   129px right-horizon occupancy. Not PASS-LSB.
+2. Portal overlay: world RSR ported and GL-stack pinned (0.972/ch);
+   interior 1-2 LSB pack + 129px right-horizon grass/sky occupancy.
+   Not PASS-LSB.
 3. Slime rim brightness: source-closed to the raster twins (two-machine
    flow); inset-constant levers exhausted. Slime triage entry.
 4. Rain splash/fall particles. Sky/fog rain+thunder mix is in (lane/rainsky).
@@ -302,6 +303,34 @@ Measured 2026-08-22 (`lane/portaledge` on gamer), full A/B-stable ROI,
 |----|--------|---------|-------|------|
 | overlay_portal_050 | 0.972 | 363609 | 115 | was 1.466 / 363304 / 144 (2D fb warp). Interior maxch=1..2 (260041 eq1 + 99898 eq2) is wall BYTE-pack showing through (1-a)~0.81, same family as hand_eat C=112 vs J=114. Overlay MAG is NEAREST. Remaining occupancy: one 129px cluster at (y 235-238, x 818-853) right horizon, pxdiff cause=registration best_shift (-1,-2). Hand under overlay maxch=39 in (569,320,846,432). |
 | overlay_underwater | 26.763 | 390096 | 112 | byte-stable vs this lane. Overlay formula matches ItemRenderer; Magma water/glass/fog underlay is too blue vs Java. |
+
+Measured 2026-08-23 (`lane/portalhz` on anvil), same goldens, `hard_thr=0`.
+Baseline matched the file: overlay_portal_050 0.972 / 363609 / maxch=115.
+1.11.2 setupCameraTransform is the (0,1,1) RSR (EntityRenderer.java:746-761),
+not later nausea (`t*2`, `rotate t*5` about (1,0,0)/(0,1,0), or
+`scale 1/(1+t*0.2)`). `getFOVModifier` has no portal case (java:518-549);
+hand projection stays 70 (java:804). Independent GL stack (glRotatef /
+glScalef / glTranslatef call order java:759-761 then orientCamera
+java:681,698-702) matches `cr_camera_view`. Overlay NEAREST + tex.a*ease
+already match (GuiIngame.java:1112-1143, AbstractTexture.java:30-35).
+
+129px cluster is grass vs sky on the RSR-tilted grass plane at ~50 blocks
+(world x=-44.9, z=58.5, y=5 projects to ~835,236), not pad edge, not the
+y=16 sky plane, not overlay. C matrix is the cited Java stack; leftover
+is a 1-2 px silhouette fill on that edge (pxdiff registration). Do not
+inverse-map the colour buffer; do not fit a shift.
+
+Hand ROI maxch 39 is 11 occupancy pixels (pad/grass at (815,322) maxch=39;
+one hand-silhouette px at (602,400) maxch=31), not overlay sample/alpha
+and not hand lighting. Interior is BYTE-pack (eq1=21419 + eq2=5174).
+
+ROI remainder: eq1=257987 + eq2=98832 BYTE-pack floor. Row stays RESIDUAL.
+Do not grind the pack.
+
+| id | c_vs_j | hard_px | maxch | note |
+|----|--------|---------|-------|------|
+| overlay_portal_050 | 0.972 | 363609 | 115 | RSR matches Java GL stack; 129px grass/sky occupancy remains. |
+| overlay_underwater | 1.202 | 387388 | 46 | byte-stable vs this lane. |
 
 Measured 2026-08-22 (`lane/raster`) on anvil, same goldens, `hard_thr=0`.
 Portal row stayed 1.466 / 363304 / maxch=144 (byte-stable vs this

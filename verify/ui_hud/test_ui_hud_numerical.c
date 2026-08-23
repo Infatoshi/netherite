@@ -8,6 +8,7 @@
 #include "game/hud.h"
 #include "game/hand.h"
 #include "game/overlay.h"
+#include "game/view.h"
 #include "assets/blockmodels.h"
 #include "assets/atlas_gen.h"
 #include "assets/item_atlas.h"
@@ -451,6 +452,54 @@ int main(void) {
         t = 0.0f;
         a = 0.2f; /* lower clamp path still multiplies, but draw skips t<=0 */
         CHECK(a == 0.2f, "portal floor constant");
+    }
+
+    /* ---- World portal RSR projects a known pad point (EntityRenderer.java:746-761).
+     * overlay_portal_050 pose; spin=(phase 0 + pt 1)*20. Hand pass stays unwarped. */
+    {
+        float f = 0.5f;
+        float f2 = 5.0f / (f * f + 5.0f) - f * 0.04f;
+        f2 = f2 * f2;
+        CrCamera world, hand;
+        CrMat4 proj, mv, mvp;
+        CrVec4 p, clip;
+        float sx, sy, hx, hy;
+        CHECK(fabsf(f2 - 0.869334399f) < 1e-6f, "RSR f2 at timeInPortal 0.5");
+        CHECK(fabsf(1.0f / f2 - 1.1503055f) < 1e-5f, "java:760 scale 1/f2");
+        memset(&world, 0, sizeof world);
+        world.pos.x = 8.5f;
+        world.pos.y = 5.0f + 1.62f;
+        world.pos.z = 8.5f;
+        world.yaw = gm_view_cam_yaw_rad(0.0f);
+        world.pitch = gm_view_cam_pitch_rad(0.0f);
+        world.fov_deg = 70.0f;
+        world.aspect = (float)W / (float)H;
+        world.znear = 0.05f;
+        world.zfar = 128.0f * 1.41421356237f;
+        world.portal_time = 0.5f;
+        world.portal_spin_deg = 20.0f;
+        hand = world;
+        hand.portal_time = 0.0f;
+        hand.portal_spin_deg = 0.0f;
+        proj = cr_perspective(world.fov_deg, world.aspect, world.znear, world.zfar);
+        mv = cr_camera_view(&world);
+        mvp = cr_mat4_mul(proj, mv);
+        p.x = 6.0f;
+        p.y = 5.0f;
+        p.z = 11.0f;
+        p.w = 1.0f;
+        clip = cr_mat4_mul_vec4(mvp, p);
+        sx = (clip.x / clip.w * 0.5f + 0.5f) * (float)W;
+        sy = (0.5f - clip.y / clip.w * 0.5f) * (float)H;
+        mv = cr_camera_view(&hand);
+        mvp = cr_mat4_mul(proj, mv);
+        clip = cr_mat4_mul_vec4(mvp, p);
+        hx = (clip.x / clip.w * 0.5f + 0.5f) * (float)W;
+        hy = (0.5f - clip.y / clip.w * 0.5f) * (float)H;
+        CHECK(sx > 800.0f && sx < 830.0f && sy > 430.0f && sy < 460.0f,
+              "warped wall corner on-screen lower-right");
+        CHECK(fabsf(sx - hx) > 1.0f || fabsf(sy - hy) > 1.0f,
+              "renderHand (java:791-804) does not inherit world RSR");
     }
 
     /* ---- Block-in-hand darken + loading fill ---- */
