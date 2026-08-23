@@ -406,6 +406,72 @@ static void cu_reset_env(CuVec *v, int i) {
         v->envs[i].ww.thundering = s->ww_thundering ? 1 : 0;
         v->envs[i].ww.rand.seed = s->ww_rand_seed48 & MC_JR_MASK;
         v->envs[i].parity_rt_mutations = s->rt_mutations;
+        {
+            unsigned pi, fi;
+            Blaze *e = &v->envs[i];
+            memset(e->projectiles, 0, sizeof e->projectiles);
+            memset(e->proj_in_ground, 0, sizeof e->proj_in_ground);
+            memset(e->proj_shake, 0, sizeof e->proj_shake);
+            memset(e->proj_pickup, 0, sizeof e->proj_pickup);
+            memset(e->proj_ground_ticks, 0, sizeof e->proj_ground_ticks);
+            e->parity_proj_hits = s->parity_proj_hits;
+            for (pi = 0; pi < s->n_proj && pi < CU_MAX_PROJECTILES; ++pi) {
+                e->projectiles[pi].active = s->proj[pi].active;
+                e->projectiles[pi].type = s->proj[pi].type;
+                e->projectiles[pi].age = s->proj[pi].age;
+                e->projectiles[pi].x = s->proj[pi].x;
+                e->projectiles[pi].y = s->proj[pi].y;
+                e->projectiles[pi].z = s->proj[pi].z;
+                e->projectiles[pi].vx = s->proj[pi].vx;
+                e->projectiles[pi].vy = s->proj[pi].vy;
+                e->projectiles[pi].vz = s->proj[pi].vz;
+                e->proj_in_ground[pi] = s->proj[pi].in_ground;
+                e->proj_shake[pi] = s->proj[pi].shake;
+                e->proj_pickup[pi] = s->proj[pi].pickup;
+                e->proj_ground_ticks[pi] = s->proj[pi].ground_ticks;
+            }
+            memset(e->falls, 0, sizeof e->falls);
+            e->n_falls = 0;
+            for (fi = 0; fi < s->n_fall && fi < CU_MAX_ITEMS; ++fi) {
+                e->falls[fi].active = s->falls[fi].active;
+                e->falls[fi].type = s->falls[fi].type;
+                e->falls[fi].x = s->falls[fi].x;
+                e->falls[fi].y = s->falls[fi].y;
+                e->falls[fi].z = s->falls[fi].z;
+                e->falls[fi].mx = s->falls[fi].mx;
+                e->falls[fi].my = s->falls[fi].my;
+                e->falls[fi].mz = s->falls[fi].mz;
+                e->falls[fi].on_ground = s->falls[fi].on_ground;
+                e->falls[fi].age = s->falls[fi].age;
+                e->falls[fi].item = s->falls[fi].item;
+                e->falls[fi].count = s->falls[fi].count;
+                e->falls[fi].meta = s->falls[fi].meta;
+                e->falls[fi].pickup_delay = s->falls[fi].pickup_delay;
+                e->falls[fi].lifespan = s->falls[fi].lifespan;
+                if (e->falls[fi].active) e->n_falls++;
+            }
+            memset(e->fall_updates, 0, sizeof e->fall_updates);
+            for (fi = 0; fi < s->n_fall_upd && fi < CU_FALL_UPDATES; ++fi) {
+                e->fall_updates[fi].active = s->fall_upd[fi].active;
+                e->fall_updates[fi].x = s->fall_upd[fi].x;
+                e->fall_updates[fi].y = s->fall_upd[fi].y;
+                e->fall_updates[fi].z = s->fall_upd[fi].z;
+                e->fall_updates[fi].block_id = s->fall_upd[fi].block_id;
+                e->fall_updates[fi].due_tick = s->fall_upd[fi].due_tick;
+            }
+            memset(e->fall_landings, 0, sizeof e->fall_landings);
+            for (fi = 0; fi < s->n_fall_land && fi < CU_MAX_ITEMS; ++fi) {
+                e->fall_landings[fi].active = s->fall_land[fi].active;
+                e->fall_landings[fi].x = s->fall_land[fi].x;
+                e->fall_landings[fi].y = s->fall_land[fi].y;
+                e->fall_landings[fi].z = s->fall_land[fi].z;
+                e->fall_landings[fi].block_id = s->fall_land[fi].block_id;
+                e->fall_landings[fi].block_meta = s->fall_land[fi].block_meta;
+                e->fall_landings[fi].due_tick = s->fall_land[fi].due_tick;
+            }
+            e->parity_fall_mutations = s->fall_mutations;
+            e->live_ticks = s->live_ticks;
+        }
     }
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
@@ -622,6 +688,71 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
             s.mobs[mi].fire_ticks = e->mob_fire[mi];
         }
     }
+    s.n_proj = 0;
+    for (k = 0; k < CU_MAX_PROJECTILES && s.n_proj < BLAZE_SNAP_MAX_PROJ; ++k) {
+        if (!e->projectiles[k].active) continue;
+        s.proj[s.n_proj].active = 1;
+        s.proj[s.n_proj].type = e->projectiles[k].type;
+        s.proj[s.n_proj].age = e->projectiles[k].age;
+        s.proj[s.n_proj].x = e->projectiles[k].x;
+        s.proj[s.n_proj].y = e->projectiles[k].y;
+        s.proj[s.n_proj].z = e->projectiles[k].z;
+        s.proj[s.n_proj].vx = e->projectiles[k].vx;
+        s.proj[s.n_proj].vy = e->projectiles[k].vy;
+        s.proj[s.n_proj].vz = e->projectiles[k].vz;
+        s.proj[s.n_proj].in_ground = e->proj_in_ground[k];
+        s.proj[s.n_proj].shake = e->proj_shake[k];
+        s.proj[s.n_proj].pickup = e->proj_pickup[k];
+        s.proj[s.n_proj].ground_ticks = e->proj_ground_ticks[k];
+        s.n_proj++;
+    }
+    s.parity_proj_hits = e->parity_proj_hits;
+    s.n_fall = 0;
+    for (k = 0; k < CU_MAX_ITEMS && s.n_fall < BLAZE_SNAP_MAX_FALL; ++k) {
+        if (!e->falls[k].active) continue;
+        s.falls[s.n_fall].active = 1;
+        s.falls[s.n_fall].type = e->falls[k].type;
+        s.falls[s.n_fall].x = e->falls[k].x;
+        s.falls[s.n_fall].y = e->falls[k].y;
+        s.falls[s.n_fall].z = e->falls[k].z;
+        s.falls[s.n_fall].mx = e->falls[k].mx;
+        s.falls[s.n_fall].my = e->falls[k].my;
+        s.falls[s.n_fall].mz = e->falls[k].mz;
+        s.falls[s.n_fall].on_ground = e->falls[k].on_ground;
+        s.falls[s.n_fall].age = e->falls[k].age;
+        s.falls[s.n_fall].item = e->falls[k].item;
+        s.falls[s.n_fall].count = e->falls[k].count;
+        s.falls[s.n_fall].meta = e->falls[k].meta;
+        s.falls[s.n_fall].pickup_delay = e->falls[k].pickup_delay;
+        s.falls[s.n_fall].lifespan = e->falls[k].lifespan;
+        s.n_fall++;
+    }
+    s.n_fall_upd = 0;
+    for (k = 0; k < CU_FALL_UPDATES && s.n_fall_upd < BLAZE_SNAP_MAX_FALL_UPD;
+         ++k) {
+        if (!e->fall_updates[k].active) continue;
+        s.fall_upd[s.n_fall_upd].active = 1;
+        s.fall_upd[s.n_fall_upd].x = e->fall_updates[k].x;
+        s.fall_upd[s.n_fall_upd].y = e->fall_updates[k].y;
+        s.fall_upd[s.n_fall_upd].z = e->fall_updates[k].z;
+        s.fall_upd[s.n_fall_upd].block_id = e->fall_updates[k].block_id;
+        s.fall_upd[s.n_fall_upd].due_tick = e->fall_updates[k].due_tick;
+        s.n_fall_upd++;
+    }
+    s.n_fall_land = 0;
+    for (k = 0; k < CU_MAX_ITEMS && s.n_fall_land < BLAZE_SNAP_MAX_FALL; ++k) {
+        if (!e->fall_landings[k].active) continue;
+        s.fall_land[s.n_fall_land].active = 1;
+        s.fall_land[s.n_fall_land].x = e->fall_landings[k].x;
+        s.fall_land[s.n_fall_land].y = e->fall_landings[k].y;
+        s.fall_land[s.n_fall_land].z = e->fall_landings[k].z;
+        s.fall_land[s.n_fall_land].block_id = e->fall_landings[k].block_id;
+        s.fall_land[s.n_fall_land].block_meta = e->fall_landings[k].block_meta;
+        s.fall_land[s.n_fall_land].due_tick = e->fall_landings[k].due_tick;
+        s.n_fall_land++;
+    }
+    s.fall_mutations = e->parity_fall_mutations;
+    s.live_ticks = e->live_ticks;
     s.n_orbs = 0;
     for (k = 0; k < XL_MAX && s.n_orbs < BLAZE_SNAP_MAX_ORBS; ++k) {
         const McOrb *o = &e->orbs[k];

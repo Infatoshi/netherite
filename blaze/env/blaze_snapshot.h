@@ -166,6 +166,30 @@ typedef struct RlSnapMob {
     int despawn_ticks;             /* EntityMob despawn >32 blocks */
     int fire_ticks;                /* Entity.fire / daylight burn */
 } RlSnapMob;
+#define BLAZE_SNAP_MAX_PROJ 32
+#define BLAZE_SNAP_MAX_FALL 48
+#define BLAZE_SNAP_MAX_FALL_UPD 128
+#pragma pack(push, 1)
+typedef struct RlSnapProj {
+    int active, type, age;
+    double x, y, z, vx, vy, vz;
+    int in_ground, shake, pickup, ground_ticks;
+} RlSnapProj;
+typedef struct RlSnapFall {
+    int active, type;
+    double x, y, z, mx, my, mz;
+    int on_ground, age, item, count, meta, pickup_delay, lifespan;
+} RlSnapFall;
+typedef struct RlSnapFallUpdate {
+    int active, x, y, z, block_id;
+    long long due_tick;
+} RlSnapFallUpdate;
+typedef struct RlSnapFallLanding {
+    int active, x, y, z, block_id, block_meta;
+    long long due_tick;
+} RlSnapFallLanding;
+#pragma pack(pop)
+
 /* One live XP orb. World coords. v3 files omit this trailer -> n_orbs=0. */
 typedef struct RlSnapOrb {
     double x, y, z, mx, my, mz;
@@ -227,6 +251,17 @@ typedef struct {
     int                ww_thundering;
     unsigned long long ww_rand_seed48;  /* v10: isolated weather JavaRandom */
     unsigned           rt_mutations;    /* v10: BP_RANDOM_TICKS mutation count */
+    unsigned           n_proj;
+    RlSnapProj         proj[BLAZE_SNAP_MAX_PROJ];
+    unsigned           parity_proj_hits;
+    unsigned           n_fall;
+    RlSnapFall         falls[BLAZE_SNAP_MAX_FALL];
+    unsigned           n_fall_upd;
+    RlSnapFallUpdate   fall_upd[BLAZE_SNAP_MAX_FALL_UPD];
+    unsigned           n_fall_land;
+    RlSnapFallLanding  fall_land[BLAZE_SNAP_MAX_FALL];
+    unsigned           fall_mutations;
+    int                live_ticks;
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).

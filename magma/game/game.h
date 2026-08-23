@@ -374,6 +374,7 @@ void      gm_world_clock_restore(GmWorldClock *c,
                                  int raining, int thundering,
                                  unsigned long long rand_seed48);
 void      gm_world_set_rt_mutations(GmWorld *w, unsigned mutations);
+void      gm_world_set_fall_mutations(GmWorld *w, unsigned mutations);
 
 /* Stand-on y (highest non-air + 1) at column (wx,wz); sensible default if ungenerated. */
 int       gm_world_surface_y(const GmWorld *w, int wx, int wz);

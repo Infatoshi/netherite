@@ -1104,6 +1104,107 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                     wrand &= MC_JR_MASK;
                     ok = ok && fwrite(&wrand, sizeof wrand, 1, f) == 1;
                     ok = ok && fwrite(&rtmute, sizeof rtmute, 1, f) == 1;
+                    {
+                        unsigned n_proj = 0, pi, n_fall = 0, n_upd = 0,
+                                 n_land = 0, fi;
+                        unsigned fmut = 0, nfallc = 0;
+                        uint64_t fxor = 0;
+                        int live_ticks = r->entities.ticks;
+                        RlSnapProj pj[BLAZE_SNAP_MAX_PROJ];
+                        RlSnapFall fl[BLAZE_SNAP_MAX_FALL];
+                        RlSnapFallUpdate fu[BLAZE_SNAP_MAX_FALL_UPD];
+                        RlSnapFallLanding ld[BLAZE_SNAP_MAX_FALL];
+                        memset(pj, 0, sizeof pj);
+                        memset(fl, 0, sizeof fl);
+                        memset(fu, 0, sizeof fu);
+                        memset(ld, 0, sizeof ld);
+                        for (pi = 0; pi < (unsigned)GM_RUNTIME_PROJECTILES &&
+                                     n_proj < BLAZE_SNAP_MAX_PROJ; ++pi) {
+                            if (!r->projectiles[pi].active) continue;
+                            pj[n_proj].active = 1;
+                            pj[n_proj].type = r->projectiles[pi].type;
+                            pj[n_proj].age = r->projectiles[pi].age;
+                            pj[n_proj].x = r->projectiles[pi].x;
+                            pj[n_proj].y = r->projectiles[pi].y;
+                            pj[n_proj].z = r->projectiles[pi].z;
+                            pj[n_proj].vx = r->projectiles[pi].vx;
+                            pj[n_proj].vy = r->projectiles[pi].vy;
+                            pj[n_proj].vz = r->projectiles[pi].vz;
+                            pj[n_proj].in_ground = r->proj_in_ground[pi];
+                            pj[n_proj].shake = r->proj_shake[pi];
+                            pj[n_proj].pickup = r->proj_pickup[pi];
+                            pj[n_proj].ground_ticks = r->proj_ground_ticks[pi];
+                            ++n_proj;
+                        }
+                        for (fi = 0; fi < (unsigned)GM_LIVE_MAX &&
+                                     n_fall < BLAZE_SNAP_MAX_FALL; ++fi) {
+                            const GmLiveEnt *e = &r->entities.ents[fi];
+                            if (!e->active || e->type != 2) continue;
+                            fl[n_fall].active = 1;
+                            fl[n_fall].type = 2;
+                            fl[n_fall].x = e->x; fl[n_fall].y = e->y;
+                            fl[n_fall].z = e->z;
+                            fl[n_fall].mx = e->mx; fl[n_fall].my = e->my;
+                            fl[n_fall].mz = e->mz;
+                            fl[n_fall].on_ground = e->on_ground;
+                            fl[n_fall].age = e->age;
+                            fl[n_fall].item = e->item;
+                            fl[n_fall].count = e->count;
+                            fl[n_fall].meta = e->meta;
+                            fl[n_fall].pickup_delay = e->pickup_delay;
+                            fl[n_fall].lifespan = e->lifespan;
+                            ++n_fall;
+                        }
+                        for (fi = 0; fi < (unsigned)GM_LIVE_FALL_UPDATES &&
+                                     n_upd < BLAZE_SNAP_MAX_FALL_UPD; ++fi) {
+                            const GmLiveFallUpdate *u =
+                                &r->entities.fall_updates[fi];
+                            if (!u->active) continue;
+                            fu[n_upd].active = 1;
+                            fu[n_upd].x = u->x; fu[n_upd].y = u->y;
+                            fu[n_upd].z = u->z;
+                            fu[n_upd].block_id = u->block_id;
+                            fu[n_upd].due_tick = u->due_tick;
+                            ++n_upd;
+                        }
+                        for (fi = 0; fi < (unsigned)GM_LIVE_MAX &&
+                                     n_land < BLAZE_SNAP_MAX_FALL; ++fi) {
+                            const GmLiveFallLanding *u =
+                                &r->entities.fall_landings[fi];
+                            if (!u->active) continue;
+                            ld[n_land].active = 1;
+                            ld[n_land].x = u->x; ld[n_land].y = u->y;
+                            ld[n_land].z = u->z;
+                            ld[n_land].block_id = u->block_id;
+                            ld[n_land].block_meta = u->block_meta;
+                            ld[n_land].due_tick = u->due_tick;
+                            ++n_land;
+                        }
+                        (void)gm_world_fall_parity_state(r->world, &fxor,
+                                                         &nfallc, &fmut);
+                        ok = ok && fwrite(&n_proj, sizeof n_proj, 1, f) == 1;
+                        ok = ok && (n_proj == 0 ||
+                                    fwrite(pj, sizeof pj[0], n_proj, f) ==
+                                        n_proj);
+                        ok = ok && fwrite(&r->parity_proj_hits,
+                                          sizeof r->parity_proj_hits, 1,
+                                          f) == 1;
+                        ok = ok && fwrite(&n_fall, sizeof n_fall, 1, f) == 1;
+                        ok = ok && (n_fall == 0 ||
+                                    fwrite(fl, sizeof fl[0], n_fall, f) ==
+                                        n_fall);
+                        ok = ok && fwrite(&n_upd, sizeof n_upd, 1, f) == 1;
+                        ok = ok && (n_upd == 0 ||
+                                    fwrite(fu, sizeof fu[0], n_upd, f) ==
+                                        n_upd);
+                        ok = ok && fwrite(&n_land, sizeof n_land, 1, f) == 1;
+                        ok = ok && (n_land == 0 ||
+                                    fwrite(ld, sizeof ld[0], n_land, f) ==
+                                        n_land);
+                        ok = ok && fwrite(&fmut, sizeof fmut, 1, f) == 1;
+                        ok = ok && fwrite(&live_ticks, sizeof live_ticks, 1,
+                                          f) == 1;
+                    }
                 }
             }
             fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
@@ -1133,6 +1234,13 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     int i, x, y, z;
     unsigned snap_rtmute = 0;
     int snap_have_v10 = 0;
+    unsigned snap_n_proj = 0, snap_proj_hits = 0, snap_n_fall = 0;
+    unsigned snap_n_upd = 0, snap_n_land = 0, snap_fall_mut = 0;
+    int snap_live_ticks = 0;
+    RlSnapProj snap_proj[BLAZE_SNAP_MAX_PROJ];
+    RlSnapFall snap_fall[BLAZE_SNAP_MAX_FALL];
+    RlSnapFallUpdate snap_upd[BLAZE_SNAP_MAX_FALL_UPD];
+    RlSnapFallLanding snap_land[BLAZE_SNAP_MAX_FALL];
 
     if (!f) { snprintf(err, (size_t)err_cap, "cannot open %s", path); return 0; }
     if (fread(&h, sizeof h, 1, f) != 1 || memcmp(h.magic, "BSNP", 4) != 0 ||
@@ -1310,6 +1418,37 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             }
             snap_have_v10 = 1;
             snap_rtmute = rtmute;
+            memset(snap_proj, 0, sizeof snap_proj);
+            memset(snap_fall, 0, sizeof snap_fall);
+            memset(snap_upd, 0, sizeof snap_upd);
+            memset(snap_land, 0, sizeof snap_land);
+            if (fread(&snap_n_proj, sizeof snap_n_proj, 1, f) != 1 ||
+                snap_n_proj > BLAZE_SNAP_MAX_PROJ ||
+                (snap_n_proj &&
+                 fread(snap_proj, sizeof snap_proj[0], snap_n_proj, f) !=
+                     snap_n_proj) ||
+                fread(&snap_proj_hits, sizeof snap_proj_hits, 1, f) != 1 ||
+                fread(&snap_n_fall, sizeof snap_n_fall, 1, f) != 1 ||
+                snap_n_fall > BLAZE_SNAP_MAX_FALL ||
+                (snap_n_fall &&
+                 fread(snap_fall, sizeof snap_fall[0], snap_n_fall, f) !=
+                     snap_n_fall) ||
+                fread(&snap_n_upd, sizeof snap_n_upd, 1, f) != 1 ||
+                snap_n_upd > BLAZE_SNAP_MAX_FALL_UPD ||
+                (snap_n_upd &&
+                 fread(snap_upd, sizeof snap_upd[0], snap_n_upd, f) !=
+                     snap_n_upd) ||
+                fread(&snap_n_land, sizeof snap_n_land, 1, f) != 1 ||
+                snap_n_land > BLAZE_SNAP_MAX_FALL ||
+                (snap_n_land &&
+                 fread(snap_land, sizeof snap_land[0], snap_n_land, f) !=
+                     snap_n_land) ||
+                fread(&snap_fall_mut, sizeof snap_fall_mut, 1, f) != 1 ||
+                fread(&snap_live_ticks, sizeof snap_live_ticks, 1, f) != 1) {
+                snprintf(err, (size_t)err_cap,
+                         "truncated .bsnp v10 proj/fall: %s", path);
+                free(cells); free(light); free(biome); fclose(f); return 0;
+            }
         }
         fclose(f);
         if (snap_have_v10)
@@ -1369,8 +1508,10 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         free(biome);
         return 0;
     }
-    if (snap_have_v10)
+    if (snap_have_v10) {
         gm_world_set_rt_mutations(r->world, snap_rtmute);
+        gm_world_set_fall_mutations(r->world, snap_fall_mut);
+    }
     for (x = 0; x < h.rnx; ++x)
         for (z = 0; z < h.rnz; ++z)
             gm_world_set_biome(r->world, h.rx0 + x, h.rz0 + z,
@@ -1433,6 +1574,73 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         isr_set_stack(&r->player.inv, ISR_ARMOR_CHEST,
                       ic_mk(ISR_ELYTRA_ITEM, 1, 0));
         r->player.elytra_equipped = 1;
+    }
+    if (snap_have_v10) {
+        unsigned pi, fi, slot;
+        memset(r->projectiles, 0, sizeof r->projectiles);
+        memset(r->proj_in_ground, 0, sizeof r->proj_in_ground);
+        memset(r->proj_shake, 0, sizeof r->proj_shake);
+        memset(r->proj_pickup, 0, sizeof r->proj_pickup);
+        memset(r->proj_ground_ticks, 0, sizeof r->proj_ground_ticks);
+        r->parity_proj_hits = snap_proj_hits;
+        for (pi = 0; pi < snap_n_proj && pi < (unsigned)GM_RUNTIME_PROJECTILES;
+             ++pi) {
+            r->projectiles[pi].active = snap_proj[pi].active;
+            r->projectiles[pi].type = snap_proj[pi].type;
+            r->projectiles[pi].age = snap_proj[pi].age;
+            r->projectiles[pi].x = snap_proj[pi].x;
+            r->projectiles[pi].y = snap_proj[pi].y;
+            r->projectiles[pi].z = snap_proj[pi].z;
+            r->projectiles[pi].vx = snap_proj[pi].vx;
+            r->projectiles[pi].vy = snap_proj[pi].vy;
+            r->projectiles[pi].vz = snap_proj[pi].vz;
+            r->proj_in_ground[pi] = snap_proj[pi].in_ground;
+            r->proj_shake[pi] = snap_proj[pi].shake;
+            r->proj_pickup[pi] = snap_proj[pi].pickup;
+            r->proj_ground_ticks[pi] = snap_proj[pi].ground_ticks;
+        }
+        for (fi = 0; fi < snap_n_fall; ++fi) {
+            GmLiveEnt *e;
+            slot = (unsigned)r->entities.n_active;
+            if (slot >= (unsigned)GM_LIVE_MAX) break;
+            e = &r->entities.ents[slot];
+            memset(e, 0, sizeof *e);
+            e->active = 1;
+            e->type = 2;
+            e->x = snap_fall[fi].x; e->y = snap_fall[fi].y;
+            e->z = snap_fall[fi].z;
+            e->mx = snap_fall[fi].mx; e->my = snap_fall[fi].my;
+            e->mz = snap_fall[fi].mz;
+            e->on_ground = snap_fall[fi].on_ground;
+            e->age = snap_fall[fi].age;
+            e->item = snap_fall[fi].item;
+            e->count = snap_fall[fi].count;
+            e->meta = snap_fall[fi].meta;
+            e->pickup_delay = snap_fall[fi].pickup_delay;
+            e->lifespan = snap_fall[fi].lifespan;
+            r->entities.n_active++;
+        }
+        memset(r->entities.fall_updates, 0, sizeof r->entities.fall_updates);
+        for (fi = 0; fi < snap_n_upd && fi < (unsigned)GM_LIVE_FALL_UPDATES;
+             ++fi) {
+            r->entities.fall_updates[fi].active = snap_upd[fi].active;
+            r->entities.fall_updates[fi].x = snap_upd[fi].x;
+            r->entities.fall_updates[fi].y = snap_upd[fi].y;
+            r->entities.fall_updates[fi].z = snap_upd[fi].z;
+            r->entities.fall_updates[fi].block_id = snap_upd[fi].block_id;
+            r->entities.fall_updates[fi].due_tick = snap_upd[fi].due_tick;
+        }
+        memset(r->entities.fall_landings, 0, sizeof r->entities.fall_landings);
+        for (fi = 0; fi < snap_n_land && fi < (unsigned)GM_LIVE_MAX; ++fi) {
+            r->entities.fall_landings[fi].active = snap_land[fi].active;
+            r->entities.fall_landings[fi].x = snap_land[fi].x;
+            r->entities.fall_landings[fi].y = snap_land[fi].y;
+            r->entities.fall_landings[fi].z = snap_land[fi].z;
+            r->entities.fall_landings[fi].block_id = snap_land[fi].block_id;
+            r->entities.fall_landings[fi].block_meta = snap_land[fi].block_meta;
+            r->entities.fall_landings[fi].due_tick = snap_land[fi].due_tick;
+        }
+        r->entities.ticks = snap_live_ticks;
     }
     return 1;
 }

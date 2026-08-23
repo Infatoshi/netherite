@@ -227,6 +227,101 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             return snap_fail(err, err_cap, "truncated .bsnp v10 clock", path);
         }
         out->ww_rand_seed48 &= SNAP_JR_MASK;
+        if (fread(&out->n_proj, sizeof out->n_proj, 1, f) != 1 ||
+            out->n_proj > BLAZE_SNAP_MAX_PROJ) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 proj count",
+                             path);
+        }
+        if (out->n_proj &&
+            fread(out->proj, sizeof out->proj[0], out->n_proj, f) !=
+                out->n_proj) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 proj", path);
+        }
+        if (fread(&out->parity_proj_hits, sizeof out->parity_proj_hits, 1,
+                  f) != 1 ||
+            fread(&out->n_fall, sizeof out->n_fall, 1, f) != 1 ||
+            out->n_fall > BLAZE_SNAP_MAX_FALL) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall count",
+                             path);
+        }
+        if (out->n_fall &&
+            fread(out->falls, sizeof out->falls[0], out->n_fall, f) !=
+                out->n_fall) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 falls", path);
+        }
+        if (fread(&out->n_fall_upd, sizeof out->n_fall_upd, 1, f) != 1 ||
+            out->n_fall_upd > BLAZE_SNAP_MAX_FALL_UPD) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall upd",
+                             path);
+        }
+        if (out->n_fall_upd &&
+            fread(out->fall_upd, sizeof out->fall_upd[0], out->n_fall_upd,
+                  f) != out->n_fall_upd) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall upd",
+                             path);
+        }
+        if (fread(&out->n_fall_land, sizeof out->n_fall_land, 1, f) != 1 ||
+            out->n_fall_land > BLAZE_SNAP_MAX_FALL) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall land",
+                             path);
+        }
+        if (out->n_fall_land &&
+            fread(out->fall_land, sizeof out->fall_land[0], out->n_fall_land,
+                  f) != out->n_fall_land) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall land",
+                             path);
+        }
+        if (fread(&out->fall_mutations, sizeof out->fall_mutations, 1, f) !=
+                1 ||
+            fread(&out->live_ticks, sizeof out->live_ticks, 1, f) != 1) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall mut",
+                             path);
+        }
     }
     fclose(f);
 
@@ -380,6 +475,27 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
         ok = ok && fwrite(&th, sizeof th, 1, f) == 1;
         ok = ok && fwrite(&wr, sizeof wr, 1, f) == 1;
         ok = ok && fwrite(&rtmute, sizeof rtmute, 1, f) == 1;
+        ok = ok && fwrite(&s->n_proj, sizeof s->n_proj, 1, f) == 1;
+        ok = ok && (s->n_proj == 0 ||
+                    fwrite(s->proj, sizeof s->proj[0], s->n_proj, f) ==
+                        s->n_proj);
+        ok = ok && fwrite(&s->parity_proj_hits, sizeof s->parity_proj_hits, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->n_fall, sizeof s->n_fall, 1, f) == 1;
+        ok = ok && (s->n_fall == 0 ||
+                    fwrite(s->falls, sizeof s->falls[0], s->n_fall, f) ==
+                        s->n_fall);
+        ok = ok && fwrite(&s->n_fall_upd, sizeof s->n_fall_upd, 1, f) == 1;
+        ok = ok && (s->n_fall_upd == 0 ||
+                    fwrite(s->fall_upd, sizeof s->fall_upd[0], s->n_fall_upd,
+                           f) == s->n_fall_upd);
+        ok = ok && fwrite(&s->n_fall_land, sizeof s->n_fall_land, 1, f) == 1;
+        ok = ok && (s->n_fall_land == 0 ||
+                    fwrite(s->fall_land, sizeof s->fall_land[0],
+                           s->n_fall_land, f) == s->n_fall_land);
+        ok = ok && fwrite(&s->fall_mutations, sizeof s->fall_mutations, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->live_ticks, sizeof s->live_ticks, 1, f) == 1;
     }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)

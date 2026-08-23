@@ -1369,3 +1369,8 @@ void gm_world_set_rt_mutations(GmWorld *w, unsigned mutations) {
     if (!w) return;
     w->parity_rt_mutations = mutations;
 }
+
+void gm_world_set_fall_mutations(GmWorld *w, unsigned mutations) {
+    if (!w) return;
+    w->parity_fall_mutations = mutations;
+}
