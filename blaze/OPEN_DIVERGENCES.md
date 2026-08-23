@@ -143,8 +143,9 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    mutations, mob sidecars, projectiles, falling, furnaces/chests/craft,
    timers/XP/enchants, fluids, boat, explosion counters, spawn RNGs,
    dead, last-craft, elytra flags, EwStore path, entity_age. Resume PASS
-   magma+blaze-cpu on every supported listed row. mining_slice BLOCKED
-   (v1 fixture, no recapture on gamer). Potion/shield/sleep stay other
+   magma+blaze-cpu, and M2 raw/warp/scalar plus CUDA resume, on every
+   supported listed row. mining_slice BLOCKED (v1 fixture and missing
+   `*_d*.bsnp`; no recapture on gamer). Potion/shield/sleep stay other
    lanes. Item overflow queue stays row 9. Forensics: `docs/DEVLOG.md`.
 5. Focused M2 production kernels: CLOSED 2026-08-23 lane `warpm2`.
    `verify_cuda.py --m2-kernel raw|warp|scalar` and per-row `m2_kernels:`

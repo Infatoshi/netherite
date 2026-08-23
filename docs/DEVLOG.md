@@ -91,8 +91,18 @@ chests, falling_blocks, weather_optional, explosions. mining_slice
 BLOCKED (v1 `s14_t0_r48_no_liquid.bsnp`; no recapture on this host).
 
 M1 `--no-deps` VERIFIED for those same rows except mining_slice BLOCKED
-rc=3 (`out/verify/resumegate_m1.log`). Root `make test` PASS
-(`out/verify/resumegate_make_test.log`). Tapes
+rc=3 (`out/verify/resumegate_m1.log`). M2 `--no-deps` VERIFIED
+raw/warp/scalar plus CUDA resume for those same rows except mining_slice
+BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing;
+`out/verify/resumegate_m2.log` FAILS [] BLOCKED ['mining_slice']).
+Kernel runtimes (raw/warp/scalar s): placement 251.79/318.14/448.99,
+explosions 302.54/382.07/539.98, fluids 60.41/80.06/112.89,
+falling_blocks 16.18/20.31/28.41. CUDA resume examples: placement
+N=72 M=24 ticks 73..96 in 493.98s; explosions N=48 M=16 ticks 49..64
+in 298.49s. `warpm2_<snap>_*.log` shares snapshot stems so later
+rows overwrite (spawn_to_torch/world_dynamics/weather_optional all
+`s10_t0_r64_no_liquid`); row verdicts are `resumegate_m2.log`.
+Root `make test` PASS (`out/verify/resumegate_make_test.log`). Tapes
 (`out/verify/resumegate_tapes.log`): bow physics NO divergence 1407,
 entities PASS 5525; smoke_zombie physics NO divergence through terminal
 death 358, entities PASS 359 (tape continues to t=373 after GuiGameOver);
@@ -100,9 +110,9 @@ canon `20260721T215812Z_fast_s0_survival_default_rd8_77b5b462`
 INFRASTRUCTURE FAILURE (golden frames missing): harness, not a verdict.
 First-divergence ticks did not move earlier.
 
-Still open: mining_slice v1 fixture; potion/shield/sleep (other lanes);
-item overflow queue (row 9); M2 CUDA so rebuild in flight on this host
-(GPU co-tenant).
+Still open: mining_slice v1 fixture and missing `*_d*.bsnp` (no recapture
+on this host); potion/shield/sleep (other lanes); item overflow queue
+(row 9).
 
 ## 2026-08-23 explosion residuals (lane/expresid)
 
