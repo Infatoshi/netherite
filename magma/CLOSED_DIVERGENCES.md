@@ -5,6 +5,33 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Furnace registry / buckets / food / hotbar: CLOSED 2026-08-23 (lane/furnaceids)
+
+Anvil. Sweep 2026-08-23 magma rows 2, 3, 12 + silent hotbar; blaze row 11.
+
+Java: `FurnaceRecipes.java:31-91` (51 addSmelting* rows, fish COD/SALMON),
+`TileEntityFurnace.update:200-272` cook 200, lava `getContainerItem` ->
+bucket (`Item.java:1569`), wet sponge + bucket (`smeltItem:327-330`).
+`getItemBurnTime:340-355`. Item ids from `Item.registerItems` /
+`Block.registerBlocks`. Empty bucket `Item.java:1566` setMaxStackSize(16);
+filled `ItemBucket.java:32` / milk `ItemBucketMilk.java:17` = 1.
+`ItemBucket.fillBucket:117-140`. `ItemFood.onItemUseFinish:55` burp
+`nextFloat` then `:66` potion draw if potionId set. `InventoryPlayer.getBestHotbarSlot:162-185`. Subset has no `ench` flag so the unenchanted loop returns current after the empty search.
+
+C: `smelting_recipes.h` vanilla ids (lava 327, fish 349, beef 363), XP on
+each row, full fuel ternary + Material.WOOD block ids. Table derived by
+`verify/furnace_registry.py` from oracle-src. `fft_tick` / `furnace_live.c`
+/ blaze `cu_furnace_*`. `isr_max_stack_size` / `cc_max_stack_size`.
+`ic_fill_bucket` + player_ctl / blaze_core twins. `ic_food_info` +
+`jrand_float(&world_rand)` on eat finish. Snapshot furnace TE still not
+in `.bsnp` (no version bump).
+
+Gate: `furnaces` port_matrix M1+M2 VERIFIED 223 ticks (interact +
+shift-click beef/coal + 220 idle). Fixture
+`s10_t0_r64_furnaces.bsnp` baked by `test_furnaces --write-fixture`.
+`make -C magma test-furnace-registry` 51 recipes PASS. mining_slice M2
+BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). Tapes unchanged vs
+baseline.
 ### Environmental damage on the player: CLOSED 2026-08-23 (lane/hazards)
 
 Gamer. Magma sweep 2026-08-23 row 5 + blaze rows 6 (terminal death, documented)

@@ -69,7 +69,10 @@ MC_HD static inline i32 isr_max_stack_size(i32 item, i32 meta) {
         item == 261 || item == 259 || item == 359 || item == 442 || item == 355) return 1;
     if (item == IC_ENCHANTED_BOOK) return 1; /* ItemEnchantedBook 1.11.2 */
     if (isr_is_armor_or_elytra(item)) return 1;
-    if (item == IC_BUCKET || item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET) return 1;
+    /* Item.java:1566 empty bucket setMaxStackSize(16); ItemBucket.java:32
+     * filled water/lava maxStackSize=1; ItemBucketMilk.java:17 milk=1. */
+    if (item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET || item == 335) return 1;
+    if (item == IC_BUCKET) return 16;
     return ISR_INV_LIMIT;
 }
 
@@ -145,18 +148,24 @@ MC_HD static inline int isr_is_hotbar(int index) {
     return index >= 0 && index < 9;
 }
 
+/* ItemStack.isItemEnchanted is the "ench" NBT tag, not StoredEnchantments
+ * on books. This subset has no ench flag, so every stack is unenchanted. */
+MC_HD static inline int isr_is_item_enchanted(const ICStack *s) {
+    (void)s;
+    return 0;
+}
+
 MC_HD static inline int isr_get_best_hotbar_slot(const IsrInv *inv) {
     int i;
+    /* InventoryPlayer.getBestHotbarSlot (InventoryPlayer.java:162-185):
+     * first empty from current wrapping, then first unenchanted, then current. */
     for (i = 0; i < 9; ++i) {
         int j = (inv->current_item + i) % 9;
         if (isr_is_empty(&inv->main[j])) return j;
     }
     for (i = 0; i < 9; ++i) {
         int j = (inv->current_item + i) % 9;
-        /* Vanilla prefers unenchanted hotbar slots; subset has no item-enchant
-         * flag beyond StoredEnchantments-on-books (always max-stack 1). */
-        (void)j;
-        return j;
+        if (!isr_is_item_enchanted(&inv->main[j])) return j;
     }
     return inv->current_item;
 }

@@ -73,7 +73,8 @@ MC_HD static inline i32 cc_max_stack_size(i32 item, i32 meta) {
     (void)meta;
     if (item == IC_WOODEN_PICKAXE || item == IC_STONE_PICKAXE) return 1;
     if (item == IC_ENCHANTED_BOOK) return 1; /* ItemEnchantedBook 1.11.2 */
-    if (item == IC_BUCKET || item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET) return 1;
+    if (item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET || item == 335) return 1;
+    if (item == IC_BUCKET) return 16; /* Item.java:1566 */
     return CC_INV_LIMIT;
 }
 
