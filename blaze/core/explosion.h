@@ -8,9 +8,11 @@
  *   f = size * (0.7F + rand * 0.6F) (Explosion.java:102). Live sim consumes
  *   that stream when a JavaRandom is passed. NULL rand keeps the old 0.5F
  *   battery path. getBlockDensity / knockback / blast-prot use no Random.
- * doExplosionB drops: HashSet order of affectedBlockPositions then
+ * getBlockDensity (World.java:2456-2494) samples the 1/((len*2)+1) grid and
+ * rayTraceBlocks(stopOnLiquid=false) against movement collision AABBs, not
+ * full cubes. doExplosionB drops: HashSet order of affectedBlockPositions then
  * dropBlockAsItemWithChance (explosion_drops.h). explosionRNG (new Random()
- * in Explosion.java:65) is only the flaming nextInt(3) in doExplosionB:253.
+ * in Explosion.java:65) is the flaming nextInt(3) in doExplosionB:253.
  *
  * READ-ONLY deps: block_props_table.h (hardness), mc_math.h (floor).
  * Build: -ffp-contract=off / CUDA --fmad=false. */
@@ -25,6 +27,7 @@
 #include "mc_rng.h"
 #include "block_props_table.h"
 #include "java_hashset.h"
+#include "physics_collision_math.h"
 
 #define EX_DIM 16
 #define EX_VOL (EX_DIM * EX_DIM * EX_DIM)
@@ -182,20 +185,285 @@ MC_HD static inline float ex_entity_damage(double ent_x, double ent_y, double en
     return dmg;
 }
 
-/* Full-cube BF_SOLID for World.rayTraceBlocks. Web is NULL_AABB (player_survival). */
-MC_HD static inline int ex_cell_solid(const u16 *grid, int ox, int oy, int oz,
-                                      int wx, int wy, int wz) {
-    int lx = wx - ox, ly = wy - oy, lz = wz - oz;
-    int id;
-    if (!ex_in(lx, ly, lz)) return 0;
-    id = mc_state_id(grid[ex_idx(lx, ly, lz)]);
+/* IBlockState.isFullBlock for doExplosionB fire (Explosion.java:253).
+ * Subset: opaque cubes. Slabs/fences/stairs/chests/soul sand/cactus are not. */
+MC_HD static inline int ex_is_full_block(int id) {
     if (id <= 0 || id == BLK_WEB) return 0;
+    if (id == BLK_FLOWING_WATER || id == BLK_WATER ||
+        id == BLK_FLOWING_LAVA || id == BLK_LAVA) return 0;
+    if (id == BLK_STONE_SLAB || id == BLK_WOODEN_SLAB ||
+        id == BLK_RED_SANDSTONE_SLAB) return 0;
+    if (id == BLK_FENCE || id == BLK_NETHER_BRICK_FENCE ||
+        id == BLK_COBBLESTONE_WALL) return 0;
+    if (id == BLK_OAK_STAIRS || id == BLK_STONE_STAIRS) return 0;
+    if (id == BLK_TRAPDOOR || id == BLK_LADDER || id == BLK_CACTUS ||
+        id == BLK_SOUL_SAND) return 0;
+    if (id == 51 || id == 54 || id == 130 || id == 146) return 0;
     return (mc_bpt_props(id).flags & BF_SOLID) != 0;
 }
 
+MC_HD static inline int ex_world_id(const u16 *grid, int ox, int oy, int oz,
+                                    int wx, int wy, int wz) {
+    int lx = wx - ox, ly = wy - oy, lz = wz - oz;
+    if (!ex_in(lx, ly, lz)) return 0;
+    return mc_state_id(grid[ex_idx(lx, ly, lz)]);
+}
+
+MC_HD static inline int ex_world_meta(const u16 *grid, int ox, int oy, int oz,
+                                      int wx, int wy, int wz) {
+    int lx = wx - ox, ly = wy - oy, lz = wz - oz;
+    if (!ex_in(lx, ly, lz)) return 0;
+    return mc_state_meta(grid[ex_idx(lx, ly, lz)]);
+}
+
+MC_HD static inline int ex_fence_connects_id(int id, int neighbor) {
+    if (id == BLK_NETHER_BRICK_FENCE && neighbor == BLK_NETHER_BRICK_FENCE)
+        return 1;
+    if (id == BLK_FENCE && neighbor == BLK_FENCE) return 1;
+    if (neighbor == 107) return 1;
+    if (neighbor <= 0 || neighbor == BLK_WEB) return 0;
+    if (!(mc_bpt_props(neighbor).flags & BF_SOLID)) return 0;
+    return neighbor != BLK_FENCE && neighbor != BLK_NETHER_BRICK_FENCE &&
+           neighbor != BLK_COBBLESTONE_WALL;
+}
+
+MC_HD static inline int ex_wall_connects_id(int neighbor) {
+    if (neighbor == BLK_COBBLESTONE_WALL || neighbor == 107) return 1;
+    if (neighbor <= 0 || neighbor == BLK_WEB) return 0;
+    if (!(mc_bpt_props(neighbor).flags & BF_SOLID)) return 0;
+    return neighbor != BLK_FENCE && neighbor != BLK_NETHER_BRICK_FENCE;
+}
+
+#define EX_MAX_BOXES 6
+
+MC_HD static inline int ex_push_box(McAABB *out, int n, int max, McAABB box) {
+    if (n < max) out[n++] = box;
+    return n;
+}
+
+/* Movement collision AABBs (player_survival.h psv_collect_blocks) on the
+ * 16^3 sample. Neighbors off-grid are air. */
+MC_HD static inline int ex_cell_boxes(const u16 *grid, int ox, int oy, int oz,
+                                      int wx, int wy, int wz,
+                                      McAABB *out, int max) {
+    int id, meta, n = 0;
+    int x = wx, y = wy, z = wz;
+    if (max <= 0) return 0;
+    id = ex_world_id(grid, ox, oy, oz, wx, wy, wz);
+    if (id <= 0 || id == BLK_WEB) return 0;
+    if (mc_bpt_props(id).flags & BF_LIQUID) return 0;
+    if (!(mc_bpt_props(id).flags & BF_SOLID)) return 0;
+    meta = ex_world_meta(grid, ox, oy, oz, wx, wy, wz);
+    if (id == BLK_CACTUS) {
+        return ex_push_box(out, n, max,
+            mc_aabb_make(x + 0.0625, y, z + 0.0625,
+                         x + 0.9375, y + 0.9375, z + 0.9375));
+    }
+    if (id == 54 || id == 130 || id == 146) {
+        double min_x = 0.0625, max_x = 0.9375;
+        double min_z = 0.0625, max_z = 0.9375;
+        if (id != 130) {
+            if (ex_world_id(grid, ox, oy, oz, x - 1, y, z) == id) min_x = 0.0;
+            if (ex_world_id(grid, ox, oy, oz, x + 1, y, z) == id) max_x = 1.0;
+            if (ex_world_id(grid, ox, oy, oz, x, y, z - 1) == id) min_z = 0.0;
+            if (ex_world_id(grid, ox, oy, oz, x, y, z + 1) == id) max_z = 1.0;
+        }
+        return ex_push_box(out, n, max,
+            mc_aabb_make(x + min_x, y, z + min_z,
+                         x + max_x, y + 0.875, z + max_z));
+    }
+    if (id == BLK_TRAPDOOR) {
+        double min_x = 0.0, min_y = 0.0, min_z = 0.0;
+        double max_x = 1.0, max_y = 1.0, max_z = 1.0;
+        if (meta & 4) {
+            switch (meta & 3) {
+                case 0: min_z = 0.8125; break;
+                case 1: max_z = 0.1875; break;
+                case 2: min_x = 0.8125; break;
+                default: max_x = 0.1875; break;
+            }
+        } else if (meta & 8) {
+            min_y = 0.8125;
+        } else {
+            max_y = 0.1875;
+        }
+        return ex_push_box(out, n, max,
+            mc_aabb_make(x + min_x, y + min_y, z + min_z,
+                         x + max_x, y + max_y, z + max_z));
+    }
+    if (id == BLK_STONE_SLAB || id == BLK_WOODEN_SLAB ||
+        id == BLK_RED_SANDSTONE_SLAB) {
+        double min_y = (meta & 8) ? y + 0.5 : (double)y;
+        double max_y = (meta & 8) ? y + 1.0 : y + 0.5;
+        return ex_push_box(out, n, max,
+            mc_aabb_make(x, min_y, z, x + 1.0, max_y, z + 1.0));
+    }
+    if (id == BLK_OAK_STAIRS || id == BLK_STONE_STAIRS) {
+        int top = (meta & 4) != 0;
+        double slab_y0 = top ? 0.5 : 0.0;
+        double slab_y1 = top ? 1.0 : 0.5;
+        double step_y0 = top ? 0.0 : 0.5;
+        double step_y1 = top ? 0.5 : 1.0;
+        double x0 = 0.0, x1 = 1.0, z0 = 0.0, z1 = 1.0;
+        switch (meta & 3) {
+            case 0: x0 = 0.5; break;
+            case 1: x1 = 0.5; break;
+            case 2: z0 = 0.5; break;
+            default: z1 = 0.5; break;
+        }
+        n = ex_push_box(out, n, max,
+            mc_aabb_make(x, y + slab_y0, z, x + 1.0, y + slab_y1, z + 1.0));
+        return ex_push_box(out, n, max,
+            mc_aabb_make(x + x0, y + step_y0, z + z0,
+                         x + x1, y + step_y1, z + z1));
+    }
+    if (id == BLK_LADDER) {
+        double x0 = 0.0, x1 = 1.0, z0 = 0.0, z1 = 1.0;
+        switch (meta) {
+            case 2: z0 = 0.8125; break;
+            case 3: z1 = 0.1875; break;
+            case 4: x0 = 0.8125; break;
+            default: x1 = 0.1875; break;
+        }
+        return ex_push_box(out, n, max,
+            mc_aabb_make(x + x0, y, z + z0, x + x1, y + 1.0, z + z1));
+    }
+    if (id == BLK_SOUL_SAND) {
+        return ex_push_box(out, n, max,
+            mc_aabb_make(x, y, z, x + 1.0, y + 0.875, z + 1.0));
+    }
+    if (id == BLK_FENCE || id == BLK_NETHER_BRICK_FENCE) {
+        n = ex_push_box(out, n, max,
+            mc_aabb_make(x + 0.375, y, z + 0.375,
+                         x + 0.625, y + 1.5, z + 0.625));
+        if (ex_fence_connects_id(id, ex_world_id(grid, ox, oy, oz, x, y, z - 1)))
+            n = ex_push_box(out, n, max,
+                mc_aabb_make(x + 0.375, y, z, x + 0.625, y + 1.5, z + 0.375));
+        if (ex_fence_connects_id(id, ex_world_id(grid, ox, oy, oz, x + 1, y, z)))
+            n = ex_push_box(out, n, max,
+                mc_aabb_make(x + 0.625, y, z + 0.375,
+                             x + 1.0, y + 1.5, z + 0.625));
+        if (ex_fence_connects_id(id, ex_world_id(grid, ox, oy, oz, x, y, z + 1)))
+            n = ex_push_box(out, n, max,
+                mc_aabb_make(x + 0.375, y, z + 0.625,
+                             x + 0.625, y + 1.5, z + 1.0));
+        if (ex_fence_connects_id(id, ex_world_id(grid, ox, oy, oz, x - 1, y, z)))
+            n = ex_push_box(out, n, max,
+                mc_aabb_make(x, y, z + 0.375, x + 0.375, y + 1.5, z + 0.625));
+        return n;
+    }
+    if (id == BLK_COBBLESTONE_WALL) {
+        int north = ex_wall_connects_id(ex_world_id(grid, ox, oy, oz, x, y, z - 1));
+        int east  = ex_wall_connects_id(ex_world_id(grid, ox, oy, oz, x + 1, y, z));
+        int south = ex_wall_connects_id(ex_world_id(grid, ox, oy, oz, x, y, z + 1));
+        int west  = ex_wall_connects_id(ex_world_id(grid, ox, oy, oz, x - 1, y, z));
+        double x0 = west ? 0.0 : 0.25, x1 = east ? 1.0 : 0.75;
+        double z0 = north ? 0.0 : 0.25, z1 = south ? 1.0 : 0.75;
+        if (north && south && !east && !west) { x0 = 0.3125; x1 = 0.6875; }
+        if (east && west && !north && !south) { z0 = 0.3125; z1 = 0.6875; }
+        return ex_push_box(out, n, max,
+            mc_aabb_make(x + x0, y, z + z0, x + x1, y + 1.5, z + z1));
+    }
+    return ex_push_box(out, n, max,
+        mc_aabb_make(x, y, z, x + 1.0, y + 1.0, z + 1.0));
+}
+
+/* AxisAlignedBB.calculateIntercept hit/miss (projectile_motion.h pm_*). */
+MC_HD static inline int ex_aabb_is_closest(double ax, double ay, double az,
+                                           int have, double bx, double by, double bz,
+                                           double cx, double cy, double cz) {
+    double dx1, dy1, dz1, dx2, dy2, dz2;
+    if (!have) return 1;
+    dx1 = cx - ax; dy1 = cy - ay; dz1 = cz - az;
+    dx2 = bx - ax; dy2 = by - ay; dz2 = bz - az;
+    return (dx1 * dx1 + dy1 * dy1 + dz1 * dz1) < (dx2 * dx2 + dy2 * dy2 + dz2 * dz2);
+}
+MC_HD static inline int ex_aabb_mid_x(double ax, double ay, double az,
+                                      double bx, double by, double bz, double x,
+                                      double *ox, double *oy, double *oz) {
+    double d0 = bx - ax, d1 = by - ay, d2 = bz - az, d3;
+    if (d0 * d0 < 1.0000000116860974E-7) return 0;
+    d3 = (x - ax) / d0;
+    if (d3 < 0.0 || d3 > 1.0) return 0;
+    *ox = ax + d0 * d3; *oy = ay + d1 * d3; *oz = az + d2 * d3;
+    return 1;
+}
+MC_HD static inline int ex_aabb_mid_y(double ax, double ay, double az,
+                                      double bx, double by, double bz, double y,
+                                      double *ox, double *oy, double *oz) {
+    double d0 = bx - ax, d1 = by - ay, d2 = bz - az, d3;
+    if (d1 * d1 < 1.0000000116860974E-7) return 0;
+    d3 = (y - ay) / d1;
+    if (d3 < 0.0 || d3 > 1.0) return 0;
+    *ox = ax + d0 * d3; *oy = ay + d1 * d3; *oz = az + d2 * d3;
+    return 1;
+}
+MC_HD static inline int ex_aabb_mid_z(double ax, double ay, double az,
+                                      double bx, double by, double bz, double z,
+                                      double *ox, double *oy, double *oz) {
+    double d0 = bx - ax, d1 = by - ay, d2 = bz - az, d3;
+    if (d2 * d2 < 1.0000000116860974E-7) return 0;
+    d3 = (z - az) / d2;
+    if (d3 < 0.0 || d3 > 1.0) return 0;
+    *ox = ax + d0 * d3; *oy = ay + d1 * d3; *oz = az + d2 * d3;
+    return 1;
+}
+MC_HD static inline int ex_aabb_hit(const McAABB *bb,
+                                    double ax, double ay, double az,
+                                    double bx, double by, double bz) {
+    int have = 0, face = 4;
+    double cx = 0.0, cy = 0.0, cz = 0.0, tx, ty, tz;
+    if (ex_aabb_mid_x(ax, ay, az, bx, by, bz, bb->minX, &tx, &ty, &tz) &&
+        ty >= bb->minY && ty <= bb->maxY && tz >= bb->minZ && tz <= bb->maxZ) {
+        cx = tx; cy = ty; cz = tz; have = 1; face = 4;
+    }
+    if (ex_aabb_mid_x(ax, ay, az, bx, by, bz, bb->maxX, &tx, &ty, &tz) &&
+        ty >= bb->minY && ty <= bb->maxY && tz >= bb->minZ && tz <= bb->maxZ &&
+        ex_aabb_is_closest(ax, ay, az, have, cx, cy, cz, tx, ty, tz)) {
+        cx = tx; cy = ty; cz = tz; have = 1; face = 5;
+    }
+    if (ex_aabb_mid_y(ax, ay, az, bx, by, bz, bb->minY, &tx, &ty, &tz) &&
+        tx >= bb->minX && tx <= bb->maxX && tz >= bb->minZ && tz <= bb->maxZ &&
+        ex_aabb_is_closest(ax, ay, az, have, cx, cy, cz, tx, ty, tz)) {
+        cx = tx; cy = ty; cz = tz; have = 1; face = 0;
+    }
+    if (ex_aabb_mid_y(ax, ay, az, bx, by, bz, bb->maxY, &tx, &ty, &tz) &&
+        tx >= bb->minX && tx <= bb->maxX && tz >= bb->minZ && tz <= bb->maxZ &&
+        ex_aabb_is_closest(ax, ay, az, have, cx, cy, cz, tx, ty, tz)) {
+        cx = tx; cy = ty; cz = tz; have = 1; face = 1;
+    }
+    if (ex_aabb_mid_z(ax, ay, az, bx, by, bz, bb->minZ, &tx, &ty, &tz) &&
+        tx >= bb->minX && tx <= bb->maxX && ty >= bb->minY && ty <= bb->maxY &&
+        ex_aabb_is_closest(ax, ay, az, have, cx, cy, cz, tx, ty, tz)) {
+        cx = tx; cy = ty; cz = tz; have = 1; face = 2;
+    }
+    if (ex_aabb_mid_z(ax, ay, az, bx, by, bz, bb->maxZ, &tx, &ty, &tz) &&
+        tx >= bb->minX && tx <= bb->maxX && ty >= bb->minY && ty <= bb->maxY &&
+        ex_aabb_is_closest(ax, ay, az, have, cx, cy, cz, tx, ty, tz)) {
+        have = 1; face = 3;
+    }
+    (void)face;
+    return have;
+}
+
+/* Block.collisionRayTrace vs movement collision AABBs. */
+MC_HD static inline int ex_ray_hits_cell(const u16 *grid, int ox, int oy, int oz,
+                                         int wx, int wy, int wz,
+                                         double sx, double sy, double sz,
+                                         double tx, double ty, double tz) {
+    McAABB boxes[EX_MAX_BOXES];
+    int n, i;
+    n = ex_cell_boxes(grid, ox, oy, oz, wx, wy, wz, boxes, EX_MAX_BOXES);
+    for (i = 0; i < n; ++i) {
+        if (ex_aabb_hit(&boxes[i], sx, sy, sz, tx, ty, tz))
+            return 1;
+    }
+    return 0;
+}
+
 /* World.rayTraceBlocks(start, end, false, false, false) World.java:998-1014
- * on the 16^3 sample. Magma extra: full-cube BF_SOLID only. Returns 1 if the
- * ray hits a solid (Java RayTraceResult != null). */
+ * on the 16^3 sample. stopOnLiquid false: liquids skipped (no collision box).
+ * Returns 1 if the ray hits a collision AABB (Java RayTraceResult != null). */
 MC_HD MC_NOINLINE static inline int ex_ray_blocked(const u16 *grid, int ox, int oy, int oz,
                                        double sx, double sy, double sz,
                                        double tx, double ty, double tz) {
@@ -209,7 +477,8 @@ MC_HD MC_NOINLINE static inline int ex_ray_blocked(const u16 *grid, int ox, int 
     l = mc_floor(sx);
     i1 = mc_floor(sy);
     j1 = mc_floor(sz);
-    if (ex_cell_solid(grid, ox, oy, oz, l, i1, j1)) return 1;
+    if (ex_ray_hits_cell(grid, ox, oy, oz, l, i1, j1, sx, sy, sz, tx, ty, tz))
+        return 1;
     curX = sx;
     curY = sy;
     curZ = sz;
@@ -258,7 +527,11 @@ MC_HD MC_NOINLINE static inline int ex_ray_blocked(const u16 *grid, int ox, int 
         l = mc_floor(curX) - (nf == 5 ? 1 : 0);
         i1 = mc_floor(curY) - (nf == 1 ? 1 : 0);
         j1 = mc_floor(curZ) - (nf == 3 ? 1 : 0);
-        if (ex_cell_solid(grid, ox, oy, oz, l, i1, j1)) return 1;
+        /* World.java:1167 collisionRayTrace(blockpos, vec31, vec32) after
+         * DDA rewrites vec31 to the current point. */
+        if (ex_ray_hits_cell(grid, ox, oy, oz, l, i1, j1,
+                             curX, curY, curZ, tx, ty, tz))
+            return 1;
     }
     return 0;
 }

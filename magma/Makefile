@@ -414,6 +414,11 @@ test-placement:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_placement.c -o tests/test_placement $(LDLIBS)
 	./tests/test_placement
 
+.PHONY: test-explosions
+test-explosions:
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_explosions.c -o tests/test_explosions $(LDLIBS)
+	./tests/test_explosions
+
 .PHONY: test-furnace-registry
 test-furnace-registry:
 	mkdir -p ../out/verify
@@ -423,7 +428,7 @@ test-furnace-registry:
 	    -o tests/test_furnace_registry $(LDLIBS)
 	./tests/test_furnace_registry
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 # Standalone-game semantic gates. These deliberately exercise the real streamed

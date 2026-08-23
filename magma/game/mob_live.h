@@ -77,7 +77,9 @@ typedef struct {
     int player_wither_ticks;                      /* PotionEffect(WITHER, 200, 0) */
     int explosion_pending;
     double explosion_x, explosion_y, explosion_z;
-    float explosion_size; /* creeper 3.0F / TNT 4.0F */
+    float explosion_size; /* creeper 3.0F * powered / TNT 4.0F */
+    int explosion_smoking; /* Explosion.isSmoking; TNT 1, creeper mobGriefing */
+    int explosion_flaming; /* Explosion.isFlaming; creeper/TNT 0 */
     /* Pending fireball spawn consumed by runtime: 0=none, 3=small (blaze), 5=large (ghast). */
     int fireball_pending;
     double fireball_x, fireball_y, fireball_z;
@@ -229,7 +231,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *world, const struct McSinTable *sin_tab
 void gm_mobs_tick_spine(GmMobLive *m, GmWorld *world,
                         const struct McSinTable *sin_table);
 /* --mobs off: EntityCreeper.onUpdate ignited fuse (explosion_live.h). */
-void gm_mobs_tick_creeper_fuse(GmMobLive *m);
+void gm_mobs_tick_creeper_fuse(GmMobLive *m, int griefing);
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max);
 int gm_mobs_alive(const GmMobLive *m);
 int gm_mobs_living_count(const GmMobLive *m);

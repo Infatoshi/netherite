@@ -26,18 +26,37 @@
  *     playerKnockbackMap (d5*d10)
  *   Explosion.doExplosionB            Explosion.java:196-248
  *     sound two nextFloat (:198); particles CUT on server (false)
- *     HashSet order drops (explosion_drops.h); fire CUT (isFlaming 0)
+ *     HashSet order drops (explosion_drops.h)
+ *     isFlaming fire: explosionRNG.nextInt(3)==0 on air above full block
+ *     (:249-257). explosionRNG is new Random() (Explosion.java:65), not
+ *     World.rand. Live sources with isFlaming=true: EntityLargeFireball
+ *     (newExplosion null, power, grief, grief Fireball.java:47). Creeper
+ *     and TNT use createExplosion -> isFlaming false (World.java:2438).
+ *     ItemFireball / EntitySmallFireball place fire without an explosion.
+ *
+ * Server RNG draws, in order:
+ *   EntityCreeper.explode (EntityCreeper.java:303-314): none
+ *   doExplosionA: world.rand.nextFloat per face ray (:102)
+ *   doExplosionB: world.rand.nextFloat twice for sound pitch (:198);
+ *     spawnParticles false on WorldServer.newExplosion so no per-block
+ *     particle draws; drop chance / spawnAsEntity as explosion_drops.h;
+ *     isFlaming: explosionRNG.nextInt(3) only when air && down full
  *
  * Magma extras (M1 is magma semantics; do not "fix" to Java here):
  *   density rand consumes world.rand.nextFloat per face ray when the
  *     live JavaRandom is passed (Explosion.java:102); NULL keeps 0.5F
- *   getBlockDensity is full-cube BF_SOLID on the 16^3 sample (no non-cube BB)
- *   blast-prot level 0 (no armor enchant scan)
- *   particles / flaming CUT; doExplosionB drops are live (HashSet order)
- *   explosion Y is feetY + 0.5 (not Entity.posY)
- *   unpowered radius 3.0F, always destroys (no mobGriefing / powered 2x)
+ *   getBlockDensity uses movement collision AABBs (explosion.h)
+ *   blast-prot: knockback via getBlastDamageReduction; magic absorb is
+ *     identity unless armor ICStack.n_enchants is set (snapshot inv has
+ *     no enchant payload)
+ *   particles CUT; doExplosionB drops live (HashSet order)
+ *   creeper origin is Entity.posY (not feet+0.5)
+ *   size = explosionRadius * (powered ? 2 : 1); isSmoking = mobGriefing
+ *   TNT createExplosion isSmoking true always (EntityTNTPrimed.java:114)
  *   --mobs off: ignited living creepers (hasIgnited), not AICreeperSwell
  *   explosion attackEntityFrom 0.4F knockBack stays on the mobs row
+ *   powered flag aliases RlSnapMob.screaming on EW_TYPE_CREEPER (zero
+ *     default, no snapshot version bump; enderman keeps screaming)
  *
  * Include after defining EXL_W for the apply half:
  *   exl_block / exl_meta / exl_set_air
@@ -51,7 +70,6 @@
 
 #define EXL_FUSE_TIME 30          /* EntityCreeper.java:52 */
 #define EXL_RADIUS 3.0f           /* EntityCreeper.java:54 */
-#define EXL_Y_OFF 0.5             /* magma gm_mobs_take_explosion y */
 #define EXL_TNT_FUSE 80           /* EntityTNTPrimed.java:25 */
 #define EXL_TNT_SIZE 4.0f         /* EntityTNTPrimed.java:113 */
 #define EXL_TNT_HEIGHT 0.98f      /* EntityTNTPrimed.java:27 */
@@ -62,7 +80,24 @@
 #define EXL_TNT_GROUND_XZ 0.699999988079071  /* :88 (double)0.7F */
 #define EXL_TNT_SPAWN_MY 0.20000000298023224 /* ctor :36 */
 #define EXL_BLK_TNT 46                       /* Blocks.TNT */
+#define EXL_BLK_FIRE 51                      /* Blocks.FIRE */
 #include "explosion_drops.h"
+
+/* EntityCreeper.explode EntityCreeper.java:308-310:
+ * (float)explosionRadius * (getPowered() ? 2.0F : 1.0F). Powered is
+ * RlSnapMob.screaming on EW_TYPE_CREEPER only (zero default). */
+MC_HD static inline int exl_creeper_powered(int type, int screaming) {
+    return type == EW_TYPE_CREEPER && screaming != 0;
+}
+MC_HD static inline float exl_creeper_size(int powered) {
+    return EXL_RADIUS * (powered ? 2.0f : 1.0f);
+}
+/* EntityCreeper.onStruckByLightning EntityCreeper.java:274-277. */
+MC_HD static inline int exl_creeper_on_struck_by_lightning(int type, int *screaming) {
+    if (!screaming || type != EW_TYPE_CREEPER) return 0;
+    *screaming = 1;
+    return 1;
+}
 
 /* EntityPlayer.java:2488 eyeHeight 1.62; zombie/skeleton 1.74F
  * (EntityZombie.java:461, AbstractSkeleton.java:303); else Entity.java:3193
@@ -125,6 +160,14 @@ MC_HD static inline int exl_fuse_tick(int *fuse, int ignited) {
         return 1;
     }
     return 0;
+}
+
+/* Explosion.java:253: air && down.isFullBlock() && explosionRNG.nextInt(3)==0.
+ * Short-circuit skips the draw when air or full-block is false. */
+MC_HD static inline int exl_flaming_place(JavaRandom *expl_rng, int air,
+                                          int down_full) {
+    if (!air || !down_full || !expl_rng) return 0;
+    return jrand_int_bound(expl_rng, 3) == 0;
 }
 
 #endif /* MC_EXPLOSION_LIVE_H */
@@ -193,13 +236,17 @@ MC_HD static inline void exl_drop_with_chance(EXL_W *w, int id, int meta,
 #endif
 
 /* doExplosionB: sound draws, HashSet-order drops, chain TNT, air.
+ * isSmoking (Explosion.java:75,209) gates block destroy; TNT always true
+ * (EntityTNTPrimed.java:114 createExplosion smoking), creeper uses
+ * mobGriefing (EntityCreeper.java:307). isFlaming fire after that loop.
  * affectedBlockPositions is ArrayList.addAll(HashSet) (Explosion.java:66,132)
  * so iteration is the first HashSet's bucket/next order. */
 MC_HD static inline void exl_apply_hits(EXL_W *w, const u8 *hit,
                                         int ox, int oy, int oz,
                                         uint32_t *ndestroyed, uint64_t *rays,
                                         JavaRandom *rand, JavaHashSet *hs,
-                                        float size) {
+                                        float size, int smoking, int flaming,
+                                        JavaRandom *expl_rng) {
     if (rand) {
         /* Explosion.java:198 playSound pitch: two nextFloat. Server
          * WorldServer.newExplosion doExplosionB(false) skips particle draws. */
@@ -210,36 +257,52 @@ MC_HD static inline void exl_apply_hits(EXL_W *w, const u8 *hit,
         JhsIter it;
         i32 wx, wy, wz;
         float chance = (size > 0.0f) ? (1.0f / size) : 1.0f;
-        jhs_iter_init(hs, &it);
-        while (jhs_iter_next(hs, &it, &wx, &wy, &wz)) {
-            int id = exl_block(w, wx, wy, wz);
-            int meta;
-            if (exl_is_air_id(id)) continue;
-            meta = exl_meta(w, wx, wy, wz);
+        if (smoking) {
+            jhs_iter_init(hs, &it);
+            while (jhs_iter_next(hs, &it, &wx, &wy, &wz)) {
+                int id = exl_block(w, wx, wy, wz);
+                int meta;
+                if (exl_is_air_id(id)) continue;
+                meta = exl_meta(w, wx, wy, wz);
 #ifdef exl_spawn_item
-            if (exl_can_drop_from_explosion(id) && rand)
-                exl_drop_with_chance(w, id, meta, wx, wy, wz, chance, rand);
+                if (exl_can_drop_from_explosion(id) && rand)
+                    exl_drop_with_chance(w, id, meta, wx, wy, wz, chance, rand);
 #else
-            (void)meta;
-            (void)chance;
+                (void)meta;
+                (void)chance;
 #endif
 #ifdef exl_spawn_tnt
-            if (id == EXL_BLK_TNT && rand) {
-                int fuse = exl_chain_fuse(rand);
-                exl_spawn_tnt(w, wx, wy, wz, fuse);
-            }
+                if (id == EXL_BLK_TNT && rand) {
+                    int fuse = exl_chain_fuse(rand);
+                    exl_spawn_tnt(w, wx, wy, wz, fuse);
+                }
 #endif
-            exl_set_air(w, wx, wy, wz);
-            if (ndestroyed) ++*ndestroyed;
-            if (rays) {
-                *rays = bp_hash_i32(*rays, wx);
-                *rays = bp_hash_i32(*rays, wy);
-                *rays = bp_hash_i32(*rays, wz);
+                exl_set_air(w, wx, wy, wz);
+                if (ndestroyed) ++*ndestroyed;
+                if (rays) {
+                    *rays = bp_hash_i32(*rays, wx);
+                    *rays = bp_hash_i32(*rays, wy);
+                    *rays = bp_hash_i32(*rays, wz);
+                }
+            }
+        }
+        if (flaming) {
+            jhs_iter_init(hs, &it);
+            while (jhs_iter_next(hs, &it, &wx, &wy, &wz)) {
+                int id = exl_block(w, wx, wy, wz);
+                int down = exl_block(w, wx, wy - 1, wz);
+                if (!exl_flaming_place(expl_rng, exl_is_air_id(id),
+                                       ex_is_full_block(down)))
+                    continue;
+#ifdef exl_set_block
+                exl_set_block(w, wx, wy, wz, EXL_BLK_FIRE, 0);
+#endif
             }
         }
         return;
     }
     /* hs empty/NULL: XYZ bitset (battery / no-HashSet callers). */
+    if (!smoking) return;
     {
         int x, y, z;
         for (x = 0; x < EX_DIM; ++x)

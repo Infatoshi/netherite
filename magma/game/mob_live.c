@@ -16,6 +16,28 @@
 
 #include <stdlib.h>
 
+static void arm_creeper_blast(GmMobLive *m, double x, double y, double z,
+                              int slot, int griefing) {
+    int powered = exl_creeper_powered(EW_TYPE_CREEPER, m->screaming[slot]);
+    m->explosion_pending = 1;
+    m->explosion_x = x;
+    m->explosion_y = y; /* EntityCreeper.java:310 posY */
+    m->explosion_z = z;
+    m->explosion_size = exl_creeper_size(powered);
+    m->explosion_smoking = griefing ? 1 : 0;
+    m->explosion_flaming = 0;
+}
+
+static void arm_tnt_blast(GmMobLive *m, double x, double y, double z) {
+    m->explosion_pending = 1;
+    m->explosion_x = x;
+    m->explosion_y = y + EXL_TNT_Y_OFF;
+    m->explosion_z = z;
+    m->explosion_size = EXL_TNT_SIZE;
+    m->explosion_smoking = 1; /* EntityTNTPrimed.java:114 */
+    m->explosion_flaming = 0;
+}
+
 #define ML_W GmWorld
 #define ML_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
 #define ML_SKY(w, x, y, z) gm_world_sky_light((w), (x), (y), (z))
@@ -1944,7 +1966,7 @@ static void hai_living(GmMobLive *m, GmWorld *w, EwStore *s, int i, int day) {
 static void hai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                      double px, double py, double pz, int day,
                      int *moving, int *jump, int *wandering, int *swim_jump,
-                     double *nav_speed) {
+                     double *nav_speed, int mob_griefing) {
     int type = s->type[i];
     const int *goals = hai_goals(type, m->det_skel_melee[i]);
     int setup, g;
@@ -1955,11 +1977,7 @@ static void hai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
             s->alive[i] = 0;
             s->type[i] = EW_TYPE_NONE;
             m->creeper_fuse[i] = 0;
-            m->explosion_pending = 1;
-            m->explosion_x = s->x[i];
-            m->explosion_y = s->y[i] + 0.5;
-            m->explosion_z = s->z[i];
-            m->explosion_size = EXL_RADIUS;
+            arm_creeper_blast(m, s->x[i], s->y[i], s->z[i], i, mob_griefing);
             *moving = 0; *jump = 0; *wandering = 0; *swim_jump = 0; *nav_speed = 0.0;
             return;
         }
@@ -3600,11 +3618,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             }
             ml_save_slot(m, nx, i, &mm);
             if (mm.exploded) {
-                m->explosion_pending = 1;
-                m->explosion_x = mm.snap.x;
-                m->explosion_y = mm.snap.y + 0.5;
-                m->explosion_z = mm.snap.z;
-                m->explosion_size = EXL_RADIUS;
+                arm_creeper_blast(m, mm.snap.x, mm.snap.y, mm.snap.z, i,
+                                  mob_griefing);
                 continue;
             }
             if (!nx->alive[i]) continue;
@@ -3638,7 +3653,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             /* EntityAIAttackMelee.updateTask: lookHelper then tryMoveToEntityLiving
              * read the same target.pos. Both use look_px (previous tape pl). */
             hai_tick(m,w,nx,i,lx,ly,lz,day,
-                     &moving,&jump,&wandering,&swim_jump,&nav_speed);
+                     &moving,&jump,&wandering,&swim_jump,&nav_speed,
+                     mob_griefing);
             if(!nx->alive[i]) continue;
         /* Ghast AIFireballAttack: charge then fire large fireball. */
         }else if(aggro&&type==EW_TYPE_GHAST){
@@ -3757,9 +3773,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
             nx->ai_state[i]=EW_AI_ATTACK;nx->yaw[i]=ehs_yaw_toward(dx,dz);
             if(++m->creeper_fuse[i]>=30){
-                nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;m->creeper_fuse[i]=0;m->explosion_pending=1;
-                m->explosion_x=now->x[i];m->explosion_y=now->y[i]+0.5;m->explosion_z=now->z[i];
-                m->explosion_size=EXL_RADIUS;
+                nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;m->creeper_fuse[i]=0;
+                arm_creeper_blast(m, now->x[i], now->y[i], now->z[i], i,
+                                  mob_griefing);
             }
         }else if(aggro&&gm_is_slimey(type)){
             /* Slime hop toward player. Squish edges use wasOnGround after
@@ -3963,7 +3979,7 @@ void gm_mobs_tick_spine(GmMobLive *m, GmWorld *w, const struct McSinTable *st_) 
     m->current ^= 1;
 }
 
-void gm_mobs_tick_creeper_fuse(GmMobLive *m) {
+void gm_mobs_tick_creeper_fuse(GmMobLive *m, int griefing) {
     EwStore *s;
     int i;
     if (!m) return;
@@ -3976,11 +3992,7 @@ void gm_mobs_tick_creeper_fuse(GmMobLive *m) {
         s->alive[i] = 0;
         s->type[i] = EW_TYPE_NONE;
         m->creeper_fuse[i] = 0;
-        m->explosion_pending = 1;
-        m->explosion_x = s->x[i];
-        m->explosion_y = s->y[i] + EXL_Y_OFF;
-        m->explosion_z = s->z[i];
-        m->explosion_size = EXL_RADIUS;
+        arm_creeper_blast(m, s->x[i], s->y[i], s->z[i], i, griefing);
         break;
     }
 }
@@ -4113,11 +4125,7 @@ void gm_mobs_tick_tnt(GmMobLive *m, GmWorld *w) {
             }
             s->on_ground[i] = (u8)(og ? 1 : 0);
         }
-        m->explosion_pending = 1;
-        m->explosion_x = s->x[i];
-        m->explosion_y = s->y[i] + EXL_TNT_Y_OFF;
-        m->explosion_z = s->z[i];
-        m->explosion_size = EXL_TNT_SIZE;
+        arm_tnt_blast(m, s->x[i], s->y[i], s->z[i]);
         s->alive[i] = 0;
         s->type[i] = EW_TYPE_NONE;
         m->creeper_fuse[i] = 0;
