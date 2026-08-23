@@ -121,6 +121,13 @@ int gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
     return gm_live_spawn_stack(s, x, y, z, ic_mk(item, count, meta), pickup_delay);
 }
 
+int gm_live_spawn_item_capped(GmLiveSim *s, double x, double y, double z,
+                              int item, int count, int meta, int pickup_delay) {
+    if (!s || item <= 0 || count <= 0) return 0;
+    return live_try_active_slot(s, x, y, z, ic_mk(item, count, meta),
+                                pickup_delay);
+}
+
 #define FL_W GmWorld
 #define fl_id(w, x, y, z) gm_world_block((w), (x), (y), (z))
 #define fl_meta(w, x, y, z) (gm_world_meta((w), (x), (y), (z)) & 15)

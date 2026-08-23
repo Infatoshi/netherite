@@ -194,7 +194,8 @@ static int run_units(void) {
                "Explosion.java:88-94 face predicate matches 16^3-14^3");
         before = r.seed;
         ex_fill(grid, mc_state(BLK_AIR, 0));
-        ex_do_explosion_blocks(grid, 8.0, 8.0, 8.0, 4.0f, bitset, &r);
+        ex_do_explosion_blocks(grid, 8.0, 8.0, 8.0, 4.0f, bitset, &r,
+                               NULL, 0, 0, 0);
         after = r.seed;
         {
             JavaRandom c;
@@ -294,6 +295,71 @@ static int run_units(void) {
         expect(fuse == 1, "TNT fuse decrements");
         expect(exl_tnt_on_update(&x, &y, &z, &mx, &my, &mz, &og, &fuse, 1, 65.0),
                "TNT fuse 0 explodes");
+    }
+    {
+        /* JDK 8 HashSet iteration. HsOracle.java with
+         * /usr/lib/jvm/java-8-openjdk-amd64, Vec3i.hashCode. */
+        JavaHashSet hs;
+        JhsIter it;
+        i32 x, y, z;
+        int i, n = 0, ok = 1;
+        static const int ins[10][3] = {
+            {8, 65, 12}, {9, 65, 12}, {7, 65, 12}, {8, 66, 12}, {8, 64, 12},
+            {8, 65, 13}, {8, 65, 11}, {10, 65, 12}, {6, 65, 12}, {8, 67, 12}
+        };
+        static const int want[10][3] = {
+            {6, 65, 12}, {8, 67, 12}, {7, 65, 12}, {8, 66, 12}, {8, 65, 11},
+            {8, 65, 12}, {9, 65, 12}, {8, 64, 12}, {8, 65, 13}, {10, 65, 12}
+        };
+        jhs_init(&hs);
+        for (i = 0; i < 10; ++i)
+            jhs_add(&hs, ins[i][0], ins[i][1], ins[i][2]);
+        expect(hs.size == 10 && hs.overflow == 0,
+               "10-element HashSet size");
+        jhs_iter_init(&hs, &it);
+        while (jhs_iter_next(&hs, &it, &x, &y, &z)) {
+            if (n >= 10 || x != want[n][0] || y != want[n][1] ||
+                z != want[n][2])
+                ok = 0;
+            ++n;
+        }
+        expect(ok && n == 10, "TEN order matches JDK 8 HashSet");
+    }
+    {
+        JavaRandom r, c;
+        ExlStack st[EXL_DROP_STACKS];
+        int n, item, meta;
+        jrand_set(&r, 0);
+        n = exl_get_drops(BLK_STONE, 0, &r, st, EXL_DROP_STACKS);
+        jrand_set(&c, 0);
+        expect(n == 1 && st[0].item == BLK_COBBLESTONE && st[0].meta == 0,
+               "stone getDrops is cobblestone");
+        expect(r.seed == c.seed, "stone getDrops consumes no World.rand");
+        {
+            float chance = 0.25f;
+            int pass;
+            jrand_set(&r, 0);
+            pass = jrand_float(&r) <= chance;
+            jrand_set(&c, 0);
+            expect((jrand_float(&c) <= chance) == pass && r.seed == c.seed,
+                   "drop chance nextFloat lockstep at seed 0");
+            expect(exl_quantity_dropped(BLK_GLASS, 0, &r) == 0,
+                   "glass quantityDropped is 0");
+        }
+        jrand_set(&r, 1);
+        exl_item_dropped(BLK_GRAVEL, 0, &r, &item, &meta);
+        jrand_set(&c, 1);
+        {
+            int flint = jrand_int_bound(&c, 10) == 0;
+            expect(r.seed == c.seed,
+                   "gravel getItemDropped consumes nextInt(10)");
+            expect(item == (flint ? EXL_ITEM_FLINT : BLK_GRAVEL),
+                   "gravel fortune-0 flint 1/10");
+        }
+        expect(!exl_can_drop_from_explosion(BLK_TNT),
+               "TNT canDropFromExplosion is false");
+        expect(exl_can_drop_from_explosion(BLK_DIRT),
+               "dirt canDropFromExplosion is true");
     }
     return fails ? 1 : 0;
 }

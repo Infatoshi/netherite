@@ -214,6 +214,8 @@ typedef struct GmRuntime {
     unsigned parity_proj_hits;
     unsigned parity_ex_blasts;
     unsigned parity_ex_destroyed;
+    unsigned parity_ex_drop_n;
+    uint64_t parity_ex_drop_ids;
     float parity_ex_damage;
     double parity_ex_kb_x, parity_ex_kb_y, parity_ex_kb_z;
     uint64_t parity_ex_rays;

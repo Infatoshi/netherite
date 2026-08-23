@@ -78,6 +78,10 @@ void gm_live_init(GmLiveSim *s, long long seed, int surface_y);
 /* Plain spawn (no enchant payload). Prefer gm_live_spawn_stack for books. */
 int  gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
                         int item, int count, int meta, int pickup_delay);
+/* Table cap 48: first free slot or skip. No overflow queue. Explosion
+ * drops use this so magma matches blaze CU_MAX_ITEMS skip. */
+int  gm_live_spawn_item_capped(GmLiveSim *s, double x, double y, double z,
+                               int item, int count, int meta, int pickup_delay);
 /* EntityItem with full ICStack payload (item/count/meta + StoredEnchantments).
  * Returns 1 if active or held in overflow; 0 only if both caps are exhausted. */
 int  gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
