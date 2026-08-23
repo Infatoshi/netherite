@@ -1,5 +1,37 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 XP orb lava/water/pushOut (lane/xplava)
+
+Anvil. Sweep 2026-08-23 row 7 leftover. GPU1 via
+`overnight-compute wait --agent xplava --resource gpu1`,
+`CUDA_VISIBLE_DEVICES=1`, released.
+
+Java: `EntityXPOrb.onUpdate` `EntityXPOrb.java:87-174`. Water is the
+override `handleWaterMovement` `:179-182` from
+`Entity.onEntityUpdate` `:535`:
+`handleMaterialAcceleration(unexpanded box, WATER)` `World.java:2333-2398`,
+`getFlow` `BlockLiquid.java:139-194`, 0.014 * unit `:2391-2394`.
+Gravity then lava `:105-111` `motionY=0.20000000298023224D` at
+`BlockPos(this)`. xz and burn `this.rand.nextFloat` CLASS C:
+`Entity.rand = new Random()` unseeded `Entity.java:238`. Skip both
+sides like `item_live.h` EntityItem lava hop. `pushOutOfBlocks`
+`:113` / `Entity.java:2651-2720`: no rand when
+`collidesWithAnyBlock` is false; CLASS C magnitude skipped when true.
+
+After: shared `eo_tick` / `xl_tick_orb`. Units lava motionY, still
+water == dry, flowing 0.014 +X, on-block collides false
+(`out/verify/xplava_units_magma.log`,
+`out/verify/xplava_units_blaze.log`). xp_orbs M1+M2 VERIFIED.
+Listed `--no-deps` M1 VERIFIED (`out/verify/xplava_m1_all.log`). M2
+VERIFIED raw/warp/scalar including mining_slice on this clone
+(`out/verify/xplava_m2_all.log`; snaps present). Root `make test`
+PASS (`out/verify/xplava_maketest.log`). Tapes: bow 1407 / 5525;
+creeper t=76 y 2.1e-09; smoke_zombie 358/373; TNT t=28 flint meta;
+canon 3617 / 16526.
+
+Stay out: Mending, overflow queue, chest realloc, block light,
+spawn xz Math.random.
+
 ## 2026-08-23 live EntityItem pickup volume (lane/liveitems)
 
 Gamer continuation. Merge origin/master (tntsupport mayPlace/placement).

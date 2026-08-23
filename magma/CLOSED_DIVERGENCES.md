@@ -5,6 +5,57 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### XP orb lava/water/pushOut: CLOSED 2026-08-23 (lane/xplava)
+
+Anvil. Sweep 2026-08-23 magma row 7 leftover. Magma extras in `xp_live.h`
+were no lava hop, no `pushOutOfBlocks`, no `handleWaterMovement`.
+
+Java `EntityXPOrb.onUpdate` (`EntityXPOrb.java:87-174`):
+`super.onUpdate` runs `Entity.onEntityUpdate` (`Entity.java:460-535`)
+which calls the override `handleWaterMovement` (`EntityXPOrb.java:179-182`)
+`World.handleMaterialAcceleration(getEntityBoundingBox(), WATER)`
+(`World.java:2333-2398`). Unexpanded box, no `Entity.java:1311`
+`expand(0,-0.4,0).contract(0.001)`. Liquid-height
+`BlockLiquid.getLiquidHeightPercent` (`BlockLiquid.java:60-68`).
+`BlockLiquid.modifyAcceleration` adds `getFlow` (`:196-198`, `:139-194`).
+`isPushedByWater` default true (`Entity.java:3057-3059`); 0.014 * unit
+(`World.java:2391-2394`). Then delay (`:91-94`), gravity
+`(double)0.03F = 0.029999999329447746` (`:100-103`), lava at
+`BlockPos(this)` (`:105`, `BlockPos.java:42-44` / `Vec3i.java:25-27`
+`MathHelper.floor`): `Material.LAVA` is still 11 or flowing 10,
+`motionY = 0.20000000298023224D` (`:107`). xz
+`(rand.nextFloat()-rand.nextFloat())*0.2F` (`:108-109`) and burn
+`nextFloat` (`:110`) are `Entity.rand = new Random()` unseeded
+(`Entity.java:238`) CLASS C; skip both sides like `item_live.h`
+EntityItem lava hop. `pushOutOfBlocks`
+(`EntityXPOrb.java:113` / `Entity.java:2651-2720`):
+`collidesWithAnyBlock` false returns at `:2658` with no rand (dry
+arena rests ON a cube; `AxisAlignedBB.intersectsWith` strict `<`).
+True would draw `rand.nextFloat()*0.2F+0.1F` (`:2697`) CLASS C;
+skip the magnitude.
+
+C: shared `eo_tick` / `xl_tick_orb` (`entity_xp_orb.h`,
+`xp_world_tick.h`). Magma `tick_xp_orbs` and blaze `cu_xp_tick` wrap
+the same kernel. Dry arena bit-exact. Units:
+`magma/tests/test_xp_orbs.c`, `blaze/env/test_xp.c`.
+
+Stay out: Mending (`EntityXPOrb.java:248-255`); spawn xz
+`Math.random` (`:40-43`); item overflow; chest realloc; block light.
+
+Gate: `make -C magma test-xp-orbs` and `make -C blaze/rl` test_xp PASS.
+xp_orbs M1+M2 VERIFIED (`out/verify/xplava_m1_xp_orbs.log`,
+`out/verify/xplava_m2_xp_orbs.log`). Listed `--no-deps` M1 VERIFIED
+all named rows (`out/verify/xplava_m1_all.log`). M2 VERIFIED
+raw/warp/scalar for those including mining_slice on this clone
+(`out/verify/xplava_m2_all.log`; snaps present under
+`blaze/rl/out/snaps/*_d*.bsnp`). A clone without those snaps would
+BLOCK mining_slice M2. Root `make test` PASS
+(`out/verify/xplava_maketest.log`). Tapes: bow physics NO divergence
+1407 / entities 5525; creeper FIRST DIVERGENCE t=76 y 2.1e-09; smoke
+zombie 358/373 through death; TNT physics NO divergence, inventory
+t=28 slot 0 flint-and-steel 259 tape meta 0 vs magma meta 1;
+canon 3617 / entities 16526.
+
 ### Beds: CLOSED 2026-08-23 (lane/beds)
 
 Anvil. Sweep 2026-08-23 magma row 9.

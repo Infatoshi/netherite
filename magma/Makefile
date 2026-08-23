@@ -559,7 +559,8 @@ BLAZE_PROJECTILES = ../blaze/core/projectile_live.h
 BLAZE_EXPLOSIONS = ../blaze/core/explosion.h ../blaze/core/explosion_live.h
 BLAZE_MOBS = ../blaze/core/hostile_live.h ../blaze/core/hostile_spawn.h \
              ../blaze/core/passive_live.h
-BLAZE_XP = ../blaze/core/xp_live.h ../blaze/core/entity_xp_orb.h
+BLAZE_XP = ../blaze/core/xp_live.h ../blaze/core/entity_xp_orb.h \
+             ../blaze/core/xp_world_tick.h
 BLAZE_ITEMS = ../blaze/core/entity_item.h ../blaze/core/item_live.h
 BLAZE_BOATS = ../blaze/core/boat_live.h
 BLAZE_ELYTRA = ../blaze/core/elytra_live.h
