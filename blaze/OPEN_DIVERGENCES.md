@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/warpm2 2026-08-23 (Sweep row 5: focused M2 now runs k_tick_raw, k_tick_warp, and k_tick. All supported chain rows PASS raw+warp+scalar. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp. M1 unchanged VERIFIED.)
 Last verified: lane/tntsupport 2026-08-23 (placement M1+M2 after World.mayPlace + TNT flint ignite + boat recipes + getRemainingItems. spawn_to_torch, world_dynamics, explosions, furnaces, hazards, biome_plane, biome_plane_spawn, biome_plane_ice, fluids, entity_spine, random_ticks, random_ticks_bodies, falling_blocks, weather_optional, projectiles, chests, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/natspawn2 2026-08-23 (biome_plane_spawn + biome_plane_ice M1+M2 after magma spawn_light packed blight + HS_BIOME clip-to-region plains + BiomeSnow skeleton/stray list + BiomeSwamp appended slime weight 1. Existing biome_plane row stays no-spawn. random_ticks, random_ticks_bodies, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/biomeplane 2026-08-23 (biome_plane M1+M2 after snapshot v8 per-column biome plane + HS_BIOME/rt_live_biome + TEMPERATURE_NOISE Perlin. BP_MOBS MBM3, BP_RANDOM_TICKS RTK4. v7 loads plains 1. Swamp/ice natural-spawn lockstep still diverges. random_ticks, random_ticks_bodies, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats, elytra, projectiles, world_dynamics, spawn_to_torch, fluids, entity_spine, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
@@ -135,8 +136,14 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    starts from a different state and the difference is not digested.
    Needs a continuous-vs-resume parity gate: run N ticks, snapshot,
    restore, run M; compare with N+M continuous. M/L.
-5. Focused M2 compares `k_tick_raw`, not the production warp kernel
-   (`blaze/env/verify_cuda.py:655-663`). M.
+5. Focused M2 production kernels: CLOSED 2026-08-23 lane `warpm2`.
+   `verify_cuda.py --m2-kernel raw|warp|scalar` and per-row `m2_kernels:`
+   (default raw, warp, scalar). warp/scalar drive `blaze_tick` ->
+   `k_tick_warp` / `k_tick` (create opts `warp_tick` in `blaze_abi.h`,
+   `blaze.conf`, `ppo.conf`; `blaze_step_full` at `blaze_cuda.cu:1392-1411`).
+   raw stays `blaze_tick_raw` -> `k_tick_raw`. Every supported chain row
+   PASS on all three. mining_slice M2 BLOCKED (missing `*_d*.bsnp`).
+   Forensics: `docs/DEVLOG.md`.
 6. Death/respawn: blaze stays terminal (`blaze_core.h` health<=0 ->
    dead=1). Magma `gm_runtime_respawn` is the GuiGameOver click path
    (health/food/air/fire reset, same pose). An RL episode has no death

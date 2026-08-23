@@ -125,6 +125,16 @@ Batched GPU sim is Blaze. "Full game on GPU" means the
 Blaze Metal tick (M3) waits until CUDA survival rows pass M1 and M2
 (`blaze/SPEC.md`).
 
+M2 is blaze-CPU vs CUDA bitwise. Focused rows (`verify_cuda.py --chain`) run
+every kernel in the row's `m2_kernels:` list (`port_matrix.yaml`; default
+`raw, warp, scalar`). `--m2-kernel raw` is `blaze_tick_raw` -> `k_tick_raw`.
+`--m2-kernel warp` is `blaze_tick` -> `k_tick_warp` (create opts `warp_tick=1`,
+default in `blaze.conf` / `blaze/rl/ppo.conf` / `blaze/env/blaze_abi.h`).
+`--m2-kernel scalar` is `blaze_tick` -> `k_tick` (`warp_tick=0`). Training
+`blaze_step` uses the same pick (`blaze_cuda.cu` blaze_step_full). A row is
+VERIFIED only when every listed kernel passes. mining_slice M2 stays BLOCKED
+on a fresh clone (`blaze/rl/out/snaps/*_d*.bsnp` missing).
+
 | # | Remaining | Gate | Class | Host |
 |---|-----------|------|-------|------|
 | 1 | Native `out/blaze/rl/ppo` reproduces spawn->torch (t0 ~0.4, transfer ~11/13). Wood-break t0 0.495 matched. Staged-curriculum chain4 (2026-08-22) reached t0 0.215 at 510M ticks, stage4->torch 8/8 seeds; spawn->torch t0 ~0.4 still open. | 2 | grindable | anvil gpu0 |
