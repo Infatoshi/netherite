@@ -119,7 +119,10 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    ABI. M; transfer gap, not parity.
 3. Block light does not propagate in blaze (`blaze_core.h:689-703`) and no
    digest covers light. Magma `light.c` propagates. Spawn light checks
-   therefore read different values off-region. M/L; coupling natspawn2.
+   therefore read different values off-region. M/L. lane/natspawn2
+   2026-08-23 made magma spawn read the packed snapshot block light
+   (`spawn_light`) in lockstep mode as a shared deviation; propagation in
+   blaze stays open.
 4. Snapshot restore drops active state: furnaces, chests, craft grid,
    bow/eat/left-click timers, projectiles, falling blocks, fluid regions,
    mob sidecars (repath/despawn/fire/tick), boat, explosion state, player
