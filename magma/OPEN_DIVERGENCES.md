@@ -1526,11 +1526,10 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
    table + XP from Java ids. See `CLOSED_DIVERGENCES.md`.
 3. Buckets: CLOSED 2026-08-23 lane `furnaceids`. Empty stack 16, fillBucket
    shrink+add. See `CLOSED_DIVERGENCES.md`.
-4. Explosion residuals: creeper explosion uses Y+0.5 (`magma/game/
-   mob_live.c:3564-3569`), no charged creeper (`EntityCreeper.getPowered`
-   radius 6), `mobGriefing` only partly honored, `getBlockDensity` treats
-   every block as a full cube, no blast-protection enchant reduction, no
-   `isFlaming` fire placement, missing sound RNG draws. L.
+4. Explosion residuals: CLOSED 2026-08-23 lane `expresid`. Origin posY,
+   charged 2x, mobGriefing isSmoking, density collision AABB, unenchanted
+   blast-prot identity, isFlaming explosionRNG draw. See
+   `CLOSED_DIVERGENCES.md`.
 5. Environmental damage: CLOSED 2026-08-23 lane `hazards`. Shared
    `player_survival.h` psv_env_pre_move + cactus/magma walk. Forensics in
    `CLOSED_DIVERGENCES.md`.
