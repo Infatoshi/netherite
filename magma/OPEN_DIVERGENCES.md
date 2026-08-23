@@ -475,6 +475,37 @@ No strict entity family is pixel-perfect yet:
   a>=26 keeps skin (RenderDragon.java:66). C sampled a>25 at that
   fragment. Do not edit ROI, shade.c, or recapture. Fireball/XP
   untouched.
+  Lane/dragondirt (gamer 2026-08-22): ported the idle held-block
+  item chain with Java citations and D8. `renderItemInFirstPerson`
+  else branch (ItemRenderer.java:430-441, not using/blocking),
+  `transformSideFirstPerson` T(0.56,-0.52,-0.72) (:304),
+  `transformFirstPerson` swing 0 Ry(45)*Ry(-45) net I (:290-298),
+  `renderItemSide` FIRST_PERSON_RIGHT leftHanded=false (:441) so no
+  `GlStateManager.scale(-1)` / flipX (ForgeHooksClient.java:444-448
+  only if leftHandHackery). Camera: `applyTransformSide` T then
+  `makeQuaternion` XYZ (ItemCameraTransforms.java:76-108) then
+  `quatToGlMatrix` (GlStateManager.java:641-670) then scale;
+  block.json firstperson_righthand {rotation [0,45,0], translation
+  [0,0,0], scale [0.40,0.40,0.40]} (JSON translation *0.0625 in
+  ItemTransformVec3f.java:73 is 0). Forge MapWrapper stores
+  `blockCenterToCorner(TRSR)` (IPerspectiveAwareModel.java:90) and
+  `handlePerspective` unwraps `blockCornerToCenter` (java:99);
+  wrap+unwrap is identity on T*R*S. `RenderItem.java:144` T(-0.5)
+  after that rotates the 0..1 cube (dirt.json parent cube from
+  [0,0,0] to [16,16,16] /16) about its centre. D8 pins every emit
+  vert to T(0.56,-0.52,-0.72)*Ry(45)*S(0.4)*T(-0.5)*{0,1}^3 (emit
+  also has T_z(-0.05) to cancel `cr_look` orientCamera +0.05;
+  renderHand modelview is identity, EntityRenderer.java:804-806).
+  After on gamer (`out/verify/dragondirt_after.log`): same
+  84995/83667/84543, 2.157/2.165/2.150. C dirt is still the TOP
+  face almost face-on (bbox fills lower-right); Java golden dirt
+  is two SIDE faces x 602-771 y 338-479. The Java-cited chain
+  produces that top-down cube; do not fit an Rx or skip T(-0.5).
+  ui_hud `hand_block_shield` is EnumAction.BLOCK on item 442
+  (`capture_ui_hud_driver.py` state_id block, use_action=2),
+  `build_block_use` + `shield_blocking.json`, pose pitch 0. Not
+  the idle dirt path. Cannot measure ui_hud on gamer (anvil
+  llvmpipe only). Fireball/XP / ROI / twins not edited.
 - The death burst (deathTicks 180-217) now reconstructs the full vanilla
   timeline - every one of a `ParticleExplosionHuge`'s 8 batches (not just the
   newest), and the ~17 ticks of cloud that outlive the entity - and the boss

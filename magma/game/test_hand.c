@@ -13,6 +13,9 @@
  * (D6) rotateArm is 0.1*(rotationPitch-renderArmPitch), not look pitch.
  * (D7) identity dirt at 854x480 fov70 projects into the lower-right (top
  *     y>=300). The dragon golden y~244 house-peak is the endstone shelf.
+ * (D8) idle dirt verts equal T(0.56,-0.52,-0.72)*Ry(45)*S(0.4)*T(-0.5)
+ *     of the 0..1 cube (each Java step: side T, swing-0 first-person net I,
+ *     applyTransformSide quat XYZ, Forge wrap/unwrap, RenderItem T(-0.5)).
  * (E) CAP: max < 36 returns 0 and never overruns out (canary intact).
  * (F) FLINT AND STEEL: generated rim lighting uses ItemLayerModel's opposite
  *     vertex normal at the TNT tape's camera pitch.
@@ -193,6 +196,63 @@ int main(void) {
         for (int i = 0; i < n0; ++i) { y0 += out[i].pos.y; y1 += out2[i].pos.y; }
         y0 /= (float)n0; y1 /= (float)n1;
         CHECK(y1 < y0 - 0.2f, "equip=1 lowers dirt (ItemRenderer.java:340 f5)");
+    }
+
+    /* ---- (D8) each ported idle-block step. ItemRenderer.java:430-441 else
+     * branch (not using/blocking): swing T, transformSideFirstPerson RIGHT
+     * T(0.56,-0.52,-0.72) java:304, transformFirstPerson swing 0 is
+     * Ry(45)*Ry(-45) net I java:290-298, renderItemSide FIRST_PERSON_RIGHT
+     * leftHanded=false java:441 (no scale(-1)). Camera:
+     * applyTransformSide T*R*S (java:81-93) with makeQuaternion XYZ
+     * (java:97-108) + quatToGlMatrix (GlStateManager.java:641-670);
+     * block.json firstperson_righthand [0,45,0] scale 0.40; Forge wrap
+     * blockCenterToCorner / unwrap blockCornerToCenter (TRSR.java:622-644,
+     * IPerspectiveAwareModel.java:90,99) net identity on T*R*S;
+     * RenderItem.java:144 T(-0.5). Corners of the 0..1 cube. */
+    {
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f);
+        int n = gm_hand_emit_held(3, 0, 0.0f, 0.0f, out, TEST_MAX);
+        CHECK(n == 36, "D8 dirt emit");
+        const float c = 0.70710678f; /* cos/sin 45 */
+        const float s = 0.40f;
+        /* v' = T_side * Ry(45) * S(0.4) * T(-0.5) * v */
+        float exp[8][3];
+        int k = 0;
+        for (int z = 0; z <= 1; ++z) for (int y = 0; y <= 1; ++y) for (int x = 0; x <= 1; ++x) {
+            float px = ((float)x - 0.5f) * s;
+            float py = ((float)y - 0.5f) * s;
+            float pz = ((float)z - 0.5f) * s;
+            float x2 = c * px + c * pz;
+            float z2 = -c * px + c * pz;
+            exp[k][0] = 0.56f + x2;
+            exp[k][1] = -0.52f + py;
+            /* emit includes T_z(-0.05) to cancel cr_look orientCamera +0.05
+             * (EntityRenderer.java:804-806 renderHand is identity). */
+            exp[k][2] = -0.72f + z2 - 0.05f;
+            k++;
+        }
+        int matched = 0;
+        for (int i = 0; i < n; ++i) {
+            for (int e = 0; e < 8; ++e) {
+                float dx = out[i].pos.x - exp[e][0];
+                float dy = out[i].pos.y - exp[e][1];
+                float dz = out[i].pos.z - exp[e][2];
+                if (dx*dx + dy*dy + dz*dz < 1e-6f) { matched++; break; }
+            }
+        }
+        CHECK(matched == n, "D8 every dirt vert is Tside*Ry45*S0.4*T(-0.5)*{0,1}^3");
+        /* wrap/unwrap identity: same AABB as D3 (centre rotation). */
+        float minx=1e9f,maxx=-1e9f,miny=1e9f,maxy=-1e9f,minz=1e9f,maxz=-1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (out[i].pos.x < minx) minx = out[i].pos.x;
+            if (out[i].pos.x > maxx) maxx = out[i].pos.x;
+            if (out[i].pos.y < miny) miny = out[i].pos.y;
+            if (out[i].pos.y > maxy) maxy = out[i].pos.y;
+            if (out[i].pos.z < minz) minz = out[i].pos.z;
+            if (out[i].pos.z > maxz) maxz = out[i].pos.z;
+        }
+        CHECK(minx > 0.25f && maxx < 0.90f, "D8 wrap/unwrap keeps centre-rotated x");
+        CHECK(miny > -0.75f && maxy < -0.28f, "D8 wrap/unwrap keeps centre-rotated y");
     }
 
     /* ---- (D3) dirt idle AABB is transformSideFirstPerson + JSON Ry45 * S(0.4)

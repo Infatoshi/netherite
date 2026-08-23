@@ -1,5 +1,45 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 dragon death held-block chain (lane/dragondirt)
+
+A6 dragon_death_50/100/190 after lane/dragonbob. Gamer baseline
+`out/verify/dragondirt_baseline.log`: geom ALL PASSED; hard_px
+84995/83667/84543, c_vs_j 2.157/2.165/2.150, ab_nz=0 RESIDUAL.
+fireball_small 44922 / 4.944, xp_orb 3484 / 4.093. Other 13 rows
+match dragonbob.
+
+Cause: Java idle dirt is two SIDE faces (golden bbox x 602-771
+y 338-479 on dragon_death_50_a). Magma C at the same lower-right
+shows the TOP almost face-on. Camera-state Rx candidates stay
+no-ops (D4-D7). Ported the item chain from Java 1.11.2, not a
+fitted angle: `ItemRenderer.renderItemInFirstPerson` else branch
+(ItemRenderer.java:430-441), `transformSideFirstPerson` T(0.56,
+-0.52,-0.72) (:304), `transformFirstPerson` swing 0 Ry(45)*Ry(-45)
+net I (:290-298), `renderItemSide` FIRST_PERSON_RIGHT
+leftHanded=false (:441) so no scale(-1). `applyTransformSide`
+T / `makeQuaternion` XYZ / scale (ItemCameraTransforms.java:76-108)
+via `quatToGlMatrix` (GlStateManager.java:641-670).
+block.json firstperson_righthand [0,45,0] scale 0.40. Forge
+MapWrapper wrap `blockCenterToCorner` then unwrap
+`blockCornerToCenter` (IPerspectiveAwareModel.java:90,99;
+TRSRTransformation.java:622-644) is identity on that T*R*S.
+`RenderItem.java:144` T(-0.5) after, so rotation is about the
+model centre of the 0..1 cube (dirt.json cube from/to /16).
+test_hand D8 pins every emit vert to that product.
+
+ui_hud `hand_block_shield` is blocking shield 442 (use_action=2,
+`shield_blocking.json`), pose pitch 0, not this idle dirt path.
+Cannot measure ui_hud on gamer (anvil llvmpipe only).
+
+After (`out/verify/dragondirt_after.log`): same numbers. Geom ALL
+PASSED (`out/verify/dragondirt_geom.log`). `bash magma/game/test_hand.sh`
+PASS (D8). Root `make test` PASS (`out/verify/dragondirt_maketest2.log`).
+Twins not edited. Fireball/XP / ROI not edited.
+
+Not closed. The Java-cited chain still draws the top face; the
+golden's two side faces are not produced by T*R*S*T(-0.5) at
+T(0.56,-0.52,-0.72). Do not fit Rx.
+
 ## 2026-08-22 dragon death hand Rx (lane/dragonbob)
 
 A6 dragon_death_50/100/190 after lane/dragonhand. Gamer baseline
