@@ -7,6 +7,7 @@ import yaml
 EXPECTED_ROWS = [
     "mining_slice",
     "spawn_to_torch",
+    "hazards",
     "world_dynamics",
     "fluids",
     "random_ticks",
@@ -14,13 +15,22 @@ EXPECTED_ROWS = [
     "entity_spine",
     "projectiles",
     "explosions",
+    "placement",
     "mobs",
     "chests",
+    "furnaces",
     "portals_dimensions",
     "nether_route",
     "dragon_victory",
     "weather_optional",
+    "random_ticks_bodies",
+    "biome_plane",
+    "biome_plane_spawn",
+    "biome_plane_ice",
     "xp_orbs",
+    "passives",
+    "mobs_ss",
+    "mobs_end",
     "boats",
     "elytra",
 ]
@@ -252,3 +262,68 @@ def test_ready_json_is_a_successful_static_query(tmp_path, capsys):
         "--tier m1 --subsystem left --no-deps")
     assert "Never claim parity from missing evidence" in \
         payload["workers"][0]["prompt"]
+
+
+def test_m2_runs_each_listed_kernel():
+    subject = row("subject")
+    subject["m2_kernels"] = ["raw", "warp"]
+    calls = []
+
+    def executor(argv, root, timeout):
+        calls.append(list(argv))
+        return 0, "ok"
+
+    report = pm.run_matrix(matrix(subject), tier="m2", executor=executor)
+
+    assert report["results"][0]["status"] == pm.VERIFIED
+    assert calls == [
+        ["m2-gate", "--m2-kernel", "raw"],
+        ["m2-gate", "--m2-kernel", "warp"],
+    ]
+    assert [gate["kernel"] for gate in report["results"][0]["gates"]] == [
+        "raw",
+        "warp",
+    ]
+
+
+def test_m2_default_kernels_are_raw_warp_scalar():
+    subject = row("subject")
+    calls = []
+
+    def executor(argv, root, timeout):
+        calls.append(list(argv))
+        return 0, ""
+
+    report = pm.run_matrix(matrix(subject), tier="m2", executor=executor)
+
+    assert report["results"][0]["status"] == pm.VERIFIED
+    assert calls == [
+        ["m2-gate", "--m2-kernel", "raw"],
+        ["m2-gate", "--m2-kernel", "warp"],
+        ["m2-gate", "--m2-kernel", "scalar"],
+    ]
+
+
+def test_m2_fails_closed_when_any_kernel_fails():
+    subject = row("subject")
+    calls = []
+
+    def executor(argv, root, timeout):
+        calls.append(list(argv))
+        return (1 if argv[-1] == "warp" else 0), "kernel fail"
+
+    report = pm.run_matrix(matrix(subject), tier="m2", executor=executor)
+
+    assert report["results"][0]["status"] == pm.FAILED
+    assert calls == [
+        ["m2-gate", "--m2-kernel", "raw"],
+        ["m2-gate", "--m2-kernel", "warp"],
+    ]
+
+
+def test_m2_kernels_reject_unknown_names():
+    subject = row("subject")
+    subject["m2_kernels"] = ["raw", "legacy"]
+
+    with pytest.raises(pm.ConfigError, match="m2_kernels"):
+        pm.validate_config(matrix(subject))

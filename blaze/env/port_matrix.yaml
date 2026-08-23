@@ -50,6 +50,7 @@ subsystems:
       - numpy,torch
       - python
       - blaze/env/verify_cuda.py
+    m2_kernels: [warp, scalar]
     timeout: 1500
 
   - name: spawn_to_torch
@@ -121,6 +122,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - player,dig,inventory,items,crafting,containers
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: hazards
@@ -189,6 +191,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - player
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: world_dynamics
@@ -254,6 +257,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - world,observations
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: fluids
@@ -313,6 +317,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - fluids
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: random_ticks
@@ -372,6 +377,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - random_ticks
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: random_ticks_bodies
@@ -431,6 +437,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - random_ticks
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: falling_blocks
@@ -490,6 +497,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - falling_blocks
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: entity_spine
@@ -553,6 +561,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - mobs
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: projectiles
@@ -612,6 +621,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - projectiles
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: explosions
@@ -671,6 +681,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - explosions
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: placement
@@ -735,6 +746,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - player,items,explosions
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: mobs
@@ -803,6 +815,7 @@ subsystems:
       - mobs
       - --mobs-on
       - --natural-spawn
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: passives
@@ -871,6 +884,7 @@ subsystems:
       - mobs,xp
       - --mobs-on
       - --natural-spawn-passive
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: mobs_ss
@@ -940,6 +954,7 @@ subsystems:
       - mobs,xp
       - --mobs-on
       - --natural-spawn
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: mobs_end
@@ -1009,6 +1024,7 @@ subsystems:
       - mobs,xp
       - --mobs-on
       - --natural-spawn
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: mobs_witch
@@ -1137,6 +1153,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - chests
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: furnaces
@@ -1196,6 +1213,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - furnaces
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: biome_plane
@@ -1265,6 +1283,7 @@ subsystems:
       - --features
       - random_ticks,mobs
       - --mobs-on
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: biome_plane_spawn
@@ -1335,6 +1354,7 @@ subsystems:
       - random_ticks,mobs
       - --mobs-on
       - --natural-spawn
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: biome_plane_ice
@@ -1405,6 +1425,7 @@ subsystems:
       - random_ticks,mobs
       - --mobs-on
       - --natural-spawn
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: portals_dimensions
@@ -1418,6 +1439,7 @@ subsystems:
     required_artifacts: {m1: [], m2: []}
     m1: []
     m2: []
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
     block_reason: Portal transfer and dimension identity are not measured by both backends.
 
@@ -1432,6 +1454,7 @@ subsystems:
     required_artifacts: {m1: [], m2: []}
     m1: []
     m2: []
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
     block_reason: The overworld-to-Nether progression route has no strict cross-backend fixture.
 
@@ -1446,6 +1469,7 @@ subsystems:
     required_artifacts: {m1: [], m2: []}
     m1: []
     m2: []
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
     block_reason: Dragon fight, death sequence, exit portal, and victory are not verified end to end.
 
@@ -1506,6 +1530,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - weather
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: xp_orbs
@@ -1565,6 +1590,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - xp
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: boats
@@ -1624,6 +1650,7 @@ subsystems:
       - --strict-capabilities
       - --features
       - boats
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
   - name: elytra
@@ -1683,4 +1710,5 @@ subsystems:
       - --strict-capabilities
       - --features
       - elytra
+    m2_kernels: [raw, warp, scalar]
     timeout: 1500

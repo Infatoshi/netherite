@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import os
 import re
 import subprocess
 import sys
@@ -21,6 +22,7 @@ BLOCKED = "BLOCKED"
 FAILED = "FAILED"
 STATUSES = (VERIFIED, BLOCKED, FAILED)
 TIERS = ("m1", "m2")
+M2_KERNELS = ("raw", "warp", "scalar")
 SOURCE_GROUPS = ("magma", "shared", "blaze")
 FEATURES = frozenset(
     (
@@ -108,7 +110,7 @@ def validate_config(config: Any) -> list[str]:
         missing = REQUIRED_ROW_KEYS - row.keys()
         if missing:
             raise ConfigError(f"{where} missing keys: {', '.join(sorted(missing))}")
-        extra = row.keys() - REQUIRED_ROW_KEYS - {"block_reason"}
+        extra = row.keys() - REQUIRED_ROW_KEYS - {"block_reason", "m2_kernels"}
         if extra:
             raise ConfigError(f"{where} has unknown keys: {', '.join(sorted(extra))}")
 
@@ -162,6 +164,8 @@ def validate_config(config: Any) -> list[str]:
 
         for tier in TIERS:
             _string_list(row[tier], f"{name}.{tier}")
+        if "m2_kernels" in row:
+            _m2_kernels_list(row["m2_kernels"], name)
         timeout = row["timeout"]
         if type(timeout) is not int or timeout <= 0:
             raise ConfigError(f"{name}.timeout must be a positive integer")
@@ -219,6 +223,27 @@ def load_config(path: Path | str = CONFIG_PATH) -> dict[str, Any]:
         raise ConfigError(f"cannot load {path}: {exc}") from exc
     validate_config(config)
     return config
+
+
+def _m2_kernels_list(value: Any, name: str) -> list[str]:
+    if not isinstance(value, list) or not value:
+        raise ConfigError(f"{name}.m2_kernels must be a non-empty list")
+    allowed = set(M2_KERNELS)
+    if any(not isinstance(item, str) or item not in allowed for item in value):
+        raise ConfigError(
+            f"{name}.m2_kernels must be a list of {', '.join(M2_KERNELS)}"
+        )
+    if len(value) != len(set(value)):
+        raise ConfigError(f"{name}.m2_kernels contains duplicates")
+    return list(value)
+
+
+def row_m2_kernels(row: Mapping[str, Any]) -> list[str]:
+    """Per-row M2 kernel list. Default: raw, warp, scalar (verify_cuda.py)."""
+    value = row.get("m2_kernels")
+    if value is None:
+        return list(M2_KERNELS)
+    return list(value)
 
 
 def requested_tiers(tier: str) -> tuple[str, ...]:
@@ -362,19 +387,39 @@ def _last_output_line(completed: subprocess.CompletedProcess[str]) -> str:
 
 def run_command(argv: Sequence[str], root: Path, timeout: int) -> tuple[int, str]:
     """Run one argv-only gate. No shell is involved."""
+    argv = list(argv)
     try:
         completed = subprocess.run(
-            list(argv),
+            argv,
             cwd=root,
             check=False,
             capture_output=True,
             text=True,
             timeout=timeout,
+            env={**os.environ, "PYTHONUNBUFFERED": "1"},
         )
     except subprocess.TimeoutExpired:
         return 124, f"timeout after {timeout}s"
     except OSError as exc:
         return 127, str(exc)
+    log_dir = Path(root) / "out" / "verify"
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        kernel = "m1"
+        if "--m2-kernel" in argv:
+            idx = argv.index("--m2-kernel")
+            if idx + 1 < len(argv):
+                kernel = argv[idx + 1]
+        snap = "gate"
+        for item in argv:
+            if item.endswith(".bsnp"):
+                snap = Path(item).stem
+                break
+        (log_dir / f"warpm2_{snap}_{kernel}.log").write_text(
+            completed.stderr + completed.stdout
+        )
+    except OSError:
+        pass
     return completed.returncode, _last_output_line(completed)
 
 
@@ -437,19 +482,38 @@ def run_matrix(
         )
         if can_run:
             for current_tier in tiers:
-                argv = row[current_tier]
-                returncode, detail = executor(argv, root, row["timeout"])
-                gate_returncodes[current_tier] = returncode
-                gate = {
-                    "argv": list(argv),
-                    "returncode": returncode,
-                    "tier": current_tier,
-                }
-                if detail:
-                    gate["detail"] = detail
-                gates.append(gate)
-                if returncode != 0:
-                    break
+                if current_tier == "m2":
+                    last_rc = 0
+                    for kernel in row_m2_kernels(row):
+                        argv = list(row["m2"]) + ["--m2-kernel", kernel]
+                        returncode, detail = executor(argv, root, row["timeout"])
+                        last_rc = returncode
+                        gate = {
+                            "argv": list(argv),
+                            "kernel": kernel,
+                            "returncode": returncode,
+                            "tier": current_tier,
+                        }
+                        if detail:
+                            gate["detail"] = detail
+                        gates.append(gate)
+                        if returncode != 0:
+                            break
+                    gate_returncodes[current_tier] = last_rc
+                else:
+                    argv = row[current_tier]
+                    returncode, detail = executor(argv, root, row["timeout"])
+                    gate_returncodes[current_tier] = returncode
+                    gate = {
+                        "argv": list(argv),
+                        "returncode": returncode,
+                        "tier": current_tier,
+                    }
+                    if detail:
+                        gate["detail"] = detail
+                    gates.append(gate)
+                    if returncode != 0:
+                        break
 
         status, reason = classify(
             row,

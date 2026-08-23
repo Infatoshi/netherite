@@ -1,5 +1,82 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 focused M2 production kernels (lane/warpm2)
+
+Anvil GPU1. Sweep 2026-08-23 magma->blaze row 5: focused M2 drove
+`blaze_tick_raw` -> `k_tick_raw` (`blaze_cuda.cu:690`, env=-1 broadcast).
+Training `blaze_step_full` (`blaze_cuda.cu:1392-1411`) picks
+`k_tick_legacy` if create opts `legacy_recenter`, else `k_tick_warp` if
+`warp_tick=1` (default: `blaze_abi.h:18`, `blaze.conf:10`, `ppo.conf:43`),
+else `k_tick` (`warp_tick=0`).
+
+Kernel split (no game-logic edit):
+
+- `k_tick_raw`: one thread/env, craft/interact/smelt then
+  `blaze_runtime_tick` (serial `cu_recenter` + `blaze_runtime_tick_nr`,
+  inv_click inside the tick). No coal/reward/`done`.
+- `k_tick`: one thread/env; full-mask `__ballot_sync`/`__shfl_sync` recenter
+  fill across the warp (helpers may be other envs). `blaze_decision_begin`
+  + `blaze_decision_subtick` (serial `blaze_coal_list` + nearest + reward).
+  No early return. No shared memory. Stack is the serial tick frame
+  (`cudaLimitStackSize` 128 KB at create).
+- `k_tick_warp`: 32 lanes/env. Lane 0 runs begin/phys/post. All lanes run
+  `cu_recenter_fill` and `cu_coal_warp`. Warp sites that are not the
+  scalar C statements: `__shfl_sync` of exec/need/pose; `__syncwarp`
+  around fill; `cu_coal_warp` (`__shfl_down_sync` accept-count and
+  (d2,k2) argmin, per-lane `loc[]` of size `(CU_COAL_CAND+31)/32`,
+  atan2/asin only on the winning lane then shuffle; overflow or
+  accept-count > `CU_COAL_SCRATCH` falls back to lane-0
+  `blaze_coal_sweep`). Tail warps `if (w >= n) return` together. No
+  shared memory. Coal FP is independent per candidate then a total-order
+  reduction; claimed bit-exact to the serial sweep when it does not fall
+  back.
+
+Harness: `blaze_tick` on CPU (decision begin + inv_click + recenter + one
+subtick) and CUDA (launch `k_tick`/`k_tick_warp` with packed 13-wide
+actions). inv_click is a driver-side extra after begin (`cu_apply_inv_click`);
+trainer `blaze_step` still passes inv=NULL. `--m2-kernel` on
+`verify_cuda.py`; `m2_kernels:` in `port_matrix.yaml`; row VERIFIED only
+when all listed kernels pass. No env vars, no tolerances.
+
+Baseline: raw M2 already VERIFIED on this tree. After: raw+warp+scalar
+PASS on every supported chain row. No warp/scalar mismatch. mining_slice
+M2 BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing on this clone). M1
+unchanged VERIFIED. Root `make test` in `out/verify/warpm2_maketest.log`.
+
+Kernel x row (anvil GPU1, `CUDA_VISIBLE_DEVICES=1`, `--no-deps`):
+
+| row | raw | warp | scalar |
+|---|---|---|---|
+| mining_slice | BLOCKED snaps | BLOCKED snaps | BLOCKED snaps |
+| spawn_to_torch | PASS 2058 | PASS 2058 | PASS 2058 |
+| world_dynamics | PASS | PASS | PASS |
+| fluids | PASS 61 | PASS 61 | PASS 61 |
+| entity_spine | PASS 32 | PASS 32 | PASS 32 |
+| random_ticks | PASS 200 | PASS 200 | PASS 200 |
+| random_ticks_bodies | PASS 200 | PASS 200 | PASS 200 |
+| falling_blocks | PASS 64 | PASS 64 | PASS 64 |
+| weather_optional | PASS | PASS | PASS |
+| projectiles | PASS 64 | PASS 64 | PASS 64 |
+| explosions | PASS 64 | PASS 64 | PASS 64 |
+| chests | PASS 41 | PASS 41 | PASS 41 |
+| mobs | PASS 64 | PASS 64 | PASS 64 |
+| mobs_ss | PASS 64 | PASS 64 | PASS 64 |
+| mobs_end | PASS 64 | PASS 64 | PASS 64 |
+| passives | PASS 64 | PASS 64 | PASS 64 |
+| xp_orbs | PASS 64 | PASS 64 | PASS 64 |
+| boats | PASS 64 | PASS 64 | PASS 64 |
+| elytra | PASS 64 | PASS 64 | PASS 64 |
+| biome_plane | PASS 64 | PASS 64 | PASS 64 |
+| biome_plane_spawn | PASS 64 | PASS 64 | PASS 64 |
+| biome_plane_ice | PASS 64 | PASS 64 | PASS 64 |
+| hazards | PASS 448 | PASS 448 | PASS 448 |
+| furnaces | PASS 223 | PASS 223 | PASS 223 |
+| placement | PASS 96 | PASS 96 | PASS 96 |
+
+Logs: `out/verify/warpm2_m2_summary.log`, per-kernel
+`out/verify/warpm2_<snap>_{raw,warp,scalar}.log`. M1:
+`out/verify/warpm2_m1_summary.log`.
+
 ## 2026-08-23 merge origin/master into lane/witch (lane/witchmerge)
 
 Gamer. `git merge origin/master` (6d22931) into lane/witch (30ea6f7). Union of both sides. Snapshot writes v9; loader reads v7 (mob record 572, in-memory 592 witch extras zero-extend, biome plains 1, fire=0 air=300), v8 (biome plane), v9 (player fire+air). Witch stays on the Biome.java:146-153 roster (weight 5/1-1 at :153); BiomeSwamp.java:34 extra slime is a second list entry after witch; BiomeSnow.java:36-49 removes skeleton then appends skeleton 20 + stray 80 (stray consume-then-skip). Did not re-bake `s10_t0_r64_mobs_witch.bsnp` (v7 load). Master's biome/hazards/furnaces fixtures kept.
