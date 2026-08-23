@@ -322,6 +322,62 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             return snap_fail(err, err_cap, "truncated .bsnp v10 fall mut",
                              path);
         }
+        if (fread(&out->n_furn, sizeof out->n_furn, 1, f) != 1 ||
+            out->n_furn > BLAZE_SNAP_MAX_FURN ||
+            (out->n_furn &&
+             fread(out->furn, sizeof out->furn[0], out->n_furn, f) !=
+                 out->n_furn) ||
+            fread(&out->active_furnace, sizeof out->active_furnace, 1, f) !=
+                1 ||
+            fread(&out->n_chest, sizeof out->n_chest, 1, f) != 1 ||
+            out->n_chest > BLAZE_SNAP_MAX_CHEST ||
+            (out->n_chest &&
+             fread(out->chest, sizeof out->chest[0], out->n_chest, f) !=
+                 out->n_chest) ||
+            fread(&out->active_chest, sizeof out->active_chest, 1, f) != 1 ||
+            fread(out->craft, sizeof out->craft, 1, f) != 1 ||
+            fread(out->cursor, sizeof out->cursor, 1, f) != 1 ||
+            fread(&out->craft_attempts, sizeof out->craft_attempts, 1, f) !=
+                1 ||
+            fread(&out->craft_successes, sizeof out->craft_successes, 1, f) !=
+                1 ||
+            fread(&out->container_opens, sizeof out->container_opens, 1, f) !=
+                1 ||
+            fread(&out->left_click_counter, sizeof out->left_click_counter, 1,
+                  f) != 1 ||
+            fread(&out->eat_ticks, sizeof out->eat_ticks, 1, f) != 1 ||
+            fread(&out->eat_item, sizeof out->eat_item, 1, f) != 1 ||
+            fread(&out->bow_ticks, sizeof out->bow_ticks, 1, f) != 1 ||
+            fread(&out->bow_drawing, sizeof out->bow_drawing, 1, f) != 1 ||
+            fread(&out->xp_level, sizeof out->xp_level, 1, f) != 1 ||
+            fread(&out->xp_total, sizeof out->xp_total, 1, f) != 1 ||
+            fread(&out->xp_cooldown, sizeof out->xp_cooldown, 1, f) != 1 ||
+            fread(&out->xp_experience, sizeof out->xp_experience, 1, f) != 1 ||
+            fread(out->armor, sizeof out->armor, 1, f) != 1 ||
+            fread(&out->fluid_dim, sizeof out->fluid_dim, 1, f) != 1 ||
+            fread(out->fluid, sizeof out->fluid, 1, f) != 1 ||
+            fread(&out->fluid_mutations, sizeof out->fluid_mutations, 1, f) !=
+                1 ||
+            fread(&out->boat_ride, sizeof out->boat_ride, 1, f) != 1 ||
+            fread(&out->explosion_pending, sizeof out->explosion_pending, 1,
+                  f) != 1 ||
+            fread(&out->explosion_smoking, sizeof out->explosion_smoking, 1,
+                  f) != 1 ||
+            fread(&out->explosion_flaming, sizeof out->explosion_flaming, 1,
+                  f) != 1 ||
+            fread(&out->explosion_x, sizeof out->explosion_x, 1, f) != 1 ||
+            fread(&out->explosion_y, sizeof out->explosion_y, 1, f) != 1 ||
+            fread(&out->explosion_z, sizeof out->explosion_z, 1, f) != 1 ||
+            fread(&out->explosion_size, sizeof out->explosion_size, 1, f) !=
+                1) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 te/player",
+                             path);
+        }
     }
     fclose(f);
 
@@ -496,6 +552,54 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
         ok = ok && fwrite(&s->fall_mutations, sizeof s->fall_mutations, 1,
                           f) == 1;
         ok = ok && fwrite(&s->live_ticks, sizeof s->live_ticks, 1, f) == 1;
+        ok = ok && fwrite(&s->n_furn, sizeof s->n_furn, 1, f) == 1;
+        ok = ok && (s->n_furn == 0 ||
+                    fwrite(s->furn, sizeof s->furn[0], s->n_furn, f) ==
+                        s->n_furn);
+        ok = ok && fwrite(&s->active_furnace, sizeof s->active_furnace, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->n_chest, sizeof s->n_chest, 1, f) == 1;
+        ok = ok && (s->n_chest == 0 ||
+                    fwrite(s->chest, sizeof s->chest[0], s->n_chest, f) ==
+                        s->n_chest);
+        ok = ok && fwrite(&s->active_chest, sizeof s->active_chest, 1, f) ==
+                       1;
+        ok = ok && fwrite(s->craft, sizeof s->craft, 1, f) == 1;
+        ok = ok && fwrite(s->cursor, sizeof s->cursor, 1, f) == 1;
+        ok = ok && fwrite(&s->craft_attempts, sizeof s->craft_attempts, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->craft_successes, sizeof s->craft_successes, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->container_opens, sizeof s->container_opens, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->left_click_counter, sizeof s->left_click_counter,
+                          1, f) == 1;
+        ok = ok && fwrite(&s->eat_ticks, sizeof s->eat_ticks, 1, f) == 1;
+        ok = ok && fwrite(&s->eat_item, sizeof s->eat_item, 1, f) == 1;
+        ok = ok && fwrite(&s->bow_ticks, sizeof s->bow_ticks, 1, f) == 1;
+        ok = ok && fwrite(&s->bow_drawing, sizeof s->bow_drawing, 1, f) == 1;
+        ok = ok && fwrite(&s->xp_level, sizeof s->xp_level, 1, f) == 1;
+        ok = ok && fwrite(&s->xp_total, sizeof s->xp_total, 1, f) == 1;
+        ok = ok && fwrite(&s->xp_cooldown, sizeof s->xp_cooldown, 1, f) == 1;
+        ok = ok && fwrite(&s->xp_experience, sizeof s->xp_experience, 1, f) ==
+                       1;
+        ok = ok && fwrite(s->armor, sizeof s->armor, 1, f) == 1;
+        ok = ok && fwrite(&s->fluid_dim, sizeof s->fluid_dim, 1, f) == 1;
+        ok = ok && fwrite(s->fluid, sizeof s->fluid, 1, f) == 1;
+        ok = ok && fwrite(&s->fluid_mutations, sizeof s->fluid_mutations, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->boat_ride, sizeof s->boat_ride, 1, f) == 1;
+        ok = ok && fwrite(&s->explosion_pending, sizeof s->explosion_pending, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->explosion_smoking, sizeof s->explosion_smoking, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->explosion_flaming, sizeof s->explosion_flaming, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->explosion_x, sizeof s->explosion_x, 1, f) == 1;
+        ok = ok && fwrite(&s->explosion_y, sizeof s->explosion_y, 1, f) == 1;
+        ok = ok && fwrite(&s->explosion_z, sizeof s->explosion_z, 1, f) == 1;
+        ok = ok && fwrite(&s->explosion_size, sizeof s->explosion_size, 1, f) ==
+                       1;
     }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)

@@ -471,6 +471,88 @@ static void cu_reset_env(CuVec *v, int i) {
             }
             e->parity_fall_mutations = s->fall_mutations;
             e->live_ticks = s->live_ticks;
+            {
+                unsigned ui, si;
+                memset(e->furnaces, 0, sizeof e->furnaces);
+                e->active_furnace = s->active_furnace;
+                for (ui = 0; ui < s->n_furn && ui < CU_MAX_FURNACES; ++ui) {
+                    e->furnaces[ui].active = s->furn[ui].active;
+                    e->furnaces[ui].wx = s->furn[ui].wx;
+                    e->furnaces[ui].wy = s->furn[ui].wy;
+                    e->furnaces[ui].wz = s->furn[ui].wz;
+                    e->furnaces[ui].input = sr_mk(s->furn[ui].in_item,
+                                                 s->furn[ui].in_count,
+                                                 s->furn[ui].in_meta);
+                    e->furnaces[ui].fuel = sr_mk(s->furn[ui].fuel_item,
+                                                s->furn[ui].fuel_count,
+                                                s->furn[ui].fuel_meta);
+                    e->furnaces[ui].output = sr_mk(s->furn[ui].out_item,
+                                                  s->furn[ui].out_count,
+                                                  s->furn[ui].out_meta);
+                    e->furnaces[ui].burn_time = s->furn[ui].burn_time;
+                    e->furnaces[ui].current_burn_time =
+                        s->furn[ui].current_burn_time;
+                    e->furnaces[ui].cook_time = s->furn[ui].cook_time;
+                    e->furnaces[ui].total_cook = s->furn[ui].total_cook;
+                }
+                memset(e->chests, 0, sizeof e->chests);
+                e->active_chest = s->active_chest;
+                for (ui = 0; ui < s->n_chest && ui < CU_MAX_CHESTS; ++ui) {
+                    e->chests[ui].active = s->chest[ui].active;
+                    e->chests[ui].wx = s->chest[ui].wx;
+                    e->chests[ui].wy = s->chest[ui].wy;
+                    e->chests[ui].wz = s->chest[ui].wz;
+                    e->chests[ui].te.num_players_using =
+                        s->chest[ui].num_using;
+                    for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si)
+                        e->chests[ui].te.slots[si] = tec_mk(
+                            s->chest[ui].slot[si][0],
+                            s->chest[ui].slot[si][1],
+                            s->chest[ui].slot[si][2]);
+                }
+                for (si = 0; si < 9; ++si)
+                    e->craft_grid[si] = ic_mk(s->craft[si][0], s->craft[si][1],
+                                              s->craft[si][2]);
+                e->cursor = ic_mk(s->cursor[0], s->cursor[1], s->cursor[2]);
+                e->parity_craft_attempts = s->craft_attempts;
+                e->parity_craft_successes = s->craft_successes;
+                e->parity_container_opens = s->container_opens;
+                e->left_click_counter = s->left_click_counter;
+                e->eat_ticks = s->eat_ticks;
+                e->eat_item = s->eat_item;
+                e->bow_ticks = s->bow_ticks;
+                e->bow_drawing = s->bow_drawing;
+                e->pl.experienceLevel = s->xp_level;
+                e->pl.experienceTotal = s->xp_total;
+                e->pl.xpCooldown = s->xp_cooldown;
+                e->pl.experience = s->xp_experience;
+                for (si = 0; si < 4; ++si)
+                    isr_set_stack(&e->pl.inv, ISR_ARMOR0 + (int)si,
+                                  ic_mk(s->armor[si][0], s->armor[si][1],
+                                        s->armor[si][2]));
+                e->fluid_dim = s->fluid_dim;
+                e->parity_fluid_mutations = s->fluid_mutations;
+                for (si = 0; si < CU_FLUID_REGIONS && si < BLAZE_SNAP_FLUID_REGS;
+                     ++si) {
+                    e->fluid_reg[si].active = s->fluid[si].active;
+                    e->fluid_reg[si].x0 = s->fluid[si].x0;
+                    e->fluid_reg[si].y0 = s->fluid[si].y0;
+                    e->fluid_reg[si].z0 = s->fluid[si].z0;
+                    e->fluid_reg[si].x1 = s->fluid[si].x1;
+                    e->fluid_reg[si].y1 = s->fluid[si].y1;
+                    e->fluid_reg[si].z1 = s->fluid[si].z1;
+                    e->fluid_reg[si].has_water = s->fluid[si].has_water;
+                    e->fluid_reg[si].quiet_steps = s->fluid[si].quiet_steps;
+                }
+                e->boat_ride = s->boat_ride;
+                e->explosion_pending = s->explosion_pending;
+                e->explosion_smoking = s->explosion_smoking;
+                e->explosion_flaming = s->explosion_flaming;
+                e->explosion_x = s->explosion_x;
+                e->explosion_y = s->explosion_y;
+                e->explosion_z = s->explosion_z;
+                e->explosion_size = s->explosion_size;
+            }
         }
     }
     v->envs[i].mobs_enabled = v->mobs_enabled;
@@ -753,6 +835,93 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
     }
     s.fall_mutations = e->parity_fall_mutations;
     s.live_ticks = e->live_ticks;
+    s.n_furn = 0;
+    s.active_furnace = e->active_furnace;
+    for (k = 0; k < CU_MAX_FURNACES && s.n_furn < BLAZE_SNAP_MAX_FURN; ++k) {
+        if (!e->furnaces[k].active) continue;
+        s.furn[s.n_furn].active = 1;
+        s.furn[s.n_furn].wx = e->furnaces[k].wx;
+        s.furn[s.n_furn].wy = e->furnaces[k].wy;
+        s.furn[s.n_furn].wz = e->furnaces[k].wz;
+        s.furn[s.n_furn].in_item = e->furnaces[k].input.item;
+        s.furn[s.n_furn].in_count = e->furnaces[k].input.count;
+        s.furn[s.n_furn].in_meta = e->furnaces[k].input.meta;
+        s.furn[s.n_furn].fuel_item = e->furnaces[k].fuel.item;
+        s.furn[s.n_furn].fuel_count = e->furnaces[k].fuel.count;
+        s.furn[s.n_furn].fuel_meta = e->furnaces[k].fuel.meta;
+        s.furn[s.n_furn].out_item = e->furnaces[k].output.item;
+        s.furn[s.n_furn].out_count = e->furnaces[k].output.count;
+        s.furn[s.n_furn].out_meta = e->furnaces[k].output.meta;
+        s.furn[s.n_furn].burn_time = e->furnaces[k].burn_time;
+        s.furn[s.n_furn].current_burn_time = e->furnaces[k].current_burn_time;
+        s.furn[s.n_furn].cook_time = e->furnaces[k].cook_time;
+        s.furn[s.n_furn].total_cook = e->furnaces[k].total_cook;
+        s.n_furn++;
+    }
+    s.n_chest = 0;
+    s.active_chest = e->active_chest;
+    for (k = 0; k < CU_MAX_CHESTS && s.n_chest < BLAZE_SNAP_MAX_CHEST; ++k) {
+        unsigned si;
+        if (!e->chests[k].active) continue;
+        s.chest[s.n_chest].active = 1;
+        s.chest[s.n_chest].wx = e->chests[k].wx;
+        s.chest[s.n_chest].wy = e->chests[k].wy;
+        s.chest[s.n_chest].wz = e->chests[k].wz;
+        s.chest[s.n_chest].num_using = e->chests[k].te.num_players_using;
+        for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si) {
+            s.chest[s.n_chest].slot[si][0] = e->chests[k].te.slots[si].item;
+            s.chest[s.n_chest].slot[si][1] = e->chests[k].te.slots[si].count;
+            s.chest[s.n_chest].slot[si][2] = e->chests[k].te.slots[si].meta;
+        }
+        s.n_chest++;
+    }
+    for (k = 0; k < 9; ++k) {
+        s.craft[k][0] = e->craft_grid[k].item;
+        s.craft[k][1] = e->craft_grid[k].count;
+        s.craft[k][2] = e->craft_grid[k].meta;
+    }
+    s.cursor[0] = e->cursor.item;
+    s.cursor[1] = e->cursor.count;
+    s.cursor[2] = e->cursor.meta;
+    s.craft_attempts = e->parity_craft_attempts;
+    s.craft_successes = e->parity_craft_successes;
+    s.container_opens = e->parity_container_opens;
+    s.left_click_counter = e->left_click_counter;
+    s.eat_ticks = e->eat_ticks;
+    s.eat_item = e->eat_item;
+    s.bow_ticks = e->bow_ticks;
+    s.bow_drawing = e->bow_drawing;
+    s.xp_level = e->pl.experienceLevel;
+    s.xp_total = e->pl.experienceTotal;
+    s.xp_cooldown = e->pl.xpCooldown;
+    s.xp_experience = e->pl.experience;
+    for (k = 0; k < 4; ++k) {
+        ICStack st = isr_get_stack(&e->pl.inv, ISR_ARMOR0 + (int)k);
+        s.armor[k][0] = st.item;
+        s.armor[k][1] = st.count;
+        s.armor[k][2] = st.meta;
+    }
+    s.fluid_dim = e->fluid_dim;
+    s.fluid_mutations = e->parity_fluid_mutations;
+    for (k = 0; k < CU_FLUID_REGIONS && k < BLAZE_SNAP_FLUID_REGS; ++k) {
+        s.fluid[k].active = e->fluid_reg[k].active;
+        s.fluid[k].x0 = e->fluid_reg[k].x0;
+        s.fluid[k].y0 = e->fluid_reg[k].y0;
+        s.fluid[k].z0 = e->fluid_reg[k].z0;
+        s.fluid[k].x1 = e->fluid_reg[k].x1;
+        s.fluid[k].y1 = e->fluid_reg[k].y1;
+        s.fluid[k].z1 = e->fluid_reg[k].z1;
+        s.fluid[k].has_water = e->fluid_reg[k].has_water;
+        s.fluid[k].quiet_steps = e->fluid_reg[k].quiet_steps;
+    }
+    s.boat_ride = e->boat_ride;
+    s.explosion_pending = e->explosion_pending;
+    s.explosion_smoking = e->explosion_smoking;
+    s.explosion_flaming = e->explosion_flaming;
+    s.explosion_x = e->explosion_x;
+    s.explosion_y = e->explosion_y;
+    s.explosion_z = e->explosion_z;
+    s.explosion_size = e->explosion_size;
     s.n_orbs = 0;
     for (k = 0; k < XL_MAX && s.n_orbs < BLAZE_SNAP_MAX_ORBS; ++k) {
         const McOrb *o = &e->orbs[k];

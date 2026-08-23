@@ -169,6 +169,10 @@ typedef struct RlSnapMob {
 #define BLAZE_SNAP_MAX_PROJ 32
 #define BLAZE_SNAP_MAX_FALL 48
 #define BLAZE_SNAP_MAX_FALL_UPD 128
+#define BLAZE_SNAP_MAX_FURN 16
+#define BLAZE_SNAP_MAX_CHEST 64
+#define BLAZE_SNAP_CHEST_SLOTS 27
+#define BLAZE_SNAP_FLUID_REGS 4
 #pragma pack(push, 1)
 typedef struct RlSnapProj {
     int active, type, age;
@@ -188,6 +192,20 @@ typedef struct RlSnapFallLanding {
     int active, x, y, z, block_id, block_meta;
     long long due_tick;
 } RlSnapFallLanding;
+typedef struct RlSnapFurnace {
+    int active, wx, wy, wz;
+    int in_item, in_count, in_meta;
+    int fuel_item, fuel_count, fuel_meta;
+    int out_item, out_count, out_meta;
+    int burn_time, current_burn_time, cook_time, total_cook;
+} RlSnapFurnace;
+typedef struct RlSnapChest {
+    int active, wx, wy, wz, num_using;
+    int slot[BLAZE_SNAP_CHEST_SLOTS][3];
+} RlSnapChest;
+typedef struct RlSnapFluidReg {
+    int active, x0, y0, z0, x1, y1, z1, has_water, quiet_steps;
+} RlSnapFluidReg;
 #pragma pack(pop)
 
 /* One live XP orb. World coords. v3 files omit this trailer -> n_orbs=0. */
@@ -262,6 +280,27 @@ typedef struct {
     RlSnapFallLanding  fall_land[BLAZE_SNAP_MAX_FALL];
     unsigned           fall_mutations;
     int                live_ticks;
+    unsigned           n_furn;
+    RlSnapFurnace      furn[BLAZE_SNAP_MAX_FURN];
+    int                active_furnace;
+    unsigned           n_chest;
+    RlSnapChest        chest[BLAZE_SNAP_MAX_CHEST];
+    int                active_chest;
+    int                craft[9][3];
+    int                cursor[3];
+    unsigned           craft_attempts, craft_successes, container_opens;
+    int                left_click_counter, eat_ticks, eat_item;
+    int                bow_ticks, bow_drawing;
+    int                xp_level, xp_total, xp_cooldown;
+    float              xp_experience;
+    int                armor[4][3];
+    int                fluid_dim;
+    RlSnapFluidReg     fluid[BLAZE_SNAP_FLUID_REGS];
+    unsigned           fluid_mutations;
+    int                boat_ride;
+    int                explosion_pending, explosion_smoking, explosion_flaming;
+    double             explosion_x, explosion_y, explosion_z;
+    float              explosion_size;
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).
