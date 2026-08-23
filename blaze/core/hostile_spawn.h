@@ -49,9 +49,9 @@
  * full the spawn is skipped on BOTH sides. That is a magma/blaze shared cap,
  * not a Java rule.
  *
- * Roster insert is zombie/skeleton/creeper (hostile_live.h). Other biome
- * list picks still consume world.rand / entity.rand in Java order, then skip
- * the insert.
+ * Roster insert is zombie/skeleton/creeper/spider/slime (hostile_live.h).
+ * Witch / enderman / zombie villager picks still consume world.rand /
+ * entity.rand in Java order, then skip the insert.
  *
  * Include after HS_W / HS_BLOCK. Optional: HS_SKY, HS_BLK, HS_PLACE,
  * HS_HOSTILE_COUNT, HS_MOB_HIT, HS_HEIGHT.
@@ -175,7 +175,8 @@ MC_HD static inline int hs_monster_cap(int chunk_count_i) {
 }
 
 MC_HD static inline int hs_is_roster(int hs_type) {
-    return hs_type == HS_ZOMBIE || hs_type == HS_SKELETON || hs_type == HS_CREEPER;
+    return hs_type == HS_ZOMBIE || hs_type == HS_SKELETON || hs_type == HS_CREEPER
+        || hs_type == HS_SPIDER || hs_type == HS_SLIME;
 }
 
 MC_HD static inline int hs_to_ew(int hs_type) {
@@ -465,6 +466,9 @@ MC_HD static inline void hs_spider_init(JavaRandom *wr, JavaRandom *er,
                                         int difficulty, i64 world_time) {
     float f = hs_clamped_add(difficulty, world_time);
     hs_living_init(er, have, g);
+    /* EntitySpider.onInitialSpawn EntitySpider.java:200-207: world.rand.nextInt(100)==0
+     * spawns a skeleton rider. The live table has no riding slots; consume the
+     * draw (and a scratch skeleton onInitialSpawn) and skip the insert. */
     if (jrand_int_bound(wr, 100) == 0) {
         JavaRandom sk;
         int shave = 0;
@@ -472,67 +476,125 @@ MC_HD static inline void hs_spider_init(JavaRandom *wr, JavaRandom *er,
         jrand_set(&sk, wr->seed ^ 0x534B454C); /* scratch skeleton, not world.rand */
         hs_skeleton_init(&sk, &shave, &sg, difficulty, world_time);
     }
+    /* EntitySpider.GroupData potion roll EntitySpider.java:213-216: HARD only.
+     * Potion effects are not in RlSnapMob; consume the draws. */
     if (difficulty == 3 && jrand_float(wr) < 0.1f * f)
-        (void)jrand_int_bound(wr, 5); /* GroupData.setRandomEffect */
+        (void)jrand_int_bound(wr, 5); /* GroupData.setRandomEffect :291 */
     (void)f;
 }
 
-MC_HD static inline void hs_slime_init(JavaRandom *er, int *have, double *g,
-                                       i64 world_time, int difficulty) {
+/* EntitySlime.onInitialSpawn EntitySlime.java:406-415. Returns 1<<i (1,2,4). */
+MC_HD static inline int hs_slime_init(JavaRandom *er, int *have, double *g,
+                                      i64 world_time, int difficulty) {
     float f = hs_clamped_add(difficulty, world_time);
     int i = jrand_int_bound(er, 3);
     if (i < 2 && jrand_float(er) < 0.5f * f) ++i;
-    (void)i;
     hs_living_init(er, have, g);
+    return 1 << i;
 }
 
-MC_HD static inline void hs_on_initial_spawn(int hs_type, JavaRandom *wr,
-                                             JavaRandom *er, int *have, double *g,
-                                             int difficulty, i64 world_time,
-                                             int *livingdata, int first_in_pack) {
+MC_HD static inline int hs_on_initial_spawn(int hs_type, JavaRandom *wr,
+                                            JavaRandom *er, int *have, double *g,
+                                            int difficulty, i64 world_time,
+                                            int *livingdata, int first_in_pack) {
     if (hs_type == HS_ZOMBIE || hs_type == HS_ZOMBIE_VILLAGER) {
         if (hs_type == HS_ZOMBIE_VILLAGER)
             (void)jrand_int_bound(wr, 6);     /* profession :105 */
         hs_zombie_init(wr, er, have, g, difficulty, world_time,
                        livingdata, first_in_pack);
+        return 0;
     } else if (hs_type == HS_SKELETON) {
         hs_skeleton_init(er, have, g, difficulty, world_time);
+        return 0;
     } else if (hs_type == HS_CREEPER) {
         hs_creeper_init(er, have, g);
+        return 0;
     } else if (hs_type == HS_SPIDER) {
         hs_spider_init(wr, er, have, g, difficulty, world_time);
+        return 0;
     } else if (hs_type == HS_SLIME) {
-        hs_slime_init(er, have, g, world_time, difficulty);
-    } else {
-        hs_living_init(er, have, g);          /* witch / enderman */
+        return hs_slime_init(er, have, g, world_time, difficulty);
     }
+    hs_living_init(er, have, g);              /* witch / enderman */
+    return 0;
+}
+
+#ifndef HS_BIOME
+#define HS_BIOME(w, x, z) 1              /* plains. Swamp is 6 (B_SWAMP). */
+#endif
+#define HS_BIOME_SWAMP 6
+
+/* WorldProvider.getMoonPhase WorldProvider.java:113-116 + MOON_PHASE_FACTORS :24 */
+MC_HD static inline float hs_moon_phase_factor(i64 world_time) {
+    int p = (int)((world_time / 24000LL % 8LL + 8LL) % 8LL);
+    if (p == 0) return 1.0f;
+    if (p == 1 || p == 7) return 0.75f;
+    if (p == 2 || p == 6) return 0.5f;
+    if (p == 3 || p == 5) return 0.25f;
+    return 0.0f;
+}
+
+/* Chunk.getRandomWithSeed Chunk.java:1019 with 987234911L (EntitySlime.java:355).
+ * Java int overflow on x*x*4987142 / x*5947611 / z*389711; z*z is int then * long. */
+MC_HD static inline int hs_is_slime_chunk(i64 world_seed, int cx, int cz) {
+    i32 x = (i32)cx, z = (i32)cz;
+    i32 xx = (i32)((u32)x * (u32)x);
+    i32 zz = (i32)((u32)z * (u32)z);
+    i64 seed = world_seed
+        + (i64)(i32)((u32)xx * 4987142u)
+        + (i64)(i32)((u32)x * 5947611u)
+        + (i64)zz * 4392871LL
+        + (i64)(i32)((u32)z * 389711u);
+    JavaRandom r;
+    seed ^= 987234911LL;
+    jrand_set(&r, seed);
+    return jrand_int_bound(&r, 10) == 0;
 }
 
 /* EntityMob.getCanSpawnHere :186-188 + isValidLightLevel. Slime is not
- * EntityMob; its extra entity.rand draws run only on the slime pick. */
+ * EntityMob; EntitySlime.getCanSpawnHere :335-362. */
 MC_HD static inline int hs_can_spawn_here(HS_W *w, JavaRandom *er, int hs_type,
                                           int x, int y, int z, HsState *st) {
-    int sub;
+    int sub, biome;
+    double py;
     if (!st || st->difficulty == 0) return 0;
     if (hs_type == HS_SLIME) {
-        /* EntitySlime.getCanSpawnHere :335-362. Default WorldType: no
-         * handleSlimeSpawnReduction draw. Swamp branch uses entity.rand;
-         * slime-chunk branch uses entity.rand.nextInt(10) plus a chunk RNG
-         * that is not world.rand. Then super is EntityLiving (always true). */
-        (void)jrand_int_bound(er, 10);
-        return 0; /* do not insert slime on this path */
+        /* WorldType.handleSlimeSpawnReduction WorldType.java:196-198: default
+         * false, no rand draw (FLAT would nextInt(4)!=1). */
+        biome = HS_BIOME(w, x, z);
+        py = (double)y;
+        /* swamp y 50..70 EntitySlime.java:350. Short-circuit &&. Combined
+         * light at pos stands in for getLightFromNeighbors (same as the
+         * EntityMob spawn light in this header). */
+        if (biome == HS_BIOME_SWAMP && py > 50.0 && py < 70.0
+            && jrand_float(er) < 0.5f
+            && jrand_float(er) < hs_moon_phase_factor(st->world_time)
+            && hs_combined_light(w, x, y, z, 0) <= jrand_int_bound(er, 8))
+            return 1;
+        /* slime-chunk EntitySlime.java:355 */
+        if (jrand_int_bound(er, 10) == 0
+            && hs_is_slime_chunk(st->seed, x >> 4, z >> 4)
+            && py < 40.0)
+            return 1;
+        return 0;
     }
     sub = st->skylight_sub;
     return hs_valid_light(w, er, x, y, z, sub, st->thundering);
 }
 
-MC_HD static inline void hs_aabb_for(int hs_type, double x, double y, double z,
+MC_HD static inline void hs_aabb_for(int hs_type, int slime_size,
+                                     double x, double y, double z,
                                      double *x0, double *y0, double *z0,
                                      double *x1, double *y1, double *z1) {
     float w, h;
     int ew = hs_to_ew(hs_type);
     if (ew == EW_TYPE_NONE) ew = EW_TYPE_ZOMBIE;
-    ehs_size((u8)ew, &w, &h);
+    if (ew == EW_TYPE_SLIME || ew == EW_TYPE_MAGMA) {
+        if (slime_size < 1) slime_size = 1; /* entityInit SLIME_SIZE=1 */
+        ehs_size_scaled((u8)ew, slime_size, &w, &h);
+    } else {
+        ehs_size((u8)ew, &w, &h);
+    }
     *x0 = x - (double)w * 0.5;
     *y0 = y;
     *z0 = z - (double)w * 0.5;
@@ -564,7 +626,7 @@ MC_HD static inline int hs_try_one(HS_W *w, HsState *st, int hs_type,
     double px, py, pz, yaw;
     double x0, y0, z0, x1, y1, z1;
     float f, f1;
-    int ew;
+    int ew, extra;
     if (!st) return 0;
     f = (float)x + 0.5f;
     f1 = (float)z + 0.5f;
@@ -576,11 +638,13 @@ MC_HD static inline int hs_try_one(HS_W *w, HsState *st, int hs_type,
     yaw = jrand_float(&st->world_rand) * 360.0f; /* :154 */
     if (!hs_can_spawn_here(w, &er, hs_type, x, y, z, st))
         return 0;
-    hs_aabb_for(hs_type, px, py, pz, &x0, &y0, &z0, &x1, &y1, &z1);
+    hs_aabb_for(hs_type, 1, px, py, pz, &x0, &y0, &z0, &x1, &y1, &z1);
     if (!hs_not_colliding(w, x0, y0, z0, x1, y1, z1))
         return 0;
-    hs_on_initial_spawn(hs_type, &st->world_rand, &er, &have, &gauss,
-                        st->difficulty, st->world_time, livingdata, first_in_pack);
+    extra = hs_on_initial_spawn(hs_type, &st->world_rand, &er, &have, &gauss,
+                                st->difficulty, st->world_time, livingdata, first_in_pack);
+    if (hs_type == HS_SLIME && extra > 0)
+        hs_aabb_for(hs_type, extra, px, py, pz, &x0, &y0, &z0, &x1, &y1, &z1);
     if (!hs_not_colliding(w, x0, y0, z0, x1, y1, z1))
         return 0;
     if (!hs_is_roster(hs_type))
@@ -588,7 +652,7 @@ MC_HD static inline int hs_try_one(HS_W *w, HsState *st, int hs_type,
     if (HS_HOSTILE_COUNT(w) >= HS_TABLE_CAP)
         return 0;                             /* magma/blaze shared cap */
     ew = hs_to_ew(hs_type);
-    return HS_PLACE(w, ew, px, py, pz, yaw, er.seed, have, gauss, 0);
+    return HS_PLACE(w, ew, px, py, pz, yaw, er.seed, have, gauss, extra);
 }
 
 MC_HD static inline void hs_shuffle_chunks(JavaRandom *r, int *cx, int *cz, int n) {

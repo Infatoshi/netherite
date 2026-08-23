@@ -37,6 +37,7 @@ typedef struct {
     int   jumpTicks;
     int   isSprinting;
     int   isServerWorld;        /* super.isServerWorld() && !isAIDisabled(): NoAI gate */
+    int   onLadder;             /* EntityLivingBase.isOnLadder; spider = besideClimbableBlock */
 } EbLiving;
 
 /* EntityLivingBase.jump (1905-1921). getJumpUpwardsMotion()=0.42F; JUMP_BOOST omitted. */
@@ -68,8 +69,27 @@ MC_HD static inline void elb_move_with_heading(EbLiving *e, float strafe, float 
     /* f6 re-read after moveRelative but before move(): posX/posZ unchanged -> same block. */
     f6 = onGround ? (ground_slip * 0.91F) : 0.91F;
 
+    /* EntityLivingBase.moveEntityWithHeading isOnLadder clamp
+     * EntityLivingBase.java:2047-2067. Spider isOnLadder is
+     * isBesideClimbableBlock (EntitySpider.java:137-140). */
+    if (e->onLadder) {
+        e->base.phys.motionX = pcf_clampd(e->base.phys.motionX,
+                                          -0.15000000596046448,
+                                          0.15000000596046448);
+        e->base.phys.motionZ = pcf_clampd(e->base.phys.motionZ,
+                                          -0.15000000596046448,
+                                          0.15000000596046448);
+        e->base.fallDistance = 0.0F;
+        if (e->base.phys.motionY < -0.15)
+            e->base.phys.motionY = -0.15;
+    }
+
     eb_move(&e->base, e->base.phys.motionX, e->base.phys.motionY, e->base.phys.motionZ,
             blocks, nblocks);
+
+    /* EntityLivingBase.java:2069-2071: collidedHorizontally && isOnLadder -> motionY=0.2D */
+    if (e->base.phys.collidedHorizontally && e->onLadder)
+        e->base.phys.motionY = 0.2;
 
     /* no levitation potion: apply gravity then drag */
     if (!e->base.hasNoGravity)
@@ -155,6 +175,7 @@ MC_HD static inline void elb_init(EbLiving *e, float width, float height,
     e->jumpTicks = 0;
     e->isSprinting = 0;
     e->isServerWorld = 1;             /* AI-enabled mob on the server */
+    e->onLadder = 0;
 }
 
 #endif /* MC_LIVING_BASE_H */

@@ -582,9 +582,13 @@ int main(int argc, char **argv) {
     CHECK(smalls>=2,"magma size-2 death splits into two size-1 cubes");
     gm_runtime_destroy(&r);
 
-    /* Slime: size-1 drop slime ball. */
+    /* Slime: size-1 drop slime ball. EntityLiving.dropFewItems nextInt(3). */
     if(!init_flat(&r))return 1;
-    CHECK(gm_mobs_spawn_sized(&r.mobs,GM_MOB_SLIME,8.5,5.0,10.5,1)>=0,"spawn size-1 slime");
+    {
+        int slot=gm_mobs_spawn_sized(&r.mobs,GM_MOB_SLIME,8.5,5.0,10.5,1);
+        CHECK(slot>=0,"spawn size-1 slime");
+        r.mobs.ent_jr_seed[slot]=1; /* nextInt(3) > 0 at this cursor */
+    }
     CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,2.0,100.0f,&r.entities),
           "slime takes lethal damage");
     int ball=0;for(int i=0;i<GM_LIVE_MAX;++i)

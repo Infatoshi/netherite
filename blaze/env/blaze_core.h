@@ -895,10 +895,6 @@ MC_HD static inline void cu_try_pickup_arrow(Blaze *e, int index) {
     if (flag) p->active = 0;
 }
 
-#define ML_W Blaze
-#define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
-#include "hostile_live.h"
-
 MC_HD static inline int cu_world_sky(const Blaze *e, int wx, int wy, int wz) {
     long i = cu_region_idx(e, wx, wy, wz);
     if (i < 0 || !e->light) return 15;
@@ -909,6 +905,13 @@ MC_HD static inline int cu_world_blk(const Blaze *e, int wx, int wy, int wz) {
     if (i < 0 || !e->light) return 0;
     return (int)(e->light[i] & 15);
 }
+
+#define ML_W Blaze
+#define ML_BLOCK(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define ML_SKY(w, x, y, z) cu_world_sky((w), (x), (y), (z))
+#define ML_BLK(w, x, y, z) cu_world_blk((w), (x), (y), (z))
+#include "hostile_live.h"
+
 MC_HD static inline int cu_hs_count(const Blaze *e) {
     unsigned i;
     int n = 0;
@@ -973,7 +976,7 @@ MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, doub
     if (id < 1) id = 1;
     o = &e->mobs[e->n_mobs];
     memset(o, 0, sizeof *o);
-    ehs_size((u8)type, &w, &h);
+    ehs_size_scaled((u8)type, extra, &w, &h);
     o->slot = slot;
     o->id = id;
     o->type = type;
@@ -983,7 +986,7 @@ MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, doub
     o->y = y;
     o->z = z;
     o->yaw = yaw;
-    o->health = ehs_max_health((u8)type);
+    o->health = ehs_max_health_of((u8)type, extra);
     o->swell = extra;
     o->on_ground = 1;
     o->wander_x = x;
@@ -1016,8 +1019,12 @@ MC_HD static inline int cu_hs_place(Blaze *e, int type, double x, double y, doub
     cu_hs_place((e), (type), (x), (y), (z), (yaw), (seed48), (have_g), (g), (extra))
 #define HS_CREATURE_COUNT(e) cu_ps_count(e)
 #include "hostile_spawn.h"
+#ifndef ML_SKY
 #define ML_SKY(e, x, y, z) cu_world_sky((e), (x), (y), (z))
+#endif
+#ifndef ML_BLK
 #define ML_BLK(e, x, y, z) cu_world_blk((e), (x), (y), (z))
+#endif
 #include "passive_live.h"
 
 MC_HD static inline void cu_hs_run(Blaze *e) {
@@ -1372,9 +1379,62 @@ MC_HD static inline void cu_spawn_xp(Blaze *e, double x, double y, double z, int
     }
 }
 
+MC_HD static inline void cu_slime_split(Blaze *e, const RlSnapMob *dead, JavaRandom *er) {
+    int sz, child, n, k;
+    if (!e || !dead || !er) return;
+    sz = ml_slime_size(dead);
+    if (sz <= 1) return;
+    child = sz / 2;
+    n = ml_slime_split_n(er);
+    for (k = 0; k < n; ++k) {
+        float ox, oz, yaw;
+        ml_slime_split_off(k, sz, &ox, &oz);
+        yaw = jrand_float(er) * 360.0f;
+        if (e->n_mobs >= BLAZE_SNAP_MAX_MOBS)
+            continue;
+        (void)cu_hs_place(e, EW_TYPE_SLIME,
+                          dead->x + (double)ox, dead->y + 0.5, dead->z + (double)oz,
+                          yaw, er->seed, 0, 0.0, child);
+    }
+}
+
 MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
     int item;
     if (!e || !m) return;
+    if (m->type == EW_TYPE_SPIDER) {
+        JavaRandom er;
+        MlDrop drops[2];
+        int n, i, xp;
+        er.seed = m->seed48;
+        n = ml_spider_drop(&er, 1, drops, 2);
+        xp = ml_xp_points(EW_TYPE_SPIDER, 0);
+        m->seed48 = er.seed;
+        for (i = 0; i < n; ++i)
+            cu_spawn_item(e, m->x, m->y + 0.25, m->z,
+                          drops[i].item, drops[i].count, drops[i].meta, 10);
+        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
+        m->alive = 0;
+        m->type = EW_TYPE_NONE;
+        return;
+    }
+    if (m->type == EW_TYPE_SLIME) {
+        JavaRandom er;
+        MlDrop drops[1];
+        int n, sz, xp;
+        er.seed = m->seed48;
+        sz = ml_slime_size(m);
+        n = ml_slime_drop(&er, sz, drops, 1);
+        xp = ml_xp_points(EW_TYPE_SLIME, sz);
+        if (sz > 1) cu_slime_split(e, m, &er);
+        m->seed48 = er.seed;
+        if (n > 0)
+            cu_spawn_item(e, m->x, m->y + 0.25, m->z,
+                          drops[0].item, drops[0].count, drops[0].meta, 10);
+        cu_spawn_xp(e, m->x, m->y + 0.25, m->z, xp);
+        m->alive = 0;
+        m->type = EW_TYPE_NONE;
+        return;
+    }
     if (pl_is_roster(m->type)) {
         JavaRandom er;
         PlDrop drops[4];

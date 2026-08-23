@@ -1,4 +1,4 @@
-/* hostile_live.h - magma live hostile tick subset (zombie/skeleton/creeper).
+/* hostile_live.h - magma live hostile tick subset (zombie/skeleton/creeper/spider/slime).
  *
  * Magma magma/game/mob_live.c and blaze-CPU/CUDA compile this one source.
  * Magma wrappers stay thin; do not re-derive gm_mobs_tick.
@@ -9,6 +9,36 @@
  *   EntityZombie.applyEntityAttributes     EntityZombie.java:97-105
  *     FOLLOW_RANGE 35, MOVEMENT_SPEED 0.23000000417232513, ATTACK_DAMAGE 3
  *   EntityZombie.attackEntityAsMob         EntityZombie.java:314-328
+ *   EntitySpider.setSize 1.4x0.9           EntitySpider.java:45
+ *   EntitySpider MAX_HEALTH 16 / SPEED 0.30000001192092896
+ *                                          EntitySpider.java:104-105
+ *   EntitySpider ATTACK_DAMAGE default 2   SharedMonsterAttributes.java:23
+ *     (applyEntityAttributes does not set ATTACK_DAMAGE)
+ *   EntitySpider.onUpdate climbing         EntitySpider.java:91-98
+ *     setBesideClimbableBlock(isCollidedHorizontally)
+ *   EntitySpider.isOnLadder                EntitySpider.java:137-140
+ *   EntityLivingBase.travel ladder clamp   EntityLivingBase.java:2047-2071
+ *   EntitySpider does NOT override fall; EntityLivingBase.fall applies
+ *                                          EntityLivingBase.java:1389-1422
+ *   EntitySpider.AISpiderAttack continue   EntitySpider.java:247-260
+ *     brightness>=0.5F && nextInt(100)==0 -> drop target
+ *   EntitySpider.AISpiderTarget shouldExec EntitySpider.java:278-282
+ *     brightness>=0.5F -> do not start
+ *   EntitySpider.dropFewItems (1.8 / loot-table counts at looting 0)
+ *     string nextInt(3)=0..2; spider eye 1/3 if player kill
+ *   EntityMob.experienceValue 5            EntityMob.java:27
+ *   EntitySpider.onInitialSpawn jockey     EntitySpider.java:200-207
+ *     world.rand.nextInt(100)==0; rider is not representable, draw consumed
+ *   EntitySpider.GroupData potion HARD     EntitySpider.java:213-216
+ *   EntitySlime.setSlimeSize               EntitySlime.java:69-83
+ *   EntitySlime.onInitialSpawn size        EntitySlime.java:406-415
+ *   EntitySlime hop / SlimeMoveHelper      EntitySlime.java:574-646
+ *   EntitySlime.canDamagePlayer size>1     EntitySlime.java:293-296
+ *   EntitySlime.getAttackStrength = size   EntitySlime.java:301-304
+ *   EntitySlime.setDead split              EntitySlime.java:217-247
+ *   EntitySlime.getDropItem slimeball sz=1 EntitySlime.java:322-324
+ *     EntityLiving.dropFewItems nextInt(3) EntityLiving.java:382-397
+ *   EntitySlime.experienceValue = size     EntitySlime.java:82
  *   AbstractSkeleton.initEntityAI          AbstractSkeleton.java:79-91
  *   AbstractSkeleton.applyEntityAttributes AbstractSkeleton.java:93-97
  *     MOVEMENT_SPEED 0.25
@@ -77,6 +107,7 @@
  * then weapon; magma generic skeleton is 4 (melee_damage default). */
 MC_HD static inline float ml_melee_damage(int type) {
     if (type == EW_TYPE_ZOMBIE) return 3.0f;          /* EntityZombie.java:102 */
+    if (type == EW_TYPE_SPIDER) return 2.0f;          /* SharedMonsterAttributes.java:23 */
     if (type == EW_TYPE_SKELETON) return 4.0f;
     if (type == EW_TYPE_CREEPER) return 4.0f;
     if (type == EW_TYPE_ENDERMAN) return 7.0f;
@@ -96,17 +127,134 @@ MC_HD static inline int ml_attack_cooldown(int type) {
     return 20;                                        /* EntityAIAttackMelee.java:27 */
 }
 
-/* Item ids: EntityZombie rotten flesh 367, skeleton bone 352, creeper gunpowder 289. */
+/* Item ids: EntityZombie rotten flesh 367, skeleton bone 352, creeper gunpowder 289,
+ * spider string 287 / eye 375, slimeball 341. */
+#define ML_ITEM_STRING 287
+#define ML_ITEM_SPIDER_EYE 375
+#define ML_ITEM_SLIME_BALL 341
+
 MC_HD static inline int ml_drop_item(int type) {
     if (type == EW_TYPE_ZOMBIE) return 367;
     if (type == EW_TYPE_SKELETON) return 352;
     if (type == EW_TYPE_CREEPER) return 289;
+    if (type == EW_TYPE_SPIDER) return ML_ITEM_STRING;
+    if (type == EW_TYPE_SLIME) return ML_ITEM_SLIME_BALL;
     return 0;
 }
 
 MC_HD static inline int ml_is_roster(int type) {
     return type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON
-        || type == EW_TYPE_CREEPER;
+        || type == EW_TYPE_CREEPER || type == EW_TYPE_SPIDER
+        || type == EW_TYPE_SLIME;
+}
+
+MC_HD static inline int ml_is_slimey(int type) {
+    return type == EW_TYPE_SLIME || type == EW_TYPE_MAGMA;
+}
+
+/* Packed into existing RlSnapMob fields so MBM1 / 544-byte layout stays:
+ *   slime size        swell
+ *   slime jumpDelay   melee_delay
+ *   slime wasOnGround see_time
+ *   spider climbing   anger bit 0 */
+MC_HD static inline int ml_slime_size(const RlSnapMob *s) {
+    if (!s || !ml_is_slimey(s->type)) return 1;
+    return s->swell > 0 ? s->swell : 1;
+}
+
+MC_HD static inline void ml_set_slime_size(RlSnapMob *s, int size) {
+    if (!s) return;
+    if (size < 1) size = 1;
+    s->swell = size;
+}
+
+MC_HD static inline int ml_spider_climbing(const RlSnapMob *s) {
+    return s && s->type == EW_TYPE_SPIDER && (s->anger & 1);
+}
+
+MC_HD static inline void ml_spider_set_climbing(RlSnapMob *s, int v) {
+    if (!s) return;
+    if (v) s->anger |= 1;
+    else s->anger &= ~1;
+}
+
+/* WorldProvider.generateLightBrightnessTable overworld (WorldProvider.java:56-64):
+ * f=0 so (1-f1)/(f1*3+1) with f1=1-light/15. Light 12 is exactly 0.5F. */
+MC_HD static inline float ml_light_brightness(int light) {
+    float f1;
+    if (light < 0) light = 0;
+    if (light > 15) light = 15;
+    f1 = 1.0f - (float)light / 15.0f;
+    return (1.0f - f1) / (f1 * 3.0f + 1.0f);
+}
+
+typedef struct {
+    int item, count, meta;
+} MlDrop;
+
+/* 1.8 EntitySpider.dropFewItems / loot ENTITIES_SPIDER at looting 0:
+ * string this.rand.nextInt(2 + looting) -> nextInt(3) = 0..2;
+ * if player kill: nextInt(3)==0 drops eye, else nextInt(1+looting)>0
+ * (looting 0: nextInt(1) is 0, always false; Java || short-circuits). */
+MC_HD static inline int ml_spider_drop(JavaRandom *er, int player_kill,
+                                       MlDrop *out, int cap) {
+    int n = 0, str, a;
+    if (!er || !out || cap <= 0) return 0;
+    str = jrand_int_bound(er, 3);
+    if (str > 0 && n < cap) {
+        out[n].item = ML_ITEM_STRING;
+        out[n].count = str;
+        out[n].meta = 0;
+        ++n;
+    }
+    if (player_kill) {
+        a = jrand_int_bound(er, 3);
+        if (a == 0) {
+            if (n < cap) {
+                out[n].item = ML_ITEM_SPIDER_EYE;
+                out[n].count = 1;
+                out[n].meta = 0;
+                ++n;
+            }
+        } else {
+            (void)jrand_int_bound(er, 1); /* looting 0: always 0, never >0 */
+        }
+    }
+    return n;
+}
+
+/* EntityLiving.dropFewItems EntityLiving.java:382-397 when getDropItem is slimeball. */
+MC_HD static inline int ml_slime_drop(JavaRandom *er, int size,
+                                      MlDrop *out, int cap) {
+    int n, c;
+    if (!er || !out || cap <= 0) return 0;
+    if (size != 1) return 0;                  /* EntitySlime.java:322-324 */
+    n = 0;
+    c = jrand_int_bound(er, 3);
+    if (c > 0) {
+        out[0].item = ML_ITEM_SLIME_BALL;
+        out[0].count = c;
+        out[0].meta = 0;
+        n = 1;
+    }
+    return n;
+}
+
+MC_HD static inline int ml_xp_points(int type, int slime_size) {
+    if (type == EW_TYPE_SLIME) return slime_size > 0 ? slime_size : 1;
+    if (type == EW_TYPE_SPIDER) return 5;     /* EntityMob.java:27 */
+    return 5;
+}
+
+/* EntitySlime.setDead EntitySlime.java:223,227-228. */
+MC_HD static inline int ml_slime_split_n(JavaRandom *er) {
+    if (!er) return 2;
+    return 2 + jrand_int_bound(er, 3);
+}
+
+MC_HD static inline void ml_slime_split_off(int i, int size, float *ox, float *oz) {
+    *ox = ((float)(i % 2) - 0.5f) * (float)size / 4.0f;
+    *oz = ((float)(i / 2) - 0.5f) * (float)size / 4.0f;
 }
 
 MC_HD static inline int ml_solid_id(int id) {
@@ -226,7 +374,7 @@ MC_HD static inline int ml_player_pick(const RlSnapMob *mobs, unsigned n,
         if (!m->alive || m->type == EW_TYPE_NONE || m->type == EW_TYPE_PLAYER
             || m->type == EW_TYPE_BOAT)
             continue;
-        ehs_size((u8)m->type, &width, &height);
+        ehs_size_scaled((u8)m->type, ml_slime_size(m), &width, &height);
         cx = m->x;
         cy = m->y + (double)height * 0.5;
         cz = m->z;
@@ -259,6 +407,27 @@ MC_HD static inline int ml_player_pick(const RlSnapMob *mobs, unsigned n,
 #ifndef ML_BLOCK
 #error "hostile_live.h world half requires ML_BLOCK(w,x,y,z)"
 #endif
+#ifndef ML_SKY
+#define ML_SKY(w, x, y, z) 0
+#endif
+#ifndef ML_BLK
+#define ML_BLK(w, x, y, z) 0
+#endif
+
+MC_HD static inline float ml_entity_brightness(ML_W *w, double x, double y, double z,
+                                               float eye) {
+    int lx = mc_floor(x);
+    int ly = mc_floor(y + (double)eye);
+    int lz = mc_floor(z);
+    int sky = ML_SKY(w, lx, ly, lz);
+    int blk = ML_BLK(w, lx, ly, lz);
+    int light = blk > sky ? blk : sky;
+    return ml_light_brightness(light);
+}
+
+MC_HD static inline int ml_block_is_fluid(int id) {
+    return id == 8 || id == 9 || id == 10 || id == 11;
+}
 
 MC_HD static inline int ml_los_clear(ML_W *w, double x0, double y0, double z0,
                                      double x1, double y1, double z1) {
@@ -367,7 +536,123 @@ typedef struct {
     int skel_fire;
 } MlAiOut;
 
-/* Generic (det_entity_rng off) hostile body for zombie/skeleton/creeper.
+/* EntitySlime hop + attack. Magma extra: no EntityAITasks mutex
+ * (GPU_MOB_AI.md). Float (water) beats hop; Attack faces the player and
+ * sets aggressive jumpDelay/3; FaceRandom consumes the cited draws when
+ * idle. SlimeMoveHelper EntitySlime.java:600-646. */
+MC_HD static inline void ml_slime_ai(MlMob *m, ML_W *w,
+                                     double px, double py, double pz,
+                                     MlAiOut *out) {
+    RlSnapMob *s;
+    JavaRandom er;
+    int size, was, on, jump_delay, aggressive, moving, jump;
+    int in_fluid, can_dmg, see;
+    double dx, dy, dz, d;
+    float mw, mh;
+    int feet, k;
+    if (out) {
+        out->moving = 0;
+        out->jump = 0;
+        out->wandering = 0;
+        out->hit_player = 0;
+        out->hit_dmg = 0.0f;
+        out->skel_fire = 0;
+    }
+    if (!m || !m->snap.alive) return;
+    s = &m->snap;
+    size = ml_slime_size(s);
+    ehs_size_scaled((u8)s->type, size, &mw, &mh);
+    er.seed = s->seed48;
+    was = s->see_time ? 1 : 0;
+    on = s->on_ground ? 1 : 0;
+    jump_delay = s->melee_delay;
+    moving = 0;
+    jump = 0;
+    aggressive = 0;
+    see = 0;
+    /* EntitySlime.onUpdate landing particles EntitySlime.java:149-167:
+     * size*8 pairs of nextFloat plus two nextFloat on the squish sound. */
+    if (on && !was) {
+        for (k = 0; k < size * 8; ++k) {
+            (void)jrand_float(&er);
+            (void)jrand_float(&er);
+        }
+        (void)jrand_float(&er);
+        (void)jrand_float(&er);
+    }
+    s->see_time = on;
+    feet = ML_BLOCK(w, mc_floor(s->x), mc_floor(s->y), mc_floor(s->z));
+    in_fluid = ml_block_is_fluid(feet);
+    dx = px - s->x;
+    dy = py - s->y;
+    dz = pz - s->z;
+    d = sqrt(dx * dx + dy * dy + dz * dz);
+    can_dmg = size > 1;                       /* EntitySlime.java:293-296 */
+    if (can_dmg && d <= ml_follow_range(s->type))
+        see = ml_los_clear(w, s->x, s->y + (double)mh * 0.85, s->z,
+                           px, py + ML_EYE_HEIGHT, pz);
+    if (in_fluid) {
+        /* AISlimeFloat.updateTask EntitySlime.java:536-544 */
+        if (jrand_float(&er) < 0.8f)
+            jump = 1;
+        moving = 1;
+        if (see)
+            s->yaw = ehs_yaw_toward(dx, dz);
+    } else {
+        if (see) {
+            s->yaw = ehs_yaw_toward(dx, dz);
+            aggressive = 1;                   /* setDirection(..., canDamagePlayer) */
+        } else if (on) {
+            /* AISlimeFaceRandom.updateTask EntitySlime.java:502-511 */
+            if (--s->stime <= 0) {
+                s->stime = 40 + jrand_int_bound(&er, 60);
+                s->yaw = (float)jrand_int_bound(&er, 360);
+            }
+        }
+        /* SlimeMoveHelper.onUpdateMoveHelper EntitySlime.java:614-644 */
+        if (on) {
+            if (--jump_delay <= 0) {
+                jump_delay = jrand_int_bound(&er, 20) + 10; /* getJumpDelay :186-188 */
+                if (aggressive)
+                    jump_delay /= 3;
+                jump = 1;
+                if (size > 0) {               /* makesSoundOnJump :385-388 */
+                    (void)jrand_float(&er);
+                    (void)jrand_float(&er);
+                }
+                moving = 1;
+            } else {
+                moving = 0;
+            }
+        } else {
+            moving = 1;
+        }
+    }
+    s->melee_delay = jump_delay;
+    if (see && can_dmg) {
+        double reach = 0.6 * (double)size;
+        if (d < reach) {
+            if (out) {
+                out->hit_player = 1;
+                out->hit_dmg = (float)size;   /* getAttackStrength :301-304 */
+            }
+        }
+    }
+    s->seed48 = er.seed;
+    s->target_idx = see ? 1 : 0;
+    s->task_bits = see ? (unsigned)EW_AI_ATTACK : (unsigned)EW_AI_IDLE;
+    s->wander_x = see ? px : s->x + sin((double)s->yaw * MC_PI / 180.0);
+    s->wander_z = see ? pz : s->z + cos((double)s->yaw * MC_PI / 180.0);
+    m->size = size;
+    (void)dy;
+    if (out) {
+        out->moving = moving;
+        out->jump = jump;
+        out->wandering = !see;
+    }
+}
+
+/* Generic (det_entity_rng off) hostile body for zombie/skeleton/creeper/spider.
  * Magma gm_mobs_tick inner branch, magma/game/mob_live.c. */
 MC_HD static inline void ml_hostile_ai(MlMob *m, ML_W *w,
                                        double px, double py, double pz,
@@ -389,16 +674,37 @@ MC_HD static inline void ml_hostile_ai(MlMob *m, ML_W *w,
     s = &m->snap;
     type = s->type;
     if (!ml_is_roster(type)) return;
+    if (type == EW_TYPE_SLIME) {
+        ml_slime_ai(m, w, px, py, pz, out);
+        return;
+    }
     (void)day;
     dx = px - s->x;
     dy = py - s->y;
     dz = pz - s->z;
     d = sqrt(dx * dx + dy * dy + dz * dz);
     xz = sqrt(dx * dx + dz * dz);
-    ehs_size((u8)type, &mw, &mh);
+    ehs_size_scaled((u8)type, ml_slime_size(s), &mw, &mh);
     if (d <= ml_follow_range(type))
         aggro = ml_los_clear(w, s->x, s->y + (double)mh * 0.85, s->z,
                              px, py + ML_EYE_HEIGHT, pz);
+    /* EntitySpider.AISpiderTarget shouldExecute EntitySpider.java:278-282:
+     * brightness>=0.5F -> do not start. AISpiderAttack.continueExecuting
+     * :247-260: brightness>=0.5F && nextInt(100)==0 drop target. */
+    if (type == EW_TYPE_SPIDER) {
+        float br = ml_entity_brightness(w, s->x, s->y, s->z, 0.65f);
+        if (br >= 0.5f) {
+            if (aggro && s->target_idx) {
+                JavaRandom er;
+                er.seed = s->seed48;
+                if (jrand_int_bound(&er, 100) == 0)
+                    aggro = 0;
+                s->seed48 = er.seed;
+            } else {
+                aggro = 0;
+            }
+        }
+    }
     if (aggro && type == EW_TYPE_SKELETON) {
         s->yaw = ehs_yaw_toward(dx, dz);
         if (xz < 6.0 && xz > 0.01) {
@@ -536,10 +842,24 @@ MC_HD static inline void ml_move_hostile(MlMob *m, ML_W *w, const McSinTable *st
     /* Generic path rebuilds AABB from pos (mob_live.c ehs_load_living). */
     ess_load_pose(&liv, s->type, s->x, s->y, s->z, s->mx, s->my, s->mz,
                   s->on_ground, intent.yaw, 0, 0, 0, 0, 0, 0, 0);
+    if (ml_is_slimey(s->type)) {
+        float sw, sh;
+        ehs_size_scaled((u8)s->type, ml_slime_size(s), &sw, &sh);
+        elb_init(&liv, sw, sh, s->x, s->y, s->z);
+        liv.base.phys.motionX = s->mx;
+        liv.base.phys.motionY = s->my;
+        liv.base.phys.motionZ = s->mz;
+        liv.base.phys.onGround = s->on_ground ? 1 : 0;
+        liv.base.rotationYaw = intent.yaw;
+        liv.isServerWorld = 1;
+    }
     liv.moveForward = intent.moveForward;
     liv.moveStrafing = intent.moveStrafing;
     liv.isJumping = intent.isJumping;
-    liv.landMovementFactor = ehs_land_speed((u8)s->type);
+    liv.landMovementFactor = ehs_land_speed_of((u8)s->type, ml_slime_size(s));
+    if (s->type == EW_TYPE_SLIME && !moving)
+        liv.landMovementFactor = 0.0f;
+    liv.onLadder = ml_spider_climbing(s) ? 1 : 0;
     ess_query_box(&liv, &q);
     x0 = mc_floor(q.minX) - 1; x1 = mc_floor(q.maxX) + 1;
     y0 = mc_floor(q.minY) - 1; y1 = mc_floor(q.maxY) + 1;
@@ -559,6 +879,10 @@ collected:
                      mc_floor(liv.base.phys.posZ));
     slip = ess_slip_on_ground(&liv, under);
     ess_tick_living(&liv, slip, blocks, n, st);
+    /* EntitySpider.onUpdate after super: setBesideClimbableBlock(collidedHorizontally)
+     * EntitySpider.java:91-98. Used next tick as isOnLadder. */
+    if (s->type == EW_TYPE_SPIDER)
+        ml_spider_set_climbing(s, liv.base.phys.collidedHorizontally);
     {
         /* Generic magma path does not refresh det_box (pai_det off). */
         unsigned char box_on = s->box_on;

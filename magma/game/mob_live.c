@@ -16,6 +16,8 @@
 
 #define ML_W GmWorld
 #define ML_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
+#define ML_SKY(w, x, y, z) gm_world_sky_light((w), (x), (y), (z))
+#define ML_BLK(w, x, y, z) gm_world_block_light((w), (x), (y), (z))
 #include "hostile_live.h"
 
 typedef struct {
@@ -87,7 +89,8 @@ static int gm_passive(int type){
     return type==EW_TYPE_SHEEP||type==EW_TYPE_PIG||type==EW_TYPE_COW||type==EW_TYPE_CHICKEN;
 }
 static int hai_ok(int type){
-    return type==EW_TYPE_ZOMBIE||type==EW_TYPE_SKELETON||type==EW_TYPE_CREEPER;
+    return type==EW_TYPE_ZOMBIE||type==EW_TYPE_SKELETON||type==EW_TYPE_CREEPER
+        ||type==EW_TYPE_SPIDER||type==EW_TYPE_SLIME;
 }
 static int gm_living(int type){
     return gm_hostile(type)||gm_passive(type)||type==EW_TYPE_BOAT;
@@ -383,6 +386,10 @@ static void ml_load_slot(MlMob *o, const GmMobLive *m, const EwStore *s, int i) 
     o->snap.wander_z = s->path_tz[i];
     o->snap.panic = (int)s->path_len[i];
     o->snap.box_on = m->det_box_on[i];
+    o->snap.melee_delay = m->det_melee_delay[i];
+    o->snap.see_time = m->det_see_time[i];
+    o->snap.stime = m->det_strafe_time[i];
+    o->snap.anger = m->anger[i];
     o->repath_timer = s->repath_timer[i];
     o->despawn_ticks = m->entity_age[i];
     o->fire_ticks = m->fire_ticks[i];
@@ -391,6 +398,12 @@ static void ml_load_slot(MlMob *o, const GmMobLive *m, const EwStore *s, int i) 
     o->snap.seed48 = m->ent_jr_seed[i];
     o->snap.have_gauss = m->ent_jr_have_gauss[i];
     o->snap.gauss = m->ent_jr_gauss[i];
+    if (gm_is_slimey(s->type[i])) {
+        if (o->size < 1) o->size = 2;
+        o->snap.swell = o->size;
+        o->snap.melee_delay = m->jump_delay[i];
+        o->snap.see_time = m->was_on_ground[i];
+    }
 }
 
 static void ml_save_slot(GmMobLive *m, EwStore *s, int i, const MlMob *o) {
@@ -419,12 +432,21 @@ static void ml_save_slot(GmMobLive *m, EwStore *s, int i, const MlMob *o) {
     m->passive_tasks[i] = p->task_bits;
     m->passive_idle_x[i] = p->wander_x;
     m->passive_idle_z[i] = p->wander_z;
+    m->det_melee_delay[i] = p->melee_delay;
+    m->det_see_time[i] = p->see_time;
+    m->det_strafe_time[i] = p->stime;
+    m->anger[i] = p->anger;
     m->despawn_ticks[i] = o->despawn_ticks;
     m->entity_age[i] = o->despawn_ticks;
     m->ent_jr_seed[i] = o->snap.seed48;
     m->ent_jr_have_gauss[i] = o->snap.have_gauss;
     m->ent_jr_gauss[i] = o->snap.gauss;
     m->fire_ticks[i] = o->fire_ticks;
+    if (gm_is_slimey(p->type)) {
+        m->size[i] = (unsigned char)(p->swell > 0 ? p->swell : 1);
+        m->jump_delay[i] = p->melee_delay;
+        m->was_on_ground[i] = (unsigned char)(p->see_time ? 1 : 0);
+    }
 }
 
 static int wander_ground_y(GmWorld *w, int x, int y0, int z) {
@@ -2257,21 +2279,30 @@ static void damage_held_weapon(PsvPlayer *p){
     else{held.meta=tool.damage;isr_set_stack(&p->inv,slot,held);}
 }
 
-static void slime_split(GmMobLive *m, EwStore *s, int i) {
+/* EntitySlime.setDead EntitySlime.java:217-247. Table cap is the shared
+ * magma/blaze cap: skip remaining inserts, still consume yaw draws. */
+static void slime_split(GmMobLive *m, EwStore *s, int i, JavaRandom *er) {
     int sz = m->size[i];
-    if (sz <= 1) return;
-    int child = sz / 2;
-    for (int k = 0; k < 2; ++k) {
-        u64 h = mc_hash_seed((u64)m->seed, m->tick, i, k, s->id[i], 0x53504C54u);
-        double ox = ((double)mc_hash_bound(h, 1000) / 1000.0 - 0.5) * (double)sz * 0.5;
-        double oz = ((double)mc_hash_bound(mc_hash64(h), 1000) / 1000.0 - 0.5) * (double)sz * 0.5;
-        int slot = ew_store_spawn(s, s->type[i], m->next_id++,
-                                  s->x[i] + ox, s->y[i] + 0.5, s->z[i] + oz,
-                                  max_health(s->type[i], child));
-        if (slot < 0) break;
+    int child, n, k;
+    if (sz <= 1 || !er) return;
+    child = sz / 2;
+    n = ml_slime_split_n(er);
+    for (k = 0; k < n; ++k) {
+        float ox, oz, yaw;
+        int slot;
+        ml_slime_split_off(k, sz, &ox, &oz);
+        yaw = jrand_float(er) * 360.0f;
+        slot = ew_store_spawn(s, s->type[i], m->next_id++,
+                              s->x[i] + (double)ox, s->y[i] + 0.5, s->z[i] + (double)oz,
+                              max_health(s->type[i], child));
+        if (slot < 0) continue;
         m->entity_dimension[slot]=m->entity_dimension[i];
         m->size[slot] = (unsigned char)child;
+        m->creeper_fuse[slot] = child;
+        s->yaw[slot] = yaw;
         reset_slot_state_s(m, s, slot);
+        m->size[slot] = (unsigned char)child;
+        m->creeper_fuse[slot] = child;
     }
 }
 
@@ -2288,7 +2319,20 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
             gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i], 263, 1, 0, 10);
         break;
     case EW_TYPE_CREEPER: item = 289; break;
-    case EW_TYPE_SPIDER: item = 287; break;
+    case EW_TYPE_SPIDER: {
+        JavaRandom er;
+        MlDrop pd[2];
+        int nd, di;
+        er.seed = m->ent_jr_seed[i];
+        nd = ml_spider_drop(&er, 1, pd, 2);
+        xp = 5;
+        m->ent_jr_seed[i] = er.seed;
+        for (di = 0; di < nd; ++di)
+            gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i],
+                               pd[di].item, pd[di].count, pd[di].meta, 10);
+        item = 0;
+        break;
+    }
     case EW_TYPE_ENDERMAN:
         if ((mc_hash64((u64)m->seed ^ (u64)s->id[i]) & 1ULL) != 0) item = 368;
         break;
@@ -2309,13 +2353,29 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
         if (m->size[i] > 1 &&
             (mc_hash64((u64)m->seed ^ (u64)s->id[i]) & 1ULL) != 0) item = 378;
         xp = m->size[i];
-        slime_split(m, s, i);
+        {
+            JavaRandom er;
+            er.seed = m->ent_jr_seed[i];
+            slime_split(m, s, i, &er);
+            m->ent_jr_seed[i] = er.seed;
+        }
         break;
-    case EW_TYPE_SLIME:
-        if (m->size[i] == 1) item = 341; /* slime ball */
-        xp = m->size[i];
-        slime_split(m, s, i);
+    case EW_TYPE_SLIME: {
+        JavaRandom er;
+        MlDrop pd[1];
+        int nd, sz;
+        er.seed = m->ent_jr_seed[i];
+        sz = m->size[i] > 0 ? (int)m->size[i] : 1;
+        nd = ml_slime_drop(&er, sz, pd, 1);
+        xp = sz;
+        if (sz > 1) slime_split(m, s, i, &er);
+        m->ent_jr_seed[i] = er.seed;
+        if (nd > 0)
+            gm_live_spawn_item(drops, s->x[i], s->y[i] + 0.25, s->z[i],
+                               pd[0].item, pd[0].count, pd[0].meta, 10);
+        item = 0;
         break;
+    }
     case EW_TYPE_SILVERFISH:
         item = 0; xp = 5; break;
     case EW_TYPE_SHEEP:
@@ -3079,10 +3139,16 @@ static int gm_hs_place(GmHsWorld *h, int type, double x, double y, double z,
     m = h->m;
     s = h->s;
     slot = ew_store_spawn(s, (u8)type, m->next_id++, x, y, z,
-                          ehs_max_health((u8)type));
+                          ehs_max_health_of((u8)type, extra));
     if (slot < 0) return 0;
     m->entity_dimension[slot] = (signed char)m->active_dimension;
     reset_slot_state_s(m, s, slot);
+    if (type == EW_TYPE_SLIME || type == EW_TYPE_MAGMA) {
+        int sz = extra > 0 ? extra : 2;
+        m->size[slot] = (unsigned char)sz;
+        m->creeper_fuse[slot] = sz;
+        s->health[slot] = ehs_max_health_of((u8)type, sz);
+    }
     s->yaw[slot] = yaw;
     s->cx[slot] = mc_floor(x) >> 4;
     s->cz[slot] = mc_floor(z) >> 4;
@@ -3109,6 +3175,15 @@ static int gm_hs_place(GmHsWorld *h, int type, double x, double y, double z,
     }
     if (type == EW_TYPE_SHEEP)
         m->creeper_fuse[slot] = extra; /* packed fleece + sheared */
+    if (type == EW_TYPE_SLIME || type == EW_TYPE_MAGMA) {
+        float bw, bh, hf;
+        int sz = extra > 0 ? extra : 2;
+        ehs_size_scaled((u8)type, sz, &bw, &bh);
+        hf = bw / 2.0f;
+        m->det_box[slot] = mc_aabb_make(x - (double)hf, y, z - (double)hf,
+                                        x + (double)hf, y + (double)bh, z + (double)hf);
+        m->det_box_on[slot] = 1;
+    }
     (void)extra;
     return 1;
 }
@@ -3408,6 +3483,12 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                                      &p->ent.motionZ, p->ent.onGround, 0.4f,
                                      d1, d0);
                 }
+            }
+            if (type == EW_TYPE_SPIDER || type == EW_TYPE_SLIME) {
+                ml_move_hostile(&mm, w, st, o.moving, o.jump);
+                ml_save_slot(m, nx, i, &mm);
+                m->panic_ticks[i] = mm.snap.panic;
+                continue;
             }
         }else if(pai_det() && hai_ok(type)){
             /* EntityAIAttackMelee.updateTask: lookHelper then tryMoveToEntityLiving
@@ -4009,6 +4090,12 @@ unsigned gm_mobs_export_snap(const GmMobLive *m, struct RlSnapMob *out,
         o->attack_time = s->attack_time[i];
         o->swell = m->creeper_fuse[i];
         o->anger = m->anger[i];
+        if (gm_is_slimey(o->type)) {
+            int sz = m->size[i] > 0 ? (int)m->size[i] : 2;
+            o->swell = sz;
+            o->melee_delay = m->jump_delay[i];
+            o->see_time = m->was_on_ground[i];
+        }
         for (p = 0; p < BLAZE_SNAP_PATH_CAP; ++p) {
             o->path_x[p] = m->det_nav_x[i][p];
             o->path_y[p] = m->det_nav_y[i][p];
@@ -4079,6 +4166,11 @@ void gm_mobs_import_snap(GmMobLive *m, const struct RlSnapMob *in, unsigned n) {
         m->det_bow_attack_time[i] = o->bow_attack_time;
         m->creeper_fuse[i] = o->swell;
         m->anger[i] = o->anger;
+        if (gm_is_slimey(o->type)) {
+            m->size[i] = (unsigned char)(o->swell > 0 ? o->swell : 1);
+            m->jump_delay[i] = o->melee_delay;
+            m->was_on_ground[i] = (unsigned char)(o->see_time ? 1 : 0);
+        }
         for (p = 0; p < BLAZE_SNAP_PATH_CAP; ++p) {
             m->det_nav_x[i][p] = o->path_x[p];
             m->det_nav_y[i][p] = o->path_y[p];
