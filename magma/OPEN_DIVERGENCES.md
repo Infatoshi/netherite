@@ -1522,16 +1522,10 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
    simplified 3-position ring; Java `MapGenStronghold` (128 strongholds,
    `getValidStrongholdGen` biome relocation) not ported. Eye-of-ender
    targets differ. L.
-2. Furnace registry: `blaze/core/smelting_recipes.h:35-68` item ids are
-   from the wrong registry (lava bucket 332 vs Java 327, fish 359 vs 349,
-   beef 373 vs 363, ...). Missing recipes, fuels, and XP per
-   `FurnaceRecipes.java` / `TileEntityFurnace.getItemBurnTime`. M. Lane
-   `furnaceids`.
-3. Buckets: `blaze/core/inventory_stack_rules.h:64-73` caps empty bucket at
-   1; Java `ItemBucket` empty bucket stacks to 16, filled to 1. Fill
-   replaces the stack in `magma/game/player_ctl.c:677-686`; Java decrements
-   and adds the filled bucket (`ItemBucket.fillBucket`). S. Lane
-   `furnaceids`.
+2. Furnace registry: CLOSED 2026-08-23 lane `furnaceids`. 51 recipes + fuel
+   table + XP from Java ids. See `CLOSED_DIVERGENCES.md`.
+3. Buckets: CLOSED 2026-08-23 lane `furnaceids`. Empty stack 16, fillBucket
+   shrink+add. See `CLOSED_DIVERGENCES.md`.
 4. Explosion residuals: creeper explosion uses Y+0.5 (`magma/game/
    mob_live.c:3564-3569`), no charged creeper (`EntityCreeper.getPowered`
    radius 6), `mobGriefing` only partly honored, `getBlockDensity` treats
@@ -1560,21 +1554,19 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
 10. Potion effects are render-only; no `PotionEffect.performEffect`
     tick. M.
 11. Shield: no `EntityPlayer.canBlockDamageSource` / `damageShield`. S.
-12. Food table incomplete and `ItemFood.onItemUseFinish` `rand.nextFloat`
-    draw (potion probability, `ItemFood.java:66`) not consumed. S.
+12. Food table + `ItemFood.onItemUseFinish` rand draws: CLOSED 2026-08-23
+    lane `furnaceids`. Potion *effects* still render-only (row 10).
 
-Silent deviations found (not yet measured by any gate): hotbar best-slot
-loop returns `current_item` unconditionally (`inventory_stack_rules.h:
-148-161` vs `InventoryPlayer.getBestHotbarSlot` unenchanted preference);
-fluids step synchronously instead of via scheduled ticks (`fluid_live.h`);
+Silent deviations found (not yet measured by any gate): fluids step
+synchronously instead of via scheduled ticks (`fluid_live.h`);
 block placement skips `mayPlace` (`ItemBlock.onItemUse`); light uses
 Jacobi sweeps, not Java's per-update queue timing; fixed caps (96
 entities, 48 items, 64 collision boxes) silently drop state; XP orb lava
-cut; wet sponge; stronghold iron bars where Java places doors; portal
+cut; stronghold iron bars where Java places doors; portal
 nearest-selection.
 
-Ungated systems: furnace, crafting with containers, beds, potions,
-shield, environmental damage, stronghold placement, hotbar selection.
+Ungated systems: crafting with containers, beds, potions,
+shield, environmental damage, stronghold placement.
 Tapes record player physics / inventory / ghost views / world hash only,
 so a rule that never moves the player or the hotbar is invisible to the
 replay gate; unit tests against Java-derived fixtures are the gate for

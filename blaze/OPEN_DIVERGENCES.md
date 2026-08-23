@@ -136,8 +136,9 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    M.
 10. TNT flint-and-steel activation missing in blaze (`blaze_core.h:
     2618-2711`); magma `player_ctl.c` ignites. S. Lane `tntsupport`.
-11. No furnaces matrix row. Coupling with magma sweep row 2. M. Lane
-    `furnaceids` adds the row.
+11. Furnaces matrix row: CLOSED 2026-08-23 lane `furnaceids`. `furnaces`
+    M1+M2 VERIFIED (223-tick coal+beef chain). Furnace TE still not in
+    `.bsnp` (row 4).
 12. Torch support check (`player_ctl.c:180-203`) missing in blaze
     (`blaze_core.h:2693-2711`): blaze places torches on air. S. Lane
     `tntsupport`.

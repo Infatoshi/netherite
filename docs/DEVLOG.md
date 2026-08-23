@@ -1,5 +1,44 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 furnace registry, buckets, food, hotbar (lane/furnaceids)
+
+Anvil. Sweep 2026-08-23 magma rows 2, 3, 12 and silent hotbar; blaze row 11.
+
+Baseline tapes (`replay_tape.py --cpu --no-gate --report`,
+`out/verify/furnaceids_baseline_*.log`): TNT both physics NO divergence 309,
+inventory 1-mismatch t=28 slot 0 flint-and-steel 259 tape meta 0 vs magma
+meta 1. creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2
+physics NO divergence through death (358 / 373), entities PASS. bow physics
+NO divergence 1407, entities PASS 5525. Canon physics NO divergence 3617,
+entities PASS 16526, world_hash first_mismatch null (c-only, 46 hash_deltas).
+Pixel `frames_checked=0` FATAL is `--no-gate` harness, not a parity verdict.
+
+Cause: `smelting_recipes.h` used the crafting_recipes registration-index
+shim (lava 332, fish 359, beef 373). Java `Item.java:1569` lava_bucket=327,
+`Item.java:1591` fish=349, `Item.java:1605` beef=363. Rebuild 51 recipes
+from `FurnaceRecipes.java:31-91` with XP and `TileEntityFurnace.getItemBurnTime:340-355`
+(script `verify/furnace_registry.py`). Lava fuel leaves empty bucket
+(`TileEntityFurnace.update:232-234`). Empty bucket max 16 (`Item.java:1566`);
+`fillBucket` (`ItemBucket.java:117-140`) shrinks and adds. Food table from
+`Item.java` ItemFood/ItemSoup/ItemAppleGold/ItemSeedFood/ItemFishFood;
+eat finish consumes World.rand burp (`ItemFood.java:55`) then potion
+(`:66`) if potionId set. Golden apple overrides onFoodEaten (no second
+draw). `getBestHotbarSlot` empty then unenchanted; subset has no ench flag.
+
+After: same tape numbers (`out/verify/furnaceids_after_*.log`). furnaces
+M1 VERIFIED 223 ticks t=0 digest `0xb9b23f3a46fd0825`
+(`out/verify/furnaceids_furnaces_m1_detail.log`). M2 VERIFIED
+(`out/verify/furnaceids_m2_all.log`). `--no-deps` M1 VERIFIED for furnaces,
+chests, mining_slice, spawn_to_torch, world_dynamics, fluids, entity_spine,
+random_ticks, random_ticks_bodies, falling_blocks, weather_optional,
+projectiles, explosions, mobs, mobs_ss, mobs_end, passives, xp_orbs, boats,
+elytra, biome_plane. M2 VERIFIED for those except mining_slice BLOCKED
+(`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS including
+`test_furnace_registry` 51 recipes (`out/verify/furnaceids_maketest.log`).
+Fixture `s10_t0_r64_furnaces.bsnp` baked by `test_furnaces --write-fixture`
+from `s10_t0_r64_no_liquid.bsnp`. Furnace TE still not in snapshot (no
+version bump). Did not touch mob or spawn code.
+
 ## 2026-08-23 biome plane snapshot v8 (lane/biomeplane)
 
 Anvil. Snapshot v8 carries one u8 per x,z column of the lockstep region (`ix*rnz+iz`). Magma `rl_snapshot_write` copies `LChunk.biome` (`magma/world/light.c:153`, index `(wx&15)+(wz&15)*16` = Java `Chunk.getBiome` `Chunk.java:1273-1278`). Magma load restores via `gm_world_set_biome`. Blaze env `biome[]` pool. v7 loads plains id 1 so old fixtures keep HS_BIOME/freeze plains semantics.
