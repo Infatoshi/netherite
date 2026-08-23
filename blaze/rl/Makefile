@@ -91,6 +91,7 @@ TEST_CHEST_BIN := $(OUT)/test_chests
 TEST_PROJ_BIN := $(OUT)/test_projectiles
 TEST_EXPL_BIN := $(OUT)/test_explosions
 TEST_MOBS_BIN := $(OUT)/test_mobs
+TEST_SKY_BIN := $(OUT)/test_skylight_water
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
 SAN_TEST_BIN := $(SAN_OUT)/test_train_config
@@ -103,7 +104,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-projectiles test-explosions test-mobs smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-projectiles test-explosions test-mobs test-skylight-water smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval
 
@@ -248,6 +249,29 @@ $(TEST_MOBS_BIN): $(ENV_SRC)/test_mobs.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+# Magma light.o graph matches magma/Makefile test-water-skylight.
+MAGMA := $(REPO)/magma
+SKY_MAGMA_OBJS := $(MAGMA)/world/mesh_mc.o $(MAGMA)/world/light.o \
+	$(MAGMA)/world/populate_mc.o $(MAGMA)/world/gen_prefetch.o \
+	$(MAGMA)/assets/blockmodels.o \
+	$(MAGMA)/renderkernels/rk_31_facebakery_make_quad.o \
+	$(MAGMA)/core/math.o $(MAGMA)/core/shade.o $(MAGMA)/core/config.o \
+	$(MAGMA)/game/caps.o
+$(TEST_SKY_BIN): $(ENV_SRC)/test_skylight_water.c \
+		$(ENV_SRC)/test_skylight_magma_oracle.c \
+		$(ENV_SRC)/blaze_core.h | $(OUT)
+	$(MAKE) -C $(MAGMA) world/light.o world/mesh_mc.o world/populate_mc.o \
+	    world/gen_prefetch.o assets/blockmodels.o \
+	    renderkernels/rk_31_facebakery_make_quad.o \
+	    core/math.o core/shade.o core/config.o game/caps.o
+	$(CC) $(ENV_CFLAGS) -c -o $(OUT)/test_skylight_water.o \
+	    $(CPPFLAGS) $(ENV_SRC)/test_skylight_water.c
+	$(CC) $(ENV_CFLAGS) -c -o $(OUT)/test_skylight_magma_oracle.o \
+	    -I$(MAGMA) -I$(MAGMA)/core -I$(CORE_SRC) \
+	    $(ENV_SRC)/test_skylight_magma_oracle.c
+	$(CC) $(ENV_CFLAGS) -o $@ $(OUT)/test_skylight_water.o \
+	    $(OUT)/test_skylight_magma_oracle.o $(SKY_MAGMA_OBJS) -lm
+
 ifeq ($(UNAME_S),Darwin)
 $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
 		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
@@ -281,7 +305,7 @@ test-chain: $(TEST_CHAIN_BIN)
 
 test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN) \
 		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN) \
-		$(TEST_MOBS_BIN)
+		$(TEST_MOBS_BIN) $(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -291,6 +315,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_projectiles
 	cd $(REPO) && ./out/blaze/rl/test_explosions
 	cd $(REPO) && ./out/blaze/rl/test_mobs
+	cd $(REPO) && ./out/blaze/rl/test_skylight_water
 
 test-entity-spine: $(TEST_SPINE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -311,6 +336,9 @@ test-explosions: $(TEST_EXPL_BIN)
 
 test-mobs: $(TEST_MOBS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_mobs
+
+test-skylight-water: $(TEST_SKY_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_skylight_water
 
 # Default smoke: committed ppo.conf (backend=cpu).
 smoke: smoke-cpu
