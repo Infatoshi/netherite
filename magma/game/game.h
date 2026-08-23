@@ -306,6 +306,7 @@ void      gm_world_load_block_meta(GmWorld *w, int wx, int wy, int wz, int id, i
 /* Restore a snapshot's saved skylight nibble (light_load_sky contract): call
  * after the bulk gm_world_load_block_meta batch has been relit, never before. */
 void      gm_world_load_sky_light(GmWorld *w, int wx, int wy, int wz, int sky);
+void      gm_world_load_block_light(GmWorld *w, int wx, int wy, int wz, int blk);
 /* Monotonic block-mutation counter; bumps on every set_block(_meta). Callers
  * holding a copied window (runtime physics window) refill when it changes. */
 long long gm_world_block_gen(const GmWorld *w);

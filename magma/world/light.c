@@ -815,6 +815,21 @@ void light_load_sky(CrLight *L, int wx, int wy, int wz, int sky) {
     L->skylight_dirty = 1;
 }
 
+/* Restore the packed block-light nibble from a snapshot. compute_blocklight
+ * zeros every loaded chunk then BFS from in-chunk emitters, so torch light
+ * that bled in from outside the snapshot AABB is lost. Blaze keeps the
+ * packed nibble (cu_world_blk). Do not raise blocklight_dirty: the next
+ * ensure would memset blk[] again. */
+void light_load_blk(CrLight *L, int wx, int wy, int wz, int blk) {
+    LChunk *c;
+    if (!L || wy < 0 || wy >= WY) return;
+    c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return;
+    if (blk < 0) blk = 0;
+    if (blk > 15) blk = 15;
+    c->blk[CB_INDEX(wx & 15, wy, wz & 15)] = (u8)blk;
+}
+
 void light_set_render_state(CrLight *L, int dimension,
                             float torch_flicker_x, float gamma) {
     if (!L) return;

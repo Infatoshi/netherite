@@ -643,6 +643,29 @@ int blaze_debug_state(void *vh, int env, double *out, int cap) {
     return blaze_debug_fill(&v->envs[env], out);
 }
 
+/* Harness-only live table dump (verify_cpu.py --dump-mobs). Not sim state. */
+int blaze_mobs_count(void *vh, int env) {
+    CuVec *v = (CuVec *)vh;
+    if (!v || env < 0 || env >= v->n) return -1;
+    return (int)v->envs[env].n_mobs;
+}
+
+int blaze_mobs_get(void *vh, int env, int i, int *slot, int *type, int *alive,
+                   double *x, double *y, double *z) {
+    CuVec *v = (CuVec *)vh;
+    const RlSnapMob *m;
+    if (!v || env < 0 || env >= v->n || i < 0) return -1;
+    if ((unsigned)i >= v->envs[env].n_mobs) return -1;
+    m = &v->envs[env].mobs[i];
+    if (slot) *slot = m->slot;
+    if (type) *type = m->type;
+    if (alive) *alive = m->alive;
+    if (x) *x = m->x;
+    if (y) *y = m->y;
+    if (z) *z = m->z;
+    return 0;
+}
+
 int blaze_parity_state(void *vh, int env, void *out) {
     CuVec *v = (CuVec *)vh;
     if (!v || env < 0 || env >= v->n || !out) return -1;

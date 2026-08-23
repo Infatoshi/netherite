@@ -620,6 +620,11 @@ void gm_world_load_sky_light(GmWorld *w, int wx, int wy, int wz, int sky) {
     light_load_sky(w->light, wx, wy, wz, sky);
 }
 
+void gm_world_load_block_light(GmWorld *w, int wx, int wy, int wz, int blk) {
+    if (!w) return;
+    light_load_blk(w->light, wx, wy, wz, blk);
+}
+
 long long gm_world_block_gen(const GmWorld *w) {
     /* fold in chunk generation: population (trees/structures) writes into
      * neighbour chunks directly, bypassing set_block_meta */

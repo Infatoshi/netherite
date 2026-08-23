@@ -1007,6 +1007,146 @@ subsystems:
       - --mobs-on
     timeout: 1500
 
+  - name: biome_plane_spawn
+    supported: true
+    sources:
+      magma: [magma/game/rl_mode.c, magma/game/mob_live.c, magma/world/light.c]
+      shared:
+        - blaze/env/blaze_snapshot.h
+        - blaze/core/hostile_spawn.h
+        - blaze/core/port_parity.h
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
+    dependencies: [biome_plane, mobs]
+    required_features: [random_ticks, mobs]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s7_t0_r64_biome_plane.bsnp
+        - blaze/rl/fixtures/biome_plane_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s7_t0_r64_biome_plane.bsnp
+        - blaze/rl/fixtures/biome_plane_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --chain-seed
+      - "7"
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s7_t0_r64_biome_plane.bsnp
+      - --tape
+      - blaze/rl/fixtures/biome_plane_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - random_ticks,mobs
+      - --mobs-on
+      - --natural-spawn
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --chain-seed
+      - "7"
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s7_t0_r64_biome_plane.bsnp
+      - --tape
+      - blaze/rl/fixtures/biome_plane_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - random_ticks,mobs
+      - --mobs-on
+      - --natural-spawn
+    timeout: 1500
+
+  - name: biome_plane_ice
+    supported: true
+    sources:
+      magma: [magma/game/rl_mode.c, magma/game/mob_live.c, magma/world/light.c]
+      shared:
+        - blaze/env/blaze_snapshot.h
+        - blaze/core/hostile_spawn.h
+        - blaze/core/port_parity.h
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
+    dependencies: [biome_plane_spawn]
+    required_features: [random_ticks, mobs]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s42_t0_r64_biome_plane_ice.bsnp
+        - blaze/rl/fixtures/biome_plane_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s42_t0_r64_biome_plane_ice.bsnp
+        - blaze/rl/fixtures/biome_plane_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --chain-seed
+      - "42"
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s42_t0_r64_biome_plane_ice.bsnp
+      - --tape
+      - blaze/rl/fixtures/biome_plane_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - random_ticks,mobs
+      - --mobs-on
+      - --natural-spawn
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --chain-seed
+      - "42"
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s42_t0_r64_biome_plane_ice.bsnp
+      - --tape
+      - blaze/rl/fixtures/biome_plane_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - random_ticks,mobs
+      - --mobs-on
+      - --natural-spawn
+    timeout: 1500
+
   - name: portals_dimensions
     supported: false
     sources:

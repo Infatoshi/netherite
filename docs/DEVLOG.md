@@ -1,5 +1,19 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 swamp/ice natural-spawn lockstep (lane/natspawn2)
+
+Anvil. Baseline swamp `--natural-spawn` M1 FAIL t=7 magma evidence 12 vs blaze 10 (`out/verify/natspawn2_swamp_baseline.log`). Magma 11 living vs blaze 9: first 7 match, then magma 4 zombies in a y=9 cave vs blaze 2. Fixture packed blight at those cells is 3-10; magma t=7 dump blight is 0.
+
+Cause: `compute_blocklight` (`magma/world/light.c:434-443`) memsets every loaded chunk then BFS from in-chunk emitters. Torch light that bled into the snapshot AABB from outside is lost. Blaze keeps the packed nibble (`cu_world_blk`, `blaze_core.h:939-942`). `EntityMob.isValidLightLevel` (`EntityMob.java:159-180`) uses combined sky+block light, so magma treated the cave as dark and spawned extra. Magma spawn now reads a snapshot `spawn_light` copy (`mob_live.c` `gm_hs_blk`) sticky like blaze. Also clip `HS_BIOME` OOR to plains 1 (`hs_biome_or_plains`, same shared deviation as `gm_world_rt_block` `world_live.c:705-708`; Java is biome at candidate BlockPos `WorldEntitySpawner.java:132-133` -> `WorldServer.java:245-249` -> `Chunk.getBiome` `Chunk.java:1273-1278`). Spawn lists: BiomeSwamp.java:34 appends slime weight 1 after witch (not combined 101 in the Biome.java slot); BiomeSnow.java:36-49 removes skeleton then appends skeleton 20 + stray 80; stray consume-then-skip, not roster.
+
+Ice plains fixture `s42_t0_r64_biome_plane_ice.bsnp` baked by `test_biome_plane --write-fixture --seed 42` from `s10_t0_r64_randtick_bodies.bsnp`. Genlayer: seed 42 player column biome 12, region 128x128 ice_cols=16384. New rows `biome_plane_spawn` (swamp seed 7 + `--natural-spawn`) and `biome_plane_ice` (seed 42); existing `biome_plane` stays the no-spawn plane-hash gate.
+
+M1+M2 VERIFIED for biome_plane_spawn and biome_plane_ice (`out/verify/natspawn2_biome_plane_spawn_m1.log`, `_m2.log`, `out/verify/natspawn2_biome_plane_ice_m1.log`, `_m2.log`). Listed `--no-deps` M1 stay VERIFIED; M2 stay VERIFIED except mining_slice BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing). Root `make test` PASS (`out/verify/natspawn2_maketest.log`). `make -C magma test-mob-live` PASS. `make -C blaze/rl test-biome-plane test-mobs` PASS.
+
+Tapes (`replay_tape.py --cpu --no-gate --report`): TNT both physics NO divergence 309, inventory 1-mismatch t=28 slot 0 flint-and-steel 259 tape meta 0 vs magma meta 1. creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09. smoke_zombie x2 physics NO divergence through death (358 / 373), entities PASS. bow physics NO divergence 1407, entities PASS 5525. Canon physics NO divergence 3617, entities PASS 16526, world_hash first_mismatch null, 46 c-side hash_deltas. First-divergence ticks did not move earlier.
+
+Stay out: tape-exact World.rand; stray live insert; PathNavigate A*. Did not add witch code.
+
 ## 2026-08-23 biome plane snapshot v8 (lane/biomeplane)
 
 Anvil. Snapshot v8 carries one u8 per x,z column of the lockstep region (`ix*rnz+iz`). Magma `rl_snapshot_write` copies `LChunk.biome` (`magma/world/light.c:153`, index `(wx&15)+(wz&15)*16` = Java `Chunk.getBiome` `Chunk.java:1273-1278`). Magma load restores via `gm_world_set_biome`. Blaze env `biome[]` pool. v7 loads plains id 1 so old fixtures keep HS_BIOME/freeze plains semantics.

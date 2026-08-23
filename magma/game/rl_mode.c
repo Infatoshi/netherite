@@ -1260,12 +1260,31 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
          * set column_relight_dirty): otherwise the next light_ensure rebuilds
          * Chunk.generateSkylightMap straight over the restored nibbles. */
         gm_world_ensure(r->world, ecx, ecz, erad);
+        {
+            long vol = (long)h.rnx * (long)h.rny * (long)h.rnz;
+            free(r->mobs.spawn_light);
+            r->mobs.spawn_light = (u8 *)malloc((size_t)vol);
+            if (r->mobs.spawn_light)
+                memcpy(r->mobs.spawn_light, light, (size_t)vol);
+        }
         for (x = 0; x < h.rnx; ++x)
             for (y = 0; y < h.rny; ++y)
-                for (z = 0; z < h.rnz; ++z)
+                for (z = 0; z < h.rnz; ++z) {
+                    u8 packed = light[((long)x * h.rny + y) * h.rnz + z];
                     gm_world_load_sky_light(
                         r->world, h.rx0 + x, h.ry0 + y, h.rz0 + z,
-                        light[((long)x * h.rny + y) * h.rnz + z] >> 4);
+                        packed >> 4);
+                    /* Packed (sky<<4)|block. compute_blocklight after the
+                     * bulk load zeros blight then BFS in-chunk emitters
+                     * only, so cave light that bled in from outside the
+                     * snapshot is lost. Restore the nibble like sky.
+                     * EntityMob.isValidLightLevel (EntityMob.java:159-180)
+                     * reads World.getLight (block+sky). Spawn uses
+                     * spawn_light (sticky like blaze cu_world_blk). */
+                    gm_world_load_block_light(
+                        r->world, h.rx0 + x, h.ry0 + y, h.rz0 + z,
+                        packed & 15);
+                }
         free(light);
         light = NULL;
     }
