@@ -1,5 +1,40 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 beds (lane/beds)
+
+Anvil. Sweep 2026-08-23 magma row 9.
+
+No bed/sleep tape. Unit tests are the gate. Parent-tree tape logs
+(`out/verify/beds_before_*.log` from expresid after on 1dc8427) match
+after (`out/verify/beds_after_*.log`): bow physics NO divergence 1407,
+entities PASS 5525. creeper_encounter FIRST DIVERGENCE t=76 y 2.1e-09
+(not earlier). smoke_zombie x2 physics NO divergence through death
+(358 / 373), entities PASS. TNT x2 physics NO divergence 309, inventory
+1 mismatch t=28 slot 0 item 259 tape_meta 0 magma_meta 1. Canon physics
+NO divergence 3617, entities PASS 16526. Pixel `frames_checked=0` FATAL
+is `--no-gate` harness.
+
+Cause: `gm_runtime_use_block` skipped the sleep SM and jumped
+`world_time` to the next 24000. Java `ItemBed.onItemUse`
+(`ItemBed.java:34-71`) is two-cell replaceable + `isFullyOpaque` below,
+facing UP, not `World.mayPlace`. `trySleep` (`EntityPlayer.java:1645-1707`)
+returns OTHER_PROBLEM / NOT_POSSIBLE_HERE / NOT_POSSIBLE_NOW /
+TOO_FAR_AWAY / NOT_SAFE then OK. Pose is `0.5F + dx*0.4F` and Y
+`+ 0.6875F` (`:1685-1688`). `sleepTimer` caps at 100 (`:232-234`);
+`isPlayerFullyAsleep` (`:1841-1843`). WorldServer skip
+(`WorldServer.java:195-196`) then `wakeAllPlayers` (`:287-302`) and
+`resetRainAndThunder` (`WorldProvider.java:584-589`). Sleep onUpdate is
+the Java updateEntities slot after WorldServer.tick. Spawn uses
+`getBedSpawnLocation` / `getSafeExitLocation` (`EntityPlayer.java:1779-1800`,
+`BlockBed.java:195-234`) with world-spawn fallback.
+
+After: `make -C magma test-beds` and `make -C blaze/rl test-beds` PASS.
+M1 `--no-deps` VERIFIED all listed rows including `weather_optional`
+(`out/verify/beds_m1.log`). M2 VERIFIED those except mining_slice
+BLOCKED (`out/verify/beds_m2.log`). Root `make test` PASS
+(`out/verify/beds_maketest.log`). RL has no sleep; skip=0 keeps
+`BP_WEATHER` equal. Stay out: snapshot sleep fields, potion/shield.
+
 ## 2026-08-23 explosion residuals (lane/expresid)
 
 Anvil. Sweep 2026-08-23 magma row 4.

@@ -1544,9 +1544,9 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
    order (Java: weather, updateBlocks(random ticks) per chunk, tile
    entities in `updateEntities` after entities, scheduled ticks before
    entities). M; coupling with every M1 row.
-9. Beds: `magma/game/runtime.c:2379-2387` skips the Java sleep state
-   machine (`EntityPlayer.trySleep`, `sleepTimer` 100, wake all players
-   check, spawn point set). M.
+9. Beds: CLOSED 2026-08-23 lane `beds`. ItemBed two-cell place, trySleep
+   reasons, sleepTimer 100, WorldServer time skip, spawn/safe exit.
+   See `CLOSED_DIVERGENCES.md`.
 10. Potion effects are render-only; no `PotionEffect.performEffect`
     tick. M.
 11. Shield: no `EntityPlayer.canBlockDamageSource` / `damageShield`. S.
@@ -1564,7 +1564,7 @@ lane `tntsupport` for the subset (torch, sapling/plants on dirt/grass,
 cactus, ladder, door canPlaceBlockAt, player AABB). ItemDoor /
 snow-layer / anvil-on-circuits stay out.
 
-Ungated systems: beds, potions, shield, stronghold placement.
+Ungated systems: potions, shield, stronghold placement.
 Tapes record player physics / inventory / ghost views / world hash only,
 so a rule that never moves the player or the hotbar is invisible to the
 replay gate; unit tests against Java-derived fixtures are the gate for
