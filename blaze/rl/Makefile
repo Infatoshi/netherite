@@ -90,6 +90,7 @@ TEST_WEATHER_BIN := $(OUT)/test_weather
 TEST_CHEST_BIN := $(OUT)/test_chests
 TEST_PROJ_BIN := $(OUT)/test_projectiles
 TEST_EXPL_BIN := $(OUT)/test_explosions
+TEST_MOBS_BIN := $(OUT)/test_mobs
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
 SAN_TEST_BIN := $(SAN_OUT)/test_train_config
@@ -102,7 +103,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-projectiles test-explosions smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-projectiles test-explosions test-mobs smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval
 
@@ -242,6 +243,11 @@ $(TEST_EXPL_BIN): $(ENV_SRC)/test_explosions.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_explosions.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_MOBS_BIN): $(ENV_SRC)/test_mobs.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/hostile_live.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 ifeq ($(UNAME_S),Darwin)
 $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
 		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
@@ -274,7 +280,8 @@ test-chain: $(TEST_CHAIN_BIN)
 	cd $(CURDIR) && $(TEST_CHAIN_BIN)
 
 test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN) \
-		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN)
+		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN) \
+		$(TEST_MOBS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -283,6 +290,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_chests
 	cd $(REPO) && ./out/blaze/rl/test_projectiles
 	cd $(REPO) && ./out/blaze/rl/test_explosions
+	cd $(REPO) && ./out/blaze/rl/test_mobs
 
 test-entity-spine: $(TEST_SPINE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -300,6 +308,9 @@ test-projectiles: $(TEST_PROJ_BIN)
 
 test-explosions: $(TEST_EXPL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_explosions
+
+test-mobs: $(TEST_MOBS_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_mobs
 
 # Default smoke: committed ppo.conf (backend=cpu).
 smoke: smoke-cpu

@@ -14,6 +14,10 @@
 #include "path_finder.h"
 #include "../../blaze/env/blaze_snapshot.h"
 
+#define ML_W GmWorld
+#define ML_BLOCK(w, x, y, z) gm_world_block((w), (x), (y), (z))
+#include "hostile_live.h"
+
 #include <math.h>
 #include <string.h>
 
@@ -170,15 +174,9 @@ int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals_,
     PvStats *v=(PvStats *)vitals_;
     float applied;
     if (!m || !v || amount <= 0.0f) return 0;
-    if (m->player_hurt_resistant > 10) {
-        if (amount <= m->player_last_damage) return 0;
-        applied = amount - m->player_last_damage;
-        m->player_last_damage = amount;
-    } else {
-        applied = amount;
-        m->player_last_damage = amount;
-        m->player_hurt_resistant = 20;
-    }
+    if (!ml_hurt_gate(&m->player_hurt_resistant, &m->player_last_damage,
+                      amount, &applied))
+        return 0;
     applied = mob_apply_armor((IsrInv *)player_inv, applied, bypass_armor);
     if (applied > 0.0f) pv_attack(v, applied);
     return 1;
@@ -320,18 +318,66 @@ static void mark_hurt(GmMobLive *m, EwStore *s, int slot) {
 
 static int los_clear(GmWorld *w, double x0, double y0, double z0,
                      double x1, double y1, double z1) {
-    double dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
-    double d = sqrt(dx * dx + dy * dy + dz * dz);
-    int steps = (int)(d * 2.0);
-    if (steps < 1) return 1;
-    if (steps > 96) steps = 96;
-    for (int s = 1; s < steps; ++s) {
-        double t = (double)s / (double)steps;
-        if (solid_id(gm_world_block(w, mc_floor(x0 + dx * t),
-                                    mc_floor(y0 + dy * t),
-                                    mc_floor(z0 + dz * t)))) return 0;
-    }
-    return 1;
+    return ml_los_clear(w, x0, y0, z0, x1, y1, z1);
+}
+
+static void ml_load_slot(MlMob *o, const GmMobLive *m, const EwStore *s, int i) {
+    memset(o, 0, sizeof *o);
+    o->snap.slot = i;
+    o->snap.id = s->id[i];
+    o->snap.type = (int)s->type[i];
+    o->snap.alive = (int)s->alive[i];
+    o->snap.x = s->x[i];
+    o->snap.y = s->y[i];
+    o->snap.z = s->z[i];
+    o->snap.yaw = s->yaw[i];
+    o->snap.mx = s->vx[i];
+    o->snap.my = s->vy[i];
+    o->snap.mz = s->vz[i];
+    o->snap.on_ground = (int)s->on_ground[i];
+    o->snap.health = s->health[i];
+    o->snap.attack_time = s->attack_time[i];
+    o->snap.swell = m->creeper_fuse[i];
+    o->snap.target_idx = m->det_has_target[i] ? 1 : 0;
+    o->snap.task_bits = s->ai_state[i];
+    o->snap.wander_x = s->path_tx[i];
+    o->snap.wander_z = s->path_tz[i];
+    o->snap.panic = (int)s->path_len[i];
+    o->snap.box_on = m->det_box_on[i];
+    o->repath_timer = s->repath_timer[i];
+    o->despawn_ticks = m->despawn_ticks[i];
+    o->fire_ticks = m->fire_ticks[i];
+    o->size = (int)m->size[i];
+}
+
+static void ml_save_slot(GmMobLive *m, EwStore *s, int i, const MlMob *o) {
+    const RlSnapMob *p = &o->snap;
+    s->id[i] = p->id;
+    s->type[i] = (u8)p->type;
+    s->alive[i] = (u8)(p->alive ? 1 : 0);
+    s->x[i] = p->x;
+    s->y[i] = p->y;
+    s->z[i] = p->z;
+    s->yaw[i] = p->yaw;
+    s->vx[i] = p->mx;
+    s->vy[i] = p->my;
+    s->vz[i] = p->mz;
+    s->on_ground[i] = (u8)(p->on_ground ? 1 : 0);
+    s->health[i] = p->health;
+    s->attack_time[i] = p->attack_time;
+    s->ai_state[i] = p->task_bits;
+    s->path_tx[i] = p->wander_x;
+    s->path_ty[i] = p->y;
+    s->path_tz[i] = p->wander_z;
+    s->path_len[i] = (u32)(p->panic ? p->panic : 0);
+    s->repath_timer[i] = o->repath_timer;
+    m->creeper_fuse[i] = p->swell;
+    m->det_has_target[i] = (unsigned char)(p->target_idx ? 1 : 0);
+    m->passive_tasks[i] = p->task_bits;
+    m->passive_idle_x[i] = p->wander_x;
+    m->passive_idle_z[i] = p->wander_z;
+    m->despawn_ticks[i] = o->despawn_ticks;
+    m->fire_ticks[i] = o->fire_ticks;
 }
 
 static int wander_ground_y(GmWorld *w, int x, int y0, int z) {
@@ -3146,6 +3192,32 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         if(passive || (pai_det() && pai_det_ai(type) && !aggro)){
             pai_tick(m,w,nx,i,px,py,pz,mob_griefing,
                      &moving,&jump,&wandering,&swim_jump,&nav_speed);
+        }else if(hai_ok(type) && !pai_det()){
+            MlMob mm;
+            MlAiOut o;
+            ml_load_slot(&mm, m, nx, i);
+            ml_hostile_ai(&mm, w, px, py, pz, day, m->seed, m->tick, &o);
+            ml_save_slot(m, nx, i, &mm);
+            if (mm.exploded) {
+                m->explosion_pending = 1;
+                m->explosion_x = mm.snap.x;
+                m->explosion_y = mm.snap.y + 0.5;
+                m->explosion_z = mm.snap.z;
+                continue;
+            }
+            if (!nx->alive[i]) {
+                if (mm.snap.health <= 0.0f)
+                    mob_drop(m, nx, i, drops);
+                continue;
+            }
+            moving = o.moving;
+            jump = o.jump;
+            wandering = o.wandering;
+            if (o.hit_player) {
+                (void)gm_mobs_attack_player(m, (struct PvStats *)v, &p->inv,
+                                            o.hit_dmg, 0);
+                p->health = v->health;
+            }
         }else if(pai_det() && hai_ok(type)){
             /* EntityAIAttackMelee.updateTask: lookHelper then tryMoveToEntityLiving
              * read the same target.pos. Both use look_px (previous tape pl). */

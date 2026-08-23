@@ -140,6 +140,7 @@ typedef struct {
     double atk_gate;  /* opt-in +0.03 gate; 0 = off (exact ppo_coal) */
     int success_item; /* +10/done=1 item id; 263 default (exact ppo_coal),
                        * 0 = never. Applied to envs at their next reset. */
+    int mobs_enabled; /* magma --mobs on: hostile AI/combat live tick */
     int legacy_recenter;  /* create opts: A/B fallback to the serial-recenter
                            * k_tick_legacy (host-side launch pick; zero tick
                            * cost) */
@@ -179,6 +180,7 @@ int blaze_parity_state_all(void *vh, void *out);
 int blaze_assign(void *vh, const int *snap_idx);
 int blaze_set_reward_gate(void *vh, double dist_gate);
 int blaze_set_success_item(void *vh, int item);
+int blaze_set_mobs_enabled(void *vh, int on);
 int blaze_reset(void *vh, const unsigned char *mask);
 int blaze_step(void *vh, const double *actions, int repeat,
                unsigned short *cam, unsigned char *depth, unsigned char *edge,
@@ -203,7 +205,7 @@ int blaze_op_trace(void *vh, unsigned long long *out);
 /* reset phase 1: one thread per RESETTING env (host-compacted active list) */
 __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                                const CuSnapDev *snaps, const int *assign,
-                               int success_item) {
+                               int success_item, int mobs_enabled) {
     int gi = blockIdx.x * blockDim.x + threadIdx.x;
     if (gi >= nactive) return;
     int i = active[gi];
@@ -211,6 +213,7 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
                        s->mobs, s->n_mobs, success_item);
+    envs[i].mobs_enabled = mobs_enabled;
 }
 
 /* reset phase 2: one thread per bulk cell (region copy + window fill +
@@ -708,8 +711,9 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     else blaze_create_opts_default(&o);
     if (cu_ck(cudaSetDevice(device), "cudaSetDevice")) return NULL;
     /* BlockDynamicLiquid.getSlopeDistance recurses to depth 4 (java:178/196).
-     * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA). */
-    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 32 * 1024),
+     * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA).
+     * Hostile live tick inlines add another frame; 32 KB was not enough. */
+    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 64 * 1024),
               "cudaLimitStackSize"))
         return NULL;
     v = (CuVecCu *)calloc(1, sizeof *v);
@@ -1117,6 +1121,26 @@ int blaze_set_success_item(void *vh, int item) {
     return 0;
 }
 
+int blaze_set_mobs_enabled(void *vh, int on) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int i, flag;
+    if (!v) return -1;
+    v->mobs_enabled = on ? 1 : 0;
+    flag = v->mobs_enabled;
+    if (v->h_envs)
+        for (i = 0; i < v->n; ++i)
+            v->h_envs[i].mobs_enabled = flag;
+    if (v->d_envs) {
+        cudaSetDevice(v->device);
+        for (i = 0; i < v->n; ++i) {
+            if (cudaMemcpy(&v->d_envs[i].mobs_enabled, &flag, sizeof flag,
+                           cudaMemcpyHostToDevice) != cudaSuccess)
+                return -1;
+        }
+    }
+    return 0;
+}
+
 int blaze_assign(void *vh, const int *snap_idx) {
     CuVecCu *v = (CuVecCu *)vh;
     int i;
@@ -1149,7 +1173,7 @@ int blaze_reset(void *vh, const unsigned char *mask) {
         return -1;
     k_reset_scalar<<<(nact + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
         v->d_envs, v->d_active, nact, v->d_snaps, v->d_assign,
-        v->success_item);
+        v->success_item, v->mobs_enabled);
     /* all snapshots share the pool dims, so the bulk count is uniform - the
      * grass census grid is sized off the dims alone for exactly this reason
      * (cu_grass_grid_init); keep this in step with cu_reset_bulk_count. */

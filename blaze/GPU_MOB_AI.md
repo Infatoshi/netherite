@@ -1,9 +1,10 @@
 # Design: mob AI in the blaze GPU path (CUDA first, Metal mirror)
 
 Author: Fable (netherite session 2026-08-22). Reviewer: codex (13 findings,
-folded into the v2 revision below). Status: agreed spec for the port-matrix
-`mobs` row. `entity_spine` closed 2026-08-22; `projectiles` closed
-2026-08-22. `mobs` still waits on AI/combat/drops evidence.
+folded into the v2 revision below). Status: agreed spec for detmob A* on the
+port-matrix `mobs` row. `entity_spine` closed 2026-08-22; `projectiles` closed
+2026-08-22. Generic (det_entity_rng off) zombie/skeleton chase/melee + player
+combat/drops closed 2026-08-22; EntityAITasks/A* still waits.
 
 ## Goal and non-goals
 
