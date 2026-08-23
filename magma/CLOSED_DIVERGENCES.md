@@ -54,9 +54,10 @@ PLY2 (`0x32594C50`) hashes the effect list. No mob sidecar aliasing.
 Gate: `make -C magma test-potions` and `make -C blaze/rl test-potions`
 PASS. Baker `test_potions --write-fixture` plants regen potion (id 373
 meta 28) in hotbar 0, milk in slot 1, shield offhand, witch+zombie.
-`potions` M1 VERIFIED (120-tick chain). All listed M1 `--no-deps`
-VERIFIED. mining_slice M2 BLOCKED (missing `*_d*.bsnp`). Root
-`make test` PASS. Tapes after: bow physics NO divergence 1407,
+`potions` M1+M2 VERIFIED (120-tick chain, raw/warp/scalar). All listed
+M1 `--no-deps` VERIFIED. All listed M2 VERIFIED except mining_slice M2
+BLOCKED (missing `*_d*.bsnp`). Root `make test` PASS. Tapes after: bow
+physics NO divergence 1407,
 entities PASS 5525; creeper FIRST DIVERGENCE t=76 y 2.1e-09; smoke
 zombie 358/373; TNT inventory 1 mismatch t=28 slot 0 item 259
 tape_meta 0 magma_meta 1; canon physics NO divergence 3617, entities

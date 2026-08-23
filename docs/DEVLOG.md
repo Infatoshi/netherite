@@ -31,9 +31,9 @@ Cap 32 (vanilla ids 1..27). Snapshot v11 after resume v10; v10 loads
 `runtime.c` hz/proj hurt (not sleep/bed), `mob_live.c` melee+splash.
 
 Gate: magma `test-potions` PASS, blaze `test-potions` PASS, baker wrote
-`s10_t0_r64_potions.bsnp` + 120-action chain. `potions` M1 VERIFIED. All
-listed M1 `--no-deps` VERIFIED. mining_slice M2 BLOCKED (missing
-`*_d*.bsnp`). Root `make test` PASS.
+`s10_t0_r64_potions.bsnp` + 120-action chain. `potions` M1+M2 VERIFIED.
+All listed M1 `--no-deps` VERIFIED. All listed M2 VERIFIED except
+mining_slice M2 BLOCKED (missing `*_d*.bsnp`). Root `make test` PASS.
 
 ## 2026-08-23 snapshot resume gate (lane/resumegate)
 
