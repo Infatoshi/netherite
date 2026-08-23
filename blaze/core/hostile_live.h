@@ -34,7 +34,9 @@
  *   melee reach 2.0 xz, |dy|<3; LOS is 2 samples/block, cap 96
  *   hash wander (purpose 0x57414e44), interval 120, radius 8
  *   player melee: fist 2.0 (SharedMonsterAttributes default), cooldown 10
- *   no knockBack on player or on hit hostiles
+ *   knockBack: KR default 0 so nextDouble always applies; player has no
+ *     JavaRandom (that stream is not in the sim). Degenerate xz < 1e-4
+ *     skips the attackEntityFrom Math.random() jitter.
  *   persist does not skip despawn on this path (det_entity_rng only)
  *   drops: one item, no loot table / looting / equipment
  *
@@ -124,7 +126,8 @@ MC_HD static inline float ml_held_damage(int item) {
 }
 
 /* EntityLivingBase.attackEntityFrom hurtResistantTime/lastDamage gate
- * (EntityLivingBase.java:989-1007). lastDamage is the RAW pre-armor amount. */
+ * (EntityLivingBase.java:989-1007). lastDamage is the RAW pre-armor amount.
+ * Returns 1 when flag1 (knockBack runs), 2 on i-frame overflow (flag1=false). */
 MC_HD static inline int ml_hurt_gate(int *hurt_res, float *last_dmg, float amount,
                                     float *applied) {
     if (!hurt_res || !last_dmg || !applied || amount <= 0.0f) return 0;
@@ -132,12 +135,47 @@ MC_HD static inline int ml_hurt_gate(int *hurt_res, float *last_dmg, float amoun
         if (amount <= *last_dmg) return 0;
         *applied = amount - *last_dmg;
         *last_dmg = amount;
-    } else {
-        *applied = amount;
-        *last_dmg = amount;
-        *hurt_res = ML_HURT_MAX;
+        return 2;
+    }
+    *applied = amount;
+    *last_dmg = amount;
+    *hurt_res = ML_HURT_MAX;
+    return 1;
+}
+
+/* EntityLivingBase.knockBack EntityLivingBase.java:1296-1316 after the
+ * nextDouble() >= KNOCKBACK_RESISTANCE gate (default KR=0, always applies).
+ * Caller consumes entity.rand.nextDouble() when the entity has a Random. */
+MC_HD static inline int ml_knockback(double *mx, double *my, double *mz,
+                                     int on_ground, float strength,
+                                     double x_ratio, double z_ratio) {
+    float f;
+    if (!mx || !my || !mz) return 0;
+    f = (float)sqrt(x_ratio * x_ratio + z_ratio * z_ratio);
+    if (f == 0.0f) return 0;
+    *mx /= 2.0;
+    *mz /= 2.0;
+    *mx -= x_ratio / (double)f * (double)strength;
+    *mz -= z_ratio / (double)f * (double)strength;
+    if (on_ground) {
+        *my /= 2.0;
+        *my += (double)strength;
+        if (*my > 0.4000000059604645)
+            *my = 0.4000000059604645;
     }
     return 1;
+}
+
+/* EntityPlayer.attackTargetEntityWithCurrentItem sprint/enchant extra
+ * (EntityPlayer.java:1423-1432) and EntityMob.attackEntityAsMob i>0
+ * (EntityMob.java:115-117): knockBack(this, i*0.5F, sin(yaw), -cos(yaw)).
+ * Magma extra: libm sinf/cosf, not MathHelper SIN_TABLE. */
+MC_HD static inline void ml_knockback_yaw(double *mx, double *my, double *mz,
+                                          int on_ground, float strength,
+                                          float yaw_deg) {
+    float r = yaw_deg * 0.017453292f;
+    ml_knockback(mx, my, mz, on_ground, strength,
+                 (double)sinf(r), (double)(-cosf(r)));
 }
 
 /* Packed living slot plus generic-path AI that RlSnapMob already carries. */

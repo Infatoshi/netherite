@@ -1057,15 +1057,16 @@ MC_HD static inline void cu_mobs_compact(Blaze *e) {
 
 MC_HD static inline int cu_hurt_player(Blaze *e, float amount, int bypass_armor) {
     float applied;
+    int gate;
     if (!e || amount <= 0.0f) return 0;
-    if (!ml_hurt_gate(&e->player_hurt_resistant, &e->player_last_damage,
-                      amount, &applied))
-        return 0;
+    gate = ml_hurt_gate(&e->player_hurt_resistant, &e->player_last_damage,
+                        amount, &applied);
+    if (!gate) return 0;
     if (!bypass_armor)
         applied = cu_armor_damage(e, applied);
     if (applied > 0.0f) pv_attack(&e->vit, applied);
     e->pl.health = e->vit.health;
-    return 1;
+    return gate;
 }
 
 MC_HD static inline void cu_mob_drop(Blaze *e, RlSnapMob *m) {
@@ -1091,6 +1092,30 @@ MC_HD MC_NOINLINE static int cu_mobs_player_attack(Blaze *e) {
     if (e->player_attack_cooldown > 0) return 1;
     held = isr_get_stack(&e->pl.inv, e->pl.inv.current_item).item;
     e->mobs[best].health -= ml_held_damage(held);
+    {
+        double xRatio = px - e->mobs[best].x;
+        double zRatio = pz - e->mobs[best].z;
+        JavaRandom jr;
+        int kb_i = 0;
+        jr.seed = e->mobs[best].seed48;
+        if (xRatio * xRatio + zRatio * zRatio >= 1.0e-4) {
+            (void)jrand_double(&jr); /* KR default 0, EntityLivingBase.java:1298 */
+            ml_knockback(&e->mobs[best].mx, &e->mobs[best].my,
+                         &e->mobs[best].mz, e->mobs[best].on_ground, 0.4f,
+                         xRatio, zRatio);
+        }
+        if (e->pl.sprinting) ++kb_i;
+        if (kb_i > 0) {
+            (void)jrand_double(&jr);
+            ml_knockback_yaw(&e->mobs[best].mx, &e->mobs[best].my,
+                             &e->mobs[best].mz, e->mobs[best].on_ground,
+                             (float)kb_i * 0.5f, e->pl.yaw);
+            e->pl.ent.motionX *= 0.6;
+            e->pl.ent.motionZ *= 0.6;
+            e->pl.sprinting = 0;
+        }
+        e->mobs[best].seed48 = jr.seed;
+    }
     e->player_attack_cooldown = ML_PLAYER_ATK_CD;
     if (e->mobs[best].health <= 0.0f)
         cu_mob_drop(e, &e->mobs[best]);
@@ -1219,8 +1244,17 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             cu_mob_to_env(e, i, &mm);
             continue;
         }
-        if (o.hit_player)
-            (void)cu_hurt_player(e, o.hit_dmg, 0);
+        if (o.hit_player) {
+            int acc = cu_hurt_player(e, o.hit_dmg, 0);
+            if (acc == 1) {
+                double d1 = mm.snap.x - px;
+                double d0 = mm.snap.z - pz;
+                if (d1 * d1 + d0 * d0 >= 1.0e-4)
+                    ml_knockback(&e->pl.ent.motionX, &e->pl.ent.motionY,
+                                 &e->pl.ent.motionZ, e->pl.ent.onGround, 0.4f,
+                                 d1, d0);
+            }
+        }
         if (o.skel_fire)
             cu_skel_spawn_arrow(e, &mm.snap);
         ml_move_hostile(&mm, e, st, o.moving, o.jump);

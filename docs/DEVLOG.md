@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 melee knockBack (lane/tntknock piece 2)
+
+Baseline after piece 1: mobs M1 VERIFIED with no EntityLivingBase.knockBack on the generic path.
+
+Cause: Java `EntityLivingBase.knockBack` (`EntityLivingBase.java:1296-1316`, javap: `MathHelper.sqrt` float then `xRatio/(double)f*(double)strength`, Y cap `0.4000000059604645D`) consumes `this.rand.nextDouble()` vs KR (default 0, always applies). `attackEntityFrom` flag1 (`:1056-1067`) calls `knockBack(entity, 0.4F, d1, d0)` with `d1=attacker.posX-this.posX`. Overflow i-frame hits set flag1=false (no knockBack). `EntityMob.attackEntityAsMob` extra knockBack only when knockback enchant i>0 (`EntityMob.java:113-117`). `EntityPlayer.attackTargetEntityWithCurrentItem` adds +1 when sprinting (`:1368-1432`) then `motionX/Z*=0.6D` `setSprinting(false)`. 1.11.2 `Entity.setBeenAttacked` is `velocityChanged=true` with no rand (`Entity.java:1666-1668`). Degenerate xz < 1e-4 uses `Math.random()` jitter; CUT when xz is large. Player has no JavaRandom in the sim.
+
+After: shared `ml_knockback` / `ml_hurt_gate` returns 1=flag1 / 2=overflow. Generic mob->player and player->mob apply 0.4F; sprint adds yaw knockBack. Mob `entity.rand` is `seed48` / `ent_jr_seed`. Units pin Y cap and i-frame flag. mobs M1 VERIFIED (`out/verify/tntknock_mobs_m1_knockback.log`). explosions M1 still VERIFIED. MBM1 layout unchanged.
+
+Open: TNT; knockback enchant on held items; fire aspect; MathHelper SIN_TABLE yaw; player.rand; det_entity_rng path unchanged.
+
 ## 2026-08-22 explosion knockback (lane/tntknock piece 1)
 
 Baseline anvil 8a86487 explosions M1 VERIFIED (`out/verify/tntknock_baseline_explosions_m1.log`); kb fields hashed as 0. Magma extras on close: exposure 1.0, no knockback.

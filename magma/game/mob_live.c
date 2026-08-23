@@ -173,13 +173,14 @@ int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals_,
                           int bypass_armor) {
     PvStats *v=(PvStats *)vitals_;
     float applied;
+    int gate;
     if (!m || !v || amount <= 0.0f) return 0;
-    if (!ml_hurt_gate(&m->player_hurt_resistant, &m->player_last_damage,
-                      amount, &applied))
-        return 0;
+    gate = ml_hurt_gate(&m->player_hurt_resistant, &m->player_last_damage,
+                        amount, &applied);
+    if (!gate) return 0;
     applied = mob_apply_armor((IsrInv *)player_inv, applied, bypass_armor);
     if (applied > 0.0f) pv_attack(v, applied);
-    return 1;
+    return gate;
 }
 
 void gm_mobs_player_hurt_tick(GmMobLive *m) {
@@ -2315,6 +2316,34 @@ int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player_,
         }
         (void)jrand_float(jr);
         (void)jrand_float(jr);
+    } else if (!pai_det()) {
+        /* Generic path: 1.11.2 setBeenAttacked is velocityChanged=true
+         * with no rand (Entity.java:1666-1668). knockBack consumes
+         * entity.rand.nextDouble vs KR=0 (EntityLivingBase.java:1298). */
+        PsvPlayer *pl = (PsvPlayer *)p;
+        double xRatio = (pl->ent.posX + ox) - s->x[best];
+        double zRatio = (pl->ent.posZ + oz) - s->z[best];
+        JavaRandom jr;
+        int kb_i = 0;
+        jr.seed = m->ent_jr_seed[best];
+        if (xRatio * xRatio + zRatio * zRatio >= 1.0e-4) {
+            (void)jrand_double(&jr); /* KR default 0, EntityLivingBase.java:1298 */
+            ml_knockback(&s->vx[best], &s->vy[best], &s->vz[best],
+                         s->on_ground[best], 0.4f, xRatio, zRatio);
+        }
+        /* EntityPlayer.attackTargetEntityWithCurrentItem
+         * (EntityPlayer.java:1366-1432): knockback enchant + sprint. */
+        if (pl->sprinting) ++kb_i;
+        if (kb_i > 0) {
+            (void)jrand_double(&jr);
+            ml_knockback_yaw(&s->vx[best], &s->vy[best], &s->vz[best],
+                             s->on_ground[best], (float)kb_i * 0.5f,
+                             pl->yaw);
+            pl->ent.motionX *= 0.6;
+            pl->ent.motionZ *= 0.6;
+            pl->sprinting = 0;
+        }
+        m->ent_jr_seed[best] = jr.seed;
     }
     damage_held_weapon((PsvPlayer *)p);
     m->player_attack_cooldown = 10;
@@ -3214,9 +3243,20 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             jump = o.jump;
             wandering = o.wandering;
             if (o.hit_player) {
-                (void)gm_mobs_attack_player(m, (struct PvStats *)v, &p->inv,
-                                            o.hit_dmg, 0);
+                int acc = gm_mobs_attack_player(m, (struct PvStats *)v, &p->inv,
+                                                o.hit_dmg, 0);
                 p->health = v->health;
+                /* EntityLivingBase.attackEntityFrom flag1 knockBack 0.4F
+                 * (EntityLivingBase.java:1056-1067). Math.random jitter CUT
+                 * when xz >= 1e-4. Player has no JavaRandom. */
+                if (acc == 1) {
+                    double d1 = nx->x[i] - px;
+                    double d0 = nx->z[i] - pz;
+                    if (d1 * d1 + d0 * d0 >= 1.0e-4)
+                        ml_knockback(&p->ent.motionX, &p->ent.motionY,
+                                     &p->ent.motionZ, p->ent.onGround, 0.4f,
+                                     d1, d0);
+                }
             }
         }else if(pai_det() && hai_ok(type)){
             /* EntityAIAttackMelee.updateTask: lookHelper then tryMoveToEntityLiving
