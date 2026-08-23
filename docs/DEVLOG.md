@@ -1,5 +1,31 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 World.rand live stream (lane/worldrand)
+
+Baseline anvil 6e48e81: explosions M1+M2 VERIFIED with density rand fixed 0.5F (`out/verify/worldrand_baseline_m1.log`). mining_slice M2 BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing).
+
+Java `World.rand` is `public Random rand = new Random()` (`World.java:108`), unseeded at world load. Tape rows do not record the cursor: Class C for tape-exact draws. Magma vs blaze share the snapshot seed so M1/M2 close.
+
+Server tick order (`MinecraftServer.java:784` `worldserver.tick()`, `:795` `updateEntities()`):
+1. `WorldServer.tick` (`WorldServer.java:180`) calls `super.tick()` = `World.updateWeather` (`World.java:2709`) which re-rolls rain/thunder on `this.rand` (`:2767-2795`). Magma weather is an isolated JavaRandom from the world seed, not this stream.
+2. `mobSpawner` (`WorldServer.java:202-207`) uses WorldEntitySpawner. Out of this lane (lane/natspawn).
+3. `updateBlocks` (`WorldServer.java:228`, `:389-505`): lightning/ice/snow `this.rand`; random ticks pass `this.rand` into `Block.randomTick` (`:493`) including `BlockFire.updateTick` (`BlockFire.java:146`, `tryCatchFire` `:289`). Magma live randtick substitutes `mc_hash_seed` (`randtick_live.h:10-12`); fire stays on that hash, not World.rand.
+4. `sendQueuedBlockEvents` (`WorldServer.java:241`).
+5. `updateEntities` (`World.java:1807`): entity `onUpdate`. Explosions fire here (`WorldServer.newExplosion` `:1245-1250` `doExplosionA` then `doExplosionB(false)`).
+
+Ported against one shared `JavaRandom world_rand` (mc_rng.h, same pattern as `ent_jr_seed`):
+- Face-ray jitter: `f = size * (0.7F + world.rand.nextFloat() * 0.6F)` (`Explosion.java:102`). 16^3-14^3 = 1352 `nextFloat` draws. Replaces magma-fixed 0.5F.
+- `doExplosionB` sound two `nextFloat` (`Explosion.java:198`); server skips particle draws (`doExplosionB(false)`).
+- Chain TNT fuse `world.rand.nextInt(fuse/4)+fuse/8` (`BlockTNT.java:72`). Entity table can spawn `EW_TYPE_TNT_PRIMED`.
+
+Not ported:
+- `doExplosionB` drops: EntityItem table exists (`GM_LIVE_MAX`/`CU_MAX_ITEMS` 48) but `getDrops`/`quantityDropped` plus HashSet iteration of `affectedBlockPositions` are not in the live contract. `EntityItem` ctor motion is `Math.random()` (`EntityItem.java:59-61`), not `world.rand`; `setDefaultPickupDelay` is 10 (`:564-566`).
+- BlockFire live spread stays magma hash (`randtick_live.h` `RT_PURPOSE_FIRE`). Java uses the same `World.rand` instance as explosions (`WorldServer.java:493`).
+
+Snapshot v5 trailer after orbs: 48-bit LCG cursor. v4 loads `jrand_set(0)`. EXP2 -> EXP3 hashes the cursor. Fixture `s10_t0_r64_explosions.bsnp` rebaked via `test_explosions --write-fixture` (TNT block at 7,65,12).
+
+After: explosions M1+M2 VERIFIED (`out/verify/worldrand_after_m1.log`, `out/verify/worldrand_after_m2.log`). Other listed rows stay VERIFIED except mining_slice M2 BLOCKED. Root `make test` PASS (`out/verify/worldrand_maketest.log`). creeper_encounter FIRST DIVERGENCE stays t=76 y 2.1e-09.
+
 ## 2026-08-22 TNT primed tick (lane/tntknock piece 3)
 
 Baseline after piece 2: explosions M1 VERIFIED without EntityTNTPrimed.

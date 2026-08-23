@@ -89,6 +89,7 @@ typedef struct {
     RlSnapMob mobs[BLAZE_SNAP_MAX_MOBS];
     unsigned n_orbs;
     RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
+    unsigned long long world_rand_seed;
 } CuSnapDev;
 
 typedef struct {
@@ -217,7 +218,8 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     const CuSnapDev *s = &snaps[assign[i]];
     blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
-                       s->mobs, s->n_mobs, s->orbs, s->n_orbs, success_item);
+                       s->mobs, s->n_mobs, s->orbs, s->n_orbs,
+                       s->world_rand_seed, success_item);
     envs[i].mobs_enabled = mobs_enabled;
     envs[i].elytra_kit = elytra_kit;
     if (elytra_kit) {
@@ -1080,6 +1082,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         d->n_orbs = s.n_orbs;
         if (s.n_orbs)
             memcpy(d->orbs, s.orbs, (size_t)s.n_orbs * sizeof d->orbs[0]);
+        d->world_rand_seed = s.world_rand_seed;
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
         v->has_unrepresented[v->nsnaps] = s.head.container != 0;

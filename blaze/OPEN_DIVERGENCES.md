@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/worldrand 2026-08-23 (explosions M1+M2 after shared World.rand: face-ray nextFloat jitter + BlockTNT chain fuse. Snapshot v5 world_rand_seed. EXP3 hashes the cursor. Class C: Java `new Random()` is unseeded so tape-exact draws are unrecorded. doExplosionB drops and BlockFire world.rand stay out. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp.)
 Last verified: lane/tntknock 2026-08-22 (explosions M1+M2 after doExplosionA knockback + getBlockDensity + planted EntityTNTPrimed; mobs M1+M2 after EntityLivingBase.knockBack. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp. Chain fuse / fire rand / doExplosionB drops stay out: no world.rand.)
 Last verified: lane/boatsxp 2026-08-22 (xp_orbs, boats, elytra M1+M2. random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, mobs, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. projectiles M1 FAIL at observation 22 magma evidence 2 vs blaze 1 is pre-existing on this base tree, lane/projground. mining_slice M2 BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/projground 2026-08-22 (projectiles M1+M2 after porting magma EntityArrow inGround/arrowShake/pickup into blaze; random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine, mobs, explosions, chests, falling_blocks, weather_optional, mining_slice M1 stay VERIFIED. mining_slice M2 BLOCKED on this clone: missing blaze/rl/out/snaps/*_d*.bsnp).
@@ -58,7 +59,7 @@ start any time; deeper rows wait on their deps.
 | chests | spawn_to_torch | closed 2026-08-22: placed single-chest TE + PICKUP/QUICK_MOVE transfers; worldgen loot tables and double chests stay out |
 | entity_spine | spawn_to_torch | closed 2026-08-22: living Entity.move/travel spine; AI stays on `mobs` |
 | projectiles | world_dynamics, entity_spine | closed 2026-08-22: magma bow/skeleton arrow tick; 2026-08-22 lane/projground added inGround/shake/pickup; fireballs/eye-of-ender and Java ray-trace stay out |
-| explosions | world_dynamics, projectiles | closed 2026-08-22: ignited creeper fuse 30 + doExplosionA crater/player damage; 2026-08-22 lane/tntknock added getBlockDensity, doExplosionA knockback, planted EntityTNTPrimed size 4.0F. Fireball, chain fuse world.rand, doExplosionB drops stay out |
+| explosions | world_dynamics, projectiles | closed 2026-08-22: ignited creeper fuse 30 + doExplosionA crater/player damage; 2026-08-22 lane/tntknock added getBlockDensity, doExplosionA knockback, planted EntityTNTPrimed size 4.0F. 2026-08-23 lane/worldrand: shared World.rand, face-ray jitter, chain TNT fuse. Fireball, doExplosionB drops, BlockFire world.rand stay out |
 | mobs | world_dynamics, entity_spine, projectiles | closed 2026-08-22: planted zombie+skeleton generic AI (LOS/chase/melee), player i-frames, bone/flesh drops, skeleton arrows; 2026-08-22 lane/tntknock added EntityLivingBase.knockBack on generic melee. WorldEntitySpawner, det_entity_rng A*, passives stay out |
 | portals_dimensions | world_dynamics | portal transfer and dimension identity not measured |
 | nether_route | spawn_to_torch, portals_dimensions | no strict cross-backend fixture |

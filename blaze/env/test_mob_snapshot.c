@@ -232,7 +232,8 @@ int main(int argc, char **argv) {
 
     expect(sizeof(RlSnapHead) == 752, "RlSnapHead is 752 bytes packed");
     expect(sizeof(RlSnapMob) == 544, "RlSnapMob is 544 bytes packed");
-    expect(BLAZE_SNAP_VERSION == 4, "snapshot version is 4");
+    expect(BLAZE_SNAP_VERSION == 5, "snapshot version is 5");
+    expect(BLAZE_SNAP_VERSION_ORBS == 4, "orb trailer is version 4");
     expect(sizeof(RlSnapOrb) == 84, "RlSnapOrb is 84 bytes packed");
     expect(BLAZE_SNAP_MAX_ORBS == 64, "orb cap is GM_XP_ORBS 64");
     expect(BLAZE_SNAP_MAX_MOBS == 96, "mob cap is EW_MAX_ENTITIES 96");
@@ -282,6 +283,20 @@ int main(int argc, char **argv) {
            "restored pose restores digest");
     fprintf(stderr, "POP_DIGEST=0x%016llx\n", (unsigned long long)pop_h);
     expect(roundtrip(p_a, p_b, &s), "v3 populated save/load/save identical");
+
+    s.head.version = 5;
+    s.world_rand_seed = 0x5DEECE66DULL & ((1ULL << 48) - 1);
+    expect(roundtrip(p_a, p_b, &s), "v5 world_rand save/load/save identical");
+    {
+        CuSnapshot loaded;
+        char err[256];
+        memset(&loaded, 0, sizeof loaded);
+        expect(blaze_snapshot_load(p_a, &loaded, err, (int)sizeof err, 1),
+               "load v5 world_rand");
+        expect(loaded.world_rand_seed == s.world_rand_seed,
+               "v5 world_rand_seed matches");
+        blaze_snapshot_free(&loaded);
+    }
 
     blaze_snapshot_free(&s);
 

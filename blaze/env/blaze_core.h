@@ -321,6 +321,7 @@ typedef struct {
     PvStats   vit;
     int ox, oz, ccx, ccz;        /* physics window origin */
     long long tick, seed;
+    JavaRandom world_rand;       /* World.rand (World.java:108); snapshot v5 */
     int dead, deaths;
     WwState ww;                  /* magma GmWorldClock + isolated JavaRandom */
     float rain_strength, thunder_strength;  /* live stays 0; tape inject only */
@@ -896,6 +897,36 @@ MC_HD static inline void cu_try_pickup_arrow(Blaze *e, int index) {
 
 MC_HD static inline void cu_fluid_mark(Blaze *e, int dim, int wx, int wy, int wz);
 
+MC_HD static inline int cu_spawn_tnt_primed(Blaze *e, double x, double y,
+                                            double z, int fuse) {
+    unsigned i;
+    int slot = 1;
+    RlSnapMob *m;
+    if (!e || e->n_mobs >= BLAZE_SNAP_MAX_MOBS) return 0;
+    for (i = 0; i < e->n_mobs; ++i)
+        if (e->mobs[i].slot >= slot) slot = e->mobs[i].slot + 1;
+    m = &e->mobs[e->n_mobs];
+    memset(m, 0, sizeof *m);
+    m->slot = slot;
+    m->id = slot;
+    m->type = EW_TYPE_TNT_PRIMED;
+    m->alive = 1;
+    m->x = x;
+    m->y = y;
+    m->z = z;
+    m->my = EXL_TNT_SPAWN_MY;
+    m->swell = fuse;
+    m->box_on = 1;
+    m->box_minx = x - 0.49;
+    m->box_miny = y;
+    m->box_minz = z - 0.49;
+    m->box_maxx = x + 0.49;
+    m->box_maxy = y + (double)EXL_TNT_HEIGHT;
+    m->box_maxz = z + 0.49;
+    e->n_mobs++;
+    return 1;
+}
+
 #define EXL_W Blaze
 #define exl_block(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #define exl_meta(w, x, y, z) cu_world_meta((w), (x), (y), (z))
@@ -904,6 +935,9 @@ MC_HD static inline void cu_fluid_mark(Blaze *e, int dim, int wx, int wy, int wz
     fl_block_changed((w), (w), (x), (y), (z)); \
     cu_fluid_mark((w), 0, (x), (y), (z)); \
 } while (0)
+#define exl_spawn_tnt(w, x, y, z, fuse) \
+    cu_spawn_tnt_primed((w), (double)(x) + 0.5, (double)(y), \
+                        (double)(z) + 0.5, (fuse))
 #include "explosion_live.h"
 
 MC_HD static inline float cu_armor_damage(Blaze *e, float amount) {
@@ -946,7 +980,7 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
     unsigned mi;
     if (!e) return;
     exl_fill_and_rays(e, e->ex_grid, e->ex_hit, ex, ey, ez, size,
-                      &ox, &oy, &oz);
+                      &ox, &oy, &oz, &e->world_rand);
     /* doExplosionA entity loop sees the intact world (Explosion.java:132-190). */
     px = e->pl.ent.posX + (double)e->ox;
     py = e->pl.ent.posY;
@@ -1023,7 +1057,7 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
         if (m->health <= 0.0f) cu_mob_drop(e, m);
     }
     cu_mobs_compact(e);
-    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays);
+    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays, &e->world_rand);
     e->parity_ex_blasts++;
     e->parity_ex_destroyed += nd;
     e->parity_ex_rays = rays;
@@ -4940,6 +4974,7 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
                                 e->mobs[mi].x, e->mobs[mi].y, e->mobs[mi].z);
             }
             h = bp_hash_i32(h, ntnt);
+            h = bp_hash_world_rand(h, e->world_rand.seed);
             r->digest[BP_EXPLOSIONS] = h;
             r->evidence[BP_EXPLOSIONS] =
                 e->parity_ex_blasts + e->parity_ex_destroyed
@@ -5151,6 +5186,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                                             unsigned n_mobs,
                                             const RlSnapOrb *orbs,
                                             unsigned n_orbs,
+                                            unsigned long long world_rand_seed,
                                             int success_item) {
     int i, dx, dz;
     unsigned u;
@@ -5169,6 +5205,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
 
     env->seed = h->seed;
     env->tick = h->tick;
+    env->world_rand.seed = world_rand_seed & MC_JR_MASK;
     env->dead = 0;
     env->deaths = 0;
     ww_init(&env->ww, env->seed);
@@ -5399,11 +5436,12 @@ MC_HD static inline void blaze_reset_from_snapshot(Blaze *env, const RlSnapHead 
                                                    unsigned n_mobs,
                                                    const RlSnapOrb *orbs,
                                                    unsigned n_orbs,
+                                                   unsigned long long world_rand_seed,
                                                    int success_item) {
     long i, nbulk;
     blaze_reset_scalar(env, h, items, ore, nore, ore_xy, cont, ncont,
                        light_src != NULL, mobs, n_mobs, orbs, n_orbs,
-                       success_item);
+                       world_rand_seed, success_item);
     nbulk = cu_reset_bulk_count(env);
     for (i = 0; i < nbulk; ++i)
         blaze_reset_bulk(env, cells_src, light_src, i);

@@ -1974,6 +1974,30 @@ int gm_mobs_spawn(GmMobLive *m, int type, double x, double y, double z) {
     return gm_mobs_spawn_sized(m, type, x, y, z, sz);
 }
 
+int gm_mobs_spawn_tnt_primed(GmMobLive *m, double x, double y, double z,
+                             int fuse) {
+    EwStore *s;
+    int slot;
+    if (!m) return -1;
+    s = now_store(m);
+    slot = ew_store_spawn(s, (u8)EW_TYPE_TNT_PRIMED, m->next_id++, x, y, z, 0.0f);
+    if (slot < 0) return -1;
+    m->entity_dimension[slot] = (signed char)m->active_dimension;
+    reset_slot_state_s(m, s, slot);
+    m->creeper_fuse[slot] = fuse;
+    s->vy[slot] = EXL_TNT_SPAWN_MY;
+    s->on_ground[slot] = 0;
+    m->det_box_on[slot] = 1;
+    m->det_box[slot].minX = x - 0.49;
+    m->det_box[slot].minY = y;
+    m->det_box[slot].minZ = z - 0.49;
+    m->det_box[slot].maxX = x + 0.49;
+    m->det_box[slot].maxY = y + (double)EXL_TNT_HEIGHT;
+    m->det_box[slot].maxZ = z + 0.49;
+    ew_store_copy(next_store(m), s);
+    return slot;
+}
+
 /* java.util.Random.nextGaussian (Box-Muller). Spare unused: applied from
  * seed48_init, not the live cursor. */
 static double pai_jrand_gaussian(JavaRandom *r) {

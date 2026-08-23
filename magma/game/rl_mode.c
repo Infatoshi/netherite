@@ -735,6 +735,7 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
                                 packed[mi].x, packed[mi].y, packed[mi].z);
             }
             h = bp_hash_i32(h, ntnt);
+            h = bp_hash_world_rand(h, r->world_rand.seed);
             out->digest[BP_EXPLOSIONS] = h;
             out->evidence[BP_EXPLOSIONS] =
                 r->parity_ex_blasts + r->parity_ex_destroyed
@@ -1004,10 +1005,15 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
             ok = ok && fwrite(&n_orbs, sizeof n_orbs, 1, f) == 1;
             ok = ok && (n_orbs == 0 ||
                         fwrite(orbs, sizeof orbs[0], n_orbs, f) == n_orbs);
+            {
+                unsigned long long wr = r->world_rand.seed & MC_JR_MASK;
+                ok = ok && fwrite(&wr, sizeof wr, 1, f) == 1;
+            }
             fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
-                    "%u mobs, %u orbs)\n",
+                    "%u mobs, %u orbs, wr=%llu)\n",
                     ok ? "written" : "WRITE FAILED", path, h.tick, h.n_items,
-                    ncoal, n_mobs, n_orbs);
+                    ncoal, n_mobs, n_orbs,
+                    (unsigned long long)(r->world_rand.seed & MC_JR_MASK));
         }
     }
     free(cells);
@@ -1101,7 +1107,7 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         }
         gm_mobs_import_snap(&r->mobs, packed, n_mobs);
     }
-    if (h.version >= BLAZE_SNAP_VERSION) {
+    if (h.version >= BLAZE_SNAP_VERSION_ORBS) {
         unsigned n_orbs = 0;
         RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
         if (fread(&n_orbs, sizeof n_orbs, 1, f) != 1 ||
@@ -1115,6 +1121,16 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             free(cells); free(light); fclose(f); return 0;
         }
         gm_mobs_import_orbs(&r->mobs, orbs, n_orbs);
+    }
+    jrand_set(&r->world_rand, 0);
+    if (h.version >= BLAZE_SNAP_VERSION) {
+        unsigned long long wr = 0;
+        if (fread(&wr, sizeof wr, 1, f) != 1) {
+            snprintf(err, (size_t)err_cap, "truncated .bsnp world_rand: %s",
+                     path);
+            free(cells); free(light); fclose(f); return 0;
+        }
+        r->world_rand.seed = wr & MC_JR_MASK;
     }
     fclose(f);
 

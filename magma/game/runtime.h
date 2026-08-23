@@ -11,6 +11,7 @@
 #include "game/dragon_live.h"
 #include "game/container_live.h"
 #include "mc_gamerules.h"
+#include "mc_rng.h"
 
 #include <stdint.h>
 
@@ -242,6 +243,9 @@ typedef struct GmRuntime {
     int portal_time, portal_cooldown;
     long long seed;
     long long tick;
+    /* World.rand (World.java:108). Unseeded in Java; live cursor is the
+     * snapshot v5 trailer. Tape-exact values are Class C. */
+    JavaRandom world_rand;
     int weather_enabled;
     int elytra_kit;              /* --elytra on: chest 443 after snapshot-in */
     /* Tape getRainStrength(1)/getThunderStrength(1). Live stays 0: magma has

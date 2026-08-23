@@ -9,8 +9,10 @@
  *   | rnx*rny*rnz u8 packed light (sky<<4)|block       [version >= 2]
  *   | u32 n_mobs | n_mobs x RlSnapMob                   [version >= 3]
  *   | u32 n_orbs | n_orbs x RlSnapOrb                   [version >= 4]
+ *   | u64 world_rand_seed (48-bit JavaRandom cursor)    [version >= 5]
  * v1/v2 files load with n_mobs = 0. v3 loads with n_orbs = 0.
- * New writes use version 4.
+ * v4 loads with world_rand_seed = jrand_set(0) internal cursor.
+ * New writes use version 5.
  * Player pose/box are WINDOW-LOCAL doubles plus the ox/oz origin: restoring
  * local+origin reproduces the exact double bits (world = local + origin
  * rounds, so world-coord storage would lose low mantissa bits; the box is
@@ -35,7 +37,8 @@ extern "C" {
 
 #define BLAZE_SNAP_VERSION_LIGHT 2  /* packed light plane after coal */
 #define BLAZE_SNAP_VERSION_MOBS  3  /* + per-mob trailer after light */
-#define BLAZE_SNAP_VERSION 4        /* + XP-orb trailer after mobs */
+#define BLAZE_SNAP_VERSION_ORBS  4  /* + XP-orb trailer after mobs */
+#define BLAZE_SNAP_VERSION 5        /* + World.rand 48-bit cursor after orbs */
 #pragma pack(push, 1)
 typedef struct {
     char magic[4];                 /* "BSNP" */
@@ -156,6 +159,7 @@ typedef struct {
     RlSnapMob      mobs[BLAZE_SNAP_MAX_MOBS];
     unsigned       n_orbs;         /* v4: live XP orbs; 0 on v1/v2/v3 */
     RlSnapOrb      orbs[BLAZE_SNAP_MAX_ORBS];
+    unsigned long long world_rand_seed; /* v5: JavaRandom internal seed48 */
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).

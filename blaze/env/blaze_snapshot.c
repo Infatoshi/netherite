@@ -9,6 +9,15 @@
 
 #include "blaze_snapshot.h"
 
+/* jrand_set(&r, 0) internal cursor (mc_rng.h). Keep mc_rng.h out of this
+ * TU so -Werror test binaries do not trip the host-only probe statics. */
+#define SNAP_JR_MULT 0x5DEECE66DULL
+#define SNAP_JR_MASK ((1ULL << 48) - 1)
+
+static unsigned long long snap_world_rand_default(void) {
+    return (0ULL ^ SNAP_JR_MULT) & SNAP_JR_MASK;
+}
+
 typedef unsigned short cu_u16;
 
 static int snap_fail(char *err, int cap, const char *msg, const char *path) {
@@ -100,7 +109,7 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             return snap_fail(err, err_cap, "truncated .bsnp mobs", path);
         }
     }
-    if (out->head.version >= BLAZE_SNAP_VERSION) {
+    if (out->head.version >= BLAZE_SNAP_VERSION_ORBS) {
         if (fread(&out->n_orbs, sizeof out->n_orbs, 1, f) != 1 ||
             out->n_orbs > BLAZE_SNAP_MAX_ORBS) {
             free(out->cells); out->cells = NULL;
@@ -118,6 +127,18 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             fclose(f);
             return snap_fail(err, err_cap, "truncated .bsnp orbs", path);
         }
+    }
+    out->world_rand_seed = snap_world_rand_default();
+    if (out->head.version >= BLAZE_SNAP_VERSION) {
+        if (fread(&out->world_rand_seed, sizeof out->world_rand_seed, 1, f) !=
+            1) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp world_rand", path);
+        }
+        out->world_rand_seed &= SNAP_JR_MASK;
     }
     fclose(f);
 
@@ -220,11 +241,15 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
                     fwrite(s->mobs, sizeof s->mobs[0], s->n_mobs, f) ==
                         s->n_mobs);
     }
-    if (version >= BLAZE_SNAP_VERSION) {
+    if (version >= BLAZE_SNAP_VERSION_ORBS) {
         ok = ok && fwrite(&s->n_orbs, sizeof s->n_orbs, 1, f) == 1;
         ok = ok && (s->n_orbs == 0 ||
                     fwrite(s->orbs, sizeof s->orbs[0], s->n_orbs, f) ==
                         s->n_orbs);
+    }
+    if (version >= BLAZE_SNAP_VERSION) {
+        unsigned long long seed = s->world_rand_seed & SNAP_JR_MASK;
+        ok = ok && fwrite(&seed, sizeof seed, 1, f) == 1;
     }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)

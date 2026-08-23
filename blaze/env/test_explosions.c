@@ -6,14 +6,18 @@
 #define _POSIX_C_SOURCE 200809L
 #include "blaze_snapshot.h"
 #include "entity_spine.h"
-#include "explosion_live.h"
 #include "mc_blocks.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#include "explosion_live.h"
+#pragma GCC diagnostic pop
 
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 static int fails;
 
@@ -110,6 +114,8 @@ static int write_fixture(const char *from, const char *out_path) {
     plant_cell(&s, 9, 65, 12, BLK_DIRT, 0);
     plant_cell(&s, 9, 65, 13, BLK_DIRT, 0);
     plant_cell(&s, 10, 65, 12, BLK_DIRT, 0);
+    /* TNT block in the size-4 blast so chain fuse world.rand.nextInt is live. */
+    plant_cell(&s, 7, 65, 12, BLK_TNT, 0);
 
     s.head.version = BLAZE_SNAP_VERSION;
     s.n_mobs = 2;
@@ -143,7 +149,7 @@ static int write_fixture(const char *from, const char *out_path) {
     }
     fprintf(stderr,
             "WROTE %s ignited creeper (8.5,65,12.5) TNT fuse20 (6.5,65,8.5) "
-            "player (8.5,65,8.5) n_mobs=%u\n",
+            "TNT block (7,65,12) player (8.5,65,8.5) n_mobs=%u\n",
             out_path, s.n_mobs);
     blaze_snapshot_free(&s);
     return 1;
@@ -167,7 +173,87 @@ static int run_units(void) {
 
     dens = ex_density_scale();
     expect(bits_eq_f(dens, 0.7f + 0.5f * 0.6f),
-           "density scale is 0.7F + 0.5F * 0.6F");
+           "NULL-rand density scale is 0.7F + 0.5F * 0.6F");
+    expect(ex_face_ray_count() == 16 * 16 * 16 - 14 * 14 * 14,
+           "face rays are 16^3 - 14^3");
+    expect(ex_face_ray_count() == 1352, "face-ray count is 1352");
+    {
+        JavaRandom r;
+        u16 grid[EX_VOL];
+        u8 bitset[EX_VOL];
+        u64 before, after;
+        int n, j, k, l, face = 0;
+        jrand_set(&r, 0);
+        for (j = 0; j < 16; ++j)
+            for (k = 0; k < 16; ++k)
+                for (l = 0; l < 16; ++l)
+                    if (j == 0 || j == 15 || k == 0 || k == 15 || l == 0 ||
+                        l == 15)
+                        ++face;
+        expect(face == ex_face_ray_count(),
+               "Explosion.java:88-94 face predicate matches 16^3-14^3");
+        before = r.seed;
+        ex_fill(grid, mc_state(BLK_AIR, 0));
+        ex_do_explosion_blocks(grid, 8.0, 8.0, 8.0, 4.0f, bitset, &r);
+        after = r.seed;
+        {
+            JavaRandom c;
+            jrand_set(&c, 0);
+            for (n = 0; n < face; ++n)
+                (void)jrand_float(&c);
+            expect(c.seed == after,
+                   "doExplosionA consumes one nextFloat per face ray");
+            expect(before != after, "ray loop advances World.rand");
+        }
+        expect(bits_eq_f(ex_ray_strength(4.0f, NULL), 4.0f * ex_density_scale()),
+               "NULL rand ray strength is the fixed 0.5F scale");
+    }
+    {
+        JavaRandom r;
+        int i, f, lo = 99, hi = -1, bad = 0;
+        jrand_set(&r, 1);
+        for (i = 0; i < 256; ++i) {
+            f = exl_chain_fuse(&r);
+            if (f < lo) lo = f;
+            if (f > hi) hi = f;
+            if (f < EXL_TNT_FUSE / 8 ||
+                f >= EXL_TNT_FUSE / 8 + EXL_TNT_FUSE / 4)
+                bad = 1;
+        }
+        expect(!bad && lo >= EXL_TNT_FUSE / 8 &&
+                   hi < EXL_TNT_FUSE / 8 + EXL_TNT_FUSE / 4,
+               "chain fuse is nextInt(fuse/4)+fuse/8 in [10,29]");
+    }
+    {
+        CuSnapshot a, b;
+        char err[256];
+        char pa[128], pb[128];
+        snprintf(pa, sizeof pa, "/tmp/worldrand_wr_a_%d.bsnp", (int)getpid());
+        snprintf(pb, sizeof pb, "/tmp/worldrand_wr_b_%d.bsnp", (int)getpid());
+        memset(&a, 0, sizeof a);
+        a.head.magic[0] = 'B'; a.head.magic[1] = 'S';
+        a.head.magic[2] = 'N'; a.head.magic[3] = 'P';
+        a.head.version = BLAZE_SNAP_VERSION;
+        a.head.rnx = 2; a.head.rny = 2; a.head.rnz = 2;
+        a.cells = (unsigned short *)calloc(8, sizeof(unsigned short));
+        a.light = (unsigned char *)calloc(8, 1);
+        a.world_rand_seed = 0x123456789abULL & ((1ULL << 48) - 1);
+        expect(a.cells && a.light, "tiny snapshot alloc");
+        expect(blaze_snapshot_write(pa, &a, err, (int)sizeof err),
+               "write v5 world_rand");
+        memset(&b, 0, sizeof b);
+        expect(blaze_snapshot_load(pa, &b, err, (int)sizeof err, 1),
+               "load v5 world_rand");
+        expect(b.head.version == BLAZE_SNAP_VERSION, "loaded version is 5");
+        expect(b.world_rand_seed == a.world_rand_seed,
+               "world_rand_seed round-trips");
+        expect(blaze_snapshot_write(pb, &b, err, (int)sizeof err),
+               "rewrite v5");
+        blaze_snapshot_free(&a);
+        blaze_snapshot_free(&b);
+        unlink(pa);
+        unlink(pb);
+    }
 
     dmg = ex_entity_damage(8.0, 8.0, 8.0, 8.0, 8.0, 8.0, EXL_RADIUS, 1.0f);
     expect(dmg > 0.0f, "center size-3 damage is positive");

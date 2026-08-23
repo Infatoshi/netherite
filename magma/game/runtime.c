@@ -24,6 +24,9 @@
     gm_live_block_changed(&(w)->entities, (w)->world, (x), (y), (z)); \
     gm_fluid_mark(&(w)->fluids, (w)->world, (w)->dimension, (x), (y), (z)); \
 } while (0)
+#define exl_spawn_tnt(w, x, y, z, fuse) \
+    gm_mobs_spawn_tnt_primed(&(w)->mobs, (double)(x) + 0.5, (double)(y), \
+                             (double)(z) + 0.5, (fuse))
 #include "explosion_live.h"
 
 /* EntityLivingBase.applyArmorCalculations + InventoryPlayer.damageArmor. */
@@ -142,7 +145,7 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
     uint32_t nd=0;uint64_t rays=bp_hash_begin();
     float dens,damage;ExBlast blast;
     double px,py,pz,minx,miny,minz,maxx,maxy,maxz;
-    exl_fill_and_rays(r,grid,hit,ex,ey,ez,size,&ox,&oy,&oz);
+    exl_fill_and_rays(r,grid,hit,ex,ey,ez,size,&ox,&oy,&oz,&r->world_rand);
     /* doExplosionA entity loop sees the intact world (Explosion.java:132-190)
      * before doExplosionB destroys. */
     px=r->player.ent.posX+(double)r->ox;
@@ -176,7 +179,7 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
             if(dx*dx+dy*dy+dz*dz<=size*size*4.0)r->dragon.state.arena.crystals[i].alive=0;
         }
     }
-    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays);
+    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays,&r->world_rand);
     r->parity_ex_blasts++;
     r->parity_ex_destroyed += nd;
     r->parity_ex_rays = rays;
@@ -836,6 +839,10 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->elytra_kit = cfg->elytra;
     r->clock.freeze_daylight = !r->gamerules.doDaylightCycle;
     r->mobs_enabled = cfg->mobs;
+    /* Java World.rand is `new Random()` (World.java:108), unseeded. Live
+     * default is jrand_set(0) so magma and blaze share a cursor; tapes
+     * do not record the oracle seed (Class C). */
+    jrand_set(&r->world_rand, 0);
     /* Live random ticks on by default; script.c clears this for tape replay. */
     r->randtick_enabled = 1;
     r->randtick_radius = cfg->view_distance > 0 ? cfg->view_distance : 2;
