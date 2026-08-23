@@ -882,7 +882,7 @@ MC_HD static inline void ml_enderman_ai(MlMob *m, ML_W *w,
                                         const MlEndCtx *ctx, MlAiOut *out) {
     RlSnapMob *s;
     JavaRandom er;
-    int type, aggro = 0, moving = 0, jump = 0, wandering = 0;
+    int aggro = 0, moving = 0, jump = 0, wandering = 0;
     double dx, dy, dz, d, xz, dsq;
     float mw, mh;
     int wet, sub, daytime, feet;
@@ -896,8 +896,6 @@ MC_HD static inline void ml_enderman_ai(MlMob *m, ML_W *w,
     }
     if (!m || !m->snap.alive) return;
     s = &m->snap;
-    type = s->type;
-    (void)type;
     ++s->ticks_existed;
     er.seed = s->seed48;
     ehs_size((u8)s->type, &mw, &mh);

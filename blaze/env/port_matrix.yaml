@@ -752,7 +752,7 @@ subsystems:
     timeout: 1500
 
   - name: mobs_end
-    supported: false
+    supported: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared:
