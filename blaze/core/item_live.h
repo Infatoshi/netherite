@@ -26,7 +26,10 @@
  *   onCollideWithPlayer              EntityItem.java:428-488
  *     delay>0 return :432
  *     owner skip if set :440 (live owner is null)
+ *     volume is player AABB expand    EntityPlayer.java:613
+ *       getEntityBoundingBox().expand(1.0D, 0.5D, 1.0D)
  *     InventoryPlayer.addItemStackToInventory
+ *       currentItem, offhand, main    InventoryPlayer.java:356-376, :409-453
  *   setDefaultPickupDelay 10         EntityItem.java:564-566
  *   EntityPlayer.dropItem delay 40   EntityPlayer.java:829
  *
@@ -261,13 +264,22 @@ MC_HD MC_NOINLINE static void il_tick_item(IL_W *w, McItem *items, int n, int i)
     il_handle_water(w, it);
 }
 
+/* EntityPlayer.onUpdate EntityPlayer.java:613 (not riding):
+ * getEntityBoundingBox().expand(1.0D, 0.5D, 1.0D). Riding uses 1.0/0.0/1.0
+ * at :609; live table has no mount. */
+MC_HD static inline McAABB il_pickup_volume(const McAABB *player) {
+    return mc_aabb_expand(player, 1.0, 0.5, 1.0);
+}
+
 /* EntityItem.onCollideWithPlayer EntityItem.java:428-488 minus stats/achievements.
  * owner is null in the live table. addItemStackToInventory mutates leftover. */
 MC_HD static inline int il_try_pickup(McItem *it, IsrInv *inv, const McAABB *player) {
     ICStack incoming;
+    McAABB vol;
     if (!it || !inv || !player || it->dead) return 0;
-    if (it->delayBeforeCanPickup > 0) return 0;
-    if (!mc_aabb_intersects(&it->box, player)) return 0;
+    if (it->delayBeforeCanPickup > 0) return 0; /* EntityItem.java:432 */
+    vol = il_pickup_volume(player);
+    if (!mc_aabb_intersects(&it->box, &vol)) return 0;
     incoming = ic_mk(it->item, it->count, it->meta);
     isr_add_item_stack_to_inventory(inv, &incoming);
     it->count = incoming.count;

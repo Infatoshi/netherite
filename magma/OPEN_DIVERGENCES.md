@@ -1538,13 +1538,12 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
    (`CraftingManager.java:140-145`) + cake (`:115`) +
    `getRemainingItems` (`ShapedRecipes.java:42-52`, `Item.java:1568-1577,1680`).
    See `CLOSED_DIVERGENCES.md`.
-7. Live ground items: PARTIAL 2026-08-23 lane `liveitems`. Magma
-   `live_sim.c` and blaze `cu_live_tick_player` share `item_live.h`
-   (`EntityItem.onUpdate`). `ground_items` M1+M2 VERIFIED. spawn_to_torch
-   M1 BLOCKED (crafting/containers evidence 0) after AABB pickup + falling
-   getMouseOver; not a PASS. Magma 32-slot overflow queue still magma-only.
-   XP orb lava cut still open. spawnAsEntity xz Math.random Class C zeros.
-   M.
+7. Live ground items: VERIFIED pickup 2026-08-23 lane `liveitems`. Shared
+   `item_live.h` volume is player AABB `expand(1.0D, 0.5D, 1.0D)`
+   (`EntityPlayer.java:613`) + `delay>0` return (`EntityItem.java:432`) +
+   `addItemStackToInventory`. `ground_items` and spawn_to_torch M1+M2
+   VERIFIED (2058). Magma 32-slot overflow queue still magma-only. XP orb
+   lava cut still open. spawnAsEntity xz Math.random Class C zeros. M.
 8. Tick order: `magma/game/runtime.c:904-1216` is not `WorldServer.tick`
    order (Java: weather, updateBlocks(random ticks) per chunk, tile
    entities in `updateEntities` after entities, scheduled ticks before

@@ -67,12 +67,15 @@ INV_IDS = (17, 5, 280, 4, 58, 270, 274, 263, 50)
 
 
 class MagmaEnv:
-    def __init__(self, seed, bin=True):
+    def __init__(self, seed, bin=True, snapshot=None):
         self.seed = seed
         self.bin = bin
+        cmd = [BIN, "--rl-bin" if bin else "--rl", "--render", "off",
+               "--pace", "unlimited", "--seed", str(seed), "--mobs", "off"]
+        if snapshot:
+            cmd.extend(["--snapshot-in", os.path.abspath(snapshot)])
         self.proc = subprocess.Popen(
-            [BIN, "--rl-bin" if bin else "--rl", "--render", "off",
-             "--pace", "unlimited", "--seed", str(seed), "--mobs", "off"],
+            cmd,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             **({} if bin else {"text": True, "bufsize": 1}))

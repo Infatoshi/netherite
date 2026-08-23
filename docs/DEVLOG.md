@@ -1,5 +1,43 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 live EntityItem pickup volume (lane/liveitems)
+
+Gamer continuation. Merge origin/master (tntsupport mayPlace/placement).
+lane/witch is not on master; did not merge it. Did not touch witch/spawn.
+
+Java pickup volume is not the unexpanded player AABB. `EntityPlayer.onUpdate`
+`EntityPlayer.java:613` `getEntityBoundingBox().expand(1.0D, 0.5D, 1.0D)` then
+`getEntitiesWithinAABBExcludingEntity`. Riding uses 1.0/0.0/1.0 at `:609`
+(live table has no mount). `AxisAlignedBB.expand` `:167-175`.
+`EntityItem.onCollideWithPlayer` `:432` `delayBeforeCanPickup > 0` return.
+`InventoryPlayer.addItemStackToInventory` `:409-453` via `storeItemStack`
+`:356-376` (currentItem, offhand 40, then main 0..n) then
+`storePartialItemStack` `:295-350`.
+
+Shared `il_pickup_volume` / `il_try_pickup` now expand 1.0/0.5/1.0.
+Magma `gm_live_tick_player` uses the same volume (keeps enchant copy).
+Units `test_live_items` and `test_ground_items` cover expand, delay==0,
+outside volume, currentItem-first merge.
+
+Baker `blaze/rl/chain_probe.py` now snapshot-in
+`s10_t0_r64_no_liquid.bsnp` for seed 10 and walks coal drops through the
+Java volume (`walk_pickup`). A snapshot rebake with extra per-log walks
+was 1587 ticks and FAILED M1 items digest at t=735; kept the committed
+2058 chain. That 2058 stream VERIFIES with the Java volume
+(`out/verify/liveitems_spawn_to_torch_m1_origchain.log`,
+`out/verify/liveitems_m1_spawn_to_torch.log`,
+`out/verify/liveitems_m2_spawn_to_torch.log`).
+
+After tapes (`out/verify/liveitems_after_*.log`): bow physics NO
+divergence 1407, entities PASS 5525. smoke_zombie x2 physics NO
+divergence through death 358, entities PASS. Canon INFRASTRUCTURE
+FAILURE (golden frames missing).
+
+Listed `--no-deps` M1 VERIFIED including spawn_to_torch. M2 VERIFIED
+except mining_slice BLOCKED `blaze/rl/out/snaps/*_d*.bsnp`. Root
+`make test` PASS (`out/verify/liveitems_maketest.log`). Sweep row 7
+pickup is Java; overflow 32, spawnAsEntity xz Class C, XP orb lava stay.
+
 ## 2026-08-23 live EntityItem tick (lane/liveitems)
 
 Gamer. Magma sweep 2026-08-23 row 7 + silent 48-item cap. One

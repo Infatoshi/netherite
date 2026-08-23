@@ -268,6 +268,7 @@ void gm_live_tick_player(GmLiveSim *s, GmWorld *w, struct PsvPlayer *pl_,
     double pz = pl->ent.posZ + (double)player_oz;
     {
         McAABB pbox = psv_player_box(px, py, pz);
+        McAABB vol = il_pickup_volume(&pbox);
         for (int i = 0; i < GM_LIVE_MAX; ++i) {
             GmLiveEnt *e = &s->ents[i];
             McItem it;
@@ -275,7 +276,7 @@ void gm_live_tick_player(GmLiveSim *s, GmWorld *w, struct PsvPlayer *pl_,
             if (!e->active || e->type != 0) continue;
             live_to_mc(e, &it);
             if (it.delayBeforeCanPickup > 0) continue;
-            if (!mc_aabb_intersects(&it.box, &pbox)) continue;
+            if (!mc_aabb_intersects(&it.box, &vol)) continue;
             {
                 ICStack incoming = ic_mk(e->item, e->count, e->meta);
                 n = e->n_enchants;

@@ -5,7 +5,10 @@
  * --write-fixture FROM OUT plants two cobble stacks that merge, a lava
  * pool, and one cobble over the lava. Writes blaze/rl/fixtures/ground_items_s10.json. */
 #define _POSIX_C_SOURCE 200809L
-#include "entity_item.h"
+#define IL_W char
+#define il_id(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 0)
+#define il_meta(w, x, y, z) ((void)(w), (void)(x), (void)(y), (void)(z), 0)
+#include "item_live.h"
 #include "blaze_snapshot.h"
 #include "mc_blocks.h"
 
@@ -198,6 +201,63 @@ static int run_units(void) {
     expect(EI_PICKUP_DEFAULT == 10, "setDefaultPickupDelay is 10");
     expect(EI_PICKUP_THROWN == 40, "dropItem pickupDelay is 40");
 
+    /* Pickup volume: player AABB expand 1.0/0.5/1.0.
+     * EntityPlayer.java:613, AxisAlignedBB.java:167-175.
+     * delay>0 return EntityItem.java:432. addItemStackToInventory
+     * currentItem then main InventoryPlayer.java:356-376, :409-453. */
+    {
+        McItem it;
+        IsrInv inv;
+        McAABB player, vol;
+        const double hw = 0.30000001192092896;
+        const double hh = 1.7999999523162842;
+        double px = 8.5, py = 65.0, pz = 8.5;
+
+        player = mc_aabb_make(px - hw, py, pz - hw, px + hw, py + hh, pz + hw);
+        vol = il_pickup_volume(&player);
+        expect(vol.minX == player.minX - 1.0 && vol.maxX == player.maxX + 1.0,
+               "pickup expand 1.0 x EntityPlayer.java:613");
+        expect(vol.minY == player.minY - 0.5 && vol.maxY == player.maxY + 0.5,
+               "pickup expand 0.5 y EntityPlayer.java:613");
+        expect(vol.minZ == player.minZ - 1.0 && vol.maxZ == player.maxZ + 1.0,
+               "pickup expand 1.0 z EntityPlayer.java:613");
+
+        memset(&inv, 0, sizeof inv);
+        fill_item(&it, px, py, pz, 4, 8, 1);
+        expect(il_try_pickup(&it, &inv, &player) == 0,
+               "delay>0 no pickup EntityItem.java:432");
+        expect(it.dead == 0 && it.count == 8 && inv.main[0].count == 0,
+               "delay>0 item and inv unchanged");
+
+        fill_item(&it, px, py, pz, 4, 8, 0);
+        expect(il_try_pickup(&it, &inv, &player) == 1,
+               "delay==0 overlap pickup");
+        expect(it.dead == 1 && it.count == 0, "picked item dead leftover 0");
+        expect(inv.main[0].item == 4 && inv.main[0].count == 8,
+               "addItem first empty slot 0");
+
+        memset(&inv, 0, sizeof inv);
+        fill_item(&it, px, py, pz + (hw + 1.0) - 0.05, 4, 1, 0);
+        expect(il_try_pickup(&it, &inv, &player) == 1,
+               "item inside expand 1.0 xz picks up");
+
+        memset(&inv, 0, sizeof inv);
+        fill_item(&it, px, py, pz + (hw + 1.0) + 0.25, 4, 1, 0);
+        expect(il_try_pickup(&it, &inv, &player) == 0,
+               "item outside expand 1.0 xz stays");
+        expect(it.dead == 0 && it.count == 1, "outside volume not consumed");
+
+        memset(&inv, 0, sizeof inv);
+        inv.current_item = 0;
+        inv.main[0] = ic_mk(4, 32, 0);
+        inv.main[2] = ic_mk(4, 32, 0);
+        fill_item(&it, px, py, pz, 4, 16, 0);
+        expect(il_try_pickup(&it, &inv, &player) == 1,
+               "addItem merges currentItem first");
+        expect(inv.main[0].count == 48, "current slot 0 grew 32+16");
+        expect(inv.main[2].count == 32, "later cobble slot untouched");
+    }
+
     spawned = 0;
     failc = 0;
     for (i = 0; i < 49; ++i) {
@@ -207,6 +267,11 @@ static int run_units(void) {
             failc++;
     }
     expect(spawned == 48 && failc == 1, "49th spawn skipped, fail count 1");
+    {
+        McItem tickit;
+        memset(&tickit, 0, sizeof tickit);
+        il_tick_item(NULL, &tickit, 0, 0);
+    }
     return fails ? 1 : 0;
 }
 
