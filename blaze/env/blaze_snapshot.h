@@ -25,7 +25,11 @@
  *     After clock: projectiles, falls, TE/player/fluid/boat/explosion pose,
  *     then RlSnapV10Xtra (xp pickups, spawn RNGs, blast counters, dead,
  *     boat extras, enchant payload). v9 loads xtra as 0.
- * Loader reads v7, v8, v9, and v10 on this lane. New writes use version 10.
+ *   | i32 n_potions + n_potions x RlSnapPotion          [version >= 11]
+ * Loader reads v7, v8, v9, v10, and v11. New writes use version 11.
+ * v10 loads n_potions=0: do not read a potion count where the resume
+ * clock lives. v11 reads the entire v10 resume trailer first, then the
+ * potion list.
  * v1/v2 files load with n_mobs = 0. v3 loads with n_orbs = 0.
  * v4 loads with world_rand_seed = jrand_set(0) internal cursor.
  * v5 loads with update_lcg = 0.
@@ -35,6 +39,7 @@
  * player fire=0 air=300.
  * v8 loads player fire=0 air=300 (Entity.java:256 AIR default).
  * v9 loads v10 clock from ww_init(seed) and rt_mutations=0.
+ * v10 loads n_potions=0.
  * Biome index is ix * rnz + iz (ix = wx - rx0, iz = wz - rz0). Java
  * Chunk.blockBiomeArray is (z&15)<<4 | (x&15) per chunk (Chunk.java:1273-1278);
  * the magma writer copies LChunk.biome[x + z*16] (light.c) into this plane.
@@ -69,9 +74,11 @@ extern "C" {
 #define BLAZE_SNAP_VERSION_UPDATE_LCG 6 /* + World.updateLCG after world_rand */
 #define BLAZE_SNAP_VERSION_ENDER 7      /* + enderman fields on RlSnapMob */
 #define BLAZE_SNAP_VERSION_BIOME 8      /* + rnx*rnz u8 column biome plane */
-#define BLAZE_SNAP_VERSION_HAZARDS 9    /* + player fire ticks and air */
-#define BLAZE_SNAP_VERSION_RESUME 10    /* + clock/rt mutations + mob sidecars */
-#define BLAZE_SNAP_VERSION 10           /* v10 on this lane; not a final pin */
+#define BLAZE_SNAP_VERSION_HAZARDS 9    /* player fire, air */
+#define BLAZE_SNAP_VERSION_RESUME 10    /* unchanged: clock/rt/sidecars/xtra */
+#define BLAZE_SNAP_VERSION_POTIONS 11   /* n_potions + n_potions x RlSnapPotion */
+#define BLAZE_SNAP_VERSION 11           /* new writes */
+#define BLAZE_SNAP_POTION_MAX 32        /* Potion.java:397-426 ids 1..27 */
 #define BLAZE_SNAP_MOB_SIZE_V6 544      /* packed RlSnapMob through v6 */
 #define BLAZE_SNAP_MOB_SIZE_V7 572      /* packed through teleport_time */
 #define BLAZE_SNAP_MOB_SIZE_V10 604     /* packed through fire_ticks */
@@ -280,6 +287,14 @@ typedef struct RlSnapOrb {
     int has_closest;
     int dead;
 } RlSnapOrb;
+/* One player PotionEffect. v10 files omit this trailer -> n_potions=0. */
+typedef struct {
+    int id;
+    int amplifier;
+    int duration;
+    int ambient;
+    int show_particles;
+} RlSnapPotion;
 #pragma pack(pop)
 
 typedef char RlSnapMob_must_be_604_bytes
@@ -292,6 +307,8 @@ typedef char RlSnapOrb_must_be_84_bytes
     [(sizeof(RlSnapOrb) == 84) ? 1 : -1];
 typedef char RlSnapEnch_must_be_36_bytes
     [(sizeof(RlSnapEnch) == 36) ? 1 : -1];
+typedef char RlSnapPotion_must_be_20_bytes
+    [(sizeof(RlSnapPotion) == 20) ? 1 : -1];
 
 /* ---- host-side loader (blaze/env/blaze_snapshot.c; NOT linked into the
  * game binary - rl_mode.c uses only the structs above) ---- */
@@ -363,6 +380,8 @@ typedef struct {
     double             explosion_x, explosion_y, explosion_z;
     float              explosion_size;
     RlSnapV10Xtra      xtra;
+    int                n_potions;       /* v11: active PotionEffect count */
+    RlSnapPotion       potions[BLAZE_SNAP_POTION_MAX];
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).

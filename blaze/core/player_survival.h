@@ -35,6 +35,7 @@
 #include "inventory_stack_rules.h"  /* IsrInv + stack rules; pulls items_core */
 #include "mc_gamerules.h"           /* doTileDrops gate (Block.harvestBlock -> dropBlockAsItem) */
 #include "combat_math.h"            /* CombatRules magic absorb for explosion */
+#include "player_vitals.h"          /* PvStats for potion performEffect */
 
 /* ---- region geometry (multi-chunk, centered on origin) ---- */
 #ifndef PSV_DIM
@@ -66,8 +67,21 @@
 /* Per-tick emitted fields (fixed order; see psv_emit). */
 #define PSV_FIELDS 19
 
-/* ---- player + action state (our own struct; mc_world.h untouched) ---- */
+/* PotionEffect fields. Cap 32: Potion.registerPotions ids 1..27
+ * (Potion.java:397-426); Java map is one entry per Potion. */
+#ifndef PSV_POTION_MAX
+#define PSV_POTION_MAX 32
+#endif
 typedef struct {
+    int id;             /* Potion.getIdFromPotion; 0 = empty */
+    int amplifier;
+    int duration;
+    int ambient;
+    int show_particles;
+} PsvPotionEffect;
+
+/* ---- player + action state (our own struct; mc_world.h untouched) ---- */
+typedef struct PsvPlayer {
     McEntity ent;            /* pos/vel/box + collision flags (verified physics substrate) */
     float    yaw, pitch;     /* look, degrees */
     float    health;         /* 0..PSV_MAX_HEALTH */
@@ -121,6 +135,15 @@ typedef struct {
     int      in_water;       /* Entity.inWater after handleWaterMovement */
     int      frost_walker;   /* EnchantmentHelper.hasFrostWalkerEnchantment */
     int      wet_rain;       /* World.isRainingAt feet or head; caller sets */
+    /* PotionEffect list. Cap 32: vanilla ids 1..27, one slot per Potion
+     * (EntityLivingBase.activePotionsMap keyed by Potion). */
+    int      n_potions;
+    PsvPotionEffect potions[PSV_POTION_MAX];
+    int      use_action;     /* 0 none, 1 drink, 2 shield BLOCK */
+    int      use_remaining;
+    int      use_max;
+    int      active_hand;    /* 0 main, 1 off */
+    int      shield_cooldown;
     /* Pending env hits this tick (Java order). Game tick applies them. */
     float    hz_fire, hz_lava, hz_void, hz_wall, hz_drown, hz_cactus, hz_magma;
     IsrInv   inv;            /* inventory (verified stack rules) */
@@ -128,6 +151,8 @@ typedef struct {
     u32      place_events;   /* cumulative successful block places */
     u32      swing_events;   /* cumulative attack swings that hit nothing */
 } PsvPlayer;
+
+#include "potion_effects.h"         /* after PsvPlayer: effect list + shield */
 
 typedef struct {
     float forward;   /* [-1,1] */
@@ -632,9 +657,12 @@ MC_HD static inline void psv_env_pre_move(const Chunk *now, PsvPlayer *pl) {
         /* EntityLivingBase.java:268-271 IN_WALL 1.0F unblockable. */
         if (psv_is_entity_inside_opaque(now, pl))
             pl->hz_wall = 1.0f;
-        /* EntityLivingBase.java:297-320 air / DROWN 2.0F unblockable. */
+        /* EntityLivingBase.java:297-320 air / DROWN 2.0F unblockable.
+         * WATER_BREATHING skips decreaseAirSupply (Potion.java:411). */
         if (!psv_eyes_in_water(now, pl))
             pl->air = PSV_AIR_MAX;
+        else if (psv_potion_is_active(pl, PSV_POT_WATER_BREATHING))
+            ;
         else {
             pl->air = psv_decrease_air(pl->air);
             if (pl->air == -20) {
@@ -884,8 +912,8 @@ MC_HD static inline void psv_update_elytra_size(const Chunk *now, PsvPlayer *pl,
 }
 
 /* ---- one physics tick (verified ppw math over the multi-chunk region) ---- */
-MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st, PsvPlayer *pl,
-                                          const PsvAction *act, McAABB *blocks) {
+MC_HD static inline void psv_physics_tick_vit(const Chunk *now, const McSinTable *st, PsvPlayer *pl,
+                                              const PsvAction *act, McAABB *blocks, PvStats *vit) {
     McEntity *e = &pl->ent;
     pl->reset_fall_distance = 0;
     pl->elytra_wall_damage = 0.0f;
@@ -900,6 +928,9 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
     /* Entity.onEntityUpdate fire/lava/void then EntityLivingBase drown/wall
      * before travel. Amounts land in hz_*; the game tick applies them. */
     psv_env_pre_move(now, pl);
+    /* EntityLivingBase.onEntityUpdate :389 updatePotionEffects after air
+     * (this function's psv_env_pre_move) and before onLivingUpdate travel. */
+    psv_update_potion_effects(pl, vit);
 
     /* EntityLivingBase.updateElytra clears flag 7 only for ground/riding or a
      * missing/broken chest item. Water and lava deliberately do not clear it
@@ -924,7 +955,7 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
         e->motionY += 0.03999999910593033;
     } else if (act->jump && e->onGround && pl->jump_ticks == 0) {
         pl->jump_ticks = 10;
-        e->motionY = 0.41999998688697815;
+        e->motionY = 0.41999998688697815 + (double)psv_jump_boost_extra(pl);
         if (act->sprint) {
             /* EntityLivingBase.jump(): sprinting adds a horizontal kick along the look yaw */
             float fj = pl->yaw * 0.017453292f;
@@ -983,6 +1014,7 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
          * op MULTIPLY_TOTAL (EntityLivingBase.SPRINTING_SPEED_BOOST), cast to float. */
         float ai = act->sprint ? (float)(0.10000000149011612 * (1.0 + 0.30000001192092896))
                                : PPW_AI_MOVE_SPEED;
+        ai *= psv_potion_move_mul(pl);
         accel = ai * f3;
     } else {
         /* EntityPlayer.onLivingUpdate: jumpMovementFactor = speedInAir(0.02F), sprinting
@@ -1118,6 +1150,11 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
     /* EntityPlayer.onLivingUpdate refreshes jumpMovementFactor AFTER the
      * super.onLivingUpdate() movement above; next tick's air accel sees it. */
     pl->jump_factor_sprint = act->sprint;
+}
+
+MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st, PsvPlayer *pl,
+                                          const PsvAction *act, McAABB *blocks) {
+    psv_physics_tick_vit(now, st, pl, act, blocks, NULL);
 }
 
 /* ---- crosshair raycast (fixed-step DDA over 'now') ---- *
@@ -1335,6 +1372,12 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->in_water = 0;
     pl->frost_walker = 0;
     pl->wet_rain = 0;
+    psv_potion_clear(pl);
+    pl->use_action = 0;
+    pl->use_remaining = 0;
+    pl->use_max = 0;
+    pl->active_hand = 0;
+    pl->shield_cooldown = 0;
     psv_env_clear_hits(pl);
     pl->break_events = pl->place_events = pl->swing_events = 0;
     isr_init(&pl->inv);

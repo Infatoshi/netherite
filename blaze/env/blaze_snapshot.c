@@ -200,6 +200,8 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             return snap_fail(err, err_cap, "truncated .bsnp hazards", path);
         }
     }
+    out->n_potions = 0;
+    memset(out->potions, 0, sizeof out->potions);
     out->ww_total_time = 0;
     out->ww_world_time = 0;
     out->ww_rain_time = 0;
@@ -378,6 +380,29 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             fclose(f);
             return snap_fail(err, err_cap, "truncated .bsnp v10 te/player",
                              path);
+        }
+    }
+    if (out->head.version >= BLAZE_SNAP_VERSION_POTIONS) {
+        int np = 0;
+        if (fread(&np, sizeof np, 1, f) != 1 || np < 0 ||
+            np > BLAZE_SNAP_POTION_MAX) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp potions", path);
+        }
+        out->n_potions = np;
+        if (np > 0 &&
+            fread(out->potions, sizeof out->potions[0], (size_t)np, f) !=
+                (size_t)np) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp potions", path);
         }
     }
     fclose(f);
@@ -602,6 +627,15 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
         ok = ok && fwrite(&s->explosion_size, sizeof s->explosion_size, 1, f) ==
                        1;
         ok = ok && fwrite(&s->xtra, sizeof s->xtra, 1, f) == 1;
+    }
+    if (version >= BLAZE_SNAP_VERSION_POTIONS) {
+        int np = s->n_potions;
+        if (np < 0) np = 0;
+        if (np > BLAZE_SNAP_POTION_MAX) np = BLAZE_SNAP_POTION_MAX;
+        ok = ok && fwrite(&np, sizeof np, 1, f) == 1;
+        ok = ok && (np == 0 ||
+                    fwrite(s->potions, sizeof s->potions[0], (size_t)np, f) ==
+                        (size_t)np);
     }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)

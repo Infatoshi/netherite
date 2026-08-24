@@ -54,7 +54,7 @@ OBJ_ASSETS = assets/blockmodels.o
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/world_spawn.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o game/audio_live.o
 
-.PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-fall-reanchor test-sky-weather test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui test-beds test-xp-orbs
+.PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-fall-reanchor test-sky-weather test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui test-beds test-xp-orbs test-potions
 all: game
 
 # --- CUDA raster for the game ---
@@ -420,6 +420,11 @@ test-beds:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_beds.c -o tests/test_beds $(LDLIBS)
 	./tests/test_beds
 
+.PHONY: test-potions
+test-potions:
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_potions.c -o tests/test_potions $(LDLIBS)
+	./tests/test_potions
+
 .PHONY: test-explosions
 test-explosions:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_explosions.c -o tests/test_explosions $(LDLIBS)
@@ -434,7 +439,7 @@ test-furnace-registry:
 	    -o tests/test_furnace_registry $(LDLIBS)
 	./tests/test_furnace_registry
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items test-beds test-xp-orbs
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items test-beds test-xp-orbs test-potions
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 .PHONY: test-live-items

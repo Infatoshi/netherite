@@ -396,6 +396,20 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->world_rand_seed, v->success_item);
     v->envs[i].pl.fire = s->player_fire;
     v->envs[i].pl.air = s->player_air;
+    {
+        int k, n = s->n_potions;
+        if (n < 0) n = 0;
+        if (n > PSV_POTION_MAX) n = PSV_POTION_MAX;
+        psv_potion_clear(&v->envs[i].pl);
+        v->envs[i].pl.n_potions = n;
+        for (k = 0; k < n; ++k) {
+            v->envs[i].pl.potions[k].id = s->potions[k].id;
+            v->envs[i].pl.potions[k].amplifier = s->potions[k].amplifier;
+            v->envs[i].pl.potions[k].duration = s->potions[k].duration;
+            v->envs[i].pl.potions[k].ambient = s->potions[k].ambient;
+            v->envs[i].pl.potions[k].show_particles = s->potions[k].show_particles;
+        }
+    }
     v->envs[i].update_lcg = s->update_lcg;
     if (s->head.version >= BLAZE_SNAP_VERSION_RESUME) {
         v->envs[i].ww.totalTime = s->ww_total_time;
@@ -781,6 +795,20 @@ int blaze_capture(void *vh, int env, int slot) {
     s->ww_thundering = e->ww.thundering;
     s->ww_rand_seed48 = e->ww.rand.seed & MC_JR_MASK;
     s->rt_mutations = e->parity_rt_mutations;
+    {
+        int k, n = e->pl.n_potions;
+        if (n < 0) n = 0;
+        if (n > BLAZE_SNAP_POTION_MAX) n = BLAZE_SNAP_POTION_MAX;
+        s->n_potions = n;
+        memset(s->potions, 0, sizeof s->potions);
+        for (k = 0; k < n; ++k) {
+            s->potions[k].id = e->pl.potions[k].id;
+            s->potions[k].amplifier = e->pl.potions[k].amplifier;
+            s->potions[k].duration = e->pl.potions[k].duration;
+            s->potions[k].ambient = e->pl.potions[k].ambient;
+            s->potions[k].show_particles = e->pl.potions[k].show_particles;
+        }
+    }
     s->n_mobs = e->n_mobs;
     if (e->n_mobs) {
         unsigned mi;
@@ -1144,6 +1172,20 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
         for (ei = 0; ei < (unsigned)n; ++ei) {
             s.xtra.cursor_ench.id[ei] = e->cursor.enchants[ei].id;
             s.xtra.cursor_ench.level[ei] = e->cursor.enchants[ei].level;
+        }
+    }
+    {
+        int k, n = e->pl.n_potions;
+        if (n < 0) n = 0;
+        if (n > BLAZE_SNAP_POTION_MAX) n = BLAZE_SNAP_POTION_MAX;
+        s.n_potions = n;
+        memset(s.potions, 0, sizeof s.potions);
+        for (k = 0; k < n; ++k) {
+            s.potions[k].id = e->pl.potions[k].id;
+            s.potions[k].amplifier = e->pl.potions[k].amplifier;
+            s.potions[k].duration = e->pl.potions[k].duration;
+            s.potions[k].ambient = e->pl.potions[k].ambient;
+            s.potions[k].show_particles = e->pl.potions[k].show_particles;
         }
     }
     s.n_orbs = 0;

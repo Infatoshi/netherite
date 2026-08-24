@@ -320,6 +320,7 @@ MC_HD static inline int ita_stack_max_damage(const ITAStack *s) {
     int am = ita_armor_material(s->item);
     if (am >= 0) return ita_arm_max_damage(am, ita_armor_slot(s->item));
     if (s->item == 443) return 432; /* Items.ELYTRA maxDamage */
+    if (s->item == 442) return 336; /* ItemShield.java:27 setMaxDamage(336) */
     return 0;
 }
 

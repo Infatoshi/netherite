@@ -152,7 +152,7 @@ static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
         if (dropped > 0.0 && !pl->reset_fall_distance)
             pl->fall_distance += (float)dropped;
     } else if (was_air && pl->fall_distance > 0.0f) {
-        pv_fall_damage(vit, pl->fall_distance);
+        pv_fall_damage(vit, pl->fall_distance - psv_jump_boost_fall(pl));
     }
     if (e->onGround) pl->fall_distance = 0.0f;
 
@@ -848,7 +848,7 @@ use_done:
     {
         int elytra_was = pl->elytra_flying;
         int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
-        psv_physics_tick(window, st, pl, &a, blocks);
+        psv_physics_tick_vit(window, st, pl, &a, blocks, vit);
         el_post_travel(pl, act.jump, water_pre, elytra_was, elytra_can_start,
                        window, blocks);
     }
@@ -881,27 +881,54 @@ use_done:
                 s_use_action=1;s_use_max=32;s_use_remaining=32-s_eat_ticks;
                 if(s_use_remaining<0)s_use_remaining=0;
             }
-        }else if(act.use&&(food.item==373||food.item==335)){
-            /* Potion / milk: EnumAction.DRINK, same 32-tick transform as EAT. */
+        }else if(act.use&&(food.item==PSV_ITEM_POTION||food.item==PSV_ITEM_MILK)){
+            /* ItemPotion / ItemBucketMilk EnumAction.DRINK, duration 32. */
+            int slot=pl->inv.current_item;
             if(s_eat_item!=food.item){s_eat_item=food.item;s_eat_ticks=0;}
-            if(++s_eat_ticks>=32){
-                (void)isr_decr_stack_size(&pl->inv,pl->inv.current_item,1);
+            if(++s_eat_ticks>=PSV_USE_DRINK_TICKS){
+                if(food.item==PSV_ITEM_POTION)
+                    psv_potion_drink_finish(pl,vit,slot,act.creative);
+                else
+                    psv_potion_milk_finish(pl,slot,act.creative);
                 s_eat_ticks=0;s_eat_item=0;
                 s_use_action=0;s_use_remaining=0;s_use_max=0;
+                psv_reset_active_hand(pl);
             }else{
-                s_use_action=1;s_use_max=32;s_use_remaining=32-s_eat_ticks;
+                s_use_action=PSV_USE_DRINK;s_use_max=PSV_USE_DRINK_TICKS;
+                s_use_remaining=PSV_USE_DRINK_TICKS-s_eat_ticks;
                 if(s_use_remaining<0)s_use_remaining=0;
+                pl->use_action=PSV_USE_DRINK;
+                pl->use_max=PSV_USE_DRINK_TICKS;
+                pl->use_remaining=s_use_remaining;
+                pl->active_hand=0;
             }
-        }else if(act.use&&food.item==442){
-            /* MC 1.11.2: only ItemShield has EnumAction.BLOCK (item 442).
-             * Swords are EnumAction.NONE (combat update); getMaxItemUseDuration 72000. */
-            s_use_action=2;s_use_max=72000;
-            if(s_use_remaining<=0||s_use_remaining>72000)s_use_remaining=72000;
-            if(s_use_remaining>0)--s_use_remaining;
-            s_eat_ticks=0;s_eat_item=0;
+        }else if(act.use&&pl->shield_cooldown<=0){
+            int slot=-1;
+            int kind=psv_use_item_kind(pl,&slot);
+            if(kind==PSV_USE_BLOCK){
+                /* ItemShield EnumAction.BLOCK ItemShield.java:83-93. */
+                s_use_action=PSV_USE_BLOCK;s_use_max=PSV_SHIELD_USE_TICKS;
+                if(s_use_remaining<=0||s_use_remaining>PSV_SHIELD_USE_TICKS)
+                    s_use_remaining=PSV_SHIELD_USE_TICKS;
+                if(s_use_remaining>0)--s_use_remaining;
+                s_eat_ticks=0;s_eat_item=0;
+                pl->use_action=PSV_USE_BLOCK;
+                pl->use_max=PSV_SHIELD_USE_TICKS;
+                pl->use_remaining=s_use_remaining;
+                pl->active_hand=(slot==ISR_OFFHAND_SLOT)?1:0;
+            }else{
+                s_eat_ticks=0;s_eat_item=0;
+                if(food.item!=261){
+                    s_use_action=0;s_use_remaining=0;s_use_max=0;
+                    psv_reset_active_hand(pl);
+                }
+            }
         }else{
             s_eat_ticks=0;s_eat_item=0;
-            if(food.item!=261){s_use_action=0;s_use_remaining=0;s_use_max=0;}
+            if(food.item!=261){
+                s_use_action=0;s_use_remaining=0;s_use_max=0;
+                psv_reset_active_hand(pl);
+            }
         }
     }
 

@@ -225,6 +225,8 @@ int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player,
 int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals,
                           struct IsrInv *player_inv, float amount,
                           int bypass_armor);
+int gm_mobs_hurt_player(GmMobLive *m, struct PsvPlayer *pl, struct PvStats *vitals,
+                        float amount, int flags, double sx, double sz);
 void gm_mobs_player_hurt_tick(GmMobLive *m);
 /* boat_forward/boat_strafe: player WASD while mounted (GmAction.forward/strafe).
  * Zero when not riding; runtime passes the action and suppresses player walk. */

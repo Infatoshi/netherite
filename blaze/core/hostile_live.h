@@ -667,6 +667,7 @@ typedef struct {
     int hit_player;
     float hit_dmg;
     int skel_fire;
+    int splash_type; /* PotionType id; 0 = none. Witch throw. */
 } MlAiOut;
 
 /* EntitySlime hop + attack. Magma extra: no EntityAITasks mutex
@@ -690,6 +691,7 @@ MC_HD static inline void ml_slime_ai(MlMob *m, ML_W *w,
         out->hit_player = 0;
         out->hit_dmg = 0.0f;
         out->skel_fire = 0;
+        out->splash_type = 0;
     }
     if (!m || !m->snap.alive) return;
     s = &m->snap;
@@ -959,6 +961,7 @@ MC_HD static inline void ml_enderman_ai(MlMob *m, ML_W *w,
         out->hit_player = 0;
         out->hit_dmg = 0.0f;
         out->skel_fire = 0;
+        out->splash_type = 0;
     }
     if (!m || !m->snap.alive) return;
     s = &m->snap;
@@ -1151,6 +1154,7 @@ MC_HD static inline void ml_witch_ai(MlMob *m, ML_W *w,
         out->hit_player = 0;
         out->hit_dmg = 0.0f;
         out->skel_fire = 0;
+        out->splash_type = 0;
     }
     if (!m || !m->snap.alive) return;
     s = &m->snap;
@@ -1238,17 +1242,19 @@ MC_HD static inline void ml_witch_ai(MlMob *m, ML_W *w,
              * on the new entity's rand (Entity.java unseeded) - skip. */
             double d1, d3, f;
             float php = ctx ? ctx->player_health : 20.0f;
+            int ptype = 23; /* PotionTypes.HARMING PotionType.java:76 */
             d1 = px + (ctx ? ctx->pmx : 0.0) - s->x;
             d3 = pz + (ctx ? ctx->pmz : 0.0) - s->z;
             f = (float)sqrt(d1 * d1 + d3 * d3);
             if (f >= 8.0f) {
-                /* slowness :249; player has no effect table */
+                ptype = 17; /* SLOWNESS EntityWitch.java:249 PotionType.java:70 */
             } else if (php >= 8.0f) {
-                /* poison :253 */
+                ptype = 25; /* POISON :253 PotionType.java:78 */
             } else if (f <= 3.0f && jrand_float(&er) < 0.25f) {
-                /* weakness :257 */
+                ptype = 34; /* WEAKNESS :257 PotionType.java:87 */
             }
             (void)jrand_float(&er); /* throw sound :265 */
+            if (out) out->splash_type = ptype;
             s->attack_time = ml_attack_cooldown(EW_TYPE_WITCH);
         }
     } else if (aggro) {
@@ -1313,6 +1319,7 @@ MC_HD static inline void ml_hostile_ai(MlMob *m, ML_W *w,
         out->hit_player = 0;
         out->hit_dmg = 0.0f;
         out->skel_fire = 0;
+        out->splash_type = 0;
     }
     if (!m || !m->snap.alive) return;
     s = &m->snap;

@@ -234,9 +234,11 @@ int main(int argc, char **argv) {
     expect(sizeof(RlSnapMob) == 604, "RlSnapMob is 604 bytes packed");
     expect(BLAZE_SNAP_MOB_SIZE_V7 == 572, "v7 on-disk mob record is 572 bytes");
     expect(BLAZE_SNAP_MOB_SIZE_V10 == 604, "v10 on-disk mob record is 604 bytes");
-    expect(BLAZE_SNAP_VERSION == 10, "snapshot version is 10 on this lane");
+    expect(BLAZE_SNAP_VERSION == 11, "snapshot version is 11");
     expect(BLAZE_SNAP_VERSION_HAZARDS == 9, "hazards trailer is version 9");
     expect(BLAZE_SNAP_VERSION_RESUME == 10, "v10 clock/sidecar trailer");
+    expect(BLAZE_SNAP_VERSION_POTIONS == 11, "potion trailer is version 11");
+    expect(sizeof(RlSnapPotion) == 20, "RlSnapPotion is 20 bytes packed");
     expect(BLAZE_SNAP_VERSION_WORLD_RAND == 5, "world_rand trailer is version 5");
     expect(BLAZE_SNAP_VERSION_UPDATE_LCG == 6, "updateLCG trailer is version 6");
     expect(BLAZE_SNAP_VERSION_ENDER == 7, "enderman fields are version 7");
@@ -393,6 +395,31 @@ int main(int argc, char **argv) {
                 expect(v10b.xtra.inv_ench[0].n == 1 &&
                        v10b.xtra.inv_ench[0].id[0] == 16,
                        "v10 xtra inv enchant");
+                expect(v10b.n_potions == 0, "v10 load n_potions=0");
+                v10b.head.version = BLAZE_SNAP_VERSION;
+                v10b.n_potions = 1;
+                v10b.potions[0].id = 10;
+                v10b.potions[0].amplifier = 0;
+                v10b.potions[0].duration = 900;
+                v10b.potions[0].ambient = 0;
+                v10b.potions[0].show_particles = 1;
+                expect(roundtrip(p_a, p_b, &v10b),
+                       "v10->v11 potions save/load/save identical");
+                {
+                    CuSnapshot v11;
+                    memset(&v11, 0, sizeof v11);
+                    expect(blaze_snapshot_load(p_a, &v11, err,
+                                               (int)sizeof err, 1),
+                           "load v11 after potions rewrite");
+                    expect(v11.head.version == 11, "rewritten file is v11");
+                    expect(v11.ww_world_time == 18000,
+                           "v11 keeps v10 worldTime");
+                    expect(v11.xtra.xp_pickups == 3, "v11 keeps v10 xtra");
+                    expect(v11.n_potions == 1 && v11.potions[0].id == 10 &&
+                               v11.potions[0].duration == 900,
+                           "v11 potions after resume trailer");
+                    blaze_snapshot_free(&v11);
+                }
                 blaze_snapshot_free(&v10b);
             }
             blaze_snapshot_free(&v10);
