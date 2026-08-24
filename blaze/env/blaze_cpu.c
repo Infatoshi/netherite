@@ -397,6 +397,280 @@ static void cu_reset_env(CuVec *v, int i) {
     v->envs[i].pl.fire = s->player_fire;
     v->envs[i].pl.air = s->player_air;
     v->envs[i].update_lcg = s->update_lcg;
+    if (s->head.version >= BLAZE_SNAP_VERSION_RESUME) {
+        v->envs[i].ww.totalTime = s->ww_total_time;
+        v->envs[i].ww.worldTime = s->ww_world_time;
+        v->envs[i].ww.rainTime = s->ww_rain_time;
+        v->envs[i].ww.thunderTime = s->ww_thunder_time;
+        v->envs[i].ww.raining = s->ww_raining ? 1 : 0;
+        v->envs[i].ww.thundering = s->ww_thundering ? 1 : 0;
+        v->envs[i].ww.rand.seed = s->ww_rand_seed48 & MC_JR_MASK;
+        v->envs[i].parity_rt_mutations = s->rt_mutations;
+        {
+            unsigned pi, fi;
+            Blaze *e = &v->envs[i];
+            memset(e->projectiles, 0, sizeof e->projectiles);
+            memset(e->proj_in_ground, 0, sizeof e->proj_in_ground);
+            memset(e->proj_shake, 0, sizeof e->proj_shake);
+            memset(e->proj_pickup, 0, sizeof e->proj_pickup);
+            memset(e->proj_ground_ticks, 0, sizeof e->proj_ground_ticks);
+            e->parity_proj_hits = s->parity_proj_hits;
+            for (pi = 0; pi < s->n_proj && pi < CU_MAX_PROJECTILES; ++pi) {
+                e->projectiles[pi].active = s->proj[pi].active;
+                e->projectiles[pi].type = s->proj[pi].type;
+                e->projectiles[pi].age = s->proj[pi].age;
+                e->projectiles[pi].x = s->proj[pi].x;
+                e->projectiles[pi].y = s->proj[pi].y;
+                e->projectiles[pi].z = s->proj[pi].z;
+                e->projectiles[pi].vx = s->proj[pi].vx;
+                e->projectiles[pi].vy = s->proj[pi].vy;
+                e->projectiles[pi].vz = s->proj[pi].vz;
+                e->proj_in_ground[pi] = s->proj[pi].in_ground;
+                e->proj_shake[pi] = s->proj[pi].shake;
+                e->proj_pickup[pi] = s->proj[pi].pickup;
+                e->proj_ground_ticks[pi] = s->proj[pi].ground_ticks;
+            }
+            memset(e->falls, 0, sizeof e->falls);
+            e->n_falls = 0;
+            for (fi = 0; fi < s->n_fall && fi < CU_MAX_ITEMS; ++fi) {
+                e->falls[fi].active = s->falls[fi].active;
+                e->falls[fi].type = s->falls[fi].type;
+                e->falls[fi].x = s->falls[fi].x;
+                e->falls[fi].y = s->falls[fi].y;
+                e->falls[fi].z = s->falls[fi].z;
+                e->falls[fi].mx = s->falls[fi].mx;
+                e->falls[fi].my = s->falls[fi].my;
+                e->falls[fi].mz = s->falls[fi].mz;
+                e->falls[fi].on_ground = s->falls[fi].on_ground;
+                e->falls[fi].age = s->falls[fi].age;
+                e->falls[fi].item = s->falls[fi].item;
+                e->falls[fi].count = s->falls[fi].count;
+                e->falls[fi].meta = s->falls[fi].meta;
+                e->falls[fi].pickup_delay = s->falls[fi].pickup_delay;
+                e->falls[fi].lifespan = s->falls[fi].lifespan;
+                if (e->falls[fi].active) e->n_falls++;
+            }
+            memset(e->fall_updates, 0, sizeof e->fall_updates);
+            for (fi = 0; fi < s->n_fall_upd && fi < CU_FALL_UPDATES; ++fi) {
+                e->fall_updates[fi].active = s->fall_upd[fi].active;
+                e->fall_updates[fi].x = s->fall_upd[fi].x;
+                e->fall_updates[fi].y = s->fall_upd[fi].y;
+                e->fall_updates[fi].z = s->fall_upd[fi].z;
+                e->fall_updates[fi].block_id = s->fall_upd[fi].block_id;
+                e->fall_updates[fi].due_tick = s->fall_upd[fi].due_tick;
+            }
+            memset(e->fall_landings, 0, sizeof e->fall_landings);
+            for (fi = 0; fi < s->n_fall_land && fi < CU_MAX_ITEMS; ++fi) {
+                e->fall_landings[fi].active = s->fall_land[fi].active;
+                e->fall_landings[fi].x = s->fall_land[fi].x;
+                e->fall_landings[fi].y = s->fall_land[fi].y;
+                e->fall_landings[fi].z = s->fall_land[fi].z;
+                e->fall_landings[fi].block_id = s->fall_land[fi].block_id;
+                e->fall_landings[fi].block_meta = s->fall_land[fi].block_meta;
+                e->fall_landings[fi].due_tick = s->fall_land[fi].due_tick;
+            }
+            e->parity_fall_mutations = s->fall_mutations;
+            e->live_ticks = s->live_ticks;
+            {
+                unsigned ui, si;
+                memset(e->furnaces, 0, sizeof e->furnaces);
+                e->active_furnace = s->active_furnace;
+                for (ui = 0; ui < s->n_furn && ui < CU_MAX_FURNACES; ++ui) {
+                    e->furnaces[ui].active = s->furn[ui].active;
+                    e->furnaces[ui].wx = s->furn[ui].wx;
+                    e->furnaces[ui].wy = s->furn[ui].wy;
+                    e->furnaces[ui].wz = s->furn[ui].wz;
+                    e->furnaces[ui].input = sr_mk(s->furn[ui].in_item,
+                                                 s->furn[ui].in_count,
+                                                 s->furn[ui].in_meta);
+                    e->furnaces[ui].fuel = sr_mk(s->furn[ui].fuel_item,
+                                                s->furn[ui].fuel_count,
+                                                s->furn[ui].fuel_meta);
+                    e->furnaces[ui].output = sr_mk(s->furn[ui].out_item,
+                                                  s->furn[ui].out_count,
+                                                  s->furn[ui].out_meta);
+                    e->furnaces[ui].burn_time = s->furn[ui].burn_time;
+                    e->furnaces[ui].current_burn_time =
+                        s->furn[ui].current_burn_time;
+                    e->furnaces[ui].cook_time = s->furn[ui].cook_time;
+                    e->furnaces[ui].total_cook = s->furn[ui].total_cook;
+                }
+                memset(e->chests, 0, sizeof e->chests);
+                e->active_chest = s->active_chest;
+                for (ui = 0; ui < s->n_chest && ui < CU_MAX_CHESTS; ++ui) {
+                    e->chests[ui].active = s->chest[ui].active;
+                    e->chests[ui].wx = s->chest[ui].wx;
+                    e->chests[ui].wy = s->chest[ui].wy;
+                    e->chests[ui].wz = s->chest[ui].wz;
+                    e->chests[ui].te.num_players_using =
+                        s->chest[ui].num_using;
+                    for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si) {
+                        int ei, n;
+                        TecStack ts = tec_mk(
+                            s->chest[ui].slot[si][0],
+                            s->chest[ui].slot[si][1],
+                            s->chest[ui].slot[si][2]);
+                        n = s->chest[ui].slot_ench[si].n;
+                        if (n < 0) n = 0;
+                        if (n > TEC_MAX_ENCHANTS) n = TEC_MAX_ENCHANTS;
+                        ts.n_enchants = n;
+                        for (ei = 0; ei < n; ++ei) {
+                            ts.enchants[ei].id =
+                                s->chest[ui].slot_ench[si].id[ei];
+                            ts.enchants[ei].level =
+                                s->chest[ui].slot_ench[si].level[ei];
+                        }
+                        e->chests[ui].te.slots[si] = ts;
+                    }
+                }
+                for (si = 0; si < 9; ++si)
+                    e->craft_grid[si] = ic_mk(s->craft[si][0], s->craft[si][1],
+                                              s->craft[si][2]);
+                e->cursor = ic_mk(s->cursor[0], s->cursor[1], s->cursor[2]);
+                e->parity_craft_attempts = s->craft_attempts;
+                e->parity_craft_successes = s->craft_successes;
+                e->parity_container_opens = s->container_opens;
+                e->left_click_counter = s->left_click_counter;
+                e->eat_ticks = s->eat_ticks;
+                e->eat_item = s->eat_item;
+                e->bow_ticks = s->bow_ticks;
+                e->bow_drawing = s->bow_drawing;
+                e->pl.experienceLevel = s->xp_level;
+                e->pl.experienceTotal = s->xp_total;
+                e->pl.xpCooldown = s->xp_cooldown;
+                e->pl.experience = s->xp_experience;
+                for (si = 0; si < 4; ++si)
+                    isr_set_stack(&e->pl.inv, ISR_ARMOR0 + (int)si,
+                                  ic_mk(s->armor[si][0], s->armor[si][1],
+                                        s->armor[si][2]));
+                e->fluid_dim = s->fluid_dim;
+                e->parity_fluid_mutations = s->fluid_mutations;
+                for (si = 0; si < CU_FLUID_REGIONS && si < BLAZE_SNAP_FLUID_REGS;
+                     ++si) {
+                    e->fluid_reg[si].active = s->fluid[si].active;
+                    e->fluid_reg[si].x0 = s->fluid[si].x0;
+                    e->fluid_reg[si].y0 = s->fluid[si].y0;
+                    e->fluid_reg[si].z0 = s->fluid[si].z0;
+                    e->fluid_reg[si].x1 = s->fluid[si].x1;
+                    e->fluid_reg[si].y1 = s->fluid[si].y1;
+                    e->fluid_reg[si].z1 = s->fluid[si].z1;
+                    e->fluid_reg[si].has_water = s->fluid[si].has_water;
+                    e->fluid_reg[si].quiet_steps = s->fluid[si].quiet_steps;
+                }
+                e->boat_ride = s->boat_ride;
+                e->explosion_pending = s->explosion_pending;
+                e->explosion_smoking = s->explosion_smoking;
+                e->explosion_flaming = s->explosion_flaming;
+                e->explosion_x = s->explosion_x;
+                e->explosion_y = s->explosion_y;
+                e->explosion_z = s->explosion_z;
+                e->explosion_size = s->explosion_size;
+                e->parity_xp_pickups = s->xtra.xp_pickups;
+                e->next_orb_id = s->xtra.next_orb_id;
+                e->spawn_world_seed48 = s->xtra.spawn_world_seed48;
+                e->spawn_math_seed48 = s->xtra.spawn_math_seed48;
+                e->spawn_shuffle_seed48 = s->xtra.spawn_shuffle_seed48;
+                e->parity_ex_blasts = s->xtra.parity_ex_blasts;
+                e->parity_ex_destroyed = s->xtra.parity_ex_destroyed;
+                e->parity_ex_drop_n = s->xtra.parity_ex_drop_n;
+                e->parity_ex_drop_ids = s->xtra.parity_ex_drop_ids;
+                e->parity_ex_damage = s->xtra.parity_ex_damage;
+                e->parity_ex_kb_x = s->xtra.parity_ex_kb_x;
+                e->parity_ex_kb_y = s->xtra.parity_ex_kb_y;
+                e->parity_ex_kb_z = s->xtra.parity_ex_kb_z;
+                e->parity_ex_rays = s->xtra.parity_ex_rays;
+                e->parity_ex_last_x = s->xtra.parity_ex_last_x;
+                e->parity_ex_last_y = s->xtra.parity_ex_last_y;
+                e->parity_ex_last_z = s->xtra.parity_ex_last_z;
+                e->parity_ex_last_size = s->xtra.parity_ex_last_size;
+                e->dead = s->xtra.player_dead ? 1 : 0;
+                e->player_hurt_resistant = s->xtra.player_hurt_resistant;
+                e->player_attack_cooldown = s->xtra.player_attack_cooldown;
+                e->player_last_damage = s->xtra.player_last_damage;
+                e->mob_tick = s->xtra.mob_tick;
+                {
+                    int ei, n;
+                    ICStack lc = ic_mk(s->xtra.last_craft[0],
+                                       s->xtra.last_craft[1],
+                                       s->xtra.last_craft[2]);
+                    n = s->xtra.last_craft_ench.n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    lc.n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        lc.enchants[ei].id = s->xtra.last_craft_ench.id[ei];
+                        lc.enchants[ei].level = s->xtra.last_craft_ench.level[ei];
+                    }
+                    e->parity_last_craft = lc;
+                }
+                e->pl.elytra_equipped = s->xtra.elytra_equipped ? 1 : 0;
+                e->pl.elytra_flying = s->xtra.elytra_flying ? 1 : 0;
+                e->pl.elytra_flying_pending = s->xtra.elytra_pending ? 1 : 0;
+                e->pl.elytra_pose = s->xtra.elytra_pose;
+                e->pl.ticks_elytra_flying = s->xtra.ticks_elytra_flying;
+                e->pl.elytra_wall_damage = s->xtra.elytra_wall_damage;
+                for (si = 0; si < s->n_mobs && si < BLAZE_SNAP_MAX_MOBS; ++si) {
+                    e->boat_delta_rot[si] = s->xtra.boat_delta_rot[si];
+                    e->boat_glide[si] = s->xtra.boat_glide[si];
+                    e->mob_repath[si] = s->xtra.sidecar_repath[si];
+                    e->mob_despawn[si] = s->xtra.sidecar_despawn[si];
+                    e->mob_fire[si] = s->xtra.sidecar_fire[si];
+                }
+                for (si = 0; si < 37; ++si) {
+                    int slot = si < 36 ? (int)si : ISR_OFFHAND_SLOT;
+                    int ei, n;
+                    ICStack st = isr_get_stack(&e->pl.inv, slot);
+                    n = s->xtra.inv_ench[si].n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    st.n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        st.enchants[ei].id = s->xtra.inv_ench[si].id[ei];
+                        st.enchants[ei].level = s->xtra.inv_ench[si].level[ei];
+                    }
+                    isr_set_stack(&e->pl.inv, slot, st);
+                }
+                for (si = 0; si < 4; ++si) {
+                    int ei, n;
+                    ICStack st = isr_get_stack(&e->pl.inv, ISR_ARMOR0 + (int)si);
+                    n = s->xtra.armor_ench[si].n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    st.n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        st.enchants[ei].id = s->xtra.armor_ench[si].id[ei];
+                        st.enchants[ei].level = s->xtra.armor_ench[si].level[ei];
+                    }
+                    isr_set_stack(&e->pl.inv, ISR_ARMOR0 + (int)si, st);
+                }
+                for (si = 0; si < 9; ++si) {
+                    int ei, n;
+                    n = s->xtra.craft_ench[si].n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    e->craft_grid[si].n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        e->craft_grid[si].enchants[ei].id =
+                            s->xtra.craft_ench[si].id[ei];
+                        e->craft_grid[si].enchants[ei].level =
+                            s->xtra.craft_ench[si].level[ei];
+                    }
+                }
+                {
+                    int ei, n;
+                    n = s->xtra.cursor_ench.n;
+                    if (n < 0) n = 0;
+                    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+                    e->cursor.n_enchants = n;
+                    for (ei = 0; ei < n; ++ei) {
+                        e->cursor.enchants[ei].id = s->xtra.cursor_ench.id[ei];
+                        e->cursor.enchants[ei].level =
+                            s->xtra.cursor_ench.level[ei];
+                    }
+                }
+            }
+        }
+    }
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
     v->envs[i].natural_spawn_passive = v->natural_spawn_passive;
@@ -404,9 +678,14 @@ static void cu_reset_env(CuVec *v, int i) {
         v->envs[i].ww.worldTime = v->world_time_pin;
     v->envs[i].elytra_kit = v->elytra_kit;
     if (v->elytra_kit) {
-        isr_set_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST,
-                      ic_mk(ISR_ELYTRA_ITEM, 1, 0));
-        v->envs[i].pl.elytra_equipped = 1;
+        if (s->head.version < BLAZE_SNAP_VERSION_RESUME) {
+            isr_set_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST,
+                          ic_mk(ISR_ELYTRA_ITEM, 1, 0));
+            v->envs[i].pl.elytra_equipped = 1;
+        } else {
+            ICStack st = isr_get_stack(&v->envs[i].pl.inv, ISR_ARMOR_CHEST);
+            v->envs[i].pl.elytra_equipped = (st.item == ISR_ELYTRA_ITEM);
+        }
     }
 }
 
@@ -491,11 +770,27 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(e, &s->head, s->items);
+    s->head.version = BLAZE_SNAP_VERSION;
     s->player_fire = e->pl.fire;
     s->player_air = e->pl.air;
+    s->ww_total_time = e->ww.totalTime;
+    s->ww_world_time = e->ww.worldTime;
+    s->ww_rain_time = e->ww.rainTime;
+    s->ww_thunder_time = e->ww.thunderTime;
+    s->ww_raining = e->ww.raining;
+    s->ww_thundering = e->ww.thundering;
+    s->ww_rand_seed48 = e->ww.rand.seed & MC_JR_MASK;
+    s->rt_mutations = e->parity_rt_mutations;
     s->n_mobs = e->n_mobs;
-    if (e->n_mobs)
+    if (e->n_mobs) {
+        unsigned mi;
         memcpy(s->mobs, e->mobs, (size_t)e->n_mobs * sizeof s->mobs[0]);
+        for (mi = 0; mi < e->n_mobs; ++mi) {
+            s->mobs[mi].repath_timer = e->mob_repath[mi];
+            s->mobs[mi].despawn_ticks = e->mob_despawn[mi];
+            s->mobs[mi].fire_ticks = e->mob_fire[mi];
+        }
+    }
     if (!s->cells) {
         s->cells = (unsigned short *)malloc((size_t)v->rvol *
                                             sizeof *s->cells);
@@ -553,6 +848,325 @@ int blaze_capture(void *vh, int env, int slot) {
                    (size_t)e->n_cont * 3 * sizeof *s->cont);
     }
     s->has_liquid = v->snaps[v->assign[env]].has_liquid;
+    return 0;
+}
+
+/* Mid-episode dump for the resume gate. Aliases the env's region buffers
+ * for the write; they are not freed. */
+int blaze_dump_snapshot(void *vh, int env, const char *path,
+                        char *err, int err_cap) {
+    CuVec *v = (CuVec *)vh;
+    Blaze *e;
+    CuSnapshot s;
+    unsigned k;
+    if (!v || env < 0 || env >= v->n || !path)
+        return -1;
+    e = &v->envs[env];
+    memset(&s, 0, sizeof s);
+    (void)blaze_capture_head(e, &s.head, s.items);
+    s.head.version = BLAZE_SNAP_VERSION;
+    s.player_fire = e->pl.fire;
+    s.player_air = e->pl.air;
+    s.ww_total_time = e->ww.totalTime;
+    s.ww_world_time = e->ww.worldTime;
+    s.ww_rain_time = e->ww.rainTime;
+    s.ww_thunder_time = e->ww.thunderTime;
+    s.ww_raining = e->ww.raining;
+    s.ww_thundering = e->ww.thundering;
+    s.ww_rand_seed48 = e->ww.rand.seed & MC_JR_MASK;
+    s.rt_mutations = e->parity_rt_mutations;
+    s.world_rand_seed = e->world_rand.seed & MC_JR_MASK;
+    s.update_lcg = e->update_lcg;
+    s.cells = e->cells;
+    s.light = e->light;
+    s.biome = e->biome;
+    s.ncoal = (unsigned)e->nore;
+    s.coal = (int *)e->ore;
+    s.n_mobs = e->n_mobs;
+    if (e->n_mobs)
+        memcpy(s.mobs, e->mobs, (size_t)e->n_mobs * sizeof s.mobs[0]);
+    s.n_proj = 0;
+    for (k = 0; k < CU_MAX_PROJECTILES && s.n_proj < BLAZE_SNAP_MAX_PROJ; ++k) {
+        if (!e->projectiles[k].active) continue;
+        s.proj[s.n_proj].active = 1;
+        s.proj[s.n_proj].type = e->projectiles[k].type;
+        s.proj[s.n_proj].age = e->projectiles[k].age;
+        s.proj[s.n_proj].x = e->projectiles[k].x;
+        s.proj[s.n_proj].y = e->projectiles[k].y;
+        s.proj[s.n_proj].z = e->projectiles[k].z;
+        s.proj[s.n_proj].vx = e->projectiles[k].vx;
+        s.proj[s.n_proj].vy = e->projectiles[k].vy;
+        s.proj[s.n_proj].vz = e->projectiles[k].vz;
+        s.proj[s.n_proj].in_ground = e->proj_in_ground[k];
+        s.proj[s.n_proj].shake = e->proj_shake[k];
+        s.proj[s.n_proj].pickup = e->proj_pickup[k];
+        s.proj[s.n_proj].ground_ticks = e->proj_ground_ticks[k];
+        s.n_proj++;
+    }
+    s.parity_proj_hits = e->parity_proj_hits;
+    s.n_fall = 0;
+    for (k = 0; k < CU_MAX_ITEMS && s.n_fall < BLAZE_SNAP_MAX_FALL; ++k) {
+        if (!e->falls[k].active) continue;
+        s.falls[s.n_fall].active = 1;
+        s.falls[s.n_fall].type = e->falls[k].type;
+        s.falls[s.n_fall].x = e->falls[k].x;
+        s.falls[s.n_fall].y = e->falls[k].y;
+        s.falls[s.n_fall].z = e->falls[k].z;
+        s.falls[s.n_fall].mx = e->falls[k].mx;
+        s.falls[s.n_fall].my = e->falls[k].my;
+        s.falls[s.n_fall].mz = e->falls[k].mz;
+        s.falls[s.n_fall].on_ground = e->falls[k].on_ground;
+        s.falls[s.n_fall].age = e->falls[k].age;
+        s.falls[s.n_fall].item = e->falls[k].item;
+        s.falls[s.n_fall].count = e->falls[k].count;
+        s.falls[s.n_fall].meta = e->falls[k].meta;
+        s.falls[s.n_fall].pickup_delay = e->falls[k].pickup_delay;
+        s.falls[s.n_fall].lifespan = e->falls[k].lifespan;
+        s.n_fall++;
+    }
+    s.n_fall_upd = 0;
+    for (k = 0; k < CU_FALL_UPDATES && s.n_fall_upd < BLAZE_SNAP_MAX_FALL_UPD;
+         ++k) {
+        if (!e->fall_updates[k].active) continue;
+        s.fall_upd[s.n_fall_upd].active = 1;
+        s.fall_upd[s.n_fall_upd].x = e->fall_updates[k].x;
+        s.fall_upd[s.n_fall_upd].y = e->fall_updates[k].y;
+        s.fall_upd[s.n_fall_upd].z = e->fall_updates[k].z;
+        s.fall_upd[s.n_fall_upd].block_id = e->fall_updates[k].block_id;
+        s.fall_upd[s.n_fall_upd].due_tick = e->fall_updates[k].due_tick;
+        s.n_fall_upd++;
+    }
+    s.n_fall_land = 0;
+    for (k = 0; k < CU_MAX_ITEMS && s.n_fall_land < BLAZE_SNAP_MAX_FALL; ++k) {
+        if (!e->fall_landings[k].active) continue;
+        s.fall_land[s.n_fall_land].active = 1;
+        s.fall_land[s.n_fall_land].x = e->fall_landings[k].x;
+        s.fall_land[s.n_fall_land].y = e->fall_landings[k].y;
+        s.fall_land[s.n_fall_land].z = e->fall_landings[k].z;
+        s.fall_land[s.n_fall_land].block_id = e->fall_landings[k].block_id;
+        s.fall_land[s.n_fall_land].block_meta = e->fall_landings[k].block_meta;
+        s.fall_land[s.n_fall_land].due_tick = e->fall_landings[k].due_tick;
+        s.n_fall_land++;
+    }
+    s.fall_mutations = e->parity_fall_mutations;
+    s.live_ticks = e->live_ticks;
+    s.n_furn = 0;
+    s.active_furnace = e->active_furnace;
+    for (k = 0; k < CU_MAX_FURNACES && s.n_furn < BLAZE_SNAP_MAX_FURN; ++k) {
+        if (!e->furnaces[k].active) continue;
+        s.furn[s.n_furn].active = 1;
+        s.furn[s.n_furn].wx = e->furnaces[k].wx;
+        s.furn[s.n_furn].wy = e->furnaces[k].wy;
+        s.furn[s.n_furn].wz = e->furnaces[k].wz;
+        s.furn[s.n_furn].in_item = e->furnaces[k].input.item;
+        s.furn[s.n_furn].in_count = e->furnaces[k].input.count;
+        s.furn[s.n_furn].in_meta = e->furnaces[k].input.meta;
+        s.furn[s.n_furn].fuel_item = e->furnaces[k].fuel.item;
+        s.furn[s.n_furn].fuel_count = e->furnaces[k].fuel.count;
+        s.furn[s.n_furn].fuel_meta = e->furnaces[k].fuel.meta;
+        s.furn[s.n_furn].out_item = e->furnaces[k].output.item;
+        s.furn[s.n_furn].out_count = e->furnaces[k].output.count;
+        s.furn[s.n_furn].out_meta = e->furnaces[k].output.meta;
+        s.furn[s.n_furn].burn_time = e->furnaces[k].burn_time;
+        s.furn[s.n_furn].current_burn_time = e->furnaces[k].current_burn_time;
+        s.furn[s.n_furn].cook_time = e->furnaces[k].cook_time;
+        s.furn[s.n_furn].total_cook = e->furnaces[k].total_cook;
+        s.n_furn++;
+    }
+    s.n_chest = 0;
+    s.active_chest = e->active_chest;
+    for (k = 0; k < CU_MAX_CHESTS && s.n_chest < BLAZE_SNAP_MAX_CHEST; ++k) {
+        unsigned si;
+        if (!e->chests[k].active) continue;
+        s.chest[s.n_chest].active = 1;
+        s.chest[s.n_chest].wx = e->chests[k].wx;
+        s.chest[s.n_chest].wy = e->chests[k].wy;
+        s.chest[s.n_chest].wz = e->chests[k].wz;
+        s.chest[s.n_chest].num_using = e->chests[k].te.num_players_using;
+        for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si) {
+            const TecStack *ts = &e->chests[k].te.slots[si];
+            int ei, n;
+            s.chest[s.n_chest].slot[si][0] = ts->item;
+            s.chest[s.n_chest].slot[si][1] = ts->count;
+            s.chest[s.n_chest].slot[si][2] = ts->meta;
+            n = ts->n_enchants;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.chest[s.n_chest].slot_ench[si].n = n;
+            for (ei = 0; ei < n; ++ei) {
+                s.chest[s.n_chest].slot_ench[si].id[ei] = ts->enchants[ei].id;
+                s.chest[s.n_chest].slot_ench[si].level[ei] =
+                    ts->enchants[ei].level;
+            }
+        }
+        s.n_chest++;
+    }
+    for (k = 0; k < 9; ++k) {
+        s.craft[k][0] = e->craft_grid[k].item;
+        s.craft[k][1] = e->craft_grid[k].count;
+        s.craft[k][2] = e->craft_grid[k].meta;
+    }
+    s.cursor[0] = e->cursor.item;
+    s.cursor[1] = e->cursor.count;
+    s.cursor[2] = e->cursor.meta;
+    s.craft_attempts = e->parity_craft_attempts;
+    s.craft_successes = e->parity_craft_successes;
+    s.container_opens = e->parity_container_opens;
+    s.left_click_counter = e->left_click_counter;
+    s.eat_ticks = e->eat_ticks;
+    s.eat_item = e->eat_item;
+    s.bow_ticks = e->bow_ticks;
+    s.bow_drawing = e->bow_drawing;
+    s.xp_level = e->pl.experienceLevel;
+    s.xp_total = e->pl.experienceTotal;
+    s.xp_cooldown = e->pl.xpCooldown;
+    s.xp_experience = e->pl.experience;
+    for (k = 0; k < 4; ++k) {
+        ICStack st = isr_get_stack(&e->pl.inv, ISR_ARMOR0 + (int)k);
+        s.armor[k][0] = st.item;
+        s.armor[k][1] = st.count;
+        s.armor[k][2] = st.meta;
+    }
+    s.fluid_dim = e->fluid_dim;
+    s.fluid_mutations = e->parity_fluid_mutations;
+    for (k = 0; k < CU_FLUID_REGIONS && k < BLAZE_SNAP_FLUID_REGS; ++k) {
+        s.fluid[k].active = e->fluid_reg[k].active;
+        s.fluid[k].x0 = e->fluid_reg[k].x0;
+        s.fluid[k].y0 = e->fluid_reg[k].y0;
+        s.fluid[k].z0 = e->fluid_reg[k].z0;
+        s.fluid[k].x1 = e->fluid_reg[k].x1;
+        s.fluid[k].y1 = e->fluid_reg[k].y1;
+        s.fluid[k].z1 = e->fluid_reg[k].z1;
+        s.fluid[k].has_water = e->fluid_reg[k].has_water;
+        s.fluid[k].quiet_steps = e->fluid_reg[k].quiet_steps;
+    }
+    s.boat_ride = e->boat_ride;
+    s.explosion_pending = e->explosion_pending;
+    s.explosion_smoking = e->explosion_smoking;
+    s.explosion_flaming = e->explosion_flaming;
+    s.explosion_x = e->explosion_x;
+    s.explosion_y = e->explosion_y;
+    s.explosion_z = e->explosion_z;
+    s.explosion_size = e->explosion_size;
+    {
+        unsigned si, ei;
+        int n;
+        memset(&s.xtra, 0, sizeof s.xtra);
+        s.xtra.xp_pickups = e->parity_xp_pickups;
+        s.xtra.next_orb_id = e->next_orb_id;
+        s.xtra.spawn_world_seed48 = e->spawn_world_seed48;
+        s.xtra.spawn_math_seed48 = e->spawn_math_seed48;
+        s.xtra.spawn_shuffle_seed48 = e->spawn_shuffle_seed48;
+        s.xtra.parity_ex_blasts = e->parity_ex_blasts;
+        s.xtra.parity_ex_destroyed = e->parity_ex_destroyed;
+        s.xtra.parity_ex_drop_n = e->parity_ex_drop_n;
+        s.xtra.parity_ex_drop_ids = e->parity_ex_drop_ids;
+        s.xtra.parity_ex_damage = e->parity_ex_damage;
+        s.xtra.parity_ex_kb_x = e->parity_ex_kb_x;
+        s.xtra.parity_ex_kb_y = e->parity_ex_kb_y;
+        s.xtra.parity_ex_kb_z = e->parity_ex_kb_z;
+        s.xtra.parity_ex_rays = e->parity_ex_rays;
+        s.xtra.parity_ex_last_x = e->parity_ex_last_x;
+        s.xtra.parity_ex_last_y = e->parity_ex_last_y;
+        s.xtra.parity_ex_last_z = e->parity_ex_last_z;
+        s.xtra.parity_ex_last_size = e->parity_ex_last_size;
+        s.xtra.player_dead = e->dead;
+        s.xtra.player_hurt_resistant = e->player_hurt_resistant;
+        s.xtra.player_attack_cooldown = e->player_attack_cooldown;
+        s.xtra.player_last_damage = e->player_last_damage;
+        s.xtra.mob_tick = (int)e->mob_tick;
+        s.xtra.last_craft[0] = e->parity_last_craft.item;
+        s.xtra.last_craft[1] = e->parity_last_craft.count;
+        s.xtra.last_craft[2] = e->parity_last_craft.meta;
+        {
+            int n = e->parity_last_craft.n_enchants, ei;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.xtra.last_craft_ench.n = n;
+            for (ei = 0; ei < n; ++ei) {
+                s.xtra.last_craft_ench.id[ei] =
+                    e->parity_last_craft.enchants[ei].id;
+                s.xtra.last_craft_ench.level[ei] =
+                    e->parity_last_craft.enchants[ei].level;
+            }
+        }
+        s.xtra.elytra_equipped = e->pl.elytra_equipped;
+        s.xtra.elytra_flying = e->pl.elytra_flying;
+        s.xtra.elytra_pending = e->pl.elytra_flying_pending;
+        s.xtra.elytra_pose = e->pl.elytra_pose;
+        s.xtra.ticks_elytra_flying = e->pl.ticks_elytra_flying;
+        s.xtra.elytra_wall_damage = e->pl.elytra_wall_damage;
+        for (si = 0; si < e->n_mobs && si < BLAZE_SNAP_MAX_MOBS; ++si) {
+            s.xtra.boat_delta_rot[si] = e->boat_delta_rot[si];
+            s.xtra.boat_glide[si] = e->boat_glide[si];
+            s.xtra.sidecar_repath[si] = e->mob_repath[si];
+            s.xtra.sidecar_despawn[si] = e->mob_despawn[si];
+            s.xtra.sidecar_fire[si] = e->mob_fire[si];
+        }
+        for (si = 0; si < 37; ++si) {
+            ICStack st = isr_get_stack(&e->pl.inv,
+                                       si < 36 ? (int)si : ISR_OFFHAND_SLOT);
+            n = st.n_enchants;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.xtra.inv_ench[si].n = n;
+            for (ei = 0; ei < (unsigned)n; ++ei) {
+                s.xtra.inv_ench[si].id[ei] = st.enchants[ei].id;
+                s.xtra.inv_ench[si].level[ei] = st.enchants[ei].level;
+            }
+        }
+        for (si = 0; si < 4; ++si) {
+            ICStack st = isr_get_stack(&e->pl.inv, ISR_ARMOR0 + (int)si);
+            n = st.n_enchants;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.xtra.armor_ench[si].n = n;
+            for (ei = 0; ei < (unsigned)n; ++ei) {
+                s.xtra.armor_ench[si].id[ei] = st.enchants[ei].id;
+                s.xtra.armor_ench[si].level[ei] = st.enchants[ei].level;
+            }
+        }
+        for (si = 0; si < 9; ++si) {
+            n = e->craft_grid[si].n_enchants;
+            if (n < 0) n = 0;
+            if (n > 8) n = 8;
+            s.xtra.craft_ench[si].n = n;
+            for (ei = 0; ei < (unsigned)n; ++ei) {
+                s.xtra.craft_ench[si].id[ei] = e->craft_grid[si].enchants[ei].id;
+                s.xtra.craft_ench[si].level[ei] =
+                    e->craft_grid[si].enchants[ei].level;
+            }
+        }
+        n = e->cursor.n_enchants;
+        if (n < 0) n = 0;
+        if (n > 8) n = 8;
+        s.xtra.cursor_ench.n = n;
+        for (ei = 0; ei < (unsigned)n; ++ei) {
+            s.xtra.cursor_ench.id[ei] = e->cursor.enchants[ei].id;
+            s.xtra.cursor_ench.level[ei] = e->cursor.enchants[ei].level;
+        }
+    }
+    s.n_orbs = 0;
+    for (k = 0; k < XL_MAX && s.n_orbs < BLAZE_SNAP_MAX_ORBS; ++k) {
+        const McOrb *o = &e->orbs[k];
+        RlSnapOrb *d;
+        if (o->dead || o->xpValue <= 0) continue;
+        d = &s.orbs[s.n_orbs++];
+        memset(d, 0, sizeof *d);
+        d->x = o->posX; d->y = o->posY; d->z = o->posZ;
+        d->mx = o->motionX; d->my = o->motionY; d->mz = o->motionZ;
+        d->on_ground = o->onGround;
+        d->xpOrbAge = o->xpOrbAge;
+        d->delayBeforeCanPickup = o->delayBeforeCanPickup;
+        d->xpValue = o->xpValue;
+        d->eid = o->eid;
+        d->xpColor = o->xpColor;
+        d->xpTargetColor = o->xpTargetColor;
+        d->has_closest = o->has_closest;
+        d->dead = o->dead;
+    }
+    if (!blaze_snapshot_write(path, &s, err, err_cap))
+        return -1;
     return 0;
 }
 

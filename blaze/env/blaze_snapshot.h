@@ -10,14 +10,22 @@
  *   | u32 n_mobs | n_mobs x on-disk mob record          [version >= 3]
  *     v3-v6: BLAZE_SNAP_MOB_SIZE_V6 (544 bytes)
  *     v7+:   BLAZE_SNAP_MOB_SIZE_V7 (572 bytes through teleport_time).
- *     In-memory RlSnapMob is 592: witch extras sit after teleport_time
- *     and the loader zero-extends them (no on-disk bump).
+ *     In-memory RlSnapMob is 604: witch extras sit after teleport_time
+ *     (v7 disk 572 zero-extends them). v10 disk is 604 with sidecars.
  *   | u32 n_orbs | n_orbs x RlSnapOrb                   [version >= 4]
  *   | u64 world_rand_seed (48-bit JavaRandom cursor)    [version >= 5]
  *   | i32 update_lcg (World.updateLCG)                  [version >= 6]
  *   | rnx*rnz u8 biome plane (one id per x,z column)    [version >= 8]
  *   | i32 player_fire, i32 player_air                   [version >= 9]
- * Loader reads v7, v8, and v9. New writes use version 9.
+ *   | v10 trailer: world clock + rt mutations            [version >= 10]
+ *     i64 ww_total, ww_world; i32 rain_time, thunder_time,
+ *     raining, thundering; u64 ww_rand_seed48; u32 rt_mutations.
+ *     On-disk mob records grow to BLAZE_SNAP_MOB_SIZE_V10 (604) and
+ *     carry repath/despawn/fire sidecars. v9 loads those as 0.
+ *     After clock: projectiles, falls, TE/player/fluid/boat/explosion pose,
+ *     then RlSnapV10Xtra (xp pickups, spawn RNGs, blast counters, dead,
+ *     boat extras, enchant payload). v9 loads xtra as 0.
+ * Loader reads v7, v8, v9, and v10 on this lane. New writes use version 10.
  * v1/v2 files load with n_mobs = 0. v3 loads with n_orbs = 0.
  * v4 loads with world_rand_seed = jrand_set(0) internal cursor.
  * v5 loads with update_lcg = 0.
@@ -26,6 +34,7 @@
  * semantics (HS_BIOME / rt_live_biome used to hardcode plains), and
  * player fire=0 air=300.
  * v8 loads player fire=0 air=300 (Entity.java:256 AIR default).
+ * v9 loads v10 clock from ww_init(seed) and rt_mutations=0.
  * Biome index is ix * rnz + iz (ix = wx - rx0, iz = wz - rz0). Java
  * Chunk.blockBiomeArray is (z&15)<<4 | (x&15) per chunk (Chunk.java:1273-1278);
  * the magma writer copies LChunk.biome[x + z*16] (light.c) into this plane.
@@ -61,9 +70,11 @@ extern "C" {
 #define BLAZE_SNAP_VERSION_ENDER 7      /* + enderman fields on RlSnapMob */
 #define BLAZE_SNAP_VERSION_BIOME 8      /* + rnx*rnz u8 column biome plane */
 #define BLAZE_SNAP_VERSION_HAZARDS 9    /* + player fire ticks and air */
-#define BLAZE_SNAP_VERSION 9
+#define BLAZE_SNAP_VERSION_RESUME 10    /* + clock/rt mutations + mob sidecars */
+#define BLAZE_SNAP_VERSION 10           /* v10 on this lane; not a final pin */
 #define BLAZE_SNAP_MOB_SIZE_V6 544      /* packed RlSnapMob through v6 */
 #define BLAZE_SNAP_MOB_SIZE_V7 572      /* packed through teleport_time */
+#define BLAZE_SNAP_MOB_SIZE_V10 604     /* packed through fire_ticks */
 #define BLAZE_SNAP_BIOME_PLAINS 1       /* Biomes.PLAINS; v7 load default */
 #pragma pack(push, 1)
 typedef struct {
@@ -149,13 +160,113 @@ typedef struct RlSnapMob {
     int find_aggro;                /* AIFindPlayer.aggroTime */
     int teleport_time;             /* AIFindPlayer.teleportTime */
     /* In-memory extras. On-disk v7 stays BLAZE_SNAP_MOB_SIZE_V7 (572);
-     * the loader zero-extends these without a version bump. */
+     * the loader zero-extends these without a version bump. v10 writes
+     * the full 604-byte record including the sidecars below. */
     int witch_attack_timer;        /* EntityWitch.witchAttackTimer */
     int witch_drink;               /* 0 none; else pending drink kind */
     int effect_id;                 /* Potion.getIdFromPotion; 0 = none */
     int effect_duration;
     int effect_amplifier;
+    int repath_timer;              /* EwStore.repath_timer / blaze mob_repath */
+    int despawn_ticks;             /* EntityMob despawn >32 blocks */
+    int fire_ticks;                /* Entity.fire / daylight burn */
 } RlSnapMob;
+#define BLAZE_SNAP_MAX_PROJ 32
+#define BLAZE_SNAP_MAX_FALL 48
+#define BLAZE_SNAP_MAX_FALL_UPD 128
+#define BLAZE_SNAP_MAX_FURN 16
+#define BLAZE_SNAP_MAX_CHEST 64
+#define BLAZE_SNAP_CHEST_SLOTS 27
+#define BLAZE_SNAP_FLUID_REGS 4
+#pragma pack(push, 1)
+typedef struct RlSnapProj {
+    int active, type, age;
+    double x, y, z, vx, vy, vz;
+    int in_ground, shake, pickup, ground_ticks;
+} RlSnapProj;
+typedef struct RlSnapFall {
+    int active, type;
+    double x, y, z, mx, my, mz;
+    int on_ground, age, item, count, meta, pickup_delay, lifespan;
+} RlSnapFall;
+typedef struct RlSnapFallUpdate {
+    int active, x, y, z, block_id;
+    long long due_tick;
+} RlSnapFallUpdate;
+typedef struct RlSnapFallLanding {
+    int active, x, y, z, block_id, block_meta;
+    long long due_tick;
+} RlSnapFallLanding;
+typedef struct RlSnapFurnace {
+    int active, wx, wy, wz;
+    int in_item, in_count, in_meta;
+    int fuel_item, fuel_count, fuel_meta;
+    int out_item, out_count, out_meta;
+    int burn_time, current_burn_time, cook_time, total_cook;
+} RlSnapFurnace;
+typedef struct RlSnapEnch {
+    int n;
+    short id[8];
+    short level[8];
+} RlSnapEnch;
+typedef struct RlSnapChest {
+    int active, wx, wy, wz, num_using;
+    int slot[BLAZE_SNAP_CHEST_SLOTS][3];
+    RlSnapEnch slot_ench[BLAZE_SNAP_CHEST_SLOTS];
+} RlSnapChest;
+typedef struct RlSnapFluidReg {
+    int active, x0, y0, z0, x1, y1, z1, has_water, quiet_steps;
+} RlSnapFluidReg;
+/* Packed after explosion pose. v9 has none; v10 on this lane always writes it. */
+typedef struct RlSnapV10Xtra {
+    unsigned xp_pickups;
+    int next_orb_id;
+    int next_mob_id;
+    unsigned long long spawn_world_seed48;
+    unsigned long long spawn_math_seed48;
+    unsigned long long spawn_shuffle_seed48;
+    unsigned parity_ex_blasts;
+    unsigned parity_ex_destroyed;
+    unsigned parity_ex_drop_n;
+    unsigned long long parity_ex_drop_ids;
+    float parity_ex_damage;
+    double parity_ex_kb_x, parity_ex_kb_y, parity_ex_kb_z;
+    unsigned long long parity_ex_rays;
+    double parity_ex_last_x, parity_ex_last_y, parity_ex_last_z;
+    float parity_ex_last_size;
+    int player_dead;
+    int death_screen_ticks;
+    int player_hurt_resistant;
+    int player_attack_cooldown;
+    float player_last_damage;
+    float boat_delta_rot[BLAZE_SNAP_MAX_MOBS];
+    float boat_glide[BLAZE_SNAP_MAX_MOBS];
+    RlSnapEnch inv_ench[37];
+    RlSnapEnch armor_ench[4];
+    RlSnapEnch craft_ench[9];
+    RlSnapEnch cursor_ench;
+    /* Live blaze sidecars (digest still hashes packed repath which can lag). */
+    int sidecar_repath[BLAZE_SNAP_MAX_MOBS];
+    int sidecar_despawn[BLAZE_SNAP_MAX_MOBS];
+    int sidecar_fire[BLAZE_SNAP_MAX_MOBS];
+    /* Magma EwStore AI waypoint (not in RlSnapMob). Packed index order. */
+    unsigned ew_ai_state[BLAZE_SNAP_MAX_MOBS];
+    unsigned ew_path_len[BLAZE_SNAP_MAX_MOBS];
+    double ew_path_tx[BLAZE_SNAP_MAX_MOBS];
+    double ew_path_ty[BLAZE_SNAP_MAX_MOBS];
+    double ew_path_tz[BLAZE_SNAP_MAX_MOBS];
+    double look_px, look_py, look_pz;
+    int look_have;
+    int mob_tick;
+    int entity_age[BLAZE_SNAP_MAX_MOBS];
+    int last_craft[3];
+    RlSnapEnch last_craft_ench;
+    int elytra_equipped, elytra_flying, elytra_pending, elytra_pose;
+    int ticks_elytra_flying;
+    float elytra_wall_damage;
+} RlSnapV10Xtra;
+#pragma pack(pop)
+
 /* One live XP orb. World coords. v3 files omit this trailer -> n_orbs=0. */
 typedef struct RlSnapOrb {
     double x, y, z, mx, my, mz;
@@ -171,12 +282,16 @@ typedef struct RlSnapOrb {
 } RlSnapOrb;
 #pragma pack(pop)
 
-typedef char RlSnapMob_must_be_592_bytes
-    [(sizeof(RlSnapMob) == 592) ? 1 : -1];
+typedef char RlSnapMob_must_be_604_bytes
+    [(sizeof(RlSnapMob) == 604) ? 1 : -1];
 typedef char RlSnapMob_v7_disk_is_572
     [(BLAZE_SNAP_MOB_SIZE_V7 == 572) ? 1 : -1];
+typedef char RlSnapMob_v10_disk_is_604
+    [(BLAZE_SNAP_MOB_SIZE_V10 == 604) ? 1 : -1];
 typedef char RlSnapOrb_must_be_84_bytes
     [(sizeof(RlSnapOrb) == 84) ? 1 : -1];
+typedef char RlSnapEnch_must_be_36_bytes
+    [(sizeof(RlSnapEnch) == 36) ? 1 : -1];
 
 /* ---- host-side loader (blaze/env/blaze_snapshot.c; NOT linked into the
  * game binary - rl_mode.c uses only the structs above) ---- */
@@ -207,6 +322,47 @@ typedef struct {
                                          * fills plains 1. Index ix*rnz+iz. */
     int                player_fire;     /* v9: Entity.fire; v8 load 0 */
     int                player_air;      /* v9: Entity air; v8 load 300 */
+    long long          ww_total_time;   /* v10: WorldInfo.totalTime */
+    long long          ww_world_time;   /* v10: WorldInfo.worldTime */
+    int                ww_rain_time;
+    int                ww_thunder_time;
+    int                ww_raining;
+    int                ww_thundering;
+    unsigned long long ww_rand_seed48;  /* v10: isolated weather JavaRandom */
+    unsigned           rt_mutations;    /* v10: BP_RANDOM_TICKS mutation count */
+    unsigned           n_proj;
+    RlSnapProj         proj[BLAZE_SNAP_MAX_PROJ];
+    unsigned           parity_proj_hits;
+    unsigned           n_fall;
+    RlSnapFall         falls[BLAZE_SNAP_MAX_FALL];
+    unsigned           n_fall_upd;
+    RlSnapFallUpdate   fall_upd[BLAZE_SNAP_MAX_FALL_UPD];
+    unsigned           n_fall_land;
+    RlSnapFallLanding  fall_land[BLAZE_SNAP_MAX_FALL];
+    unsigned           fall_mutations;
+    int                live_ticks;
+    unsigned           n_furn;
+    RlSnapFurnace      furn[BLAZE_SNAP_MAX_FURN];
+    int                active_furnace;
+    unsigned           n_chest;
+    RlSnapChest        chest[BLAZE_SNAP_MAX_CHEST];
+    int                active_chest;
+    int                craft[9][3];
+    int                cursor[3];
+    unsigned           craft_attempts, craft_successes, container_opens;
+    int                left_click_counter, eat_ticks, eat_item;
+    int                bow_ticks, bow_drawing;
+    int                xp_level, xp_total, xp_cooldown;
+    float              xp_experience;
+    int                armor[4][3];
+    int                fluid_dim;
+    RlSnapFluidReg     fluid[BLAZE_SNAP_FLUID_REGS];
+    unsigned           fluid_mutations;
+    int                boat_ride;
+    int                explosion_pending, explosion_smoking, explosion_flaming;
+    double             explosion_x, explosion_y, explosion_z;
+    float              explosion_size;
+    RlSnapV10Xtra      xtra;
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).
@@ -314,14 +470,17 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_hash_one_mob(
     h = bp_hash_i32(h, m->witch_drink);
     h = bp_hash_i32(h, m->effect_id);
     h = bp_hash_i32(h, m->effect_duration);
-    return bp_hash_i32(h, m->effect_amplifier);
+    h = bp_hash_i32(h, m->effect_amplifier);
+    h = bp_hash_i32(h, m->repath_timer);
+    h = bp_hash_i32(h, m->despawn_ticks);
+    return bp_hash_i32(h, m->fire_ticks);
 }
 
 BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest(
     const RlSnapMob *mobs, unsigned n) {
     uint64_t h = bp_hash_begin();
     unsigned i;
-    h = bp_hash_u32(h, UINT32_C(0x33424f4d)); /* "MOB3" */
+    h = bp_hash_u32(h, UINT32_C(0x34424f4d)); /* "MOB4" sidecars */
     h = bp_hash_i32(h, (int32_t)n);
     for (i = 0; i < n; ++i)
         h = blaze_snap_hash_one_mob(h, &mobs[i]);
@@ -334,9 +493,9 @@ BLAZE_SNAP_HD static inline uint64_t blaze_snap_mobs_digest_ext(
     float player_health, int32_t hurt_res, int32_t atk_cd,
     uint64_t items_h, int32_t n_items) {
     uint64_t h = blaze_snap_mobs_digest(mobs, n);
-    /* "MBM3": combat extras here; witch fields are in hash_one_mob;
+    /* "MBM4": combat extras here; witch + sidecar fields are in hash_one_mob;
      * callers then fold the v8 biome plane via bp_hash_biome_plane. */
-    h = bp_hash_u32(h, UINT32_C(0x334d424d)); /* "MBM3" */
+    h = bp_hash_u32(h, UINT32_C(0x344d424d)); /* "MBM4" */
     h = bp_hash_float(h, player_health);
     h = bp_hash_i32(h, hurt_res);
     h = bp_hash_i32(h, atk_cd);

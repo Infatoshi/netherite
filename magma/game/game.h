@@ -365,6 +365,20 @@ void      gm_world_clock_set_world_time(GmWorldClock *c, long long world_time);
  * kernel synchronized so the following tick continues from the injected state. */
 void      gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,
                                      int rain_time, int thunder_time);
+/* Snapshot v10: dump/restore the live WorldInfo clock plus the isolated
+ * weather JavaRandom cursor (g_clock.ww). */
+void      gm_world_clock_export(const GmWorldClock *c,
+                                long long *total_time, long long *world_time,
+                                int *rain_time, int *thunder_time,
+                                int *raining, int *thundering,
+                                unsigned long long *rand_seed48);
+void      gm_world_clock_restore(GmWorldClock *c,
+                                 long long total_time, long long world_time,
+                                 int rain_time, int thunder_time,
+                                 int raining, int thundering,
+                                 unsigned long long rand_seed48);
+void      gm_world_set_rt_mutations(GmWorld *w, unsigned mutations);
+void      gm_world_set_fall_mutations(GmWorld *w, unsigned mutations);
 
 /* Stand-on y (highest non-air + 1) at column (wx,wz); sensible default if ungenerated. */
 int       gm_world_surface_y(const GmWorld *w, int wx, int wz);

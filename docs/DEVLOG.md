@@ -1,5 +1,119 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 snapshot resume gate (lane/resumegate)
+
+Gamer. Sweep 2026-08-23 blaze rows 4 and 8. Working copy
+`~/nlanes/resumegate`, branch `lane/resumegate`. Snapshot version 10 on
+this lane (v7/v8/v9 loader kept; not a final pin). Potion/shield/sleep
+left for other lanes.
+
+Baseline (`out/verify/resumegate_baseline_table.txt`, dump version 9,
+before field ports):
+
+```
+row backend status first_tick first_subsystems
+world_dynamics magma FAIL 2027 dig also crafting,containers,random_ticks,weather
+world_dynamics blaze FAIL 2027 dig also crafting,containers,random_ticks,weather
+fluids magma FAIL 47 fluids also random_ticks,weather
+fluids blaze FAIL 47 fluids also random_ticks,weather
+random_ticks magma FAIL 169 random_ticks also weather
+random_ticks blaze FAIL 169 random_ticks also weather
+random_ticks_bodies magma FAIL 169 random_ticks also weather
+random_ticks_bodies blaze FAIL 169 random_ticks also weather
+falling_blocks magma FAIL 49 random_ticks also falling_blocks,weather
+falling_blocks blaze FAIL 49 random_ticks also falling_blocks,weather
+entity_spine magma FAIL 25 random_ticks also weather
+entity_spine blaze FAIL 25 random_ticks also weather
+projectiles magma FAIL 49 random_ticks also projectiles,weather
+projectiles blaze FAIL 49 random_ticks also projectiles,weather
+explosions magma FAIL 49 player also items,random_ticks,mobs,explosions,weather,elytra,observations
+explosions blaze FAIL 49 player also items,random_ticks,mobs,explosions,weather,elytra,observations
+placement magma FAIL 73 random_ticks also weather
+placement blaze FAIL 73 random_ticks also mobs,weather
+mobs magma FAIL 49 random_ticks also mobs,projectiles,weather
+mobs blaze FAIL 49 random_ticks also mobs,projectiles,weather
+passives magma FAIL 49 random_ticks also weather
+passives blaze FAIL 49 random_ticks also weather
+mobs_ss magma FAIL 49 random_ticks also mobs,projectiles,weather
+mobs_ss blaze FAIL 49 random_ticks also mobs,projectiles,weather
+mobs_end magma FAIL 49 random_ticks also mobs,projectiles,weather
+mobs_end blaze FAIL 49 random_ticks also mobs,projectiles,weather
+mobs_witch magma FAIL 49 random_ticks also mobs,projectiles,weather
+mobs_witch blaze FAIL 49 random_ticks also mobs,projectiles,weather
+chests magma FAIL 32 containers also random_ticks,weather,chests
+chests blaze FAIL 32 containers also random_ticks,weather,chests
+furnaces magma FAIL 192 containers also furnaces,random_ticks,weather
+furnaces blaze FAIL 192 containers also furnaces,random_ticks,weather
+biome_plane magma FAIL 49 random_ticks also weather
+biome_plane blaze FAIL 49 random_ticks also weather
+biome_plane_spawn magma FAIL 49 random_ticks also mobs,weather
+biome_plane_spawn blaze FAIL 49 random_ticks also mobs,weather
+biome_plane_ice magma FAIL 49 random_ticks also mobs,projectiles,weather
+biome_plane_ice blaze FAIL 49 random_ticks also mobs,projectiles,weather
+weather_optional magma FAIL 49 random_ticks also weather
+weather_optional blaze FAIL 49 random_ticks also weather
+xp_orbs magma FAIL 49 random_ticks also weather,xp
+xp_orbs blaze FAIL 49 random_ticks also weather,xp
+boats magma FAIL 49 random_ticks also weather
+boats blaze FAIL 49 random_ticks also weather
+elytra magma FAIL 49 player also random_ticks,weather,elytra,observations
+elytra blaze FAIL 49 player also random_ticks,mobs,weather,elytra,observations
+mining_slice magma MISSING - -
+mining_slice blaze MISSING - -
+spawn_to_torch magma FAIL 2027 dig also crafting,containers,random_ticks,weather
+spawn_to_torch blaze FAIL 2027 dig also crafting,containers,random_ticks,weather
+hazards magma FAIL 417 player also random_ticks,mobs,weather
+hazards blaze FAIL 417 player also random_ticks,mobs,weather
+```
+
+Cause: `.bsnp` v9 dropped mid-episode live state. Magma weather is
+process-global `g_clock.ww`; RT/fall mutation counters were zeroed by
+`gm_world_parity_configure`. Magma `gm_mobs_export_snap` packed
+`despawn_ticks` but `ml_load_slot` reads `entity_age`. Blaze AI wrote
+repath/despawn/fire only to sidecar arrays while BP_MOBS hashed packed
+fields (MOB4). `parity_last_craft` and elytra flying flags were not in
+the trailer. Java cites: Entity.fire / EntityMob despawn
+(`EntityMob.java`), WorldInfo totalTime/worldTime, Explosion.doExplosionA
+counters, ItemFood 32-tick use (`ItemFood.java`),
+`EntityPlayerSP.START_FALL_FLYING`.
+
+Gate: `blaze/env/verify_resume_parity.py` (N ticks, dump, restore, M
+ticks, every BP_ at N+1..N+M). Per-row `resume: true` in
+`port_matrix.yaml`. Unit `out/blaze/rl/test_mob_snapshot` v9->v10 and
+v10->v10 roundtrip PASS.
+
+After (`out/verify/resumegate_*_after.log`): resume PASS magma+blaze-cpu
+on placement, mobs_witch, furnaces, hazards, biome_plane,
+biome_plane_spawn, biome_plane_ice, mobs_end, random_ticks_bodies,
+mobs_ss, passives, mobs, xp_orbs, boats, elytra, projectiles,
+random_ticks, world_dynamics, spawn_to_torch, fluids, entity_spine,
+chests, falling_blocks, weather_optional, explosions. mining_slice
+BLOCKED (v1 `s14_t0_r48_no_liquid.bsnp`; no recapture on this host).
+
+M1 `--no-deps` VERIFIED for those same rows except mining_slice BLOCKED
+rc=3 (`out/verify/resumegate_m1.log`). M2 `--no-deps` VERIFIED
+raw/warp/scalar plus CUDA resume for those same rows except mining_slice
+BLOCKED (`blaze/rl/out/snaps/*_d*.bsnp` missing;
+`out/verify/resumegate_m2.log` FAILS [] BLOCKED ['mining_slice']).
+Kernel runtimes (raw/warp/scalar s): placement 251.79/318.14/448.99,
+explosions 302.54/382.07/539.98, fluids 60.41/80.06/112.89,
+falling_blocks 16.18/20.31/28.41. CUDA resume examples: placement
+N=72 M=24 ticks 73..96 in 493.98s; explosions N=48 M=16 ticks 49..64
+in 298.49s. `warpm2_<snap>_*.log` shares snapshot stems so later
+rows overwrite (spawn_to_torch/world_dynamics/weather_optional all
+`s10_t0_r64_no_liquid`); row verdicts are `resumegate_m2.log`.
+Root `make test` PASS (`out/verify/resumegate_make_test.log`). Tapes
+(`out/verify/resumegate_tapes.log`): bow physics NO divergence 1407,
+entities PASS 5525; smoke_zombie physics NO divergence through terminal
+death 358, entities PASS 359 (tape continues to t=373 after GuiGameOver);
+canon `20260721T215812Z_fast_s0_survival_default_rd8_77b5b462`
+INFRASTRUCTURE FAILURE (golden frames missing): harness, not a verdict.
+First-divergence ticks did not move earlier.
+
+Still open: mining_slice v1 fixture and missing `*_d*.bsnp` (no recapture
+on this host); potion/shield/sleep (other lanes); item overflow queue
+(row 9).
+
 ## 2026-08-23 blaze chest TE table growth (lane/chestcap)
 
 Anvil. Sweep 2026-08-23 blaze row 14.

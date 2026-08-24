@@ -110,7 +110,9 @@ def validate_config(config: Any) -> list[str]:
         missing = REQUIRED_ROW_KEYS - row.keys()
         if missing:
             raise ConfigError(f"{where} missing keys: {', '.join(sorted(missing))}")
-        extra = row.keys() - REQUIRED_ROW_KEYS - {"block_reason", "m2_kernels"}
+        extra = row.keys() - REQUIRED_ROW_KEYS - {
+            "block_reason", "m2_kernels", "resume"
+        }
         if extra:
             raise ConfigError(f"{where} has unknown keys: {', '.join(sorted(extra))}")
 
@@ -166,6 +168,8 @@ def validate_config(config: Any) -> list[str]:
             _string_list(row[tier], f"{name}.{tier}")
         if "m2_kernels" in row:
             _m2_kernels_list(row["m2_kernels"], name)
+        if "resume" in row and type(row["resume"]) is not bool:
+            raise ConfigError(f"{name}.resume must be boolean")
         timeout = row["timeout"]
         if type(timeout) is not int or timeout <= 0:
             raise ConfigError(f"{name}.timeout must be a positive integer")
@@ -244,6 +248,64 @@ def row_m2_kernels(row: Mapping[str, Any]) -> list[str]:
     if value is None:
         return list(M2_KERNELS)
     return list(value)
+
+
+def row_wants_resume(row: Mapping[str, Any]) -> bool:
+    """Per-row continuous-vs-resume BP_ digest gate. Default false."""
+    return row.get("resume") is True
+
+
+_RESUME_VALUE_FLAGS = frozenset(
+    (
+        "--snapshot",
+        "--tape",
+        "--features",
+        "--chain-seed",
+        "--expected-chain-actions",
+        "--seeds",
+        "--ticks",
+    )
+)
+_RESUME_BOOL_FLAGS = frozenset(
+    (
+        "--chain",
+        "--mobs-on",
+        "--natural-spawn",
+        "--natural-spawn-passive",
+    )
+)
+
+
+def resume_argv(row: Mapping[str, Any], *, cuda: bool = False) -> list[str]:
+    """Build verify_resume_parity.py argv from the row's m1 gate flags."""
+    argv = [
+        "uv",
+        "run",
+        "--no-project",
+        "--with",
+        "numpy",
+        "python",
+        "blaze/env/verify_resume_parity.py",
+    ]
+    if cuda:
+        argv.append("--cuda")
+    src = list(row["m1"])
+    i = 0
+    while i < len(src):
+        tok = src[i]
+        if tok in _RESUME_BOOL_FLAGS:
+            argv.append(tok)
+            i += 1
+        elif tok in _RESUME_VALUE_FLAGS:
+            argv.append(tok)
+            if i + 1 < len(src):
+                argv.append(src[i + 1])
+                i += 2
+            else:
+                i += 1
+        else:
+            i += 1
+    return argv
 
 
 def requested_tiers(tier: str) -> tuple[str, ...]:
@@ -514,6 +576,23 @@ def run_matrix(
                     gates.append(gate)
                     if returncode != 0:
                         break
+                if (
+                    row_wants_resume(row)
+                    and gate_returncodes.get(current_tier, 1) == 0
+                ):
+                    argv = resume_argv(row, cuda=(current_tier == "m2"))
+                    returncode, detail = executor(argv, root, row["timeout"])
+                    gate = {
+                        "argv": list(argv),
+                        "returncode": returncode,
+                        "tier": current_tier,
+                        "resume": True,
+                    }
+                    if detail:
+                        gate["detail"] = detail
+                    gates.append(gate)
+                    if returncode != 0:
+                        gate_returncodes[current_tier] = returncode
 
         status, reason = classify(
             row,

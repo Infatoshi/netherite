@@ -910,6 +910,33 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
  *     walks off-center.
  * Player pose/items/inv are always the live pre-tick values. v3 appends
  * occupied living-mob slots after the light plane. */
+static void rl_ench_from_stack(RlSnapEnch *e, const ICStack *s) {
+    int i, n;
+    memset(e, 0, sizeof *e);
+    if (!s) return;
+    n = s->n_enchants;
+    if (n < 0) n = 0;
+    if (n > 8) n = 8;
+    e->n = n;
+    for (i = 0; i < n; ++i) {
+        e->id[i] = s->enchants[i].id;
+        e->level[i] = s->enchants[i].level;
+    }
+}
+
+static void rl_ench_to_stack(ICStack *s, const RlSnapEnch *e) {
+    int i, n;
+    if (!s || !e) return;
+    n = e->n;
+    if (n < 0) n = 0;
+    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+    s->n_enchants = n;
+    for (i = 0; i < IC_MAX_ENCHANTS; ++i) {
+        s->enchants[i].id = (i < n) ? e->id[i] : 0;
+        s->enchants[i].level = (i < n) ? e->level[i] : 0;
+    }
+}
+
 static int rl_snapshot_write(GmRuntime *r, const char *path,
                              int use_bounds, int radius,
                              int brx0, int bry0, int brz0,
@@ -1051,9 +1078,11 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
         ok = ok && fwrite(&n_mobs, sizeof n_mobs, 1, f) == 1;
         if (n_mobs) {
             unsigned mi;
+            size_t mob_sz = (h.version >= BLAZE_SNAP_VERSION_RESUME)
+                                ? (size_t)BLAZE_SNAP_MOB_SIZE_V10
+                                : (size_t)BLAZE_SNAP_MOB_SIZE_V7;
             for (mi = 0; mi < n_mobs; ++mi)
-                ok = ok && fwrite(&packed[mi], BLAZE_SNAP_MOB_SIZE_V7, 1, f) ==
-                    1;
+                ok = ok && fwrite(&packed[mi], mob_sz, 1, f) == 1;
         }
         {
             RlSnapOrb orbs[BLAZE_SNAP_MAX_ORBS];
@@ -1091,6 +1120,398 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                     ok = ok && fwrite(&fire, sizeof fire, 1, f) == 1;
                     ok = ok && fwrite(&air, sizeof air, 1, f) == 1;
                 }
+                if (h.version >= BLAZE_SNAP_VERSION_RESUME) {
+                    long long tot = 0, wtm = 0;
+                    int rtm = 0, ttm = 0, rn = 0, th = 0;
+                    unsigned long long wrand = 0;
+                    unsigned rtmute = 0, nrt = 0;
+                    uint64_t cells_xor = 0;
+                    gm_world_clock_export(&r->clock, &tot, &wtm, &rtm, &ttm,
+                                          &rn, &th, &wrand);
+                    (void)gm_world_rt_parity_state(r->world, &cells_xor, &nrt,
+                                                   &rtmute);
+                    ok = ok && fwrite(&tot, sizeof tot, 1, f) == 1;
+                    ok = ok && fwrite(&wtm, sizeof wtm, 1, f) == 1;
+                    ok = ok && fwrite(&rtm, sizeof rtm, 1, f) == 1;
+                    ok = ok && fwrite(&ttm, sizeof ttm, 1, f) == 1;
+                    ok = ok && fwrite(&rn, sizeof rn, 1, f) == 1;
+                    ok = ok && fwrite(&th, sizeof th, 1, f) == 1;
+                    wrand &= MC_JR_MASK;
+                    ok = ok && fwrite(&wrand, sizeof wrand, 1, f) == 1;
+                    ok = ok && fwrite(&rtmute, sizeof rtmute, 1, f) == 1;
+                    {
+                        unsigned n_proj = 0, pi, n_fall = 0, n_upd = 0,
+                                 n_land = 0, fi;
+                        unsigned fmut = 0, nfallc = 0;
+                        uint64_t fxor = 0;
+                        int live_ticks = r->entities.ticks;
+                        RlSnapProj pj[BLAZE_SNAP_MAX_PROJ];
+                        RlSnapFall fl[BLAZE_SNAP_MAX_FALL];
+                        RlSnapFallUpdate fu[BLAZE_SNAP_MAX_FALL_UPD];
+                        RlSnapFallLanding ld[BLAZE_SNAP_MAX_FALL];
+                        memset(pj, 0, sizeof pj);
+                        memset(fl, 0, sizeof fl);
+                        memset(fu, 0, sizeof fu);
+                        memset(ld, 0, sizeof ld);
+                        for (pi = 0; pi < (unsigned)GM_RUNTIME_PROJECTILES &&
+                                     n_proj < BLAZE_SNAP_MAX_PROJ; ++pi) {
+                            if (!r->projectiles[pi].active) continue;
+                            pj[n_proj].active = 1;
+                            pj[n_proj].type = r->projectiles[pi].type;
+                            pj[n_proj].age = r->projectiles[pi].age;
+                            pj[n_proj].x = r->projectiles[pi].x;
+                            pj[n_proj].y = r->projectiles[pi].y;
+                            pj[n_proj].z = r->projectiles[pi].z;
+                            pj[n_proj].vx = r->projectiles[pi].vx;
+                            pj[n_proj].vy = r->projectiles[pi].vy;
+                            pj[n_proj].vz = r->projectiles[pi].vz;
+                            pj[n_proj].in_ground = r->proj_in_ground[pi];
+                            pj[n_proj].shake = r->proj_shake[pi];
+                            pj[n_proj].pickup = r->proj_pickup[pi];
+                            pj[n_proj].ground_ticks = r->proj_ground_ticks[pi];
+                            ++n_proj;
+                        }
+                        for (fi = 0; fi < (unsigned)GM_LIVE_MAX &&
+                                     n_fall < BLAZE_SNAP_MAX_FALL; ++fi) {
+                            const GmLiveEnt *e = &r->entities.ents[fi];
+                            if (!e->active || e->type != 2) continue;
+                            fl[n_fall].active = 1;
+                            fl[n_fall].type = 2;
+                            fl[n_fall].x = e->x; fl[n_fall].y = e->y;
+                            fl[n_fall].z = e->z;
+                            fl[n_fall].mx = e->mx; fl[n_fall].my = e->my;
+                            fl[n_fall].mz = e->mz;
+                            fl[n_fall].on_ground = e->on_ground;
+                            fl[n_fall].age = e->age;
+                            fl[n_fall].item = e->item;
+                            fl[n_fall].count = e->count;
+                            fl[n_fall].meta = e->meta;
+                            fl[n_fall].pickup_delay = e->pickup_delay;
+                            fl[n_fall].lifespan = e->lifespan;
+                            ++n_fall;
+                        }
+                        for (fi = 0; fi < (unsigned)GM_LIVE_FALL_UPDATES &&
+                                     n_upd < BLAZE_SNAP_MAX_FALL_UPD; ++fi) {
+                            const GmLiveFallUpdate *u =
+                                &r->entities.fall_updates[fi];
+                            if (!u->active) continue;
+                            fu[n_upd].active = 1;
+                            fu[n_upd].x = u->x; fu[n_upd].y = u->y;
+                            fu[n_upd].z = u->z;
+                            fu[n_upd].block_id = u->block_id;
+                            fu[n_upd].due_tick = u->due_tick;
+                            ++n_upd;
+                        }
+                        for (fi = 0; fi < (unsigned)GM_LIVE_MAX &&
+                                     n_land < BLAZE_SNAP_MAX_FALL; ++fi) {
+                            const GmLiveFallLanding *u =
+                                &r->entities.fall_landings[fi];
+                            if (!u->active) continue;
+                            ld[n_land].active = 1;
+                            ld[n_land].x = u->x; ld[n_land].y = u->y;
+                            ld[n_land].z = u->z;
+                            ld[n_land].block_id = u->block_id;
+                            ld[n_land].block_meta = u->block_meta;
+                            ld[n_land].due_tick = u->due_tick;
+                            ++n_land;
+                        }
+                        (void)gm_world_fall_parity_state(r->world, &fxor,
+                                                         &nfallc, &fmut);
+                        ok = ok && fwrite(&n_proj, sizeof n_proj, 1, f) == 1;
+                        ok = ok && (n_proj == 0 ||
+                                    fwrite(pj, sizeof pj[0], n_proj, f) ==
+                                        n_proj);
+                        ok = ok && fwrite(&r->parity_proj_hits,
+                                          sizeof r->parity_proj_hits, 1,
+                                          f) == 1;
+                        ok = ok && fwrite(&n_fall, sizeof n_fall, 1, f) == 1;
+                        ok = ok && (n_fall == 0 ||
+                                    fwrite(fl, sizeof fl[0], n_fall, f) ==
+                                        n_fall);
+                        ok = ok && fwrite(&n_upd, sizeof n_upd, 1, f) == 1;
+                        ok = ok && (n_upd == 0 ||
+                                    fwrite(fu, sizeof fu[0], n_upd, f) ==
+                                        n_upd);
+                        ok = ok && fwrite(&n_land, sizeof n_land, 1, f) == 1;
+                        ok = ok && (n_land == 0 ||
+                                    fwrite(ld, sizeof ld[0], n_land, f) ==
+                                        n_land);
+                        ok = ok && fwrite(&fmut, sizeof fmut, 1, f) == 1;
+                        ok = ok && fwrite(&live_ticks, sizeof live_ticks, 1,
+                                          f) == 1;
+                        {
+                            unsigned n_furn = 0, n_chest = 0, ui, si;
+                            int active_f = r->active_furnace;
+                            int active_c = r->active_chest;
+                            RlSnapFurnace furn[BLAZE_SNAP_MAX_FURN];
+                            RlSnapChest ch[BLAZE_SNAP_MAX_CHEST];
+                            int craft[9][3], cursor[3], armor[4][3];
+                            int left_click, eat_ticks, eat_item;
+                            int bow_ticks, bow_drawing;
+                            int xp_level, xp_total, xp_cd;
+                            float xp_exp;
+                            int fluid_dim = r->fluids.dim;
+                            RlSnapFluidReg freg[BLAZE_SNAP_FLUID_REGS];
+                            unsigned fmuts = r->fluids.parity_mutations;
+                            int boat_ride = r->mobs.boat_ride;
+                            GmPlayerCtlSnap ctl;
+                            ICStack cur;
+                            memset(furn, 0, sizeof furn);
+                            memset(ch, 0, sizeof ch);
+                            memset(craft, 0, sizeof craft);
+                            memset(cursor, 0, sizeof cursor);
+                            memset(armor, 0, sizeof armor);
+                            memset(freg, 0, sizeof freg);
+                            for (ui = 0; ui < (unsigned)GM_RUNTIME_FURNACES &&
+                                         n_furn < BLAZE_SNAP_MAX_FURN; ++ui) {
+                                const GmRuntimeFurnace *F = &r->furnaces[ui];
+                                if (!F->active) continue;
+                                furn[n_furn].active = 1;
+                                furn[n_furn].wx = F->wx;
+                                furn[n_furn].wy = F->wy;
+                                furn[n_furn].wz = F->wz;
+                                furn[n_furn].in_item = F->state.input.item;
+                                furn[n_furn].in_count = F->state.input.count;
+                                furn[n_furn].in_meta = F->state.input.meta;
+                                furn[n_furn].fuel_item = F->state.fuel.item;
+                                furn[n_furn].fuel_count = F->state.fuel.count;
+                                furn[n_furn].fuel_meta = F->state.fuel.meta;
+                                furn[n_furn].out_item = F->state.output.item;
+                                furn[n_furn].out_count = F->state.output.count;
+                                furn[n_furn].out_meta = F->state.output.meta;
+                                furn[n_furn].burn_time = F->state.burn_time;
+                                furn[n_furn].current_burn_time =
+                                    F->state.current_burn_time;
+                                furn[n_furn].cook_time = F->state.cook_time;
+                                furn[n_furn].total_cook = F->state.total_cook;
+                                ++n_furn;
+                            }
+                            if (r->chests) {
+                                for (ui = 0; ui < (unsigned)r->chests_cap &&
+                                             n_chest < BLAZE_SNAP_MAX_CHEST;
+                                     ++ui) {
+                                    const GmRuntimeChest *C = &r->chests[ui];
+                                    if (!C->active) continue;
+                                    ch[n_chest].active = 1;
+                                    ch[n_chest].wx = C->wx;
+                                    ch[n_chest].wy = C->wy;
+                                    ch[n_chest].wz = C->wz;
+                                    ch[n_chest].num_using =
+                                        C->state.te.num_players_using;
+                                    for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS;
+                                         ++si) {
+                                        ICStack st = chest_live_get(
+                                            (ChestLive *)&C->state, (int)si);
+                                        ch[n_chest].slot[si][0] = st.item;
+                                        ch[n_chest].slot[si][1] = st.count;
+                                        ch[n_chest].slot[si][2] = st.meta;
+                                        rl_ench_from_stack(
+                                            &ch[n_chest].slot_ench[si], &st);
+                                    }
+                                    ++n_chest;
+                                }
+                            }
+                            for (si = 0; si < 9; ++si) {
+                                craft[si][0] = r->craft_grid[si].item;
+                                craft[si][1] = r->craft_grid[si].count;
+                                craft[si][2] = r->craft_grid[si].meta;
+                            }
+                            cur = gm_player_cursor();
+                            cursor[0] = cur.item;
+                            cursor[1] = cur.count;
+                            cursor[2] = cur.meta;
+                            gm_player_ctl_dig_export(&ctl);
+                            left_click = ctl.left_click_counter;
+                            eat_ticks = ctl.eat_ticks;
+                            eat_item = ctl.eat_item;
+                            bow_ticks = r->bow_ticks;
+                            bow_drawing = r->bow_drawing;
+                            xp_level = r->player.experienceLevel;
+                            xp_total = r->player.experienceTotal;
+                            xp_cd = r->player.xpCooldown;
+                            xp_exp = r->player.experience;
+                            for (si = 0; si < 4; ++si) {
+                                ICStack st = isr_get_stack(&r->player.inv,
+                                                           ISR_ARMOR0 + (int)si);
+                                armor[si][0] = st.item;
+                                armor[si][1] = st.count;
+                                armor[si][2] = st.meta;
+                            }
+                            for (si = 0; si < BLAZE_SNAP_FLUID_REGS; ++si) {
+                                const GmFluidRegion *rg = &r->fluids.reg[si];
+                                freg[si].active = rg->active;
+                                freg[si].x0 = rg->x0; freg[si].y0 = rg->y0;
+                                freg[si].z0 = rg->z0; freg[si].x1 = rg->x1;
+                                freg[si].y1 = rg->y1; freg[si].z1 = rg->z1;
+                                freg[si].has_water = rg->has_water;
+                                freg[si].quiet_steps = rg->quiet_steps;
+                            }
+                            ok = ok && fwrite(&n_furn, sizeof n_furn, 1, f) == 1;
+                            ok = ok && (n_furn == 0 ||
+                                        fwrite(furn, sizeof furn[0], n_furn,
+                                               f) == n_furn);
+                            ok = ok && fwrite(&active_f, sizeof active_f, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&n_chest, sizeof n_chest, 1,
+                                              f) == 1;
+                            ok = ok && (n_chest == 0 ||
+                                        fwrite(ch, sizeof ch[0], n_chest, f) ==
+                                            n_chest);
+                            ok = ok && fwrite(&active_c, sizeof active_c, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(craft, sizeof craft, 1, f) == 1;
+                            ok = ok && fwrite(cursor, sizeof cursor, 1, f) == 1;
+                            ok = ok && fwrite(&r->parity_craft_attempts,
+                                              sizeof r->parity_craft_attempts,
+                                              1, f) == 1;
+                            ok = ok && fwrite(&r->parity_craft_successes,
+                                              sizeof r->parity_craft_successes,
+                                              1, f) == 1;
+                            ok = ok && fwrite(&r->parity_container_opens,
+                                              sizeof r->parity_container_opens,
+                                              1, f) == 1;
+                            ok = ok && fwrite(&left_click, sizeof left_click, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&eat_ticks, sizeof eat_ticks, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&eat_item, sizeof eat_item, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&bow_ticks, sizeof bow_ticks, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&bow_drawing, sizeof bow_drawing,
+                                              1, f) == 1;
+                            ok = ok && fwrite(&xp_level, sizeof xp_level, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&xp_total, sizeof xp_total, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&xp_cd, sizeof xp_cd, 1, f) == 1;
+                            ok = ok && fwrite(&xp_exp, sizeof xp_exp, 1, f) ==
+                                           1;
+                            ok = ok && fwrite(armor, sizeof armor, 1, f) == 1;
+                            ok = ok && fwrite(&fluid_dim, sizeof fluid_dim, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(freg, sizeof freg, 1, f) == 1;
+                            ok = ok && fwrite(&fmuts, sizeof fmuts, 1, f) == 1;
+                            ok = ok && fwrite(&boat_ride, sizeof boat_ride, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&r->mobs.explosion_pending,
+                                              sizeof r->mobs.explosion_pending,
+                                              1, f) == 1;
+                            ok = ok && fwrite(&r->mobs.explosion_smoking,
+                                              sizeof r->mobs.explosion_smoking,
+                                              1, f) == 1;
+                            ok = ok && fwrite(&r->mobs.explosion_flaming,
+                                              sizeof r->mobs.explosion_flaming,
+                                              1, f) == 1;
+                            ok = ok && fwrite(&r->mobs.explosion_x,
+                                              sizeof r->mobs.explosion_x, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&r->mobs.explosion_y,
+                                              sizeof r->mobs.explosion_y, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&r->mobs.explosion_z,
+                                              sizeof r->mobs.explosion_z, 1,
+                                              f) == 1;
+                            ok = ok && fwrite(&r->mobs.explosion_size,
+                                              sizeof r->mobs.explosion_size, 1,
+                                              f) == 1;
+                            {
+                                RlSnapV10Xtra x;
+                                unsigned mk, si;
+                                memset(&x, 0, sizeof x);
+                                x.xp_pickups = r->mobs.xp_pickups;
+                                x.next_orb_id = r->mobs.next_orb_id;
+                                x.next_mob_id = r->mobs.next_id;
+                                x.spawn_world_seed48 = r->mobs.spawn_world_seed48;
+                                x.spawn_math_seed48 = r->mobs.spawn_math_seed48;
+                                x.spawn_shuffle_seed48 =
+                                    r->mobs.spawn_shuffle_seed48;
+                                x.parity_ex_blasts = r->parity_ex_blasts;
+                                x.parity_ex_destroyed = r->parity_ex_destroyed;
+                                x.parity_ex_drop_n = r->parity_ex_drop_n;
+                                x.parity_ex_drop_ids = r->parity_ex_drop_ids;
+                                x.parity_ex_damage = r->parity_ex_damage;
+                                x.parity_ex_kb_x = r->parity_ex_kb_x;
+                                x.parity_ex_kb_y = r->parity_ex_kb_y;
+                                x.parity_ex_kb_z = r->parity_ex_kb_z;
+                                x.parity_ex_rays = r->parity_ex_rays;
+                                x.parity_ex_last_x = r->parity_ex_last_x;
+                                x.parity_ex_last_y = r->parity_ex_last_y;
+                                x.parity_ex_last_z = r->parity_ex_last_z;
+                                x.parity_ex_last_size = r->parity_ex_last_size;
+                                x.player_dead = r->dead;
+                                x.death_screen_ticks = r->death_screen_ticks;
+                                x.player_hurt_resistant =
+                                    r->mobs.player_hurt_resistant;
+                                x.player_attack_cooldown =
+                                    r->mobs.player_attack_cooldown;
+                                x.player_last_damage =
+                                    r->mobs.player_last_damage;
+                                x.look_px = r->mobs.look_px;
+                                x.look_py = r->mobs.look_py;
+                                x.look_pz = r->mobs.look_pz;
+                                x.look_have = r->mobs.look_have;
+                                x.mob_tick = r->mobs.tick;
+                                {
+                                    const EwStore *es = r->mobs.current
+                                        ? &r->mobs.b : &r->mobs.a;
+                                    for (mk = 0; mk < n_mobs &&
+                                                 mk < BLAZE_SNAP_MAX_MOBS;
+                                         ++mk) {
+                                        int sl = packed[mk].slot;
+                                        if (sl < 0 || sl >= BLAZE_SNAP_MAX_MOBS)
+                                            continue;
+                                        x.boat_delta_rot[mk] =
+                                            r->mobs.boat_delta_rot[sl];
+                                        x.boat_glide[mk] =
+                                            r->mobs.boat_glide[sl];
+                                        x.sidecar_repath[mk] =
+                                            es->repath_timer[sl];
+                                        x.sidecar_despawn[mk] =
+                                            r->mobs.despawn_ticks[sl];
+                                        x.sidecar_fire[mk] =
+                                            r->mobs.fire_ticks[sl];
+                                        x.ew_ai_state[mk] = es->ai_state[sl];
+                                        x.ew_path_len[mk] = es->path_len[sl];
+                                        x.ew_path_tx[mk] = es->path_tx[sl];
+                                        x.ew_path_ty[mk] = es->path_ty[sl];
+                                        x.ew_path_tz[mk] = es->path_tz[sl];
+                                        x.entity_age[mk] = r->mobs.entity_age[sl];
+                                    }
+                                }
+                                for (si = 0; si < 37; ++si) {
+                                    ICStack st = isr_get_stack(
+                                        &r->player.inv,
+                                        si < 36 ? (int)si : ISR_OFFHAND_SLOT);
+                                    rl_ench_from_stack(&x.inv_ench[si], &st);
+                                }
+                                for (si = 0; si < 4; ++si) {
+                                    ICStack st = isr_get_stack(
+                                        &r->player.inv, ISR_ARMOR0 + (int)si);
+                                    rl_ench_from_stack(&x.armor_ench[si], &st);
+                                }
+                                for (si = 0; si < 9; ++si)
+                                    rl_ench_from_stack(&x.craft_ench[si],
+                                                       &r->craft_grid[si]);
+                                rl_ench_from_stack(&x.cursor_ench, &cur);
+                                x.last_craft[0] = r->parity_last_craft.item;
+                                x.last_craft[1] = r->parity_last_craft.count;
+                                x.last_craft[2] = r->parity_last_craft.meta;
+                                rl_ench_from_stack(&x.last_craft_ench,
+                                                   &r->parity_last_craft);
+                                x.elytra_equipped = r->player.elytra_equipped;
+                                x.elytra_flying = r->player.elytra_flying;
+                                x.elytra_pending = r->player.elytra_flying_pending;
+                                x.elytra_pose = r->player.elytra_pose;
+                                x.ticks_elytra_flying = r->player.ticks_elytra_flying;
+                                x.elytra_wall_damage = r->player.elytra_wall_damage;
+                                ok = ok && fwrite(&x, sizeof x, 1, f) == 1;
+                            }
+                            (void)eat_ticks;
+                            (void)eat_item;
+                        }
+                    }
+                }
             }
             fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal, "
                     "%u mobs, %u orbs, wr=%llu lcg=%d, biome %dx%d)\n",
@@ -1117,7 +1538,37 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     int ecx, ecz, erad;
     FILE *f = fopen(path, "rb");
     int i, x, y, z;
+    unsigned snap_rtmute = 0;
+    int snap_have_v10 = 0;
+    unsigned snap_n_proj = 0, snap_proj_hits = 0, snap_n_fall = 0;
+    unsigned snap_n_upd = 0, snap_n_land = 0, snap_fall_mut = 0;
+    int snap_live_ticks = 0;
+    unsigned snap_n_furn = 0, snap_n_chest = 0;
+    int snap_active_f = -1, snap_active_c = -1;
+    RlSnapFurnace snap_furn[BLAZE_SNAP_MAX_FURN];
+    RlSnapChest snap_ch[BLAZE_SNAP_MAX_CHEST];
+    int snap_craft[9][3], snap_cursor[3], snap_armor[4][3];
+    unsigned snap_craft_att = 0, snap_craft_ok = 0, snap_cont_open = 0;
+    int snap_left = 0, snap_eat_t = 0, snap_eat_i = 0;
+    int snap_bow_t = 0, snap_bow_d = 0;
+    int snap_xp_lv = 0, snap_xp_tot = 0, snap_xp_cd = 0;
+    float snap_xp_exp = 0;
+    int snap_fluid_dim = 0, snap_boat = -1;
+    RlSnapFluidReg snap_freg[BLAZE_SNAP_FLUID_REGS];
+    unsigned snap_fmuts = 0;
+    int snap_ex_pend = 0, snap_ex_smoke = 1, snap_ex_flame = 0;
+    double snap_ex_x = 0, snap_ex_y = 0, snap_ex_z = 0;
+    float snap_ex_sz = 0;
+    RlSnapV10Xtra snap_xtra;
+    unsigned snap_n_mobs = 0;
+    RlSnapMob snap_mobs[BLAZE_SNAP_MAX_MOBS];
+    RlSnapProj snap_proj[BLAZE_SNAP_MAX_PROJ];
+    RlSnapFall snap_fall[BLAZE_SNAP_MAX_FALL];
+    RlSnapFallUpdate snap_upd[BLAZE_SNAP_MAX_FALL_UPD];
+    RlSnapFallLanding snap_land[BLAZE_SNAP_MAX_FALL];
 
+    memset(&snap_xtra, 0, sizeof snap_xtra);
+    memset(snap_mobs, 0, sizeof snap_mobs);
     if (!f) { snprintf(err, (size_t)err_cap, "cannot open %s", path); return 0; }
     if (fread(&h, sizeof h, 1, f) != 1 || memcmp(h.magic, "BSNP", 4) != 0 ||
         h.version < 1 || h.version > BLAZE_SNAP_VERSION) {
@@ -1190,29 +1641,25 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             free(cells); free(light); fclose(f); return 0;
         }
         if (n_mobs) {
-            if (h.version >= BLAZE_SNAP_VERSION_ENDER) {
-                unsigned mi;
-                memset(packed, 0, sizeof packed);
-                for (mi = 0; mi < n_mobs; ++mi) {
-                    if (fread(&packed[mi], BLAZE_SNAP_MOB_SIZE_V7, 1, f) != 1) {
-                        snprintf(err, (size_t)err_cap,
-                                 "truncated .bsnp mobs: %s", path);
-                        free(cells); free(light); fclose(f); return 0;
-                    }
-                }
-            } else {
-                unsigned mi;
-                memset(packed, 0, sizeof packed);
-                for (mi = 0; mi < n_mobs; ++mi) {
-                    if (fread(&packed[mi], BLAZE_SNAP_MOB_SIZE_V6, 1, f) != 1) {
-                        snprintf(err, (size_t)err_cap,
-                                 "truncated .bsnp mobs: %s", path);
-                        free(cells); free(light); fclose(f); return 0;
-                    }
+            unsigned mi;
+            size_t mob_sz = BLAZE_SNAP_MOB_SIZE_V6;
+            if (h.version >= BLAZE_SNAP_VERSION_RESUME)
+                mob_sz = BLAZE_SNAP_MOB_SIZE_V10;
+            else if (h.version >= BLAZE_SNAP_VERSION_ENDER)
+                mob_sz = BLAZE_SNAP_MOB_SIZE_V7;
+            memset(packed, 0, sizeof packed);
+            for (mi = 0; mi < n_mobs; ++mi) {
+                if (fread(&packed[mi], mob_sz, 1, f) != 1) {
+                    snprintf(err, (size_t)err_cap,
+                             "truncated .bsnp mobs: %s", path);
+                    free(cells); free(light); fclose(f); return 0;
                 }
             }
         }
         gm_mobs_import_snap(&r->mobs, packed, n_mobs);
+        snap_n_mobs = n_mobs;
+        if (n_mobs)
+            memcpy(snap_mobs, packed, (size_t)n_mobs * sizeof packed[0]);
         r->mobs.spawn_clip = 1;
         r->mobs.spawn_rx0 = h.rx0;
         r->mobs.spawn_ry0 = h.ry0;
@@ -1284,7 +1731,112 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         r->player.air = air;
         r->player_fire_ticks = fire;
     }
-    fclose(f);
+    {
+        long long tot = 0, wtm = 0;
+        int rtm = 0, ttm = 0, rn = 0, th = 0;
+        unsigned long long wrand = 0;
+        unsigned rtmute = 0;
+        if (h.version >= BLAZE_SNAP_VERSION_RESUME) {
+            if (fread(&tot, sizeof tot, 1, f) != 1 ||
+                fread(&wtm, sizeof wtm, 1, f) != 1 ||
+                fread(&rtm, sizeof rtm, 1, f) != 1 ||
+                fread(&ttm, sizeof ttm, 1, f) != 1 ||
+                fread(&rn, sizeof rn, 1, f) != 1 ||
+                fread(&th, sizeof th, 1, f) != 1 ||
+                fread(&wrand, sizeof wrand, 1, f) != 1 ||
+                fread(&rtmute, sizeof rtmute, 1, f) != 1) {
+                snprintf(err, (size_t)err_cap,
+                         "truncated .bsnp v10 clock: %s", path);
+                free(cells); free(light); free(biome); fclose(f); return 0;
+            }
+            snap_have_v10 = 1;
+            snap_rtmute = rtmute;
+            memset(snap_proj, 0, sizeof snap_proj);
+            memset(snap_fall, 0, sizeof snap_fall);
+            memset(snap_upd, 0, sizeof snap_upd);
+            memset(snap_land, 0, sizeof snap_land);
+            if (fread(&snap_n_proj, sizeof snap_n_proj, 1, f) != 1 ||
+                snap_n_proj > BLAZE_SNAP_MAX_PROJ ||
+                (snap_n_proj &&
+                 fread(snap_proj, sizeof snap_proj[0], snap_n_proj, f) !=
+                     snap_n_proj) ||
+                fread(&snap_proj_hits, sizeof snap_proj_hits, 1, f) != 1 ||
+                fread(&snap_n_fall, sizeof snap_n_fall, 1, f) != 1 ||
+                snap_n_fall > BLAZE_SNAP_MAX_FALL ||
+                (snap_n_fall &&
+                 fread(snap_fall, sizeof snap_fall[0], snap_n_fall, f) !=
+                     snap_n_fall) ||
+                fread(&snap_n_upd, sizeof snap_n_upd, 1, f) != 1 ||
+                snap_n_upd > BLAZE_SNAP_MAX_FALL_UPD ||
+                (snap_n_upd &&
+                 fread(snap_upd, sizeof snap_upd[0], snap_n_upd, f) !=
+                     snap_n_upd) ||
+                fread(&snap_n_land, sizeof snap_n_land, 1, f) != 1 ||
+                snap_n_land > BLAZE_SNAP_MAX_FALL ||
+                (snap_n_land &&
+                 fread(snap_land, sizeof snap_land[0], snap_n_land, f) !=
+                     snap_n_land) ||
+                fread(&snap_fall_mut, sizeof snap_fall_mut, 1, f) != 1 ||
+                fread(&snap_live_ticks, sizeof snap_live_ticks, 1, f) != 1) {
+                snprintf(err, (size_t)err_cap,
+                         "truncated .bsnp v10 proj/fall: %s", path);
+                free(cells); free(light); free(biome); fclose(f); return 0;
+            }
+            memset(snap_furn, 0, sizeof snap_furn);
+            memset(snap_ch, 0, sizeof snap_ch);
+            memset(snap_craft, 0, sizeof snap_craft);
+            memset(snap_cursor, 0, sizeof snap_cursor);
+            memset(snap_armor, 0, sizeof snap_armor);
+            memset(snap_freg, 0, sizeof snap_freg);
+            if (fread(&snap_n_furn, sizeof snap_n_furn, 1, f) != 1 ||
+                snap_n_furn > BLAZE_SNAP_MAX_FURN ||
+                (snap_n_furn &&
+                 fread(snap_furn, sizeof snap_furn[0], snap_n_furn, f) !=
+                     snap_n_furn) ||
+                fread(&snap_active_f, sizeof snap_active_f, 1, f) != 1 ||
+                fread(&snap_n_chest, sizeof snap_n_chest, 1, f) != 1 ||
+                snap_n_chest > BLAZE_SNAP_MAX_CHEST ||
+                (snap_n_chest &&
+                 fread(snap_ch, sizeof snap_ch[0], snap_n_chest, f) !=
+                     snap_n_chest) ||
+                fread(&snap_active_c, sizeof snap_active_c, 1, f) != 1 ||
+                fread(snap_craft, sizeof snap_craft, 1, f) != 1 ||
+                fread(snap_cursor, sizeof snap_cursor, 1, f) != 1 ||
+                fread(&snap_craft_att, sizeof snap_craft_att, 1, f) != 1 ||
+                fread(&snap_craft_ok, sizeof snap_craft_ok, 1, f) != 1 ||
+                fread(&snap_cont_open, sizeof snap_cont_open, 1, f) != 1 ||
+                fread(&snap_left, sizeof snap_left, 1, f) != 1 ||
+                fread(&snap_eat_t, sizeof snap_eat_t, 1, f) != 1 ||
+                fread(&snap_eat_i, sizeof snap_eat_i, 1, f) != 1 ||
+                fread(&snap_bow_t, sizeof snap_bow_t, 1, f) != 1 ||
+                fread(&snap_bow_d, sizeof snap_bow_d, 1, f) != 1 ||
+                fread(&snap_xp_lv, sizeof snap_xp_lv, 1, f) != 1 ||
+                fread(&snap_xp_tot, sizeof snap_xp_tot, 1, f) != 1 ||
+                fread(&snap_xp_cd, sizeof snap_xp_cd, 1, f) != 1 ||
+                fread(&snap_xp_exp, sizeof snap_xp_exp, 1, f) != 1 ||
+                fread(snap_armor, sizeof snap_armor, 1, f) != 1 ||
+                fread(&snap_fluid_dim, sizeof snap_fluid_dim, 1, f) != 1 ||
+                fread(snap_freg, sizeof snap_freg, 1, f) != 1 ||
+                fread(&snap_fmuts, sizeof snap_fmuts, 1, f) != 1 ||
+                fread(&snap_boat, sizeof snap_boat, 1, f) != 1 ||
+                fread(&snap_ex_pend, sizeof snap_ex_pend, 1, f) != 1 ||
+                fread(&snap_ex_smoke, sizeof snap_ex_smoke, 1, f) != 1 ||
+                fread(&snap_ex_flame, sizeof snap_ex_flame, 1, f) != 1 ||
+                fread(&snap_ex_x, sizeof snap_ex_x, 1, f) != 1 ||
+                fread(&snap_ex_y, sizeof snap_ex_y, 1, f) != 1 ||
+                fread(&snap_ex_z, sizeof snap_ex_z, 1, f) != 1 ||
+                fread(&snap_ex_sz, sizeof snap_ex_sz, 1, f) != 1 ||
+                fread(&snap_xtra, sizeof snap_xtra, 1, f) != 1) {
+                snprintf(err, (size_t)err_cap,
+                         "truncated .bsnp v10 te/player: %s", path);
+                free(cells); free(light); free(biome); fclose(f); return 0;
+            }
+        }
+        fclose(f);
+        if (snap_have_v10)
+            gm_world_clock_restore(&r->clock, tot, wtm, rtm, ttm, rn, th,
+                                   wrand);
+    }
 
     ecx = psv_floordiv16(h.rx0 + h.rnx / 2);
     ecz = psv_floordiv16(h.rz0 + h.rnz / 2);
@@ -1337,6 +1889,10 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         free(cells);
         free(biome);
         return 0;
+    }
+    if (snap_have_v10) {
+        gm_world_set_rt_mutations(r->world, snap_rtmute);
+        gm_world_set_fall_mutations(r->world, snap_fall_mut);
     }
     for (x = 0; x < h.rnx; ++x)
         for (z = 0; z < h.rnz; ++z)
@@ -1400,6 +1956,246 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         isr_set_stack(&r->player.inv, ISR_ARMOR_CHEST,
                       ic_mk(ISR_ELYTRA_ITEM, 1, 0));
         r->player.elytra_equipped = 1;
+    }
+    if (snap_have_v10) {
+        unsigned pi, fi, slot;
+        memset(r->projectiles, 0, sizeof r->projectiles);
+        memset(r->proj_in_ground, 0, sizeof r->proj_in_ground);
+        memset(r->proj_shake, 0, sizeof r->proj_shake);
+        memset(r->proj_pickup, 0, sizeof r->proj_pickup);
+        memset(r->proj_ground_ticks, 0, sizeof r->proj_ground_ticks);
+        r->parity_proj_hits = snap_proj_hits;
+        for (pi = 0; pi < snap_n_proj && pi < (unsigned)GM_RUNTIME_PROJECTILES;
+             ++pi) {
+            r->projectiles[pi].active = snap_proj[pi].active;
+            r->projectiles[pi].type = snap_proj[pi].type;
+            r->projectiles[pi].age = snap_proj[pi].age;
+            r->projectiles[pi].x = snap_proj[pi].x;
+            r->projectiles[pi].y = snap_proj[pi].y;
+            r->projectiles[pi].z = snap_proj[pi].z;
+            r->projectiles[pi].vx = snap_proj[pi].vx;
+            r->projectiles[pi].vy = snap_proj[pi].vy;
+            r->projectiles[pi].vz = snap_proj[pi].vz;
+            r->proj_in_ground[pi] = snap_proj[pi].in_ground;
+            r->proj_shake[pi] = snap_proj[pi].shake;
+            r->proj_pickup[pi] = snap_proj[pi].pickup;
+            r->proj_ground_ticks[pi] = snap_proj[pi].ground_ticks;
+        }
+        for (fi = 0; fi < snap_n_fall; ++fi) {
+            GmLiveEnt *e;
+            slot = (unsigned)r->entities.n_active;
+            if (slot >= (unsigned)GM_LIVE_MAX) break;
+            e = &r->entities.ents[slot];
+            memset(e, 0, sizeof *e);
+            e->active = 1;
+            e->type = 2;
+            e->x = snap_fall[fi].x; e->y = snap_fall[fi].y;
+            e->z = snap_fall[fi].z;
+            e->mx = snap_fall[fi].mx; e->my = snap_fall[fi].my;
+            e->mz = snap_fall[fi].mz;
+            e->on_ground = snap_fall[fi].on_ground;
+            e->age = snap_fall[fi].age;
+            e->item = snap_fall[fi].item;
+            e->count = snap_fall[fi].count;
+            e->meta = snap_fall[fi].meta;
+            e->pickup_delay = snap_fall[fi].pickup_delay;
+            e->lifespan = snap_fall[fi].lifespan;
+            r->entities.n_active++;
+        }
+        memset(r->entities.fall_updates, 0, sizeof r->entities.fall_updates);
+        for (fi = 0; fi < snap_n_upd && fi < (unsigned)GM_LIVE_FALL_UPDATES;
+             ++fi) {
+            r->entities.fall_updates[fi].active = snap_upd[fi].active;
+            r->entities.fall_updates[fi].x = snap_upd[fi].x;
+            r->entities.fall_updates[fi].y = snap_upd[fi].y;
+            r->entities.fall_updates[fi].z = snap_upd[fi].z;
+            r->entities.fall_updates[fi].block_id = snap_upd[fi].block_id;
+            r->entities.fall_updates[fi].due_tick = snap_upd[fi].due_tick;
+        }
+        memset(r->entities.fall_landings, 0, sizeof r->entities.fall_landings);
+        for (fi = 0; fi < snap_n_land && fi < (unsigned)GM_LIVE_MAX; ++fi) {
+            r->entities.fall_landings[fi].active = snap_land[fi].active;
+            r->entities.fall_landings[fi].x = snap_land[fi].x;
+            r->entities.fall_landings[fi].y = snap_land[fi].y;
+            r->entities.fall_landings[fi].z = snap_land[fi].z;
+            r->entities.fall_landings[fi].block_id = snap_land[fi].block_id;
+            r->entities.fall_landings[fi].block_meta = snap_land[fi].block_meta;
+            r->entities.fall_landings[fi].due_tick = snap_land[fi].due_tick;
+        }
+        r->entities.ticks = snap_live_ticks;
+        {
+            unsigned ui, si;
+            memset(r->furnaces, 0, sizeof r->furnaces);
+            r->active_furnace = snap_active_f;
+            for (ui = 0; ui < snap_n_furn && ui < (unsigned)GM_RUNTIME_FURNACES;
+                 ++ui) {
+                GmRuntimeFurnace *F = &r->furnaces[ui];
+                F->active = snap_furn[ui].active;
+                F->wx = snap_furn[ui].wx;
+                F->wy = snap_furn[ui].wy;
+                F->wz = snap_furn[ui].wz;
+                F->state.input.item = snap_furn[ui].in_item;
+                F->state.input.count = snap_furn[ui].in_count;
+                F->state.input.meta = snap_furn[ui].in_meta;
+                F->state.fuel.item = snap_furn[ui].fuel_item;
+                F->state.fuel.count = snap_furn[ui].fuel_count;
+                F->state.fuel.meta = snap_furn[ui].fuel_meta;
+                F->state.output.item = snap_furn[ui].out_item;
+                F->state.output.count = snap_furn[ui].out_count;
+                F->state.output.meta = snap_furn[ui].out_meta;
+                F->state.burn_time = snap_furn[ui].burn_time;
+                F->state.current_burn_time = snap_furn[ui].current_burn_time;
+                F->state.cook_time = snap_furn[ui].cook_time;
+                F->state.total_cook = snap_furn[ui].total_cook;
+            }
+            r->active_chest = snap_active_c;
+            if (r->chests) {
+                for (ui = 0; ui < (unsigned)r->chests_cap; ++ui)
+                    r->chests[ui].active = 0;
+                for (ui = 0; ui < snap_n_chest &&
+                             ui < (unsigned)r->chests_cap; ++ui) {
+                    GmRuntimeChest *C = &r->chests[ui];
+                    C->active = snap_ch[ui].active;
+                    C->wx = snap_ch[ui].wx;
+                    C->wy = snap_ch[ui].wy;
+                    C->wz = snap_ch[ui].wz;
+                    C->state.te.num_players_using = snap_ch[ui].num_using;
+                    for (si = 0; si < BLAZE_SNAP_CHEST_SLOTS; ++si) {
+                        ICStack st = ic_mk(snap_ch[ui].slot[si][0],
+                                           snap_ch[ui].slot[si][1],
+                                           snap_ch[ui].slot[si][2]);
+                        rl_ench_to_stack(&st, &snap_ch[ui].slot_ench[si]);
+                        chest_live_set(&C->state, (int)si, st);
+                    }
+                }
+            }
+            for (si = 0; si < 9; ++si)
+                r->craft_grid[si] = ic_mk(snap_craft[si][0], snap_craft[si][1],
+                                          snap_craft[si][2]);
+            gm_player_cursor_set(ic_mk(snap_cursor[0], snap_cursor[1],
+                                       snap_cursor[2]));
+            r->parity_craft_attempts = snap_craft_att;
+            r->parity_craft_successes = snap_craft_ok;
+            r->parity_container_opens = snap_cont_open;
+            d.left_click_counter = snap_left;
+            d.eat_ticks = snap_eat_t;
+            d.eat_item = snap_eat_i;
+            gm_player_ctl_dig_import(&d);
+            r->bow_ticks = snap_bow_t;
+            r->bow_drawing = snap_bow_d;
+            r->player.experienceLevel = snap_xp_lv;
+            r->player.experienceTotal = snap_xp_tot;
+            r->player.xpCooldown = snap_xp_cd;
+            r->player.experience = snap_xp_exp;
+            for (si = 0; si < 4; ++si)
+                isr_set_stack(&r->player.inv, ISR_ARMOR0 + (int)si,
+                              ic_mk(snap_armor[si][0], snap_armor[si][1],
+                                    snap_armor[si][2]));
+            r->fluids.dim = snap_fluid_dim;
+            r->fluids.parity_mutations = snap_fmuts;
+            for (si = 0; si < BLAZE_SNAP_FLUID_REGS; ++si) {
+                r->fluids.reg[si].active = snap_freg[si].active;
+                r->fluids.reg[si].x0 = snap_freg[si].x0;
+                r->fluids.reg[si].y0 = snap_freg[si].y0;
+                r->fluids.reg[si].z0 = snap_freg[si].z0;
+                r->fluids.reg[si].x1 = snap_freg[si].x1;
+                r->fluids.reg[si].y1 = snap_freg[si].y1;
+                r->fluids.reg[si].z1 = snap_freg[si].z1;
+                r->fluids.reg[si].has_water = snap_freg[si].has_water;
+                r->fluids.reg[si].quiet_steps = snap_freg[si].quiet_steps;
+            }
+            r->mobs.boat_ride = snap_boat;
+            r->mobs.explosion_pending = snap_ex_pend;
+            r->mobs.explosion_smoking = snap_ex_smoke;
+            r->mobs.explosion_flaming = snap_ex_flame;
+            r->mobs.explosion_x = snap_ex_x;
+            r->mobs.explosion_y = snap_ex_y;
+            r->mobs.explosion_z = snap_ex_z;
+            r->mobs.explosion_size = snap_ex_sz;
+            r->mobs.xp_pickups = snap_xtra.xp_pickups;
+            r->mobs.next_orb_id = snap_xtra.next_orb_id;
+            r->mobs.next_id = snap_xtra.next_mob_id;
+            r->mobs.spawn_world_seed48 = snap_xtra.spawn_world_seed48;
+            r->mobs.spawn_math_seed48 = snap_xtra.spawn_math_seed48;
+            r->mobs.spawn_shuffle_seed48 = snap_xtra.spawn_shuffle_seed48;
+            r->parity_ex_blasts = snap_xtra.parity_ex_blasts;
+            r->parity_ex_destroyed = snap_xtra.parity_ex_destroyed;
+            r->parity_ex_drop_n = snap_xtra.parity_ex_drop_n;
+            r->parity_ex_drop_ids = snap_xtra.parity_ex_drop_ids;
+            r->parity_ex_damage = snap_xtra.parity_ex_damage;
+            r->parity_ex_kb_x = snap_xtra.parity_ex_kb_x;
+            r->parity_ex_kb_y = snap_xtra.parity_ex_kb_y;
+            r->parity_ex_kb_z = snap_xtra.parity_ex_kb_z;
+            r->parity_ex_rays = snap_xtra.parity_ex_rays;
+            r->parity_ex_last_x = snap_xtra.parity_ex_last_x;
+            r->parity_ex_last_y = snap_xtra.parity_ex_last_y;
+            r->parity_ex_last_z = snap_xtra.parity_ex_last_z;
+            r->parity_ex_last_size = snap_xtra.parity_ex_last_size;
+            r->dead = snap_xtra.player_dead ? 1 : 0;
+            r->death_screen_ticks = snap_xtra.death_screen_ticks;
+            r->mobs.player_hurt_resistant = snap_xtra.player_hurt_resistant;
+            r->mobs.player_attack_cooldown = snap_xtra.player_attack_cooldown;
+            r->mobs.player_last_damage = snap_xtra.player_last_damage;
+            r->mobs.look_px = snap_xtra.look_px;
+            r->mobs.look_py = snap_xtra.look_py;
+            r->mobs.look_pz = snap_xtra.look_pz;
+            r->mobs.look_have = snap_xtra.look_have ? 1 : 0;
+            r->mobs.tick = snap_xtra.mob_tick;
+
+            {
+                EwStore *es = r->mobs.current ? &r->mobs.b : &r->mobs.a;
+                for (si = 0; si < snap_n_mobs && si < BLAZE_SNAP_MAX_MOBS;
+                     ++si) {
+                    int sl = snap_mobs[si].slot;
+                    if (sl < 0 || sl >= BLAZE_SNAP_MAX_MOBS) continue;
+                    r->mobs.boat_delta_rot[sl] = snap_xtra.boat_delta_rot[si];
+                    r->mobs.boat_glide[sl] = snap_xtra.boat_glide[si];
+                    es->repath_timer[sl] = snap_xtra.sidecar_repath[si];
+                    r->mobs.despawn_ticks[sl] = snap_xtra.sidecar_despawn[si];
+                    r->mobs.fire_ticks[sl] = snap_xtra.sidecar_fire[si];
+                    es->ai_state[sl] = snap_xtra.ew_ai_state[si];
+                    es->path_len[sl] = snap_xtra.ew_path_len[si];
+                    es->path_tx[sl] = snap_xtra.ew_path_tx[si];
+                    es->path_ty[sl] = snap_xtra.ew_path_ty[si];
+                    es->path_tz[sl] = snap_xtra.ew_path_tz[si];
+                    r->mobs.entity_age[sl] = snap_xtra.entity_age[si];
+                }
+                ew_store_copy(r->mobs.current ? &r->mobs.a : &r->mobs.b, es);
+            }
+            for (si = 0; si < 37; ++si) {
+                int slot = si < 36 ? (int)si : ISR_OFFHAND_SLOT;
+                ICStack st = isr_get_stack(&r->player.inv, slot);
+                rl_ench_to_stack(&st, &snap_xtra.inv_ench[si]);
+                isr_set_stack(&r->player.inv, slot, st);
+            }
+            for (si = 0; si < 4; ++si) {
+                ICStack st = isr_get_stack(&r->player.inv,
+                                           ISR_ARMOR0 + (int)si);
+                rl_ench_to_stack(&st, &snap_xtra.armor_ench[si]);
+                isr_set_stack(&r->player.inv, ISR_ARMOR0 + (int)si, st);
+            }
+            for (si = 0; si < 9; ++si)
+                rl_ench_to_stack(&r->craft_grid[si],
+                                 &snap_xtra.craft_ench[si]);
+            {
+                ICStack cur = gm_player_cursor();
+                rl_ench_to_stack(&cur, &snap_xtra.cursor_ench);
+                gm_player_cursor_set(cur);
+            }
+            {
+                ICStack lc = ic_mk(snap_xtra.last_craft[0],
+                                   snap_xtra.last_craft[1],
+                                   snap_xtra.last_craft[2]);
+                rl_ench_to_stack(&lc, &snap_xtra.last_craft_ench);
+                r->parity_last_craft = lc;
+            }
+            r->player.elytra_equipped = snap_xtra.elytra_equipped ? 1 : 0;
+            r->player.elytra_flying = snap_xtra.elytra_flying ? 1 : 0;
+            r->player.elytra_flying_pending = snap_xtra.elytra_pending ? 1 : 0;
+            r->player.elytra_pose = snap_xtra.elytra_pose;
+            r->player.ticks_elytra_flying = snap_xtra.ticks_elytra_flying;
+            r->player.elytra_wall_damage = snap_xtra.elytra_wall_damage;
+        }
     }
     return 1;
 }

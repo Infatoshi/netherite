@@ -2,6 +2,7 @@ version: 1
 subsystems:
   - name: mining_slice
     supported: true
+    resume: true
     sources:
       magma:
         - magma/game/player_ctl.c
@@ -55,6 +56,7 @@ subsystems:
 
   - name: spawn_to_torch
     supported: true
+    resume: true
     sources:
       magma:
         - magma/game/player_ctl.c
@@ -127,6 +129,7 @@ subsystems:
 
   - name: hazards
     supported: true
+    resume: true
     sources:
       magma:
         - magma/game/runtime.c
@@ -196,6 +199,7 @@ subsystems:
 
   - name: world_dynamics
     supported: true
+    resume: true
     sources:
       magma:
         - magma/game/world_live.c
@@ -262,6 +266,7 @@ subsystems:
 
   - name: fluids
     supported: true
+    resume: true
     sources:
       magma: [magma/game/fluid_live.c, magma/game/rl_mode.c]
       shared: [blaze/core/port_parity.h, blaze/core/fluid_flow.h, blaze/core/pal_fluid_parity.h]
@@ -322,6 +327,7 @@ subsystems:
 
   - name: random_ticks
     supported: true
+    resume: true
     sources:
       magma: [magma/game/randtick.c, magma/game/rl_mode.c, magma/game/world_live.c]
       shared: [blaze/core/randtick_live.h, blaze/core/port_parity.h]
@@ -382,6 +388,7 @@ subsystems:
 
   - name: random_ticks_bodies
     supported: true
+    resume: true
     sources:
       magma: [magma/game/randtick.c, magma/game/rl_mode.c, magma/game/world_live.c]
       shared: [blaze/core/randtick_live.h, blaze/core/port_parity.h]
@@ -442,6 +449,7 @@ subsystems:
 
   - name: falling_blocks
     supported: true
+    resume: true
     sources:
       magma: [magma/game/live_sim.c, magma/game/rl_mode.c]
       shared: [blaze/core/falling_live.h, blaze/core/port_parity.h]
@@ -502,6 +510,7 @@ subsystems:
 
   - name: entity_spine
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c]
       shared:
@@ -566,6 +575,7 @@ subsystems:
 
   - name: projectiles
     supported: true
+    resume: true
     sources:
       magma: [magma/game/runtime.c, magma/game/rl_mode.c]
       shared: [blaze/core/projectile_live.h, blaze/core/port_parity.h]
@@ -626,6 +636,7 @@ subsystems:
 
   - name: explosions
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/world_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared: [blaze/core/explosion.h, blaze/core/explosion_live.h, blaze/core/port_parity.h]
@@ -686,6 +697,7 @@ subsystems:
 
   - name: placement
     supported: true
+    resume: true
     sources:
       magma: [magma/game/player_ctl.c, magma/game/runtime.c, magma/game/container_live.c]
       shared:
@@ -751,6 +763,7 @@ subsystems:
 
   - name: mobs
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared:
@@ -820,6 +833,7 @@ subsystems:
 
   - name: passives
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared:
@@ -889,6 +903,7 @@ subsystems:
 
   - name: mobs_ss
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared:
@@ -959,6 +974,7 @@ subsystems:
 
   - name: mobs_end
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared:
@@ -1029,6 +1045,7 @@ subsystems:
 
   - name: mobs_witch
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared:
@@ -1098,6 +1115,7 @@ subsystems:
 
   - name: chests
     supported: true
+    resume: true
     sources:
       magma: [magma/game/chest_live.c, magma/game/container_live.c, magma/game/rl_mode.c]
       shared: [blaze/core/tile_entity_chest.h, blaze/core/container_click.h, blaze/core/port_parity.h]
@@ -1158,6 +1176,7 @@ subsystems:
 
   - name: furnaces
     supported: true
+    resume: true
     sources:
       magma: [magma/game/furnace_live.c, magma/game/container_live.c, magma/game/rl_mode.c]
       shared: [blaze/core/smelting_recipes.h, blaze/core/furnace_full_tick.h, blaze/core/port_parity.h]
@@ -1218,6 +1237,7 @@ subsystems:
 
   - name: biome_plane
     supported: true
+    resume: true
     sources:
       magma: [magma/game/rl_mode.c, magma/game/randtick.c, magma/game/world_live.c, magma/world/light.c]
       shared:
@@ -1288,6 +1308,7 @@ subsystems:
 
   - name: biome_plane_spawn
     supported: true
+    resume: true
     sources:
       magma: [magma/game/rl_mode.c, magma/game/mob_live.c, magma/world/light.c]
       shared:
@@ -1359,6 +1380,7 @@ subsystems:
 
   - name: biome_plane_ice
     supported: true
+    resume: true
     sources:
       magma: [magma/game/rl_mode.c, magma/game/mob_live.c, magma/world/light.c]
       shared:
@@ -1475,6 +1497,7 @@ subsystems:
 
   - name: weather_optional
     supported: true
+    resume: true
     sources:
       magma: [magma/game/world_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared: [blaze/core/world_weather.h, blaze/core/port_parity.h]
@@ -1535,6 +1558,7 @@ subsystems:
 
   - name: xp_orbs
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/rl_mode.c]
       shared: [blaze/core/xp_live.h, blaze/core/entity_xp_orb.h, blaze/core/xp_world_tick.h, blaze/core/port_parity.h]
@@ -1654,6 +1678,7 @@ subsystems:
 
   - name: boats
     supported: true
+    resume: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared: [blaze/core/boat_live.h, blaze/core/port_parity.h]
@@ -1714,6 +1739,7 @@ subsystems:
 
   - name: elytra
     supported: true
+    resume: true
     sources:
       magma: [magma/game/player_ctl.c, magma/game/rl_mode.c]
       shared: [blaze/core/elytra_live.h, blaze/core/player_survival.h, blaze/core/port_parity.h]

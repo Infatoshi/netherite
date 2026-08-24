@@ -1747,6 +1747,9 @@ MC_HD static inline void cu_mob_from_env(MlMob *o, const Blaze *e, unsigned i) {
 
 MC_HD static inline void cu_mob_to_env(Blaze *e, unsigned i, const MlMob *o) {
     e->mobs[i] = o->snap;
+    e->mobs[i].repath_timer = o->repath_timer;
+    e->mobs[i].despawn_ticks = o->despawn_ticks;
+    e->mobs[i].fire_ticks = o->fire_ticks;
     e->mob_repath[i] = o->repath_timer;
     e->mob_despawn[i] = o->despawn_ticks;
     e->mob_fire[i] = o->fire_ticks;
@@ -6117,6 +6120,11 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         if (nm > BLAZE_SNAP_MAX_MOBS) nm = BLAZE_SNAP_MAX_MOBS;
         env->n_mobs = nm;
         memcpy(env->mobs, mobs, (size_t)nm * sizeof env->mobs[0]);
+        for (u = 0; u < nm; ++u) {
+            env->mob_repath[u] = mobs[u].repath_timer;
+            env->mob_despawn[u] = mobs[u].despawn_ticks;
+            env->mob_fire[u] = mobs[u].fire_ticks;
+        }
     }
     {
         unsigned k;

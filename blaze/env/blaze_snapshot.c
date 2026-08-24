@@ -18,6 +18,12 @@ static unsigned long long snap_world_rand_default(void) {
     return (0ULL ^ SNAP_JR_MULT) & SNAP_JR_MASK;
 }
 
+static size_t snap_mob_disk_size(unsigned version) {
+    if (version >= BLAZE_SNAP_VERSION_RESUME) return BLAZE_SNAP_MOB_SIZE_V10;
+    if (version >= BLAZE_SNAP_VERSION_ENDER) return BLAZE_SNAP_MOB_SIZE_V7;
+    return BLAZE_SNAP_MOB_SIZE_V6;
+}
+
 typedef unsigned short cu_u16;
 
 static int snap_fail(char *err, int cap, const char *msg, const char *path) {
@@ -101,32 +107,16 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
         }
         if (out->n_mobs) {
             unsigned mi;
-            if (out->head.version >= BLAZE_SNAP_VERSION_ENDER) {
-                unsigned mi;
-                memset(out->mobs, 0, sizeof out->mobs);
-                for (mi = 0; mi < out->n_mobs; ++mi) {
-                    if (fread(&out->mobs[mi], BLAZE_SNAP_MOB_SIZE_V7, 1, f) !=
-                        1) {
-                        free(out->cells); out->cells = NULL;
-                        free(out->coal); out->coal = NULL;
-                        free(out->light); out->light = NULL;
-                        fclose(f);
-                        return snap_fail(err, err_cap, "truncated .bsnp mobs",
-                                         path);
-                    }
-                }
-            } else {
-                memset(out->mobs, 0, sizeof out->mobs);
-                for (mi = 0; mi < out->n_mobs; ++mi) {
-                    if (fread(&out->mobs[mi], BLAZE_SNAP_MOB_SIZE_V6, 1, f) !=
-                        1) {
-                        free(out->cells); out->cells = NULL;
-                        free(out->coal); out->coal = NULL;
-                        free(out->light); out->light = NULL;
-                        fclose(f);
-                        return snap_fail(err, err_cap,
-                                         "truncated .bsnp mobs", path);
-                    }
+            size_t mob_sz = snap_mob_disk_size(out->head.version);
+            memset(out->mobs, 0, sizeof out->mobs);
+            for (mi = 0; mi < out->n_mobs; ++mi) {
+                if (fread(&out->mobs[mi], mob_sz, 1, f) != 1) {
+                    free(out->cells); out->cells = NULL;
+                    free(out->coal); out->coal = NULL;
+                    free(out->light); out->light = NULL;
+                    fclose(f);
+                    return snap_fail(err, err_cap, "truncated .bsnp mobs",
+                                     path);
                 }
             }
         }
@@ -208,6 +198,186 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             free(out->biome); out->biome = NULL;
             fclose(f);
             return snap_fail(err, err_cap, "truncated .bsnp hazards", path);
+        }
+    }
+    out->ww_total_time = 0;
+    out->ww_world_time = 0;
+    out->ww_rain_time = 0;
+    out->ww_thunder_time = 0;
+    out->ww_raining = 0;
+    out->ww_thundering = 0;
+    out->ww_rand_seed48 = 0;
+    out->rt_mutations = 0;
+    if (out->head.version >= BLAZE_SNAP_VERSION_RESUME) {
+        if (fread(&out->ww_total_time, sizeof out->ww_total_time, 1, f) != 1 ||
+            fread(&out->ww_world_time, sizeof out->ww_world_time, 1, f) != 1 ||
+            fread(&out->ww_rain_time, sizeof out->ww_rain_time, 1, f) != 1 ||
+            fread(&out->ww_thunder_time, sizeof out->ww_thunder_time, 1, f) !=
+                1 ||
+            fread(&out->ww_raining, sizeof out->ww_raining, 1, f) != 1 ||
+            fread(&out->ww_thundering, sizeof out->ww_thundering, 1, f) != 1 ||
+            fread(&out->ww_rand_seed48, sizeof out->ww_rand_seed48, 1, f) !=
+                1 ||
+            fread(&out->rt_mutations, sizeof out->rt_mutations, 1, f) != 1) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 clock", path);
+        }
+        out->ww_rand_seed48 &= SNAP_JR_MASK;
+        if (fread(&out->n_proj, sizeof out->n_proj, 1, f) != 1 ||
+            out->n_proj > BLAZE_SNAP_MAX_PROJ) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 proj count",
+                             path);
+        }
+        if (out->n_proj &&
+            fread(out->proj, sizeof out->proj[0], out->n_proj, f) !=
+                out->n_proj) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 proj", path);
+        }
+        if (fread(&out->parity_proj_hits, sizeof out->parity_proj_hits, 1,
+                  f) != 1 ||
+            fread(&out->n_fall, sizeof out->n_fall, 1, f) != 1 ||
+            out->n_fall > BLAZE_SNAP_MAX_FALL) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall count",
+                             path);
+        }
+        if (out->n_fall &&
+            fread(out->falls, sizeof out->falls[0], out->n_fall, f) !=
+                out->n_fall) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 falls", path);
+        }
+        if (fread(&out->n_fall_upd, sizeof out->n_fall_upd, 1, f) != 1 ||
+            out->n_fall_upd > BLAZE_SNAP_MAX_FALL_UPD) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall upd",
+                             path);
+        }
+        if (out->n_fall_upd &&
+            fread(out->fall_upd, sizeof out->fall_upd[0], out->n_fall_upd,
+                  f) != out->n_fall_upd) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall upd",
+                             path);
+        }
+        if (fread(&out->n_fall_land, sizeof out->n_fall_land, 1, f) != 1 ||
+            out->n_fall_land > BLAZE_SNAP_MAX_FALL) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall land",
+                             path);
+        }
+        if (out->n_fall_land &&
+            fread(out->fall_land, sizeof out->fall_land[0], out->n_fall_land,
+                  f) != out->n_fall_land) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall land",
+                             path);
+        }
+        if (fread(&out->fall_mutations, sizeof out->fall_mutations, 1, f) !=
+                1 ||
+            fread(&out->live_ticks, sizeof out->live_ticks, 1, f) != 1) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 fall mut",
+                             path);
+        }
+        if (fread(&out->n_furn, sizeof out->n_furn, 1, f) != 1 ||
+            out->n_furn > BLAZE_SNAP_MAX_FURN ||
+            (out->n_furn &&
+             fread(out->furn, sizeof out->furn[0], out->n_furn, f) !=
+                 out->n_furn) ||
+            fread(&out->active_furnace, sizeof out->active_furnace, 1, f) !=
+                1 ||
+            fread(&out->n_chest, sizeof out->n_chest, 1, f) != 1 ||
+            out->n_chest > BLAZE_SNAP_MAX_CHEST ||
+            (out->n_chest &&
+             fread(out->chest, sizeof out->chest[0], out->n_chest, f) !=
+                 out->n_chest) ||
+            fread(&out->active_chest, sizeof out->active_chest, 1, f) != 1 ||
+            fread(out->craft, sizeof out->craft, 1, f) != 1 ||
+            fread(out->cursor, sizeof out->cursor, 1, f) != 1 ||
+            fread(&out->craft_attempts, sizeof out->craft_attempts, 1, f) !=
+                1 ||
+            fread(&out->craft_successes, sizeof out->craft_successes, 1, f) !=
+                1 ||
+            fread(&out->container_opens, sizeof out->container_opens, 1, f) !=
+                1 ||
+            fread(&out->left_click_counter, sizeof out->left_click_counter, 1,
+                  f) != 1 ||
+            fread(&out->eat_ticks, sizeof out->eat_ticks, 1, f) != 1 ||
+            fread(&out->eat_item, sizeof out->eat_item, 1, f) != 1 ||
+            fread(&out->bow_ticks, sizeof out->bow_ticks, 1, f) != 1 ||
+            fread(&out->bow_drawing, sizeof out->bow_drawing, 1, f) != 1 ||
+            fread(&out->xp_level, sizeof out->xp_level, 1, f) != 1 ||
+            fread(&out->xp_total, sizeof out->xp_total, 1, f) != 1 ||
+            fread(&out->xp_cooldown, sizeof out->xp_cooldown, 1, f) != 1 ||
+            fread(&out->xp_experience, sizeof out->xp_experience, 1, f) != 1 ||
+            fread(out->armor, sizeof out->armor, 1, f) != 1 ||
+            fread(&out->fluid_dim, sizeof out->fluid_dim, 1, f) != 1 ||
+            fread(out->fluid, sizeof out->fluid, 1, f) != 1 ||
+            fread(&out->fluid_mutations, sizeof out->fluid_mutations, 1, f) !=
+                1 ||
+            fread(&out->boat_ride, sizeof out->boat_ride, 1, f) != 1 ||
+            fread(&out->explosion_pending, sizeof out->explosion_pending, 1,
+                  f) != 1 ||
+            fread(&out->explosion_smoking, sizeof out->explosion_smoking, 1,
+                  f) != 1 ||
+            fread(&out->explosion_flaming, sizeof out->explosion_flaming, 1,
+                  f) != 1 ||
+            fread(&out->explosion_x, sizeof out->explosion_x, 1, f) != 1 ||
+            fread(&out->explosion_y, sizeof out->explosion_y, 1, f) != 1 ||
+            fread(&out->explosion_z, sizeof out->explosion_z, 1, f) != 1 ||
+            fread(&out->explosion_size, sizeof out->explosion_size, 1, f) !=
+                1 ||
+            fread(&out->xtra, sizeof out->xtra, 1, f) != 1) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            free(out->biome); out->biome = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp v10 te/player",
+                             path);
         }
     }
     fclose(f);
@@ -308,17 +478,10 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
     if (version >= BLAZE_SNAP_VERSION_MOBS) {
         ok = ok && fwrite(&s->n_mobs, sizeof s->n_mobs, 1, f) == 1;
         if (s->n_mobs) {
-            if (version >= BLAZE_SNAP_VERSION_ENDER) {
-                unsigned mi;
-                for (mi = 0; mi < s->n_mobs; ++mi)
-                    ok = ok && fwrite(&s->mobs[mi], BLAZE_SNAP_MOB_SIZE_V7, 1,
-                                      f) == 1;
-            } else {
-                unsigned mi;
-                for (mi = 0; mi < s->n_mobs; ++mi)
-                    ok = ok && fwrite(&s->mobs[mi], BLAZE_SNAP_MOB_SIZE_V6, 1,
-                                      f) == 1;
-            }
+            unsigned mi;
+            size_t mob_sz = snap_mob_disk_size(version);
+            for (mi = 0; mi < s->n_mobs; ++mi)
+                ok = ok && fwrite(&s->mobs[mi], mob_sz, 1, f) == 1;
         }
     }
     if (version >= BLAZE_SNAP_VERSION_ORBS) {
@@ -354,6 +517,91 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
         int air = s->player_air;
         ok = ok && fwrite(&fire, sizeof fire, 1, f) == 1;
         ok = ok && fwrite(&air, sizeof air, 1, f) == 1;
+    }
+    if (version >= BLAZE_SNAP_VERSION_RESUME) {
+        long long tot = s->ww_total_time, wtm = s->ww_world_time;
+        int rtm = s->ww_rain_time, ttm = s->ww_thunder_time;
+        int rn = s->ww_raining, th = s->ww_thundering;
+        unsigned long long wr = s->ww_rand_seed48 & SNAP_JR_MASK;
+        unsigned rtmute = s->rt_mutations;
+        ok = ok && fwrite(&tot, sizeof tot, 1, f) == 1;
+        ok = ok && fwrite(&wtm, sizeof wtm, 1, f) == 1;
+        ok = ok && fwrite(&rtm, sizeof rtm, 1, f) == 1;
+        ok = ok && fwrite(&ttm, sizeof ttm, 1, f) == 1;
+        ok = ok && fwrite(&rn, sizeof rn, 1, f) == 1;
+        ok = ok && fwrite(&th, sizeof th, 1, f) == 1;
+        ok = ok && fwrite(&wr, sizeof wr, 1, f) == 1;
+        ok = ok && fwrite(&rtmute, sizeof rtmute, 1, f) == 1;
+        ok = ok && fwrite(&s->n_proj, sizeof s->n_proj, 1, f) == 1;
+        ok = ok && (s->n_proj == 0 ||
+                    fwrite(s->proj, sizeof s->proj[0], s->n_proj, f) ==
+                        s->n_proj);
+        ok = ok && fwrite(&s->parity_proj_hits, sizeof s->parity_proj_hits, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->n_fall, sizeof s->n_fall, 1, f) == 1;
+        ok = ok && (s->n_fall == 0 ||
+                    fwrite(s->falls, sizeof s->falls[0], s->n_fall, f) ==
+                        s->n_fall);
+        ok = ok && fwrite(&s->n_fall_upd, sizeof s->n_fall_upd, 1, f) == 1;
+        ok = ok && (s->n_fall_upd == 0 ||
+                    fwrite(s->fall_upd, sizeof s->fall_upd[0], s->n_fall_upd,
+                           f) == s->n_fall_upd);
+        ok = ok && fwrite(&s->n_fall_land, sizeof s->n_fall_land, 1, f) == 1;
+        ok = ok && (s->n_fall_land == 0 ||
+                    fwrite(s->fall_land, sizeof s->fall_land[0],
+                           s->n_fall_land, f) == s->n_fall_land);
+        ok = ok && fwrite(&s->fall_mutations, sizeof s->fall_mutations, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->live_ticks, sizeof s->live_ticks, 1, f) == 1;
+        ok = ok && fwrite(&s->n_furn, sizeof s->n_furn, 1, f) == 1;
+        ok = ok && (s->n_furn == 0 ||
+                    fwrite(s->furn, sizeof s->furn[0], s->n_furn, f) ==
+                        s->n_furn);
+        ok = ok && fwrite(&s->active_furnace, sizeof s->active_furnace, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->n_chest, sizeof s->n_chest, 1, f) == 1;
+        ok = ok && (s->n_chest == 0 ||
+                    fwrite(s->chest, sizeof s->chest[0], s->n_chest, f) ==
+                        s->n_chest);
+        ok = ok && fwrite(&s->active_chest, sizeof s->active_chest, 1, f) ==
+                       1;
+        ok = ok && fwrite(s->craft, sizeof s->craft, 1, f) == 1;
+        ok = ok && fwrite(s->cursor, sizeof s->cursor, 1, f) == 1;
+        ok = ok && fwrite(&s->craft_attempts, sizeof s->craft_attempts, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->craft_successes, sizeof s->craft_successes, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->container_opens, sizeof s->container_opens, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->left_click_counter, sizeof s->left_click_counter,
+                          1, f) == 1;
+        ok = ok && fwrite(&s->eat_ticks, sizeof s->eat_ticks, 1, f) == 1;
+        ok = ok && fwrite(&s->eat_item, sizeof s->eat_item, 1, f) == 1;
+        ok = ok && fwrite(&s->bow_ticks, sizeof s->bow_ticks, 1, f) == 1;
+        ok = ok && fwrite(&s->bow_drawing, sizeof s->bow_drawing, 1, f) == 1;
+        ok = ok && fwrite(&s->xp_level, sizeof s->xp_level, 1, f) == 1;
+        ok = ok && fwrite(&s->xp_total, sizeof s->xp_total, 1, f) == 1;
+        ok = ok && fwrite(&s->xp_cooldown, sizeof s->xp_cooldown, 1, f) == 1;
+        ok = ok && fwrite(&s->xp_experience, sizeof s->xp_experience, 1, f) ==
+                       1;
+        ok = ok && fwrite(s->armor, sizeof s->armor, 1, f) == 1;
+        ok = ok && fwrite(&s->fluid_dim, sizeof s->fluid_dim, 1, f) == 1;
+        ok = ok && fwrite(s->fluid, sizeof s->fluid, 1, f) == 1;
+        ok = ok && fwrite(&s->fluid_mutations, sizeof s->fluid_mutations, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->boat_ride, sizeof s->boat_ride, 1, f) == 1;
+        ok = ok && fwrite(&s->explosion_pending, sizeof s->explosion_pending, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->explosion_smoking, sizeof s->explosion_smoking, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->explosion_flaming, sizeof s->explosion_flaming, 1,
+                          f) == 1;
+        ok = ok && fwrite(&s->explosion_x, sizeof s->explosion_x, 1, f) == 1;
+        ok = ok && fwrite(&s->explosion_y, sizeof s->explosion_y, 1, f) == 1;
+        ok = ok && fwrite(&s->explosion_z, sizeof s->explosion_z, 1, f) == 1;
+        ok = ok && fwrite(&s->explosion_size, sizeof s->explosion_size, 1, f) ==
+                       1;
+        ok = ok && fwrite(&s->xtra, sizeof s->xtra, 1, f) == 1;
     }
     if (fclose(f) != 0) ok = 0;
     if (!ok && err && err_cap > 0)

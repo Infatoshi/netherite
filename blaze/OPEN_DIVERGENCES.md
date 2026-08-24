@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/resumegate 2026-08-23 (Sweep rows 4 and 8: snapshot v10 resume trailers + mob sidecars. continuous-vs-resume BP_ gate. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar except mining_slice BLOCKED missing *_d*.bsnp).
 Last verified: lane/chestcap 2026-08-23 (Sweep row 14: blaze chest TE table grows past 64 like magma runtime_chest_free_slot. n_cont=-1 scan pick equals a grown list. chests M1+M2 stay VERIFIED. listed --no-deps M1 VERIFIED; M2 VERIFIED including mining_slice: this clone had blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/xplava 2026-08-23 (xp_orbs M1+M2 after EntityXPOrb lava motionY 0.2F, unexpanded-box handleWaterMovement 0.014*unit getFlow, pushOutOfBlocks collidesWithAnyBlock gate. Entity.rand lava xz + pushOut magnitude CLASS C skipped both sides. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar including mining_slice on this clone, snaps present under blaze/rl/out/snaps/*_d*.bsnp. A clone without those snaps would BLOCK mining_slice M2).
 Last verified: lane/overflow 2026-08-23 (shared `item_overflow.h` 32-slot FIFO; spawn_fail_count after overflow full; BP_ITEMS hashes n_overflow+slots+fail. ground_items M1+M2 VERIFIED 64. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar including mining_slice on this clone which had `blaze/rl/out/snaps/*_d*.bsnp`. A clone missing those snaps still BLOCKS mining_slice M2.)
@@ -140,13 +141,18 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    2026-08-23 made magma spawn read the packed snapshot block light
    (`spawn_light`) in lockstep mode as a shared deviation; propagation in
    blaze stays open.
-4. Snapshot restore drops active state: furnaces, chests, craft grid,
-   bow/eat/left-click timers, projectiles, falling blocks, fluid regions,
-   mob sidecars (repath/despawn/fire/tick), boat, explosion state, player
-   XP/fire, armor/enchants (`blaze_snapshot.h` vs `runtime.h`). Lockstep
-   starts from a different state and the difference is not digested.
-   Needs a continuous-vs-resume parity gate: run N ticks, snapshot,
-   restore, run M; compare with N+M continuous. M/L.
+4. Snapshot mid-episode active state: CLOSED 2026-08-23 lane `resumegate`
+   for the listed port_matrix rows. Continuous-vs-resume BP_ gate is
+   `blaze/env/verify_resume_parity.py`, per-row `resume: true` in
+   `port_matrix.yaml` (not a third tier). Snapshot version 10 on this
+   lane (loader still reads v7/v8/v9; not a final pin) writes clock, RT
+   mutations, mob sidecars, projectiles, falling, furnaces/chests/craft,
+   timers/XP/enchants, fluids, boat, explosion counters, spawn RNGs,
+   dead, last-craft, elytra flags, EwStore path, entity_age. Resume PASS
+   magma+blaze-cpu, and M2 raw/warp/scalar plus CUDA resume, on every
+   supported listed row. mining_slice BLOCKED (v1 fixture and missing
+   `*_d*.bsnp`; no recapture on gamer). Potion/shield/sleep stay other
+   lanes. Item overflow queue stays row 9. Forensics: `docs/DEVLOG.md`.
 5. Focused M2 production kernels: CLOSED 2026-08-23 lane `warpm2`.
    `verify_cuda.py --m2-kernel raw|warp|scalar` and per-row `m2_kernels:`
    (default raw, warp, scalar). warp/scalar drive `blaze_tick` ->
@@ -163,8 +169,10 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
 7. Player fire ticks: CLOSED 2026-08-23 lane `hazards` (PsvPlayer.fire /
    air, snapshot v9, BP_PLAYER PLY1). Forensics in magma
    `CLOSED_DIVERGENCES.md`.
-8. Mob sidecars (repath, despawn, fire, tick counters) not snapshotted and
-   not digested. M.
+8. Mob sidecars (repath, despawn, fire, tick counters): CLOSED 2026-08-23
+   lane `resumegate`. v10 packed record (604) plus `RlSnapV10Xtra` sidecars;
+   BP_MOBS tag MOB4/MBM4. `cu_mob_to_env` writes live timers back into the
+   packed record so M1 hashes match magma export. Forensics: `docs/DEVLOG.md`.
 9. Item enchant payload missing in blaze pickup. Overflow FIFO: CLOSED
    2026-08-23 lane `overflow`. Shared `item_overflow.h` 32-slot hold
    (`IL_OVERFLOW_MAX` = magma `GM_LIVE_OVERFLOW_MAX`); `cu_spawn_item` /
@@ -175,8 +183,8 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
 10. TNT flint-and-steel: CLOSED 2026-08-23 lane `tntsupport`. Shared
     `block_may_place.h` (`BlockTNT.java:105-119` / `:85-96`, fuse 80).
 11. Furnaces matrix row: CLOSED 2026-08-23 lane `furnaceids`. `furnaces`
-    M1+M2 VERIFIED (223-tick coal+beef chain). Furnace TE still not in
-    `.bsnp` (row 4).
+    M1+M2 VERIFIED (223-tick coal+beef chain). Furnace TE is in `.bsnp`
+    v10 on lane `resumegate` (row 4).
 12. Torch support / mayPlace: CLOSED 2026-08-23 lane `tntsupport`. Shared
     `ibp_may_place` (`World.java:3363-3368`, `BlockTorch.java:98-116`).
 13. Potion / milk / shield use state absent. M.

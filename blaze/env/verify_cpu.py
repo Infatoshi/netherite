@@ -307,8 +307,8 @@ class RealEnv:
 
 
 class Blaze1:
-    def __init__(self, snap, port_parity=False):
-        self.lib = ctypes.CDLL(SO)
+    def __init__(self, snap, port_parity=False, so_path=None, device=0):
+        self.lib = ctypes.CDLL(so_path or SO)
         self.parity_enabled = port_parity
         if port_parity:
             try:
@@ -341,7 +341,7 @@ class Blaze1:
             ctypes.POINTER(BlazeCreateOpts)]
         self.lib.blaze_destroy.argtypes = [ctypes.c_void_p]
         opts = BlazeCreateOpts.defaults()
-        self.h = self.lib.blaze_create(0, 1, ctypes.byref(opts))
+        self.h = self.lib.blaze_create(int(device), 1, ctypes.byref(opts))
         assert self.h
         err = ctypes.create_string_buffer(256)
         paths = (ctypes.c_char_p * 1)(snap.encode())
