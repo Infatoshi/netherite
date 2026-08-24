@@ -407,6 +407,41 @@ static void test_live_item_merge_lava_cap(void) {
     }
     CHECK(fails == 1 && gm_live_spawn_fail_count(&live) == 1,
           "49th capped spawn increments spawn_fail_count");
+
+    memset(&live, 0, sizeof live);
+    for (i = 0; i < GM_LIVE_MAX; ++i)
+        CHECK(gm_live_spawn_item(&live, 0.5, 64.0, 0.5, 4, 1, 0, 10),
+              "overflow-path live spawn");
+    CHECK(gm_live_overflow_count(&live) == 0 &&
+          gm_live_spawn_fail_count(&live) == 0,
+          "48 live, overflow empty");
+    CHECK(gm_live_spawn_item(&live, 1.5, 65.0, 2.5, 1, 3, 0, 10),
+          "49th overflow spawn");
+    CHECK(gm_live_overflow_count(&live) == 1 &&
+          gm_live_spawn_fail_count(&live) == 0,
+          "48 live + 1 overflow, fail stays 0");
+    CHECK(live.overflow[0].stack.item == 1 && live.overflow[0].x == 1.5,
+          "overflow FIFO head is 49th stack");
+    CHECK(gm_live_spawn_item(&live, 3.0, 66.0, 4.0, 5, 1, 0, 7),
+          "50th overflow");
+    live.ents[0].active = 0;
+    if (live.n_active > 0) live.n_active--;
+    gm_live_tick(&live, w);
+    CHECK(gm_live_overflow_count(&live) == 1,
+          "tick drains FIFO head into free slot");
+    CHECK(live.ents[0].active && live.ents[0].item == 1,
+          "drained stack is overflow FIFO head");
+    CHECK(live.overflow[0].stack.item == 5, "remaining overflow is 50th");
+
+    memset(&live, 0, sizeof live);
+    fails = 0;
+    for (i = 0; i < GM_LIVE_MAX + GM_LIVE_OVERFLOW_MAX + 1; ++i) {
+        if (!gm_live_spawn_item(&live, 0.5, 64.0, 0.5, 4, 1, 0, 10))
+            fails++;
+    }
+    CHECK(fails == 1 && gm_live_spawn_fail_count(&live) == 1 &&
+          gm_live_overflow_count(&live) == GM_LIVE_OVERFLOW_MAX,
+          "48+32+1 increments spawn_fail_count");
     gm_world_destroy(w);
 }
 

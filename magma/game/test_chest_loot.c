@@ -358,8 +358,8 @@ int main(void)
                     e->ench_id[0] == 16) book_ok = 1;
             }
             for (int i = 0; i < r.entities.n_overflow; ++i) {
-                if (r.entities.overflow[i].item == 403 &&
-                    r.entities.overflow[i].n_enchants == 1)
+                if (r.entities.overflow[i].stack.item == 403 &&
+                    r.entities.overflow[i].stack.n_enchants == 1)
                     book_ok = 1;
             }
             CHECK(book_ok, "full-chest break keeps enchanted-book payload");

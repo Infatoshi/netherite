@@ -85,6 +85,7 @@
 #include "boat_live.h"          /* EntityBoat.onUpdate magma subset */
 #include "elytra_live.h"        /* START_FALL_FLYING + updateElytra */
 #include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
+#include "item_overflow.h"       /* 32-slot FIFO when CU_MAX_ITEMS is full */
 
 #ifdef __cplusplus
 extern "C" {
@@ -101,6 +102,7 @@ extern "C" {
 #define CU_NBLOCKS  256         /* RL_NBLOCKS (emitted zeroed)   */
 #define CU_NLOGS    64          /* RL_NLOGS   (emitted zeroed)   */
 #define CU_MAX_ITEMS 48         /* GM_LIVE_MAX */
+#define CU_OVERFLOW_MAX IL_OVERFLOW_MAX /* GM_LIVE_OVERFLOW_MAX */
 #define CU_FALL_UPDATES 128     /* GM_LIVE_FALL_UPDATES */
 #define CU_MAX_PROJECTILES 32   /* GM_RUNTIME_PROJECTILES */
 #define CU_MAX_EDITS 8          /* GM_RUNTIME_MAX_EDITS */
@@ -362,7 +364,9 @@ typedef struct {
 
     CuItem items[CU_MAX_ITEMS];
     int    n_items;
-    int    spawn_fail_count;     /* 49th+ spawn skipped; hashed into BP_ITEMS */
+    IlOverflow overflow[CU_OVERFLOW_MAX];
+    int    n_overflow;
+    int    spawn_fail_count;     /* overflow full; hashed into BP_ITEMS */
 
     CuFallEnt falls[CU_MAX_ITEMS];
     int    n_falls;
@@ -2960,12 +2964,13 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
 
 /* =================== live items (game/live_sim.c port) ==================== */
 
-/* gm_live_spawn_item_capped: first free slot or skip. Java has no cap. */
-MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
-                                      int item, int count, int meta,
-                                      int pickup_delay) {
+/* gm_live_spawn_stack: first free live slot, else 32-slot FIFO overflow.
+ * spawn_fail_count only when overflow is full. Java World.spawnEntity has
+ * no cap (World.java:1268). */
+MC_HD static inline int cu_try_item_slot(Blaze *env, double x, double y,
+                                         double z, ICStack stack,
+                                         int pickup_delay) {
     int i;
-    if (item <= 0 || count <= 0) return 0;
     for (i = 0; i < CU_MAX_ITEMS; ++i) {
         CuItem *e = &env->items[i];
         if (e->active) continue;
@@ -2973,7 +2978,9 @@ MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
         e->x = x; e->y = y; e->z = z;
         e->mx = 0.0; e->my = 0.0; e->mz = 0.0;
         e->on_ground = 0; e->age = 0;
-        e->item = item; e->count = count; e->meta = meta & 15;
+        e->item = stack.item;
+        e->count = stack.count;
+        e->meta = stack.meta & 15;
         e->pickup_delay = pickup_delay < 0 ? 0 : pickup_delay;
         e->lifespan = EI_LIFESPAN;
         e->health = EI_HEALTH;
@@ -2982,8 +2989,19 @@ MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
         env->n_items++;
         return 1;
     }
-    env->spawn_fail_count++;
     return 0;
+}
+
+#define IL_OV_STORE Blaze
+#define il_ov_fill_free(s, x, y, z, stack, delay) \
+    cu_try_item_slot((s), (x), (y), (z), (stack), (delay))
+#include "item_overflow.h"
+
+MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
+                                      int item, int count, int meta,
+                                      int pickup_delay) {
+    return il_overflow_spawn(env, x, y, z, ic_mk(item, count, meta),
+                             pickup_delay);
 }
 
 /* gm_live_tick item slice + gm_live_tick_player pickup via item_live.h.
@@ -2994,6 +3012,7 @@ MC_HD static inline void cu_live_tick_player(Blaze *env) {
     McItem its[CU_MAX_ITEMS];
     int map[CU_MAX_ITEMS];
     McAABB pbox;
+    il_overflow_drain(env);
     fl_tick_scheduled(env, env);
     fl_tick_falling_ents(env, env);
     n = 0;
@@ -5392,10 +5411,18 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
             it->on_ground, it->age, it->item, it->count, it->meta,
             it->pickup_delay, it->lifespan);
     }
+    h = bp_hash_i32(h, e->n_overflow);
+    for (i = 0; i < e->n_overflow; ++i) {
+        const IlOverflow *ov = &e->overflow[i];
+        h = bp_hash_item_overflow_slot(
+            h, ov->x, ov->y, ov->z,
+            ov->stack.item, ov->stack.count, ov->stack.meta, ov->delay);
+    }
     h = bp_hash_i32(h, e->spawn_fail_count);
     r->digest[BP_ITEMS] = h;
     r->evidence[BP_ITEMS] = (uint32_t)any;
-    if (any || e->spawn_fail_count) r->active_mask |= BP_BIT(BP_ITEMS);
+    if (any || e->spawn_fail_count || e->n_overflow)
+        r->active_mask |= BP_BIT(BP_ITEMS);
 
     h = bp_hash_begin();
     h = bp_hash_u32(h, e->parity_craft_attempts);
@@ -5983,6 +6010,8 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     }
     env->active_chest = -1;
     env->spawn_fail_count = 0;
+    env->n_overflow = 0;
+    memset(env->overflow, 0, sizeof env->overflow);
 
     env->pl.inv.current_item = h->hotbar_sel;
     for (i = 0; i < 37; ++i)

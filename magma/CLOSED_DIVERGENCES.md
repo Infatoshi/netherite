@@ -5,6 +5,40 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Item overflow FIFO: CLOSED 2026-08-23 (lane/overflow)
+
+Anvil. Magma Sweep 2026-08-23 row 7 leftover + blaze sweep row 9 leftover.
+
+Java: `World.spawnEntity` (`World.java:1268-1301`) has no numeric cap
+(chunk-loaded / player / UUID only). `WorldServer.spawnEntity`
+(`WorldServer.java:1124-1127`) is `canAddEntity` UUID duplicate
+(`WorldServer.java:1141-1175`), not a 48-slot table. `EntityItem` ctor
+(`EntityItem.java:51-68`) health 5, `setSize(0.25F, 0.25F)`,
+`setPosition`. Do not invent a Java cap.
+
+C: shared `blaze/core/item_overflow.h` (`IL_OVERFLOW_MAX` 32 =
+`GM_LIVE_OVERFLOW_MAX`). Magma `gm_live_spawn_stack` and blaze
+`cu_spawn_item` drain FIFO into the first free live slot, then push
+x/y/z/delay+stack; `spawn_fail_count++` only when overflow is full.
+BP_ITEMS hashes n_overflow, each slot's x/y/z/item/count/meta/delay, and
+spawn_fail_count. Magma explosion drops use the overflow spawn
+(`gm_live_spawn_item`) so they match blaze `cu_spawn_item`. Magma
+wrappers stay thin. Enchants in overflow stay magma-only (not hashed).
+
+Stay out: XP orb lava; chest realloc; block light; snapshot v10;
+potion/bed/shield; spawnAsEntity xz `Math.random` Class C.
+
+Gate: units `test_live_items` / `test_ground_items` / `test_play_compose`
+(48+1 overflow, drain FIFO, 48+32+1 fail). Baker
+`test_ground_items --write-fixture` from `s10_t0_r64_no_liquid.bsnp`
+(byte-identical to committed ground_items fixture). `ground_items`
+M1+M2 VERIFIED 64. Listed `--no-deps` M1 VERIFIED. M2 VERIFIED
+raw/warp/scalar (default kernels) including mining_slice on this clone
+which had `blaze/rl/out/snaps/*_d*.bsnp`. Root `make test` PASS. Tapes
+unchanged vs parent: bow physics NO 1407 entities 5525; creeper FIRST
+t=76 y 2.1e-09; smoke_zombie 358/373 NO; TNT inventory 1 mismatch t=28
+pre-existing; canon physics NO 3617 entities 16526.
+
 ### Beds: CLOSED 2026-08-23 (lane/beds)
 
 Anvil. Sweep 2026-08-23 magma row 9.

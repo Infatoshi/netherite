@@ -83,44 +83,14 @@ static int live_try_active_slot(GmLiveSim *s, double x, double y, double z,
     return 0;
 }
 
-/* Drain overflow into free active slots (FIFO). */
-static void live_drain_overflow(GmLiveSim *s) {
-    int i = 0;
-    if (!s || s->n_overflow <= 0) return;
-    while (i < s->n_overflow) {
-        if (!live_try_active_slot(s, s->overflow_x[i], s->overflow_y[i],
-                                  s->overflow_z[i], s->overflow[i],
-                                  s->overflow_delay[i]))
-            break;
-        /* Shift remaining overflow left. */
-        for (int j = i + 1; j < s->n_overflow; ++j) {
-            s->overflow[j - 1] = s->overflow[j];
-            s->overflow_x[j - 1] = s->overflow_x[j];
-            s->overflow_y[j - 1] = s->overflow_y[j];
-            s->overflow_z[j - 1] = s->overflow_z[j];
-            s->overflow_delay[j - 1] = s->overflow_delay[j];
-        }
-        s->n_overflow--;
-    }
-}
+#define IL_OV_STORE GmLiveSim
+#define il_ov_fill_free(s, x, y, z, stack, delay) \
+    live_try_active_slot((s), (x), (y), (z), (stack), (delay))
+#include "item_overflow.h"
 
 int gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
                         ICStack stack, int pickup_delay) {
-    if (!s || stack.item <= 0 || stack.count <= 0) return 0;
-    live_drain_overflow(s);
-    if (live_try_active_slot(s, x, y, z, stack, pickup_delay)) return 1;
-    /* Table full: hold in bounded overflow (recoverable, not silent loss). */
-    if (s->n_overflow < GM_LIVE_OVERFLOW_MAX) {
-        int k = s->n_overflow++;
-        s->overflow[k] = stack;
-        s->overflow_x[k] = x;
-        s->overflow_y[k] = y;
-        s->overflow_z[k] = z;
-        s->overflow_delay[k] = pickup_delay < 0 ? 0 : pickup_delay;
-        return 1;
-    }
-    s->spawn_fail_count++;
-    return 0;
+    return il_overflow_spawn(s, x, y, z, stack, pickup_delay);
 }
 
 int gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
@@ -211,7 +181,7 @@ void gm_live_pre_player_tick(GmLiveSim *s, GmWorld *w) {
 
 void gm_live_tick(GmLiveSim *s, GmWorld *w) {
     if (!s || !w) return;
-    live_drain_overflow(s);
+    il_overflow_drain(s);
 
     /* WorldServer scheduled block ticks run before the entity update pass.
      * A newly spawned EntityFallingBlock therefore removes its source and

@@ -316,7 +316,7 @@ $(TEST_XP_BIN): $(ENV_SRC)/test_xp.c $(ENV_SRC)/blaze_snapshot.c \
 
 $(TEST_GROUND_BIN): $(ENV_SRC)/test_ground_items.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_item.h \
-		$(CORE_SRC)/item_live.h | $(OUT)
+		$(CORE_SRC)/item_live.h $(CORE_SRC)/item_overflow.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_ground_items.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 

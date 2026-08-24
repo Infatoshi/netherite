@@ -36,7 +36,7 @@
     gm_mobs_spawn_tnt_primed(&(w)->mobs, (double)(x) + 0.5, (double)(y), \
                              (double)(z) + 0.5, (fuse))
 #define exl_spawn_item(w, x, y, z, item, count, meta, delay) \
-    gm_live_spawn_item_capped(&(w)->entities, x, y, z, item, count, meta, delay)
+    gm_live_spawn_item(&(w)->entities, x, y, z, item, count, meta, delay)
 #define exl_note_drop(w, item, count, meta) do { \
     (w)->parity_ex_drop_n++; \
     (w)->parity_ex_drop_ids = bp_hash_i32((w)->parity_ex_drop_ids, (item)); \
