@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/potions 2026-08-24 (Sweep row 13: SNAP v11 potion trailer after resume v10. Magma skip double fire decrement on shared hostile path. potions M1+M2 VERIFIED 120 raw/warp/scalar + resume N=90 M=30 dump version=11. listed --no-deps M1 27 VERIFIED; M2 27 VERIFIED; mining_slice BLOCKED: s14_t0_r48_no_liquid.bsnp is a v1 bake, 12 *_d*.bsnp present. Root make test PASS.)
 Last verified: lane/resumegate 2026-08-23 (Sweep rows 4 and 8: snapshot v10 resume trailers + mob sidecars. continuous-vs-resume BP_ gate. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar except mining_slice BLOCKED missing *_d*.bsnp).
 Last verified: lane/chestcap 2026-08-23 (Sweep row 14: blaze chest TE table grows past 64 like magma runtime_chest_free_slot. n_cont=-1 scan pick equals a grown list. chests M1+M2 stay VERIFIED. listed --no-deps M1 VERIFIED; M2 VERIFIED including mining_slice: this clone had blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/xplava 2026-08-23 (xp_orbs M1+M2 after EntityXPOrb lava motionY 0.2F, unexpanded-box handleWaterMovement 0.014*unit getFlow, pushOutOfBlocks collidesWithAnyBlock gate. Entity.rand lava xz + pushOut magnitude CLASS C skipped both sides. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar including mining_slice on this clone, snaps present under blaze/rl/out/snaps/*_d*.bsnp. A clone without those snaps would BLOCK mining_slice M2).
@@ -189,7 +190,9 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
     `ibp_may_place` (`World.java:3363-3368`, `BlockTorch.java:98-116`).
 13. Potion / milk / shield: CLOSED 2026-08-24 lane `potions`. Shared
     `potion_effects.h` in `PsvPlayer`, snapshot v11 after resume v10,
-    `potions` M1+M2. Forensics in magma `CLOSED_DIVERGENCES.md`.
+    Magma skip double `Entity.fire` decrement on `hai_ok && !pai_det`.
+    `potions` M1+M2 VERIFIED 120 raw/warp/scalar + resume. Forensics in
+    magma `CLOSED_DIVERGENCES.md`.
 14. Chest cap fixed 64 in blaze vs magma growth: CLOSED 2026-08-23
     lane `chestcap`. Forensics in magma `CLOSED_DIVERGENCES.md`.
 15. Boat mount vs bow release order differs between sides. S.

@@ -8,6 +8,10 @@ forensics in `CLOSED_DIVERGENCES.md` (a stub with the close date and one-line
 resolution stays here in place); read there before re-investigating anything
 that smells like a settled question.
 
+Last verified: lane/potions 2026-08-24 (rows 10/11 CLOSED: potion tick +
+shield. SNAP v11 after resume v10. Magma skip double fire decrement on
+the shared hostile path. potions M1+M2 VERIFIED. Root make test PASS on
+gamer.)
 Last verified on master 2026-08-22 (lanes handgold, lsbtier, handscene,
 lsbhand, rainsky, mobsnap, bowsil merged). Bow FOV recapture:
 lane/bowgold 2026-08-22. Oracle evidence for rain / slime DRAW / portal

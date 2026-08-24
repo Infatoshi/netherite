@@ -1,5 +1,47 @@
 # DEVLOG (compressed)
 
+## 2026-08-24 potions SNAP v11 (lane/potions)
+
+Gamer RTX 3090 sm_86. Rebase onto `origin/wip/resumegate-verify` `d4c152d`
+(SNAP v10 resume). `origin/master` was still `dccaba6` (chestcap).
+
+Baseline after rebase, competing-v10 potions fixture invalid. After SNAP
+v11 rebake, potions M1 FAIL at observation 2 subsystem mobs. Magma
+`0x9caf67e4a8a83baf` vs Blaze `0x2b19d0557fbe820c`. t=0 and t=1 MATCH.
+v11 604-byte records: zombie `fire_ticks` Magma=157 Blaze=158. Magma
+`gm_mobs_tick` decremented fire on the generic loop and `ml_hostile_pre`
+already counted down `Entity.fire` for `hai_ok && !pai_det`. Resumegate
+MOB4 hashes `fire_ticks`. Fix: skip the Magma-native decrement when
+`ml_hostile_pre` owns fire. No new Java cite.
+
+SNAP: `HAZARDS 9`, `RESUME 10`, `POTIONS 11`, `VERSION 11`. Writer after
+`RlSnapV10Xtra` writes `n_potions` + `potions[]`. v10 loads
+`n_potions=0`. Fixture `s10_t0_r64_potions.bsnp` rebaked v11 size
+6468020. `resume: true` on the potions row.
+
+Java cites already in `potion_effects.h` (`PotionEffect` / `Potion` /
+`ItemPotion` / `ItemBucketMilk` / `EntityPotion` / `EntityLivingBase` /
+`EntityPlayer`).
+
+After (gamer, `af33205` plus this docs commit): magma + blaze
+`test-potions` PASS (regen I 18 heals / 900; poison 1.0 stays; hunger
+0.005; milk; shield arrow/zombie; durability 1+floor).
+`test_mob_snapshot`: version is 11; `v10 load n_potions=0`. potions M1
+VERIFIED 120 ticks player,mobs (`out/verify/potions_m1.log`). potions
+M2 raw 2.36s warp 2.52s scalar 2.72s PASS; CUDA resume N=90 M=30 dump
+version=11 size=6468040 PASS 7.87s. listed 28 supported `--no-deps`:
+M1 27 VERIFIED + mining_slice BLOCKED rc=3; M2 27 VERIFIED +
+mining_slice BLOCKED rc=3. `RC_M1=0 RC_M2=0`. mining_slice BLOCKED:
+`s14_t0_r48_no_liquid.bsnp` is a v1 bake with no per-cell light payload.
+12 `*_d*.bsnp` present. Not a FAIL. Root `make test` PASS `RC=0`
+2026-08-24T13:51:24-06:00 after rsync of canon tape jsonl. ticks 3617
+pose 44.5 68 176.5 hash
+`4604d98d42c57d1b3d54da36da1b4536f79c6dcceca5ad673a3b0e9c5e393071`.
+
+Residual: mining_slice v1 BLOCKED; night-vision / invis / blindness
+render-only; EntityPotion entity / lingering cloud out (witch
+splash-at-throw is master).
+
 ## 2026-08-23 potions (lane/potions)
 
 Anvil. Sweep 2026-08-23 magma rows 10, 11; blaze row 13.

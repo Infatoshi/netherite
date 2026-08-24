@@ -5,9 +5,12 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
-### Potion effects + milk + shield: CLOSED 2026-08-23 (lane/potions)
+### Potion effects + milk + shield: CLOSED 2026-08-24 (lane/potions)
 
-Anvil. Sweep 2026-08-23 magma rows 10 and 11; blaze row 13.
+Gamer. Sweep 2026-08-23 magma rows 10 and 11; blaze row 13. SNAP v11
+after resume v10 (rebase onto `d4c152d`). Magma skip double
+`Entity.fire` decrement on `hai_ok && !pai_det` (zombie `fire_ticks`
+157 vs 158 at t=2).
 
 Java: `PotionEffect.onUpdate` (`PotionEffect.java:123-149`) calls
 `Potion.isReady` then `performEffect` then decrements duration.
@@ -54,10 +57,14 @@ PLY2 (`0x32594C50`) hashes the effect list. No mob sidecar aliasing.
 Gate: `make -C magma test-potions` and `make -C blaze/rl test-potions`
 PASS. Baker `test_potions --write-fixture` plants regen potion (id 373
 meta 28) in hotbar 0, milk in slot 1, shield offhand, witch+zombie.
-`potions` M1+M2 VERIFIED (120-tick chain, raw/warp/scalar). All listed
-M1 `--no-deps` VERIFIED. All listed M2 VERIFIED except mining_slice M2
-BLOCKED (missing `*_d*.bsnp`). Root `make test` PASS. Tapes after: bow
-physics NO divergence 1407,
+`s10_t0_r64_potions.bsnp` is v11 size 6468020. `test_mob_snapshot`:
+version is 11; `v10 load n_potions=0`. `potions` M1+M2 VERIFIED
+(120-tick chain, raw 2.36s / warp 2.52s / scalar 2.72s; CUDA resume
+N=90 M=30 dump version=11). listed `--no-deps` M1 27 VERIFIED +
+mining_slice BLOCKED rc=3; M2 27 VERIFIED + mining_slice BLOCKED rc=3.
+mining_slice BLOCKED: `s14_t0_r48_no_liquid.bsnp` is a v1 bake; 12
+`*_d*.bsnp` present. Root `make test` PASS `RC=0`
+2026-08-24T13:51:24-06:00. Tapes after: bow physics NO divergence 1407,
 entities PASS 5525; creeper FIRST DIVERGENCE t=76 y 2.1e-09; smoke
 zombie 358/373; TNT inventory 1 mismatch t=28 slot 0 item 259
 tape_meta 0 magma_meta 1; canon physics NO divergence 3617, entities
