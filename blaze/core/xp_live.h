@@ -6,8 +6,16 @@
  * Java 1.11.2 (java/oracle-src):
  *   EntityXPOrb.getXPSplit                 EntityXPOrb.java:298-301
  *   EntityXPOrb.onUpdate                   EntityXPOrb.java:87-174
+ *     super.onUpdate -> handleWaterMovement override (:179-182)
+ *       World.handleMaterialAcceleration(unexpanded box, WATER)
+ *       World.java:2333-2398; 0.014 * unit sum of BlockLiquid.getFlow
  *     delayBeforeCanPickup-- (:91-94)
  *     gravity (double)0.03F = 0.029999999329447746 (:100-103)
+ *     lava BlockPos material LAVA (:105-111)
+ *       motionY 0.20000000298023224D (:107)
+ *       xz + burn nextFloat CLASS C skip (Entity.java:238)
+ *     pushOutOfBlocks (:113 / Entity.java:2651-2720)
+ *       collidesWithAnyBlock false: no rand; true: CLASS C skip
  *     attraction 8-block / eid color gate (:114-146)
  *     move + drag 0.98F / ground bounce -0.9F (:148-165)
  *     xpOrbAge >= 6000 setDead (:167-173)
@@ -26,8 +34,9 @@
  *
  * Magma extras (M1 is magma semantics; do not "fix" to Java here):
  *   spawn motion is hash(seed^eid), not Math.random (EntityXPOrb.java:40-43)
- *   no lava branch, no pushOutOfBlocks, no handleWaterMovement
- *     (EntityXPOrb.java:105-113, :179-182 via Entity.onEntityUpdate)
+ *   lava xz + burn Entity.rand nextFloat CLASS C skipped (Entity.java:238);
+ *     motionY is the Java 0.2F literal. pushOutOfBlocks CLASS C magnitude
+ *     skipped the same way. handleWaterMovement is the unexpanded-box path.
  *   no Mending drain (EntityXPOrb.java:248-255)
  *   no addScore (EntityPlayer.java:2147)
  *   collision is AABB intersect after eo_tick, not World entity list

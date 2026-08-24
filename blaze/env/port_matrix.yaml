@@ -1537,7 +1537,7 @@ subsystems:
     supported: true
     sources:
       magma: [magma/game/mob_live.c, magma/game/rl_mode.c]
-      shared: [blaze/core/xp_live.h, blaze/core/entity_xp_orb.h, blaze/core/port_parity.h]
+      shared: [blaze/core/xp_live.h, blaze/core/entity_xp_orb.h, blaze/core/xp_world_tick.h, blaze/core/port_parity.h]
       blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
     dependencies: [fluids, entity_spine]
     required_features: [xp]

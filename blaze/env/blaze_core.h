@@ -849,6 +849,11 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 #define il_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
 #include "item_live.h"
 
+#define XL_W Blaze
+#define xl_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define xl_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
+#include "xp_world_tick.h"
+
 MC_HD static inline void cu_item_to_mc(const CuItem *e, McItem *it) {
     memset(it, 0, sizeof *it);
     ei_set_position(it, e->x, e->y, e->z);
@@ -4086,22 +4091,11 @@ MC_HD static inline void cu_xp_tick(Blaze *e) {
         xl_player_tick(&xp);
         for (i = 0; i < XL_MAX; ++i) {
             McOrb *o = &e->orbs[i];
-            McAABB q, blocks[64];
-            int nb, ux, uy, uz;
-            u16 under;
             if (o->dead || o->xpValue <= 0) continue;
-            q = mc_aabb_addcoord(&o->box, o->motionX, o->motionY, o->motionZ);
-            nb = cu_collect_orb_blocks(e, &q, blocks, 64);
-            ux = mc_floor(o->posX);
-            uy = mc_floor(o->box.minY) - 1;
-            uz = mc_floor(o->posZ);
-            if (uy < 0) uy = 0;
-            under = mc_state(cu_world_block(e, ux, uy, uz),
-                             cu_world_meta(e, ux, uy, uz));
-            eo_tick(o, e->pl.ent.posX + (double)e->ox, e->pl.ent.posY,
-                    e->pl.ent.posZ + (double)e->oz,
-                    (float)psv_player_eye_height(&e->pl), 0,
-                    blocks, nb, under, 0);
+            xl_tick_orb(e, o,
+                        e->pl.ent.posX + (double)e->ox, e->pl.ent.posY,
+                        e->pl.ent.posZ + (double)e->oz,
+                        (float)psv_player_eye_height(&e->pl), 0);
             if (xl_try_pickup(o, &xp, &player))
                 e->parity_xp_pickups++;
         }

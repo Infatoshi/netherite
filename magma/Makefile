@@ -54,7 +54,7 @@ OBJ_ASSETS = assets/blockmodels.o
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/world_spawn.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o game/audio_live.o
 
-.PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-fall-reanchor test-sky-weather test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui test-beds
+.PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-fall-reanchor test-sky-weather test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui test-beds test-xp-orbs
 all: game
 
 # --- CUDA raster for the game ---
@@ -434,13 +434,18 @@ test-furnace-registry:
 	    -o tests/test_furnace_registry $(LDLIBS)
 	./tests/test_furnace_registry
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items test-beds
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items test-beds test-xp-orbs
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 .PHONY: test-live-items
 test-live-items:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core -I. tests/test_live_items.c -o tests/test_live_items $(LDLIBS)
 	./tests/test_live_items
+
+.PHONY: test-xp-orbs
+test-xp-orbs:
+	$(CC) $(CFLAGS) -I$(BLAZE)/core -I. tests/test_xp_orbs.c -o tests/test_xp_orbs $(LDLIBS)
+	./tests/test_xp_orbs
 
 # Standalone-game semantic gates. These deliberately exercise the real streamed
 # world boundary, not only synthetic vanilla-id chunks.
@@ -554,7 +559,8 @@ BLAZE_PROJECTILES = ../blaze/core/projectile_live.h
 BLAZE_EXPLOSIONS = ../blaze/core/explosion.h ../blaze/core/explosion_live.h
 BLAZE_MOBS = ../blaze/core/hostile_live.h ../blaze/core/hostile_spawn.h \
              ../blaze/core/passive_live.h
-BLAZE_XP = ../blaze/core/xp_live.h ../blaze/core/entity_xp_orb.h
+BLAZE_XP = ../blaze/core/xp_live.h ../blaze/core/entity_xp_orb.h \
+             ../blaze/core/xp_world_tick.h
 BLAZE_ITEMS = ../blaze/core/entity_item.h ../blaze/core/item_live.h \
               ../blaze/core/item_overflow.h
 BLAZE_BOATS = ../blaze/core/boat_live.h

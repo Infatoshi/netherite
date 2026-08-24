@@ -1543,7 +1543,8 @@ Spot-checked by hand on 2026-08-23: rows 2, 3, 12 confirmed in code.
    `addItemStackToInventory`. Overflow FIFO: CLOSED 2026-08-23 lane
    `overflow`. Shared `item_overflow.h` 32-slot hold; `spawn_fail_count`
    only when overflow is full; hashed into BP_ITEMS. `ground_items` and
-   spawn_to_torch M1+M2 VERIFIED (2058 / 64). XP orb lava cut still open.
+   spawn_to_torch M1+M2 VERIFIED (2058 / 64). XP orb lava/water/pushOut:
+   CLOSED 2026-08-23 lane `xplava`.
    spawnAsEntity xz Math.random Class C zeros. M.
 8. Tick order: `magma/game/runtime.c:904-1216` is not `WorldServer.tick`
    order (Java: weather, updateBlocks(random ticks) per chunk, tile
@@ -1564,7 +1565,7 @@ Jacobi sweeps, not Java's per-update queue timing; fixed caps (96
 entities, 64 collision boxes) still silent; 48-item table + 32 overflow
 FIFO, `spawn_fail_count` hashed in BP_ITEMS when overflow is full (Java
 `World.spawnEntity` has no cap, World.java:1268);
-XP orb lava cut; stronghold iron bars where Java places doors; portal
+stronghold iron bars where Java places doors; portal
 nearest-selection.
 block placement `mayPlace` (`ItemBlock.onItemUse`): CLOSED 2026-08-23
 lane `tntsupport` for the subset (torch, sapling/plants on dirt/grass,
