@@ -243,8 +243,9 @@ $(TEST_FALL_BIN): $(ENV_SRC)/test_falling.c $(ENV_SRC)/blaze_snapshot.c \
 $(TEST_WEATHER_BIN): $(ENV_SRC)/test_weather.c $(CORE_SRC)/world_weather.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_weather.c -lm
 $(TEST_CHEST_BIN): $(ENV_SRC)/test_chests.c $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/tile_entity_chest.h | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_chests.c \
+		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h \
+		$(CORE_SRC)/tile_entity_chest.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_chests.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_FURNACE_BIN): $(ENV_SRC)/test_furnaces.c $(ENV_SRC)/blaze_snapshot.c \

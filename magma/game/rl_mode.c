@@ -582,7 +582,9 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
 
     h = bp_chests_digest_begin();
     any = 0;
-    for (i = 0; i < BP_CHEST_TABLE; ++i) {
+    {
+    int ntab = r->chests_cap > 0 ? r->chests_cap : BP_CHEST_TABLE;
+    for (i = 0; i < ntab; ++i) {
         int active = (r->chests && i < r->chests_cap && r->chests[i].active);
         int s;
         h = bp_hash_i32(h, active);
@@ -596,6 +598,7 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
             h = bp_hash_stack3(h, st.item, st.count, st.meta);
         }
         h = bp_hash_i32(h, r->chests[i].state.te.num_players_using);
+    }
     }
     for (i = 0; i < ISR_MAIN_SLOTS; ++i) {
         const ICStack *st = &r->player.inv.main[i];

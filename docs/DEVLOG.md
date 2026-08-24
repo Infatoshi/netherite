@@ -1,5 +1,31 @@
 # DEVLOG (compressed)
 
+## 2026-08-23 blaze chest TE table growth (lane/chestcap)
+
+Anvil. Sweep 2026-08-23 blaze row 14.
+
+Baseline: magma `runtime_chest_free_slot` grows; blaze `CU_MAX_CHESTS` 64
+dropped open 65 (`if (free_slot < 0) return 0`). `n_cont=-1` is only the
+interact pick cache. Java has no 64 cap (`TileEntityChest.java:28`,
+`World.java:2535`, `Chunk.java:69/:98/:829/:877`, `ContainerChest.java:12`).
+
+After: `chests_cap` doubles inside `CU_CHEST_POOL` 256. Digest hashes
+`chests_cap`. 72-chest unit keeps first-chest iron. Scan pick equals a
+grown 72-list. 65-cont capture does not die.
+
+Gates (verbatim):
+`out/verify/chestcap_test_chests_build.log`: first chest kept inventory
+after 72 opens (no eviction).
+`out/verify/chestcap_test_capture.log`: `test_capture_cont: ok`.
+`out/verify/chestcap_test_chest_loot.log`: `chest_loot: PASS`.
+`out/verify/chestcap_m1_chests.log`: `VERIFIED chests` / `SUMMARY VERIFIED=1`.
+`out/verify/chestcap_m2_chests.log`: `VERIFIED chests` / `SUMMARY VERIFIED=1`.
+Listed `--no-deps` M1 VERIFIED. M2 VERIFIED including mining_slice
+(snaps present on this clone). Root `make test` PASS
+(`out/verify/chestcap_maketest.log`).
+
+Stay out: item overflow, XP lava, block light, snapshot v10, potion/bed/shield.
+
 ## 2026-08-23 XP orb lava/water/pushOut (lane/xplava)
 
 Anvil. Sweep 2026-08-23 row 7 leftover. GPU1 via

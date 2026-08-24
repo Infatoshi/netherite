@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last verified: lane/chestcap 2026-08-23 (Sweep row 14: blaze chest TE table grows past 64 like magma runtime_chest_free_slot. n_cont=-1 scan pick equals a grown list. chests M1+M2 stay VERIFIED. listed --no-deps M1 VERIFIED; M2 VERIFIED including mining_slice: this clone had blaze/rl/out/snaps/*_d*.bsnp).
 Last verified: lane/xplava 2026-08-23 (xp_orbs M1+M2 after EntityXPOrb lava motionY 0.2F, unexpanded-box handleWaterMovement 0.014*unit getFlow, pushOutOfBlocks collidesWithAnyBlock gate. Entity.rand lava xz + pushOut magnitude CLASS C skipped both sides. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar including mining_slice on this clone, snaps present under blaze/rl/out/snaps/*_d*.bsnp. A clone without those snaps would BLOCK mining_slice M2).
 Last verified: lane/overflow 2026-08-23 (shared `item_overflow.h` 32-slot FIFO; spawn_fail_count after overflow full; BP_ITEMS hashes n_overflow+slots+fail. ground_items M1+M2 VERIFIED 64. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar including mining_slice on this clone which had `blaze/rl/out/snaps/*_d*.bsnp`. A clone missing those snaps still BLOCKS mining_slice M2.)
 Last verified: lane/liveitems 2026-08-23 (spawn_to_torch M1+M2 2058 after Java pickup expand 1.0/0.5/1.0 EntityPlayer.java:613 + delay EntityItem.java:432. ground_items M1+M2 stay VERIFIED. listed --no-deps M1 VERIFIED; M2 VERIFIED except mining_slice BLOCKED: missing blaze/rl/out/snaps/*_d*.bsnp).
@@ -179,7 +180,8 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
 12. Torch support / mayPlace: CLOSED 2026-08-23 lane `tntsupport`. Shared
     `ibp_may_place` (`World.java:3363-3368`, `BlockTorch.java:98-116`).
 13. Potion / milk / shield use state absent. M.
-14. Chest cap fixed 64 in blaze vs magma growth. S.
+14. Chest cap fixed 64 in blaze vs magma growth: CLOSED 2026-08-23
+    lane `chestcap`. Forensics in magma `CLOSED_DIVERGENCES.md`.
 15. Boat mount vs bow release order differs between sides. S.
 
 Field aliasing in the shared mob table: `swell` (slime size), `melee_delay`

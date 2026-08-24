@@ -213,8 +213,18 @@ typedef struct {
 
 /* live chest (GmRuntimeChest + ChestLive / TeChest). NOT in .bsnp -
  * bake contract: planted block, TE created on first interact, no loot
- * table (worldgen generation is a named gap). */
-#define CU_MAX_CHESTS BP_CHEST_TABLE  /* GM_RUNTIME_CHESTS_INITIAL */
+ * table (worldgen generation is a named gap). Magma realloc-grows
+ * GmRuntimeChest (runtime.c:2567-2599). Tick path cannot malloc, so the
+ * array is a compile-time pool and chests_cap doubles inside it.
+ * Java Chunk.chunkTileEntityMap is an unbounded HashMap
+ * (Chunk.java:69, :98, :829, :877); TileEntityChest is 27 slots with no
+ * region cap (TileEntityChest.java:28); World.getTileEntity has none
+ * (World.java:2535-2560). The 64 is GM_RUNTIME_CHESTS_INITIAL, ours. */
+#define CU_CHEST_POOL 256
+#define CU_MAX_CHESTS CU_CHEST_POOL
+#if CU_MAX_CHESTS < BP_CHEST_TABLE
+#error CU_MAX_CHESTS pool must hold GM_RUNTIME_CHESTS_INITIAL
+#endif
 #define CU_GMC_INV_SLOTS 36
 #define CU_GMC_FURNACE0 46            /* GMC_FURNACE0 input/fuel/output */
 #define CU_GMC_CHEST0 53              /* GMC_CHEST0 */
@@ -292,8 +302,12 @@ typedef struct {
                                   * ids 58/61/62/54), seeded from the snapshot at
                                   * reset and maintained by every region edit
                                   * - blaze_do_interact iterates it instead of
-                                  * scanning the 33x33x65 window             */
-    int    n_cont;               /* -1 = overflow: full window scan fallback */
+                                  * scanning the 33x33x65 window. This is the
+                                  * interact-pick cache, not TE storage.     */
+    int    n_cont;               /* -1 = overflow: full window scan fallback.
+                                  * Pick is value-identical to a grown list
+                                  * (strict d2, ties = scan order). Chest TEs
+                                  * live in chests[] / chests_cap. */
     int    n_cand;               /* cached count; -1 = overflow (full scan) */
     int    cand_pwx, cand_pwy, cand_pwz, cand_valid;
     int    world_epoch;          /* bumped by every region cell write        */
@@ -358,8 +372,10 @@ typedef struct {
     CuFurnace furnaces[CU_MAX_FURNACES];
     int active_furnace;
 
-    /* live chests (runtime.c chest slots, per-env-ified) */
+    /* live chests (runtime.c chest slots, per-env-ified). chests_cap starts
+     * at BP_CHEST_TABLE and doubles on overflow up to CU_MAX_CHESTS. */
     CuChest chests[CU_MAX_CHESTS];
+    int chests_cap;
     int active_chest;
 
     CuItem items[CU_MAX_ITEMS];
@@ -569,7 +585,8 @@ MC_HD static inline int cu_is_container_id(int id) {
  * the list an exact UNORDERED mirror of the region's container cells (the
  * interact pick below is order-independent by its total order). Append past
  * the cap poisons the list (-1) until the next reset - consumers fall back
- * to the full window scan, value-identical. */
+ * to the full window scan, value-identical for the pick. Does not store
+ * chest inventory; that is chests[] grown by cu_chest_free_slot. */
 MC_HD static inline void cu_cont_edit(Blaze *e, int wx, int wy, int wz,
                                       int old_id, int new_id) {
     int oc = cu_is_container_id(old_id), nc = cu_is_container_id(new_id), c;
@@ -3260,6 +3277,7 @@ MC_HD static inline ICStack cu_chest_get(const TeChest *te, int slot) {
 
 MC_HD static inline TeChest *cu_open_chest_te(Blaze *env) {
     if (env->container != 3 || env->active_chest < 0) return NULL;
+    if (env->active_chest >= env->chests_cap) return NULL;
     return &env->chests[env->active_chest].te;
 }
 
@@ -3293,11 +3311,56 @@ MC_HD static inline void blaze_container_close(Blaze *env) {
 /* runtime_close_container: TE bookkeeping then grid/cursor. Does not
  * zero env->container (use_block overwrites it). */
 MC_HD static inline void blaze_runtime_close_container(Blaze *env) {
-    if (env->container == 3 && env->active_chest >= 0)
+    if (env->container == 3 && env->active_chest >= 0 &&
+        env->active_chest < env->chests_cap)
         tec_close(&env->chests[env->active_chest].te);
     blaze_container_close(env);
     env->active_furnace = -1;
     env->active_chest = -1;
+}
+
+/* Magma runtime_chest_free_slot (runtime.c:2567-2599). Reclaim stale TEs
+ * whose block is no longer 54; never evict a live block-backed chest;
+ * double chests_cap inside CU_MAX_CHESTS when the table is full. Magma
+ * reallocs; we cannot malloc on the tick path (CUDA). */
+MC_HD static inline int cu_chest_free_slot(Blaze *e, int wx, int wy, int wz)
+{
+    int free_slot = -1;
+    int i, cap;
+    if (!e) return -1;
+    cap = e->chests_cap;
+    if (cap <= 0) cap = BP_CHEST_TABLE;
+    if (cap > CU_MAX_CHESTS) cap = CU_MAX_CHESTS;
+    e->chests_cap = cap;
+    for (i = 0; i < cap; ++i) {
+        CuChest *c = &e->chests[i];
+        if (!c->active) {
+            if (free_slot < 0) free_slot = i;
+            continue;
+        }
+        if (c->wx == wx && c->wy == wy && c->wz == wz) return i;
+        if (cu_world_block(e, c->wx, c->wy, c->wz) != 54) {
+            if (e->container == 3 && e->active_chest == i)
+                blaze_runtime_close_container(e);
+            c->active = 0;
+            tec_init(&c->te);
+            if (free_slot < 0) free_slot = i;
+        }
+    }
+    if (free_slot >= 0) return free_slot;
+    {
+        int new_cap = cap > 0 ? cap * 2 : BP_CHEST_TABLE;
+        if (new_cap > CU_MAX_CHESTS) new_cap = CU_MAX_CHESTS;
+        if (new_cap <= cap) return -1;
+        for (i = cap; i < new_cap; ++i) {
+            e->chests[i].active = 0;
+            e->chests[i].wx = e->chests[i].wy = e->chests[i].wz = 0;
+            tec_init(&e->chests[i].te);
+        }
+        free_slot = cap;
+        e->chests_cap = new_cap;
+        return free_slot;
+    }
 }
 
 MC_HD static inline int blaze_inv_merge_order(Blaze *env, ICStack *stack,
@@ -3802,9 +3865,9 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
             return 1;
         }
         if (id == 54) {
-            int ci, free_slot = -1;
+            int ci, free_slot;
             blaze_runtime_close_container(env);
-            for (ci = 0; ci < CU_MAX_CHESTS; ++ci) {
+            for (ci = 0; ci < env->chests_cap; ++ci) {
                 CuChest *c = &env->chests[ci];
                 if (c->active && c->wx == bx && c->wy == by && c->wz == bz) {
                     tec_open(&c->te);
@@ -3815,8 +3878,8 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
                     env->parity_container_opens++;
                     return 1;
                 }
-                if (!c->active && free_slot < 0) free_slot = ci;
             }
+            free_slot = cu_chest_free_slot(env, bx, by, bz);
             if (free_slot < 0) return 0;
             {
                 CuChest *c = &env->chests[free_slot];
@@ -4537,7 +4600,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                                    cu_world_meta(env, f->wx, f->wy, f->wz));
         }
     }
-    for (i = 0; i < CU_MAX_CHESTS; ++i)
+    for (i = 0; i < env->chests_cap; ++i)
         if (env->chests[i].active) tec_tick(&env->chests[i].te);
 
     if (env->vit.health <= 0.0f) {
@@ -5468,7 +5531,10 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
 
     h = bp_chests_digest_begin();
     any = 0;
-    for (i = 0; i < CU_MAX_CHESTS; ++i) {
+    {
+    int ntab = e->chests_cap > 0 ? e->chests_cap : BP_CHEST_TABLE;
+    if (ntab > CU_MAX_CHESTS) ntab = CU_MAX_CHESTS;
+    for (i = 0; i < ntab; ++i) {
         const CuChest *c = &e->chests[i];
         int s;
         h = bp_hash_i32(h, c->active);
@@ -5482,6 +5548,7 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
             h = bp_hash_stack3(h, st.item, st.count, st.meta);
         }
         h = bp_hash_i32(h, c->te.num_players_using);
+    }
     }
     for (i = 0; i < ISR_MAIN_SLOTS; ++i) {
         const ICStack *st = &e->pl.inv.main[i];
@@ -6002,6 +6069,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         env->chests[i].wx = env->chests[i].wy = env->chests[i].wz = 0;
         tec_init(&env->chests[i].te);
     }
+    env->chests_cap = BP_CHEST_TABLE;
     env->active_chest = -1;
     env->spawn_fail_count = 0;
     env->n_overflow = 0;

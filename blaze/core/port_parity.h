@@ -611,8 +611,10 @@ BP_HD static inline uint64_t bp_weather_digest(
 }
 
 /* Magma chest_live.c + container_live.c: every runtime chest TE in the
- * initial 64-slot table (pos, 27 id/count/meta slots, numPlayersUsing)
- * plus the player's 36 main inventory slots and cursor. Loot-table
+ * growable table (pos, 27 id/count/meta slots, numPlayersUsing) hashed
+ * 0..chests_cap-1. Initial cap 64 (GM_RUNTIME_CHESTS_INITIAL); magma
+ * realloc-doubles, blaze doubles chests_cap inside CU_CHEST_POOL.
+ * Plus the player's 36 main inventory slots and cursor. Loot-table
  * identity is a named generation gap and is not hashed. */
 #define BP_CHEST_SLOTS 27
 #define BP_CHEST_TABLE 64

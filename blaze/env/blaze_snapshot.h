@@ -43,10 +43,12 @@ extern "C" {
 #endif
 
 #define BLAZE_SNAP_MAX_ITEMS 48   /* == GM_LIVE_MAX (game/live_sim.h) */
-#define BLAZE_SNAP_MAX_CONT  64   /* container-list cap (ids 58/61/62/54); more
-                                   * than this in one region -> ncont = -1 and
-                                   * consumers fall back to the full window
-                                   * scan (value-identical, just slow) */
+#define BLAZE_SNAP_MAX_CONT  64   /* interact-pick cache cap (ids 58/61/62/54);
+                                   * more than this in one region -> ncont = -1
+                                   * and consumers fall back to the full window
+                                   * scan (value-identical pick, just slow).
+                                   * Chest TE inventory is NOT this list:
+                                   * GmRuntimeChest / CuChest chests_cap grows. */
 #define BLAZE_SNAP_MAX_MOBS  96   /* == EW_MAX_ENTITIES (ew_entity_store.h:21) */
 #define BLAZE_SNAP_PATH_CAP  48   /* magma det_nav_* cap (mob_live.h:90) */
 #define BLAZE_SNAP_MAX_ORBS  64   /* == GM_XP_ORBS (mob_live.h:10) */
