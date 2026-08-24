@@ -3547,7 +3547,10 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
          * EntityAIPanic's burning trigger and water search reachable. */
         if(passive&&pai_in_material(w,now,i,1)&&m->fire_ticks[i]<300)
             m->fire_ticks[i]=300;
-        if(m->fire_ticks[i]>0){
+        /* Shared ml_hostile_pre (hai_ok && !pai_det) already setFire +
+         * Entity.fire countdown. A second decrement here made SNAP v10
+         * fire_ticks (and every-20 health) diverge from Blaze at t=2. */
+        if(!(hai_ok(type) && !pai_det()) && m->fire_ticks[i]>0){
             --m->fire_ticks[i];
             if(m->fire_ticks[i]%20==0){
                 nx->health[i]-=1.0f;
