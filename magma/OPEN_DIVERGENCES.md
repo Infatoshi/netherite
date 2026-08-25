@@ -8,6 +8,32 @@ forensics in `CLOSED_DIVERGENCES.md` (a stub with the close date and one-line
 resolution stays here in place); read there before re-investigating anything
 that smells like a settled question.
 
+## Spawn -> End (ownership)
+
+Magma has the PRODUCT route. `magma/game/test_route_e2e.sh` reaches `won`
+on seed 0 (travel pose between generated landmarks; combat, drops, portal
+use, and dragon death are live). Gate 1 still wants a clean human
+spawn->End vs Java.
+
+This file is Java vs magma on that route. Remaining that hit it:
+
+- Sweep 1 stronghold placement (L). Silent: iron bars vs Java doors;
+  portal nearest-selection. Ungated.
+- Sweep 8 tick order vs `WorldServer.tick` (M). Couples every M1 row.
+- Class A 10 detmob nether A* window (T182511 t=745). Do not widen
+  `PNP_DY`.
+- Class A 11 roster/AI, boat `UNDER_WATER`, aim-pin 1-tick break lag.
+- Class A 2 portal overlay pixels.
+- Class A 6 dragon death pixels (RESIDUAL; the fight ticks).
+- Class A 8 nether arrival fire/lava anim + lightmap.
+- Sim: crystal-explosion fire does not replay; dragon ring-buffer /
+  boss-bar.
+
+A GPU-sim policy matching magma to the dragon is
+`blaze/OPEN_DIVERGENCES.md` section "Spawn -> dragon (policy vs magma)".
+Missing Nether/End in blaze is not a magma bug.
+
+Last documented: 2026-08-25 spawn->End ownership (no new Java vs magma rows).
 Last verified: lane/potions 2026-08-24 (rows 10/11 CLOSED: potion tick +
 shield. SNAP v11 after resume v10. Magma skip double fire decrement on
 the shared hostile path. potions M1+M2 VERIFIED. Root make test PASS on

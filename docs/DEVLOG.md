@@ -1,5 +1,24 @@
 # DEVLOG (compressed)
 
+## 2026-08-25 magma --rl-bin native transfer eval
+
+`--rl-bin` is already the Blaze policy camera (`oc_pixel` 64x36). Magma
+`width`/`height` stay the human framebuffer. No runtime `cam_w`/`cam_h`.
+
+Added `blaze/rl/eval_magma.c` (spawn `magma_game --rl-bin --mobs off`,
+BOLR in, JSON act13 out; look/craft once per `action_repeat`).
+`eval --backend magma --transfer closed|replay`. Harness
+`make -C blaze/rl test-eval-magma` (32 forward ticks, s10 t0 port snap).
+Not on `make test`. GATES row 2 stays open until the 13-seed magma ladder
+runs.
+
+## 2026-08-25 spawn->dragon ownership in OPEN files
+
+Wrote the policy-vs-magma gap into `blaze/OPEN_DIVERGENCES.md` (section
+Spawn -> dragon). Magma OPEN now lists Java-vs-magma leftovers on the
+PRODUCT route and refuses GPU-sim holes as magma bugs. GATES remaining
+#4 drops closed mobs / boats_elytra_xp rows. No new measurement.
+
 ## 2026-08-25 BLOCK flood CUDA queue pool (lane/blocklight)
 
 Gamer RTX 3090 sm_86. Rebase `188e0ed` onto `origin/master` `d5acd77`

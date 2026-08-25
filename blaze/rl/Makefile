@@ -110,6 +110,9 @@ TEST_SKY_BIN := $(OUT)/test_skylight_water
 TEST_BLK_BIN := $(OUT)/test_blocklight
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
+EVAL_MAGMA_OBJ := $(OUT)/eval_magma.o
+TEST_EVAL_MAGMA_BIN := $(OUT)/test_eval_magma
+CKPT ?= out/blaze/rl/ppo_ckpt_best.bin
 SAN_TEST_BIN := $(SAN_OUT)/test_train_config
 SAN_CHAIN_BIN := $(SAN_OUT)/test_chain_reward
 SAN_SMOKE_BIN := $(SAN_OUT)/ppo
@@ -122,7 +125,7 @@ CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 .PHONY: all test-config test-chain test-capture test-entity-spine \
 	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
-	env-metal eval
+	env-metal eval test-eval-magma eval-magma
 
 all: test-config smoke
 
@@ -146,6 +149,9 @@ $(OUT)/chain_reward.o: chain_reward.c chain_reward.h | $(OUT)
 
 $(OUT)/chain_curr.o: chain_curr.c chain_curr.h chain_reward.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ chain_curr.c
+
+$(EVAL_MAGMA_OBJ): eval_magma.c eval_magma.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ eval_magma.c
 
 # ---- Linux CUDA staging ----
 ifneq ($(UNAME_S),Darwin)
@@ -400,10 +406,11 @@ $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
 		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
 		$(LINK_LIBS) $(LDLIBS)
 
-$(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(METAL_OBS_OBJ) \
-		$(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(METAL_LIB) | $(OUT)
-	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(CHAIN_OBJS) \
-		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
+$(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
+		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
+		$(METAL_LIB) | $(OUT)
+	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(EVAL_MAGMA_OBJ) \
+		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
 		$(LINK_LIBS) $(LDLIBS)
 else
 $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
@@ -411,10 +418,10 @@ $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
 		$(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
 
-$(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(STAGE_OBJ) $(NN_OBJS) \
-		$(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(CHAIN_OBJS) $(STAGE_OBJ) \
-		$(NN_OBJS) $(LINK_LIBS)
+$(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
+		$(STAGE_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(EVAL_MAGMA_OBJ) \
+		$(CHAIN_OBJS) $(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
 endif
 
 test-config: $(TEST_BIN)
@@ -555,6 +562,19 @@ smoke-reset: $(SMOKE_BIN)
 # Native 13-seed transfer eval. Not part of `test` (minutes, needs a ckpt
 # and t0 snaps). CUDA/Metal slot via --backend; default is CPU.
 eval: $(EVAL_BIN)
+
+# 32-tick Magma --rl-bin vs blaze_cpu BOLR. Not on `test`. Needs magma_game.
+$(TEST_EVAL_MAGMA_BIN): test_eval_magma.c $(EVAL_MAGMA_OBJ) $(ENV_CPU_SO) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_eval_magma.c \
+		$(EVAL_MAGMA_OBJ) $(LDLIBS)
+
+test-eval-magma: $(TEST_EVAL_MAGMA_BIN) $(ENV_CPU_SO)
+	cd $(REPO) && ./out/blaze/rl/test_eval_magma
+
+# 13-seed magma closed-loop. Override CKPT=. Not on `test`.
+eval-magma: $(EVAL_BIN) $(ENV_CPU_SO)
+	cd $(REPO) && ./out/blaze/rl/eval --checkpoint $(CKPT) \
+		--backend magma --stage 0
 
 test: test-config test-chain test-capture smoke
 
