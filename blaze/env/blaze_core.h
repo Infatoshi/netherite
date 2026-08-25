@@ -328,6 +328,7 @@ typedef struct {
     int      parity_fall_cells_valid;
     uint32_t parity_fall_mutations;
     int     *rt_leaf;            /* RT_LIVE_SURR ints; BlockLeaves surroundings */
+    int     *light_q;            /* CU_LIGHT_Q ints; World.java:161 BLOCK flood queue */
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
 
     u16   *fluid_cur, *fluid_tmp; /* CU_FLUID_VOL CA grids; NULL = skip CA */
@@ -745,6 +746,174 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
                            e->ry0 + e->rny - 1, z1);
 }
 
+/* Packed BLOCK nibble. EnumSkyBlock.BLOCK defaultLightValue is 0
+ * (EnumSkyBlock.java:6). World.getLightFor clamps y<0 to 0
+ * (World.java:913-916) and returns the default if the pos is not loaded
+ * (:918-924). */
+MC_HD static inline int cu_blk_nibble(const Blaze *e, int wx, int wy, int wz) {
+    long i;
+    if (wy < 0) wy = 0;
+    i = cu_region_idx(e, wx, wy, wz);
+    if (i < 0 || !e->light) return 0;
+    return (int)(e->light[i] & 15);
+}
+
+MC_HD static inline void cu_blk_nibble_set(Blaze *e, int wx, int wy, int wz,
+                                           int v) {
+    long i = cu_region_idx(e, wx, wy, wz);
+    if (i < 0 || !e->light) return;
+    if (v < 0) v = 0;
+    if (v > 15) v = 15;
+    e->light[i] = (u8)((e->light[i] & 0xF0) | v);
+}
+
+MC_HD static inline int cu_light_id_at(const Blaze *e, int wx, int wy, int wz) {
+    long i = cu_region_idx(e, wx, wy, wz);
+    return i < 0 ? 0 : (int)mc_state_id(e->cells[i]);
+}
+
+/* World.getRawLight EnumSkyBlock.BLOCK (World.java:2967-3022). Sky branch
+ * at :2969 is skipped: this is BLOCK only. Opacity uses magma
+ * state_opacity (light.c:119) so CUT rails/double-plants match. */
+MC_HD static inline int cu_get_raw_block_light(const Blaze *e, int x, int y,
+                                               int z) {
+    /* EnumFacing.values() D-U-N-S-W-E (EnumFacing.java:18-24, :37). */
+    static const int dx[6] = {0, 0, 0, 0, -1, 1};
+    static const int dy[6] = {-1, 1, 0, 0, 0, 0};
+    static const int dz[6] = {0, 0, -1, 1, 0, 0};
+    int id, emit, i, j, f, k;
+    id = cu_light_id_at(e, x, y, z);
+    emit = (int)mc_bpt_props(id).light_emit; /* Block.getLightValue :191 */
+    i = emit;                                /* World.java:2977 BLOCK */
+    j = cu_sky_opacity(id);                  /* getLightOpacity :2978 */
+    if (j >= 15 && emit > 0) j = 1;          /* World.java:2980-2983 */
+    if (j < 1) j = 1;                        /* World.java:2985-2988 */
+    if (j >= 15) return 0;                   /* World.java:2990-2992 */
+    if (i >= 14) return i;                   /* World.java:2994-2996 */
+    for (f = 0; f < 6; ++f) {
+        k = cu_blk_nibble(e, x + dx[f], y + dy[f], z + dz[f]) - j;
+        if (k > i) i = k;
+        if (i >= 14) return i;               /* World.java:3012-3015 */
+    }
+    return i;
+}
+
+/* World.checkLightFor EnumSkyBlock.BLOCK (World.java:3025-3160). Magma
+ * compute_blocklight (light.c:434) zeros every loaded chunk then BFS from
+ * emitters; that equals this per-edit decrease+spread when every source is
+ * in the search domain. Do not Jacobi-ify magma. Queue is e->light_q
+ * (CU_LIGHT_Q ints, World.java:161 LIGHT_QUEUE cap) on the per-env pool;
+ * a 128 KiB CUDA thread-stack array overflows default cudaLimitStackSize
+ * (~1 KiB) and the existing 128 KiB raise. MC_NOINLINE keeps any leftover
+ * frame from folding into k_tick_raw. */
+#define CU_LIGHT_Q 32768
+MC_HD MC_NOINLINE static void cu_check_light_for_block(Blaze *e, int i1,
+                                                       int j1, int k1) {
+    int *q = e->light_q;
+    int qi, qj, k, l;
+    /* EnumFacing.values() for the decrease walk (World.java:3074). */
+    static const int ddx[6] = {0, 0, 0, 0, -1, 1};
+    static const int ddy[6] = {-1, 1, 0, 0, 0, 0};
+    static const int ddz[6] = {0, 0, -1, 1, 0, 0};
+    if (!q) return;
+    if (!e->light_valid || !e->light) return;
+    if (cu_region_idx(e, i1, j1, k1) < 0) return;
+    qi = 0;
+    qj = 0;
+    k = cu_blk_nibble(e, i1, j1, k1);
+    l = cu_get_raw_block_light(e, i1, j1, k1);
+    if (l > k) {
+        q[qj++] = 133152; /* World.java:3044 */
+    } else if (l < k) {
+        q[qj++] = 133152 | (k << 18); /* World.java:3048 */
+        while (qi < qj) {
+            int l1 = q[qi++];
+            int i2 = (l1 & 63) - 32 + i1;
+            int j2 = (l1 >> 6 & 63) - 32 + j1;
+            int k2 = (l1 >> 12 & 63) - 32 + k1;
+            int l2 = l1 >> 18 & 15;
+            int i3 = cu_blk_nibble(e, i2, j2, k2);
+            if (i3 == l2) {
+                cu_blk_nibble_set(e, i2, j2, k2, 0);
+                if (l2 > 0) {
+                    int j3 = i2 - i1;
+                    int k3 = j2 - j1;
+                    int l3 = k2 - k1;
+                    if (j3 < 0) j3 = -j3; /* MathHelper.abs World.java:3066 */
+                    if (k3 < 0) k3 = -k3;
+                    if (l3 < 0) l3 = -l3;
+                    if (j3 + k3 + l3 < 17) {
+                        int f;
+                        for (f = 0; f < 6; ++f) {
+                            int i4 = i2 + ddx[f];
+                            int j4 = j2 + ddy[f];
+                            int k4 = k2 + ddz[f];
+                            int nid = cu_light_id_at(e, i4, j4, k4);
+                            int l4 = cu_sky_opacity(nid);
+                            if (l4 < 1) l4 = 1; /* Math.max(1, op) :3080 */
+                            i3 = cu_blk_nibble(e, i4, j4, k4);
+                            if (i3 == l2 - l4 && qj < CU_LIGHT_Q) {
+                                q[qj++] = (i4 - i1 + 32) |
+                                          ((j4 - j1 + 32) << 6) |
+                                          ((k4 - k1 + 32) << 12) |
+                                          ((l2 - l4) << 18);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        qi = 0; /* World.java:3095: re-walk the decrease list */
+    }
+    while (qi < qj) {
+        int i5 = q[qi++];
+        int j5 = (i5 & 63) - 32 + i1;
+        int k5 = (i5 >> 6 & 63) - 32 + j1;
+        int l5 = (i5 >> 12 & 63) - 32 + k1;
+        int i6 = cu_blk_nibble(e, j5, k5, l5);
+        int j6 = cu_get_raw_block_light(e, j5, k5, l5);
+        if (j6 != i6) {
+            cu_blk_nibble_set(e, j5, k5, l5, j6);
+            if (j6 > i6) {
+                int k6 = j5 - i1;
+                int l6 = k5 - j1;
+                int i7 = l5 - k1;
+                int flag = qj < CU_LIGHT_Q - 6;
+                if (k6 < 0) k6 = -k6;
+                if (l6 < 0) l6 = -l6;
+                if (i7 < 0) i7 = -i7;
+                if (k6 + l6 + i7 < 17 && flag) {
+                    /* World.java:3124-3151 west/east/down/up/north/south */
+                    if (cu_blk_nibble(e, j5 - 1, k5, l5) < j6)
+                        q[qj++] = (j5 - 1 - i1 + 32) +
+                                  ((k5 - j1 + 32) << 6) +
+                                  ((l5 - k1 + 32) << 12);
+                    if (cu_blk_nibble(e, j5 + 1, k5, l5) < j6)
+                        q[qj++] = (j5 + 1 - i1 + 32) +
+                                  ((k5 - j1 + 32) << 6) +
+                                  ((l5 - k1 + 32) << 12);
+                    if (cu_blk_nibble(e, j5, k5 - 1, l5) < j6)
+                        q[qj++] = (j5 - i1 + 32) +
+                                  ((k5 - 1 - j1 + 32) << 6) +
+                                  ((l5 - k1 + 32) << 12);
+                    if (cu_blk_nibble(e, j5, k5 + 1, l5) < j6)
+                        q[qj++] = (j5 - i1 + 32) +
+                                  ((k5 + 1 - j1 + 32) << 6) +
+                                  ((l5 - k1 + 32) << 12);
+                    if (cu_blk_nibble(e, j5, k5, l5 - 1) < j6)
+                        q[qj++] = (j5 - i1 + 32) +
+                                  ((k5 - j1 + 32) << 6) +
+                                  ((l5 - 1 - k1 + 32) << 12);
+                    if (cu_blk_nibble(e, j5, k5, l5 + 1) < j6)
+                        q[qj++] = (j5 - i1 + 32) +
+                                  ((k5 - j1 + 32) << 6) +
+                                  ((l5 + 1 - k1 + 32) << 12);
+                }
+            }
+        }
+    }
+}
+
 /* world write: region + camera ids + window mirror (the real env writes the
  * GmWorld and refills the physics window from it next tick; value-identical). */
 MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
@@ -806,6 +975,13 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
         new_op = cu_sky_opacity(id);
         if (old_op != new_op)
             cu_light_after_opacity(e, wx, wy, wz);
+        /* World.checkLight (World.java:2952-2961) always runs BLOCK
+         * checkLightFor after a setBlockState write. Torch/air both have
+         * opacity 0 so the sky path above is skipped; blight still floods.
+         * Magma light_set_state (light.c:762) sets blocklight_dirty on any
+         * state change, then compute_blocklight BFS. */
+        if (old_state != new_state)
+            cu_check_light_for_block(e, wx, wy, wz);
         e->world_epoch++;        /* coal candidate mined-flag invalidation */
         CU_OP(e, CU_OP_WORLD_EDIT);
     }

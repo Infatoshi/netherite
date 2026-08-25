@@ -1,5 +1,30 @@
 # DEVLOG (compressed)
 
+## 2026-08-25 BLOCK flood CUDA queue pool (lane/blocklight)
+
+Gamer RTX 3090 sm_86. Rebase `188e0ed` onto `origin/master` `d5acd77`
+(SNAP v11 potions). Unique flood kept. SNAP not bumped.
+
+Baseline fluids M2 on stack-queue tree `188e0ed`:
+`s10_t0_r64_fluid_spread.bsnp` kernel=raw
+`blaze_cuda: k_tick_raw: an illegal memory access was encountered`
+(`~/nlanes/blocklight/out/verify/warpm2_s10_t0_r64_fluid_spread_raw.baseline.log`).
+Cause: `int q[CU_LIGHT_Q]` is 32768 ints / 128 KiB on the CUDA thread
+stack (`World.java:161` LIGHT_QUEUE). `MC_NOINLINE` only kept it out of
+`k_tick_raw`'s frame. Default `cudaLimitStackSize` is ~1 KiB; master
+already raises to 128 KiB for CA/TNT, which the flood array still
+overflows. Did not raise the stack limit. Did not share `rt_leaf`.
+
+After: `e->light_q` from a per-env pool (CPU `light_q_pool`, CUDA
+`d_light_q`), bind before env memcpy. `rg "int q\\[CU_LIGHT_Q\\]" blaze/env`
+empty. Fluids M2 VERIFIED raw 57.49s / warp 77.24s / scalar 106.70s,
+61 ticks, 64 lanes. Fluids M1 VERIFIED. listed --no-deps M1 27 VERIFIED
+M2 27 VERIFIED FAILS=0. mining_slice M1+M2 BLOCKED rc=3 (clone fixture).
+`test_blocklight` PASS (magma Manhattan 0..14). Root `make test` PASS.
+
+Residual: mining_slice snaps on this clone; sky Jacobi already on master;
+no BP_ digest covers light nibbles.
+
 ## 2026-08-24 potions SNAP v11 (lane/potions)
 
 Gamer RTX 3090 sm_86. Rebase onto `origin/wip/resumegate-verify` `d4c152d`
