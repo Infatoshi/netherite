@@ -23,10 +23,11 @@
 #include "rl_ckpt.h"
 
 _Static_assert(NN_CAM_W == OC_W && NN_CAM_H == OC_H, "nn camera != oc_pixel");
-_Static_assert(ENV_CAM_W == NN_CAM_W && ENV_CAM_H == NN_CAM_H,
+_Static_assert((int)ENV_CAM_W == (int)NN_CAM_W &&
+                   (int)ENV_CAM_H == (int)NN_CAM_H,
                "pack camera != nn");
-_Static_assert(ENV_ACT == EM_ACT, "action width");
-_Static_assert(ENV_NPIX == EM_NPIX, "pix count");
+_Static_assert((int)ENV_ACT == (int)EM_ACT, "action width");
+_Static_assert((int)ENV_NPIX == (int)EM_NPIX, "pix count");
 
 #if defined(BLAZE_RL_HAVE_CUDA) && BLAZE_RL_HAVE_CUDA
 #include "env_cuda_stage.h"
@@ -1061,7 +1062,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     if (fns.assign(env, assign) != 0 || fns.reset(env, NULL) != 0)
       die("assign/reset failed");
     for (i = 0; i < n; ++i) {
-      char why[128];
+      char why[80];
       if (!mag[i] || div_step[i] >= 0)
         continue;
       if (fns.emit(env, i, 1, &blaze_obs) != 0) {
@@ -1103,7 +1104,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
       die("burn-in blaze step failed");
   }
   for (i = 0; i < n; ++i) {
-    char why[128];
+    char why[80];
     if (!mag[i])
       continue;
     if (eval_magma_step(mag[i], act_rows + (size_t)i * ENV_ACT,
@@ -1156,7 +1157,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
         die("blaze_step_full failed");
     }
     for (i = 0; i < n; ++i) {
-      char why[128];
+      char why[80];
       if (!mag[i])
         continue;
       if (eval_magma_step(mag[i], act_rows + (size_t)i * ENV_ACT,
