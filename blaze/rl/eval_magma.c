@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include "eval_magma.h"
 
 #include <fcntl.h>

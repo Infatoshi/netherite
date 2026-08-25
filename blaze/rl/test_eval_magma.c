@@ -1,5 +1,6 @@
 /* 32-tick scripted Magma --rl-bin vs blaze_cpu.so BOLR gate.
  * Run from repo root. No checkpoint. */
+#define _DEFAULT_SOURCE
 #include "blaze_abi.h"
 #include "eval_magma.h"
 
