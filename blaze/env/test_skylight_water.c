@@ -34,6 +34,7 @@ int main(void) {
     const int y0 = 99;
     long rvol;
     Blaze e;
+    int light_q[CU_LIGHT_Q];
     u16 *cells;
     u8 *light;
     Chunk *window;
@@ -62,6 +63,7 @@ int main(void) {
     e.rnz = rnz;
     e.rvol = rvol;
     e.light_valid = 1;
+    e.light_q = light_q;
 
     for (y = y0; y <= y0 + 2; ++y)
         for (z = 7; z <= 9; ++z)

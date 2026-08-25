@@ -77,6 +77,7 @@ typedef struct {
     u16   *fluid_cur_pool, *fluid_tmp_pool;
     u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
     int   *rt_leaf_pool;     /* per-env BlockLeaves surroundings[32768] */
+    int   *light_q_pool;     /* per-env CU_LIGHT_Q BLOCK flood queue */
     u8    *light_pool, *biome_pool, *dep_pool, *edg_pool;
     Chunk *window_pool;
     CuCand *cand_pool;
@@ -216,10 +217,12 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                                       sizeof *v->fluid_tmp_pool);
     v->rt_leaf_pool = (int *)malloc((size_t)n * RT_LIVE_SURR *
                                     sizeof *v->rt_leaf_pool);
+    v->light_q_pool = (int *)malloc((size_t)n * CU_LIGHT_Q *
+                                    sizeof *v->light_q_pool);
     if (!v->envs || !v->assign || !v->cam_pool || !v->dep_pool ||
         !v->edg_pool || !v->window_pool || !v->cand_pool || !v->cont_pool ||
         !v->blocks || !v->fluid_cur_pool || !v->fluid_tmp_pool ||
-        !v->rt_leaf_pool) {
+        !v->rt_leaf_pool || !v->light_q_pool) {
         blaze_destroy(v);
         return NULL;
     }
@@ -242,6 +245,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->fluid_cur = v->fluid_cur_pool + (size_t)i * CU_FLUID_VOL;
         e->fluid_tmp = v->fluid_tmp_pool + (size_t)i * CU_FLUID_VOL;
         e->rt_leaf = v->rt_leaf_pool + (size_t)i * RT_LIVE_SURR;
+        e->light_q = v->light_q_pool + (size_t)i * CU_LIGHT_Q;
         e->ops = v->ops_pool ? v->ops_pool + (size_t)i * CU_OP_N : NULL;
         v->assign[i] = -1;
     }
@@ -305,6 +309,7 @@ void blaze_destroy(void *vh) {
     free(v->blocks);
     free(v->fluid_cur_pool); free(v->fluid_tmp_pool);
     free(v->rt_leaf_pool);
+    free(v->light_q_pool);
     free(v->ops_pool);
     free(v);
 }

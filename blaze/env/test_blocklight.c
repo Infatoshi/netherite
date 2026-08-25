@@ -67,6 +67,7 @@ int main(void) {
     const int rnx = 48, rny = 128, rnz = 48;
     const int tx = 24, ty = 80, tz = 24;
     Blaze e;
+    int light_q[CU_LIGHT_Q];
     u16 *cells;
     u8 *light;
     Chunk *window;
@@ -74,6 +75,7 @@ int main(void) {
 
     if (!setup_env(&e, &cells, &light, &window, rnx, rny, rnz, 10))
         return 1;
+    e.light_q = light_q;
 
     /* Place torch in air. Opacity 0==0 so sky rebuild is skipped; blight
      * must still flood. Block.java:320 setLightLevel -> emit 14. Air

@@ -328,6 +328,7 @@ typedef struct {
     int      parity_fall_cells_valid;
     uint32_t parity_fall_mutations;
     int     *rt_leaf;            /* RT_LIVE_SURR ints; BlockLeaves surroundings */
+    int     *light_q;            /* CU_LIGHT_Q ints; World.java:161 BLOCK flood queue */
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
 
     u16   *fluid_cur, *fluid_tmp; /* CU_FLUID_VOL CA grids; NULL = skip CA */
@@ -800,17 +801,21 @@ MC_HD static inline int cu_get_raw_block_light(const Blaze *e, int x, int y,
 /* World.checkLightFor EnumSkyBlock.BLOCK (World.java:3025-3160). Magma
  * compute_blocklight (light.c:434) zeros every loaded chunk then BFS from
  * emitters; that equals this per-edit decrease+spread when every source is
- * in the search domain. Do not Jacobi-ify magma. MC_NOINLINE: the 32768
- * queue (World.java:161) must not fold into k_tick_raw's 1 KiB stack. */
+ * in the search domain. Do not Jacobi-ify magma. Queue is e->light_q
+ * (CU_LIGHT_Q ints, World.java:161 LIGHT_QUEUE cap) on the per-env pool;
+ * a 128 KiB CUDA thread-stack array overflows default cudaLimitStackSize
+ * (~1 KiB) and the existing 128 KiB raise. MC_NOINLINE keeps any leftover
+ * frame from folding into k_tick_raw. */
 #define CU_LIGHT_Q 32768
 MC_HD MC_NOINLINE static void cu_check_light_for_block(Blaze *e, int i1,
                                                        int j1, int k1) {
-    int q[CU_LIGHT_Q];
+    int *q = e->light_q;
     int qi, qj, k, l;
     /* EnumFacing.values() for the decrease walk (World.java:3074). */
     static const int ddx[6] = {0, 0, 0, 0, -1, 1};
     static const int ddy[6] = {-1, 1, 0, 0, 0, 0};
     static const int ddz[6] = {0, 0, -1, 1, 0, 0};
+    if (!q) return;
     if (!e->light_valid || !e->light) return;
     if (cu_region_idx(e, i1, j1, k1) < 0) return;
     qi = 0;
@@ -908,7 +913,6 @@ MC_HD MC_NOINLINE static void cu_check_light_for_block(Blaze *e, int i1,
         }
     }
 }
-#undef CU_LIGHT_Q
 
 /* world write: region + camera ids + window mirror (the real env writes the
  * GmWorld and refills the physics window from it next tick; value-identical). */
