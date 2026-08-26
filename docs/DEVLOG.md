@@ -1,5 +1,27 @@
 # DEVLOG (compressed)
 
+## 2026-08-26 magma 13-seed transfer ladder (gamer)
+
+Protocol: `--stage 0`, 5 tries x 6000 ticks, `rng_seed=0`,
+`ni=seed_index*5+attempt`, Gumbel n=65. Camera 64x36 `oc_pixel`.
+`nn_sample` Gumbel is batch-size dependent; n=13 tries=1 is not this table.
+
+`retrain_0821_best.bin` closed Magma (gamer 23:09 MDT, `closed_rc=0`)
+matches cpu (Mac) and cuda (gamer) seed-by-seed: torches 0/13;
+histogram t0:6, logs3:7. logs3 seeds: 3, 10, 14, 20, 32, 44, 46.
+t0 seeds: 2, 11, 16, 27, 29, 33.
+
+`--transfer replay` same ckpt: MATCH 56/65. Nine DIVERGE, all `cam` 1-5 px
+(not blessed): s3 t4 step 160 / 2; s10 t4 147 / 3; s16 t3 407 / 1;
+s27 t0 137 / 1; s27 t1 38 / 1; s32 t1 1007 / 2; s44 t0 146 / 5;
+s44 t3 361 / 4; s46 t0 422 / 2. Replay milestones equal cpu (policy
+reads blaze_cpu).
+
+`ppo_ckpt_best.bin` cpu==cuda: t0:13, torches 0/13. Magma replay+closed
+still running on gamer (`eval-magma-ladder`).
+
+Gate 2 accept stays OPEN. These nets place 0 torches on Magma.
+
 ## 2026-08-25 magma --rl-bin native transfer eval
 
 `--rl-bin` is already the Blaze policy camera (`oc_pixel` 64x36). Magma
@@ -9,8 +31,7 @@ Added `blaze/rl/eval_magma.c` (spawn `magma_game --rl-bin --mobs off`,
 BOLR in, JSON act13 out; look/craft once per `action_repeat`).
 `eval --backend magma --transfer closed|replay`. Harness
 `make -C blaze/rl test-eval-magma` (32 forward ticks, s10 t0 port snap).
-Not on `make test`. GATES row 2 stays open until the 13-seed magma ladder
-runs.
+Not on `make test`.
 
 ## 2026-08-25 spawn->dragon ownership in OPEN files
 

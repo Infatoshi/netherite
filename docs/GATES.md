@@ -144,7 +144,7 @@ BLOCKED on the v1 `s14_t0_r48_no_liquid.bsnp` (no recapture on gamer).
 | # | Remaining | Gate | Class | Host |
 |---|-----------|------|-------|------|
 | 1 | Native `out/blaze/rl/ppo` reproduces spawn->torch (t0 ~0.4, transfer ~11/13). Wood-break t0 0.495 matched. Staged-curriculum chain4 (2026-08-22) reached t0 0.215 at 510M ticks, stage4->torch 8/8 seeds; spawn->torch t0 ~0.4 still open. | 2 | grindable | anvil gpu0 |
-| 2 | Native transfer/eval of `ppo_ckpt.bin` into magma. 32-tick BOLR harness: `make -C blaze/rl test-eval-magma`. Closed or replay: `./out/blaze/rl/eval --checkpoint PATH --backend magma --transfer closed --stage 0` (or `--transfer replay`). 13-seed ladder not yet measured. Camera stays 64x36 `oc_pixel` (not Magma `width`/`height`). | 2 | grindable | Mac/gamer |
+| 2 | Native transfer/eval into magma is wired (`make -C blaze/rl test-eval-magma`; `eval --backend magma --transfer closed` or `--transfer replay`). 13-seed tries=5 n=65 measured on gamer 2026-08-26: `retrain_0821_best.bin` magma closed == cpu == cuda seed-by-seed (torches 0/13, t0:6 logs3:7). Replay MATCH 56/65; 9 DIVERGE all cam 1-5 px, not blessed. `ppo_ckpt_best.bin` cpu==cuda t0:13. Camera stays 64x36 `oc_pixel`. Gate 2 accept still needs a net that places torches. | 2 | grindable | Mac/gamer |
 | 3 | Magma 60 fps at 1080p. Last CUDA measure 35.93 fps (`--set bench=1`). Raster twins are a two-machine gate; do not edit one kernel overnight. | 3 | grindable | anvil gpu1 + Mac |
 | 4 | Port-matrix after spawn-to-torch. VERIFIED through furnaces/hazards/mobs_*/boats/elytra/xp. Still `supported: false`: `portals_dimensions`, `nether_route`, `dragon_victory`. A policy cannot spawn->dragon matching magma until that DAG plus blaze sweep 1 (fixed region) and 2 (actions/obs). Dragon-fight RL stays out of scope. See `blaze/OPEN_DIVERGENCES.md` "Spawn -> dragon". | 2 | grindable DAG | anvil cpu then gpu |
 | 5 | Blaze Metal tick (M3). Sequence-blocked on row 4. | 2 | needs-design | Mac later |
@@ -164,8 +164,9 @@ Oracle A/B are grindable (see `magma/OPEN_DIVERGENCES.md` 2026-08-21
 captures).
 
 Harness holes: `NnUpdateStats` has `entropy_mean` but the chunk log omits
-it; no KL/clipfrac; no native 13-seed eval; Metal `n == max_n`; schema-1
-ckpt has no Adam/curriculum; C replay has no PNG path.
+it; no KL/clipfrac; Metal `n == max_n`; schema-1
+ckpt has no Adam/curriculum; C replay has no PNG path. Native 13-seed
+eval is `out/blaze/rl/eval` (cpu/cuda/magma).
 
 Pixel and recorder forensics stay in `magma/OPEN_DIVERGENCES.md`.
 
