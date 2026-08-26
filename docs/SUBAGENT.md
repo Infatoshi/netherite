@@ -30,11 +30,13 @@ merges. You never merge. Follow this routine in order.
 - Python is `uv run --no-project --with <pkgs> python ...`. No pip. Pin
   `UV_CACHE_DIR=$HOME/.cache/uv TMPDIR=$HOME/dev/nw/.tmp` on anvil.
 
-Hosts: `gamer` (idle, -j8 cap, never recapture oracle goldens there) and
-`anvil` (shared: never touch tmux sessions or processes you did not create;
-GPU only through `overnight-compute wait --agent <lane> --resource gpuN`,
-check `nvidia-smi` first, release when the GPU run ends, analyze on CPU).
-Oracle goldens come from anvil llvmpipe only.
+Linux validation host is `anvil` (faster CPU). Magma CPU, tape replay,
+`make test`, blaze M1/M2, and `eval` run there. Do not stage those on
+`gamer`. Anvil is shared: never touch tmux sessions or processes you did
+not create; GPU only through `overnight-compute wait --agent <lane>
+--resource gpuN`, check `nvidia-smi` first, release when the GPU run
+ends, analyze on CPU. Oracle goldens come from anvil llvmpipe only.
+`gamer` is 3090 / `sm_86` only.
 
 ## 1. Java first, then C
 

@@ -4,12 +4,13 @@
 # Mac side: worktree ~/dev/nw/LANE on branch lane/LANE from master, pushed,
 # with the same gitignored inputs agent_worktree.sh links (tapes, snaps,
 # java run/ and oracle-src, asset headers, goldens).
-# Remote side (HOST = gamer | anvil): clone ~/nlanes/LANE from the host's
-# ~/dev/netherite, origin -> GitHub, checkout lane/LANE, symlink java inputs,
-# then rsync from the Mac: goldens, blaze snaps, the canonical tape, and every
-# --tape NAME (jsonl + sidecars + _frames + _world).
+# Remote side (HOST = anvil; gamer only for sm_86): clone ~/nlanes/LANE from
+# the host's ~/dev/netherite, origin -> GitHub, checkout lane/LANE, symlink
+# java inputs, then rsync from the Mac: goldens, blaze snaps, the canonical
+# tape, and every --tape NAME (jsonl + sidecars + _frames + _world).
+# Linux validation (magma CPU, make test, tapes, blaze M1/M2, eval) is anvil.
 #
-#   bash scripts/lane_stage.sh portaledge gamer
+#   bash scripts/lane_stage.sh portaledge anvil
 #   bash scripts/lane_stage.sh raster anvil --tape scenario_slime_bounce_20260730T095754Z
 set -euo pipefail
 

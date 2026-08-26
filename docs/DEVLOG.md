@@ -1,5 +1,11 @@
 # DEVLOG (compressed)
 
+## 2026-08-26 validation host is anvil
+
+Linux validation (magma CPU, `make test`, tape replay, blaze M1/M2, eval)
+runs on anvil. Do not stage that work on gamer. Mac stays control plane
+and Metal. AGENTS.md Hosts table, SUBAGENT.md, GATES row 2 host column.
+
 ## 2026-08-26 magma 13-seed transfer ladder (gamer)
 
 Protocol: `--stage 0`, 5 tries x 6000 ticks, `rng_seed=0`,
