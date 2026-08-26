@@ -1,7 +1,7 @@
 # netherite (AGENTS.md)
 
-Home: **Anvil-primary** - canonical at `anvil:~/dev/netherite`. Build and run
-here. MacBook is control plane / Moonlight / image viewing only.
+Home: **Anvil-primary** - canonical at `anvil:~/dev/netherite`. Build, run,
+and validate here. MacBook is control plane / Moonlight / image viewing only.
 
 Git remote: **https://github.com/Infatoshi/netherite**. That is the only
 GitHub repo. `origin` on both machines points there.
@@ -14,9 +14,19 @@ next to the code they govern.
 
 | OS | Role |
 |----|------|
-| **Linux x86_64** | Full stack. Build CPU/CUDA, run Java oracle, train blaze, sweep. Canonical host: anvil (Ubuntu). Needs JDK 8 + NVIDIA CUDA for GPU paths. |
+| **Linux x86_64** | Full stack. Build CPU/CUDA, run Java oracle, train blaze, sweep. Canonical host: anvil (Ubuntu, 9950X3D). Needs JDK 8 + NVIDIA CUDA for GPU paths. All Linux validation runs here. |
 | **macOS** | Build and verify the CPU and Metal game backends. Also serves as the control plane and image/video review host. Do not expect native `runClient` or CUDA here. |
 | **Windows** | Not a supported build/run host for this monorepo. Use WSL2 Linux if you must, or a remote Linux box. |
+
+### Hosts (where work runs)
+
+| host | Role |
+|------|------|
+| **anvil** | Canonical clone. Linux validation: `make test`, magma CPU, tape replay, blaze M1/M2, `eval` (cpu/cuda/magma), oracle capture. CUDA `sm_120`. Shared GPUs: `nvidia-smi` first; long GPU jobs through `overnight-compute`. |
+| **macOS** | Control plane. Metal build, `cpu==metal` kernel half, image/video review. Not the Linux validation host. |
+| **gamer** | Not the validation host. Use only when a job needs the 3090 / `sm_86`. |
+
+Do not stage magma CPU gates, 13-seed eval, tape replay, or `make test` on gamer. Anvil is the faster CPU.
 
 Prism / MultiMC / official launcher: optional jar source for assets. Fresh
 boxes do **not** need Prism credentials; `make -C java bootstrap-oracle` pulls
@@ -65,9 +75,10 @@ sub-agents pointed at them without waiting for a human to pick items:
 1. Pick from `magma/OPEN_DIVERGENCES.md` class A (top down) and
    `blaze/OPEN_DIVERGENCES.md` unported rows (dependency order). One lane
    per item. Skip items whose evidence (tape, golden) is not on this Mac.
-2. Stage: `bash scripts/lane_stage.sh <lane> <host> [--tape NAME]...`
-   (gamer for magma CPU work; anvil for oracle captures, CUDA, blaze M2;
-   Metal half of a twins lane builds on the Mac).
+2. Stage: `bash scripts/lane_stage.sh <lane> anvil [--tape NAME]...`
+   (anvil for magma CPU, oracle captures, CUDA, blaze M1/M2, eval.
+   Metal half of a twins lane builds on the Mac. Do not stage
+   validation on gamer.)
 3. Prompt = `docs/SUBAGENT.md` + a goal block: the item text, the gate
    command, the documented baseline numbers, the hard goal, and what is
    forbidden. Launch from the lane worktree, in the background.

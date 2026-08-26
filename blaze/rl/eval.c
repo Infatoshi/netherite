@@ -9,15 +9,25 @@
  *   ./out/blaze/rl/eval --checkpoint out/blaze/rl/overnight_gpu0_6m.bin
  *   ./out/blaze/rl/eval --checkpoint PATH --stage 0     # default; t0 snaps
  *   ./out/blaze/rl/eval --checkpoint PATH --stage all   # t0 + stg1..4 ladder
+ *   ./out/blaze/rl/eval --checkpoint PATH --backend magma --transfer closed
+ *   ./out/blaze/rl/eval --checkpoint PATH --backend magma --transfer replay
  */
 #define _DEFAULT_SOURCE
 #include "blaze_abi.h"
 #include "chain_curr.h"
 #include "chain_reward.h"
+#include "eval_magma.h"
 #include "model.h"
 #include "nn.h"
 #include "obs_pack.h"
 #include "rl_ckpt.h"
+
+_Static_assert(NN_CAM_W == OC_W && NN_CAM_H == OC_H, "nn camera != oc_pixel");
+_Static_assert((int)ENV_CAM_W == (int)NN_CAM_W &&
+                   (int)ENV_CAM_H == (int)NN_CAM_H,
+               "pack camera != nn");
+_Static_assert((int)ENV_ACT == (int)EM_ACT, "action width");
+_Static_assert((int)ENV_NPIX == (int)EM_NPIX, "pix count");
 
 #if defined(BLAZE_RL_HAVE_CUDA) && BLAZE_RL_HAVE_CUDA
 #include "env_cuda_stage.h"
@@ -49,7 +59,9 @@ enum {
   EVAL_MAX_TRIES = 16,
   EVAL_TORCH_ITEM = 50,
   EVAL_STAGE_ALL = -1,
-  EVAL_STAGE_MAX = 4
+  EVAL_STAGE_MAX = 4,
+  EVAL_XFER_CLOSED = 0,
+  EVAL_XFER_REPLAY = 1
 };
 
 static const int kCanonSeeds[] = {2,  3,  10, 11, 14, 16, 20,
@@ -89,6 +101,7 @@ typedef struct BlazeFns {
   BlazeStepFullFn step_full;
   BlazeObsCamInputsFn obs_cam_inputs;
   int (*set_success_item)(void *h, int item);
+  int (*emit)(void *h, int env, int want_cam, void *out);
 } BlazeFns;
 
 typedef struct EvalCfg {
@@ -112,6 +125,8 @@ typedef struct EvalCfg {
   int op_trace;
   int no_ore_xy;
   int stage; /* 0..4, or EVAL_STAGE_ALL */
+  int transfer; /* EVAL_XFER_CLOSED | EVAL_XFER_REPLAY */
+  char magma_bin[EVAL_STR_MAX];
 } EvalCfg;
 
 typedef struct StageSeedResult {
@@ -174,7 +189,8 @@ static void *must_dlsym(void *lib, const char *name) {
   return p;
 }
 
-static int blaze_fns_load(BlazeFns *f, const char *path, int want_cam_inputs) {
+static int blaze_fns_load(BlazeFns *f, const char *path, int want_cam_inputs,
+                          int want_emit) {
   void *lib;
   if (!f || !path)
     return -1;
@@ -201,9 +217,11 @@ static int blaze_fns_load(BlazeFns *f, const char *path, int want_cam_inputs) {
     f->obs_cam_inputs =
         (BlazeObsCamInputsFn)must_dlsym(lib, "blaze_obs_cam_inputs");
   }
+  if (want_emit)
+    f->emit = (int (*)(void *, int, int, void *))must_dlsym(lib, "blaze_emit");
   if (!f->create || !f->destroy || !f->load_snapshots || !f->assign ||
       !f->reset || !f->step_full || !f->set_success_item ||
-      (want_cam_inputs && !f->obs_cam_inputs)) {
+      (want_cam_inputs && !f->obs_cam_inputs) || (want_emit && !f->emit)) {
     blaze_fns_close(f);
     return -1;
   }
@@ -459,13 +477,16 @@ static void cfg_defaults(EvalCfg *c) {
   (void)str_copy_fit(c->metallib, sizeof(c->metallib), "auto");
   c->warp_tick = 1;
   c->stage = 0;
+  c->transfer = EVAL_XFER_CLOSED;
+  (void)str_copy_fit(c->magma_bin, sizeof(c->magma_bin), "magma/magma_game");
 }
 
 static int cfg_set(EvalCfg *c, const char *key, const char *val) {
   if (!c || !key || !val)
     return -1;
   if (!strcmp(key, "backend")) {
-    if (strcmp(val, "cpu") && strcmp(val, "cuda") && strcmp(val, "metal"))
+    if (strcmp(val, "cpu") && strcmp(val, "cuda") && strcmp(val, "metal") &&
+        strcmp(val, "magma"))
       return -2;
     if (!str_copy_fit(c->backend, sizeof(c->backend), val))
       return -2;
@@ -537,6 +558,22 @@ static int cfg_set(EvalCfg *c, const char *key, const char *val) {
       return -2;
     return 0;
   }
+  if (!strcmp(key, "transfer")) {
+    if (!strcmp(val, "closed")) {
+      c->transfer = EVAL_XFER_CLOSED;
+      return 0;
+    }
+    if (!strcmp(val, "replay")) {
+      c->transfer = EVAL_XFER_REPLAY;
+      return 0;
+    }
+    return -2;
+  }
+  if (!strcmp(key, "magma_bin")) {
+    if (!str_copy_fit(c->magma_bin, sizeof(c->magma_bin), val))
+      return -2;
+    return 0;
+  }
   return -1;
 }
 
@@ -564,6 +601,9 @@ static void cfg_dump(const EvalCfg *c, FILE *out) {
     fprintf(out, "  %-16s = all\n", "stage");
   else
     fprintf(out, "  %-16s = %d\n", "stage", c->stage);
+  fprintf(out, "  %-16s = %s\n", "transfer",
+          c->transfer == EVAL_XFER_REPLAY ? "replay" : "closed");
+  fprintf(out, "  %-16s = %s\n", "magma_bin", c->magma_bin);
 }
 
 static void usage(void) {
@@ -574,7 +614,9 @@ static void usage(void) {
           "  --tries N           best-of-N (default 5)\n"
           "  --ep-ticks N        ticks per episode (default 6000)\n"
           "  --repeat N          action repeat (default 4)\n"
-          "  --backend cpu|cuda|metal\n"
+          "  --backend cpu|cuda|metal|magma\n"
+          "  --transfer closed|replay  magma only (default closed)\n"
+          "  --magma-bin PATH    magma_game (default magma/magma_game)\n"
           "  --device N\n"
           "  --seed N            Gumbel base seed (default 0)\n"
           "  --stage 0|1|2|3|4|all  snap ladder (default 0 = t0)\n"
@@ -583,7 +625,9 @@ static void usage(void) {
           "Run from repo root. Loads schema-1 weights via nn_load.\n"
           "stage 0 loads s{seed}_t0.bsnp (missing file is fatal).\n"
           "stage K loads s{seed}_stg{K}.bsnp; missing prints SKIP, exit 0.\n"
-          "stage all runs 0..4 then a ladder table of new milestones.\n");
+          "stage all runs 0..4 then a ladder table of new milestones.\n"
+          "magma closed: net reads Magma --rl-bin BOLR (64x36 oc_pixel).\n"
+          "magma replay: net reads blaze_cpu; actions replay on Magma.\n");
 }
 
 static int parse_argv(EvalCfg *c, int argc, char **argv, int *dump) {
@@ -632,6 +676,8 @@ static int parse_argv(EvalCfg *c, int argc, char **argv, int *dump) {
         key = "success_item";
       if (!strcmp(key, "metal-max-cells"))
         key = "metal_max_cells";
+      if (!strcmp(key, "magma-bin"))
+        key = "magma_bin";
     } else {
       fprintf(stderr, "eval: unexpected argument '%s'\n", a);
       return -1;
@@ -678,6 +724,10 @@ static void print_stage_report(const EvalCfg *cfg, int stage_k, uint64_t rng_see
   printf("backend %s  rng_protocol nn_sample Gumbel rng_seed=%llu "
          "sample_step=decision ni=seed_index*%d+attempt\n",
          cfg->backend, (unsigned long long)rng_seed, cfg->tries);
+  if (strcmp(cfg->backend, "magma") == 0)
+    printf("transfer %s magma_bin %s camera %dx%d (oc_pixel, not window)\n",
+           cfg->transfer == EVAL_XFER_REPLAY ? "replay" : "closed",
+           cfg->magma_bin, NN_CAM_W, NN_CAM_H);
   n_ok = 0;
   n_ran = 0;
   n_skip = 0;
@@ -756,6 +806,8 @@ static void print_stage_report(const EvalCfg *cfg, int stage_k, uint64_t rng_see
 
 static int eval_run_stage(const EvalCfg *cfg, int stage_k,
                           StageSeedResult *results);
+static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
+                                StageSeedResult *results);
 
 int main(int argc, char **argv) {
   EvalCfg cfg;
@@ -790,6 +842,8 @@ int main(int argc, char **argv) {
     die("nseeds*tries too large");
   if (access(cfg.checkpoint, R_OK) != 0)
     dief("checkpoint not readable: %s", cfg.checkpoint);
+  if (strcmp(cfg.backend, "magma") == 0 && access(cfg.magma_bin, X_OK) != 0)
+    dief("magma_game not executable: %s", cfg.magma_bin);
 
   if (cfg.stage == EVAL_STAGE_ALL) {
     StageSeedResult ladder[5][EVAL_MAX_SEEDS];
@@ -807,6 +861,459 @@ int main(int argc, char **argv) {
     return 0;
   }
   return eval_run_stage(&cfg, cfg.stage, NULL);
+}
+
+static void magma_close_n(EvalMagma **mag, int n) {
+  int i;
+  if (!mag)
+    return;
+  for (i = 0; i < n; ++i) {
+    eval_magma_close(mag[i]);
+    mag[i] = NULL;
+  }
+}
+
+static void magma_lane_fill(const EvalMagmaObs *o, int i, unsigned short *cam,
+                            unsigned char *depth, unsigned char *edge,
+                            float *scal6, float *pose, int *status,
+                            unsigned char *done_buf) {
+  eval_magma_fill_policy(o, cam + (size_t)i * ENV_NPIX,
+                         depth + (size_t)i * ENV_NPIX,
+                         edge + (size_t)i * ENV_NPIX,
+                         pose + (size_t)i * ENV_POSE,
+                         status + (size_t)i * ENV_STATUS,
+                         scal6 + (size_t)i * ENV_SCAL);
+  if (!done_buf)
+    return;
+  if (o->dead)
+    done_buf[i] = 2;
+  else if (o->inv_counts[CR_IX_TORCH] >= 1)
+    done_buf[i] = 1;
+  else
+    done_buf[i] = 0;
+}
+
+static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
+                                StageSeedResult *results) {
+  int n, nsnaps, ep_lim, i, dec, all_done, replay;
+  void *env = NULL;
+  Nn *nn = NULL;
+  NnCreate nd;
+  NnConfig nc;
+  BlazeCreateOpts opts;
+  BlazeFns fns;
+  char err[512];
+  char path_store[EVAL_MAX_SEEDS][EVAL_STR_MAX];
+  const char *paths[EVAL_MAX_SEEDS];
+  int loaded_si[EVAL_MAX_SEEDS];
+  uint8_t skip[EVAL_MAX_SEEDS];
+  int seed_best[EVAL_MAX_SEEDS];
+  int seed_base[EVAL_MAX_SEEDS];
+  int *assign = NULL;
+  unsigned short *cam = NULL;
+  unsigned char *depth = NULL;
+  unsigned char *edge = NULL;
+  float *scal6 = NULL;
+  float *rew = NULL;
+  unsigned char *done_buf = NULL;
+  float *pose = NULL;
+  int *status = NULL;
+  double *act_rows = NULL;
+  uint8_t *planes = NULL;
+  float *scalars = NULL;
+  int32_t *acts = NULL;
+  float *logp = NULL;
+  float *values = NULL;
+  float *logits = NULL;
+  uint8_t *prior_frame = NULL;
+  uint8_t *have_prior = NULL;
+  uint8_t *frame_scratch = NULL;
+  int *ep_dec = NULL;
+  uint8_t *finished = NULL;
+  int *best9 = NULL;
+  int *reached = NULL;
+  int *base_stg = NULL;
+  EvalMagma **mag = NULL;
+  EvalMagmaObs blaze_obs;
+  int *div_step = NULL;
+  char (*div_why)[128] = NULL;
+  int rc_out = 1;
+  uint64_t rng_seed;
+
+  memset(&fns, 0, sizeof(fns));
+  memset(skip, 0, sizeof(skip));
+  memset(seed_best, 0, sizeof(seed_best));
+  memset(seed_base, 0, sizeof(seed_base));
+  memset(loaded_si, 0, sizeof(loaded_si));
+  blaze_create_opts_default(&opts);
+  replay = cfg->transfer == EVAL_XFER_REPLAY;
+  ep_lim = cfg->ep_ticks / cfg->action_repeat;
+  rng_seed = cfg->seed + (uint64_t)stage_k;
+
+  nsnaps = 0;
+  for (i = 0; i < cfg->nseeds; ++i) {
+    if (snap_path(path_store[i], EVAL_STR_MAX, cfg->snaps_dir, cfg->seeds[i],
+                  stage_k) != 0)
+      die("snaps path too long");
+    if (access(path_store[i], R_OK) != 0) {
+      skip[i] = 1;
+      if (stage_k == 0)
+        dief("missing t0 snapshot: %s", path_store[i]);
+      continue;
+    }
+    paths[nsnaps] = path_store[i];
+    loaded_si[nsnaps] = i;
+    nsnaps += 1;
+  }
+
+  if (nsnaps == 0) {
+    if (results) {
+      for (i = 0; i < cfg->nseeds; ++i) {
+        results[i].skip = 1;
+        results[i].base = 0;
+        results[i].abs_end = 0;
+        results[i].torch = 0;
+      }
+    }
+    print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
+    return 0;
+  }
+
+  n = nsnaps * cfg->tries;
+  if (n <= 0)
+    die("nseeds and tries must be positive");
+  if (replay && access(kEnvCpuSo, R_OK) != 0)
+    dief("missing blaze_cpu.so: %s", kEnvCpuSo);
+
+  mag = (EvalMagma **)calloc((size_t)n, sizeof(*mag));
+  div_step = (int *)calloc((size_t)n, sizeof(int));
+  div_why = (char (*)[128])calloc((size_t)n, 128);
+  if (!mag || !div_step || !div_why)
+    die("alloc failed");
+  for (i = 0; i < n; ++i)
+    div_step[i] = -1;
+
+  for (i = 0; i < n; ++i) {
+    int loaded = i / cfg->tries;
+    int si = loaded_si[loaded];
+    mag[i] = eval_magma_open(cfg->magma_bin, paths[loaded], cfg->seeds[si], err,
+                             (int)sizeof(err));
+    if (!mag[i]) {
+      fprintf(stderr, "eval: magma open seed %d: %s\n", cfg->seeds[si], err);
+      goto fail;
+    }
+  }
+
+  if (replay) {
+    opts.ktime = cfg->ktime;
+    opts.stage_time = cfg->stage_time;
+    opts.legacy_recenter = cfg->legacy_recenter;
+    opts.warp_tick = cfg->warp_tick;
+    opts.op_trace = cfg->op_trace;
+    opts.no_ore_xy = cfg->no_ore_xy;
+    if (blaze_fns_load(&fns, kEnvCpuSo, 0, 1) != 0) {
+      fprintf(stderr, "eval: failed to load %s for magma replay\n", kEnvCpuSo);
+      goto fail;
+    }
+    env = fns.create(0, n, &opts);
+    if (!env)
+      die("blaze_create failed");
+    if (fns.set_success_item(env, cfg->success_item) != 0)
+      die("blaze_set_success_item failed");
+    if (fns.load_snapshots(env, paths, nsnaps, err, (int)sizeof(err)) < 0) {
+      fprintf(stderr, "eval: blaze_load_snapshots: %s\n", err);
+      goto fail;
+    }
+  }
+
+  assign = (int *)calloc((size_t)n, sizeof(int));
+  cam = (unsigned short *)calloc((size_t)n * ENV_NPIX, sizeof(*cam));
+  depth = (unsigned char *)calloc((size_t)n * ENV_NPIX, 1);
+  edge = (unsigned char *)calloc((size_t)n * ENV_NPIX, 1);
+  scal6 = (float *)calloc((size_t)n * ENV_SCAL, sizeof(float));
+  rew = (float *)calloc((size_t)n, sizeof(float));
+  done_buf = (unsigned char *)calloc((size_t)n, 1);
+  pose = (float *)calloc((size_t)n * ENV_POSE, sizeof(float));
+  status = (int *)calloc((size_t)n * ENV_STATUS, sizeof(int));
+  act_rows = (double *)calloc((size_t)n * ENV_ACT, sizeof(double));
+  planes = (uint8_t *)calloc((size_t)n * ENV_N_CH * ENV_NPIX, 1);
+  scalars = (float *)calloc((size_t)n * POL_SCAL, sizeof(float));
+  acts = (int32_t *)calloc((size_t)n * POL_HEADS, sizeof(int32_t));
+  logp = (float *)calloc((size_t)n, sizeof(float));
+  values = (float *)calloc((size_t)n, sizeof(float));
+  logits = (float *)calloc((size_t)n * NN_N_LOGITS, sizeof(float));
+  prior_frame = (uint8_t *)calloc((size_t)n * ENV_N_PLANES * ENV_NPIX, 1);
+  have_prior = (uint8_t *)calloc((size_t)n, 1);
+  frame_scratch = (uint8_t *)calloc((size_t)n * ENV_N_PLANES * ENV_NPIX, 1);
+  ep_dec = (int *)calloc((size_t)n, sizeof(int));
+  finished = (uint8_t *)calloc((size_t)n, 1);
+  best9 = (int *)calloc((size_t)n * 9, sizeof(int));
+  reached = (int *)calloc((size_t)n, sizeof(int));
+  base_stg = (int *)calloc((size_t)n, sizeof(int));
+  if (!assign || !cam || !depth || !edge || !scal6 || !rew || !done_buf ||
+      !pose || !status || !act_rows || !planes || !scalars || !acts || !logp ||
+      !values || !logits || !prior_frame || !have_prior || !frame_scratch ||
+      !ep_dec || !finished || !best9 || !reached || !base_stg)
+    die("alloc failed");
+
+  for (i = 0; i < n; ++i)
+    assign[i] = i / cfg->tries;
+  if (replay) {
+    if (fns.assign(env, assign) != 0 || fns.reset(env, NULL) != 0)
+      die("assign/reset failed");
+    for (i = 0; i < n; ++i) {
+      char why[80];
+      if (!mag[i] || div_step[i] >= 0)
+        continue;
+      if (fns.emit(env, i, 1, &blaze_obs) != 0) {
+        div_step[i] = 0;
+        snprintf(div_why[i], sizeof div_why[i], "blaze_emit t=0");
+        continue;
+      }
+      if (eval_magma_cmp_gated(eval_magma_obs(mag[i]), &blaze_obs, why,
+                               (int)sizeof(why)) != 0) {
+        div_step[i] = 0;
+        snprintf(div_why[i], sizeof div_why[i], "t=0 %s", why);
+      }
+    }
+  }
+
+  nc = nn_config_default();
+  nc.rng_seed = rng_seed;
+  nd.backend = NN_BACKEND_CPU;
+  nd.device = 0;
+  nd.max_n = n;
+  nd.config = nc;
+  nn = nn_create(&nd);
+  if (!nn)
+    dief("nn_create: %s", nn_last_error());
+  if (rl_ckpt_load(nn, cfg->checkpoint) != 0)
+    dief("nn_load: %s", nn_last_error());
+
+  for (i = 0; i < n; ++i) {
+    int32_t *a = acts + (size_t)i * POL_HEADS;
+    memset(a, 0, POL_HEADS * sizeof(int32_t));
+    a[0] = 1;
+    a[1] = 1;
+    a[2] = 1;
+  }
+  acts_to_rows(acts, n, act_rows);
+  if (replay) {
+    if (fns.step_full(env, act_rows, cfg->action_repeat, cam, depth, edge,
+                      scal6, rew, done_buf, pose, status) != 0)
+      die("burn-in blaze step failed");
+  }
+  for (i = 0; i < n; ++i) {
+    char why[80];
+    if (!mag[i])
+      continue;
+    if (eval_magma_step(mag[i], act_rows + (size_t)i * ENV_ACT,
+                        cfg->action_repeat) != 0) {
+      if (div_step[i] < 0) {
+        div_step[i] = 1;
+        snprintf(div_why[i], sizeof div_why[i], "magma burn-in step");
+      }
+      eval_magma_close(mag[i]);
+      mag[i] = NULL;
+      continue;
+    }
+    if (replay && div_step[i] < 0) {
+      if (fns.emit(env, i, 1, &blaze_obs) != 0) {
+        div_step[i] = 1;
+        snprintf(div_why[i], sizeof div_why[i], "blaze_emit burn-in");
+      } else if (eval_magma_cmp_gated(eval_magma_obs(mag[i]), &blaze_obs, why,
+                                      (int)sizeof(why)) != 0) {
+        div_step[i] = 1;
+        snprintf(div_why[i], sizeof div_why[i], "burn-in %s", why);
+      }
+    }
+    if (!replay)
+      magma_lane_fill(eval_magma_obs(mag[i]), i, cam, depth, edge, scal6, pose,
+                      status, done_buf);
+  }
+
+  for (i = 0; i < n; ++i) {
+    int k;
+    for (k = 0; k < 9; ++k)
+      best9[(size_t)i * 9 + (size_t)k] = status[(size_t)i * ENV_STATUS + k];
+    base_stg[i] = inv_stage(best9 + (size_t)i * 9);
+    have_prior[i] = 0;
+    ep_dec[i] = 0;
+    finished[i] = 0;
+    reached[i] = 0;
+  }
+
+  for (dec = 0; dec < ep_lim; ++dec) {
+    pack_obs(cam, depth, edge, scal6, pose, status, ep_dec, ep_lim, have_prior,
+             prior_frame, n, planes, scalars, frame_scratch);
+    if (nn_forward(nn, planes, scalars, n, logits, values) != 0)
+      dief("nn_forward: %s", nn_last_error());
+    if (nn_sample(nn, logits, n, NN_SAMPLE_GUMBEL, acts, logp, NULL) != 0)
+      dief("nn_sample: %s", nn_last_error());
+    acts_to_rows(acts, n, act_rows);
+    if (replay) {
+      if (fns.step_full(env, act_rows, cfg->action_repeat, cam, depth, edge,
+                        scal6, rew, done_buf, pose, status) != 0)
+        die("blaze_step_full failed");
+    }
+    for (i = 0; i < n; ++i) {
+      char why[80];
+      if (!mag[i])
+        continue;
+      if (eval_magma_step(mag[i], act_rows + (size_t)i * ENV_ACT,
+                          cfg->action_repeat) != 0) {
+        if (div_step[i] < 0) {
+          div_step[i] = dec + 2;
+          snprintf(div_why[i], sizeof div_why[i], "magma step");
+        }
+        eval_magma_close(mag[i]);
+        mag[i] = NULL;
+        done_buf[i] = 2;
+        continue;
+      }
+      if (replay && div_step[i] < 0) {
+        if (fns.emit(env, i, 1, &blaze_obs) != 0) {
+          div_step[i] = dec + 2;
+          snprintf(div_why[i], sizeof div_why[i], "blaze_emit");
+        } else if (eval_magma_cmp_gated(eval_magma_obs(mag[i]), &blaze_obs, why,
+                                        (int)sizeof(why)) != 0) {
+          div_step[i] = dec + 2;
+          snprintf(div_why[i], sizeof div_why[i], "%s", why);
+        }
+      }
+      if (!replay)
+        magma_lane_fill(eval_magma_obs(mag[i]), i, cam, depth, edge, scal6,
+                        pose, status, done_buf);
+    }
+
+    all_done = 1;
+    for (i = 0; i < n; ++i) {
+      int k;
+      uint8_t *frame;
+      uint8_t *prior;
+      int stg;
+      if (finished[i])
+        continue;
+      for (k = 0; k < 9; ++k) {
+        int v = status[(size_t)i * ENV_STATUS + k];
+        if (v > best9[(size_t)i * 9 + (size_t)k])
+          best9[(size_t)i * 9 + (size_t)k] = v;
+      }
+      frame = frame_scratch + (size_t)i * ENV_N_PLANES * ENV_NPIX;
+      prior = prior_frame + (size_t)i * ENV_N_PLANES * ENV_NPIX;
+      memcpy(prior, frame, (size_t)ENV_N_PLANES * ENV_NPIX);
+      have_prior[i] = 1;
+      ep_dec[i] += 1;
+      if (best9[(size_t)i * 9 + CR_IX_TORCH] >= 1 || done_buf[i] == 1) {
+        reached[i] = CR_N_STAGES;
+        finished[i] = 1;
+        continue;
+      }
+      stg = cr_stage_of_best(best9 + (size_t)i * 9);
+      if (done_buf[i] > 0 || ep_dec[i] >= ep_lim) {
+        reached[i] = stg;
+        finished[i] = 1;
+        continue;
+      }
+      reached[i] = stg;
+      all_done = 0;
+    }
+    if (all_done)
+      break;
+    if ((dec + 1) % 50 == 0 || dec + 1 == ep_lim) {
+      int nfin = 0;
+      for (i = 0; i < n; ++i)
+        nfin += (int)finished[i];
+      fprintf(stderr, "eval: decision %d/%d finished=%d/%d\n", dec + 1, ep_lim,
+              nfin, n);
+    }
+  }
+  for (i = 0; i < n; ++i) {
+    if (!finished[i])
+      reached[i] = cr_stage_of_best(best9 + (size_t)i * 9);
+  }
+
+  for (i = 0; i < cfg->nseeds; ++i) {
+    seed_best[i] = 0;
+    seed_base[i] = 0;
+  }
+  for (i = 0; i < n; ++i) {
+    int loaded = i / cfg->tries;
+    int si = loaded_si[loaded];
+    if (reached[i] > seed_best[si])
+      seed_best[si] = reached[i];
+    if ((i % cfg->tries) == 0)
+      seed_base[si] = base_stg[i];
+  }
+
+  if (replay) {
+    int n_match = 0, n_ran = 0;
+    printf("replay magma --rl-bin vs blaze_cpu gated BOLR (cam/inv/pose/"
+           "hotbar/coal/dead)\n");
+    for (i = 0; i < n; ++i) {
+      int loaded = i / cfg->tries;
+      int si = loaded_si[loaded];
+      int attempt = i % cfg->tries;
+      n_ran += 1;
+      if (div_step[i] < 0) {
+        n_match += 1;
+        printf("seed %3d try %d: MATCH\n", cfg->seeds[si], attempt);
+      } else {
+        printf("seed %3d try %d: DIVERGE step=%d %s\n", cfg->seeds[si],
+               attempt, div_step[i], div_why[i]);
+      }
+    }
+    printf("MATCH %d/%d (step 0=t0, 1=burn-in, 2+=policy decision)\n", n_match,
+           n_ran);
+    fflush(stdout);
+  }
+
+  if (results) {
+    for (i = 0; i < cfg->nseeds; ++i) {
+      results[i].skip = skip[i] ? 1 : 0;
+      results[i].base = seed_base[i];
+      results[i].abs_end = seed_best[i];
+      results[i].torch = seed_best[i] >= CR_N_STAGES;
+    }
+  }
+  print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
+  rc_out = 0;
+
+fail:
+  magma_close_n(mag, n);
+  free(mag);
+  free(div_step);
+  free(div_why);
+  free(assign);
+  free(cam);
+  free(depth);
+  free(edge);
+  free(scal6);
+  free(rew);
+  free(done_buf);
+  free(pose);
+  free(status);
+  free(act_rows);
+  free(planes);
+  free(scalars);
+  free(acts);
+  free(logp);
+  free(values);
+  free(logits);
+  free(prior_frame);
+  free(have_prior);
+  free(frame_scratch);
+  free(ep_dec);
+  free(finished);
+  free(best9);
+  free(reached);
+  free(base_stg);
+  if (nn)
+    nn_destroy(nn);
+  if (env && fns.destroy)
+    fns.destroy(env);
+  blaze_fns_close(&fns);
+  return rc_out;
 }
 
 static int eval_run_stage(const EvalCfg *cfg, int stage_k,
@@ -881,6 +1388,9 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
    * among snapshots that exist. */
   rng_seed = cfg->seed + (uint64_t)stage_k;
 
+  if (strcmp(cfg->backend, "magma") == 0)
+    return eval_run_stage_magma(cfg, stage_k, results);
+
   if (strcmp(cfg->backend, "cpu") == 0) {
     is_cuda = 0;
     is_metal = 0;
@@ -947,7 +1457,7 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
   if (n <= 0)
     die("nseeds and tries must be positive");
 
-  if (blaze_fns_load(&fns, so_path, want_cam) != 0) {
+  if (blaze_fns_load(&fns, so_path, want_cam, 0) != 0) {
     fprintf(stderr,
             "eval: failed to load env library for backend=%s (path=%s); "
             "no fallback\n",

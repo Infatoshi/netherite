@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last documented: 2026-08-26 magma 13-seed transfer (`retrain_0821_best.bin` closed == cpu == cuda, 0/13 torches; replay MATCH 56/65. `ppo_ckpt_best.bin` closed t0:13; replay MATCH 45/65. Cam-px DIVERGE not blessed). No new M1/M2.
 Last verified: lane/blocklight 2026-08-25 (Sweep row 3: World.checkLightFor BLOCK flood. test_blocklight matches magma Manhattan 0..14. Fluids M2 raw/warp/scalar VERIFIED after moving CU_LIGHT_Q off the CUDA thread stack. listed --no-deps M1 27 VERIFIED; M2 27 VERIFIED; mining_slice M1+M2 BLOCKED rc=3. Root make test PASS. SNAP v11 unchanged. No BP_ light digest.)
 Last verified: lane/potions 2026-08-24 (Sweep row 13: SNAP v11 potion trailer after resume v10. Magma skip double fire decrement on shared hostile path. potions M1+M2 VERIFIED 120 raw/warp/scalar + resume N=90 M=30 dump version=11. listed --no-deps M1 27 VERIFIED; M2 27 VERIFIED; mining_slice BLOCKED: s14_t0_r48_no_liquid.bsnp is a v1 bake, 12 *_d*.bsnp present. Root make test PASS.)
 Last verified: lane/resumegate 2026-08-23 (Sweep rows 4 and 8: snapshot v10 resume trailers + mob sidecars. continuous-vs-resume BP_ gate. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar except mining_slice BLOCKED missing *_d*.bsnp).
@@ -122,15 +123,55 @@ Two consequences worth stating plainly:
   48-point path cap), IntHashMap aliasing reproduced, all 8 detmob tapes
   must be blaze-exact.
 
+## Spawn -> dragon (policy vs magma)
+
+A policy in blaze CUDA cannot complete magma `PRODUCT.md` steps 3-9
+(Nether portal, fortress/rods, eyes, stronghold, End, dragon, `won`)
+while matching magma. Gate 2 accepts spawn->torch. `docs/GATES.md`
+forbids dragon-fight RL. Isolated kernels (`nether_portal.h`,
+`end_portal.h`, `nether_full.h`, `chunk_provider_nether.h`,
+`ender_dragon.h`) are CPU==CUDA units; they are not `blaze_tick`.
+Java-vs-magma leftovers on that same route stay in
+`magma/OPEN_DIVERGENCES.md` (stronghold L, tick order M, detmob nether
+A*, class A pixels). Do not file missing Nether/End in this env as a
+magma bug.
+
+| PRODUCT step | Blaze env | Where |
+|---|---|---|
+| Overworld spawn, dig, craft, furnace, chests, fluids, TNT, overworld hostiles | yes, M1+M2 inside a `.bsnp` | Verified rows |
+| Food / bed / buckets / flint / portal ignite | buckets tick but are not in `rl_crafts`; fire->portal follower not ported; `dimension` is always 0; id 51 edits unreachable | `blaze_core.h` (`cu_world_set_state` follower); sweep 2 |
+| Linked Nether / End | no | unported `portals_dimensions`, `nether_route` |
+| Fortress, blaze, ghast, pigman, magma cube, wither skeleton, silverfish | type tags exist (`entity_hostile_spine.h`); spawn table and live AI in the env are overworld only | `hostile_spawn.h` `hs_to_ew`; `blaze_core.h` header |
+| Throw eyes of ender / fireballs | magma-only | projectiles close note |
+| Stronghold hunt, end-portal frames, enter End | no dimension in the env. Magma vs Java stronghold is magma OPEN sweep 1 | magma `OPEN_DIVERGENCES.md` |
+| Dragon, crystals, bed explode in DIM -1/1, exit portal, `won` | `ender_dragon.h` is a 200-tick fixed arena (no block destruction, no contact damage), not wired into `blaze_tick`. Bed explode in Nether/End is magma-only | unported `dragon_victory`; `player_bed.h` |
+
+Even on overworld snapshots, a trained policy does not see or act as
+magma `player_ctl`:
+
+- Sweep 1: episode region is the snapshot (`cu_region_idx`,
+  `cu_recenter`); magma streams chunks. L.
+- Sweep 2: no strafe, sneak, sprint, or slot-click. Camera planes are
+  log / leaves / coal / stone / dirt / table / occupancy / depth /
+  edge (`obs_pack.h` `pack_frame`). No mob, light, or health plane.
+- Sweep 6: death is terminal.
+- Detmob A* is magma-CPU (above).
+- M1/M2 are BP_ digests inside that region, not a streamed survival
+  world.
+
+Closing the port-matrix DAG does not by itself make a dragon policy:
+sweep 1 and 2 still block long-horizon transfer. An isolated kernel
+PASS is not env support.
+
 ## Sweep 2026-08-23 (codex full read, magma -> blaze; unverified by gate unless noted)
 
 Ranked by RL fidelity. Each row: magma site; blaze site or absent; what
 closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
 
-1. Episode region is fixed; no chunk streaming (`blaze/env/blaze_core.h:
-   456-516, 4652-4659`). Magma streams chunks around the player. Every
-   row is VERIFIED only inside the snapshot region. L; blocks long-horizon
-   transfer.
+1. Episode region is fixed; no chunk streaming (`cu_region_idx`,
+   `cu_recenter` in `blaze/env/blaze_core.h`). Magma streams chunks around
+   the player. Every row is VERIFIED only inside the snapshot region. L;
+   blocks long-horizon transfer. See "Spawn -> dragon" above.
 2. Policy actions are privileged helpers (craft/interact/smelt in
    `blaze/rl/obs_pack.h:20-51`); no strafe, sneak, sprint, or slot-click
    as magma `player_ctl` sees them. `do_place` is reachable: RL `a[8]` is
@@ -228,8 +269,14 @@ Observation exposes no mob, light, or health planes.
 
 - Native ppo spawn->torch t0 is 0.215 (chain4 curriculum, 510M ticks) vs the
   0.4 target; stage4->torch is 8/8 seeds. GATES row 1.
-- No native transfer/eval of `ppo_ckpt.bin` into magma (torch eval scripts
-  removed). GATES row 2.
+- Native magma eval is wired (`eval --backend magma --transfer closed|replay`)
+  and the 32-tick BOLR harness is `make -C blaze/rl test-eval-magma`.
+  13-seed tries=5 n=65 (gamer 2026-08-26): `retrain_0821_best.bin` magma
+  closed == cpu == cuda (torches 0/13, t0:6 logs3:7). Replay MATCH 56/65;
+  9 DIVERGE all cam 1-5 px, not blessed. `ppo_ckpt_best.bin` magma
+  closed == cpu == cuda t0:13; replay MATCH 45/65. Camera stays compile-time 64x36
+  (`oc_pixel`); `--rl-bin` is not a resolution flag. GATES row 2. Gate 2
+  accept stays open (0 torches).
 - Python still owns replay/pixels/M2 verify; no binary tape; no root
   `make verify`. GATES row 13.
 - Blaze native Metal tick (M3) is sequenced after CUDA survival rows pass
