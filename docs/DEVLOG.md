@@ -23,8 +23,9 @@ s27 t0 137 / 1; s27 t1 38 / 1; s32 t1 1007 / 2; s44 t0 146 / 5;
 s44 t3 361 / 4; s46 t0 422 / 2. Replay milestones equal cpu (policy
 reads blaze_cpu).
 
-`ppo_ckpt_best.bin` cpu==cuda: t0:13, torches 0/13. Magma replay+closed
-still running on gamer (`eval-magma-ladder`).
+`ppo_ckpt_best.bin` cpu==cuda==magma-closed: t0:13, torches 0/13.
+Magma replay MATCH 45/65 (cam-px DIVERGE, not blessed). Ladder
+`ALL_DONE` 2026-08-26T05:54:10-06:00.
 
 Gate 2 accept stays OPEN. These nets place 0 torches on Magma.
 
