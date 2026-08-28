@@ -941,6 +941,100 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
     }
 }
 
+/* Phase-split of k_tick_warp: one kernel per begin / recenter / phys / coal /
+ * post so nvcc allocates registers per phase. Same 1-env-per-warp mapping
+ * and the same statement order. Stream-ordered launches replace the fused
+ * __syncwarp between phys and coal. e->done is the exec flag. Coal writes
+ * dec_have_nc / dec_ry / dec_rp / dec_dist for post. */
+#define CU_WARP_TPB 128
+static unsigned cu_warp_grid(int n) {
+    return (unsigned)(((size_t)n * 32 + (CU_WARP_TPB - 1)) / CU_WARP_TPB);
+}
+
+__global__ void k_tick_begin(Blaze *envs, int n, const McSinTable *st,
+                             const double *actions, const CRRecipe *recipes,
+                             int nrecipes, const double *inv) {
+    const unsigned FULL = 0xffffffffu;
+    int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
+    int lane = (int)(threadIdx.x & 31u);
+    int exec = 0;
+    if (w >= n) return;
+    Blaze *e = &envs[w];
+    const double *a = actions + (size_t)w * BLAZE_ACT_HEADS;
+    if (lane == 0)
+        exec = blaze_decision_begin(e, st, a, recipes, nrecipes);
+    exec = __shfl_sync(FULL, exec, 0);
+    if (lane == 0 && exec)
+        cu_apply_inv_click(e, inv, w);
+}
+
+__global__ void k_tick_recenter(Blaze *envs, int n) {
+    const unsigned FULL = 0xffffffffu;
+    int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
+    int lane = (int)(threadIdx.x & 31u);
+    int need = 0, ccx = 0, ccz = 0, dcx = 0, dcz = 0;
+    if (w >= n) return;
+    Blaze *e = &envs[w];
+    if (lane == 0 && !e->done && !e->dead &&
+        cu_recenter_pose(e, &dcx, &dcz)) {
+        need = 1;
+        ccx = e->ccx;
+        ccz = e->ccz;
+    }
+    need = __shfl_sync(FULL, need, 0);
+    if (need) {
+        ccx = __shfl_sync(FULL, ccx, 0);
+        ccz = __shfl_sync(FULL, ccz, 0);
+        dcx = __shfl_sync(FULL, dcx, 0);
+        dcz = __shfl_sync(FULL, dcz, 0);
+        __syncwarp();
+        cu_recenter_fill(e, ccx, ccz, dcx, dcz, lane, 32);
+        __syncwarp();
+    }
+}
+
+__global__ void k_tick_phys(Blaze *envs, int n, const McSinTable *st,
+                            const double *actions, int rep, int repeat,
+                            McAABB *aabb_pool) {
+    int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
+    int lane = (int)(threadIdx.x & 31u);
+    double fx = 0.0, fy = 0.0, fz = 0.0;
+    if (w >= n) return;
+    Blaze *e = &envs[w];
+    if (lane != 0 || e->done) return;
+    blaze_subtick_phys(e, st, actions + (size_t)w * BLAZE_ACT_HEADS,
+                       rep, repeat, aabb_pool + (size_t)w * PSV_MAX_BLOCKS,
+                       0, &fx, &fy, &fz);
+}
+
+__global__ void k_tick_coal(Blaze *envs, int n) {
+    int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
+    int lane = (int)(threadIdx.x & 31u);
+    int have_nc = 0;
+    double ry = 0.0, rp = 0.0, dist = 0.0;
+    if (w >= n) return;
+    Blaze *e = &envs[w];
+    if (e->done) return;
+    cu_coal_warp(e, lane, &have_nc, &ry, &rp, &dist);
+    if (lane == 0) {
+        e->dec_have_nc = have_nc;
+        e->dec_ry = ry;
+        e->dec_rp = rp;
+        e->dec_dist = dist;
+    }
+}
+
+__global__ void k_tick_post(Blaze *envs, int n, int rep, int repeat,
+                            double atk_gate) {
+    int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
+    int lane = (int)(threadIdx.x & 31u);
+    if (w >= n) return;
+    Blaze *e = &envs[w];
+    if (lane != 0 || e->done) return;
+    blaze_subtick_post(e, rep, repeat, atk_gate, e->dec_have_nc,
+                       e->dec_ry, e->dec_rp, e->dec_dist);
+}
+
 /* Pre-cooperative kernel, selectable at CREATE time (BLAZE_LEGACY_RECENTER=1)
  * for A/B benching; zero cost on the default path (host-side launch pick). */
 __global__ void k_tick_legacy(Blaze *envs, int n, const McSinTable *st,
@@ -1758,6 +1852,24 @@ int blaze_reset(void *vh, const unsigned char *mask) {
     return cu_ck(cudaStreamSynchronize(v->stream), "k_reset");
 }
 
+/* Phase-split warp tick: begin once, then recenter/phys/coal/post per rep. */
+static void cu_launch_tick_warp_split(CuVecCu *v, Blaze *envs, int n,
+                                      const double *act, int repeat,
+                                      McAABB *aabb, const double *inv) {
+    unsigned g = cu_warp_grid(n);
+    int rep;
+    k_tick_begin<<<g, CU_WARP_TPB, 0, v->stream>>>(
+        envs, n, v->d_st, act, v->d_recipes, v->nrecipes, inv);
+    for (rep = 0; rep < repeat; ++rep) {
+        k_tick_recenter<<<g, CU_WARP_TPB, 0, v->stream>>>(envs, n);
+        k_tick_phys<<<g, CU_WARP_TPB, 0, v->stream>>>(
+            envs, n, v->d_st, act, rep, repeat, aabb);
+        k_tick_coal<<<g, CU_WARP_TPB, 0, v->stream>>>(envs, n);
+        k_tick_post<<<g, CU_WARP_TPB, 0, v->stream>>>(
+            envs, n, rep, repeat, v->atk_gate);
+    }
+}
+
 /* blaze_step + an optional int32[n][CU_STATUS_K] status readout (device
  * pointer; the 9 rl_inv_ids counts, hotbar_sel, held item id, container).
  * status == NULL is the legacy blaze_step. */
@@ -1778,12 +1890,8 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                                         repeat, v->d_aabb, v->d_recipes,
                                         v->nrecipes, v->atk_gate);
     else if (v->warp_tick)
-        k_tick_warp<<<(unsigned)(((size_t)v->n * 32 + 127) / 128), 128, 0,
-                      v->stream>>>(v->d_envs, v->n, v->d_st, actions,
-                                   repeat, v->d_aabb, v->d_recipes,
-                                   v->nrecipes, v->atk_gate,
-                                   v->stage_time ? v->d_stage_cycles : NULL,
-                                   NULL);
+        cu_launch_tick_warp_split(v, v->d_envs, v->n, actions, repeat,
+                                  v->d_aabb, NULL);
     else
         k_tick<<<(v->n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(v->d_envs, v->n, v->d_st, actions, repeat,
@@ -2420,11 +2528,7 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                                         v->d_recipes, v->nrecipes,
                                         v->atk_gate);
     else if (v->warp_tick)
-        k_tick_warp<<<(unsigned)(((size_t)n * 32 + 127) / 128), 128, 0,
-                      v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
-                                   v->d_recipes, v->nrecipes, v->atk_gate,
-                                   v->stage_time ? v->d_stage_cycles : NULL,
-                                   inv);
+        cu_launch_tick_warp_split(v, envs, n, act, repeat, aabb, inv);
     else
         k_tick<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
