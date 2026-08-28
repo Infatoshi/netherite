@@ -28,20 +28,27 @@ CUDA_CPPFLAGS := $(CPPFLAGS) -I$(CUDA_HOME)/include -DNN_HAVE_CUDA=1
 NVCCFLAGS := -O2 -arch=sm_$(SM_NUM) $(CUDA_CPPFLAGS) -std=c++17 \
 	--fmad=false -Xcompiler -ffp-contract=off
 CUDA_LIBS := -L$(CUDA_HOME)/lib64 \
-	-L$(CUDA_HOME)/targets/x86_64-linux/lib -lcudnn -lcublas -lcudart -lm
+	-L$(CUDA_HOME)/targets/x86_64-linux/lib \
+	-lcudnn -lcublas -lcublasLt -lcudart -lm
 
 CPU_OBJS := $(CPU_OUT)/nn.o $(CPU_OUT)/cpu.o $(CPU_OUT)/fixture.o
 METAL_OBJS := $(METAL_OUT)/nn.o $(METAL_OUT)/cpu.o \
 	$(METAL_OUT)/fixture.o $(METAL_OUT)/metal.o
 CUDA_OBJS := $(CUDA_OUT)/nn.o $(CUDA_OUT)/cpu.o \
-	$(CUDA_OUT)/fixture.o $(CUDA_OUT)/cuda.o
+	$(CUDA_OUT)/fixture.o $(CUDA_OUT)/cuda.o \
+	$(CUDA_OUT)/cuda_ws.o $(CUDA_OUT)/cuda_conv_graph.o \
+	$(CUDA_OUT)/cuda_lt_gemm.o $(CUDA_OUT)/cuda_layout.o
 
 CPU_BIN := $(CPU_OUT)/test_cpu
 SAN_BIN := $(SAN_OUT)/test_cpu
 METAL_BIN := $(METAL_OUT)/test_metal
 CUDA_BIN := $(CUDA_OUT)/test_cuda
+CUDA_CONV_BIN := $(CUDA_OUT)/test_cuda_conv_graph
+CUDA_LT_BIN := $(CUDA_OUT)/test_cuda_lt_gemm
+CUDA_LAYOUT_BIN := $(CUDA_OUT)/test_cuda_layout
 
-.PHONY: all cpu metal cuda test test-sanitize test-metal test-cuda clean
+.PHONY: all cpu metal cuda test test-sanitize test-metal test-cuda \
+	test-cuda-conv test-cuda-lt test-cuda-layout clean
 
 all: cpu
 cpu: $(CPU_BIN)
@@ -92,11 +99,40 @@ $(CUDA_OUT)/cpu.o: cpu.c cpu.h nn.h model.h fixture.h | $(CUDA_OUT)
 $(CUDA_OUT)/fixture.o: fixture.c fixture.h model.h nn.h | $(CUDA_OUT)
 	$(CC) $(CFLAGS) $(CUDA_CPPFLAGS) -c -o $@ $<
 
-$(CUDA_OUT)/cuda.o: cuda.cu cuda.h nn.h model.h fixture.h | $(CUDA_OUT)
+$(CUDA_OUT)/cuda.o: cuda.cu cuda.h nn.h model.h fixture.h \
+	cuda_conv_graph.h cuda_lt_gemm.h cuda_layout.h cuda_ws.h | $(CUDA_OUT)
+	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
+
+$(CUDA_OUT)/cuda_ws.o: cuda_ws.cu cuda_ws.h | $(CUDA_OUT)
+	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
+
+$(CUDA_OUT)/cuda_conv_graph.o: cuda_conv_graph.cu cuda_conv_graph.h \
+	cuda_ws.h cuda_fable_contract.h | $(CUDA_OUT)
+	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
+
+$(CUDA_OUT)/cuda_lt_gemm.o: cuda_lt_gemm.cu cuda_lt_gemm.h cuda_ws.h \
+	cuda_fable_contract.h | $(CUDA_OUT)
+	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
+
+$(CUDA_OUT)/cuda_layout.o: cuda_layout.cu cuda_layout.h model.h | $(CUDA_OUT)
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
 
 $(CUDA_BIN): test_cuda.cu $(CUDA_OBJS)
 	$(NVCC) $(NVCCFLAGS) -o $@ test_cuda.cu $(CUDA_OBJS) $(CUDA_LIBS)
+
+$(CUDA_CONV_BIN): test_cuda_conv_graph.cu $(CUDA_OUT)/cuda_ws.o \
+	$(CUDA_OUT)/cuda_conv_graph.o | $(CUDA_OUT)
+	$(NVCC) $(NVCCFLAGS) -o $@ test_cuda_conv_graph.cu \
+		$(CUDA_OUT)/cuda_ws.o $(CUDA_OUT)/cuda_conv_graph.o $(CUDA_LIBS)
+
+$(CUDA_LT_BIN): test_cuda_lt_gemm.cu $(CUDA_OUT)/cuda_ws.o \
+	$(CUDA_OUT)/cuda_lt_gemm.o | $(CUDA_OUT)
+	$(NVCC) $(NVCCFLAGS) -o $@ test_cuda_lt_gemm.cu \
+		$(CUDA_OUT)/cuda_ws.o $(CUDA_OUT)/cuda_lt_gemm.o $(CUDA_LIBS)
+
+$(CUDA_LAYOUT_BIN): test_cuda_layout.cu $(CUDA_OUT)/cuda_layout.o | $(CUDA_OUT)
+	$(NVCC) $(NVCCFLAGS) -o $@ test_cuda_layout.cu \
+		$(CUDA_OUT)/cuda_layout.o $(CUDA_LIBS)
 
 test: $(CPU_BIN)
 	$(CPU_BIN)
@@ -109,6 +145,15 @@ test-metal: $(METAL_BIN)
 
 test-cuda: $(CUDA_BIN)
 	$(CUDA_BIN)
+
+test-cuda-conv: $(CUDA_CONV_BIN)
+	$(CUDA_CONV_BIN)
+
+test-cuda-lt: $(CUDA_LT_BIN)
+	$(CUDA_LT_BIN)
+
+test-cuda-layout: $(CUDA_LAYOUT_BIN)
+	$(CUDA_LAYOUT_BIN)
 
 clean:
 	rm -rf $(OUT)

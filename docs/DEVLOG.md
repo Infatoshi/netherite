@@ -1,5 +1,81 @@
 # DEVLOG (compressed)
 
+## 2026-08-26 Fable trainer remasure (not merged)
+
+Same harness as the pre-Fable chart: anvil gpu0 exclusive, spawn t0
+fixture, T=8 R=4, first-steady chunk, pre-Fable `blaze_cuda.so`. Chart:
+`blaze/rl/figures/spawn_throughput.png` (overlay in
+`spawn_throughput_prefable.json`).
+
+```
+N     Fable   pre
+128    43k    40k
+256    68k    63k
+512    95k    84k
+1024  117k   103k
+2048  120k     --
+```
+
+nn 2.1-2.5x. e2e +6-13%. env still most of the chunk. N=2048 now creates.
+
+## 2026-08-27 k_tick_warp NCU (anvil gpu0, not merged)
+
+N=2048 R=4 warp_tick=1, same t0 fixture, tick-only stepper (no PPO).
+Uninstrumented step 17.4-18.1 ms. ncu 2026.2.1 application replay,
+launch 3: 19.14 ms.
+
+SM 10.89%, DRAM 3.01% (51 GB/s), L1/L2 hit 92/83%. Occupancy
+theoretical 16.67% (255 regs, 2 blk/SM), achieved 13.96%. Active
+threads/warp 1.42. Scheduler 86% no-eligible. Stalls: L1TEX long
+scoreboard 44%, fixed-latency wait 31%, branch 12%, barrier 0.
+FP64 fuse estimate +2%. Report:
+`nlanes/nn-fable/out/blaze/rl/tput/k_tick_warp_n2048.ncu-rep`.
+
+## 2026-08-26 Fable CUDA trainer path (not merged)
+
+Lanes A/B/C plus parent wire. Policy: NHWC+KRSC, cuDNN 9 graph
+conv+bias+ReLU, timed top-K=8, cublasLt TF32, FC slices, y>0 ReLU bwd,
+grow-only workspace. Banned Get_v7 / Find / pack / serial bias-grad.
+
+Parent retest on anvil gpu0 (`netherite-nn-fable`):
+- `test-cuda-conv` PASS, FWD max_err=1.76e-3. Winners TENSOR_CORE ~13-19 us
+  (old FFT fprop was ~18 ms).
+- `test-cuda-lt` PASS.
+- `test-cuda-layout` PASS, relu_bwd grids 240 and 196.
+- `test-cuda` PASS. Forward max_abs=2.03e-3 vs CPU fp32 (limit now 5e-3 for
+  TF32). Update grad_norm rel=2.3e-4. No e2e trainer t/s claimed.
+
+Not merged. `cuda.cu` now calls the new units. Host ABI unchanged.
+
+## 2026-08-26 spawn trainer throughput (anvil gpu1)
+
+Question: why spawn-to-torch is tens of minutes, and whether that is sim or
+policy at the largest N that fits.
+
+Measured native `ppo` CUDA on RTX PRO 6000, fixture
+`s10_t0_r64_no_liquid.bsnp`, `warp_tick=1`. First-steady-chunk after warmup:
+
+| N | T | R | kernel t/s | trainer t/s | chunk split (pack/nn/env/host/upd ms) |
+|---|---|---|---|---|---|
+| 128 | 8 | 4 | 57k | 40k | 4.6 / 10 / 73 / 5 / 9 |
+| 256 | 8 | 4 | 114k | 63k | 9.5 / 16 / 75 / 9 / 20 |
+| 512 | 8 | 4 | 222k | 84k | 22 / 30 / 79 / 22 / 41 |
+| 1024 | 8 | 4 | (straggler) | 103k | 49 / 58 / 87 / 42 / 83 |
+
+k_tick stays ~9 ms from N=128-512 (GPU not full). Trainer e2e crosses from
+sim-bound to host+policy-bound at N=512. Native CUDA nn arenas scale with
+`n_envs*rollout_steps` (~0.5 MB/sample): T=32 dies at N>=1024 (cudnn / cudaMalloc).
+N=8192 region pool 51.5 GB also fails once other pools are in. M3 sim-only 4.06M
+at N=8192 is a different N that this trainer binary cannot attach a policy to.
+
+Long T=32 chunks and `action_repeat=8` let a random policy create k_tick
+stragglers (172-550 ms/step vs 9 ms spawn-start). Figure:
+`blaze/rl/figures/spawn_throughput.png`. Sweep:
+`blaze/rl/sweep_spawn_throughput.sh`.
+
+gpu0 was wedged at 100% util / 1 MiB / no PID after a Torch+ctypes sim-only
+hang; `nvidia-smi --gpu-reset -i 0` needs permissions. Later work used gpu1.
+
 ## 2026-08-26 validation host is anvil
 
 Linux validation (magma CPU, `make test`, tape replay, blaze M1/M2, eval)

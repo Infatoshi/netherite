@@ -476,7 +476,9 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
                        const TrainConfig *cfg, BlazeFns *fns, CrState *cr,
                        CrCurr *curr, int use_curr, int n, int T, int chunk,
                        int64_t *cap_last, uint8_t *t0_trail, int *t0_n,
-                       int *t0_i, int *n_eps, struct RolloutBuf *b) {
+                       int *t0_i, int *n_eps, struct RolloutBuf *b,
+                       double *ms_pack, double *ms_nn, double *ms_env,
+                       double *ms_host) {
 #define malloc(...) TR_NO_ALLOC_IN_ROLLOUT
 #define calloc(...) TR_NO_ALLOC_IN_ROLLOUT
 #define realloc(...) TR_NO_ALLOC_IN_ROLLOUT
@@ -484,21 +486,39 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
   int t, i;
   int nseeds = b->nseeds;
   int any_reset;
+  double t0, t1;
+  double acc_pack = 0.0, acc_nn = 0.0, acc_env = 0.0, acc_host = 0.0;
+
+  if (ms_pack)
+    *ms_pack = 0.0;
+  if (ms_nn)
+    *ms_nn = 0.0;
+  if (ms_env)
+    *ms_env = 0.0;
+  if (ms_host)
+    *ms_host = 0.0;
 
   for (t = 0; t < T; ++t) {
     size_t off = (size_t)t * (size_t)n;
 
+    t0 = wall_sec();
     pack_obs(b->cam, b->depth, b->edge, b->scal6, b->pose, b->status,
              b->ep_dec, cfg->ep_dec, b->have_prior, b->prior_frame, n,
              b->planes_cur, b->scal_cur, b->frame_scratch);
+    t1 = wall_sec();
+    acc_pack += t1 - t0;
 
+    t0 = t1;
     if (nn_forward(nn, b->planes_cur, b->scal_cur, n, b->logits, b->val_cur) !=
         0)
       return -1;
     if (nn_sample(nn, b->logits, n, NN_SAMPLE_GUMBEL, b->acts_cur, b->logp_cur,
                   NULL) != 0)
       return -2;
+    t1 = wall_sec();
+    acc_nn += t1 - t0;
 
+    t0 = t1;
     for (i = 0; i < n; ++i) {
       if (b->burnin[i]) {
         int32_t *a = b->acts_cur + (size_t)i * POL_HEADS;
@@ -518,12 +538,17 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
            (size_t)n * POL_HEADS * sizeof(int32_t));
     memcpy(b->logp_roll + off, b->logp_cur, (size_t)n * sizeof(float));
     memcpy(b->val_roll + off, b->val_cur, (size_t)n * sizeof(float));
+    acc_host += wall_sec() - t0;
 
+    t0 = wall_sec();
     acts_to_rows(b->acts_cur, n, b->act_rows);
     if (env_step(estep, env, b->act_rows, cfg->action_repeat, b->cam, b->depth,
                  b->edge, b->scal6, b->rew, b->done_buf, b->pose,
                  b->status) != 0)
       return -3;
+    t1 = wall_sec();
+    acc_env += t1 - t0;
+    t0 = t1;
 
     /* After assign+reset, burn-in is the first step into the new snap.
      * Seed best[] from that inventory so first-time bonuses are not re-paid. */
@@ -671,15 +696,28 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
           return -6;
       }
     }
+    acc_host += wall_sec() - t0;
   }
 
   /* Bootstrap value at the post-chunk observation. */
+  t0 = wall_sec();
   pack_obs(b->cam, b->depth, b->edge, b->scal6, b->pose, b->status, b->ep_dec,
            cfg->ep_dec, b->have_prior, b->prior_frame, n, b->planes_cur,
            b->scal_cur, b->frame_scratch);
+  acc_pack += wall_sec() - t0;
+  t0 = wall_sec();
   if (nn_forward(nn, b->planes_cur, b->scal_cur, n, b->logits, b->next_val) !=
       0)
     return -1;
+  acc_nn += wall_sec() - t0;
+  if (ms_pack)
+    *ms_pack = acc_pack * 1000.0;
+  if (ms_nn)
+    *ms_nn = acc_nn * 1000.0;
+  if (ms_env)
+    *ms_env = acc_env * 1000.0;
+  if (ms_host)
+    *ms_host = acc_host * 1000.0;
   return 0;
 #undef malloc
 #undef calloc
@@ -1322,37 +1360,49 @@ int main(int argc, char **argv) {
     if (split_nn && nn_set_config(nn_upd, &nc) != 0)
       dief("nn_set_config upd: %s", nn_last_error());
 
-    rc = run_rollout(nn_roll, env, &estep, &cfg, &fns, &cr,
-                     use_curr ? &curr : NULL, use_curr, n, T, chunk, cap_last,
-                     t0_trail, &t0_n, &t0_i, &n_eps, &b);
-    if (rc == -1)
-      dief("nn_forward: %s", nn_last_error());
-    if (rc == -2)
-      dief("nn_sample: %s", nn_last_error());
-    if (rc == -3)
-      die("blaze_step_full failed");
-    if (rc == -5)
-      die("blaze_capture failed");
-    if (rc == -6)
-      die("reset/assign failed");
-    if (rc != 0)
-      die("rollout failed");
+    {
+      double ms_pack = 0.0, ms_nn = 0.0, ms_env = 0.0, ms_host = 0.0;
+      double t_upd0, ms_upd;
+      rc = run_rollout(nn_roll, env, &estep, &cfg, &fns, &cr,
+                       use_curr ? &curr : NULL, use_curr, n, T, chunk, cap_last,
+                       t0_trail, &t0_n, &t0_i, &n_eps, &b, &ms_pack, &ms_nn,
+                       &ms_env, &ms_host);
+      if (rc == -1)
+        dief("nn_forward: %s", nn_last_error());
+      if (rc == -2)
+        dief("nn_sample: %s", nn_last_error());
+      if (rc == -3)
+        die("blaze_step_full failed");
+      if (rc == -5)
+        die("blaze_capture failed");
+      if (rc == -6)
+        die("reset/assign failed");
+      if (rc != 0)
+        die("rollout failed");
 
-    cr_gae(b.rew_roll, b.term_roll, b.cut_roll, b.val_roll, b.next_val,
-           cfg.gamma, cfg.lam, T, n, b.adv_roll, b.ret_roll);
+      cr_gae(b.rew_roll, b.term_roll, b.cut_roll, b.val_roll, b.next_val,
+             cfg.gamma, cfg.lam, T, n, b.adv_roll, b.ret_roll);
 
-    if (split_nn) {
-      if (nn_copy_weights(nn_roll, nn_upd, cfg.checkpoint) != 0)
-        dief("weight sync roll->upd: %s", nn_last_error());
-    }
+      if (split_nn) {
+        if (nn_copy_weights(nn_roll, nn_upd, cfg.checkpoint) != 0)
+          dief("weight sync roll->upd: %s", nn_last_error());
+      }
 
-    rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, &rng, &stats);
-    if (rc != 0)
-      dief("nn_update: %s", nn_last_error());
+      t_upd0 = wall_sec();
+      rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, &rng, &stats);
+      if (rc != 0)
+        dief("nn_update: %s", nn_last_error());
+      ms_upd = (wall_sec() - t_upd0) * 1000.0;
 
-    if (split_nn) {
-      if (nn_copy_weights(nn_upd, nn_roll, cfg.checkpoint) != 0)
-        dief("weight sync upd->roll: %s", nn_last_error());
+      if (split_nn) {
+        if (nn_copy_weights(nn_upd, nn_roll, cfg.checkpoint) != 0)
+          dief("weight sync upd->roll: %s", nn_last_error());
+      }
+
+      printf("ppo: phases pack=%.1fms nn=%.1fms env=%.1fms host=%.1fms "
+             "upd=%.1fms\n",
+             ms_pack, ms_nn, ms_env, ms_host, ms_upd);
+      fflush(stdout);
     }
 
     ticks += (int64_t)n * (int64_t)T * (int64_t)cfg.action_repeat;

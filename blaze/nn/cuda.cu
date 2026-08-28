@@ -1,22 +1,42 @@
-/* FP32 CUDA Blaze policy backend.
- * cuDNN convs, cuBLAS dense, custom kernels for the rest.
- * Fixed arenas at create; no allocate/free in forward/sample/update. */
+/* CUDA Blaze policy. Fable: NHWC graph conv, cublasLt dense, y>0 ReLU bwd.
+ * Host ABI and checkpoints stay NCHW / KCRS. See cuda_fable_contract.h. */
 #include "cuda.h"
+#include "cuda_conv_graph.h"
+#include "cuda_fable_contract.h"
+#include "cuda_layout.h"
+#include "cuda_lt_gemm.h"
+#include "cuda_ws.h"
 #include "fixture.h"
 #include "model.h"
 
-#include <cublas_v2.h>
+#include <cublasLt.h>
 #include <cuda_runtime.h>
 #include <cudnn.h>
 
 #include <cmath>
 #include <cstdio>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
+#include <nvtx3/nvToolsExt.h>
+
+namespace {
+struct NvtxSpan {
+  bool on;
+  explicit NvtxSpan(const char *name, bool enabled) : on(enabled) {
+    if (on)
+      nvtxRangePushA(name);
+  }
+  ~NvtxSpan() {
+    if (on)
+      nvtxRangePop();
+  }
+};
+} // namespace
 
 static const float kAdamBeta1 = 0.9f;
 static const float kAdamBeta2 = 0.999f;
 static const float kAdamEps = 1e-8f;
+static const int kHvOut = NN_N_LOGITS + 1;
 
 static char g_err[512] = "";
 
@@ -35,28 +55,6 @@ const char *nn_cuda_last_error(void) { return g_err; }
       return -1;                                                               \
     }                                                                          \
   } while (0)
-
-#define BLAS_CHECK(call)                                                       \
-  do {                                                                         \
-    cublasStatus_t _s = (call);                                                \
-    if (_s != CUBLAS_STATUS_SUCCESS) {                                         \
-      std::snprintf(g_err, sizeof(g_err), "%s:%d cublas %d", __FILE__,         \
-                    __LINE__, (int)_s);                                        \
-      return -1;                                                               \
-    }                                                                          \
-  } while (0)
-
-#define DNN_CHECK(call)                                                        \
-  do {                                                                         \
-    cudnnStatus_t _s = (call);                                                 \
-    if (_s != CUDNN_STATUS_SUCCESS) {                                          \
-      std::snprintf(g_err, sizeof(g_err), "%s:%d cudnn %s", __FILE__,          \
-                    __LINE__, cudnnGetErrorString(_s));                        \
-      return -1;                                                               \
-    }                                                                          \
-  } while (0)
-
-/* ---- validation ---- */
 
 static int validate_config(const NnConfig *cfg) {
   if (!cfg) {
@@ -114,7 +112,42 @@ static size_t tensor_offset(int tid) {
   return off;
 }
 
-/* ---- device constants ---- */
+static int bucket_n(int n, int max_n) {
+  if (n < 1)
+    n = 1;
+  if (n > max_n)
+    n = max_n;
+  if (n * 10 >= max_n * 9)
+    return max_n;
+  const int m = (max_n < 256) ? 32 : 256;
+  int b = ((n + m - 1) / m) * m;
+  if (b > max_n)
+    b = max_n;
+  if (b < 1)
+    b = 1;
+  return b;
+}
+
+static size_t aux_bytes(int out, int n) {
+  const int64_t ld = ((int64_t)out + 127) & ~127LL;
+  return (size_t)(ld / 8) * (size_t)n;
+}
+
+static int grid_for(int work, int thr = 256) {
+  if (work <= 0)
+    return 1;
+  return (work + thr - 1) / thr;
+}
+
+static int grid_for_sz(size_t work, int thr = 256) {
+  if (work == 0)
+    return 1;
+  size_t g = (work + (size_t)thr - 1) / (size_t)thr;
+  if (g > 65535)
+    g = 65535;
+  return (int)g;
+}
+
 __constant__ int kHeadWDev[NN_N_HEAD];
 __constant__ int kHeadOffDev[NN_N_HEAD];
 
@@ -136,99 +169,6 @@ __device__ __forceinline__ float d_gumbel0(float u) {
   float e = -logf(fmaxf(u, 1e-20f));
   e = fmaxf(e, 1e-20f);
   return -logf(e);
-}
-
-/* ---- kernels ---- */
-
-__global__ void k_obs_to_float(const uint8_t *__restrict__ obs,
-                               float *__restrict__ out, int n) {
-  const int total = n * NN_N_CH * NN_CAM_H * NN_CAM_W;
-  for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < total;
-       idx += blockDim.x * gridDim.x) {
-    int t = idx;
-    t /= NN_CAM_W;
-    t /= NN_CAM_H;
-    const int c = t % NN_N_CH;
-    float x = (float)obs[idx];
-    if (c == NN_DEPTH_CH0 || c == NN_DEPTH_CH1)
-      x *= (1.f / 255.f);
-    out[idx] = x;
-  }
-}
-
-__global__ void k_add_bias_nchw(float *__restrict__ y,
-                                const float *__restrict__ b, int n, int c,
-                                int h, int w) {
-  const int total = n * c * h * w;
-  for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < total;
-       idx += blockDim.x * gridDim.x) {
-    const int ch = (idx / (h * w)) % c;
-    y[idx] += b[ch];
-  }
-}
-
-__global__ void k_relu_store_pre(float *__restrict__ y,
-                                 float *__restrict__ pre, int total) {
-  for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < total;
-       idx += blockDim.x * gridDim.x) {
-    const float v = y[idx];
-    pre[idx] = v;
-    y[idx] = v > 0.f ? v : 0.f;
-  }
-}
-
-__global__ void k_pack_fc_in(const float *__restrict__ conv,
-                             const float *__restrict__ scal,
-                             float *__restrict__ out, int n) {
-  for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < n * NN_FC_IN;
-       idx += blockDim.x * gridDim.x) {
-    const int ni = idx / NN_FC_IN;
-    const int j = idx % NN_FC_IN;
-    if (j < NN_FLAT) {
-      const int c = j / (NN_H2 * NN_W2);
-      const int rem = j % (NN_H2 * NN_W2);
-      const int h = rem / NN_W2;
-      const int w = rem % NN_W2;
-      out[idx] =
-          conv[(((size_t)ni * NN_C_OUT2 + c) * NN_H2 + h) * NN_W2 + w];
-    } else {
-      out[idx] = scal[(size_t)ni * NN_N_SCAL + (j - NN_FLAT)];
-    }
-  }
-}
-
-__global__ void k_bias_relu_store_pre(float *__restrict__ y,
-                                      const float *__restrict__ b,
-                                      float *__restrict__ pre, int n,
-                                      int width) {
-  for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < n * width;
-       idx += blockDim.x * gridDim.x) {
-    const int j = idx % width;
-    const float v = y[idx] + b[j];
-    pre[idx] = v;
-    y[idx] = v > 0.f ? v : 0.f;
-  }
-}
-
-__global__ void k_bias_row(float *__restrict__ y, const float *__restrict__ b,
-                           int n, int width) {
-  for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < n * width;
-       idx += blockDim.x * gridDim.x)
-    y[idx] += b[idx % width];
-}
-
-__global__ void k_value_fwd(const float *__restrict__ h,
-                            const float *__restrict__ w,
-                            const float *__restrict__ b, float *__restrict__ out,
-                            int n) {
-  for (int ni = blockIdx.x * blockDim.x + threadIdx.x; ni < n;
-       ni += blockDim.x * gridDim.x) {
-    float acc = b[0];
-    const float *hi = h + (size_t)ni * NN_FC_OUT;
-    for (int j = 0; j < NN_FC_OUT; ++j)
-      acc += hi[j] * w[j];
-    out[ni] = acc;
-  }
 }
 
 __global__ void k_sample(const float *__restrict__ logits, int n, int mode,
@@ -383,36 +323,9 @@ __global__ void k_ppo_dlogits(const float *__restrict__ logits,
       }
     }
 
-    /* Diagnostic only (stats_buf[3], [4]). After all d_* stores. */
     atomicAdd(&stats_buf[3], ratio - 1.f - logf(ratio));
     if (fabsf(ratio - 1.f) > clip)
       atomicAdd(&stats_buf[4], 1.f);
-  }
-}
-
-__global__ void k_relu_bwd(float *__restrict__ dy, const float *__restrict__ pre,
-                           int total) {
-  for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < total;
-       idx += blockDim.x * gridDim.x) {
-    if (pre[idx] <= 0.f)
-      dy[idx] = 0.f;
-  }
-}
-
-__global__ void k_unpack_fc_in_bwd(const float *__restrict__ d_fc_in,
-                                   float *__restrict__ d_conv2, int n) {
-  const int total = n * NN_C_OUT2 * NN_H2 * NN_W2;
-  for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < total;
-       idx += blockDim.x * gridDim.x) {
-    int t = idx;
-    const int w = t % NN_W2;
-    t /= NN_W2;
-    const int h = t % NN_H2;
-    t /= NN_H2;
-    const int c = t % NN_C_OUT2;
-    const int ni = t / NN_C_OUT2;
-    const int j = c * (NN_H2 * NN_W2) + h * NN_W2 + w;
-    d_conv2[idx] = d_fc_in[(size_t)ni * NN_FC_IN + j];
   }
 }
 
@@ -481,48 +394,48 @@ __global__ void k_adam(float *__restrict__ w, float *__restrict__ m,
   }
 }
 
-__global__ void k_value_bwd(const float *__restrict__ h,
-                            const float *__restrict__ w,
-                            const float *__restrict__ d_value,
-                            float *__restrict__ d_hidden,
-                            float *__restrict__ gw, float *__restrict__ gb,
-                            int n) {
-  for (int ni = blockIdx.x; ni < n; ni += gridDim.x) {
-    const float g = d_value[ni];
-    if (threadIdx.x == 0)
-      atomicAdd(&gb[0], g);
-    const float *hi = h + (size_t)ni * NN_FC_OUT;
-    float *dh = d_hidden + (size_t)ni * NN_FC_OUT;
-    for (int i = threadIdx.x; i < NN_FC_OUT; i += blockDim.x) {
-      atomicAdd(&gw[i], g * hi[i]);
-      atomicAdd(&dh[i], g * w[i]);
-    }
+/* hv is [35, n] col-major. logits [n,34], value [n]. */
+__global__ void k_split_hv(const float *__restrict__ hv, float *__restrict__ logits,
+                           float *__restrict__ value, int n) {
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n * kHvOut;
+       i += blockDim.x * gridDim.x) {
+    const int ni = i / kHvOut;
+    const int f = i % kHvOut;
+    if (f < NN_N_LOGITS)
+      logits[(size_t)ni * NN_N_LOGITS + f] = hv[i];
+    else
+      value[ni] = hv[i];
   }
 }
 
-__global__ void k_bias_grad_rows(const float *__restrict__ dy,
-                                 float *__restrict__ gb, int n, int width) {
-  for (int o = blockIdx.x * blockDim.x + threadIdx.x; o < width;
-       o += blockDim.x * gridDim.x) {
-    float s = 0.f;
-    for (int ni = 0; ni < n; ++ni)
-      s += dy[(size_t)ni * width + o];
-    gb[o] += s;
+__global__ void k_merge_dhv(const float *__restrict__ dlogits,
+                            const float *__restrict__ dvalue,
+                            float *__restrict__ dhv, int n) {
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n * kHvOut;
+       i += blockDim.x * gridDim.x) {
+    const int ni = i / kHvOut;
+    const int f = i % kHvOut;
+    if (f < NN_N_LOGITS)
+      dhv[i] = dlogits[(size_t)ni * NN_N_LOGITS + f];
+    else
+      dhv[i] = dvalue[ni];
   }
 }
 
-/* ---- handle ---- */
 struct NnCuda {
   int max_n;
   int device;
   NnConfig cfg;
-  uint64_t sample_step; /* Gumbel decision nonce; not reset on lr-only set_config */
+  uint64_t sample_step;
   int64_t adam_t;
   size_t n_params;
-  int desc_n;
+  int c0_pad;
 
-  cublasHandle_t blas;
+  cublasLtHandle_t lt;
   cudnnHandle_t dnn;
+  NnWsArena ws;
+  NnConvNet *conv;
+  NnLtGemm *ltg;
 
   float *h_params;
   float *h_t[NN_T_COUNT];
@@ -534,7 +447,6 @@ struct NnCuda {
   float *d_t[NN_T_COUNT];
   float *d_g[NN_T_COUNT];
 
-  /* host staging */
   uint8_t *h_planes;
   float *h_scalars;
   float *h_logits;
@@ -545,19 +457,22 @@ struct NnCuda {
   float *h_old_logp;
   float *h_adv;
   float *h_ret;
-  float *h_scratch; /* stats etc. */
+  float *h_scratch;
 
-  /* device IO / acts */
   uint8_t *d_planes;
   float *d_scalars;
   float *d_obs;
-  float *d_pre_c1;
   float *d_act_c1;
-  float *d_pre_c2;
   float *d_act_c2;
-  float *d_fc_in;
-  float *d_pre_h;
+  float *d_dpre_c1;
+  float *d_dpre_c2;
+  float *d_dc1;
   float *d_act_h;
+  float *d_dpre_h;
+  float *d_dhidden;
+  void *d_aux_h;
+  float *d_hv;
+  float *d_dhv;
   float *d_logits;
   float *d_value;
   int32_t *d_acts;
@@ -568,236 +483,22 @@ struct NnCuda {
   float *d_ret;
   float *d_dlogits;
   float *d_dvalue;
-  float *d_dhidden;
-  float *d_dfc_in;
-  float *d_dc2;
-  float *d_dc1;
   float *d_stats;
   float *d_reduce;
   float *d_norm;
   int reduce_blocks;
 
-  void *d_ws_conv;
-  size_t ws_conv_bytes;
-
-  cudnnTensorDescriptor_t x1_desc, y1_desc, b1_desc;
-  cudnnTensorDescriptor_t x2_desc, y2_desc, b2_desc;
-  cudnnFilterDescriptor_t f1_desc, f2_desc;
-  cudnnConvolutionDescriptor_t conv1_desc, conv2_desc;
-
-  cudnnConvolutionFwdAlgo_t algo_f1, algo_f2;
-  cudnnConvolutionBwdDataAlgo_t algo_bd2;
-  cudnnConvolutionBwdFilterAlgo_t algo_bf1, algo_bf2;
+  float *d_conv1_w;
+  float *d_conv2_w;
+  float *d_fc_w;
+  float *d_hv_w;
+  float *d_hv_b;
+  float *d_conv1_gw;
+  float *d_conv2_gw;
+  float *d_fc_gw;
+  float *d_hv_gw;
+  float *d_hv_gb;
 };
-
-static int grid_for(int work, int thr = 256) {
-  if (work <= 0)
-    return 1;
-  return (work + thr - 1) / thr;
-}
-
-static int grid_for_sz(size_t work, int thr = 256) {
-  if (work == 0)
-    return 1;
-  size_t g = (work + (size_t)thr - 1) / (size_t)thr;
-  if (g > 65535)
-    g = 65535;
-  return (int)g;
-}
-
-/* Y[N,out] = X[N,in] @ W[out,in]^T */
-static int gemm_fwd(cublasHandle_t blas, int n, int out, int in, const float *W,
-                    const float *X, float *Y) {
-  const float alpha = 1.f, beta = 0.f;
-  BLAS_CHECK(cublasSgemm(blas, CUBLAS_OP_T, CUBLAS_OP_N, out, n, in, &alpha, W,
-                         in, X, in, &beta, Y, out));
-  return 0;
-}
-
-/* dW[out,in] += dY^T @ X */
-static int gemm_dw(cublasHandle_t blas, int n, int out, int in, const float *dY,
-                   const float *X, float *dW) {
-  const float alpha = 1.f, beta = 1.f;
-  BLAS_CHECK(cublasSgemm(blas, CUBLAS_OP_N, CUBLAS_OP_T, in, out, n, &alpha, X,
-                         in, dY, out, &beta, dW, in));
-  return 0;
-}
-
-/* dX[N,in] = dY @ W */
-static int gemm_dx(cublasHandle_t blas, int n, int out, int in, const float *W,
-                   const float *dY, float *dX) {
-  const float alpha = 1.f, beta = 0.f;
-  BLAS_CHECK(cublasSgemm(blas, CUBLAS_OP_N, CUBLAS_OP_N, in, n, out, &alpha, W,
-                         in, dY, out, &beta, dX, in));
-  return 0;
-}
-
-static int set_batch_descs(NnCuda *nn, int n) {
-  if (n == nn->desc_n)
-    return 0;
-  DNN_CHECK(cudnnSetTensor4dDescriptor(nn->x1_desc, CUDNN_TENSOR_NCHW,
-                                       CUDNN_DATA_FLOAT, n, NN_N_CH, NN_CAM_H,
-                                       NN_CAM_W));
-  DNN_CHECK(cudnnSetTensor4dDescriptor(nn->y1_desc, CUDNN_TENSOR_NCHW,
-                                       CUDNN_DATA_FLOAT, n, NN_C_OUT1, NN_H1,
-                                       NN_W1));
-  DNN_CHECK(cudnnSetTensor4dDescriptor(nn->x2_desc, CUDNN_TENSOR_NCHW,
-                                       CUDNN_DATA_FLOAT, n, NN_C_OUT1, NN_H1,
-                                       NN_W1));
-  DNN_CHECK(cudnnSetTensor4dDescriptor(nn->y2_desc, CUDNN_TENSOR_NCHW,
-                                       CUDNN_DATA_FLOAT, n, NN_C_OUT2, NN_H2,
-                                       NN_W2));
-  nn->desc_n = n;
-  return 0;
-}
-
-template <typename PerfT, typename AlgoT, typename GetAlgoFn, typename GetWsFn>
-static int pick_algo_generic(NnCuda *nn, GetAlgoFn get_algo, GetWsFn get_ws,
-                             AlgoT *algo_out, size_t *ws_need,
-                             bool sizing_pass) {
-  PerfT perf[10];
-  int returned = 0;
-  cudnnStatus_t st = get_algo(perf, &returned);
-  if (st != CUDNN_STATUS_SUCCESS || returned <= 0) {
-    set_err("no cudnn algorithm returned");
-    return -1;
-  }
-  int best = -1;
-  size_t best_ws = 0;
-  for (int pass = 0; pass < 2; ++pass) {
-    for (int i = 0; i < returned; ++i) {
-      if (perf[i].status != CUDNN_STATUS_SUCCESS)
-        continue;
-      if (pass == 0 && perf[i].determinism != CUDNN_DETERMINISTIC)
-        continue;
-      size_t cand = 0;
-      if (get_ws(perf[i].algo, &cand) != CUDNN_STATUS_SUCCESS)
-        continue;
-      if (!sizing_pass && nn->d_ws_conv && cand > nn->ws_conv_bytes)
-        continue;
-      best = i;
-      best_ws = cand;
-      break;
-    }
-    if (best >= 0)
-      break;
-  }
-  if (best < 0) {
-    set_err("no cudnn algorithm within workspace");
-    return -1;
-  }
-  *algo_out = perf[best].algo;
-  *ws_need = best_ws;
-  return 0;
-}
-
-static int pick_batch_algos(NnCuda *nn, bool sizing_pass) {
-  size_t need = 0;
-  size_t ws = 0;
-
-  auto fwd1 = [&](cudnnConvolutionFwdAlgoPerf_t *perf, int *ret) {
-    return cudnnGetConvolutionForwardAlgorithm_v7(
-        nn->dnn, nn->x1_desc, nn->f1_desc, nn->conv1_desc, nn->y1_desc, 10, ret,
-        perf);
-  };
-  auto fwd1ws = [&](cudnnConvolutionFwdAlgo_t a, size_t *o) {
-    return cudnnGetConvolutionForwardWorkspaceSize(
-        nn->dnn, nn->x1_desc, nn->f1_desc, nn->conv1_desc, nn->y1_desc, a, o);
-  };
-  if (pick_algo_generic<cudnnConvolutionFwdAlgoPerf_t,
-                        cudnnConvolutionFwdAlgo_t>(nn, fwd1, fwd1ws,
-                                                   &nn->algo_f1, &ws,
-                                                   sizing_pass) != 0)
-    return -1;
-  if (ws > need)
-    need = ws;
-
-  auto fwd2 = [&](cudnnConvolutionFwdAlgoPerf_t *perf, int *ret) {
-    return cudnnGetConvolutionForwardAlgorithm_v7(
-        nn->dnn, nn->x2_desc, nn->f2_desc, nn->conv2_desc, nn->y2_desc, 10, ret,
-        perf);
-  };
-  auto fwd2ws = [&](cudnnConvolutionFwdAlgo_t a, size_t *o) {
-    return cudnnGetConvolutionForwardWorkspaceSize(
-        nn->dnn, nn->x2_desc, nn->f2_desc, nn->conv2_desc, nn->y2_desc, a, o);
-  };
-  if (pick_algo_generic<cudnnConvolutionFwdAlgoPerf_t,
-                        cudnnConvolutionFwdAlgo_t>(nn, fwd2, fwd2ws,
-                                                   &nn->algo_f2, &ws,
-                                                   sizing_pass) != 0)
-    return -1;
-  if (ws > need)
-    need = ws;
-
-  auto bf1 = [&](cudnnConvolutionBwdFilterAlgoPerf_t *perf, int *ret) {
-    return cudnnGetConvolutionBackwardFilterAlgorithm_v7(
-        nn->dnn, nn->x1_desc, nn->y1_desc, nn->conv1_desc, nn->f1_desc, 10, ret,
-        perf);
-  };
-  auto bf1ws = [&](cudnnConvolutionBwdFilterAlgo_t a, size_t *o) {
-    return cudnnGetConvolutionBackwardFilterWorkspaceSize(
-        nn->dnn, nn->x1_desc, nn->y1_desc, nn->conv1_desc, nn->f1_desc, a, o);
-  };
-  if (pick_algo_generic<cudnnConvolutionBwdFilterAlgoPerf_t,
-                        cudnnConvolutionBwdFilterAlgo_t>(
-          nn, bf1, bf1ws, &nn->algo_bf1, &ws, sizing_pass) != 0)
-    return -1;
-  if (ws > need)
-    need = ws;
-
-  auto bf2 = [&](cudnnConvolutionBwdFilterAlgoPerf_t *perf, int *ret) {
-    return cudnnGetConvolutionBackwardFilterAlgorithm_v7(
-        nn->dnn, nn->x2_desc, nn->y2_desc, nn->conv2_desc, nn->f2_desc, 10, ret,
-        perf);
-  };
-  auto bf2ws = [&](cudnnConvolutionBwdFilterAlgo_t a, size_t *o) {
-    return cudnnGetConvolutionBackwardFilterWorkspaceSize(
-        nn->dnn, nn->x2_desc, nn->y2_desc, nn->conv2_desc, nn->f2_desc, a, o);
-  };
-  if (pick_algo_generic<cudnnConvolutionBwdFilterAlgoPerf_t,
-                        cudnnConvolutionBwdFilterAlgo_t>(
-          nn, bf2, bf2ws, &nn->algo_bf2, &ws, sizing_pass) != 0)
-    return -1;
-  if (ws > need)
-    need = ws;
-
-  auto bd2 = [&](cudnnConvolutionBwdDataAlgoPerf_t *perf, int *ret) {
-    return cudnnGetConvolutionBackwardDataAlgorithm_v7(
-        nn->dnn, nn->f2_desc, nn->y2_desc, nn->conv2_desc, nn->x2_desc, 10, ret,
-        perf);
-  };
-  auto bd2ws = [&](cudnnConvolutionBwdDataAlgo_t a, size_t *o) {
-    return cudnnGetConvolutionBackwardDataWorkspaceSize(
-        nn->dnn, nn->f2_desc, nn->y2_desc, nn->conv2_desc, nn->x2_desc, a, o);
-  };
-  if (pick_algo_generic<cudnnConvolutionBwdDataAlgoPerf_t,
-                        cudnnConvolutionBwdDataAlgo_t>(
-          nn, bd2, bd2ws, &nn->algo_bd2, &ws, sizing_pass) != 0)
-    return -1;
-  if (ws > need)
-    need = ws;
-
-  if (sizing_pass) {
-    if (need < 1)
-      need = 1;
-    nn->ws_conv_bytes = need;
-  } else if (need > nn->ws_conv_bytes) {
-    std::snprintf(g_err, sizeof(g_err),
-                  "cudnn workspace for batch %d exceeds create-time arena "
-                  "(%zu > %zu)",
-                  nn->desc_n, need, nn->ws_conv_bytes);
-    return -1;
-  }
-  return 0;
-}
-
-static int ensure_batch(NnCuda *nn, int n) {
-  if (set_batch_descs(nn, n) != 0)
-    return -1;
-  if (pick_batch_algos(nn, false) != 0)
-    return -1;
-  return 0;
-}
 
 static int bind_device(const NnCuda *nn) {
   if (!nn) {
@@ -811,143 +512,217 @@ static int bind_device(const NnCuda *nn) {
   return 0;
 }
 
+static int sync_work_from_params(NnCuda *nn) {
+  if (nn_layout_kcrs_to_krsc(nn->d_t[NN_T_CONV1_W], nn->d_conv1_w, NN_C_OUT1,
+                             NN_N_CH, NN_K1, NN_K1, nn->c0_pad) != 0) {
+    set_err("conv1 kcrs->krsc failed");
+    return -1;
+  }
+  if (nn_layout_kcrs_to_krsc(nn->d_t[NN_T_CONV2_W], nn->d_conv2_w, NN_C_OUT2,
+                             NN_C_OUT1, NN_K2, NN_K2, NN_C_OUT1) != 0) {
+    set_err("conv2 kcrs->krsc failed");
+    return -1;
+  }
+  if (nn_layout_fc_chw_to_hwc(nn->d_t[NN_T_FC_W], nn->d_fc_w, NN_FC_OUT,
+                              NN_FC_IN, NN_C_OUT2, NN_H2, NN_W2) != 0) {
+    set_err("fc chw->hwc failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemcpy(nn->d_hv_w, nn->d_t[NN_T_HEADS_W],
+                      (size_t)NN_N_LOGITS * NN_FC_OUT * sizeof(float),
+                      cudaMemcpyDeviceToDevice));
+  CU_CHECK(cudaMemcpy(nn->d_hv_w + (size_t)NN_N_LOGITS * NN_FC_OUT,
+                      nn->d_t[NN_T_VALUE_W], NN_FC_OUT * sizeof(float),
+                      cudaMemcpyDeviceToDevice));
+  CU_CHECK(cudaMemcpy(nn->d_hv_b, nn->d_t[NN_T_HEADS_B],
+                      (size_t)NN_N_LOGITS * sizeof(float),
+                      cudaMemcpyDeviceToDevice));
+  CU_CHECK(cudaMemcpy(nn->d_hv_b + NN_N_LOGITS, nn->d_t[NN_T_VALUE_B],
+                      sizeof(float), cudaMemcpyDeviceToDevice));
+  return 0;
+}
+
+static int sync_grads_to_params(NnCuda *nn) {
+  if (nn_layout_krsc_to_kcrs(nn->d_conv1_gw, nn->d_g[NN_T_CONV1_W], NN_C_OUT1,
+                             NN_N_CH, NN_K1, NN_K1, nn->c0_pad) != 0) {
+    set_err("conv1 krsc->kcrs grad failed");
+    return -1;
+  }
+  if (nn_layout_krsc_to_kcrs(nn->d_conv2_gw, nn->d_g[NN_T_CONV2_W], NN_C_OUT2,
+                             NN_C_OUT1, NN_K2, NN_K2, NN_C_OUT1) != 0) {
+    set_err("conv2 krsc->kcrs grad failed");
+    return -1;
+  }
+  if (nn_layout_fc_hwc_to_chw(nn->d_fc_gw, nn->d_g[NN_T_FC_W], NN_FC_OUT,
+                              NN_FC_IN, NN_C_OUT2, NN_H2, NN_W2) != 0) {
+    set_err("fc hwc->chw grad failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemcpy(nn->d_g[NN_T_HEADS_W], nn->d_hv_gw,
+                      (size_t)NN_N_LOGITS * NN_FC_OUT * sizeof(float),
+                      cudaMemcpyDeviceToDevice));
+  CU_CHECK(cudaMemcpy(nn->d_g[NN_T_VALUE_W],
+                      nn->d_hv_gw + (size_t)NN_N_LOGITS * NN_FC_OUT,
+                      NN_FC_OUT * sizeof(float), cudaMemcpyDeviceToDevice));
+  CU_CHECK(cudaMemcpy(nn->d_g[NN_T_HEADS_B], nn->d_hv_gb,
+                      (size_t)NN_N_LOGITS * sizeof(float),
+                      cudaMemcpyDeviceToDevice));
+  CU_CHECK(cudaMemcpy(nn->d_g[NN_T_VALUE_B], nn->d_hv_gb + NN_N_LOGITS,
+                      sizeof(float), cudaMemcpyDeviceToDevice));
+  return 0;
+}
+
 static int forward_device(NnCuda *nn, int n) {
   const int thr = 256;
-  if (ensure_batch(nn, n) != 0)
+  const int bn = bucket_n(n, nn->max_n);
+  if (nn_conv_net_prepare(nn->conv, n) != 0) {
+    set_err("conv prepare failed");
     return -1;
-
-  {
-    const int work = n * NN_N_CH * NN_CAM_H * NN_CAM_W;
-    k_obs_to_float<<<grid_for(work), thr>>>(nn->d_planes, nn->d_obs, n);
   }
-
-  const float alpha = 1.f, beta0 = 0.f;
-  DNN_CHECK(cudnnConvolutionForward(
-      nn->dnn, &alpha, nn->x1_desc, nn->d_obs, nn->f1_desc,
-      nn->d_t[NN_T_CONV1_W], nn->conv1_desc, nn->algo_f1, nn->d_ws_conv,
-      nn->ws_conv_bytes, &beta0, nn->y1_desc, nn->d_act_c1));
-  {
-    const int work = n * NN_C_OUT1 * NN_H1 * NN_W1;
-    k_add_bias_nchw<<<grid_for(work), thr>>>(nn->d_act_c1,
-                                             nn->d_t[NN_T_CONV1_B], n, NN_C_OUT1,
-                                             NN_H1, NN_W1);
-    k_relu_store_pre<<<grid_for(work), thr>>>(nn->d_act_c1, nn->d_pre_c1, work);
-  }
-
-  DNN_CHECK(cudnnConvolutionForward(
-      nn->dnn, &alpha, nn->x2_desc, nn->d_act_c1, nn->f2_desc,
-      nn->d_t[NN_T_CONV2_W], nn->conv2_desc, nn->algo_f2, nn->d_ws_conv,
-      nn->ws_conv_bytes, &beta0, nn->y2_desc, nn->d_act_c2));
-  {
-    const int work = n * NN_C_OUT2 * NN_H2 * NN_W2;
-    k_add_bias_nchw<<<grid_for(work), thr>>>(nn->d_act_c2,
-                                             nn->d_t[NN_T_CONV2_B], n, NN_C_OUT2,
-                                             NN_H2, NN_W2);
-    k_relu_store_pre<<<grid_for(work), thr>>>(nn->d_act_c2, nn->d_pre_c2, work);
-  }
-
-  {
-    const int work = n * NN_FC_IN;
-    k_pack_fc_in<<<grid_for(work), thr>>>(nn->d_act_c2, nn->d_scalars,
-                                          nn->d_fc_in, n);
-  }
-
-  if (gemm_fwd(nn->blas, n, NN_FC_OUT, NN_FC_IN, nn->d_t[NN_T_FC_W], nn->d_fc_in,
-               nn->d_act_h) != 0)
+  if (nn_lt_prepare(nn->ltg, n) != 0) {
+    set_err("lt prepare failed");
     return -1;
-  {
-    const int work = n * NN_FC_OUT;
-    k_bias_relu_store_pre<<<grid_for(work), thr>>>(
-        nn->d_act_h, nn->d_t[NN_T_FC_B], nn->d_pre_h, n, NN_FC_OUT);
   }
-
-  if (gemm_fwd(nn->blas, n, NN_N_LOGITS, NN_FC_OUT, nn->d_t[NN_T_HEADS_W],
-               nn->d_act_h, nn->d_logits) != 0)
+  if (bn > n) {
+    const size_t elt = (size_t)NN_CAM_H * NN_CAM_W * (size_t)nn->c0_pad;
+    CU_CHECK(cudaMemset(nn->d_obs + (size_t)n * elt, 0,
+                        (size_t)(bn - n) * elt * sizeof(float)));
+  }
+  if (nn_layout_obs_to_nhwc(nn->d_planes, nn->d_obs, n, NN_N_CH, NN_CAM_H,
+                            NN_CAM_W, nn->c0_pad, NN_DEPTH_CH0,
+                            NN_DEPTH_CH1) != 0) {
+    set_err("obs to nhwc failed");
     return -1;
-  {
-    const int work = n * NN_N_LOGITS;
-    k_bias_row<<<grid_for(work), thr>>>(nn->d_logits, nn->d_t[NN_T_HEADS_B], n,
-                                        NN_N_LOGITS);
   }
-
-  k_value_fwd<<<grid_for(n), thr>>>(nn->d_act_h, nn->d_t[NN_T_VALUE_W],
-                                    nn->d_t[NN_T_VALUE_B], nn->d_value, n);
-
+  if (nn_conv_net_fwd(nn->conv, 0, nn->d_obs, nn->d_conv1_w,
+                      nn->d_t[NN_T_CONV1_B], nn->d_act_c1) != 0) {
+    set_err("conv0 fwd failed");
+    return -1;
+  }
+  if (nn_conv_net_fwd(nn->conv, 1, nn->d_act_c1, nn->d_conv2_w,
+                      nn->d_t[NN_T_CONV2_B], nn->d_act_c2) != 0) {
+    set_err("conv1 fwd failed");
+    return -1;
+  }
+  if (nn_lt_gemm(nn->ltg, n, NN_FC_OUT, NN_FLAT, NN_FC_IN, nn->d_fc_w,
+                 nn->d_act_c2, nn->d_act_h, 0.f) != 0) {
+    set_err("fc cam gemm failed");
+    return -1;
+  }
+  if (nn_lt_fwd_relu_bias_ex(nn->ltg, n, NN_FC_OUT, NN_N_SCAL, NN_FC_IN,
+                             nn->d_fc_w + NN_FLAT, nn->d_scalars,
+                             nn->d_t[NN_T_FC_B], nn->d_act_h, nn->d_aux_h,
+                             1.f) != 0) {
+    set_err("fc scal relu-bias failed");
+    return -1;
+  }
+  if (nn_lt_fwd_bias(nn->ltg, n, kHvOut, NN_FC_OUT, nn->d_hv_w, nn->d_act_h,
+                     nn->d_hv_b, nn->d_hv) != 0) {
+    set_err("heads+value gemm failed");
+    return -1;
+  }
+  k_split_hv<<<grid_for(n * kHvOut), thr>>>(nn->d_hv, nn->d_logits, nn->d_value,
+                                            n);
   CU_CHECK(cudaGetLastError());
   return 0;
 }
 
 static int backward_device(NnCuda *nn, int n) {
   const int thr = 256;
-  const float alpha = 1.f, beta0 = 0.f, beta1 = 1.f;
+  const size_t n_c1 = (size_t)n * NN_C_OUT1 * NN_H1 * NN_W1;
+  const size_t n_c2 = (size_t)n * NN_C_OUT2 * NN_H2 * NN_W2;
+  const size_t n_c1b =
+      (size_t)bucket_n(n, nn->max_n) * NN_C_OUT1 * NN_H1 * NN_W1;
+  const size_t n_c2b =
+      (size_t)bucket_n(n, nn->max_n) * NN_C_OUT2 * NN_H2 * NN_W2;
 
-  /* heads: dW, db, d_hidden = d_logits @ W */
-  {
-    const int work = n * NN_FC_OUT;
-    k_zero<<<grid_for(work), thr>>>(nn->d_dhidden, (size_t)work);
+  k_merge_dhv<<<grid_for(n * kHvOut), thr>>>(nn->d_dlogits, nn->d_dvalue,
+                                             nn->d_dhv, n);
+  CU_CHECK(cudaGetLastError());
+
+  CU_CHECK(cudaMemset(nn->d_hv_gw, 0,
+                      (size_t)kHvOut * NN_FC_OUT * sizeof(float)));
+  CU_CHECK(cudaMemset(nn->d_hv_gb, 0, (size_t)kHvOut * sizeof(float)));
+  if (nn_lt_bwd_dw_bgrad(nn->ltg, n, kHvOut, NN_FC_OUT, nn->d_dhv, nn->d_act_h,
+                         nn->d_hv_gw, nn->d_hv_gb, 0.f) != 0) {
+    set_err("hv dw failed");
+    return -1;
   }
-  if (gemm_dw(nn->blas, n, NN_N_LOGITS, NN_FC_OUT, nn->d_dlogits, nn->d_act_h,
-              nn->d_g[NN_T_HEADS_W]) != 0)
+  if (nn_lt_bwd_dx(nn->ltg, n, kHvOut, NN_FC_OUT, nn->d_hv_w, nn->d_dhv,
+                   nn->d_dhidden, 0.f) != 0) {
+    set_err("hv dx failed");
     return -1;
-  k_bias_grad_rows<<<grid_for(NN_N_LOGITS), thr>>>(
-      nn->d_dlogits, nn->d_g[NN_T_HEADS_B], n, NN_N_LOGITS);
-  if (gemm_dx(nn->blas, n, NN_N_LOGITS, NN_FC_OUT, nn->d_t[NN_T_HEADS_W],
-              nn->d_dlogits, nn->d_dhidden) != 0)
-    return -1;
-
-  /* value bwd accumulates into d_hidden */
-  k_value_bwd<<<n, thr>>>(nn->d_act_h, nn->d_t[NN_T_VALUE_W], nn->d_dvalue,
-                          nn->d_dhidden, nn->d_g[NN_T_VALUE_W],
-                          nn->d_g[NN_T_VALUE_B], n);
-
-  /* FC ReLU bwd + gemm */
-  {
-    const int work = n * NN_FC_OUT;
-    k_relu_bwd<<<grid_for(work), thr>>>(nn->d_dhidden, nn->d_pre_h, work);
-  }
-  if (gemm_dw(nn->blas, n, NN_FC_OUT, NN_FC_IN, nn->d_dhidden, nn->d_fc_in,
-              nn->d_g[NN_T_FC_W]) != 0)
-    return -1;
-  k_bias_grad_rows<<<grid_for(NN_FC_OUT), thr>>>(nn->d_dhidden,
-                                                 nn->d_g[NN_T_FC_B], n,
-                                                 NN_FC_OUT);
-  if (gemm_dx(nn->blas, n, NN_FC_OUT, NN_FC_IN, nn->d_t[NN_T_FC_W],
-              nn->d_dhidden, nn->d_dfc_in) != 0)
-    return -1;
-
-  {
-    const int work = n * NN_C_OUT2 * NN_H2 * NN_W2;
-    k_unpack_fc_in_bwd<<<grid_for(work), thr>>>(nn->d_dfc_in, nn->d_dc2, n);
-    k_relu_bwd<<<grid_for(work), thr>>>(nn->d_dc2, nn->d_pre_c2, work);
   }
 
-  /* conv2 bias / filter / data */
-  DNN_CHECK(cudnnConvolutionBackwardBias(nn->dnn, &alpha, nn->y2_desc,
-                                          nn->d_dc2, &beta1, nn->b2_desc,
-                                          nn->d_g[NN_T_CONV2_B]));
-  DNN_CHECK(cudnnConvolutionBackwardFilter(
-      nn->dnn, &alpha, nn->x2_desc, nn->d_act_c1, nn->y2_desc, nn->d_dc2,
-      nn->conv2_desc, nn->algo_bf2, nn->d_ws_conv, nn->ws_conv_bytes, &beta1,
-      nn->f2_desc, nn->d_g[NN_T_CONV2_W]));
-  DNN_CHECK(cudnnConvolutionBackwardData(
-      nn->dnn, &alpha, nn->f2_desc, nn->d_t[NN_T_CONV2_W], nn->y2_desc,
-      nn->d_dc2, nn->conv2_desc, nn->algo_bd2, nn->d_ws_conv, nn->ws_conv_bytes,
-      &beta0, nn->x2_desc, nn->d_dc1));
-
-  {
-    const int work = n * NN_C_OUT1 * NN_H1 * NN_W1;
-    k_relu_bwd<<<grid_for(work), thr>>>(nn->d_dc1, nn->d_pre_c1, work);
+  if (nn_lt_drelu_bgrad(nn->ltg, n, NN_FC_OUT, nn->d_dhidden, nn->d_aux_h,
+                        nn->d_dpre_h, nn->d_g[NN_T_FC_B]) != 0) {
+    set_err("fc drelu failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemset(nn->d_fc_gw, 0,
+                      (size_t)NN_FC_OUT * NN_FC_IN * sizeof(float)));
+  if (nn_lt_bwd_dw_ex(nn->ltg, n, NN_FC_OUT, NN_FLAT, NN_FC_IN, nn->d_dpre_h,
+                      nn->d_act_c2, nn->d_fc_gw, nullptr, 0.f) != 0) {
+    set_err("fc dw cam failed");
+    return -1;
+  }
+  if (nn_lt_bwd_dw_ex(nn->ltg, n, NN_FC_OUT, NN_N_SCAL, NN_FC_IN, nn->d_dpre_h,
+                      nn->d_scalars, nn->d_fc_gw + NN_FLAT, nullptr, 1.f) != 0) {
+    set_err("fc dw scal failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemset(nn->d_dpre_c2, 0, n_c2b * sizeof(float)));
+  if (nn_lt_bwd_dx_ex(nn->ltg, n, NN_FC_OUT, NN_FLAT, NN_FC_IN, nn->d_fc_w,
+                      nn->d_dpre_h, nn->d_dpre_c2, 0.f) != 0) {
+    set_err("fc dx cam failed");
+    return -1;
   }
 
-  /* conv1 bias / filter (no data grad needed) */
-  DNN_CHECK(cudnnConvolutionBackwardBias(nn->dnn, &alpha, nn->y1_desc,
-                                          nn->d_dc1, &beta1, nn->b1_desc,
-                                          nn->d_g[NN_T_CONV1_B]));
-  DNN_CHECK(cudnnConvolutionBackwardFilter(
-      nn->dnn, &alpha, nn->x1_desc, nn->d_obs, nn->y1_desc, nn->d_dc1,
-      nn->conv1_desc, nn->algo_bf1, nn->d_ws_conv, nn->ws_conv_bytes, &beta1,
-      nn->f1_desc, nn->d_g[NN_T_CONV1_W]));
+  CU_CHECK(cudaMemset(nn->d_g[NN_T_CONV2_B], 0, NN_C_OUT2 * sizeof(float)));
+  if (nn_layout_relu_bwd_bias(nn->d_dpre_c2, nn->d_act_c2, nn->d_dpre_c2,
+                              nn->d_g[NN_T_CONV2_B], n, NN_C_OUT2, NN_H2,
+                              NN_W2) != 0) {
+    set_err("conv2 relu-bwd-bias failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemset(nn->d_conv2_gw, 0,
+                      (size_t)NN_C_OUT2 * NN_K2 * NN_K2 * NN_C_OUT1 *
+                          sizeof(float)));
+  if (nn_conv_net_wgrad(nn->conv, 1, nn->d_act_c1, nn->d_dpre_c2, nn->d_conv2_gw,
+                        0.f) != 0) {
+    set_err("conv2 wgrad failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemset(nn->d_dc1, 0, n_c1b * sizeof(float)));
+  if (nn_conv_net_dgrad(nn->conv, 1, nn->d_conv2_w, nn->d_dpre_c2, nn->d_dc1) !=
+      0) {
+    set_err("conv2 dgrad failed");
+    return -1;
+  }
 
+  CU_CHECK(cudaMemset(nn->d_g[NN_T_CONV1_B], 0, NN_C_OUT1 * sizeof(float)));
+  CU_CHECK(cudaMemset(nn->d_dpre_c1, 0, n_c1b * sizeof(float)));
+  if (nn_layout_relu_bwd_bias(nn->d_dc1, nn->d_act_c1, nn->d_dpre_c1,
+                              nn->d_g[NN_T_CONV1_B], n, NN_C_OUT1, NN_H1,
+                              NN_W1) != 0) {
+    set_err("conv1 relu-bwd-bias failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemset(nn->d_conv1_gw, 0,
+                      (size_t)NN_C_OUT1 * NN_K1 * NN_K1 * (size_t)nn->c0_pad *
+                          sizeof(float)));
+  if (nn_conv_net_wgrad(nn->conv, 0, nn->d_obs, nn->d_dpre_c1, nn->d_conv1_gw,
+                        0.f) != 0) {
+    set_err("conv1 wgrad failed");
+    return -1;
+  }
+  if (nn_conv_net_dgrad(nn->conv, 0, nn->d_conv1_w, nn->d_dpre_c1, nn->d_dc1) !=
+      0) {
+    set_err("conv1 dgrad skip failed");
+    return -1;
+  }
+  (void)n_c1;
+  (void)n_c2;
   CU_CHECK(cudaGetLastError());
   return 0;
 }
@@ -995,6 +770,16 @@ static void free_nn(NnCuda *nn) {
   if (nn->device >= 0)
     cudaSetDevice(nn->device);
 
+  if (nn->conv) {
+    nn_conv_net_destroy(nn->conv);
+    nn->conv = nullptr;
+  }
+  if (nn->ltg) {
+    nn_lt_destroy(nn->ltg);
+    nn->ltg = nullptr;
+  }
+  nn_ws_free(&nn->ws);
+
   free_host(nn->h_params);
   free_host(nn->h_planes);
   free_host(nn->h_scalars);
@@ -1015,13 +800,17 @@ static void free_nn(NnCuda *nn) {
   free_ptr(nn->d_planes);
   free_ptr(nn->d_scalars);
   free_ptr(nn->d_obs);
-  free_ptr(nn->d_pre_c1);
   free_ptr(nn->d_act_c1);
-  free_ptr(nn->d_pre_c2);
   free_ptr(nn->d_act_c2);
-  free_ptr(nn->d_fc_in);
-  free_ptr(nn->d_pre_h);
+  free_ptr(nn->d_dpre_c1);
+  free_ptr(nn->d_dpre_c2);
+  free_ptr(nn->d_dc1);
   free_ptr(nn->d_act_h);
+  free_ptr(nn->d_dpre_h);
+  free_ptr(nn->d_dhidden);
+  free_ptr(nn->d_aux_h);
+  free_ptr(nn->d_hv);
+  free_ptr(nn->d_dhv);
   free_ptr(nn->d_logits);
   free_ptr(nn->d_value);
   free_ptr(nn->d_acts);
@@ -1032,92 +821,29 @@ static void free_nn(NnCuda *nn) {
   free_ptr(nn->d_ret);
   free_ptr(nn->d_dlogits);
   free_ptr(nn->d_dvalue);
-  free_ptr(nn->d_dhidden);
-  free_ptr(nn->d_dfc_in);
-  free_ptr(nn->d_dc2);
-  free_ptr(nn->d_dc1);
   free_ptr(nn->d_stats);
   free_ptr(nn->d_reduce);
   free_ptr(nn->d_norm);
-  free_ptr(nn->d_ws_conv);
+  free_ptr(nn->d_conv1_w);
+  free_ptr(nn->d_conv2_w);
+  free_ptr(nn->d_fc_w);
+  free_ptr(nn->d_hv_w);
+  free_ptr(nn->d_hv_b);
+  free_ptr(nn->d_conv1_gw);
+  free_ptr(nn->d_conv2_gw);
+  free_ptr(nn->d_fc_gw);
+  free_ptr(nn->d_hv_gw);
+  free_ptr(nn->d_hv_gb);
 
-  auto dt = [](cudnnTensorDescriptor_t &d) {
-    if (d) {
-      cudnnDestroyTensorDescriptor(d);
-      d = nullptr;
-    }
-  };
-  auto df = [](cudnnFilterDescriptor_t &d) {
-    if (d) {
-      cudnnDestroyFilterDescriptor(d);
-      d = nullptr;
-    }
-  };
-  auto dc = [](cudnnConvolutionDescriptor_t &d) {
-    if (d) {
-      cudnnDestroyConvolutionDescriptor(d);
-      d = nullptr;
-    }
-  };
-  dt(nn->x1_desc);
-  dt(nn->y1_desc);
-  dt(nn->b1_desc);
-  dt(nn->x2_desc);
-  dt(nn->y2_desc);
-  dt(nn->b2_desc);
-  df(nn->f1_desc);
-  df(nn->f2_desc);
-  dc(nn->conv1_desc);
-  dc(nn->conv2_desc);
   if (nn->dnn) {
     cudnnDestroy(nn->dnn);
     nn->dnn = nullptr;
   }
-  if (nn->blas) {
-    cublasDestroy(nn->blas);
-    nn->blas = nullptr;
+  if (nn->lt) {
+    cublasLtDestroy(nn->lt);
+    nn->lt = nullptr;
   }
   free(nn);
-}
-
-static int setup_cudnn(NnCuda *nn) {
-  DNN_CHECK(cudnnCreate(&nn->dnn));
-  DNN_CHECK(cudnnCreateTensorDescriptor(&nn->x1_desc));
-  DNN_CHECK(cudnnCreateTensorDescriptor(&nn->y1_desc));
-  DNN_CHECK(cudnnCreateTensorDescriptor(&nn->b1_desc));
-  DNN_CHECK(cudnnCreateTensorDescriptor(&nn->x2_desc));
-  DNN_CHECK(cudnnCreateTensorDescriptor(&nn->y2_desc));
-  DNN_CHECK(cudnnCreateTensorDescriptor(&nn->b2_desc));
-  DNN_CHECK(cudnnCreateFilterDescriptor(&nn->f1_desc));
-  DNN_CHECK(cudnnCreateFilterDescriptor(&nn->f2_desc));
-  DNN_CHECK(cudnnCreateConvolutionDescriptor(&nn->conv1_desc));
-  DNN_CHECK(cudnnCreateConvolutionDescriptor(&nn->conv2_desc));
-
-  DNN_CHECK(cudnnSetTensor4dDescriptor(nn->b1_desc, CUDNN_TENSOR_NCHW,
-                                       CUDNN_DATA_FLOAT, 1, NN_C_OUT1, 1, 1));
-  DNN_CHECK(cudnnSetTensor4dDescriptor(nn->b2_desc, CUDNN_TENSOR_NCHW,
-                                       CUDNN_DATA_FLOAT, 1, NN_C_OUT2, 1, 1));
-  DNN_CHECK(cudnnSetFilter4dDescriptor(nn->f1_desc, CUDNN_DATA_FLOAT,
-                                       CUDNN_TENSOR_NCHW, NN_C_OUT1, NN_N_CH,
-                                       NN_K1, NN_K1));
-  DNN_CHECK(cudnnSetFilter4dDescriptor(nn->f2_desc, CUDNN_DATA_FLOAT,
-                                       CUDNN_TENSOR_NCHW, NN_C_OUT2, NN_C_OUT1,
-                                       NN_K2, NN_K2));
-  DNN_CHECK(cudnnSetConvolution2dDescriptor(
-      nn->conv1_desc, 0, 0, NN_S1, NN_S1, 1, 1, CUDNN_CROSS_CORRELATION,
-      CUDNN_DATA_FLOAT));
-  DNN_CHECK(cudnnSetConvolution2dDescriptor(
-      nn->conv2_desc, 0, 0, NN_S2, NN_S2, 1, 1, CUDNN_CROSS_CORRELATION,
-      CUDNN_DATA_FLOAT));
-  DNN_CHECK(cudnnSetConvolutionMathType(nn->conv1_desc, CUDNN_DEFAULT_MATH));
-  DNN_CHECK(cudnnSetConvolutionMathType(nn->conv2_desc, CUDNN_DEFAULT_MATH));
-
-  if (set_batch_descs(nn, nn->max_n) != 0)
-    return -1;
-  if (pick_batch_algos(nn, true) != 0)
-    return -1;
-  CU_CHECK(cudaMalloc(&nn->d_ws_conv, nn->ws_conv_bytes));
-  return 0;
 }
 
 static int cuda_malloc_f(float **p, size_t n) {
@@ -1160,18 +886,42 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
   nn->sample_step = 0;
   nn->adam_t = 0;
   nn->n_params = nn_model_param_floats();
-  nn->desc_n = 0;
-  nn->blas = nullptr;
-  nn->dnn = nullptr;
+  nn->ws.device = device;
 
-  if (cublasCreate(&nn->blas) != CUBLAS_STATUS_SUCCESS) {
-    set_err("cublasCreate failed");
+  if (cublasLtCreate(&nn->lt) != CUBLAS_STATUS_SUCCESS) {
+    set_err("cublasLtCreate failed");
     free_nn(nn);
     return nullptr;
   }
-  cublasSetMathMode(nn->blas, CUBLAS_DEFAULT_MATH);
+  if (cudnnCreate(&nn->dnn) != CUDNN_STATUS_SUCCESS) {
+    set_err("cudnnCreate failed");
+    free_nn(nn);
+    return nullptr;
+  }
 
-  /* host params + init */
+  NnConvLayerSpec spec[2] = {
+      {NN_N_CH, NN_C_OUT1, NN_K1, NN_S1, 0, NN_CAM_H, NN_CAM_W},
+      {NN_C_OUT1, NN_C_OUT2, NN_K2, NN_S2, 0, NN_H1, NN_W1},
+  };
+  nn->conv = nn_conv_net_create(nn->dnn, device, max_n, spec, 2, &nn->ws);
+  if (!nn->conv) {
+    set_err("conv net create failed");
+    free_nn(nn);
+    return nullptr;
+  }
+  nn->c0_pad = nn_conv_net_c_in_pad(nn->conv, 0);
+  if (nn->c0_pad < NN_N_CH) {
+    set_err("c0_pad");
+    free_nn(nn);
+    return nullptr;
+  }
+  nn->ltg = nn_lt_create(nn->lt, device, max_n, &nn->ws);
+  if (!nn->ltg) {
+    set_err("lt create failed");
+    free_nn(nn);
+    return nullptr;
+  }
+
   nn->h_params = (float *)calloc(nn->n_params, sizeof(float));
   if (!nn->h_params) {
     set_err("oom host params");
@@ -1184,7 +934,6 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
 
   const size_t N = (size_t)max_n;
   const size_t plane_bytes = N * NN_N_CH * NN_CAM_H * NN_CAM_W;
-
   nn->h_planes = (uint8_t *)malloc(plane_bytes);
   nn->h_scalars = (float *)malloc(N * NN_N_SCAL * sizeof(float));
   nn->h_logits = (float *)malloc(N * NN_N_LOGITS * sizeof(float));
@@ -1204,20 +953,30 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
     return nullptr;
   }
 
+  const size_t n_obs = N * NN_CAM_H * NN_CAM_W * (size_t)nn->c0_pad;
+  const size_t n_c1 = N * NN_C_OUT1 * NN_H1 * NN_W1;
+  const size_t n_c2 = N * NN_C_OUT2 * NN_H2 * NN_W2;
+  const size_t n_c1w =
+      (size_t)NN_C_OUT1 * NN_K1 * NN_K1 * (size_t)nn->c0_pad;
+  const size_t n_c2w = (size_t)NN_C_OUT2 * NN_K2 * NN_K2 * NN_C_OUT1;
+  const size_t auxn = aux_bytes(NN_FC_OUT, max_n);
+
   if (cuda_malloc_f(&nn->d_params, nn->n_params) ||
       cuda_malloc_f(&nn->d_grads, nn->n_params) ||
       cuda_malloc_f(&nn->d_adam_m, nn->n_params) ||
       cuda_malloc_f(&nn->d_adam_v, nn->n_params) ||
       cudaMalloc(&nn->d_planes, plane_bytes) != cudaSuccess ||
       cuda_malloc_f(&nn->d_scalars, N * NN_N_SCAL) ||
-      cuda_malloc_f(&nn->d_obs, N * NN_N_CH * NN_CAM_H * NN_CAM_W) ||
-      cuda_malloc_f(&nn->d_pre_c1, N * NN_C_OUT1 * NN_H1 * NN_W1) ||
-      cuda_malloc_f(&nn->d_act_c1, N * NN_C_OUT1 * NN_H1 * NN_W1) ||
-      cuda_malloc_f(&nn->d_pre_c2, N * NN_C_OUT2 * NN_H2 * NN_W2) ||
-      cuda_malloc_f(&nn->d_act_c2, N * NN_C_OUT2 * NN_H2 * NN_W2) ||
-      cuda_malloc_f(&nn->d_fc_in, N * NN_FC_IN) ||
-      cuda_malloc_f(&nn->d_pre_h, N * NN_FC_OUT) ||
+      cuda_malloc_f(&nn->d_obs, n_obs) || cuda_malloc_f(&nn->d_act_c1, n_c1) ||
+      cuda_malloc_f(&nn->d_act_c2, n_c2) ||
+      cuda_malloc_f(&nn->d_dpre_c1, n_c1) ||
+      cuda_malloc_f(&nn->d_dpre_c2, n_c2) || cuda_malloc_f(&nn->d_dc1, n_c1) ||
       cuda_malloc_f(&nn->d_act_h, N * NN_FC_OUT) ||
+      cuda_malloc_f(&nn->d_dpre_h, N * NN_FC_OUT) ||
+      cuda_malloc_f(&nn->d_dhidden, N * NN_FC_OUT) ||
+      cudaMalloc(&nn->d_aux_h, auxn < 16 ? 16 : auxn) != cudaSuccess ||
+      cuda_malloc_f(&nn->d_hv, N * kHvOut) ||
+      cuda_malloc_f(&nn->d_dhv, N * kHvOut) ||
       cuda_malloc_f(&nn->d_logits, N * NN_N_LOGITS) ||
       cuda_malloc_f(&nn->d_value, N) ||
       cudaMalloc(&nn->d_acts, N * NN_N_HEAD * sizeof(int32_t)) != cudaSuccess ||
@@ -1225,12 +984,17 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
       cuda_malloc_f(&nn->d_old_logp, N) || cuda_malloc_f(&nn->d_adv, N) ||
       cuda_malloc_f(&nn->d_ret, N) ||
       cuda_malloc_f(&nn->d_dlogits, N * NN_N_LOGITS) ||
-      cuda_malloc_f(&nn->d_dvalue, N) ||
-      cuda_malloc_f(&nn->d_dhidden, N * NN_FC_OUT) ||
-      cuda_malloc_f(&nn->d_dfc_in, N * NN_FC_IN) ||
-      cuda_malloc_f(&nn->d_dc2, N * NN_C_OUT2 * NN_H2 * NN_W2) ||
-      cuda_malloc_f(&nn->d_dc1, N * NN_C_OUT1 * NN_H1 * NN_W1) ||
-      cuda_malloc_f(&nn->d_stats, 8) || cuda_malloc_f(&nn->d_norm, 1)) {
+      cuda_malloc_f(&nn->d_dvalue, N) || cuda_malloc_f(&nn->d_stats, 8) ||
+      cuda_malloc_f(&nn->d_norm, 1) || cuda_malloc_f(&nn->d_conv1_w, n_c1w) ||
+      cuda_malloc_f(&nn->d_conv2_w, n_c2w) ||
+      cuda_malloc_f(&nn->d_fc_w, (size_t)NN_FC_OUT * NN_FC_IN) ||
+      cuda_malloc_f(&nn->d_hv_w, (size_t)kHvOut * NN_FC_OUT) ||
+      cuda_malloc_f(&nn->d_hv_b, kHvOut) ||
+      cuda_malloc_f(&nn->d_conv1_gw, n_c1w) ||
+      cuda_malloc_f(&nn->d_conv2_gw, n_c2w) ||
+      cuda_malloc_f(&nn->d_fc_gw, (size_t)NN_FC_OUT * NN_FC_IN) ||
+      cuda_malloc_f(&nn->d_hv_gw, (size_t)kHvOut * NN_FC_OUT) ||
+      cuda_malloc_f(&nn->d_hv_gb, kHvOut)) {
     set_err("cudaMalloc arenas failed");
     free_nn(nn);
     return nullptr;
@@ -1257,13 +1021,11 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
   cudaMemset(nn->d_grads, 0, nn->n_params * sizeof(float));
   cudaMemset(nn->d_adam_m, 0, nn->n_params * sizeof(float));
   cudaMemset(nn->d_adam_v, 0, nn->n_params * sizeof(float));
-
-  if (setup_cudnn(nn) != 0) {
+  if (sync_work_from_params(nn) != 0) {
     free_nn(nn);
     return nullptr;
   }
 
-  /* Upload head width tables to constant memory */
   int hw[NN_N_HEAD], ho[NN_N_HEAD];
   for (int i = 0; i < NN_N_HEAD; ++i) {
     hw[i] = NN_HEAD_WIDTHS[i];
@@ -1276,11 +1038,23 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
     return nullptr;
   }
 
+  if (nn_conv_net_prepare(nn->conv, max_n) != 0) {
+    set_err("conv prepare(max_n) failed");
+    free_nn(nn);
+    return nullptr;
+  }
+  if (nn_lt_prepare(nn->ltg, max_n) != 0) {
+    set_err("lt prepare(max_n) failed");
+    free_nn(nn);
+    return nullptr;
+  }
+
   if (cudaDeviceSynchronize() != cudaSuccess) {
     set_err("create sync failed");
     free_nn(nn);
     return nullptr;
   }
+  nvtxMarkA("nn_cuda_ready");
   return nn;
 }
 
@@ -1353,7 +1127,6 @@ int nn_cuda_sample(NnCuda *nn, const float *logits, int n, int mode,
 
   const int thr = 256;
   float *ent_ptr = entropy ? nn->d_entropy : nullptr;
-  /* Mix handle sample_step into rng_seed. d_hash_u01 stays 4-arg. */
   const uint64_t seed =
       nn->cfg.rng_seed ^ (nn->sample_step * 0xD1B54A32D192ED03ULL);
   k_sample<<<grid_for(n), thr>>>(nn->d_logits, n, mode, seed, nn->d_acts,
@@ -1390,30 +1163,40 @@ int nn_cuda_update(NnCuda *nn, const uint8_t *planes, const float *scalars,
   if (bind_device(nn) != 0)
     return -1;
 
+  NvtxSpan span_upd("ppo_update", true);
+
   const size_t plane_n = (size_t)n * NN_N_CH * NN_CAM_H * NN_CAM_W;
-  CU_CHECK(cudaMemcpy(nn->d_planes, planes, plane_n, cudaMemcpyHostToDevice));
-  CU_CHECK(cudaMemcpy(nn->d_scalars, scalars,
-                      (size_t)n * NN_N_SCAL * sizeof(float),
-                      cudaMemcpyHostToDevice));
-  CU_CHECK(cudaMemcpy(nn->d_acts, acts, (size_t)n * NN_N_HEAD * sizeof(int32_t),
-                      cudaMemcpyHostToDevice));
-  CU_CHECK(cudaMemcpy(nn->d_old_logp, old_logp, (size_t)n * sizeof(float),
-                      cudaMemcpyHostToDevice));
-  CU_CHECK(cudaMemcpy(nn->d_adv, advantages, (size_t)n * sizeof(float),
-                      cudaMemcpyHostToDevice));
-  CU_CHECK(cudaMemcpy(nn->d_ret, returns, (size_t)n * sizeof(float),
-                      cudaMemcpyHostToDevice));
+  {
+    NvtxSpan span("h2d", true);
+    CU_CHECK(cudaMemcpy(nn->d_planes, planes, plane_n, cudaMemcpyHostToDevice));
+    CU_CHECK(cudaMemcpy(nn->d_scalars, scalars,
+                        (size_t)n * NN_N_SCAL * sizeof(float),
+                        cudaMemcpyHostToDevice));
+    CU_CHECK(cudaMemcpy(nn->d_acts, acts, (size_t)n * NN_N_HEAD * sizeof(int32_t),
+                        cudaMemcpyHostToDevice));
+    CU_CHECK(cudaMemcpy(nn->d_old_logp, old_logp, (size_t)n * sizeof(float),
+                        cudaMemcpyHostToDevice));
+    CU_CHECK(cudaMemcpy(nn->d_adv, advantages, (size_t)n * sizeof(float),
+                        cudaMemcpyHostToDevice));
+    CU_CHECK(cudaMemcpy(nn->d_ret, returns, (size_t)n * sizeof(float),
+                        cudaMemcpyHostToDevice));
+  }
 
   {
+    NvtxSpan span("zero_grads", true);
     const int thr = 256;
     k_zero<<<grid_for_sz(nn->n_params), thr>>>(nn->d_grads, nn->n_params);
     k_zero<<<1, 32>>>(nn->d_stats, 8);
   }
 
-  if (forward_device(nn, n) != 0)
-    return -1;
+  {
+    NvtxSpan span("forward", true);
+    if (forward_device(nn, n) != 0)
+      return -1;
+  }
 
   {
+    NvtxSpan span("ppo_loss", true);
     const int thr = 256;
     k_ppo_dlogits<<<grid_for(n), thr>>>(
         nn->d_logits, nn->d_acts, nn->d_old_logp, nn->d_adv, nn->d_ret,
@@ -1421,29 +1204,41 @@ int nn_cuda_update(NnCuda *nn, const uint8_t *planes, const float *scalars,
         nn->cfg.entropy_coef, nn->d_dlogits, nn->d_dvalue, nn->d_stats);
   }
 
-  if (backward_device(nn, n) != 0)
-    return -1;
-
-  float grad_norm = 0.f;
-  if (clip_and_adam(nn, &grad_norm) != 0)
-    return -1;
-
-  if (stats) {
-    float s[5] = {0, 0, 0, 0, 0};
-    CU_CHECK(cudaMemcpy(s, nn->d_stats, 5 * sizeof(float),
-                        cudaMemcpyDeviceToHost));
-    const float inv_n = 1.f / (float)n;
-    stats->policy_loss = s[0] * inv_n;
-    stats->value_loss = nn->cfg.value_coef * s[1] * inv_n;
-    stats->entropy_mean = s[2] * inv_n;
-    stats->total_loss = stats->policy_loss + stats->value_loss -
-                        nn->cfg.entropy_coef * stats->entropy_mean;
-    stats->grad_norm = grad_norm;
-    stats->approx_kl = s[3] * inv_n;
-    stats->clipfrac = s[4] * inv_n;
+  {
+    NvtxSpan span("backward", true);
+    if (backward_device(nn, n) != 0)
+      return -1;
+    if (sync_grads_to_params(nn) != 0)
+      return -1;
   }
 
-  CU_CHECK(cudaDeviceSynchronize());
+  float grad_norm = 0.f;
+  {
+    NvtxSpan span("clip_adam", true);
+    if (clip_and_adam(nn, &grad_norm) != 0)
+      return -1;
+    if (sync_work_from_params(nn) != 0)
+      return -1;
+  }
+
+  {
+    NvtxSpan span("stats_d2h", true);
+    if (stats) {
+      float s[5] = {0, 0, 0, 0, 0};
+      CU_CHECK(cudaMemcpy(s, nn->d_stats, 5 * sizeof(float),
+                          cudaMemcpyDeviceToHost));
+      const float inv_n = 1.f / (float)n;
+      stats->policy_loss = s[0] * inv_n;
+      stats->value_loss = nn->cfg.value_coef * s[1] * inv_n;
+      stats->entropy_mean = s[2] * inv_n;
+      stats->total_loss = stats->policy_loss + stats->value_loss -
+                          nn->cfg.entropy_coef * stats->entropy_mean;
+      stats->grad_norm = grad_norm;
+      stats->approx_kl = s[3] * inv_n;
+      stats->clipfrac = s[4] * inv_n;
+    }
+    CU_CHECK(cudaDeviceSynchronize());
+  }
   return 0;
 }
 
@@ -1454,7 +1249,6 @@ int nn_cuda_save(const NnCuda *nn, const char *path) {
   }
   if (bind_device(nn) != 0)
     return -1;
-  /* Staging buffer is handle-owned scratch; const only guards public state. */
   NnCuda *mut = const_cast<NnCuda *>(nn);
   if (cudaMemcpy(mut->h_params, mut->d_params, mut->n_params * sizeof(float),
                  cudaMemcpyDeviceToHost) != cudaSuccess) {
@@ -1490,6 +1284,8 @@ int nn_cuda_load(NnCuda *nn, const char *path) {
   CU_CHECK(cudaMemset(nn->d_adam_m, 0, nn->n_params * sizeof(float)));
   CU_CHECK(cudaMemset(nn->d_adam_v, 0, nn->n_params * sizeof(float)));
   nn->adam_t = 0;
+  if (sync_work_from_params(nn) != 0)
+    return -1;
   CU_CHECK(cudaDeviceSynchronize());
   return 0;
 }

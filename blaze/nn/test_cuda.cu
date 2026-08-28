@@ -222,11 +222,11 @@ static void test_forward_sample_update(void) {
 
     for (int i = 0; i < n * NN_N_LOGITS; ++i) {
       note_fwd_err(lc[i], lg[i]);
-      expect_near(lg[i], lc[i], 2e-3f, "logit");
+      expect_near(lg[i], lc[i], 5e-3f, "logit");
     }
     for (int i = 0; i < n; ++i) {
       note_fwd_err(vc[i], vg[i]);
-      expect_near(vg[i], vc[i], 2e-3f, "value");
+      expect_near(vg[i], vc[i], 5e-3f, "value");
     }
 
     free(planes);
@@ -588,11 +588,12 @@ int main(void) {
   test_forward_sample_update();
   test_no_gpu_mem_growth();
 
-  std::printf("\nmax forward abs error:   %.6g (limit 2e-3)\n", g_max_fwd_err);
+  std::printf("\nmax forward abs error:   %.6g (limit 5e-3, TF32)\n",
+              g_max_fwd_err);
   std::printf("max updated weight error: %.6g (limit 5e-3)\n", g_max_w_err);
 
-  if (g_max_fwd_err > 2e-3f) {
-    std::fprintf(stderr, "FAIL: forward max_abs exceeds 2e-3\n");
+  if (g_max_fwd_err > 5e-3f) {
+    std::fprintf(stderr, "FAIL: forward max_abs exceeds 5e-3\n");
     g_fails++;
   }
   if (g_max_w_err > 5e-3f) {

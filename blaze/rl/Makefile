@@ -66,8 +66,10 @@ NVCCFLAGS := -O2 -arch=$(BLAZE_SM) --fmad=false \
 	-I$(CORE_SRC) -I$(ENV_SRC) -Xcompiler -fPIC,-ffp-contract=off
 CUDA_LIBS := -L$(CUDA_HOME)/lib64 \
 	-L$(CUDA_HOME)/targets/x86_64-linux/lib \
-	-lcudnn -lcublas -lcudart -lstdc++ -lm -ldl
-NN_OBJS := $(NN_OUT)/nn.o $(NN_OUT)/cpu.o $(NN_OUT)/fixture.o $(NN_OUT)/cuda.o
+	-lcudnn -lcublas -lcublasLt -lcudart -lstdc++ -lm -ldl
+NN_OBJS := $(NN_OUT)/nn.o $(NN_OUT)/cpu.o $(NN_OUT)/fixture.o $(NN_OUT)/cuda.o \
+	$(NN_OUT)/cuda_ws.o $(NN_OUT)/cuda_conv_graph.o \
+	$(NN_OUT)/cuda_lt_gemm.o $(NN_OUT)/cuda_layout.o
 STAGE_OBJ := $(OUT)/env_cuda_stage.o
 METAL_OBS_OBJ :=
 METAL_HOST_OBJ :=
@@ -137,7 +139,9 @@ ifeq ($(UNAME_S),Darwin)
 $(NN_OUT)/nn.o $(NN_OUT)/cpu.o $(NN_OUT)/fixture.o $(NN_OUT)/metal.o:
 	$(MAKE) -C $(NN_SRC) metal
 else
-$(NN_OUT)/nn.o $(NN_OUT)/cpu.o $(NN_OUT)/fixture.o $(NN_OUT)/cuda.o:
+$(NN_OUT)/nn.o $(NN_OUT)/cpu.o $(NN_OUT)/fixture.o $(NN_OUT)/cuda.o \
+$(NN_OUT)/cuda_ws.o $(NN_OUT)/cuda_conv_graph.o \
+$(NN_OUT)/cuda_lt_gemm.o $(NN_OUT)/cuda_layout.o:
 	$(MAKE) -C $(NN_SRC) cuda BLAZE_SM=$(BLAZE_SM) CUDA_HOME=$(CUDA_HOME)
 endif
 
