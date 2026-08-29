@@ -286,13 +286,42 @@ MC_HD static inline void psv_add_stairs_collision(int x, int y, int z, int meta,
                      x + x1, y + step_y1, z + z1));
 }
 
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+/* Per-env k_tick_warp phase clocks. Defined in blaze_cuda.cu. Indices match
+ * blaze_abi.h BLAZE_PHASE_*. NULL cu_phase => no-op. Warp id == env index. */
+extern __device__ unsigned long long *cu_phase;
+extern __device__ int cu_phase_n, cu_phase_k;
+static __device__ __forceinline__ unsigned long long cu_clk64(void) {
+    unsigned long long t;
+    asm volatile("mov.u64 %0, %%clock64;" : "=l"(t) :: "memory");
+    return t;
+}
+static __device__ __forceinline__ int cu_phase_env(void) {
+    return (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
+}
+static __device__ __forceinline__ void cu_phase_add(int k, unsigned long long dt) {
+    unsigned long long *p = cu_phase;
+    int n = cu_phase_n, nk = cu_phase_k;
+    int w = cu_phase_env();
+    if (!p || !dt || w < 0 || w >= n || k < 0 || k >= nk) return;
+    atomicAdd((unsigned long long *)&p[(size_t)w * (size_t)nk + (size_t)k], dt);
+}
+static __device__ __forceinline__ unsigned long long cu_phase_peek(int k) {
+    unsigned long long *p = cu_phase;
+    int n = cu_phase_n, nk = cu_phase_k;
+    int w = cu_phase_env();
+    if (!p || w < 0 || w >= n || k < 0 || k >= nk) return 0ULL;
+    return p[(size_t)w * (size_t)nk + (size_t)k];
+}
+#endif
+
 /* Collect vanilla block collision AABBs over the motion broadphase. Web is
  * pass-through, cactus is inset 1/16 on X/Z and at the top, slabs preserve
  * their metadata half, stairs use their metadata-oriented two-box straight
  * shape, trapdoors use their 3/16 panel pose, soul sand is 7/8 tall, fences
  * are multipart and 1.5 tall, and walls use the connection-state union box
  * with collision maxY 1.5. */
-MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *query,
+MC_HD static inline int psv_collect_blocks_body(const Chunk *chunks, const McAABB *query,
                                            McAABB *blocks, int maxblocks) {
     int n = 0;
     int x0 = mc_floor(query->minX), x1 = mc_floor(query->maxX);
@@ -410,6 +439,20 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
                 if (n >= maxblocks) return n;
             }
     return n;
+}
+
+MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *query,
+                                           McAABB *blocks, int maxblocks) {
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    unsigned long long t0 = 0;
+    int n;
+    if (cu_phase) t0 = cu_clk64();
+    n = psv_collect_blocks_body(chunks, query, blocks, maxblocks);
+    if (cu_phase) cu_phase_add(2, cu_clk64() - t0); /* BLAZE_PHASE_COLLECT */
+    return n;
+#else
+    return psv_collect_blocks_body(chunks, query, blocks, maxblocks);
+#endif
 }
 
 /* Entity.doBlockCollisions after move(): callbacks use the contracted player

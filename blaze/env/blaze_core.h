@@ -4606,8 +4606,18 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                                                CuAction act, McAABB *blocks) {
     CuEdit edits[CU_MAX_EDITS];
     int n = 0, i;
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    unsigned long long t_rt0 = 0, t_pl0 = 0, t_pl1 = 0;
+    unsigned long long col_rt0 = 0, col_pl0 = 0, col_pl1 = 0;
+#endif
 
     if (env->dead) return;                       /* r->dead || r->won gate */
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) {
+        t_rt0 = cu_clk64();
+        col_rt0 = cu_phase_peek(2); /* COLLECT */
+    }
+#endif
 
     /* Magma runtime.c:927-944: use mounts a nearby boat; sneak dismounts;
      * riding suppresses player WASD so controlBoat owns motion. */
@@ -4726,7 +4736,23 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
             act.attack_entity = 1;
     }
     env->pl.health = env->vit.health;
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) {
+        t_pl0 = cu_clk64();
+        col_pl0 = cu_phase_peek(2);
+    }
+#endif
     blaze_player_tick(env, st, act, edits, &n, CU_MAX_EDITS, blocks);
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) {
+        unsigned long long pdt, cdt;
+        t_pl1 = cu_clk64();
+        col_pl1 = cu_phase_peek(2);
+        pdt = t_pl1 - t_pl0;
+        cdt = col_pl1 - col_pl0;
+        if (pdt > cdt) cu_phase_add(3, pdt - cdt); /* PLAYER_REST */
+    }
+#endif
     {
         PsvPlayer *pl = &env->pl;
         if (pl->hz_fire > 0.0f)
@@ -4859,6 +4885,15 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
      * in an overworld training region - skipped. */
 
     env->tick++;
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) {
+        unsigned long long t_rt1 = cu_clk64();
+        unsigned long long col_rt1 = cu_phase_peek(2);
+        unsigned long long wdt = (t_rt1 - t_rt0) - (t_pl1 - t_pl0);
+        unsigned long long cdt = (col_rt1 - col_rt0) - (col_pl1 - col_pl0);
+        if (wdt > cdt) cu_phase_add(4, wdt - cdt); /* WORLD_REST */
+    }
+#endif
 }
 
 /* one whole game tick, serial reference (CPU driver, verify kernels):

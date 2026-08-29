@@ -69,19 +69,20 @@ class BlazeCreateOpts(ctypes.Structure):
         ("warp_tick", ctypes.c_int),
         ("op_trace", ctypes.c_int),
         ("no_ore_xy", ctypes.c_int),
+        ("phase_time", ctypes.c_int),
     ]
 
     @classmethod
     def defaults(cls):
         return cls(ktime=0, stage_time=0, legacy_recenter=0,
-                   warp_tick=1, op_trace=0, no_ore_xy=0)
+                   warp_tick=1, op_trace=0, no_ore_xy=0, phase_time=0)
 
 
 class VecBlaze:
     def __init__(self, n, device=0, so_path=None, *,
                  ktime=False, stage_time=False, legacy_recenter=False,
                  warp_tick=1, op_trace=False, no_ore_xy=False,
-                 no_emit_all=False):
+                 phase_time=False, no_emit_all=False):
         if so_path is None:
             so_path = CPU_SO
             if os.path.exists(CUDA_SO):
@@ -148,6 +149,7 @@ class VecBlaze:
             warp_tick=int(warp_tick),
             op_trace=1 if op_trace else 0,
             no_ore_xy=1 if no_ore_xy else 0,
+            phase_time=1 if phase_time else 0,
         )
         self.h = self.lib.blaze_create(device, n, ctypes.byref(opts))
         if not self.h:

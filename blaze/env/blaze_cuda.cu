@@ -59,8 +59,21 @@
 #include <cstring>
 #include <cuda_runtime.h>
 
+#define BLAZE_PHASE_CLOCK 1
 #include "blaze_core.h"
 #include "blaze_abi.h"
+
+__device__ unsigned long long *cu_phase = NULL;
+__device__ int cu_phase_n = 0;
+__device__ int cu_phase_k = 0;
+#ifndef __CUDA_ARCH__
+/* nvcc host pass type-checks __global__ bodies; real defs are device-only. */
+static inline unsigned long long cu_clk64(void) { return 0; }
+static inline void cu_phase_add(int k, unsigned long long dt) {
+    (void)k;
+    (void)dt;
+}
+#endif
 
 #define BLAZE_MAX_SNAPS 128
 #define BLAZE_ACT_HEADS 13
@@ -225,6 +238,11 @@ typedef struct {
     int stage_time;
     unsigned long long *d_stage_cycles; /* device, 3 counters */
     unsigned long long h_stage_cycles[3];
+    /* optional per-env phase clocks (create opts.phase_time): [n][BLAZE_PHASE_K]
+     * device + host mirror. Device symbol cu_phase is bound at create. */
+    int phase_time;
+    unsigned long long *d_phase;
+    unsigned long long *h_phase;
     /* optional op-trace activity counters (create opts.op_trace): device pool
      * of n * CU_OP_N u64s, sliced into every env's ->ops at create. */
     int op_trace;
@@ -271,6 +289,8 @@ int blaze_tick(void *vh, int env, const double a[17], int want_cam,
 int blaze_debug_state(void *vh, int env, double *out, int cap);
 int blaze_op_count(void);
 int blaze_op_trace(void *vh, unsigned long long *out);
+int blaze_phase_k(void);
+int blaze_copy_phase(void *vh, unsigned long long *out);
 }
 
 /* =================== kernels =================== */
@@ -614,12 +634,7 @@ __global__ void k_reset_bulk(Blaze *envs, const int *active,
  * the helpers' reads. State evolution is bit-identical to the serial
  * blaze_decision_ticks: same recenter sequence point, same fill values
  * (window bytes are a pure function of region + chunk coords). */
-/* Opaque clock with memory clobber so stage timers cannot reorder past work. */
-__device__ __forceinline__ unsigned long long cu_clk64(void) {
-    unsigned long long t;
-    asm volatile("mov.u64 %0, %%clock64;" : "=l"(t) :: "memory");
-    return t;
-}
+/* cu_clk64 lives in player_survival.h under BLAZE_PHASE_CLOCK. */
 
 /* Verify-only: trainer blaze_step passes inv==NULL (13-wide ABI). Focused
  * M2 packs a[13..16] here so chests/furnaces keep the same chain as
@@ -875,17 +890,19 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
     Blaze *e = &envs[w];
     const double *a = actions + (size_t)w * BLAZE_ACT_HEADS;
     int exec = 0;
+    int want_clk = (stage_cycles != NULL) || (cu_phase != NULL);
     unsigned long long t0 = 0, t1 = 0;
     unsigned long long c_begin = 0, c_re = 0, c_sub = 0;
-    if (stage_cycles && lane == 0) t0 = cu_clk64();
+    if (want_clk && lane == 0) t0 = cu_clk64();
     if (lane == 0)
         exec = blaze_decision_begin(e, st, a, recipes, nrecipes);
     exec = __shfl_sync(FULL, exec, 0);
     if (lane == 0 && exec)
         cu_apply_inv_click(e, inv, w);
-    if (stage_cycles && lane == 0) {
+    if (want_clk && lane == 0) {
         t1 = cu_clk64();
         c_begin = t1 - t0;
+        cu_phase_add(BLAZE_PHASE_BEGIN, c_begin);
         t0 = t1;
     }
     for (int rep = 0; rep < repeat; ++rep) {
@@ -906,24 +923,31 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
             cu_recenter_fill(e, ccx, ccz, dcx, dcz, lane, 32);
             __syncwarp();        /* helper fill writes -> owner reads */
         }
-        if (stage_cycles && lane == 0) {
+        if (want_clk && lane == 0) {
             t1 = cu_clk64();
             c_re += t1 - t0;
+            cu_phase_add(BLAZE_PHASE_RECENTER, t1 - t0);
             t0 = t1;
         }
         if (exec) {
             double fx = 0.0, fy = 0.0, fz = 0.0;
             double ry = 0.0, rp = 0.0, dist = 0.0;
             int have_nc = 0;
+            unsigned long long tc0 = 0, tp0 = 0;
             if (lane == 0)
                 blaze_subtick_phys(e, st, a, rep, repeat,
                                    aabb_pool + (size_t)w * PSV_MAX_BLOCKS,
                                    0, &fx, &fy, &fz);
             __syncwarp();        /* lane-0 world/pose writes -> lane reads */
+            if (want_clk && lane == 0) tc0 = cu_clk64();
             cu_coal_warp(e, lane, &have_nc, &ry, &rp, &dist);
+            if (want_clk && lane == 0)
+                cu_phase_add(BLAZE_PHASE_COAL, cu_clk64() - tc0);
             if (lane == 0) {
+                if (want_clk) tp0 = cu_clk64();
                 blaze_subtick_post(e, rep, repeat, atk_gate, have_nc,
                                    ry, rp, dist);
+                if (want_clk) cu_phase_add(BLAZE_PHASE_POST, cu_clk64() - tp0);
                 if (e->done) exec = 0;
             }
             exec = __shfl_sync(FULL, exec, 0);
@@ -932,6 +956,8 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
             t1 = cu_clk64();
             c_sub += t1 - t0;
             t0 = t1;
+        } else if (want_clk && lane == 0) {
+            t0 = cu_clk64();
         }
     }
     if (stage_cycles && lane == 0) {
@@ -1117,6 +1143,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     v->warp_tick = o.warp_tick;   /* default 1; 0 = flat k_tick */
     v->op_trace = o.op_trace ? 1 : 0;
     v->no_ore_xy = o.no_ore_xy ? 1 : 0;
+    v->phase_time = o.phase_time ? 1 : 0;
     v->h_assign = (int *)calloc((size_t)n, sizeof *v->h_assign);
     v->h_active = (int *)calloc((size_t)n, sizeof *v->h_active);
     v->h_envs = (Blaze *)calloc((size_t)n, sizeof *v->h_envs);
@@ -1237,6 +1264,28 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         }
         cudaMemset(v->d_stage_cycles, 0, 3 * sizeof(unsigned long long));
     }
+    if (v->phase_time) {
+        size_t nb = (size_t)n * (size_t)BLAZE_PHASE_K * sizeof(unsigned long long);
+        unsigned long long *p;
+        int kn = n, kk = BLAZE_PHASE_K;
+        v->h_phase = (unsigned long long *)calloc(
+            (size_t)n * (size_t)BLAZE_PHASE_K, sizeof(unsigned long long));
+        if (!v->h_phase || cudaMalloc(&v->d_phase, nb) != cudaSuccess) {
+            fprintf(stderr, "blaze_cuda: phase_time alloc failed\n");
+            blaze_destroy(v);
+            return NULL;
+        }
+        cudaMemset(v->d_phase, 0, nb);
+        p = v->d_phase;
+        if (cu_ck(cudaMemcpyToSymbol(cu_phase, &p, sizeof(p)), "cu_phase") ||
+            cu_ck(cudaMemcpyToSymbol(cu_phase_n, &kn, sizeof(kn)),
+                  "cu_phase_n") ||
+            cu_ck(cudaMemcpyToSymbol(cu_phase_k, &kk, sizeof(kk)),
+                  "cu_phase_k")) {
+            blaze_destroy(v);
+            return NULL;
+        }
+    }
     return v;
 }
 
@@ -1281,6 +1330,17 @@ void blaze_destroy(void *vh) {
         cudaFree(v->d_stage_cycles);
         v->d_stage_cycles = NULL;
     }
+    if (v->d_phase) {
+        unsigned long long *p = NULL;
+        int z = 0;
+        (void)cudaMemcpyToSymbol(cu_phase, &p, sizeof(p));
+        (void)cudaMemcpyToSymbol(cu_phase_n, &z, sizeof(z));
+        (void)cudaMemcpyToSymbol(cu_phase_k, &z, sizeof(z));
+        cudaFree(v->d_phase);
+        v->d_phase = NULL;
+    }
+    free(v->h_phase);
+    v->h_phase = NULL;
     for (i = 0; i < v->nsnaps; ++i) {
         cudaFree((void *)v->h_snaps[i].cells);
         cudaFree((void *)v->h_snaps[i].light);
@@ -1771,6 +1831,11 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
     cudaSetDevice(v->device);
     eblocks = (v->n + CU_TPB - 1) / CU_TPB;
     pblocks = (int)(((size_t)v->n * CU_NPIX + CU_TPB - 1) / CU_TPB);
+    if (v->phase_time && v->d_phase)
+        cudaMemsetAsync(v->d_phase, 0,
+                        (size_t)v->n * (size_t)BLAZE_PHASE_K *
+                            sizeof(unsigned long long),
+                        v->stream);
     if (v->ktime) cudaEventRecord(v->ev[0], v->stream);
     if (v->legacy_recenter)
         k_tick_legacy<<<(v->n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB,
@@ -1806,6 +1871,13 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
         cudaEventElapsedTime(&ms, v->ev[1], v->ev[2]); v->ms_obs += ms;
         cudaEventElapsedTime(&ms, v->ev[2], v->ev[3]); v->ms_final += ms;
         v->nsteps++;
+    }
+    if (v->phase_time && v->d_phase && v->h_phase) {
+        if (cu_ck(cudaMemcpy(v->h_phase, v->d_phase,
+                             (size_t)v->n * (size_t)BLAZE_PHASE_K *
+                                 sizeof(unsigned long long),
+                             cudaMemcpyDeviceToHost), "phase D2H"))
+            return -1;
     }
     return 0;
 }
@@ -2414,6 +2486,11 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                                const double *act, McAABB *aabb,
                                const double *inv) {
     int repeat = 1;
+    if (v->phase_time && v->d_phase)
+        cudaMemsetAsync(v->d_phase, 0,
+                        (size_t)v->n * (size_t)BLAZE_PHASE_K *
+                            sizeof(unsigned long long),
+                        v->stream);
     if (v->legacy_recenter)
         k_tick_legacy<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB,
                         0, v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
@@ -2430,7 +2507,15 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                  v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                               v->d_recipes, v->nrecipes, v->atk_gate,
                               v->stage_time ? v->d_stage_cycles : NULL, inv);
-    return cu_ck(cudaStreamSynchronize(v->stream), "blaze_tick");
+    if (cu_ck(cudaStreamSynchronize(v->stream), "blaze_tick")) return -1;
+    if (v->phase_time && v->d_phase && v->h_phase) {
+        if (cu_ck(cudaMemcpy(v->h_phase, v->d_phase,
+                             (size_t)v->n * (size_t)BLAZE_PHASE_K *
+                                 sizeof(unsigned long long),
+                             cudaMemcpyDeviceToHost), "phase D2H"))
+            return -1;
+    }
+    return 0;
 }
 
 int blaze_tick(void *vh, int env, const double a[17], int want_cam,
@@ -2475,6 +2560,17 @@ int blaze_tick(void *vh, int env, const double a[17], int want_cam,
  * cumulative device counters copied to host `out` (row-major, env-major).
  * Returns -1 when tracing is off (op_trace was 0 at create). */
 int blaze_op_count(void) { return CU_OP_N; }
+
+int blaze_phase_k(void) { return BLAZE_PHASE_K; }
+
+int blaze_copy_phase(void *vh, unsigned long long *out) {
+    CuVecCu *v = (CuVecCu *)vh;
+    size_t nb;
+    if (!v || !out || !v->phase_time || !v->h_phase) return -1;
+    nb = (size_t)v->n * (size_t)BLAZE_PHASE_K * sizeof(unsigned long long);
+    memcpy(out, v->h_phase, nb);
+    return 0;
+}
 
 int blaze_op_trace(void *vh, unsigned long long *out) {
     CuVecCu *v = (CuVecCu *)vh;

@@ -257,6 +257,14 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
  * tracing is off (op_trace was 0 at create). */
 int blaze_op_count(void) { return CU_OP_N; }
 
+int blaze_phase_k(void) { return BLAZE_PHASE_K; }
+
+int blaze_copy_phase(void *vh, unsigned long long *out) {
+    (void)vh;
+    (void)out;
+    return -1;
+}
+
 int blaze_op_trace(void *vh, unsigned long long *out) {
     CuVec *v = (CuVec *)vh;
     if (!v || !out || !v->ops_pool) return -1;
