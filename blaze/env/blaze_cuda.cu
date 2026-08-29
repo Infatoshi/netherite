@@ -862,12 +862,14 @@ __device__ void cu_coal_warp(Blaze *env, int lane,
     }
 }
 
-__global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
-                            const double *actions, int repeat,
-                            McAABB *aabb_pool, const CRRecipe *recipes,
-                            int nrecipes, double atk_gate,
-                            unsigned long long *stage_cycles,
-                            const double *inv) {
+__global__ void
+__launch_bounds__(128, 3)
+k_tick_warp(Blaze *envs, int n, const McSinTable *st,
+            const double *actions, int repeat,
+            McAABB *aabb_pool, const CRRecipe *recipes,
+            int nrecipes, double atk_gate,
+            unsigned long long *stage_cycles,
+            const double *inv) {
     const unsigned FULL = 0xffffffffu;
     int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
     int lane = (int)(threadIdx.x & 31u);
