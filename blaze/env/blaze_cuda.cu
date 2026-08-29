@@ -1778,7 +1778,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                                         repeat, v->d_aabb, v->d_recipes,
                                         v->nrecipes, v->atk_gate);
     else if (v->warp_tick)
-        k_tick_warp<<<(unsigned)(((size_t)v->n * 32 + 127) / 128), 128, 0,
+        k_tick_warp<<<(unsigned)v->n, 32, 0,
                       v->stream>>>(v->d_envs, v->n, v->d_st, actions,
                                    repeat, v->d_aabb, v->d_recipes,
                                    v->nrecipes, v->atk_gate,
@@ -2420,7 +2420,7 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                                         v->d_recipes, v->nrecipes,
                                         v->atk_gate);
     else if (v->warp_tick)
-        k_tick_warp<<<(unsigned)(((size_t)n * 32 + 127) / 128), 128, 0,
+        k_tick_warp<<<(unsigned)n, 32, 0,
                       v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                                    v->d_recipes, v->nrecipes, v->atk_gate,
                                    v->stage_time ? v->d_stage_cycles : NULL,
