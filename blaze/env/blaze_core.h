@@ -4601,14 +4601,11 @@ MC_HD static inline int cu_attack_hits_falling_block(const Blaze *env,
 /* =================== one whole game tick (gm_runtime_tick slice) ========== */
 
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
-#define CU_PHASE_SPAN(k, stmt) do { \
-    unsigned long long _cu_pt0 = 0; \
-    if (cu_phase) _cu_pt0 = cu_clk64(); \
-    stmt; \
-    if (cu_phase) cu_phase_add((k), cu_clk64() - _cu_pt0); \
-} while (0)
+#define CU_PHASE_T0() unsigned long long _cu_pt0 = cu_phase ? cu_clk64() : 0ULL
+#define CU_PHASE_END(k) do { if (cu_phase) cu_phase_add((k), cu_clk64() - _cu_pt0); } while (0)
 #else
-#define CU_PHASE_SPAN(k, stmt) do { stmt; } while (0)
+#define CU_PHASE_T0() ((void)0)
+#define CU_PHASE_END(k) ((void)0)
 #endif
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
@@ -4833,18 +4830,21 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 #endif
     /* Magma runtime.c: weather then fluids then randtick then spine
      * then projectiles then live items. Dragon stays inert. */
-    CU_PHASE_SPAN(5, cu_weather_tick(env));
-    CU_PHASE_SPAN(6, cu_fluid_tick(env, 0, env->tick));
-    CU_PHASE_SPAN(7, cu_randtick_pass(env));
-    CU_PHASE_SPAN(8, {
+    { CU_PHASE_T0(); cu_weather_tick(env); CU_PHASE_END(5); }
+    { CU_PHASE_T0(); cu_fluid_tick(env, 0, env->tick); CU_PHASE_END(6); }
+    { CU_PHASE_T0(); cu_randtick_pass(env); CU_PHASE_END(7); }
+    {
+        CU_PHASE_T0();
         if (env->mobs_enabled) cu_mob_ai_tick(env, st);
         else cu_mob_spine_tick(env, st);
-    });
-    CU_PHASE_SPAN(9, cu_boat_tick(env, env->boat_fwd, env->boat_str));
-    CU_PHASE_SPAN(10, cu_xp_tick(env));
-    CU_PHASE_SPAN(11, cu_explosion_tick(env));
-    CU_PHASE_SPAN(12, {
+        CU_PHASE_END(8);
+    }
+    { CU_PHASE_T0(); cu_boat_tick(env, env->boat_fwd, env->boat_str); CU_PHASE_END(9); }
+    { CU_PHASE_T0(); cu_xp_tick(env); CU_PHASE_END(10); }
+    { CU_PHASE_T0(); cu_explosion_tick(env); CU_PHASE_END(11); }
+    {
         int pi;
+        CU_PHASE_T0();
         for (pi = 0; pi < CU_MAX_PROJECTILES; ++pi) {
             CuProj *pp = &env->projectiles[pi];
             if (!pp->active) continue;
@@ -4867,12 +4867,14 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                                     &env->proj_ground_ticks[pi]);
             }
         }
-    });
+        CU_PHASE_END(12);
+    }
 
-    CU_PHASE_SPAN(13, cu_live_tick_player(env));
+    { CU_PHASE_T0(); cu_live_tick_player(env); CU_PHASE_END(13); }
 
     /* live furnace tick + 61<->62 lit block flip (runtime.c:398) */
-    CU_PHASE_SPAN(14, {
+    {
+        CU_PHASE_T0();
         for (i = 0; i < CU_MAX_FURNACES; ++i) if (env->furnaces[i].active) {
             CuFurnace *f = &env->furnaces[i];
             int was_lit = f->burn_time > 0, lit;
@@ -4888,7 +4890,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         }
         for (i = 0; i < env->chests_cap; ++i)
             if (env->chests[i].active) tec_tick(&env->chests[i].te);
-    });
+        CU_PHASE_END(14);
+    }
 
     if (env->vit.health <= 0.0f) {
         env->dead = 1;
