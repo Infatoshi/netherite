@@ -1419,6 +1419,8 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
     }
     v->rnx = rnx; v->rny = rny; v->rnz = rnz;
     v->rvol = rvol;
+    fprintf(stderr, "blaze_cuda: region rnx=%d rny=%d rnz=%d n=%d\n",
+            rnx, rny, rnz, v->n);
     for (i = 0; i < v->n; ++i) {
         v->h_envs[i].cells = v->d_cells + (size_t)i * rvol;
         v->h_envs[i].light = v->d_light + (size_t)i * rvol;

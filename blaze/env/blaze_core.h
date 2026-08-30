@@ -733,9 +733,21 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
 MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
                                                 int wz) {
     int cx, cz, x0, x1, z0, z1;
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    unsigned long long t0 = 0;
+#endif
     (void)wy;
     if (!e->light_valid) return;
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) t0 = cu_clk64();
+#endif
     cu_skylight_chunk(e, wx, wz);
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) {
+        cu_phase_add(21, cu_clk64() - t0); /* SKY_CHUNK */
+        t0 = cu_clk64();
+    }
+#endif
     cx = wx >> 4;
     cz = wz >> 4;
     x0 = (cx << 4) - 15;
@@ -744,6 +756,9 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
     z1 = (cz << 4) + 30;
     cu_skylight_spread_box(e, x0, e->ry0, z0, x1,
                            e->ry0 + e->rny - 1, z1);
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) cu_phase_add(22, cu_clk64() - t0); /* SKY_BOX */
+#endif
 }
 
 /* Packed BLOCK nibble. EnumSkyBlock.BLOCK defaultLightValue is 0
@@ -923,6 +938,10 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
         u16 old_state = e->cells[i];
         u16 new_state = mc_state(id, meta);
         int old_op, new_op;
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+        unsigned long long t0 = 0;
+        if (cu_phase) t0 = cu_clk64();
+#endif
         cu_cont_edit(e, wx, wy, wz, mc_state_id(old_state), id);
         if (e->parity_world_valid && old_state != new_state) {
             e->parity_world_digest = bp_world_digest_replace(
@@ -973,6 +992,9 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
         }
         old_op = cu_sky_opacity(mc_state_id(old_state));
         new_op = cu_sky_opacity(id);
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+        if (cu_phase) cu_phase_add(20, cu_clk64() - t0); /* DIGEST */
+#endif
         if (old_op != new_op)
             cu_light_after_opacity(e, wx, wy, wz);
         /* World.checkLight (World.java:2952-2961) always runs BLOCK
@@ -980,8 +1002,14 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
          * opacity 0 so the sky path above is skipped; blight still floods.
          * Magma light_set_state (light.c:762) sets blocklight_dirty on any
          * state change, then compute_blocklight BFS. */
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+        if (cu_phase) t0 = cu_clk64();
+#endif
         if (old_state != new_state)
             cu_check_light_for_block(e, wx, wy, wz);
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+        if (cu_phase) cu_phase_add(23, cu_clk64() - t0); /* BLK */
+#endif
         e->world_epoch++;        /* coal candidate mined-flag invalidation */
         CU_OP(e, CU_OP_WORLD_EDIT);
     }

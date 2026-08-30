@@ -44,7 +44,11 @@ typedef struct BlazeCreateOpts {
 #define BLAZE_PHASE_TILE        17 /* furnaces + chests */
 #define BLAZE_PHASE_COAL        18
 #define BLAZE_PHASE_POST        19
-#define BLAZE_PHASE_K           20
+#define BLAZE_PHASE_DIGEST      20 /* set_state digest/census, not light */
+#define BLAZE_PHASE_SKY_CHUNK   21 /* cu_skylight_chunk */
+#define BLAZE_PHASE_SKY_BOX     22 /* cu_skylight_spread_box */
+#define BLAZE_PHASE_BLK         23 /* cu_check_light_for_block */
+#define BLAZE_PHASE_K           24
 
 /* Fill *o with the historical unset-env defaults. */
 static inline void blaze_create_opts_default(BlazeCreateOpts *o) {
