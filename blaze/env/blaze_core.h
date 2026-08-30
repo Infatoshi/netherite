@@ -4600,6 +4600,17 @@ MC_HD static inline int cu_attack_hits_falling_block(const Blaze *env,
 
 /* =================== one whole game tick (gm_runtime_tick slice) ========== */
 
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+#define CU_PHASE_SPAN(k, stmt) do { \
+    unsigned long long _cu_pt0 = 0; \
+    if (cu_phase) _cu_pt0 = cu_clk64(); \
+    stmt; \
+    if (cu_phase) cu_phase_add((k), cu_clk64() - _cu_pt0); \
+} while (0)
+#else
+#define CU_PHASE_SPAN(k, stmt) do { stmt; } while (0)
+#endif
+
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
  * blaze_runtime_tick below, or warp-cooperatively in the CUDA k_tick). */
 MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
@@ -4607,17 +4618,12 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     CuEdit edits[CU_MAX_EDITS];
     int n = 0, i;
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
-    unsigned long long t_rt0 = 0, t_pl0 = 0, t_pl1 = 0;
-    unsigned long long col_rt0 = 0, col_pl0 = 0, col_pl1 = 0;
+    unsigned long long t_pl0 = 0, t_pl1 = 0;
+    unsigned long long col_pl0 = 0, col_pl1 = 0;
+    unsigned long long t_pre0 = 0;
 #endif
 
     if (env->dead) return;                       /* r->dead || r->won gate */
-#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
-    if (cu_phase) {
-        t_rt0 = cu_clk64();
-        col_rt0 = cu_phase_peek(2); /* COLLECT */
-    }
-#endif
 
     /* Magma runtime.c:927-944: use mounts a nearby boat; sneak dismounts;
      * riding suppresses player WASD so controlBoat owns motion. */
@@ -4751,6 +4757,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         pdt = t_pl1 - t_pl0;
         cdt = col_pl1 - col_pl0;
         if (pdt > cdt) cu_phase_add(3, pdt - cdt); /* PLAYER_REST */
+        t_pre0 = cu_clk64();
     }
 #endif
     {
@@ -4821,17 +4828,22 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                           edits[i].drop_count, edits[i].drop_meta, 10);
     }
 
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) cu_phase_add(4, cu_clk64() - t_pre0); /* WR_PRE */
+#endif
     /* Magma runtime.c: weather then fluids then randtick then spine
      * then projectiles then live items. Dragon stays inert. */
-    cu_weather_tick(env);
-    cu_fluid_tick(env, 0, env->tick);
-    cu_randtick_pass(env);
-    if (env->mobs_enabled) cu_mob_ai_tick(env, st);
-    else cu_mob_spine_tick(env, st);
-    cu_boat_tick(env, env->boat_fwd, env->boat_str);
-    cu_xp_tick(env);
-    cu_explosion_tick(env);
-    {
+    CU_PHASE_SPAN(5, cu_weather_tick(env));
+    CU_PHASE_SPAN(6, cu_fluid_tick(env, 0, env->tick));
+    CU_PHASE_SPAN(7, cu_randtick_pass(env));
+    CU_PHASE_SPAN(8, {
+        if (env->mobs_enabled) cu_mob_ai_tick(env, st);
+        else cu_mob_spine_tick(env, st);
+    });
+    CU_PHASE_SPAN(9, cu_boat_tick(env, env->boat_fwd, env->boat_str));
+    CU_PHASE_SPAN(10, cu_xp_tick(env));
+    CU_PHASE_SPAN(11, cu_explosion_tick(env));
+    CU_PHASE_SPAN(12, {
         int pi;
         for (pi = 0; pi < CU_MAX_PROJECTILES; ++pi) {
             CuProj *pp = &env->projectiles[pi];
@@ -4855,26 +4867,28 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                                     &env->proj_ground_ticks[pi]);
             }
         }
-    }
+    });
 
-    cu_live_tick_player(env);
+    CU_PHASE_SPAN(13, cu_live_tick_player(env));
 
     /* live furnace tick + 61<->62 lit block flip (runtime.c:398) */
-    for (i = 0; i < CU_MAX_FURNACES; ++i) if (env->furnaces[i].active) {
-        CuFurnace *f = &env->furnaces[i];
-        int was_lit = f->burn_time > 0, lit;
-        CU_OP(env, CU_OP_FURNACE_TICK);
-        cu_furnace_tick(f);
-        lit = f->burn_time > 0;
-        if (lit != was_lit) {
-            int id = cu_world_block(env, f->wx, f->wy, f->wz);
-            if (id == 61 || id == 62)
-                cu_world_set_state(env, f->wx, f->wy, f->wz, lit ? 62 : 61,
-                                   cu_world_meta(env, f->wx, f->wy, f->wz));
+    CU_PHASE_SPAN(14, {
+        for (i = 0; i < CU_MAX_FURNACES; ++i) if (env->furnaces[i].active) {
+            CuFurnace *f = &env->furnaces[i];
+            int was_lit = f->burn_time > 0, lit;
+            CU_OP(env, CU_OP_FURNACE_TICK);
+            cu_furnace_tick(f);
+            lit = f->burn_time > 0;
+            if (lit != was_lit) {
+                int id = cu_world_block(env, f->wx, f->wy, f->wz);
+                if (id == 61 || id == 62)
+                    cu_world_set_state(env, f->wx, f->wy, f->wz, lit ? 62 : 61,
+                                       cu_world_meta(env, f->wx, f->wy, f->wz));
+            }
         }
-    }
-    for (i = 0; i < env->chests_cap; ++i)
-        if (env->chests[i].active) tec_tick(&env->chests[i].te);
+        for (i = 0; i < env->chests_cap; ++i)
+            if (env->chests[i].active) tec_tick(&env->chests[i].te);
+    });
 
     if (env->vit.health <= 0.0f) {
         env->dead = 1;
@@ -4885,15 +4899,6 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
      * in an overworld training region - skipped. */
 
     env->tick++;
-#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
-    if (cu_phase) {
-        unsigned long long t_rt1 = cu_clk64();
-        unsigned long long col_rt1 = cu_phase_peek(2);
-        unsigned long long wdt = (t_rt1 - t_rt0) - (t_pl1 - t_pl0);
-        unsigned long long cdt = (col_rt1 - col_rt0) - (col_pl1 - col_pl0);
-        if (wdt > cdt) cu_phase_add(4, wdt - cdt); /* WORLD_REST */
-    }
-#endif
 }
 
 /* one whole game tick, serial reference (CPU driver, verify kernels):
