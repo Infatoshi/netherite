@@ -867,71 +867,75 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
                             McAABB *aabb_pool, const CRRecipe *recipes,
                             int nrecipes, double atk_gate,
                             unsigned long long *stage_cycles,
-                            const double *inv) {
+                            const double *inv, int ndec) {
     const unsigned FULL = 0xffffffffu;
     int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
     int lane = (int)(threadIdx.x & 31u);
+    int d, nd = ndec < 1 ? 1 : ndec;
     if (w >= n) return;                    /* whole tail warp exits together */
     Blaze *e = &envs[w];
-    const double *a = actions + (size_t)w * BLAZE_ACT_HEADS;
-    int exec = 0;
     unsigned long long t0 = 0, t1 = 0;
     unsigned long long c_begin = 0, c_re = 0, c_sub = 0;
     if (stage_cycles && lane == 0) t0 = cu_clk64();
-    if (lane == 0)
-        exec = blaze_decision_begin(e, st, a, recipes, nrecipes);
-    exec = __shfl_sync(FULL, exec, 0);
-    if (lane == 0 && exec)
-        cu_apply_inv_click(e, inv, w);
-    if (stage_cycles && lane == 0) {
-        t1 = cu_clk64();
-        c_begin = t1 - t0;
-        t0 = t1;
-    }
-    for (int rep = 0; rep < repeat; ++rep) {
-        int need = 0, ccx = 0, ccz = 0, dcx = 0, dcz = 0;
-        if (lane == 0 && exec && !e->dead &&
-            cu_recenter_pose(e, &dcx, &dcz)) {
-            need = 1;
-            ccx = e->ccx;
-            ccz = e->ccz;
-        }
-        need = __shfl_sync(FULL, need, 0);
-        if (need) {
-            ccx = __shfl_sync(FULL, ccx, 0);
-            ccz = __shfl_sync(FULL, ccz, 0);
-            dcx = __shfl_sync(FULL, dcx, 0);
-            dcz = __shfl_sync(FULL, dcz, 0);
-            __syncwarp();        /* owner pose writes -> helper reads */
-            cu_recenter_fill(e, ccx, ccz, dcx, dcz, lane, 32);
-            __syncwarp();        /* helper fill writes -> owner reads */
-        }
+    for (d = 0; d < nd; ++d) {
+        const double *a = actions + ((size_t)d * (size_t)n + (size_t)w) *
+                          BLAZE_ACT_HEADS;
+        int exec = 0;
+        if (lane == 0)
+            exec = blaze_decision_begin(e, st, a, recipes, nrecipes);
+        exec = __shfl_sync(FULL, exec, 0);
+        if (lane == 0 && exec)
+            cu_apply_inv_click(e, nd == 1 ? inv : NULL, w);
         if (stage_cycles && lane == 0) {
             t1 = cu_clk64();
-            c_re += t1 - t0;
+            c_begin += t1 - t0;
             t0 = t1;
         }
-        if (exec) {
-            double fx = 0.0, fy = 0.0, fz = 0.0;
-            double ry = 0.0, rp = 0.0, dist = 0.0;
-            int have_nc = 0;
-            if (lane == 0)
-                blaze_subtick_phys(e, st, a, rep, repeat,
-                                   aabb_pool + (size_t)w * PSV_MAX_BLOCKS,
-                                   0, &fx, &fy, &fz);
-            __syncwarp();        /* lane-0 world/pose writes -> lane reads */
-            cu_coal_warp(e, lane, &have_nc, &ry, &rp, &dist);
-            if (lane == 0) {
-                blaze_subtick_post(e, rep, repeat, atk_gate, have_nc,
-                                   ry, rp, dist);
-                if (e->done) exec = 0;
+        for (int rep = 0; rep < repeat; ++rep) {
+            int need = 0, ccx = 0, ccz = 0, dcx = 0, dcz = 0;
+            if (lane == 0 && exec && !e->dead &&
+                cu_recenter_pose(e, &dcx, &dcz)) {
+                need = 1;
+                ccx = e->ccx;
+                ccz = e->ccz;
             }
-            exec = __shfl_sync(FULL, exec, 0);
-        }
-        if (stage_cycles && lane == 0) {
-            t1 = cu_clk64();
-            c_sub += t1 - t0;
-            t0 = t1;
+            need = __shfl_sync(FULL, need, 0);
+            if (need) {
+                ccx = __shfl_sync(FULL, ccx, 0);
+                ccz = __shfl_sync(FULL, ccz, 0);
+                dcx = __shfl_sync(FULL, dcx, 0);
+                dcz = __shfl_sync(FULL, dcz, 0);
+                __syncwarp();        /* owner pose writes -> helper reads */
+                cu_recenter_fill(e, ccx, ccz, dcx, dcz, lane, 32);
+                __syncwarp();        /* helper fill writes -> owner reads */
+            }
+            if (stage_cycles && lane == 0) {
+                t1 = cu_clk64();
+                c_re += t1 - t0;
+                t0 = t1;
+            }
+            if (exec) {
+                double fx = 0.0, fy = 0.0, fz = 0.0;
+                double ry = 0.0, rp = 0.0, dist = 0.0;
+                int have_nc = 0;
+                if (lane == 0)
+                    blaze_subtick_phys(e, st, a, rep, repeat,
+                                       aabb_pool + (size_t)w * PSV_MAX_BLOCKS,
+                                       0, &fx, &fy, &fz);
+                __syncwarp();        /* lane-0 world/pose writes -> lane reads */
+                cu_coal_warp(e, lane, &have_nc, &ry, &rp, &dist);
+                if (lane == 0) {
+                    blaze_subtick_post(e, rep, repeat, atk_gate, have_nc,
+                                       ry, rp, dist);
+                    if (e->done) exec = 0;
+                }
+                exec = __shfl_sync(FULL, exec, 0);
+            }
+            if (stage_cycles && lane == 0) {
+                t1 = cu_clk64();
+                c_sub += t1 - t0;
+                t0 = t1;
+            }
         }
     }
     if (stage_cycles && lane == 0) {
@@ -1783,7 +1787,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                                    repeat, v->d_aabb, v->d_recipes,
                                    v->nrecipes, v->atk_gate,
                                    v->stage_time ? v->d_stage_cycles : NULL,
-                                   NULL);
+                                   NULL, 1);
     else
         k_tick<<<(v->n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(v->d_envs, v->n, v->d_st, actions, repeat,
@@ -1815,6 +1819,33 @@ int blaze_step(void *vh, const double *actions, int repeat,
                float *scal, float *rew, unsigned char *done, float *pose) {
     return blaze_step_full(vh, actions, repeat, cam, depth, edge, scal, rew,
                            done, pose, NULL);
+}
+
+/* ndec decisions in one k_tick_warp launch. actions is [ndec][n][13] on device.
+ * k_obs + k_final run once after the last decision (drain PoC). */
+int blaze_step_ndec(void *vh, const double *actions, int ndec, int repeat,
+                    unsigned short *cam, unsigned char *depth,
+                    unsigned char *edge, float *scal, float *rew,
+                    unsigned char *done, float *pose) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int eblocks, pblocks;
+    if (!v || !actions || repeat < 1 || ndec < 1) return -1;
+    if (!v->warp_tick || v->legacy_recenter) return -1;
+    cudaSetDevice(v->device);
+    eblocks = (v->n + CU_TPB - 1) / CU_TPB;
+    pblocks = (int)(((size_t)v->n * CU_NPIX + CU_TPB - 1) / CU_TPB);
+    k_tick_warp<<<(unsigned)(((size_t)v->n * 32 + 127) / 128), 128, 0,
+                  v->stream>>>(v->d_envs, v->n, v->d_st, actions,
+                               repeat, v->d_aabb, v->d_recipes,
+                               v->nrecipes, v->atk_gate,
+                               v->stage_time ? v->d_stage_cycles : NULL,
+                               NULL, ndec);
+    k_obs<<<pblocks, CU_TPB, 0, v->stream>>>(v->d_envs, v->n, v->d_st,
+                                             cam, depth, edge);
+    k_final<<<eblocks, CU_TPB, 0, v->stream>>>(v->d_envs, v->n, v->d_st,
+                                               scal, rew, done, pose,
+                                               v->atk_gate, NULL);
+    return cu_ck(cudaStreamSynchronize(v->stream), "blaze_step_ndec");
 }
 
 /* Capture a LIVE env's full state into snapshot slot `slot` (self-generated
@@ -2424,7 +2455,7 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                       v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                                    v->d_recipes, v->nrecipes, v->atk_gate,
                                    v->stage_time ? v->d_stage_cycles : NULL,
-                                   inv);
+                                   inv, 1);
     else
         k_tick<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
