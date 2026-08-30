@@ -4617,7 +4617,6 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
     unsigned long long t_pl0 = 0, t_pl1 = 0;
     unsigned long long col_pl0 = 0, col_pl1 = 0;
-    unsigned long long t_pre0 = 0;
 #endif
 
     if (env->dead) return;                       /* r->dead || r->won gate */
@@ -4754,9 +4753,9 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         pdt = t_pl1 - t_pl0;
         cdt = col_pl1 - col_pl0;
         if (pdt > cdt) cu_phase_add(3, pdt - cdt); /* PLAYER_REST */
-        t_pre0 = cu_clk64();
     }
 #endif
+    { CU_PHASE_T0();
     {
         PsvPlayer *pl = &env->pl;
         if (pl->hz_fire > 0.0f)
@@ -4788,11 +4787,30 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         env->left_click_counter = 10000;
 
     /* ghost pushers (runtime.c:328-354): tape-replay only, nghosts==0. */
+    CU_PHASE_END(4); } /* HZ */
 
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    unsigned long long t_set = 0, t_flch = 0, t_erest = 0, t_ed0 = 0;
+#endif
     for (i = 0; i < n; ++i) {
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+        if (cu_phase) t_ed0 = cu_clk64();
+#endif
         cu_world_set_state(env, edits[i].wx, edits[i].wy, edits[i].wz,
                            edits[i].id, edits[i].meta);
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+        if (cu_phase) {
+            t_set += cu_clk64() - t_ed0;
+            t_ed0 = cu_clk64();
+        }
+#endif
         fl_block_changed(env, env, edits[i].wx, edits[i].wy, edits[i].wz);
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+        if (cu_phase) {
+            t_flch += cu_clk64() - t_ed0;
+            t_ed0 = cu_clk64();
+        }
+#endif
         cu_fluid_mark(env, 0, edits[i].wx, edits[i].wy, edits[i].wz);
         cu_break_unsupported_plants(env, edits[i].wx, edits[i].wy, edits[i].wz);
         /* water/lava placement interactions (runtime.c:361-372), ported for
@@ -4823,25 +4841,31 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
             cu_spawn_item(env, edits[i].wx + 0.5, edits[i].wy + 0.5,
                           edits[i].wz + 0.5, edits[i].drop_id,
                           edits[i].drop_count, edits[i].drop_meta, 10);
-    }
-
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
-    if (cu_phase) cu_phase_add(4, cu_clk64() - t_pre0); /* WR_PRE */
+        if (cu_phase) t_erest += cu_clk64() - t_ed0;
+#endif
+    }
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    if (cu_phase) {
+        cu_phase_add(5, t_set);   /* SETSTATE */
+        cu_phase_add(6, t_flch);  /* FLCH */
+        cu_phase_add(7, t_erest); /* EDITREST */
+    }
 #endif
     /* Magma runtime.c: weather then fluids then randtick then spine
      * then projectiles then live items. Dragon stays inert. */
-    { CU_PHASE_T0(); cu_weather_tick(env); CU_PHASE_END(5); }
-    { CU_PHASE_T0(); cu_fluid_tick(env, 0, env->tick); CU_PHASE_END(6); }
-    { CU_PHASE_T0(); cu_randtick_pass(env); CU_PHASE_END(7); }
+    { CU_PHASE_T0(); cu_weather_tick(env); CU_PHASE_END(8); }
+    { CU_PHASE_T0(); cu_fluid_tick(env, 0, env->tick); CU_PHASE_END(9); }
+    { CU_PHASE_T0(); cu_randtick_pass(env); CU_PHASE_END(10); }
     {
         CU_PHASE_T0();
         if (env->mobs_enabled) cu_mob_ai_tick(env, st);
         else cu_mob_spine_tick(env, st);
-        CU_PHASE_END(8);
+        CU_PHASE_END(11);
     }
-    { CU_PHASE_T0(); cu_boat_tick(env, env->boat_fwd, env->boat_str); CU_PHASE_END(9); }
-    { CU_PHASE_T0(); cu_xp_tick(env); CU_PHASE_END(10); }
-    { CU_PHASE_T0(); cu_explosion_tick(env); CU_PHASE_END(11); }
+    { CU_PHASE_T0(); cu_boat_tick(env, env->boat_fwd, env->boat_str); CU_PHASE_END(12); }
+    { CU_PHASE_T0(); cu_xp_tick(env); CU_PHASE_END(13); }
+    { CU_PHASE_T0(); cu_explosion_tick(env); CU_PHASE_END(14); }
     {
         int pi;
         CU_PHASE_T0();
@@ -4867,10 +4891,10 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                                     &env->proj_ground_ticks[pi]);
             }
         }
-        CU_PHASE_END(12);
+        CU_PHASE_END(15);
     }
 
-    { CU_PHASE_T0(); cu_live_tick_player(env); CU_PHASE_END(13); }
+    { CU_PHASE_T0(); cu_live_tick_player(env); CU_PHASE_END(16); }
 
     /* live furnace tick + 61<->62 lit block flip (runtime.c:398) */
     {
@@ -4890,7 +4914,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         }
         for (i = 0; i < env->chests_cap; ++i)
             if (env->chests[i].active) tec_tick(&env->chests[i].te);
-        CU_PHASE_END(14);
+        CU_PHASE_END(17);
     }
 
     if (env->vit.health <= 0.0f) {

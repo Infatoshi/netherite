@@ -22,25 +22,29 @@ typedef struct BlazeCreateOpts {
 } BlazeCreateOpts;
 
 /* Per-env phase timer columns (create opts.phase_time=1, CUDA warp path).
- * 4..14 split former WORLD_REST (runtime_tick_nr minus player minus collect). */
+ * 4..17 split former WORLD_REST (runtime_tick_nr minus player minus collect).
+ * wr_pre (hazards + world edits) further split after it owned the 1.3s tail. */
 #define BLAZE_PHASE_BEGIN       0
 #define BLAZE_PHASE_RECENTER    1
 #define BLAZE_PHASE_COLLECT     2
 #define BLAZE_PHASE_PLAYER_REST 3
-#define BLAZE_PHASE_WR_PRE      4  /* hazards + world edits */
-#define BLAZE_PHASE_WEATHER     5
-#define BLAZE_PHASE_FLUID       6
-#define BLAZE_PHASE_RANDTICK    7
-#define BLAZE_PHASE_MOBS        8
-#define BLAZE_PHASE_BOAT        9
-#define BLAZE_PHASE_XP          10
-#define BLAZE_PHASE_EXPLOSION   11
-#define BLAZE_PHASE_PROJ        12
-#define BLAZE_PHASE_LIVE        13
-#define BLAZE_PHASE_TILE        14 /* furnaces + chests */
-#define BLAZE_PHASE_COAL        15
-#define BLAZE_PHASE_POST        16
-#define BLAZE_PHASE_K           17
+#define BLAZE_PHASE_HZ          4  /* post-player hazard hurts */
+#define BLAZE_PHASE_SETSTATE    5  /* cu_world_set_state (incl. light) */
+#define BLAZE_PHASE_FLCH        6  /* fl_block_changed */
+#define BLAZE_PHASE_EDITREST    7  /* fluid_mark, plants, fluid mix, spawn */
+#define BLAZE_PHASE_WEATHER     8
+#define BLAZE_PHASE_FLUID       9
+#define BLAZE_PHASE_RANDTICK    10
+#define BLAZE_PHASE_MOBS        11
+#define BLAZE_PHASE_BOAT        12
+#define BLAZE_PHASE_XP          13
+#define BLAZE_PHASE_EXPLOSION   14
+#define BLAZE_PHASE_PROJ        15
+#define BLAZE_PHASE_LIVE        16
+#define BLAZE_PHASE_TILE        17 /* furnaces + chests */
+#define BLAZE_PHASE_COAL        18
+#define BLAZE_PHASE_POST        19
+#define BLAZE_PHASE_K           20
 
 /* Fill *o with the historical unset-env defaults. */
 static inline void blaze_create_opts_default(BlazeCreateOpts *o) {
