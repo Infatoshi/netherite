@@ -329,6 +329,8 @@ typedef struct {
     uint32_t parity_fall_mutations;
     int     *rt_leaf;            /* RT_LIVE_SURR ints; BlockLeaves surroundings */
     int     *light_q;            /* CU_LIGHT_Q ints; World.java:161 BLOCK flood queue */
+    int     *sky_q;              /* CU_SKY_Q ints; raise-only sky worklist.
+                                  * NULL -> 15-pass box fallback. */
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
 
     u16   *fluid_cur, *fluid_tmp; /* CU_FLUID_VOL CA grids; NULL = skip CA */
@@ -690,20 +692,28 @@ MC_HD static inline void cu_skylight_chunk(Blaze *e, int wx, int wz) {
 
 /* Raise-only flood over a box. Magma compute_skylight_spread (light.c:541)
  * is a BFS; 15 in-place passes are the same max-flood (air costs 1, sky
- * 15 dies in 15 steps). Early-exit when a pass raises nothing. */
-MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
-                                                int z0, int x1, int y1,
-                                                int z1) {
-    int pass, x, y, z, changed;
+ * 15 dies in 15 steps). Early-exit when a pass raises nothing.
+ * Unique least fixed point; walk order does not change the bits. */
+MC_HD static inline int cu_skylight_clamp_box(const Blaze *e, int *x0, int *y0,
+                                              int *z0, int *x1, int *y1,
+                                              int *z1) {
     int rx1 = e->rx0 + e->rnx - 1, ry1 = e->ry0 + e->rny - 1,
         rz1 = e->rz0 + e->rnz - 1;
-    if (x0 < e->rx0) x0 = e->rx0;
-    if (y0 < e->ry0) y0 = e->ry0;
-    if (z0 < e->rz0) z0 = e->rz0;
-    if (x1 > rx1) x1 = rx1;
-    if (y1 > ry1) y1 = ry1;
-    if (z1 > rz1) z1 = rz1;
-    if (x0 > x1 || y0 > y1 || z0 > z1) return;
+    if (*x0 < e->rx0) *x0 = e->rx0;
+    if (*y0 < e->ry0) *y0 = e->ry0;
+    if (*z0 < e->rz0) *z0 = e->rz0;
+    if (*x1 > rx1) *x1 = rx1;
+    if (*y1 > ry1) *y1 = ry1;
+    if (*z1 > rz1) *z1 = rz1;
+    return (*x0 <= *x1 && *y0 <= *y1 && *z0 <= *z1);
+}
+
+/* Original x,z,y-inner 15-pass. Kept as the CPU differential oracle. */
+MC_HD static inline void cu_skylight_spread_box_ref(Blaze *e, int x0, int y0,
+                                                    int z0, int x1, int y1,
+                                                    int z1) {
+    int pass, x, y, z, changed;
+    if (!cu_skylight_clamp_box(e, &x0, &y0, &z0, &x1, &y1, &z1)) return;
     for (pass = 0; pass < 15; ++pass) {
         changed = 0;
         for (x = x0; x <= x1; ++x)
@@ -718,6 +728,126 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
                 }
         if (!changed) break;
     }
+}
+
+/* Fallback 15-pass. z-inner matches layout ((ix*rny)+iy)*rnz+iz. */
+MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
+                                                int z0, int x1, int y1,
+                                                int z1) {
+    int pass, x, y, z, changed;
+    if (!cu_skylight_clamp_box(e, &x0, &y0, &z0, &x1, &y1, &z1)) return;
+    for (pass = 0; pass < 15; ++pass) {
+        changed = 0;
+        for (x = x0; x <= x1; ++x)
+            for (y = y0; y <= y1; ++y)
+                for (z = z0; z <= z1; ++z) {
+                    long i = cu_region_idx(e, x, y, z);
+                    int before;
+                    if (i < 0) continue;
+                    before = e->light[i] >> 4;
+                    cu_light_relax_cell(e, x, y, z);
+                    if ((e->light[i] >> 4) > before) changed = 1;
+                }
+        if (!changed) break;
+    }
+}
+
+/* Magma compute_skylight_spread (light.c:541) source-push BFS. Same
+ * raise-only max-flood as the 15-pass. Seed = column nibble writes
+ * (sky>1 in the rebuilt chunk) plus a 1-cell xz halo so neighbours
+ * still at the previous fixed point can raise into rebuilt zeros.
+ * Overflow / missing sky_q returns -1; caller falls back to the box. */
+#define CU_SKY_Q 131072
+MC_HD static inline int cu_sky_q_push(Blaze *e, int *tail, long idx) {
+    if (!e->sky_q || idx < 0 || idx > 0x7fffffffL) return -1;
+    if (*tail >= CU_SKY_Q) return -1;
+    e->sky_q[(*tail)++] = (int)idx;
+    return 0;
+}
+
+MC_HD static inline void cu_skylight_unidx(const Blaze *e, long i, int *wx,
+                                           int *wy, int *wz) {
+    int iz = (int)(i % e->rnz);
+    long t = i / e->rnz;
+    int iy = (int)(t % e->rny);
+    int ix = (int)(t / e->rny);
+    *wx = e->rx0 + ix;
+    *wy = e->ry0 + iy;
+    *wz = e->rz0 + iz;
+}
+
+MC_HD static inline int cu_skylight_seed_cell(Blaze *e, int *tail, int x, int y,
+                                              int z, int x0, int x1, int y0,
+                                              int y1, int z0, int z1) {
+    long i;
+    if (x < x0 || x > x1 || y < y0 || y > y1 || z < z0 || z > z1) return 0;
+    i = cu_region_idx(e, x, y, z);
+    if (i < 0) return 0;
+    if ((e->light[i] >> 4) <= 1) return 0;
+    return cu_sky_q_push(e, tail, i);
+}
+
+MC_HD static inline int cu_skylight_worklist(Blaze *e, int x0, int y0, int z0,
+                                             int x1, int y1, int z1, int cx0,
+                                             int cz0, int cx1, int cz1) {
+    static const int dx[6] = {1, -1, 0, 0, 0, 0};
+    static const int dy[6] = {0, 0, 1, -1, 0, 0};
+    static const int dz[6] = {0, 0, 0, 0, 1, -1};
+    int head, tail, f, x, y, z;
+    if (!e->sky_q) return -1;
+    if (!cu_skylight_clamp_box(e, &x0, &y0, &z0, &x1, &y1, &z1)) return 0;
+    tail = 0;
+    for (x = cx0; x <= cx1; ++x)
+        for (z = cz0; z <= cz1; ++z)
+            for (y = y0; y <= y1; ++y)
+                if (cu_skylight_seed_cell(e, &tail, x, y, z, x0, x1, y0, y1,
+                                          z0, z1) < 0)
+                    return -1;
+    for (z = cz0; z <= cz1; ++z)
+        for (y = y0; y <= y1; ++y) {
+            if (cu_skylight_seed_cell(e, &tail, cx0 - 1, y, z, x0, x1, y0, y1,
+                                      z0, z1) < 0)
+                return -1;
+            if (cu_skylight_seed_cell(e, &tail, cx1 + 1, y, z, x0, x1, y0, y1,
+                                      z0, z1) < 0)
+                return -1;
+        }
+    for (x = cx0; x <= cx1; ++x)
+        for (y = y0; y <= y1; ++y) {
+            if (cu_skylight_seed_cell(e, &tail, x, y, cz0 - 1, x0, x1, y0, y1,
+                                      z0, z1) < 0)
+                return -1;
+            if (cu_skylight_seed_cell(e, &tail, x, y, cz1 + 1, x0, x1, y0, y1,
+                                      z0, z1) < 0)
+                return -1;
+        }
+    head = 0;
+    while (head < tail) {
+        long i = (long)e->sky_q[head++];
+        int sky;
+        cu_skylight_unidx(e, i, &x, &y, &z);
+        sky = e->light[i] >> 4;
+        if (sky <= 1) continue;
+        for (f = 0; f < 6; ++f) {
+            int nx = x + dx[f], ny = y + dy[f], nz = z + dz[f];
+            long ni;
+            int opacity, cand, before;
+            if (nx < x0 || nx > x1 || ny < y0 || ny > y1 || nz < z0 || nz > z1)
+                continue;
+            ni = cu_region_idx(e, nx, ny, nz);
+            if (ni < 0) continue;
+            opacity = cu_sky_opacity(mc_state_id(e->cells[ni]));
+            if (opacity > 15) opacity = 15;
+            if (opacity < 1) opacity = 1;
+            cand = sky - opacity;
+            before = e->light[ni] >> 4;
+            if (cand > before) {
+                e->light[ni] = (u8)((cand << 4) | (e->light[ni] & 15));
+                if (cu_sky_q_push(e, &tail, ni) < 0) return -1;
+            }
+        }
+    }
+    return 0;
 }
 
 /* Magma light_set_state (light.c:751) sets column_dirty on opacity change;
@@ -754,11 +884,33 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
     x1 = (cx << 4) + 30;
     z0 = (cz << 4) - 15;
     z1 = (cz << 4) + 30;
-    cu_skylight_spread_box(e, x0, e->ry0, z0, x1,
-                           e->ry0 + e->rny - 1, z1);
+    {
+        int cx0 = cx << 4, cz0 = cz << 4;
+        int y0 = e->ry0, y1 = e->ry0 + e->rny - 1;
+        if (cu_skylight_worklist(e, x0, y0, z0, x1, y1, z1, cx0, cz0,
+                                 cx0 + 15, cz0 + 15) < 0)
+            cu_skylight_spread_box(e, x0, y0, z0, x1, y1, z1);
+    }
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
     if (cu_phase) cu_phase_add(22, cu_clk64() - t0); /* SKY_BOX */
 #endif
+}
+
+/* 15-pass oracle for CPU differential. Same chunk rebuild + box. */
+MC_HD static inline void cu_light_after_opacity_ref(Blaze *e, int wx, int wy,
+                                                    int wz) {
+    int cx, cz, x0, x1, z0, z1;
+    (void)wy;
+    if (!e->light_valid) return;
+    cu_skylight_chunk(e, wx, wz);
+    cx = wx >> 4;
+    cz = wz >> 4;
+    x0 = (cx << 4) - 15;
+    x1 = (cx << 4) + 30;
+    z0 = (cz << 4) - 15;
+    z1 = (cz << 4) + 30;
+    cu_skylight_spread_box_ref(e, x0, e->ry0, z0, x1,
+                               e->ry0 + e->rny - 1, z1);
 }
 
 /* Packed BLOCK nibble. EnumSkyBlock.BLOCK defaultLightValue is 0

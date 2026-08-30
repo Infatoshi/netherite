@@ -107,6 +107,7 @@ TEST_POTIONS_BIN := $(OUT)/test_potions
 TEST_PLACE_BIN := $(OUT)/test_placement
 TEST_BEDS_BIN := $(OUT)/test_beds
 TEST_SKY_BIN := $(OUT)/test_skylight_water
+TEST_SKYWL_BIN := $(OUT)/test_skylight_worklist
 TEST_BLK_BIN := $(OUT)/test_blocklight
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
@@ -123,7 +124,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-skylight-worklist test-blocklight smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval test-eval-magma eval-magma
 
@@ -368,6 +369,10 @@ SKY_MAGMA_OBJS := $(MAGMA)/world/mesh_mc.o $(MAGMA)/world/light.o \
 	$(MAGMA)/renderkernels/rk_31_facebakery_make_quad.o \
 	$(MAGMA)/core/math.o $(MAGMA)/core/shade.o $(MAGMA)/core/config.o \
 	$(MAGMA)/game/caps.o
+$(TEST_SKYWL_BIN): $(ENV_SRC)/test_skylight_worklist.c \
+		$(ENV_SRC)/blaze_core.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_skylight_worklist.c -lm
+
 $(TEST_SKY_BIN): $(ENV_SRC)/test_skylight_water.c \
 		$(ENV_SRC)/test_skylight_magma_oracle.c \
 		$(ENV_SRC)/blaze_core.h | $(OUT)
@@ -439,6 +444,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 		$(TEST_PLACE_BIN) \
 		$(TEST_BEDS_BIN) \
 		$(TEST_SKY_BIN) \
+		$(TEST_SKYWL_BIN) \
 		$(TEST_BLK_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
@@ -465,6 +471,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_placement
 	cd $(REPO) && ./out/blaze/rl/test_beds
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
+	cd $(REPO) && ./out/blaze/rl/test_skylight_worklist
 	cd $(REPO) && ./out/blaze/rl/test_blocklight
 
 test-hazards: $(TEST_HAZARDS_BIN)
@@ -525,6 +532,9 @@ test-passives: $(TEST_PASSIVES_BIN)
 
 test-skylight-water: $(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
+
+test-skylight-worklist: $(TEST_SKYWL_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_skylight_worklist
 
 test-blocklight: $(TEST_BLK_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_blocklight

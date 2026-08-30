@@ -78,6 +78,7 @@ typedef struct {
     u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
     int   *rt_leaf_pool;     /* per-env BlockLeaves surroundings[32768] */
     int   *light_q_pool;     /* per-env CU_LIGHT_Q BLOCK flood queue */
+    int   *sky_q_pool;       /* per-env CU_SKY_Q sky worklist */
     u8    *light_pool, *biome_pool, *dep_pool, *edg_pool;
     Chunk *window_pool;
     CuCand *cand_pool;
@@ -219,10 +220,12 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                                     sizeof *v->rt_leaf_pool);
     v->light_q_pool = (int *)malloc((size_t)n * CU_LIGHT_Q *
                                     sizeof *v->light_q_pool);
+    v->sky_q_pool = (int *)malloc((size_t)n * CU_SKY_Q *
+                                  sizeof *v->sky_q_pool);
     if (!v->envs || !v->assign || !v->cam_pool || !v->dep_pool ||
         !v->edg_pool || !v->window_pool || !v->cand_pool || !v->cont_pool ||
         !v->blocks || !v->fluid_cur_pool || !v->fluid_tmp_pool ||
-        !v->rt_leaf_pool || !v->light_q_pool) {
+        !v->rt_leaf_pool || !v->light_q_pool || !v->sky_q_pool) {
         blaze_destroy(v);
         return NULL;
     }
@@ -246,6 +249,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->fluid_tmp = v->fluid_tmp_pool + (size_t)i * CU_FLUID_VOL;
         e->rt_leaf = v->rt_leaf_pool + (size_t)i * RT_LIVE_SURR;
         e->light_q = v->light_q_pool + (size_t)i * CU_LIGHT_Q;
+        e->sky_q = v->sky_q_pool + (size_t)i * CU_SKY_Q;
         e->ops = v->ops_pool ? v->ops_pool + (size_t)i * CU_OP_N : NULL;
         v->assign[i] = -1;
     }
@@ -263,6 +267,22 @@ int blaze_copy_phase(void *vh, unsigned long long *out) {
     (void)vh;
     (void)out;
     return -1;
+}
+
+int blaze_region_vol(void *vh) {
+    CuVec *v = (CuVec *)vh;
+    if (!v || v->rvol <= 0 || v->rvol > 0x7fffffffL) return -1;
+    return (int)v->rvol;
+}
+
+int blaze_copy_light(void *vh, int env, unsigned char *out, int cap) {
+    CuVec *v = (CuVec *)vh;
+    int vol;
+    if (!v || !out || env < 0 || env >= v->n || !v->light_pool) return -1;
+    vol = blaze_region_vol(v);
+    if (vol < 0 || cap < vol) return -1;
+    memcpy(out, v->light_pool + (size_t)env * (size_t)vol, (size_t)vol);
+    return vol;
 }
 
 int blaze_op_trace(void *vh, unsigned long long *out) {
@@ -318,6 +338,7 @@ void blaze_destroy(void *vh) {
     free(v->fluid_cur_pool); free(v->fluid_tmp_pool);
     free(v->rt_leaf_pool);
     free(v->light_q_pool);
+    free(v->sky_q_pool);
     free(v->ops_pool);
     free(v);
 }

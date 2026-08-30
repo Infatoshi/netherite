@@ -70,6 +70,11 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts);
 int blaze_phase_k(void);
 int blaze_copy_phase(void *vh, unsigned long long *out);
 
+/* Packed sky<<4|block nibble plane. cap must be >= region volume.
+ * Returns volume on success, -1 on error. */
+int blaze_region_vol(void *vh);
+int blaze_copy_light(void *vh, int env, unsigned char *out, int cap);
+
 #ifdef __cplusplus
 }
 #endif

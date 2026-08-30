@@ -35,6 +35,7 @@ int main(void) {
     long rvol;
     Blaze e;
     int light_q[CU_LIGHT_Q];
+    int *sky_q;
     u16 *cells;
     u8 *light;
     Chunk *window;
@@ -64,6 +65,12 @@ int main(void) {
     e.rvol = rvol;
     e.light_valid = 1;
     e.light_q = light_q;
+    sky_q = (int *)malloc((size_t)CU_SKY_Q * sizeof(int));
+    if (!sky_q) {
+        fprintf(stderr, "FAIL: alloc sky_q\n");
+        return 1;
+    }
+    e.sky_q = sky_q;
 
     for (y = y0; y <= y0 + 2; ++y)
         for (z = 7; z <= 9; ++z)
@@ -99,6 +106,7 @@ int main(void) {
     free(cells);
     free(light);
     free(window);
+    free(sky_q);
     if (fails) {
         fprintf(stderr, "FAIL\n");
         return 1;

@@ -179,6 +179,7 @@ typedef struct {
     u16 *d_fluid_cur, *d_fluid_tmp; /* n * CU_FLUID_VOL CA grids; same as CPU */
     int *d_rt_leaf;              /* n * RT_LIVE_SURR BlockLeaves scratch */
     int *d_light_q;              /* n * CU_LIGHT_Q BLOCK flood queue */
+    int *d_sky_q;                /* n * CU_SKY_Q sky worklist */
     u8 *d_light, *d_biome, *d_dep, *d_edg;
     Chunk *d_window;
     CuCand *d_cand;
@@ -1183,7 +1184,9 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         cudaMalloc(&v->d_rt_leaf,
                    (size_t)n * RT_LIVE_SURR * sizeof(int)) != cudaSuccess ||
         cudaMalloc(&v->d_light_q,
-                   (size_t)n * CU_LIGHT_Q * sizeof(int)) != cudaSuccess) {
+                   (size_t)n * CU_LIGHT_Q * sizeof(int)) != cudaSuccess ||
+        cudaMalloc(&v->d_sky_q,
+                   (size_t)n * CU_SKY_Q * sizeof(int)) != cudaSuccess) {
         fprintf(stderr, "blaze_cuda: cudaMalloc failed for n=%d fixed pools "
                         "(~%.1f GB; region pools come later at snapshot "
                         "load)\n",
@@ -1193,6 +1196,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                                 2.0 * CU_FLUID_VOL * sizeof(u16) +
                                 (double)RT_LIVE_SURR * sizeof(int) +
                                 (double)CU_LIGHT_Q * sizeof(int) +
+                                (double)CU_SKY_Q * sizeof(int) +
                                 sizeof(Blaze)) / 1e9);
         blaze_destroy(v);
         return NULL;
@@ -1245,6 +1249,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->fluid_tmp = v->d_fluid_tmp + (size_t)i * CU_FLUID_VOL;
         e->rt_leaf = v->d_rt_leaf + (size_t)i * RT_LIVE_SURR;
         e->light_q = v->d_light_q + (size_t)i * CU_LIGHT_Q;
+        e->sky_q = v->d_sky_q + (size_t)i * CU_SKY_Q;
         e->ops = v->d_ops ? v->d_ops + (size_t)i * CU_OP_N : NULL;
     }
     if (cu_ck(cudaMemcpy(v->d_envs, v->h_envs, (size_t)n * sizeof(Blaze),
@@ -1369,6 +1374,7 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_fluid_tmp);
     cudaFree(v->d_rt_leaf);
     cudaFree(v->d_light_q);
+    cudaFree(v->d_sky_q);
     cudaFree(v->d_edg);
     cudaFree(v->d_dep);
     cudaFree(v->d_cam);
@@ -2572,6 +2578,26 @@ int blaze_copy_phase(void *vh, unsigned long long *out) {
     nb = (size_t)v->n * (size_t)BLAZE_PHASE_K * sizeof(unsigned long long);
     memcpy(out, v->h_phase, nb);
     return 0;
+}
+
+int blaze_region_vol(void *vh) {
+    CuVecCu *v = (CuVecCu *)vh;
+    if (!v || v->rvol <= 0 || v->rvol > 0x7fffffffL) return -1;
+    return (int)v->rvol;
+}
+
+int blaze_copy_light(void *vh, int env, unsigned char *out, int cap) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int vol;
+    if (!v || !out || env < 0 || env >= v->n || !v->d_light) return -1;
+    vol = blaze_region_vol(v);
+    if (vol < 0 || cap < vol) return -1;
+    cudaSetDevice(v->device);
+    if (cu_ck(cudaMemcpy(out, v->d_light + (size_t)env * (size_t)vol,
+                         (size_t)vol, cudaMemcpyDeviceToHost),
+              "light readback"))
+        return -1;
+    return vol;
 }
 
 int blaze_op_trace(void *vh, unsigned long long *out) {
