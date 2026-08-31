@@ -126,6 +126,39 @@ MC_HD static inline i32 rt_live_step_lcg(i32 *lcg) {
     return (*lcg) >> 2;
 }
 
+/* Affine jump of World.java:96: x <- 3x + 1013904223 (uint32 wrap).
+ * x_k = 3^k x + c * (3^k - 1)/2. Pair (a,S)=(3^k, (3^k-1)/2); square
+ * S2=S*(a+1) and concat S'=a_m*S_k+S_m, all uint32 wrap. Naive
+ * (3^k-1)>>1 in uint32 drops the 2^31 carry for k>=21. k<=0 is identity. */
+MC_HD static inline i32 rt_live_lcg_after(i32 x, int k) {
+    u32 u, a, S, aa, SS;
+    unsigned kk;
+    if (k <= 0) return x;
+    u = (u32)x;
+    a = 1u;
+    S = 0u;
+    aa = 3u;
+    SS = 1u;
+    kk = (unsigned)k;
+    while (kk) {
+        if (kk & 1u) {
+            u32 na = aa * a;
+            u32 nS = aa * S + SS;
+            a = na;
+            S = nS;
+        }
+        {
+            u32 na = aa * aa;
+            u32 nS = SS * (aa + 1u);
+            aa = na;
+            SS = nS;
+        }
+        kk >>= 1;
+    }
+    u = a * u + RT_DIST_HASH_MAGIC * S;
+    return (i32)u;
+}
+
 /* BlockFire.init setFireInfo tables, magma/game/randtick.c:50-88. */
 MC_HD static inline int rt_live_fire_flammability(int id) {
     switch (id) {
@@ -683,17 +716,15 @@ MC_HD static inline void rt_live_tick_mycelium(RT_W *w, JavaRandom *rng,
     }
 }
 
-MC_HD static inline void rt_live_tick_block(RT_W *w, int wx, int wy, int wz,
-                                            JavaRandom *rng,
-                                            const McGameRules *gr,
-                                            int *leaf_surr,
-                                            int raining) {
-    int id;
+MC_HD static inline void rt_live_tick_block_id(RT_W *w, int wx, int wy, int wz,
+                                               JavaRandom *rng,
+                                               const McGameRules *gr,
+                                               int *leaf_surr,
+                                               int raining, int id) {
     McGameRules def;
     if (!w) return;
     if (!gr) { def = mc_gamerules_default(); gr = &def; }
     if (wy < 0 || wy >= 256) return;
-    id = rt_live_id(w, wx, wy, wz);
     switch (id) {
         case BLK_GRASS:
             rt_live_tick_grass(w, rng, wx, wy, wz);
@@ -728,6 +759,17 @@ MC_HD static inline void rt_live_tick_block(RT_W *w, int wx, int wy, int wz,
         default:
             break;
     }
+}
+
+MC_HD static inline void rt_live_tick_block(RT_W *w, int wx, int wy, int wz,
+                                            JavaRandom *rng,
+                                            const McGameRules *gr,
+                                            int *leaf_surr,
+                                            int raining) {
+    if (!w) return;
+    if (wy < 0 || wy >= 256) return;
+    rt_live_tick_block_id(w, wx, wy, wz, rng, gr, leaf_surr, raining,
+                          rt_live_id(w, wx, wy, wz));
 }
 
 #ifndef RT_SECTION_NEEDS
@@ -808,6 +850,159 @@ MC_HD static inline void rt_live_pass(RT_W *w, JavaRandom *rng, i32 *update_lcg,
                     rt_live_tick_block(w, wx, wy, wz, rng, gr, leaf_surr, raining);
                 }
             }
+        }
+    }
+}
+
+#define RT_WS_CAP 16
+
+typedef struct {
+    int n;
+    int wide;
+    int x[RT_WS_CAP];
+    int y[RT_WS_CAP];
+    int z[RT_WS_CAP];
+} RtWriteSet;
+
+MC_HD static inline void rt_ws_init(RtWriteSet *s) {
+    if (!s) return;
+    s->n = 0;
+    s->wide = 0;
+}
+
+MC_HD static inline int rt_ws_hit(const RtWriteSet *s, int x, int y, int z) {
+    int i;
+    if (!s) return 1;
+    if (s->wide) return 1;
+    for (i = 0; i < s->n; ++i)
+        if (s->x[i] == x && s->y[i] == y && s->z[i] == z)
+            return 1;
+    return 0;
+}
+
+/* Note the dispatched (pre-tick) id. Grass/mycelium/fire may write a
+ * neighbour box; other tickers write at most the pick cell. */
+MC_HD static inline void rt_ws_note(RtWriteSet *s, int x, int y, int z, int id) {
+    if (!s) return;
+    if (id == BLK_GRASS || id == RT_BLK_MYCELIUM || id == RT_BLK_FIRE) {
+        s->wide = 1;
+        return;
+    }
+    if (id != RT_BLK_LEAVES && id != RT_BLK_LEAVES2 &&
+        id != RT_BLK_WHEAT && id != RT_BLK_CARROT && id != RT_BLK_POTATO &&
+        id != RT_BLK_SAPLING && id != RT_BLK_FARMLAND &&
+        id != RT_BLK_ICE && id != RT_BLK_SNOW_LAYER)
+        return;
+    if (s->n < RT_WS_CAP) {
+        s->x[s->n] = x;
+        s->y[s->n] = y;
+        s->z[s->n] = z;
+        s->n++;
+    } else {
+        s->wide = 1;
+    }
+}
+
+MC_HD static inline void rt_live_apply_prefetched(RT_W *w, JavaRandom *rng,
+                                                  const McGameRules *gr,
+                                                  int *leaf_surr, int raining,
+                                                  int wx, int wy, int wz,
+                                                  int id, RtWriteSet *ws) {
+    if (rt_ws_hit(ws, wx, wy, wz))
+        id = rt_live_id(w, wx, wy, wz);
+    rt_live_tick_block_id(w, wx, wy, wz, rng, gr, leaf_surr, raining, id);
+    rt_ws_note(ws, wx, wy, wz, id);
+}
+
+MC_HD static inline int rt_live_collect_sections(RT_W *w, int cx, int cz,
+                                                 int *live) {
+    int sec, n = 0;
+    for (sec = 0; sec < 16; ++sec) {
+        if (!RT_SECTION_NEEDS(w, cx, sec, cz)) continue;
+        if (live) live[n] = sec;
+        n++;
+    }
+    return n;
+}
+
+/* Same Magma order as rt_live_pass: per-chunk prefix, then live sections
+ * in sec order * randomTickSpeed, LCG via closed-form jump. */
+MC_HD static inline void rt_live_pass_jumped(RT_W *w, JavaRandom *rng,
+                                             i32 *update_lcg,
+                                             int raining, int thundering,
+                                             int ccx, int ccz, int radius,
+                                             const McGameRules *gr,
+                                             int *leaf_surr) {
+    McGameRules def;
+    int rts, cx, cz, nlive, n, i;
+    int live[16];
+    i32 lcg0;
+    if (!w || !rng || !update_lcg) return;
+    if (!gr) { def = mc_gamerules_default(); gr = &def; }
+    rts = gr->randomTickSpeed;
+    if (rts <= 0) return;
+    if (radius < 0) radius = 0;
+
+    for (cx = ccx - radius; cx <= ccx + radius; ++cx) {
+        for (cz = ccz - radius; cz <= ccz + radius; ++cz) {
+            rt_live_chunk_worldrand_prefix(w, rng, update_lcg, raining,
+                                           thundering, cx * 16, cz * 16);
+            nlive = rt_live_collect_sections(w, cx, cz, live);
+            n = nlive * rts;
+            if (n <= 0) continue;
+            lcg0 = *update_lcg;
+            for (i = 0; i < n; ++i) {
+                i32 j1 = rt_live_lcg_after(lcg0, i + 1) >> 2;
+                int s = live[i / rts];
+                int wx = cx * 16 + (j1 & 15);
+                int wz = cz * 16 + ((j1 >> 8) & 15);
+                int wy = s * 16 + ((j1 >> 16) & 15);
+                rt_live_tick_block(w, wx, wy, wz, rng, gr, leaf_surr, raining);
+            }
+            *update_lcg = rt_live_lcg_after(lcg0, n);
+        }
+    }
+}
+
+/* Jump-ahead picks plus write-set redo: CPU model of the warp helper-lane
+ * apply (prefetch id, reload on conflict, lane-0 Java order). */
+MC_HD static inline void rt_live_pass_prefetch(RT_W *w, JavaRandom *rng,
+                                               i32 *update_lcg,
+                                               int raining, int thundering,
+                                               int ccx, int ccz, int radius,
+                                               const McGameRules *gr,
+                                               int *leaf_surr) {
+    McGameRules def;
+    int rts, cx, cz, nlive, n, i;
+    int live[16];
+    i32 lcg0;
+    if (!w || !rng || !update_lcg) return;
+    if (!gr) { def = mc_gamerules_default(); gr = &def; }
+    rts = gr->randomTickSpeed;
+    if (rts <= 0) return;
+    if (radius < 0) radius = 0;
+
+    for (cx = ccx - radius; cx <= ccx + radius; ++cx) {
+        for (cz = ccz - radius; cz <= ccz + radius; ++cz) {
+            RtWriteSet ws;
+            rt_live_chunk_worldrand_prefix(w, rng, update_lcg, raining,
+                                           thundering, cx * 16, cz * 16);
+            nlive = rt_live_collect_sections(w, cx, cz, live);
+            n = nlive * rts;
+            if (n <= 0) continue;
+            lcg0 = *update_lcg;
+            rt_ws_init(&ws);
+            for (i = 0; i < n; ++i) {
+                i32 j1 = rt_live_lcg_after(lcg0, i + 1) >> 2;
+                int s = live[i / rts];
+                int wx = cx * 16 + (j1 & 15);
+                int wz = cz * 16 + ((j1 >> 8) & 15);
+                int wy = s * 16 + ((j1 >> 16) & 15);
+                int id = rt_live_id(w, wx, wy, wz);
+                rt_live_apply_prefetched(w, rng, gr, leaf_surr, raining,
+                                         wx, wy, wz, id, &ws);
+            }
+            *update_lcg = rt_live_lcg_after(lcg0, n);
         }
     }
 }

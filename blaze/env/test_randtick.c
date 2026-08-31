@@ -361,6 +361,61 @@ static int run_units(void) {
            "plains air over stone cannot snow");
 
     {
+        static const int ks[] = {0, 1, 2, 21, 100, 1000, 10000};
+        int ti;
+        i32 seeds[] = {0, 1013904223, -239350404, (i32)0x11111111u, (i32)0x80000000u};
+        expect(rt_live_lcg_after(0, 0) == 0, "lcg_after(0,0) identity");
+        expect(rt_live_lcg_after(0, 1) == 1013904223, "lcg_after(0,1) magma step 0");
+        expect(rt_live_lcg_after(0, 2) == -239350404, "lcg_after(0,2) magma step 1");
+        for (ti = 0; ti < (int)(sizeof seeds / sizeof seeds[0]); ++ti) {
+            int ki;
+            for (ki = 0; ki < (int)(sizeof ks / sizeof ks[0]); ++ki) {
+                i32 it = seeds[ti];
+                i32 jp;
+                int step;
+                for (step = 0; step < ks[ki]; ++step)
+                    (void)rt_live_step_lcg(&it);
+                jp = rt_live_lcg_after(seeds[ti], ks[ki]);
+                expect(it == jp, "lcg_after matches iterate");
+            }
+        }
+    }
+
+    {
+        FakeW serial, jumped, pref;
+        JavaRandom rs, rj, rp;
+        i32 ls, lj, lp;
+        int x, z, surr_s[RT_LIVE_SURR], surr_j[RT_LIVE_SURR], surr_p[RT_LIVE_SURR];
+        McGameRules g2 = mc_gamerules_default();
+        clear_w();
+        for (x = 0; x < 16; ++x)
+            for (z = 0; z < 16; ++z) {
+                fake_set(&g_w, x, 7, z, BLK_DIRT, 0);
+                fake_set(&g_w, x, 8, z, BLK_GRASS, 0);
+                g_w.clight[x][9][z] = 15;
+            }
+        fake_set(&g_w, 4, 20, 4, RT_BLK_WHEAT, 0);
+        fake_set(&g_w, 4, 19, 4, RT_BLK_FARMLAND, 7);
+        serial = jumped = pref = g_w;
+        ls = lj = lp = 0;
+        jrand_set(&rs, 42);
+        jrand_set(&rj, 42);
+        jrand_set(&rp, 42);
+        memset(surr_s, 0, sizeof surr_s);
+        memset(surr_j, 0, sizeof surr_j);
+        memset(surr_p, 0, sizeof surr_p);
+        rt_live_pass(&serial, &rs, &ls, 0, 0, 0, 0, 0, &g2, surr_s);
+        rt_live_pass_jumped(&jumped, &rj, &lj, 0, 0, 0, 0, 0, &g2, surr_j);
+        rt_live_pass_prefetch(&pref, &rp, &lp, 0, 0, 0, 0, 0, &g2, surr_p);
+        expect(ls == lj && rs.seed == rj.seed &&
+                   memcmp(&serial, &jumped, sizeof(FakeW)) == 0,
+               "jumped pass matches serial FakeW grass field");
+        expect(ls == lp && rs.seed == rp.seed &&
+                   memcmp(&serial, &pref, sizeof(FakeW)) == 0,
+               "prefetch pass matches serial FakeW grass field");
+    }
+
+    {
         CuSnapshot a, b;
         char err[256];
         char pa[128], pb[128];

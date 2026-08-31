@@ -4836,16 +4836,23 @@ MC_HD static inline int cu_attack_hits_falling_block(const Blaze *env,
 #endif
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
- * blaze_runtime_tick below, or warp-cooperatively in the CUDA k_tick). */
+ * blaze_runtime_tick below, or warp-cooperatively in the CUDA k_tick).
+ * rt_split: 0 = full tick, 1 = through fluid then return (no tick++),
+ * 2 = post-randtick (mobs through tick++). CUDA k_tick_warp uses 1 then
+ * warp randtick then 2 so helper lanes can prefetch picks. */
 MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
-                                               CuAction act, McAABB *blocks) {
+                                               CuAction act, McAABB *blocks,
+                                               int rt_split) {
     CuEdit edits[CU_MAX_EDITS];
     int n = 0, i;
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
     unsigned long long t_pl0 = 0, t_pl1 = 0;
     unsigned long long col_pl0 = 0, col_pl1 = 0;
+    unsigned long long t_set = 0, t_flch = 0, t_erest = 0, t_ed0 = 0;
 #endif
 
+    if (rt_split == 2)
+        goto blaze_rt_post;
     if (env->dead) return;                       /* r->dead || r->won gate */
 
     /* Magma runtime.c:927-944: use mounts a nearby boat; sneak dismounts;
@@ -5016,9 +5023,6 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     /* ghost pushers (runtime.c:328-354): tape-replay only, nghosts==0. */
     CU_PHASE_END(4); } /* HZ */
 
-#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
-    unsigned long long t_set = 0, t_flch = 0, t_erest = 0, t_ed0 = 0;
-#endif
     for (i = 0; i < n; ++i) {
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
         if (cu_phase) t_ed0 = cu_clk64();
@@ -5083,7 +5087,9 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
      * then projectiles then live items. Dragon stays inert. */
     { CU_PHASE_T0(); cu_weather_tick(env); CU_PHASE_END(8); }
     { CU_PHASE_T0(); cu_fluid_tick(env, 0, env->tick); CU_PHASE_END(9); }
+    if (rt_split == 1) return;
     { CU_PHASE_T0(); cu_randtick_pass(env); CU_PHASE_END(10); }
+blaze_rt_post:
     {
         CU_PHASE_T0();
         if (env->mobs_enabled) cu_mob_ai_tick(env, st);
@@ -5161,7 +5167,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 MC_HD static inline void blaze_runtime_tick(Blaze *env, const McSinTable *st,
                                             CuAction act, McAABB *blocks) {
     if (!env->dead) cu_recenter(env);
-    blaze_runtime_tick_nr(env, st, act, blocks);
+    blaze_runtime_tick_nr(env, st, act, blocks, 0);
 }
 
 /* =================== observation (rl_mode.c rl_emit_obs port) ============= */
@@ -5569,7 +5575,7 @@ MC_HD static inline void blaze_subtick_phys(Blaze *e, const McSinTable *st,
                                             int repeat, McAABB *blocks,
                                             int render_cam_inline,
                                             double *fx, double *fy,
-                                            double *fz) {
+                                            double *fz, int rt_split) {
     CuAction act;
     CU_OP(e, CU_OP_SUBTICK);
     memset(&act, 0, sizeof act);
@@ -5583,7 +5589,8 @@ MC_HD static inline void blaze_subtick_phys(Blaze *e, const McSinTable *st,
     act.attack = (int)a[7];
     act.use = (int)a[8];
     act.hotbar_sel = (int)a[9];
-    blaze_runtime_tick_nr(e, st, act, blocks);
+    blaze_runtime_tick_nr(e, st, act, blocks, rt_split);
+    if (rt_split == 1) return;
     if (rep == repeat - 1) {
         e->dec_cam_fresh = 1;
         if (render_cam_inline) blaze_render_cam(e, st);
@@ -5653,7 +5660,7 @@ MC_HD static inline void blaze_decision_subtick(Blaze *e, const McSinTable *st,
     double ry = 0.0, rp = 0.0, dist = 0.0, fx, fy, fz;
     int have_nc;
     blaze_subtick_phys(e, st, a, rep, repeat, blocks, render_cam_inline,
-                       &fx, &fy, &fz);
+                       &fx, &fy, &fz, 0);
     (void)blaze_coal_list(e, coal_now);
     have_nc = blaze_nearest_coal(coal_now, fx, fy, fz,
                                  (double)e->pl.yaw, (double)e->pl.pitch,
