@@ -346,6 +346,11 @@ typedef struct {
     long rvol;                   /* rnx * rny * rnz */
     int gsx0, gsy0, gsz0;        /* grass_sec grid origin (SECTION coords) */
     int gsnx, gsny, gsnz;        /* grass_sec grid dims (sections) */
+    /* Randtick section-pointer cache: 16 Y-section bases of the current
+     * chunk. Invalid until cu_rt_sec_fill; reset stores a sentinel. */
+    int  rt_c_cx, rt_c_cz;
+    long rt_c_base[16];
+    long rt_c_sx, rt_c_sy;       /* rny*rnz, rnz */
 
     /* player + vitals (window-local pose) */
     PsvPlayer pl;
@@ -554,6 +559,37 @@ MC_HD static inline long cu_grass_sec_idx(const Blaze *e,
 /* gm_world_block/gm_world_meta equivalent over the snapshot region: outside
  * the region (or y outside [0,127]) reads as air, mirroring the design's
  * out-of-region = air rule. Items/plants/obs use these (WORLD coords). */
+MC_HD static inline void cu_rt_sec_fill(Blaze *e, int cx, int cz) {
+    int sec;
+    e->rt_c_cx = cx;
+    e->rt_c_cz = cz;
+    e->rt_c_sx = (long)e->rny * (long)e->rnz;
+    e->rt_c_sy = (long)e->rnz;
+    for (sec = 0; sec < 16; ++sec) {
+        int x0 = cx * 16, y0 = sec * 16, z0 = cz * 16;
+        long b0 = cu_region_idx(e, x0, y0, z0);
+        long b1 = cu_region_idx(e, x0 + 15, y0 + 15, z0 + 15);
+        e->rt_c_base[sec] = (b0 >= 0 && b1 >= 0) ? b0 : -1;
+    }
+}
+
+MC_HD static inline long cu_rt_region_idx(Blaze *e, int wx, int wy, int wz) {
+    int cx, cz, sec;
+    long b;
+    if (!e || wy < 0 || wy >= 256)
+        return cu_region_idx(e, wx, wy, wz);
+    cx = psv_floordiv16(wx);
+    cz = psv_floordiv16(wz);
+    sec = wy >> 4;
+    if (cx != e->rt_c_cx || cz != e->rt_c_cz)
+        cu_rt_sec_fill(e, cx, cz);
+    b = e->rt_c_base[sec];
+    if (b < 0)
+        return cu_region_idx(e, wx, wy, wz);
+    return b + (long)(wx - cx * 16) * e->rt_c_sx +
+           (long)(wy - sec * 16) * e->rt_c_sy + (wz - cz * 16);
+}
+
 MC_HD static inline int cu_world_block(const Blaze *e, int wx, int wy, int wz) {
     long i = cu_region_idx(e, wx, wy, wz);
     CU_OP(e, CU_OP_WORLD_LOAD);
@@ -1229,6 +1265,35 @@ MC_HD static inline int cu_rt_block_light_at(const Blaze *e,
     return (int)(e->light[i] & 15);
 }
 
+MC_HD static inline int cu_rt_world_block(Blaze *e, int wx, int wy, int wz) {
+    long i = cu_rt_region_idx(e, wx, wy, wz);
+    CU_OP(e, CU_OP_WORLD_LOAD);
+    return i < 0 ? 0 : mc_state_id(e->cells[i]);
+}
+
+MC_HD static inline int cu_rt_world_meta(Blaze *e, int wx, int wy, int wz) {
+    long i = cu_rt_region_idx(e, wx, wy, wz);
+    CU_OP(e, CU_OP_WORLD_LOAD);
+    return i < 0 ? 0 : mc_state_meta(e->cells[i]);
+}
+
+MC_HD static inline int cu_rt_world_light(Blaze *e, int wx, int wy, int wz) {
+    long i = cu_rt_region_idx(e, wx, wy, wz);
+    int packed, sky, block;
+    if (i < 0) return 15;
+    packed = e->light[i];
+    sky = packed >> 4;
+    block = packed & 15;
+    return sky > block ? sky : block;
+}
+
+MC_HD static inline int cu_rt_world_block_light(Blaze *e, int wx, int wy,
+                                                int wz) {
+    long i = cu_rt_region_idx(e, wx, wy, wz);
+    if (i < 0) return 0;
+    return (int)(e->light[i] & 15);
+}
+
 MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
     long g;
     if (!e->grass_sec) return 1;
@@ -1238,10 +1303,11 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 }
 
 #define RT_W Blaze
-#define rt_live_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
-#define rt_live_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
-#define rt_live_light(w, x, y, z) cu_rt_light_at((w), (x), (y), (z))
-#define rt_live_block_light(w, x, y, z) cu_rt_block_light_at((w), (x), (y), (z))
+#define rt_live_id(w, x, y, z) cu_rt_world_block((w), (x), (y), (z))
+#define rt_live_meta(w, x, y, z) (cu_rt_world_meta((w), (x), (y), (z)) & 15)
+#define rt_live_light(w, x, y, z) cu_rt_world_light((w), (x), (y), (z))
+#define rt_live_block_light(w, x, y, z) \
+    cu_rt_world_block_light((w), (x), (y), (z))
 #define rt_live_set(w, x, y, z, id, meta) \
     cu_world_set_state((w), (x), (y), (z), (id), (meta))
 #define rt_live_biome(w, x, z) cu_biome_at((w), (x), (z))
@@ -4836,23 +4902,16 @@ MC_HD static inline int cu_attack_hits_falling_block(const Blaze *env,
 #endif
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
- * blaze_runtime_tick below, or warp-cooperatively in the CUDA k_tick).
- * rt_split: 0 = full tick, 1 = through fluid then return (no tick++),
- * 2 = post-randtick (mobs through tick++). CUDA k_tick_warp uses 1 then
- * warp randtick then 2 so helper lanes can prefetch picks. */
+ * blaze_runtime_tick below, or warp-cooperatively in the CUDA k_tick). */
 MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
-                                               CuAction act, McAABB *blocks,
-                                               int rt_split) {
+                                               CuAction act, McAABB *blocks) {
     CuEdit edits[CU_MAX_EDITS];
     int n = 0, i;
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
     unsigned long long t_pl0 = 0, t_pl1 = 0;
     unsigned long long col_pl0 = 0, col_pl1 = 0;
-    unsigned long long t_set = 0, t_flch = 0, t_erest = 0, t_ed0 = 0;
 #endif
 
-    if (rt_split == 2)
-        goto blaze_rt_post;
     if (env->dead) return;                       /* r->dead || r->won gate */
 
     /* Magma runtime.c:927-944: use mounts a nearby boat; sneak dismounts;
@@ -5023,6 +5082,9 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     /* ghost pushers (runtime.c:328-354): tape-replay only, nghosts==0. */
     CU_PHASE_END(4); } /* HZ */
 
+#if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
+    unsigned long long t_set = 0, t_flch = 0, t_erest = 0, t_ed0 = 0;
+#endif
     for (i = 0; i < n; ++i) {
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
         if (cu_phase) t_ed0 = cu_clk64();
@@ -5087,9 +5149,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
      * then projectiles then live items. Dragon stays inert. */
     { CU_PHASE_T0(); cu_weather_tick(env); CU_PHASE_END(8); }
     { CU_PHASE_T0(); cu_fluid_tick(env, 0, env->tick); CU_PHASE_END(9); }
-    if (rt_split == 1) return;
     { CU_PHASE_T0(); cu_randtick_pass(env); CU_PHASE_END(10); }
-blaze_rt_post:
     {
         CU_PHASE_T0();
         if (env->mobs_enabled) cu_mob_ai_tick(env, st);
@@ -5167,7 +5227,7 @@ blaze_rt_post:
 MC_HD static inline void blaze_runtime_tick(Blaze *env, const McSinTable *st,
                                             CuAction act, McAABB *blocks) {
     if (!env->dead) cu_recenter(env);
-    blaze_runtime_tick_nr(env, st, act, blocks, 0);
+    blaze_runtime_tick_nr(env, st, act, blocks);
 }
 
 /* =================== observation (rl_mode.c rl_emit_obs port) ============= */
@@ -5575,7 +5635,7 @@ MC_HD static inline void blaze_subtick_phys(Blaze *e, const McSinTable *st,
                                             int repeat, McAABB *blocks,
                                             int render_cam_inline,
                                             double *fx, double *fy,
-                                            double *fz, int rt_split) {
+                                            double *fz) {
     CuAction act;
     CU_OP(e, CU_OP_SUBTICK);
     memset(&act, 0, sizeof act);
@@ -5589,8 +5649,7 @@ MC_HD static inline void blaze_subtick_phys(Blaze *e, const McSinTable *st,
     act.attack = (int)a[7];
     act.use = (int)a[8];
     act.hotbar_sel = (int)a[9];
-    blaze_runtime_tick_nr(e, st, act, blocks, rt_split);
-    if (rt_split == 1) return;
+    blaze_runtime_tick_nr(e, st, act, blocks);
     if (rep == repeat - 1) {
         e->dec_cam_fresh = 1;
         if (render_cam_inline) blaze_render_cam(e, st);
@@ -5660,7 +5719,7 @@ MC_HD static inline void blaze_decision_subtick(Blaze *e, const McSinTable *st,
     double ry = 0.0, rp = 0.0, dist = 0.0, fx, fy, fz;
     int have_nc;
     blaze_subtick_phys(e, st, a, rep, repeat, blocks, render_cam_inline,
-                       &fx, &fy, &fz, 0);
+                       &fx, &fy, &fz);
     (void)blaze_coal_list(e, coal_now);
     have_nc = blaze_nearest_coal(coal_now, fx, fy, fz,
                                  (double)e->pl.yaw, (double)e->pl.pitch,
@@ -6537,6 +6596,8 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                 env->biome[i] = (u8)BLAZE_SNAP_BIOME_PLAINS;
     }
     cu_grass_grid_init(env);     /* bulk phase fills grass_sec from this */
+    env->rt_c_cx = 0x7fffffff;
+    env->rt_c_cz = 0x7fffffff;
     env->sky_cx0 = env->rx0 >> 4;
     env->sky_cz0 = env->rz0 >> 4;
     if (env->sky_clean && env->sky_cnx > 0 && env->sky_cnz > 0) {

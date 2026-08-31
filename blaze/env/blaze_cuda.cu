@@ -12,10 +12,8 @@
  *             blaze_tick (verify) launches this when warp_tick=0.
  *   k_tick_warp : one env per warp (create opts.warp_tick=1, default;
  *             blaze.conf / ppo.conf / blaze_abi.h). Lane 0 runs the serial
- *             decision body; recenter fill, randtick pick/hash/lookup, and
- *             coal sweep use the 32 lanes. Lane 0 still applies Magma-order
- *             ticker bodies. blaze_tick (verify) launches this when
- *             warp_tick=1.
+ *             decision body; recenter fill + coal sweep use the 32 lanes.
+ *             blaze_tick (verify) launches this when warp_tick=1.
  *   k_tick_raw : verify-only one-thread-per-env runtime_tick (blaze_tick_raw).
  *   k_obs   : blaze_render_cam_pixel for envs whose decision frame is fresh,
  *             then copies the persisted frame into the caller's tensors
@@ -881,74 +879,6 @@ __device__ void cu_coal_warp(Blaze *env, int lane,
     }
 }
 
-/* Helper-lane randtick: every lane jump-decodes a pick and loads the cell
- * id; all 32 lanes shuffle; lane 0 applies in Java order with write-set
- * redo. Prefix ice/snow + World.rand stay on lane 0. Host/CPU keep
- * cu_randtick_pass. */
-__device__ MC_NOINLINE static void cu_randtick_pass_warp(Blaze *e, int lane) {
-    const unsigned FULL = 0xffffffffu;
-    McGameRules gr;
-    int raining, thundering, rts;
-    int cx, cz, nlive, n, base;
-    int live[16];
-    if (!e || !e->light_valid) return;
-    gr = mc_gamerules_default();
-    raining = e->weather_enabled ? e->ww.raining : 0;
-    thundering = e->weather_enabled ? e->ww.thundering : 0;
-    rts = gr.randomTickSpeed;
-    if (rts <= 0) return;
-
-    for (cx = e->ccx - 8; cx <= e->ccx + 8; ++cx) {
-        for (cz = e->ccz - 8; cz <= e->ccz + 8; ++cz) {
-            i32 lcg0;
-            RtWriteSet ws;
-            int sec;
-            if (lane == 0)
-                rt_live_chunk_worldrand_prefix(e, &e->world_rand, &e->update_lcg,
-                                               raining, thundering,
-                                               cx * 16, cz * 16);
-            __syncwarp();
-            nlive = 0;
-            for (sec = 0; sec < 16; ++sec) {
-                if (!RT_SECTION_NEEDS(e, cx, sec, cz)) continue;
-                live[nlive++] = sec;
-            }
-            n = nlive * rts;
-            if (n <= 0) continue;
-            lcg0 = __shfl_sync(FULL, e->update_lcg, 0);
-            rt_ws_init(&ws);
-            for (base = 0; base < n; base += 32) {
-                int idx = base + lane;
-                int valid = idx < n;
-                int wx = 0, wy = 0, wz = 0, id = 0;
-                int t;
-                if (valid) {
-                    int s = live[idx / rts];
-                    i32 j1 = rt_live_lcg_after(lcg0, idx + 1) >> 2;
-                    wx = cx * 16 + (j1 & 15);
-                    wz = cz * 16 + ((j1 >> 8) & 15);
-                    wy = s * 16 + ((j1 >> 16) & 15);
-                    id = rt_live_id(e, wx, wy, wz);
-                }
-                for (t = 0; t < 32; ++t) {
-                    int twx = __shfl_sync(FULL, wx, t);
-                    int twy = __shfl_sync(FULL, wy, t);
-                    int twz = __shfl_sync(FULL, wz, t);
-                    int tid = __shfl_sync(FULL, id, t);
-                    int tv = __shfl_sync(FULL, valid, t);
-                    if (lane == 0 && tv)
-                        rt_live_apply_prefetched(e, &e->world_rand, &gr,
-                                                 e->rt_leaf, raining,
-                                                 twx, twy, twz, tid, &ws);
-                }
-            }
-            if (lane == 0)
-                e->update_lcg = rt_live_lcg_after(lcg0, n);
-            __syncwarp();
-        }
-    }
-}
-
 __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
                             const double *actions, int repeat,
                             McAABB *aabb_pool, const CRRecipe *recipes,
@@ -1005,31 +935,12 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
             double fx = 0.0, fy = 0.0, fz = 0.0;
             double ry = 0.0, rp = 0.0, dist = 0.0;
             int have_nc = 0;
-            unsigned long long tc0 = 0, tp0 = 0, tr0 = 0;
-            int alive = 0;
-            McAABB *blocks = aabb_pool + (size_t)w * PSV_MAX_BLOCKS;
+            unsigned long long tc0 = 0, tp0 = 0;
             if (lane == 0)
-                alive = !e->dead;
-            alive = __shfl_sync(FULL, alive, 0);
-            if (lane == 0)
-                blaze_subtick_phys(e, st, a, rep, repeat, blocks,
-                                   0, &fx, &fy, &fz, 1);
-            __syncwarp();        /* lane-0 world writes -> helper reads */
-            if (alive) {
-                if (want_clk && lane == 0) tr0 = cu_clk64();
-                cu_randtick_pass_warp(e, lane);
-                if (want_clk && lane == 0)
-                    cu_phase_add(10, cu_clk64() - tr0);
-                __syncwarp();
-                if (lane == 0) {
-                    CuAction zact;
-                    memset(&zact, 0, sizeof zact);
-                    blaze_runtime_tick_nr(e, st, zact, blocks, 2);
-                }
-            }
-            __syncwarp();
-            if (lane == 0 && rep == repeat - 1)
-                e->dec_cam_fresh = 1;
+                blaze_subtick_phys(e, st, a, rep, repeat,
+                                   aabb_pool + (size_t)w * PSV_MAX_BLOCKS,
+                                   0, &fx, &fy, &fz);
+            __syncwarp();        /* lane-0 world/pose writes -> lane reads */
             if (want_clk && lane == 0) tc0 = cu_clk64();
             cu_coal_warp(e, lane, &have_nc, &ry, &rp, &dist);
             if (want_clk && lane == 0)
