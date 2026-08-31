@@ -68,6 +68,8 @@ static int setup_env(Blaze *e, u16 **cells, u8 **light, Chunk **window,
     e->sky_cnz = CU_SEC_SPAN(rnz);
     e->rt_c_cx = 0x7fffffff;
     e->rt_c_cz = 0x7fffffff;
+    e->rt_c_sec = -1;
+    e->rt_c_base0 = -1;
     return 1;
 }
 

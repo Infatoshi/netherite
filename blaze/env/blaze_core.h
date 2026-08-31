@@ -346,10 +346,10 @@ typedef struct {
     long rvol;                   /* rnx * rny * rnz */
     int gsx0, gsy0, gsz0;        /* grass_sec grid origin (SECTION coords) */
     int gsnx, gsny, gsnz;        /* grass_sec grid dims (sections) */
-    /* Randtick section-pointer cache: 16 Y-section bases of the current
-     * chunk. Invalid until cu_rt_sec_fill; reset stores a sentinel. */
-    int  rt_c_cx, rt_c_cz;
-    long rt_c_base[16];
+    /* Randtick last-section memo: origin index of (cx,sec,cz). Sentinel
+     * at reset. Hit skips bounds + two multiplies in cu_region_idx. */
+    int  rt_c_cx, rt_c_cz, rt_c_sec;
+    long rt_c_base0;
     long rt_c_sx, rt_c_sy;       /* rny*rnz, rnz */
 
     /* player + vitals (window-local pose) */
@@ -559,35 +559,33 @@ MC_HD static inline long cu_grass_sec_idx(const Blaze *e,
 /* gm_world_block/gm_world_meta equivalent over the snapshot region: outside
  * the region (or y outside [0,127]) reads as air, mirroring the design's
  * out-of-region = air rule. Items/plants/obs use these (WORLD coords). */
-MC_HD static inline void cu_rt_sec_fill(Blaze *e, int cx, int cz) {
-    int sec;
-    e->rt_c_cx = cx;
-    e->rt_c_cz = cz;
-    e->rt_c_sx = (long)e->rny * (long)e->rnz;
-    e->rt_c_sy = (long)e->rnz;
-    for (sec = 0; sec < 16; ++sec) {
-        int x0 = cx * 16, y0 = sec * 16, z0 = cz * 16;
-        long b0 = cu_region_idx(e, x0, y0, z0);
-        long b1 = cu_region_idx(e, x0 + 15, y0 + 15, z0 + 15);
-        e->rt_c_base[sec] = (b0 >= 0 && b1 >= 0) ? b0 : -1;
-    }
-}
-
 MC_HD static inline long cu_rt_region_idx(Blaze *e, int wx, int wy, int wz) {
     int cx, cz, sec;
-    long b;
+    long i, b1;
     if (!e || wy < 0 || wy >= 256)
         return cu_region_idx(e, wx, wy, wz);
     cx = psv_floordiv16(wx);
     cz = psv_floordiv16(wz);
     sec = wy >> 4;
-    if (cx != e->rt_c_cx || cz != e->rt_c_cz)
-        cu_rt_sec_fill(e, cx, cz);
-    b = e->rt_c_base[sec];
-    if (b < 0)
-        return cu_region_idx(e, wx, wy, wz);
-    return b + (long)(wx - cx * 16) * e->rt_c_sx +
-           (long)(wy - sec * 16) * e->rt_c_sy + (wz - cz * 16);
+    if (cx == e->rt_c_cx && cz == e->rt_c_cz && sec == e->rt_c_sec &&
+        e->rt_c_base0 >= 0)
+        return e->rt_c_base0 + (long)(wx - cx * 16) * e->rt_c_sx +
+               (long)(wy - sec * 16) * e->rt_c_sy + (wz - cz * 16);
+    i = cu_region_idx(e, wx, wy, wz);
+    e->rt_c_cx = cx;
+    e->rt_c_cz = cz;
+    e->rt_c_sec = sec;
+    e->rt_c_sx = (long)e->rny * (long)e->rnz;
+    e->rt_c_sy = (long)e->rnz;
+    if (i >= 0) {
+        long base = i - (long)(wx - cx * 16) * e->rt_c_sx -
+                    (long)(wy - sec * 16) * e->rt_c_sy - (wz - cz * 16);
+        b1 = cu_region_idx(e, cx * 16 + 15, sec * 16 + 15, cz * 16 + 15);
+        e->rt_c_base0 = (b1 >= 0) ? base : -1;
+    } else {
+        e->rt_c_base0 = -1;
+    }
+    return i;
 }
 
 MC_HD static inline int cu_world_block(const Blaze *e, int wx, int wy, int wz) {
@@ -6598,6 +6596,8 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     cu_grass_grid_init(env);     /* bulk phase fills grass_sec from this */
     env->rt_c_cx = 0x7fffffff;
     env->rt_c_cz = 0x7fffffff;
+    env->rt_c_sec = -1;
+    env->rt_c_base0 = -1;
     env->sky_cx0 = env->rx0 >> 4;
     env->sky_cz0 = env->rz0 >> 4;
     if (env->sky_clean && env->sky_cnx > 0 && env->sky_cnz > 0) {
