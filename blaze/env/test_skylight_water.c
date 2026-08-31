@@ -71,6 +71,19 @@ int main(void) {
         return 1;
     }
     e.sky_q = sky_q;
+    {
+        long nch = (long)CU_SEC_SPAN(rnx) * CU_SEC_SPAN(rnz);
+        e.sky_clean = (u8 *)malloc((size_t)nch);
+        if (!e.sky_clean) {
+            fprintf(stderr, "FAIL: alloc sky_clean\n");
+            return 1;
+        }
+        memset(e.sky_clean, 1, (size_t)nch);
+        e.sky_cx0 = 0;
+        e.sky_cz0 = 0;
+        e.sky_cnx = CU_SEC_SPAN(rnx);
+        e.sky_cnz = CU_SEC_SPAN(rnz);
+    }
 
     for (y = y0; y <= y0 + 2; ++y)
         for (z = 7; z <= 9; ++z)
@@ -107,6 +120,7 @@ int main(void) {
     free(light);
     free(window);
     free(sky_q);
+    free(e.sky_clean);
     if (fails) {
         fprintf(stderr, "FAIL\n");
         return 1;

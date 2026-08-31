@@ -76,6 +76,7 @@ typedef struct {
     u16   *cells_pool, *cam_pool;
     u16   *fluid_cur_pool, *fluid_tmp_pool;
     u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
+    u8    *sky_clean_pool;   /* per-env CU_SEC_SPAN(rnx)*CU_SEC_SPAN(rnz) */
     int   *rt_leaf_pool;     /* per-env BlockLeaves surroundings[32768] */
     int   *light_q_pool;     /* per-env CU_LIGHT_Q BLOCK flood queue */
     int   *sky_q_pool;       /* per-env CU_SKY_Q sky worklist */
@@ -306,13 +307,22 @@ static int cu_alloc_region_pools(CuVec *v, int rnx, int rny, int rnz) {
     v->light_pool = (u8 *)malloc((size_t)v->n * v->rvol);
     v->biome_pool = (u8 *)malloc((size_t)v->n * (size_t)rnx * (size_t)rnz);
     v->grass_pool = (u16 *)malloc((size_t)v->n * nsec * sizeof *v->grass_pool);
-    if (!v->cells_pool || !v->light_pool || !v->biome_pool || !v->grass_pool)
-        return 0;
-    for (i = 0; i < v->n; ++i) {
-        v->envs[i].cells = v->cells_pool + (size_t)i * v->rvol;
-        v->envs[i].light = v->light_pool + (size_t)i * v->rvol;
-        v->envs[i].biome = v->biome_pool + (size_t)i * (size_t)rnx * (size_t)rnz;
-        v->envs[i].grass_sec = v->grass_pool + (size_t)i * nsec;
+    {
+        long nch = (long)CU_SEC_SPAN(rnx) * CU_SEC_SPAN(rnz);
+        v->sky_clean_pool = (u8 *)malloc((size_t)v->n * (size_t)nch);
+        if (!v->cells_pool || !v->light_pool || !v->biome_pool ||
+            !v->grass_pool || !v->sky_clean_pool)
+            return 0;
+        for (i = 0; i < v->n; ++i) {
+            v->envs[i].cells = v->cells_pool + (size_t)i * v->rvol;
+            v->envs[i].light = v->light_pool + (size_t)i * v->rvol;
+            v->envs[i].biome = v->biome_pool + (size_t)i * (size_t)rnx *
+                               (size_t)rnz;
+            v->envs[i].grass_sec = v->grass_pool + (size_t)i * nsec;
+            v->envs[i].sky_clean = v->sky_clean_pool + (size_t)i * (size_t)nch;
+            v->envs[i].sky_cnx = CU_SEC_SPAN(rnx);
+            v->envs[i].sky_cnz = CU_SEC_SPAN(rnz);
+        }
     }
     return 1;
 }
@@ -332,6 +342,7 @@ void blaze_destroy(void *vh) {
     free(v->envs); free(v->assign);
     free(v->cells_pool); free(v->light_pool); free(v->biome_pool);
     free(v->grass_pool);
+    free(v->sky_clean_pool);
     free(v->cam_pool); free(v->dep_pool); free(v->edg_pool);
     free(v->window_pool); free(v->cand_pool); free(v->cont_pool);
     free(v->blocks);

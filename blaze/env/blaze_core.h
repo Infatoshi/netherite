@@ -331,6 +331,10 @@ typedef struct {
     int     *light_q;            /* CU_LIGHT_Q ints; World.java:161 BLOCK flood queue */
     int     *sky_q;              /* CU_SKY_Q ints; raise-only sky worklist.
                                   * NULL -> 15-pass box fallback. */
+    u8      *sky_clean;          /* per-chunk clean flags, sky_cnx*sky_cnz.
+                                  * NULL -> always full-chunk rebuild. */
+    int      sky_cx0, sky_cz0;   /* chunk-grid origin (world >> 4) */
+    int      sky_cnx, sky_cnz;   /* chunk-grid dims (CU_SEC_SPAN of rnx/rnz) */
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
 
     u16   *fluid_cur, *fluid_tmp; /* CU_FLUID_VOL CA grids; NULL = skip CA */
@@ -850,6 +854,37 @@ MC_HD static inline int cu_skylight_worklist(Blaze *e, int x0, int y0, int z0,
     return 0;
 }
 
+MC_HD static inline int cu_sky_clean_idx(const Blaze *e, int cx, int cz) {
+    int ix, iz;
+    if (!e->sky_clean || e->sky_cnx <= 0 || e->sky_cnz <= 0) return -1;
+    ix = cx - e->sky_cx0;
+    iz = cz - e->sky_cz0;
+    if (ix < 0 || iz < 0 || ix >= e->sky_cnx || iz >= e->sky_cnz) return -1;
+    return ix * e->sky_cnz + iz;
+}
+
+MC_HD static inline int cu_sky_is_clean(const Blaze *e, int cx, int cz) {
+    int i = cu_sky_clean_idx(e, cx, cz);
+    return i >= 0 && e->sky_clean[i] != 0;
+}
+
+MC_HD static inline void cu_sky_set_clean(Blaze *e, int cx, int cz, int v) {
+    int i = cu_sky_clean_idx(e, cx, cz);
+    if (i < 0) return;
+    e->sky_clean[i] = (u8)(v ? 1 : 0);
+}
+
+/* Full rebuild of B can leave 8-neighbors over-lit (raise-only flood).
+ * Their next opacity edit must full-rebuild to match Magma. */
+MC_HD static inline void cu_sky_mark_full_rebuild(Blaze *e, int cx, int cz) {
+    int dx, dz;
+    cu_sky_set_clean(e, cx, cz, 1);
+    for (dx = -1; dx <= 1; ++dx)
+        for (dz = -1; dz <= 1; ++dz)
+            if (dx || dz)
+                cu_sky_set_clean(e, cx + dx, cz + dz, 0);
+}
+
 /* Magma light_set_state (light.c:751) sets column_dirty on opacity change;
  * light_ensure (light.c:690) then generateSkylightMap for that chunk
  * (Chunk.java:238) and raise-only spread. world_live.c:584 calls
@@ -861,35 +896,47 @@ MC_HD static inline int cu_skylight_worklist(Blaze *e, int x0, int y0, int z0,
  * chunk then spreading matches magma, and the lockstep digests agree
  * because both sides store those nibbles. */
 MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
-                                                int wz) {
-    int cx, cz, x0, x1, z0, z1;
+                                                int wz, int opacity_dropped) {
+    int cx, cz, x0, x1, z0, z1, y0, y1, inc;
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
     unsigned long long t0 = 0;
 #endif
     (void)wy;
     if (!e->light_valid) return;
+    cx = wx >> 4;
+    cz = wz >> 4;
+    /* Clean + break: other columns already at the vertical baseline, so
+     * rebuild the edited column only and seed the worklist from it.
+     * Place / dirty: full chunk generateSkylightMap then flood. */
+    inc = opacity_dropped && cu_sky_is_clean(e, cx, cz);
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
     if (cu_phase) t0 = cu_clk64();
 #endif
-    cu_skylight_chunk(e, wx, wz);
+    if (inc)
+        cu_skylight_column(e, wx, wz);
+    else
+        cu_skylight_chunk(e, wx, wz);
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
     if (cu_phase) {
         cu_phase_add(21, cu_clk64() - t0); /* SKY_CHUNK */
         t0 = cu_clk64();
     }
 #endif
-    cx = wx >> 4;
-    cz = wz >> 4;
     x0 = (cx << 4) - 15;
     x1 = (cx << 4) + 30;
     z0 = (cz << 4) - 15;
     z1 = (cz << 4) + 30;
-    {
+    y0 = e->ry0;
+    y1 = e->ry0 + e->rny - 1;
+    if (inc) {
+        if (cu_skylight_worklist(e, x0, y0, z0, x1, y1, z1, wx, wz, wx, wz) < 0)
+            cu_skylight_spread_box(e, x0, y0, z0, x1, y1, z1);
+    } else {
         int cx0 = cx << 4, cz0 = cz << 4;
-        int y0 = e->ry0, y1 = e->ry0 + e->rny - 1;
         if (cu_skylight_worklist(e, x0, y0, z0, x1, y1, z1, cx0, cz0,
                                  cx0 + 15, cz0 + 15) < 0)
             cu_skylight_spread_box(e, x0, y0, z0, x1, y1, z1);
+        cu_sky_mark_full_rebuild(e, cx, cz);
     }
 #if defined(__CUDA_ARCH__) && defined(BLAZE_PHASE_CLOCK)
     if (cu_phase) cu_phase_add(22, cu_clk64() - t0); /* SKY_BOX */
@@ -1148,7 +1195,7 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
         if (cu_phase) cu_phase_add(20, cu_clk64() - t0); /* DIGEST */
 #endif
         if (old_op != new_op)
-            cu_light_after_opacity(e, wx, wy, wz);
+            cu_light_after_opacity(e, wx, wy, wz, new_op < old_op);
         /* World.checkLight (World.java:2952-2961) always runs BLOCK
          * checkLightFor after a setBlockState write. Torch/air both have
          * opacity 0 so the sky path above is skipped; blight still floods.
@@ -6483,6 +6530,13 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                 env->biome[i] = (u8)BLAZE_SNAP_BIOME_PLAINS;
     }
     cu_grass_grid_init(env);     /* bulk phase fills grass_sec from this */
+    env->sky_cx0 = env->rx0 >> 4;
+    env->sky_cz0 = env->rz0 >> 4;
+    if (env->sky_clean && env->sky_cnx > 0 && env->sky_cnz > 0) {
+        int nclean = env->sky_cnx * env->sky_cnz, j;
+        for (j = 0; j < nclean; ++j)
+            env->sky_clean[j] = 1;
+    }
     env->ore = ore;
     env->nore = nore;
     env->ore_xy = ore_xy;

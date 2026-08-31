@@ -181,6 +181,7 @@ typedef struct {
     int *d_light_q;              /* n * CU_LIGHT_Q BLOCK flood queue */
     int *d_sky_q;                /* n * CU_SKY_Q sky worklist */
     u8 *d_light, *d_biome, *d_dep, *d_edg;
+    u8 *d_sky_clean;             /* n * CU_SEC_SPAN(rnx)*CU_SEC_SPAN(rnz) */
     Chunk *d_window;
     CuCand *d_cand;
     int *d_cont;                 /* per-env BLAZE_SNAP_MAX_CONT container cells */
@@ -1379,6 +1380,7 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_dep);
     cudaFree(v->d_cam);
     cudaFree(v->d_grass);
+    cudaFree(v->d_sky_clean);
     cudaFree(v->d_cells);
     cudaFree(v->d_light);
     cudaFree(v->d_biome);
@@ -1412,7 +1414,10 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
         cudaMalloc(&v->d_biome,
                    (size_t)v->n * (size_t)bvol) != cudaSuccess ||
         cudaMalloc(&v->d_grass,
-                   (size_t)v->n * nsec * sizeof(u16)) != cudaSuccess) {
+                   (size_t)v->n * nsec * sizeof(u16)) != cudaSuccess ||
+        cudaMalloc(&v->d_sky_clean,
+                   (size_t)v->n * (size_t)CU_SEC_SPAN(rnx) *
+                       (size_t)CU_SEC_SPAN(rnz)) != cudaSuccess) {
         if (err && err_cap > 0)
             snprintf(err, (size_t)err_cap,
                      "region pool cudaMalloc failed (%dx%dx%d x %d envs = "
@@ -1420,6 +1425,7 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
         cudaFree(v->d_light); v->d_light = NULL;
         cudaFree(v->d_biome); v->d_biome = NULL;
         cudaFree(v->d_grass); v->d_grass = NULL;
+        cudaFree(v->d_sky_clean); v->d_sky_clean = NULL;
         cudaFree(v->d_cells); v->d_cells = NULL;
         return 0;
     }
@@ -1427,11 +1433,17 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
     v->rvol = rvol;
     fprintf(stderr, "blaze_cuda: region rnx=%d rny=%d rnz=%d n=%d\n",
             rnx, rny, rnz, v->n);
-    for (i = 0; i < v->n; ++i) {
-        v->h_envs[i].cells = v->d_cells + (size_t)i * rvol;
-        v->h_envs[i].light = v->d_light + (size_t)i * rvol;
-        v->h_envs[i].biome = v->d_biome + (size_t)i * (size_t)bvol;
-        v->h_envs[i].grass_sec = v->d_grass + (size_t)i * nsec;
+    {
+        long nch = (long)CU_SEC_SPAN(rnx) * CU_SEC_SPAN(rnz);
+        for (i = 0; i < v->n; ++i) {
+            v->h_envs[i].cells = v->d_cells + (size_t)i * rvol;
+            v->h_envs[i].light = v->d_light + (size_t)i * rvol;
+            v->h_envs[i].biome = v->d_biome + (size_t)i * (size_t)bvol;
+            v->h_envs[i].grass_sec = v->d_grass + (size_t)i * nsec;
+            v->h_envs[i].sky_clean = v->d_sky_clean + (size_t)i * (size_t)nch;
+            v->h_envs[i].sky_cnx = CU_SEC_SPAN(rnx);
+            v->h_envs[i].sky_cnz = CU_SEC_SPAN(rnz);
+        }
     }
     if (cudaMemcpy(v->d_envs, v->h_envs, (size_t)v->n * sizeof(Blaze),
                    cudaMemcpyHostToDevice) != cudaSuccess) {
