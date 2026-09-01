@@ -1,5 +1,50 @@
 # DEVLOG (compressed)
 
+## 2026-09-01 fp16 act store max-N (not merged)
+
+Math stage B on `wip/nn-fable` `6dd8d24`: NHWC acts (`d_obs`, conv maps,
+dpre/dc) store fp16; conv compute FLOAT; dense/Adam/GAE fp32. Host ABI
+unchanged. `mb=0` so `max_n = n_envs * T`.
+
+Anvil gpu0 exclusive (`netherite-nn-fable`), driver 610.43.02, 97887 MiB,
+`CUDA_HOME=/usr/local/cuda-13.2`. Fixture
+`verify/fixtures/port/s10_t0_r64_no_liquid.bsnp`, `warp_tick=1`, R=4,
+`max_chunks=1` (create + one train chunk). Not the 2026-08-26 throughput
+chart (that used chunks=3, first-steady). fp32 was not re-run today.
+
+`make -C blaze/rl smoke-cuda` PASS n=2 T=4. TENSOR_CORE engines.
+
+| N | T | max_n | result | peak MiB | wall s |
+|---|---|---|---|---|---|
+| 1024 | 8 | 8192 | PASS | 56842 | 11 |
+| 2048 | 8 | 16384 | PASS | 77102 | 17 |
+| 2560 | 8 | 20480 | PASS | 87228 | 21 |
+| 2816 | 8 | 22528 | PASS | 92302 | 22 |
+| 3072 | 8 | 24576 | FAIL nn_create | 83192 | 10 |
+| 4096 | 8 | 32768 | FAIL nn_create | 91086 | 2 |
+| 512 | 32 | 16384 | PASS | 60792 | 15 |
+| 1024 | 32 | 32768 | PASS | 85018 | 21 |
+| 1280 | 32 | 40960 | FAIL nn_create | 78576 | 15 |
+| 1536 | 32 | 49152 | FAIL nn_create | 86388 | 17 |
+| 2048 | 32 | 65536 | FAIL nn_create | 88470 | 2 |
+
+Max that trained: T=8 N=2816; T=32 N=1024. Bracket 256 envs.
+
+Fail is `nn_conv_graph: workspace grow failed` during prepare at `max_n`,
+not the region pool. L0 WGRAD TENSOR_CORE workspace at create:
+
+- T=8 N=2816 max_n=22528 ws=5541531119 (~5.16 GiB) then train
+- T=8 N=3072 max_n=24576 ws=6044847599 then grow fail
+- T=32 N=1024 max_n=32768 ws=8058113519 (~7.50 GiB) then train
+- T=32 N=1280 max_n=40960 ws=10071379439 then grow fail
+
+Published baseline (fp32/Fable, not same-day): T=8 N=1024 trains; Fable
+remasure T=8 N=2048 creates; T=32 dies at N>=1024 (cudnn / cudaMalloc).
+This run: T=8 still trains at 2048 and up to 2816; T=32 N=1024 now
+trains. T=8 N=4096 and T=32 N=1280 still die on WGRAD workspace.
+
+Logs: anvil `~/nlanes/nn-fable-fp16/out/blaze/rl/tput/fp16_maxn.txt`.
+
 ## 2026-08-26 Fable trainer remasure (not merged)
 
 Same harness as the pre-Fable chart: anvil gpu0 exclusive, spawn t0
