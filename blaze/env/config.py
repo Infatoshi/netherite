@@ -17,6 +17,7 @@ class BlazeConfig:
     warp_tick: int = 1
     op_trace: bool = False
     no_ore_xy: bool = False
+    stack_kib: int = 128
     no_emit_all: bool = False
     natural_spawn: bool = False
     natural_spawn_passive: bool = False
@@ -29,7 +30,7 @@ _BOOL_KEYS = {
     "ktime", "stage_time", "legacy_recenter", "op_trace", "no_ore_xy",
     "no_emit_all", "natural_spawn", "natural_spawn_passive",
 }
-_INT_KEYS = {"device", "n_envs", "warp_tick", "metal_max_cells"}
+_INT_KEYS = {"device", "n_envs", "warp_tick", "metal_max_cells", "stack_kib"}
 _STR_KEYS = {"backend", "metallib"}
 _KEYS = _BOOL_KEYS | _INT_KEYS | _STR_KEYS
 
@@ -82,4 +83,6 @@ def load_config(path: str | Path | None = None, **overrides) -> BlazeConfig:
         raise ValueError("warp_tick must be 0 or 1")
     if cfg.metal_max_cells <= 0:
         raise ValueError("metal_max_cells must be positive")
+    if cfg.stack_kib <= 0 or cfg.stack_kib > 1024:
+        raise ValueError("stack_kib must be in 1..1024")
     return cfg

@@ -1101,10 +1101,19 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
      * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA).
      * Hostile live tick inlines add another frame; 32 KB was not enough.
      * getBlockDensity DDA (Explosion.java:2456) plus TNT tick overflowed 64 KB
-     * (k_tick_raw misaligned address on explosions M2). */
-    if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024),
-              "cudaLimitStackSize"))
-        return NULL;
+     * (k_tick_raw misaligned address on explosions M2).
+     * The limit costs VRAM: SMs * max_threads_per_SM * stack_kib. On an
+     * RTX PRO 6000 (188 SM, 1536 threads/SM) 128 KiB reserves ~35.5 GiB.
+     * opts.stack_kib lowers it for VRAM headroom experiments. Default 128
+     * keeps shipped behaviour. Overflow depends on world content, so only
+     * lower it after the explosion, liquid CA, and hostile tick repros pass. */
+    {
+        int kib = o.stack_kib > 0 ? o.stack_kib : 128;
+        if (cu_ck(cudaDeviceSetLimit(cudaLimitStackSize,
+                                     (size_t)kib * 1024),
+                  "cudaLimitStackSize"))
+            return NULL;
+    }
     v = (CuVecCu *)calloc(1, sizeof *v);
     if (!v) return NULL;
     v->n = n;

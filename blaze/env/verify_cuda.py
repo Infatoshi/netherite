@@ -232,6 +232,8 @@ def _create_kw(args=None):
         kw["legacy_recenter"] = True
     if getattr(args, "no_ore_xy", False):
         kw["no_ore_xy"] = True
+    if getattr(args, "stack_kib", None) is not None:
+        kw["stack_kib"] = int(args.stack_kib)
     if getattr(args, "warp_tick", None) is not None:
         kw["warp_tick"] = int(args.warp_tick)
     else:
@@ -936,6 +938,8 @@ def build_parser():
                     help="skip ore spatial index at snapshot load")
     ap.add_argument("--warp-tick", type=int, default=None,
                     help="1=warp-per-env (default), 0=flat k_tick")
+    ap.add_argument("--stack-kib", type=int, default=None,
+                    help="CUDA per-thread stack limit in KiB (default 128)")
     ap.add_argument(
         "--m2-kernel", choices=("raw", "warp", "scalar"), default="raw",
         help="focused M2 tick kernel: raw=blaze_tick_raw/k_tick_raw "

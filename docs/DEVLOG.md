@@ -233,6 +233,64 @@ it to the max workspace over the CHOSEN plans after prepare would return
 
 Logs: anvil `~/nlanes/nn-ws-cap/out/wscap_n<N>_t<T>.log`.
 
+## 2026-09-01 stack_kib knob and CUDA stack bisect (not merged)
+
+`blaze_create` set `cudaLimitStackSize` to 128 KiB from a literal. The GPU
+reserves `SMs * threads_per_SM * limit`. On the RTX PRO 6000 that is
+188 * 1536 * 128 KiB = 35.25 GiB. Add `stack_kib` to `BlazeCreateOpts`.
+Default stays 128. Plumbed like `warp_tick`: `ppo.conf`, `train_config`,
+`ppo.c`, `eval.c`, `blaze.conf`, `config.py`, `blaze.py`, and
+`verify_cuda.py --stack-kib`. Range 1..1024. `blaze_create` reads 0 as 128.
+
+Anvil, RTX PRO 6000 Blackwell, driver 610.43.02, exclusive
+`overnight-compute` lease, GPU idle at 1 MiB before each pass. Lane
+`~/nlanes/nn-stack-kib` at `0415034`. Gates are M2 CPU-vs-CUDA bitwise
+chains. `ppo` column is N=1024, T=8, R=4, `max_chunks=1`, `warp_tick=1`,
+fixture `s10_t0_r64_no_liquid.bsnp`. `peak MiB` is the highest
+`nvidia-smi memory.used` sampled at 0.5 s during that `ppo` run.
+
+| stack_kib | fluids | explosions | mobs | smoke-cuda | ppo | peak MiB |
+|---|---|---|---|---|---|---|
+| 8 | FAIL IMA | PASS | PASS | PASS | PASS | 33660 |
+| 16 | FAIL IMA | PASS | PASS | PASS | PASS | 33660 |
+| 32 | FAIL IMA | PASS | PASS | PASS | PASS | 33660 |
+| 48 | FAIL IMA | PASS | PASS | PASS | PASS | 34284 |
+| 56 | PASS | PASS | PASS | PASS | PASS | 36540 |
+| 64 | PASS | PASS | PASS | PASS | PASS | 38796 |
+| 80 | PASS | PASS | PASS | PASS | PASS | 43308 |
+| 96 | PASS | PASS | PASS | PASS | PASS | 47820 |
+| 112 | PASS | PASS | PASS | PASS | PASS | 52332 |
+| 128 | PASS | PASS | PASS | PASS | PASS | 56844 |
+
+Rows 56 to 128 ran both `raw` and `warp` kernels. Rows 8 to 48 ran `raw`
+only. Every listed cell is a real run. FAIL is
+`blaze_cuda: k_tick_raw: an illegal memory access was encountered`.
+
+Minimum that passes every gate: 56 KiB. The cliff sits in (48, 56].
+128 KiB peak 56844 MiB, 56 KiB peak 36540 MiB, so 56 KiB frees 20304 MiB.
+Every 8 KiB step moves the peak by 2256 MiB, which equals
+188 * 1536 * 8 KiB. The k=128 peak matches the 56842 MiB recorded on
+`wip/nn-fable` for the same config, so the default did not change.
+
+Peak stops tracking the knob below about 48 KiB. 8, 16, and 32 all report
+33660 MiB. The driver holds a floor there. Do not read savings below
+48 KiB off this table.
+
+Only the fluids row is stack sensitive now. Explosions and mobs pass at
+8 KiB. The 64 to 128 raise (`d8cb1ab`) blamed the `getBlockDensity` DDA,
+but that commit also fixed a packed `RlSnapMob.x` load, and `a70d8c5`
+later moved the 32768-int BLOCK light queue off the thread stack. The
+128 KiB limit was never re-measured after that pool move.
+
+Keep the default at 128. Stack overflow depends on world content. These
+gates cover water CA spread (61 actions), primed TNT plus creeper fuse
+(64 actions), and zombie plus skeleton idle/walk/melee (64 actions). They
+do not cover witch, enderman, spider, slime, hazards, placement, biome
+plane, random ticks, deeper liquid columns, or larger blasts. 96 KiB is
+the safe opt-in for a VRAM-bound run. It frees 9024 MiB and keeps 48 KiB
+above the measured cliff. Do not ship 56 as a default. It sits one 8 KiB
+step above a real failure.
+
 ## 2026-09-01 fp16 act store max-N (not merged)
 
 Math stage B on `wip/nn-fable` `6dd8d24`: NHWC acts (`d_obs`, conv maps,

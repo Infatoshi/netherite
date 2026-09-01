@@ -18,6 +18,9 @@ typedef struct BlazeCreateOpts {
     int warp_tick;        /* BLAZE_WARP_TICK: 1 = warp-per-env (default), 0 = flat */
     int op_trace;         /* BLAZE_OP_TRACE: per-env CU_OP_* activity counters */
     int no_ore_xy;        /* BLAZE_NO_ORE_XY: skip ore spatial index at snap load */
+    int stack_kib;        /* CUDA per-thread stack limit, KiB. 0 = 128 default.
+                           * CPU backend ignores it. See blaze_cuda.cu
+                           * blaze_create for why the default is 128. */
 } BlazeCreateOpts;
 
 /* Fill *o with the historical unset-env defaults. */
@@ -29,6 +32,7 @@ static inline void blaze_create_opts_default(BlazeCreateOpts *o) {
     o->warp_tick = 1;
     o->op_trace = 0;
     o->no_ore_xy = 0;
+    o->stack_kib = 128;
 }
 
 /* opts may be NULL (defaults). device is ignored by the CPU backend. */

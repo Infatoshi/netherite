@@ -82,6 +82,7 @@ static void test_defaults(void) {
   expect_eq_i(c.warp_tick, 1, "default warp_tick");
   expect_eq_i(c.op_trace, 0, "default op_trace");
   expect_eq_i(c.no_ore_xy, 0, "default no_ore_xy");
+  expect_eq_i(c.stack_kib, 128, "default stack_kib");
 }
 
 static void test_file_load(void) {
@@ -199,6 +200,15 @@ static void test_bad_value(void) {
   expect_eq_i(rc, -2, "ktime=2 bad");
   rc = tr_cfg_set(&c, "warp_tick", "true");
   expect_eq_i(rc, -2, "warp_tick=true bad");
+  rc = tr_cfg_set(&c, "stack_kib", "0");
+  expect_eq_i(rc, -2, "stack_kib=0 bad");
+  rc = tr_cfg_set(&c, "stack_kib", "-8");
+  expect_eq_i(rc, -2, "stack_kib=-8 bad");
+  rc = tr_cfg_set(&c, "stack_kib", "2048");
+  expect_eq_i(rc, -2, "stack_kib=2048 bad");
+  rc = tr_cfg_set(&c, "stack_kib", "96");
+  expect_eq_i(rc, 0, "stack_kib=96 ok");
+  expect_eq_i(c.stack_kib, 96, "stack_kib=96 applied");
   rc = tr_cfg_set(&c, "metal_max_cells", "0");
   expect_eq_i(rc, -2, "metal_max_cells=0 bad");
   rc = tr_cfg_set(&c, "metal_max_cells", "-1");
@@ -295,7 +305,7 @@ static const char *const k_accepted_keys[] = {
     "init_from",       "metal_max_cells",
     "metallib",        "ktime",           "stage_time",
     "legacy_recenter", "warp_tick",       "op_trace",
-    "no_ore_xy",
+    "no_ore_xy",       "stack_kib",
 };
 
 static void test_committed_conf(void) {
@@ -317,6 +327,7 @@ static void test_committed_conf(void) {
   expect_eq_s(c.backend, "cpu", "committed backend");
   expect_eq_i(c.n_envs, 2, "committed n_envs");
   expect_eq_i(c.warp_tick, 1, "committed warp_tick");
+  expect_eq_i(c.stack_kib, 128, "committed stack_kib");
   expect_near(c.gamma, 0.995f, 1e-6f, "committed gamma");
   expect_true(c.checkpoint[0] != '\0', "committed checkpoint set");
   expect_eq_s(c.init_from, "", "committed init_from off");

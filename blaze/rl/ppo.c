@@ -1063,6 +1063,7 @@ int main(int argc, char **argv) {
   opts.warp_tick = cfg.warp_tick;
   opts.op_trace = cfg.op_trace;
   opts.no_ore_xy = cfg.no_ore_xy;
+  opts.stack_kib = cfg.stack_kib;
 
   env = fns.create(cfg.device, n, &opts);
   if (!env)
