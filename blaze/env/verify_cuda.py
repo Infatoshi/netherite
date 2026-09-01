@@ -84,17 +84,18 @@ SNAPS = os.path.join(RL, "out", "snaps")
 REL_GATE = 1e-12
 
 
-def snap_paths(t0=False):
+def snap_paths(t0=False, snaps=None):
     """Curriculum d-stage snapshots (64x128x64) by default; t0=True selects
     the fresh-spawn 128^3 *_t0.bsnp set. The two have different region dims
-    and cannot share one env's region pools."""
-    paths = sorted(glob.glob(os.path.join(SNAPS, "*.bsnp")))
+    and cannot share one env's region pools. snaps overrides the directory."""
+    root = snaps or SNAPS
+    paths = sorted(glob.glob(os.path.join(root, "*.bsnp")))
     # the t0 family (128^3) includes the iron-stage bake s*_t0_iron.bsnp
     paths = [p for p in paths
              if ("_t0" in os.path.basename(p)) == bool(t0)]
     if not paths:
         raise SystemExit(f"no {'t0 ' if t0 else 'curriculum '}snapshots in "
-                         f"{SNAPS} (run make_snapshots.py)")
+                         f"{root} (run make_snapshots.py)")
     return paths
 
 
@@ -795,7 +796,7 @@ def dump_op_trace(env, ops0, args):
 
 def run_bench(args):
     import torch
-    paths = snap_paths(t0=args.t0)
+    paths = snap_paths(t0=args.t0, snaps=args.snaps)
     n = args.n
     free_b, total_b = torch.cuda.mem_get_info(args.device)
     print(f"bench: N={n}, repeat {args.repeat}, {args.decisions} decisions "
@@ -919,6 +920,8 @@ def build_parser():
     ap.add_argument("--bench", action="store_true")
     ap.add_argument("--t0", action="store_true",
                     help="bench on t0 snapshots with full action decode")
+    ap.add_argument("--snaps", default=None,
+                    help="snapshot directory for --bench (default RL/out/snaps)")
     ap.add_argument("--n", type=int, default=4096)
     ap.add_argument("--decisions", type=int, default=250)
     ap.add_argument("--repeat", type=int, default=4)

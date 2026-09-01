@@ -1,5 +1,123 @@
 # DEVLOG (compressed)
 
+## 2026-09-02 env-only bench: per-edit skylight rebuild costs 66x (not merged)
+
+Problem. `verify_cuda.py --bench --t0 --n 1024 --decisions 25` needs 69 s
+on the 13 fresh-spawn t0 snapshots. That is 1.5k env-ticks/s. The
+2026-08-06/07 campaign recorded 0.150M env-ticks/s at the same N on the
+same card. This entry finds the cause.
+
+Method. Host anvil, GPU0 (RTX PRO 6000 Blackwell), exclusive lease
+`netherite-sim-slow`, no other compute app on the card. Lane
+`~/nlanes/nn-static-buckets` at 33549d0. Every run uses repeat 4, warmup 2,
+warp_tick 1, stack_kib 128, device 0. env-ticks/s = N * decisions * repeat
+/ seconds. `verify_cuda.py` gets a new `--snaps DIR` option, so a bench can
+select a snapshot directory. All numbers below come from runs made today.
+
+Snapshot A/B (lane .so, N=1024, 25 decisions):
+
+| snapshot set                 | liquid | s      | env-ticks/s | log |
+|------------------------------|--------|--------|-------------|-----|
+| 13x s*_t0.bsnp (128^3)       | yes    | 69.19  | 1,480       | simslow/a_t0_set.log |
+| s10_t0.bsnp alone            | yes    | 30.04  | 3,409       | simslow/c_one_t0.log |
+| s10_t0_r64_no_liquid.bsnp    | no     | 29.91  | 3,424       | simslow/b_no_liquid.log |
+| s10_t0_r64_fluid_spread.bsnp | yes    | 248.59 | 412         | simslow/c_fluid_spread.log |
+| curriculum set (64x128x64)   | yes    | 71.67  | 1,429       | simslow/d_curriculum.log |
+
+Liquid is not the main cost. The no_liquid fixture gains only 2.3x on the
+t0 set. `blaze_snapshot_has_liquid` returns 1 for all 13 t0 snapshots, but
+s10_t0 runs at the no_liquid speed, so its liquid is quiescent. The fluid
+CA bites only when the liquid moves: the fluid_spread fixture loses 8.3x
+against no_liquid. The curriculum region is 8x smaller than t0 and is still
+slow, so region volume is not the cost either.
+
+Controls (no_liquid fixture, N=1024, 25 decisions):
+
+| control                        | s     | env-ticks/s | log |
+|--------------------------------|-------|-------------|-----|
+| N=2048                         | 31.17 | 6,571       | simslow/n_noliq_2048.log |
+| N=4096                         | 36.18 | 11,321      | simslow/n_noliq_4096.log |
+| N=5120                         | 36.85 | 13,895      | simslow/n_noliq_5120.log |
+| N=8192                         | -     | region pool cudaMalloc failed, 51.5 GB | simslow/n_noliq_8192.log |
+| warmup 25                      | 34.85 | 2,938       | simslow/w_noliq_25.log |
+| warmup 100                     | 36.92 | 2,773       | simslow/w_noliq_100.log |
+| .so = blaze/env/blaze_cuda.so  | 29.93 | 3,421       | simslow/so_blaze_env_blaze_cuda.so.log |
+| .so = out/blaze/env/blaze_cuda.so | 29.92 | 3,423    | simslow/so_out_blaze_env_blaze_cuda.so.log |
+
+Throughput scales near-linearly with N, so the card is latency-bound, not
+saturated. A longer warmup adds only 25%, so the cost is per tick, not an
+entity backlog. The two .so builds (magma rule and blaze/rl rule) give the
+same speed, so the build is not the cause.
+
+Stage breakdown (no_liquid, N=1024, `--ktime --stage-time`,
+simslow/b_no_liquid_stage.log):
+
+| item          | value |
+|---------------|-------|
+| wall          | 30.01 s for 25 decisions |
+| k_tick        | 1112.043 ms/step (30025 ms over 27 steps) |
+| k_obs         | 0.188 ms/step |
+| k_final       | 0.066 ms/step |
+| stage begin   | 0.3% of k_tick thread cycles |
+| stage recenter| 0.0% |
+| stage subtick | 99.7% |
+
+All time is inside k_tick, inside the subtick stage. Observation and the
+final kernel are noise.
+
+Bisect. Worktree `~/nlanes/simslow/wt` off `~/dev/netherite`, detached at
+each commit. Each point builds its own `blaze/env/blaze_cuda.so` with
+`make -C magma blaze_cuda_so BLAZE_SM=sm_120 NVCC="nvcc -Xptxas -O1"`, and
+runs its own `verify_cuda.py` on its own `verify/fixtures/port/
+s10_t0_r64_no_liquid.bsnp`. `-Xptxas -O1` shortens the build; every point
+uses it, so the comparison holds. The bad end reproduces the lane number
+(31.15 s vs 29.91 s), which validates the method. Order below is the order
+run. Log = simslow/bisect_COMMIT.log.
+
+| first-parent # | commit  | date       | s     | env-ticks/s | verdict |
+|----------------|---------|------------|-------|-------------|---------|
+| 138            | 8845049 | 2026-09-01 | 31.15 | 3,287       | slow    |
+| 0              | f42c293 | 2026-08-19 | 0.45  | 227,600     | fast    |
+| 69             | 6456155 | 2026-08-23 | 0.47  | 217,900     | fast    |
+| 104            | ee49bc8 | 2026-08-23 | 31.12 | 3,291       | slow    |
+| 87             | 53893aa | 2026-08-22 | 31.06 | 3,297       | slow    |
+| 78             | dd40669 | 2026-08-23 | 0.47  | 217,900     | fast    |
+| 83             | d456936 | 2026-08-23 | 0.47  | 217,900     | fast    |
+| 85             | 1d7b9e9 | 2026-08-23 | 0.47  | 217,900     | fast    |
+| 86             | 0e099f6 | 2026-08-23 | 31.00 | 3,303       | slow    |
+
+First bad commit: 0e099f6, the merge of lane/lightsync. That lane holds one
+code commit, c3f1851 "blaze: port magma generateSkylightMap after opacity
+edits". Its parent 1d7b9e9 is fast. The loss is 66x.
+
+Cause. Before c3f1851, an opacity edit relaxed a radius-15 ball once.
+After c3f1851, `cu_light_after_opacity` calls `cu_skylight_chunk` plus
+`cu_skylight_spread_box`. `cu_skylight_chunk` rebuilds all 256 columns of
+the edited chunk over the full region height. `cu_skylight_spread_box` then
+runs up to 15 in-place passes over the box, and each cell reads 6
+neighbours. The bench sends attack in 3 of 4 decisions, so blocks break
+often. op-trace at N=5120 (simslow/n_noliq_5120.log) shows dig_break
+0.004/subtick per env and world_load 4,920/subtick per env. One warp runs
+one env, and the launch ends with its slowest env, so the whole batch pays
+the rebuild.
+
+Explained. The 100x gap against 2026-08-06/07 is the per-edit skylight
+rebuild (66x), plus active liquid in the t0 set (2.3x). Liquid alone never
+explains the gap. Mob AI and natural spawn are off by default
+(`mobs_enabled` and `natural_spawn` stay 0; neither the python bench nor
+`blaze/rl/ppo` calls the setters), so they are not the cause.
+
+Open. The native trainer reports about 100k env-ticks/s at N=5120 T=8 on
+the same .so and the same fixture. This bench measures 13,895 env-ticks/s
+at N=5120 on that fixture. The two use the same create options
+(warp_tick 1, stack_kib 128) and the same .so, so the 7x difference is not
+yet explained. Also open: whether the magma light path itself must rebuild
+the chunk ladder per edit, or whether blaze can keep parity with a cheaper
+incremental update.
+
+Not merged. This branch only adds `--snaps` to verify_cuda.py and this
+entry.
+
 ## 2026-09-01 static nn buckets, net sized at max(N, mb), nn before env (not merged)
 
 Branch `wip/nn-static-buckets` on `wip/nn-vram-combined` `8845049`.
