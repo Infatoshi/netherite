@@ -1,5 +1,98 @@
 # DEVLOG (compressed)
 
+## 2026-09-01 conv timing workspace budget (not merged)
+
+Branch `wip/nn-ws-cap` off `wip/nn-fable` `498507f`. One patch:
+`blaze/nn/cuda_conv_graph.cu` `pick_timed`.
+
+Root cause of the earlier max-N wall. `pick_timed` timed the top K=8
+supported engines. It grew the grow-only arena (`blaze/nn/cuda_ws.h`) to
+the MAX workspace over that set, not to the winner's workspace. One fat
+candidate then OOM'd a run that the winner alone fits. At T=8 N=3072 the
+grow asked 5.63 GiB and failed.
+
+Fix. Read `cudaMemGetInfo` free bytes at the race. Subtract a 1 GiB
+margin. That is the budget. Time the first K supported engines whose
+workspace fits the budget. When the whole head of the list fits, the
+timed set and the winner do not change. When nothing fits, keep the
+smallest-workspace engine and let the grow fail honestly. A failed
+`cudaMemGetInfo` returns an infinite budget, so it keeps the old path.
+The pick line now prints `budget=` and `capped=`. Precedent:
+`cuda_lt_gemm.cu` already skips heuristics over `ws_cap`.
+
+Anvil, RTX PRO 6000 Blackwell 97887 MiB, device 0, exclusive lease
+`netherite-ws-cap`, CUDA 13.2, cuDNN 92500. Lane
+`~/nlanes/nn-ws-cap`. Same harness as the 2026-09-01 fp16 remeasure:
+fixture `verify/fixtures/port/s10_t0_r64_no_liquid.bsnp`, `warp_tick=1`,
+R=4, `max_chunks=1`, `epochs=1`, `mb=0`, so `max_n = n_envs * T`.
+Peak is `nvidia-smi memory.used` on GPU 0, polled at 1 s.
+
+`make -C blaze/rl smoke-cuda` PASS. All picks `capped=0`.
+
+| N | T | max_n | result | peak MiB |
+|---|---|---|---|---|
+| 1024 | 8 | 8192 | PASS | 56844 |
+| 2816 | 8 | 22528 | PASS | 92304 |
+| 3072 | 8 | 24576 | PASS | 83194 |
+| 3328 | 8 | 26624 | PASS | 87086 |
+| 3584 | 8 | 28672 | PASS | 90964 |
+| 3840 | 8 | 30720 | PASS | 94860 |
+| 4096 | 8 | 32768 | PASS | 94520 |
+| 4352 | 8 | 34816 | PASS | 97148 |
+| 4608 | 8 | 36864 | FAIL nn_create | - |
+| 1280 | 32 | 40960 | PASS | 78578 |
+| 1536 | 32 | 49152 | PASS | 86390 |
+| 1792 | 32 | 57344 | PASS | 92870 |
+| 2048 | 32 | 65536 | PASS | 92544 |
+| 2304 | 32 | 73728 | PASS | 94954 |
+| 2560 | 32 | 81920 | FAIL nn_create | - |
+
+Max that trains: T=8 N=4352 (was 2816), T=32 N=2304 (was 1024).
+
+Regression guard T=8 N=1024: `grad_norm=0.174396`,
+`value_loss=0.0281173`. Zero `capped=1` picks, so the budget never
+bound at that size and the timed set is the old one. Winners: L0 FWD
+eng=7, L0 WGRAD eng=40, L1 FWD eng=7, L1 WGRAD eng=10, L1 DGRAD eng=22.
+
+The boundary error changed. `nn_conv_graph: workspace grow failed` is
+gone. Both new boundaries fail with `nn_conv_graph: timing buffer alloc
+failed` then `ppo: nn_create: conv prepare(max_n) failed`. Peak at the
+last PASS row is 97148 of 97887 MiB, so the wall is now real VRAM.
+
+T=8 N=3072 peaks 9110 MiB BELOW N=2816. The budget skips the fat WGRAD
+engine, so the arena never grows to it.
+
+Residual VRAM attribution. Temporary `cudaMemGetInfo` stamps in
+`nn_cuda_create` and in `ensure_plan`, run once per shape, then reverted
+(not committed). Baseline at `nn_cuda_create` entry is 45941.2 MiB for
+both shapes: the CUDA context tax plus the 1024-env sim.
+
+| phase | T=8 N=1024 delta MiB | MiB/max_n | T=32 N=1024 delta MiB | MiB/max_n |
+|---|---|---|---|---|
+| named cudaMalloc block | 2340 | 0.286 | 8904 | 0.272 |
+| nn_conv_net_prepare | 6872 | 0.839 | 27470 | 0.838 |
+| nn_lt_prepare | 0 | 0 | 0 | 0 |
+| final sync | 0 | 0 | 0 | 0 |
+| policy total | 9212 | 1.124 | 36374 | 1.110 |
+
+`nn_conv_net_prepare` owns the residual, and inside it the whole delta
+is the workspace arena. Final arena is 7235239952 B (6900 MiB) at T=8
+and 28833808400 B (27498 MiB) at T=32; each matches its phase delta.
+The timing buffers allocate and free cleanly and hold nothing.
+
+One pick grows it. L1 DGRAD wins with `ws=0` at both shapes, yet its
+timed set holds a candidate that needs the whole arena. At T=32 N=1024
+the arena goes 8058113519 -> 28833808400 B across the L1 DGRAD race:
++19.35 GiB held for the run for an engine that uses no workspace. That
+is the ~19 GiB that was unattributed. The budget does not bind there
+(30.3 GiB free), so this patch does not reclaim it.
+
+Open. The arena is grow-only and never shrinks to the winner. Shrinking
+it to the max workspace over the CHOSEN plans after prepare would return
+~19 GiB at T=32 N=1024. Not done here.
+
+Logs: anvil `~/nlanes/nn-ws-cap/out/wscap_n<N>_t<T>.log`.
+
 ## 2026-09-01 fp16 act store max-N (not merged)
 
 Math stage B on `wip/nn-fable` `6dd8d24`: NHWC acts (`d_obs`, conv maps,
