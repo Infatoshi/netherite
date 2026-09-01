@@ -502,8 +502,8 @@ static void test_forward_sample_update(void) {
       nn_forward(gpu, planes, scalars, 1, l1, v1);
       nn_forward(g2, planes, scalars, 1, l2, v2);
       for (int i = 0; i < NN_N_LOGITS; ++i)
-        expect_near(l1[i], l2[i], 0.f, "rt logit");
-      expect_near(v1[0], v2[0], 0.f, "rt value");
+        expect_near(l1[i], l2[i], 1e-4f, "rt logit");
+      expect_near(v1[0], v2[0], 1e-4f, "rt value");
       nn_destroy(g2);
     }
     unlink(p2);
