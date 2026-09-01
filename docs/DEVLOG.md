@@ -1,5 +1,33 @@
 # DEVLOG (compressed)
 
+## 2026-09-02 nn VRAM stack merged into wip/nn-fable (not merged to master)
+
+Fast-forward of `wip/nn-static-buckets` into `wip/nn-fable`, tip = this commit.
+It carries `wip/nn-ws-cap`, `wip/nn-stack-kib`, `wip/nn-vram-combined`,
+the static bucket set, the review fixes 69d25b5 and 77c071a, and the
+env-only bench `--snaps` option.
+
+Review (Opus, read-only) found one blocker: 77d1b2d ran an update at
+n_tr when n_tr < mb; Metal and a sealed CUDA net both reject that.
+Fixed in 69d25b5 (skip plus log line). Should-fixes in 77c071a: FFT
+check on every reduced-n pick, settle only when the arena changed,
+cuBLASLt error text and exact-n seal guard, ws-shrink contract text.
+
+Acceptance at cbe74e5 on anvil gpu0, exclusive lease, lane `nn-sb2`:
+
+| check | result |
+|---|---|
+| `make -C blaze/nn test-cuda test-cuda-conv test-cuda-lt` | ALL TESTS PASSED, lt max_err 2.68e-3 |
+| `make -C blaze/rl smoke-cuda` | PASS grad_norm 1.33718 (unchanged) |
+| sealed skip path, cuda mb=6 ep_dec=3 2 chunks | `sealed=1`, `update skipped n_tr=4 < mb=6`, PASS |
+| guard N=1024 T=32 mb=8192 k=128 | PASS grad_norm 0.141672 value_loss 0.0515985 (same as 77d1b2d), peak 50186 MiB |
+| max-N N=6912 T=32 mb=8192 k=96 4 chunks | PASS, peak 95912 MiB, wall 173.4 s |
+
+Mac: `make -C blaze/nn test`, `test-metal`, `smoke-cpu`, `smoke-metal`,
+`smoke-reset`, `test-config`, `test-chain`, `env_knob_gate-check` all
+PASS. Metal mb=5 and mb=6 on the 8-row smoke config now PASS with the
+skip line; they died before 69d25b5.
+
 ## 2026-09-02 env-only bench: per-edit skylight rebuild costs 66x (not merged)
 
 Problem. `verify_cuda.py --bench --t0 --n 1024 --decisions 25` needs 69 s
