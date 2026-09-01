@@ -34,6 +34,10 @@ void nn_conv_net_destroy(NnConvNet *net);
  * arena to the workspace the chosen plans need. */
 int nn_conv_net_prepare(NnConvNet *net, int n);
 
+/* Non-zero when bucket_n(n) already holds every plan prepare would build.
+ * Lets the caller reject an unprepared batch size instead of racing mid-run. */
+int nn_conv_net_has_bucket(const NnConvNet *net, int n);
+
 /* Workspace the arena's other user already committed to. prepare never shrinks
  * below it. Set it before prepare, from nn_lt_max_ws. */
 void nn_conv_net_set_ws_floor(NnConvNet *net, long long bytes);

@@ -426,6 +426,7 @@ __global__ void k_merge_dhv(const float *__restrict__ dlogits,
 struct NnCuda {
   int max_n;
   int device;
+  int sealed; /* 1 = prepared bucket set is frozen; a miss is an error */
   NnConfig cfg;
   uint64_t sample_step;
   int64_t adam_t;
@@ -590,6 +591,15 @@ static int forward_device(NnCuda *nn, int n) {
   const int thr = 256;
   const int bn = bucket_n(n, nn->max_n);
   const size_t n_c2 = (size_t)n * NN_C_OUT2 * NN_H2 * NN_W2;
+  /* Sealed: every bucket was prepared before the run. A miss here would race
+   * cuDNN engines and grow the workspace arena mid-step. Fail instead. */
+  if (nn->sealed && !nn_conv_net_has_bucket(nn->conv, n)) {
+    char msg[128];
+    std::snprintf(msg, sizeof(msg), "nn: unprepared bucket n=%d max_n=%d", bn,
+                  nn->max_n);
+    set_err(msg);
+    return -1;
+  }
   /* lt picks its plans lazily during execute, so publish what it holds now.
    * conv prepare shrinks the shared arena and must not undercut them. */
   nn_conv_net_set_ws_floor(nn->conv, nn_lt_max_ws(nn->ltg));
@@ -1105,6 +1115,46 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
 }
 
 void nn_cuda_destroy(NnCuda *nn) { free_nn(nn); }
+
+int nn_cuda_prepare_n(NnCuda *nn, int n) {
+  if (!nn) {
+    set_err("null handle");
+    return -1;
+  }
+  if (n < 1 || n > nn->max_n) {
+    set_err("prepare n out of range");
+    return -1;
+  }
+  if (nn->sealed) {
+    set_err("prepare after seal");
+    return -1;
+  }
+  if (bind_device(nn) != 0)
+    return -1;
+  nn_conv_net_set_ws_floor(nn->conv, nn_lt_max_ws(nn->ltg));
+  if (nn_conv_net_prepare(nn->conv, n) != 0) {
+    set_err("conv prepare failed");
+    return -1;
+  }
+  if (nn_lt_prepare(nn->ltg, n) != 0) {
+    set_err("lt prepare failed");
+    return -1;
+  }
+  if (cudaDeviceSynchronize() != cudaSuccess) {
+    set_err("prepare sync failed");
+    return -1;
+  }
+  return 0;
+}
+
+int nn_cuda_seal(NnCuda *nn) {
+  if (!nn) {
+    set_err("null handle");
+    return -1;
+  }
+  nn->sealed = 1;
+  return 0;
+}
 
 int nn_cuda_set_config(NnCuda *nn, const NnConfig *cfg) {
   if (!nn || !cfg) {

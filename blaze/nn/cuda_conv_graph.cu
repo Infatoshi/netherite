@@ -1375,6 +1375,26 @@ int nn_conv_net_prepare(NnConvNet *net, int n) {
   return 0;
 }
 
+int nn_conv_net_has_bucket(const NnConvNet *net, int n) {
+  if (!net || n < 1 || n > net->max_n)
+    return 0;
+  const int b = bucket_n(n, net->max_n);
+  for (int li = 0; li < (int)net->layers.size(); ++li) {
+    const Layer &L = net->layers[(size_t)li];
+    /* Same (op, fusion) set nn_conv_net_prepare builds. */
+    const OpKind ops[4] = {OP_FWD, OP_WGRAD, OP_WGRAD, OP_DGRAD};
+    const int fus[4] = {1, 2, 3, 4};
+    for (int j = 0; j < 4; ++j) {
+      if (j == 3 && li == 0)
+        continue; /* layer 0 dgrad is a no-op */
+      CacheKey key = make_key(net, (int)ops[j], b, L, fus[j]);
+      if (net->cache.find(key) == net->cache.end())
+        return 0;
+    }
+  }
+  return 1;
+}
+
 void nn_conv_net_set_ws_floor(NnConvNet *net, long long bytes) {
   if (!net)
     return;

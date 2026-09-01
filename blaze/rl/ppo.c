@@ -780,8 +780,8 @@ static void gather_mb(struct RolloutBuf *b, const int *perm, int k, int nmb) {
 }
 
 static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
-                       int n, int T, int batch, int is_metal, uint64_t *rng,
-                       NnUpdateStats *stats) {
+                       int n, int T, int batch, int is_metal, int is_cuda,
+                       uint64_t *rng, NnUpdateStats *stats) {
   int mb = cfg->mb;
   int ep, rc;
   int n_tr;
@@ -844,7 +844,11 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
   for (ep = 0; ep < cfg->epochs; ++ep) {
     int k;
     shuffle_int(b->perm, n_tr, rng);
-    if (is_metal) {
+    /* Metal and CUDA drop the tail minibatch so every update runs at n=mb.
+     * CUDA needs it because the prepared cuDNN bucket set is sealed at create.
+     * Cost: up to mb-1 of the n_tr rows per epoch; the reshuffle picks a
+     * different tail each epoch. */
+    if (is_metal || is_cuda) {
       for (k = 0; k + mb <= n_tr; k += mb) {
         gather_mb(b, b->perm, k, mb);
         memset(&st, 0, sizeof(st));
@@ -1047,6 +1051,91 @@ int main(int argc, char **argv) {
         }
       }
     }
+  }
+
+  /* Build the policy BEFORE the env. blaze_create raises the thread stack
+   * limit and allocates the region pools; the cuDNN engine race at create
+   * would otherwise run on a card that already holds all of that. nn_create
+   * needs only the config and the batch sizes, so nothing here depends on the
+   * env. It binds its own CUDA device. */
+  nc = nn_config_default();
+  nc.lr = cfg.lr;
+  nc.ppo_clip = cfg.ppo_clip;
+  nc.value_coef = cfg.value_coef;
+  nc.entropy_coef = cfg.entropy_coef;
+  nc.grad_limit = cfg.grad_limit;
+  nc.rng_seed = cfg.seed;
+
+  upd_n = (cfg.mb > 0) ? cfg.mb : batch;
+  nd.backend = is_metal   ? NN_BACKEND_METAL
+               : is_cuda  ? NN_BACKEND_CUDA
+                          : NN_BACKEND_CPU;
+  nd.device = cfg.device;
+  nd.config = nc;
+  if (is_metal) {
+    nd.max_n = n;
+    nn_roll = nn_create(&nd);
+    if (!nn_roll)
+      dief("nn_create: %s", nn_last_error());
+    if (upd_n != n) {
+      split_nn = 1;
+      if (mkdir_parents_for_file(cfg.checkpoint) != 0)
+        dief("mkdir parents for checkpoint failed: %s", cfg.checkpoint);
+      if (rl_ckpt_save(nn_roll, cfg.checkpoint) != 0)
+        dief("nn_save (init): %s", nn_last_error());
+      nd.max_n = upd_n;
+      nn_upd = nn_create(&nd);
+      if (!nn_upd)
+        dief("nn_create (upd): %s", nn_last_error());
+      if (rl_ckpt_load(nn_upd, cfg.checkpoint) != 0)
+        dief("nn_load (init upd): %s", nn_last_error());
+    } else {
+      nn_upd = nn_roll;
+    }
+  } else {
+    /* Size for what the run passes, not for batch: forward always gets n
+     * (n_envs) and update never gets more than upd_n. The batch rows live in
+     * the host rollout store and reach the net one minibatch at a time. */
+    nd.max_n = n > upd_n ? n : upd_n;
+    nn_roll = nn_create(&nd);
+    if (!nn_roll)
+      dief("nn_create: %s", nn_last_error());
+    nn_upd = nn_roll;
+    /* create already prepared max_n. Prepare the only other batch size the
+     * run uses, then seal, so no plan is built after this point. The last
+     * prepare shrinks the workspace arena over both buckets. */
+    if (n != nd.max_n && nn_prepare_n(nn_roll, n) != 0)
+      dief("nn_prepare_n(%d): %s", n, nn_last_error());
+    if (upd_n != nd.max_n && upd_n != n && nn_prepare_n(nn_roll, upd_n) != 0)
+      dief("nn_prepare_n(%d): %s", upd_n, nn_last_error());
+    if (cfg.mb > 0) {
+      /* mb>0 drops the tail minibatch, so update n is always mb. */
+      if (nn_seal(nn_roll) != 0)
+        dief("nn_seal: %s", nn_last_error());
+      printf("ppo: nn buckets fwd_n=%d upd_n=%d max_n=%d sealed=1\n", n, upd_n,
+             nd.max_n);
+    } else {
+      /* mb==0 updates on the compacted valid rows, so update n varies with
+       * burn-in. Cannot seal. */
+      printf("ppo: nn buckets fwd_n=%d upd_n<=%d max_n=%d sealed=0 (mb=0)\n", n,
+             upd_n, nd.max_n);
+    }
+    fflush(stdout);
+  }
+
+  if (cfg.init_from[0]) {
+    if (rl_ckpt_load(nn_roll, cfg.init_from) != 0) {
+      fprintf(stderr, "ppo: init_from load failed: %s (%s)\n", cfg.init_from,
+              nn_last_error());
+      exit(1);
+    }
+    if (split_nn && rl_ckpt_load(nn_upd, cfg.init_from) != 0) {
+      fprintf(stderr, "ppo: init_from load failed: %s (%s)\n", cfg.init_from,
+              nn_last_error());
+      exit(1);
+    }
+    printf("ppo: init_from=%s\n", cfg.init_from);
+    fflush(stdout);
   }
 
   if (blaze_fns_load(&fns, so_path, want_cam) != 0) {
@@ -1290,63 +1379,6 @@ int main(int argc, char **argv) {
       b.ep_dec[i] = (int)(rng_next(&ep_rng) % (uint64_t)cfg.ep_dec);
   }
 
-  nc = nn_config_default();
-  nc.lr = cfg.lr;
-  nc.ppo_clip = cfg.ppo_clip;
-  nc.value_coef = cfg.value_coef;
-  nc.entropy_coef = cfg.entropy_coef;
-  nc.grad_limit = cfg.grad_limit;
-  nc.rng_seed = cfg.seed;
-
-  upd_n = (cfg.mb > 0) ? cfg.mb : batch;
-  nd.backend = is_metal   ? NN_BACKEND_METAL
-               : is_cuda  ? NN_BACKEND_CUDA
-                          : NN_BACKEND_CPU;
-  nd.device = cfg.device;
-  nd.config = nc;
-  if (is_metal) {
-    nd.max_n = n;
-    nn_roll = nn_create(&nd);
-    if (!nn_roll)
-      dief("nn_create: %s", nn_last_error());
-    if (upd_n != n) {
-      split_nn = 1;
-      if (mkdir_parents_for_file(cfg.checkpoint) != 0)
-        dief("mkdir parents for checkpoint failed: %s", cfg.checkpoint);
-      if (rl_ckpt_save(nn_roll, cfg.checkpoint) != 0)
-        dief("nn_save (init): %s", nn_last_error());
-      nd.max_n = upd_n;
-      nn_upd = nn_create(&nd);
-      if (!nn_upd)
-        dief("nn_create (upd): %s", nn_last_error());
-      if (rl_ckpt_load(nn_upd, cfg.checkpoint) != 0)
-        dief("nn_load (init upd): %s", nn_last_error());
-    } else {
-      nn_upd = nn_roll;
-    }
-  } else {
-    nd.max_n = batch > upd_n ? batch : upd_n;
-    nn_roll = nn_create(&nd);
-    if (!nn_roll)
-      dief("nn_create: %s", nn_last_error());
-    nn_upd = nn_roll;
-  }
-
-  if (cfg.init_from[0]) {
-    if (rl_ckpt_load(nn_roll, cfg.init_from) != 0) {
-      fprintf(stderr, "ppo: init_from load failed: %s (%s)\n", cfg.init_from,
-              nn_last_error());
-      exit(1);
-    }
-    if (split_nn && rl_ckpt_load(nn_upd, cfg.init_from) != 0) {
-      fprintf(stderr, "ppo: init_from load failed: %s (%s)\n", cfg.init_from,
-              nn_last_error());
-      exit(1);
-    }
-    printf("ppo: init_from=%s\n", cfg.init_from);
-    fflush(stdout);
-  }
-
   t0_wall = wall_sec();
   memset(&stats, 0, sizeof(stats));
 
@@ -1390,7 +1422,8 @@ int main(int argc, char **argv) {
       }
 
       t_upd0 = wall_sec();
-      rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, &rng, &stats);
+      rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, is_cuda, &rng,
+                       &stats);
       if (rc != 0)
         dief("nn_update: %s", nn_last_error());
       ms_upd = (wall_sec() - t_upd0) * 1000.0;

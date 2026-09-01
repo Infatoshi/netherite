@@ -79,6 +79,18 @@ void nn_destroy(Nn *nn);
 /* Replace config (lr, clip, coefs, grad limit, seed). Does not reallocate. */
 int nn_set_config(Nn *nn, const NnConfig *cfg);
 
+/* Build every backend plan for batch size n up front. n in [1, max_n].
+ * CUDA: races cuDNN engines for the n bucket now and shrinks the workspace
+ * arena to what the chosen plans need. create already prepares max_n, so call
+ * this once for each other n the run will pass to forward or update.
+ * CPU and Metal: no-op. Returns 0 on success. */
+int nn_prepare_n(Nn *nn, int n);
+
+/* Freeze the prepared set. After the seal a batch size whose plans were not
+ * prepared fails with "nn: unprepared bucket n=... max_n=..." instead of
+ * building and timing plans mid-run. CPU and Metal: no-op. */
+int nn_seal(Nn *nn);
+
 /* Forward: planes [n,18,36,64] uint8 NCHW, scalars [n,27] float32.
  * logits [n,34] float32, values [n] float32.
  * CPU/CUDA: n in [1, max_n]. Metal: n must equal max_n.

@@ -197,6 +197,56 @@ int nn_set_config(Nn *nn, const NnConfig *cfg) {
   }
 }
 
+int nn_prepare_n(Nn *nn, int n) {
+  if (!nn) {
+    set_err("null");
+    return -1;
+  }
+  switch (nn->backend) {
+  case NN_BACKEND_CPU:
+  case NN_BACKEND_METAL:
+    return 0; /* no plan cache to prepare */
+  case NN_BACKEND_CUDA: {
+#if NN_HAVE_CUDA
+    int rc = nn_cuda_prepare_n((NnCuda *)nn->impl, n);
+    take_cuda_err(rc);
+    return rc;
+#else
+    set_errf("%s backend not available", "CUDA");
+    return -1;
+#endif
+  }
+  default:
+    set_err("invalid backend");
+    return -1;
+  }
+}
+
+int nn_seal(Nn *nn) {
+  if (!nn) {
+    set_err("null");
+    return -1;
+  }
+  switch (nn->backend) {
+  case NN_BACKEND_CPU:
+  case NN_BACKEND_METAL:
+    return 0; /* nothing to seal */
+  case NN_BACKEND_CUDA: {
+#if NN_HAVE_CUDA
+    int rc = nn_cuda_seal((NnCuda *)nn->impl);
+    take_cuda_err(rc);
+    return rc;
+#else
+    set_errf("%s backend not available", "CUDA");
+    return -1;
+#endif
+  }
+  default:
+    set_err("invalid backend");
+    return -1;
+  }
+}
+
 int nn_forward(Nn *nn, const uint8_t *planes, const float *scalars, int n,
                float *logits, float *values) {
   if (!nn) {

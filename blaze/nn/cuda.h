@@ -21,6 +21,15 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg);
 
 void nn_cuda_destroy(NnCuda *nn);
 
+/* Build and time every cuDNN plan for bucket_n(n) now. n in [1, max_n].
+ * create already prepares max_n; call this once per other n the run uses. */
+int nn_cuda_prepare_n(NnCuda *nn, int n);
+
+/* Freeze the prepared bucket set. After the seal a batch size whose bucket
+ * holds no plans fails with "nn: unprepared bucket ..." instead of racing
+ * cuDNN engines mid-run. Irreversible for the handle. */
+int nn_cuda_seal(NnCuda *nn);
+
 /* Replace config (lr, clip, coefs, grad limit, seed). Does not reallocate. */
 int nn_cuda_set_config(NnCuda *nn, const NnConfig *cfg);
 
