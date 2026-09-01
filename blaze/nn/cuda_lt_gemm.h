@@ -18,6 +18,10 @@ NnLtGemm *nn_lt_create(cublasLtHandle_t lt, int device, int max_n,
 void nn_lt_destroy(NnLtGemm *g);
 int nn_lt_prepare(NnLtGemm *g, int n);
 
+/* Max workspace over the chosen plans. The arena is shared with the conv net,
+ * which must not shrink below this. */
+long long nn_lt_max_ws(const NnLtGemm *g);
+
 /* y[out, n] = relu(W[out,k] @ x[k,n] + b[out]). aux = ReLU bitmask. */
 int nn_lt_fwd_relu_bias(NnLtGemm *g, int n, int out, int k, const float *W,
                         const float *x, const float *b, float *y, void *aux);

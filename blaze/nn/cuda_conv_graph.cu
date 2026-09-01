@@ -431,6 +431,10 @@ bool note_tc_gemm(uint32_t m) {
  * alone fits. Keep this many free bytes back for the rest of the step. */
 constexpr int64_t kWsMargin = (int64_t)1 << 30; /* 1 GiB */
 
+/* Never shrink under this. Matches kWsMin in cuda_lt_gemm.cu, which re-grows
+ * the shared arena to it on every lt prepare. */
+constexpr int64_t kWsFloor = 32 << 20; /* 32 MiB */
+
 /* Free device bytes minus the margin. INT64_MAX when the query fails, so a
  * failed query keeps the old behavior instead of starving the race. */
 int64_t ws_budget() {
@@ -498,18 +502,21 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
     return -1;
   }
   const int nsup = (int)supported.size();
-  /* Take the first kTopK supported engines that fit the budget. When the whole
-   * head of the list fits, this is the old top-K set in the old order. */
+  /* Take the first kTopK supported engines that need no grow. A candidate that
+   * already fits the arena costs nothing, so it stays eligible whatever the
+   * free VRAM is. When the whole head of the list is eligible, this is the old
+   * top-K set in the old order. */
   const int64_t budget = ws_budget();
+  const int64_t have = arena ? (int64_t)arena->bytes : 0;
   std::vector<int> tidx;
   for (int i = 0; i < nsup && (int)tidx.size() < kTopK; ++i)
-    if (supported[(size_t)i].ws <= budget)
+    if (supported[(size_t)i].ws <= have || supported[(size_t)i].ws <= budget)
       tidx.push_back(i);
   int capped = 0;
   {
     const int nhead = std::min(kTopK, nsup);
     for (int i = 0; i < nhead; ++i)
-      if (supported[(size_t)i].ws > budget)
+      if (supported[(size_t)i].ws > have && supported[(size_t)i].ws > budget)
         capped = 1;
   }
   if (tidx.empty()) {
@@ -909,6 +916,9 @@ struct NnConvNet {
   int prepared_n = 0;
   int cudnn_ver = 0;
   NnWsArena *ws = nullptr;
+  /* Workspace the arena's other user (cuda_lt_gemm) already committed to.
+   * The shrink never goes below it. Published by the owner of both. */
+  int64_t ws_floor = 0;
   std::vector<Layer> layers;
   std::map<CacheKey, CachedPlan> cache;
 };
@@ -1116,6 +1126,32 @@ int nn_conv_net_prepare(NnConvNet *net, int n) {
     hits += (r == 1);
   }
   net->prepared_n = b;
+  /* Drop the arena to what the CHOSEN plans need. The timed race grows it to
+   * the max over the timed set, and a winner with ws=0 can leave GiBs parked
+   * for the life of the run. Every cached plan of every bucket counts, so
+   * "workspace too small in execute" stays impossible. Prepare time only, so
+   * "grow only outside a PPO step" (cuda_ws.h) still holds. */
+  if (net->ws) {
+    int64_t need_final = net->ws_floor;
+    for (const auto &kv : net->cache)
+      if (kv.second.ws > need_final)
+        need_final = kv.second.ws;
+    /* cuda_lt_gemm re-grows to its kWsMin floor on the next prepare; do not
+     * fight it. */
+    if (need_final < kWsFloor)
+      need_final = kWsFloor;
+    if ((int64_t)net->ws->bytes > need_final) {
+      const long long old = (long long)net->ws->bytes;
+      /* Old workspace may still be live on the stream. */
+      cudaDeviceSynchronize();
+      if (nn_ws_shrink(net->ws, (size_t)need_final) != 0) {
+        set_err("workspace shrink failed");
+        return -1;
+      }
+      std::fprintf(stderr, "nn_conv_graph arena shrink %lld -> %lld B\n", old,
+                   (long long)net->ws->bytes);
+    }
+  }
   if (rebuilt > 0) {
     std::fprintf(stderr,
                  "nn_conv_graph prepare n=%d bucket=%d rebuilt=%d cache_hit=%d\n",
@@ -1129,6 +1165,12 @@ int nn_conv_net_prepare(NnConvNet *net, int n) {
     }
   }
   return 0;
+}
+
+void nn_conv_net_set_ws_floor(NnConvNet *net, long long bytes) {
+  if (!net)
+    return;
+  net->ws_floor = bytes > 0 ? (int64_t)bytes : 0;
 }
 
 int nn_conv_net_n_layers(const NnConvNet *net) {

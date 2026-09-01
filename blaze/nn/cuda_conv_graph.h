@@ -30,8 +30,13 @@ NnConvNet *nn_conv_net_create(cudnnHandle_t dnn, int device, int max_n,
 
 void nn_conv_net_destroy(NnConvNet *net);
 
-/* Bucket n, build+time plans on miss. n in [1, max_n]. */
+/* Bucket n, build+time plans on miss. n in [1, max_n]. Ends by shrinking the
+ * arena to the workspace the chosen plans need. */
 int nn_conv_net_prepare(NnConvNet *net, int n);
+
+/* Workspace the arena's other user already committed to. prepare never shrinks
+ * below it. Set it before prepare, from nn_lt_max_ws. */
+void nn_conv_net_set_ws_floor(NnConvNet *net, long long bytes);
 
 int nn_conv_net_n_layers(const NnConvNet *net);
 int nn_conv_net_c_in_pad(const NnConvNet *net, int layer);

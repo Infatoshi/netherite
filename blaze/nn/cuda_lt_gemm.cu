@@ -654,6 +654,16 @@ void nn_lt_destroy(NnLtGemm *g) {
   delete g;
 }
 
+long long nn_lt_max_ws(const NnLtGemm *g) {
+  if (!g)
+    return 0;
+  size_t m = 0;
+  for (int i = 0; i < g->n_plans; ++i)
+    if (g->plans[i].valid && g->plans[i].ws_need > m)
+      m = g->plans[i].ws_need;
+  return (long long)m;
+}
+
 int nn_lt_prepare(NnLtGemm *g, int n) {
   if (!g || n < 1 || n > g->max_n)
     return -1;

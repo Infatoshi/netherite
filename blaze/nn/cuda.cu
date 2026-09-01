@@ -590,6 +590,9 @@ static int forward_device(NnCuda *nn, int n) {
   const int thr = 256;
   const int bn = bucket_n(n, nn->max_n);
   const size_t n_c2 = (size_t)n * NN_C_OUT2 * NN_H2 * NN_W2;
+  /* lt picks its plans lazily during execute, so publish what it holds now.
+   * conv prepare shrinks the shared arena and must not undercut them. */
+  nn_conv_net_set_ws_floor(nn->conv, nn_lt_max_ws(nn->ltg));
   if (nn_conv_net_prepare(nn->conv, n) != 0) {
     set_err("conv prepare failed");
     return -1;
@@ -1080,6 +1083,7 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
     return nullptr;
   }
 
+  nn_conv_net_set_ws_floor(nn->conv, nn_lt_max_ws(nn->ltg));
   if (nn_conv_net_prepare(nn->conv, max_n) != 0) {
     set_err("conv prepare(max_n) failed");
     free_nn(nn);
