@@ -1034,6 +1034,40 @@ static CacheKey make_key(const NnConvNet *net, int op, int n, const Layer &L,
   return k;
 }
 
+/* Size the shared arena to what the cached plans need, plus `also` for a plan
+ * about to be cached, never under the lt floor. Shrinks as well as grows, so
+ * a race workspace is handed back before the next grow. Prepare time only. */
+static int arena_settle(NnConvNet *net, int64_t also, const char *why) {
+  if (!net->ws)
+    return 0;
+  int64_t need = net->ws_floor;
+  for (const auto &kv : net->cache)
+    if (kv.second.ws > need)
+      need = kv.second.ws;
+  if (also > need)
+    need = also;
+  if (need < kWsFloor)
+    need = kWsFloor;
+  const int64_t have = (int64_t)net->ws->bytes;
+  if (have == need)
+    return 0;
+  if (have > need) {
+    cudaDeviceSynchronize(); /* old workspace may still be live */
+    if (nn_ws_shrink(net->ws, (size_t)need) != 0) {
+      set_err("workspace shrink failed");
+      return -1;
+    }
+    std::fprintf(stderr, "nn_conv_graph arena shrink %lld -> %lld B (%s)\n",
+                 (long long)have, (long long)net->ws->bytes, why);
+    return 0;
+  }
+  if (nn_ws_ensure(net->ws, (size_t)need) != 0) {
+    set_err("workspace grow failed");
+    return -1;
+  }
+  return 0;
+}
+
 /* Build the op's graph at n. Also writes the log tag. */
 static int build_op_graph(NnConvNet *net, int layer, OpKind op, int n,
                           float beta, UniqueD *graph, int64_t *uids,
@@ -1198,13 +1232,32 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
                             vol, heur_r, &sc, &rank);
           free_tbufs(&t);
           if (rb >= 0) {
-            /* First ranked engine that also supports n. */
+            /* Rank comes from race_n, but the workspace that matters is the
+             * one at n. Take the best ranked engine that also supports n AND
+             * whose workspace at n we can actually hold. */
+            const int64_t bnow = ws_budget();
+            const int64_t hnow = net->ws ? (int64_t)net->ws->bytes : 0;
             for (size_t a = 0; a < rank.size() && chosen < 0; ++a)
               for (size_t i = 0; i < cb.size(); ++i)
-                if (cb[i].engine_id == rank[a]) {
+                if (cb[i].engine_id == rank[a] &&
+                    (cb[i].ws <= hnow || cb[i].ws <= bnow)) {
                   chosen = (int)i;
                   break;
                 }
+            if (chosen < 0) {
+              /* No ranked engine fits at n. Fall back to cuDNN's own order and
+               * take the first candidate at n that fits. */
+              for (size_t i = 0; i < cb.size(); ++i)
+                if (cb[i].ws <= hnow || cb[i].ws <= bnow) {
+                  chosen = (int)i;
+                  std::fprintf(stderr,
+                               "nn_conv_graph race n=%d for bucket=%d %s no "
+                               "ranked engine fits at n; heur order eng=%lld\n",
+                               race_n, n, rec.tag,
+                               (long long)cb[i].engine_id);
+                  break;
+                }
+            }
           }
         }
         destroy_cands(&cr, -1);
@@ -1225,10 +1278,8 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
                    "ws=%lld\n",
                    race_n, n, rec.tag, (long long)w.engine_id,
                    (long long)w.ws);
-      /* The arena must cover the plan we actually keep. */
-      if (rec.ws > 0 && net->ws &&
-          nn_ws_ensure(net->ws, (size_t)rec.ws) != 0) {
-        set_err("workspace grow failed");
+      /* Hand the race workspace back, then cover the plan we keep. */
+      if (arena_settle(net, rec.ws, "after race") != 0) {
         destroy_cands(&cb, chosen);
         free_plan(&rec);
         return -1;
@@ -1307,27 +1358,8 @@ int nn_conv_net_prepare(NnConvNet *net, int n) {
    * for the life of the run. Every cached plan of every bucket counts, so
    * "workspace too small in execute" stays impossible. Prepare time only, so
    * "grow only outside a PPO step" (cuda_ws.h) still holds. */
-  if (net->ws) {
-    int64_t need_final = net->ws_floor;
-    for (const auto &kv : net->cache)
-      if (kv.second.ws > need_final)
-        need_final = kv.second.ws;
-    /* cuda_lt_gemm re-grows to its kWsMin floor on the next prepare; do not
-     * fight it. */
-    if (need_final < kWsFloor)
-      need_final = kWsFloor;
-    if ((int64_t)net->ws->bytes > need_final) {
-      const long long old = (long long)net->ws->bytes;
-      /* Old workspace may still be live on the stream. */
-      cudaDeviceSynchronize();
-      if (nn_ws_shrink(net->ws, (size_t)need_final) != 0) {
-        set_err("workspace shrink failed");
-        return -1;
-      }
-      std::fprintf(stderr, "nn_conv_graph arena shrink %lld -> %lld B\n", old,
-                   (long long)net->ws->bytes);
-    }
-  }
+  if (arena_settle(net, 0, "after prepare") != 0)
+    return -1;
   if (rebuilt > 0) {
     std::fprintf(stderr,
                  "nn_conv_graph prepare n=%d bucket=%d rebuilt=%d cache_hit=%d\n",
