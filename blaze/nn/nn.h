@@ -87,8 +87,9 @@ int nn_set_config(Nn *nn, const NnConfig *cfg);
 int nn_prepare_n(Nn *nn, int n);
 
 /* Freeze the prepared set. After the seal a batch size whose plans were not
- * prepared fails with "nn: unprepared bucket n=... max_n=..." instead of
- * building and timing plans mid-run. CPU and Metal: no-op. */
+ * prepared fails with "nn: unprepared bucket n=... conv=... lt=..." instead of
+ * building and timing plans mid-run. The check covers both plan sets: conv
+ * plans are bucketed, dense plans are keyed by exact n. CPU and Metal: no-op. */
 int nn_seal(Nn *nn);
 
 /* Forward: planes [n,18,36,64] uint8 NCHW, scalars [n,27] float32.

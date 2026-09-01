@@ -22,6 +22,13 @@
 
 namespace {
 
+char g_err[512] = "";
+
+void set_err(const char *msg) {
+  std::snprintf(g_err, sizeof(g_err), "%s", msg);
+  std::fprintf(stderr, "cuda_lt_gemm: %s\n", msg);
+}
+
 enum {
   kHeurN = 32,
   kTimeN = 8,
@@ -603,9 +610,12 @@ static int pick_plan(NnLtGemm *g, int kind, int n, int out, int k, GemmSpec s,
   if (g->sealed) {
     /* Every plan was picked before the run. A pick here would query and time
      * cuBLASLt algos mid-step and allocate GiB-scale timing scratch. */
-    std::fprintf(stderr,
-                 "nn: unprepared lt plan kind=%d n=%d out=%d k=%d max_n=%d\n",
-                 kind, n, out, k, g->max_n);
+    char msg[256];
+    std::snprintf(msg, sizeof(msg),
+                  "nn: unprepared lt plan kind=%d n=%d out=%d k=%d lda=%d "
+                  "ldc=%d max_n=%d plans=%d",
+                  kind, n, out, k, s.lda, s.ldc, g->max_n, g->n_plans);
+    set_err(msg);
     return -1;
   }
   p = alloc_plan(g);
@@ -742,6 +752,19 @@ int nn_lt_seal(NnLtGemm *g) {
   g->sealed = 1;
   std::fprintf(stderr, "nn_lt seal: %d plans, max ws=%lld B\n", g->n_plans,
                nn_lt_max_ws(g));
+  return 0;
+}
+
+const char *nn_lt_last_error(void) { return g_err; }
+
+int nn_lt_has_n(const NnLtGemm *g, int n) {
+  if (!g || n < 1 || n > g->max_n)
+    return 0;
+  /* Plans are keyed by exact n. The conv side buckets n, so a bucket hit says
+   * nothing about this side; the seal guard asks both. */
+  for (int i = 0; i < g->n_plans; ++i)
+    if (g->plans[i].valid && g->plans[i].n == n)
+      return 1;
   return 0;
 }
 

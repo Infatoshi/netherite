@@ -26,6 +26,13 @@ int nn_lt_seal(NnLtGemm *g);
  * which must not shrink below this. */
 long long nn_lt_max_ws(const NnLtGemm *g);
 
+/* 1 when the plan set already holds a plan at this exact n. Plans are keyed by
+ * exact n, not by conv bucket, so a sealed caller must check this side too. */
+int nn_lt_has_n(const NnLtGemm *g, int n);
+
+/* Last error text from this module. Empty until something fails. */
+const char *nn_lt_last_error(void);
+
 /* y[out, n] = relu(W[out,k] @ x[k,n] + b[out]). aux = ReLU bitmask. */
 int nn_lt_fwd_relu_bias(NnLtGemm *g, int n, int out, int k, const float *W,
                         const float *x, const float *b, float *y, void *aux);

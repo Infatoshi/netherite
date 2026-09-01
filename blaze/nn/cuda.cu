@@ -592,13 +592,22 @@ static int forward_device(NnCuda *nn, int n) {
   const int bn = bucket_n(n, nn->max_n);
   const size_t n_c2 = (size_t)n * NN_C_OUT2 * NN_H2 * NN_W2;
   /* Sealed: every bucket was prepared before the run. A miss here would race
-   * cuDNN engines and grow the workspace arena mid-step. Fail instead. */
-  if (nn->sealed && !nn_conv_net_has_bucket(nn->conv, n)) {
-    char msg[128];
-    std::snprintf(msg, sizeof(msg), "nn: unprepared bucket n=%d max_n=%d", bn,
-                  nn->max_n);
-    set_err(msg);
-    return -1;
+   * cuDNN engines and grow the workspace arena mid-step. Fail instead.
+   * conv plans are bucketed, lt plans are keyed by exact n. Ask both: an n
+   * that shares a conv bucket with a prepared n still has no lt plan, and
+   * would otherwise fail deep inside a gemm. */
+  if (nn->sealed) {
+    const int has_conv = nn_conv_net_has_bucket(nn->conv, n);
+    const int has_lt = nn_lt_has_n(nn->ltg, n);
+    if (!has_conv || !has_lt) {
+      char msg[160];
+      std::snprintf(msg, sizeof(msg),
+                    "nn: unprepared bucket n=%d bucket=%d max_n=%d conv=%d "
+                    "lt=%d",
+                    n, bn, nn->max_n, has_conv, has_lt);
+      set_err(msg);
+      return -1;
+    }
   }
   /* lt picks its plans lazily during execute, so publish what it holds now.
    * conv prepare shrinks the shared arena and must not undercut them. */

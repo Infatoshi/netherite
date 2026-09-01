@@ -61,6 +61,9 @@ struct CachedPlan {
   int64_t ws = 0;
   int64_t engine_id = -1;
   double time_us = 0;
+  /* n the time_us race ran at, 0 when it ran at the plan's own n. The
+   * reduced-n path times at a smaller n than the plan it caches. */
+  int time_n = 0;
   uint32_t note_mask = 0;
   int n_uids = 0;
   int64_t uids[8] = {};
@@ -950,6 +953,12 @@ struct NnConvNet {
   /* Workspace the arena's other user (cuda_lt_gemm) already committed to.
    * The shrink never goes below it. Published by the owner of both. */
   int64_t ws_floor = 0;
+  /* Arena state at the last settle. prepare re-settles only when a plan was
+   * added, the arena changed size, or the floor moved. A sealed run repeats
+   * the same bucket on every forward and must settle nothing: the settle
+   * syncs the device, frees and re-allocs. */
+  size_t ws_settled = 0;
+  int64_t ws_floor_settled = -1;
   std::vector<Layer> layers;
   std::map<CacheKey, CachedPlan> cache;
 };
@@ -1053,8 +1062,11 @@ static int arena_settle(NnConvNet *net, int64_t also, const char *why) {
     return 0;
   if (have > need) {
     cudaDeviceSynchronize(); /* old workspace may still be live */
+    /* -1 is fatal by contract (cuda_ws.h): the arena may be empty. Every
+     * caller of arena_settle propagates it up to nn_conv_net_prepare, which
+     * fails the forward and stops the run. */
     if (nn_ws_shrink(net->ws, (size_t)need) != 0) {
-      set_err("workspace shrink failed");
+      set_err("workspace shrink failed; arena may be empty, run is dead");
       return -1;
     }
     std::fprintf(stderr, "nn_conv_graph arena shrink %lld -> %lld B (%s)\n",
@@ -1143,6 +1155,38 @@ void tbuf_ptrs(const TBufs &t, OpKind op, void **ptrs) {
 }
 } // namespace
 
+/* Contract (cuda_fable_contract.h): FFT beating a tensor-core implicit GEMM
+ * means the filter is wrong, so it is fatal. time_and_pick applies this to the
+ * winner of a race it ran. The reduced-n path accepts a candidate at n that
+ * the race never timed at n: rank[1..] when rank[0] does not fit, or the first
+ * entry of cuDNN's heuristic order. Apply the check to whatever it accepts, so
+ * an FFT engine can never reach the cache unnoticed.
+ *
+ * cand is the index into cb the caller wants to keep. hnow / bnow are the same
+ * workspace limits the caller used to filter, so an alternative that could not
+ * run does not make the pick fatal. Returns 0 to accept, -1 to fail. */
+static int check_no_fft_over_tc(const std::vector<Cand> &cb, int cand,
+                                int64_t hnow, int64_t bnow, const char *tag,
+                                int race_n, int n) {
+  if (cand < 0 || !note_fft(cb[(size_t)cand].mask))
+    return 0;
+  const Cand &w = cb[(size_t)cand];
+  for (size_t j = 0; j < cb.size(); ++j) {
+    if ((int)j == cand || !note_tc_gemm(cb[j].mask))
+      continue;
+    if (cb[j].ws > hnow && cb[j].ws > bnow)
+      continue; /* could not have run at n anyway */
+    std::fprintf(stderr,
+                 "nn_conv_graph FATAL FFT picked (eng=%lld notes=%s) over "
+                 "TC GEMM (eng=%lld notes=%s) race n=%d for bucket=%d %s\n",
+                 (long long)w.engine_id, w.notes, (long long)cb[j].engine_id,
+                 cb[j].notes, race_n, n, tag);
+    set_err("FFT picked at reduced n over tensor-core implicit-GEMM");
+    return -1;
+  }
+  return 0;
+}
+
 static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) {
   const Layer &L = net->layers[(size_t)layer];
   int fusion = 0;
@@ -1210,6 +1254,9 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
   }
 
   int chosen = -1;
+  double chosen_race_us = 0.0;
+  int chosen_race_n = 0;
+  int race_fatal = 0;
   if (race_n != n) {
     /* Race small, then finalize only the winner at n. */
     CachedPlan sc;
@@ -1258,6 +1305,24 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
                   break;
                 }
             }
+            /* Every accept above is unchecked: rank[1..] and the heuristic
+             * order never went through time_and_pick's winner check. */
+            if (check_no_fft_over_tc(cb, chosen, hnow, bnow, rec.tag, race_n,
+                                     n) != 0) {
+              chosen = -1;
+              race_fatal = 1;
+            }
+            /* The plan runs at n but was only timed at race_n. Keep that time
+             * so the per-plan dump does not print 0.0us for this bucket. */
+            if (chosen >= 0) {
+              const int64_t eid = cb[(size_t)chosen].engine_id;
+              for (size_t j = 0; j < cr.size(); ++j)
+                if (cr[j].engine_id == eid && cr[j].us < 1e99) {
+                  chosen_race_us = cr[j].us;
+                  chosen_race_n = race_n;
+                  break;
+                }
+            }
           }
         }
         destroy_cands(&cr, -1);
@@ -1265,12 +1330,18 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
       sc.plan = nullptr; /* owned by cr, already destroyed */
       free_plan(&sc);
     }
+    if (race_fatal) {
+      destroy_cands(&cb, -1);
+      free_plan(&rec);
+      return -1;
+    }
     if (chosen >= 0) {
       const Cand &w = cb[(size_t)chosen];
       rec.plan = w.plan;
       rec.ws = w.ws;
       rec.engine_id = w.engine_id;
-      rec.time_us = 0.0;
+      rec.time_us = chosen_race_us;
+      rec.time_n = chosen_race_n;
       rec.note_mask = w.mask;
       std::snprintf(rec.notes, sizeof(rec.notes), "%s", w.notes);
       std::fprintf(stderr,
@@ -1357,9 +1428,22 @@ int nn_conv_net_prepare(NnConvNet *net, int n) {
    * the max over the timed set, and a winner with ws=0 can leave GiBs parked
    * for the life of the run. Every cached plan of every bucket counts, so
    * "workspace too small in execute" stays impossible. Prepare time only, so
-   * "grow only outside a PPO step" (cuda_ws.h) still holds. */
-  if (arena_settle(net, 0, "after prepare") != 0)
-    return -1;
+   * "grow only outside a PPO step" (cuda_ws.h) still holds.
+   *
+   * Only three things change what the settle would compute: a new plan, an
+   * arena the other user grew, and a moved floor. prepare runs on every
+   * forward, so settle unconditionally would sync + free + malloc every step.
+   * A sealed run changes none of the three and settles nothing. */
+  {
+    const size_t ws_now = net->ws ? net->ws->bytes : 0;
+    if (rebuilt > 0 || ws_now != net->ws_settled ||
+        net->ws_floor != net->ws_floor_settled) {
+      if (arena_settle(net, 0, "after prepare") != 0)
+        return -1;
+      net->ws_settled = net->ws ? net->ws->bytes : 0;
+      net->ws_floor_settled = net->ws_floor;
+    }
+  }
   if (rebuilt > 0) {
     std::fprintf(stderr,
                  "nn_conv_graph prepare n=%d bucket=%d rebuilt=%d cache_hit=%d\n",
@@ -1367,9 +1451,16 @@ int nn_conv_net_prepare(NnConvNet *net, int n) {
     for (const auto &kv : net->cache) {
       if (kv.first.n != b)
         continue;
-      std::fprintf(stderr, "  %s eng=%lld %.1fus notes=%s ws=%lld\n",
-                   kv.second.tag, (long long)kv.second.engine_id,
-                   kv.second.time_us, kv.second.notes, (long long)kv.second.ws);
+      /* time_n != 0 means the number came from a race at a smaller n. */
+      char us[48];
+      if (kv.second.time_n > 0)
+        std::snprintf(us, sizeof(us), "%.1fus@n=%d", kv.second.time_us,
+                      kv.second.time_n);
+      else
+        std::snprintf(us, sizeof(us), "%.1fus", kv.second.time_us);
+      std::fprintf(stderr, "  %s eng=%lld %s notes=%s ws=%lld\n", kv.second.tag,
+                   (long long)kv.second.engine_id, us, kv.second.notes,
+                   (long long)kv.second.ws);
     }
   }
   return 0;
