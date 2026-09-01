@@ -456,9 +456,32 @@ struct Cand {
   char notes[192] = {};
 };
 
-int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph,
-               const int64_t *uids, int n_uids, void **ptrs, int64_t volume,
-               CachedPlan *out) {
+/* Bytes the seven timing buffers need at n. */
+size_t tbuf_bytes(int n, int C, int H, int W, int K, int R, int S, int Ho,
+                  int Wo) {
+  const size_t nx = (size_t)n * (size_t)H * (size_t)W * (size_t)C;
+  const size_t nw = (size_t)K * (size_t)R * (size_t)S * (size_t)C;
+  const size_t ny = (size_t)n * (size_t)Ho * (size_t)Wo * (size_t)K;
+  const size_t nb = (size_t)K;
+  return (2 * nx + 2 * ny + 2 * nw + nb) * sizeof(__half);
+}
+
+/* Next bucket below b on the ladder bucket_n produces. 0 when there is none. */
+int prev_bucket(int b, int max_n) {
+  const int m = (max_n < 256) ? 32 : 256;
+  if (b <= 1)
+    return 0;
+  int p = ((b - 1) / m) * m;
+  if (p < 1)
+    p = 1;
+  if (p >= b)
+    p = b - 1;
+  return p;
+}
+
+/* Heuristic configs that pass check_support, deduped by engine id. */
+int collect_supported(cudnnHandle_t h, cudnnBackendDescriptor_t graph,
+                      std::vector<Cand> *out, int *heur_n) {
   std::vector<cudnnBackendDescriptor_t> raw;
   if (collect_heur(graph, CUDNN_HEUR_MODE_A, &raw) != 0 ||
       collect_heur(graph, CUDNN_HEUR_MODE_B, &raw) != 0) {
@@ -467,11 +490,10 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
       cudnnBackendDestroyDescriptor(c);
     return -1;
   }
-  const int nAplusB = (int)raw.size();
+  *heur_n = (int)raw.size();
   if (raw.empty())
     collect_heur(graph, CUDNN_HEUR_MODE_FALLBACK, &raw);
   std::vector<int64_t> seen;
-  std::vector<Cand> supported;
   for (auto cfg : raw) {
     Cand c;
     c.cfg = cfg;
@@ -495,57 +517,76 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
       cudnnBackendDestroyDescriptor(cfg);
       continue;
     }
-    supported.push_back(c);
+    out->push_back(c);
   }
-  if (supported.empty()) {
+  if (out->empty()) {
     set_err("no engine passed check_support");
     return -1;
   }
-  const int nsup = (int)supported.size();
-  /* Take the first kTopK supported engines that need no grow. A candidate that
-   * already fits the arena costs nothing, so it stays eligible whatever the
-   * free VRAM is. When the whole head of the list is eligible, this is the old
-   * top-K set in the old order. */
-  const int64_t budget = ws_budget();
-  const int64_t have = arena ? (int64_t)arena->bytes : 0;
-  std::vector<int> tidx;
-  for (int i = 0; i < nsup && (int)tidx.size() < kTopK; ++i)
-    if (supported[(size_t)i].ws <= have || supported[(size_t)i].ws <= budget)
-      tidx.push_back(i);
-  int capped = 0;
-  {
-    const int nhead = std::min(kTopK, nsup);
-    for (int i = 0; i < nhead; ++i)
-      if (supported[(size_t)i].ws > have && supported[(size_t)i].ws > budget)
-        capped = 1;
+  return 0;
+}
+
+/* Destroy every cfg, and every plan but keep_plan. -1 destroys all. */
+void destroy_cands(std::vector<Cand> *v, int keep_plan) {
+  for (size_t i = 0; i < v->size(); ++i) {
+    Cand &c = (*v)[i];
+    if (c.plan && (int)i != keep_plan)
+      cudnnBackendDestroyDescriptor(c.plan);
+    if (c.cfg)
+      cudnnBackendDestroyDescriptor(c.cfg);
+    c.cfg = nullptr;
+    if ((int)i != keep_plan)
+      c.plan = nullptr;
   }
-  if (tidx.empty()) {
+}
+
+/* Eligible head of the supported list: the first kTopK that need no grow, or
+ * that fit the free-VRAM budget. */
+void select_timed(const std::vector<Cand> &sup, int64_t have, int64_t budget,
+                  std::vector<int> *tidx, int *capped) {
+  const int nsup = (int)sup.size();
+  *capped = 0;
+  for (int i = 0; i < nsup && (int)tidx->size() < kTopK; ++i)
+    if (sup[(size_t)i].ws <= have || sup[(size_t)i].ws <= budget)
+      tidx->push_back(i);
+  const int nhead = std::min(kTopK, nsup);
+  for (int i = 0; i < nhead; ++i)
+    if (sup[(size_t)i].ws > have && sup[(size_t)i].ws > budget)
+      *capped = 1;
+  if (tidx->empty()) {
     /* Nothing fits. Keep the smallest workspace and let the grow speak. */
     int small = 0;
     for (int i = 1; i < nsup; ++i)
-      if (supported[(size_t)i].ws < supported[(size_t)small].ws)
+      if (sup[(size_t)i].ws < sup[(size_t)small].ws)
         small = i;
-    tidx.push_back(small);
+    tidx->push_back(small);
     std::fprintf(stderr,
                  "nn_conv_graph ws budget %lld B fits no engine of %d; trying "
                  "smallest ws=%lld B\n",
-                 (long long)budget, nsup,
-                 (long long)supported[(size_t)small].ws);
+                 (long long)budget, nsup, (long long)sup[(size_t)small].ws);
   }
+}
+
+/* Time the eligible head and pick the winner. Returns the index into sup, or
+ * -1. Fills out (not out->graph) and, when rank is given, the timed engine ids
+ * best first. Destroys nothing; the caller owns sup. */
+int time_and_pick(cudnnHandle_t h, NnWsArena *arena, std::vector<Cand> *sup,
+                  const int64_t *uids, int n_uids, void **ptrs, int64_t volume,
+                  int heur_n, CachedPlan *out, std::vector<int64_t> *rank) {
+  const int nsup = (int)sup->size();
+  const int64_t budget = ws_budget();
+  const int64_t have = arena ? (int64_t)arena->bytes : 0;
+  std::vector<int> tidx;
+  int capped = 0;
+  select_timed(*sup, have, budget, &tidx, &capped);
   const int ntime = (int)tidx.size();
   int64_t need = 0;
   for (int t = 0; t < ntime; ++t)
-    if (supported[(size_t)tidx[(size_t)t]].ws > need)
-      need = supported[(size_t)tidx[(size_t)t]].ws;
+    if ((*sup)[(size_t)tidx[(size_t)t]].ws > need)
+      need = (*sup)[(size_t)tidx[(size_t)t]].ws;
   if (need > 0) {
     if (!arena || nn_ws_ensure(arena, (size_t)need) != 0) {
       set_err("workspace grow failed");
-      for (auto &c : supported) {
-        if (c.plan)
-          cudnnBackendDestroyDescriptor(c.plan);
-        if (c.cfg)
-          cudnnBackendDestroyDescriptor(c.cfg);
-      }
       return -1;
     }
   }
@@ -556,45 +597,45 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
   int gemm_i = -1;
   for (int t = 0; t < ntime; ++t) {
     const int i = tidx[(size_t)t];
-    Cand &c = supported[(size_t)i];
+    Cand &c = (*sup)[(size_t)i];
     if (c.ws > 0 && !wsptr)
       continue;
     double us = time_plan(h, c.plan, wsptr, uids, ptrs, n_uids, warm, reps);
     if (us < 0)
       continue;
     c.us = us;
-    if (best < 0 || us < supported[(size_t)best].us)
+    if (best < 0 || us < (*sup)[(size_t)best].us)
       best = i;
     if (note_tc_gemm(c.mask) &&
-        (gemm_i < 0 || us < supported[(size_t)gemm_i].us))
+        (gemm_i < 0 || us < (*sup)[(size_t)gemm_i].us))
       gemm_i = i;
   }
   if (best < 0) {
     set_err("all timed engines failed execute");
-    for (auto &c : supported) {
-      if (c.plan)
-        cudnnBackendDestroyDescriptor(c.plan);
-      if (c.cfg)
-        cudnnBackendDestroyDescriptor(c.cfg);
-    }
     return -1;
   }
-  const Cand &w = supported[(size_t)best];
+  const Cand &w = (*sup)[(size_t)best];
   if (note_fft(w.mask) && gemm_i >= 0 && gemm_i != best) {
-    const Cand &g = supported[(size_t)gemm_i];
+    const Cand &g = (*sup)[(size_t)gemm_i];
     std::fprintf(stderr,
                  "nn_conv_graph FATAL FFT won (eng=%lld %.1fus notes=%s) over "
                  "TC GEMM (eng=%lld %.1fus notes=%s)\n",
                  (long long)w.engine_id, w.us, w.notes, (long long)g.engine_id,
                  g.us, g.notes);
     set_err("FFT won timed race over tensor-core implicit-GEMM");
-    for (auto &c : supported) {
-      if (c.plan)
-        cudnnBackendDestroyDescriptor(c.plan);
-      if (c.cfg)
-        cudnnBackendDestroyDescriptor(c.cfg);
-    }
     return -1;
+  }
+  if (rank) {
+    std::vector<int> ok;
+    for (int t = 0; t < ntime; ++t)
+      if ((*sup)[(size_t)tidx[(size_t)t]].us < 1e99)
+        ok.push_back(tidx[(size_t)t]);
+    for (size_t a = 0; a < ok.size(); ++a)
+      for (size_t b = a + 1; b < ok.size(); ++b)
+        if ((*sup)[(size_t)ok[b]].us < (*sup)[(size_t)ok[a]].us)
+          std::swap(ok[a], ok[b]);
+    for (size_t a = 0; a < ok.size(); ++a)
+      rank->push_back((*sup)[(size_t)ok[a]].engine_id);
   }
   out->plan = w.plan;
   out->ws = w.ws;
@@ -605,19 +646,9 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
   std::fprintf(stderr,
                "nn_conv_graph pick %s heur=%d supported=%d timed=%d budget=%lld"
                " capped=%d winner=eng=%lld %.1fus notes=%s ws=%lld\n",
-               out->tag, nAplusB, nsup, ntime, (long long)budget, capped,
+               out->tag, heur_n, nsup, ntime, (long long)budget, capped,
                (long long)w.engine_id, w.us, w.notes, (long long)w.ws);
-  for (int i = 0; i < nsup; ++i) {
-    if (i == best)
-      continue;
-    if (supported[(size_t)i].plan)
-      cudnnBackendDestroyDescriptor(supported[(size_t)i].plan);
-    if (supported[(size_t)i].cfg)
-      cudnnBackendDestroyDescriptor(supported[(size_t)i].cfg);
-  }
-  if (w.cfg)
-    cudnnBackendDestroyDescriptor(w.cfg);
-  return 0;
+  return best;
 }
 
 int build_fwd_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
@@ -1003,6 +1034,81 @@ static CacheKey make_key(const NnConvNet *net, int op, int n, const Layer &L,
   return k;
 }
 
+/* Build the op's graph at n. Also writes the log tag. */
+static int build_op_graph(NnConvNet *net, int layer, OpKind op, int n,
+                          float beta, UniqueD *graph, int64_t *uids,
+                          int *n_uids, char *tag, size_t tagsz) {
+  const Layer &L = net->layers[(size_t)layer];
+  const int C = L.c_in_pad, H = L.spec.h_in, W = L.spec.w_in, K = L.spec.c_out;
+  const int R = L.spec.k, S = L.spec.k, pad = L.spec.pad, stride = L.spec.stride;
+  if (op == OP_FWD) {
+    std::snprintf(tag, tagsz, "L%d FWD", layer);
+    return build_fwd_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, graph,
+                           uids, n_uids);
+  }
+  if (op == OP_WGRAD) {
+    std::snprintf(tag, tagsz, "L%d WGRAD b=%.0f", layer, beta);
+    return build_wgrad_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1,
+                             beta, graph, uids, n_uids);
+  }
+  std::snprintf(tag, tagsz, "L%d DGRAD", layer);
+  return build_dgrad_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, graph,
+                           uids, n_uids);
+}
+
+namespace {
+struct TBufs {
+  __half *x = nullptr, *w = nullptr, *y = nullptr, *b = nullptr;
+  __half *dy = nullptr, *dw = nullptr, *dx = nullptr;
+};
+
+void free_tbufs(TBufs *t) {
+  free_h(t->x);
+  free_h(t->w);
+  free_h(t->y);
+  free_h(t->b);
+  free_h(t->dy);
+  free_h(t->dw);
+  free_h(t->dx);
+  *t = TBufs();
+}
+
+int alloc_tbufs(TBufs *t, int n, int C, int H, int W, int K, int R, int S,
+                int Ho, int Wo) {
+  const size_t nx = (size_t)n * (size_t)H * (size_t)W * (size_t)C;
+  const size_t nw = (size_t)K * (size_t)R * (size_t)S * (size_t)C;
+  const size_t ny = (size_t)n * (size_t)Ho * (size_t)Wo * (size_t)K;
+  const size_t nb = (size_t)K;
+  if (alloc_h(&t->x, nx) || alloc_h(&t->w, nw) || alloc_h(&t->y, ny) ||
+      alloc_h(&t->b, nb) || alloc_h(&t->dy, ny) || alloc_h(&t->dw, nw) ||
+      alloc_h(&t->dx, nx)) {
+    set_err("timing buffer alloc failed");
+    free_tbufs(t);
+    return -1;
+  }
+  return 0;
+}
+
+void tbuf_ptrs(const TBufs &t, OpKind op, void **ptrs) {
+  for (int i = 0; i < 8; ++i)
+    ptrs[i] = nullptr;
+  if (op == OP_FWD) {
+    ptrs[0] = t.x;
+    ptrs[1] = t.w;
+    ptrs[2] = t.b;
+    ptrs[3] = t.y;
+  } else if (op == OP_WGRAD) {
+    ptrs[0] = t.x;
+    ptrs[1] = t.dy;
+    ptrs[2] = t.dw;
+  } else {
+    ptrs[0] = t.w;
+    ptrs[1] = t.dy;
+    ptrs[2] = t.dx;
+  }
+}
+} // namespace
+
 static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) {
   const Layer &L = net->layers[(size_t)layer];
   int fusion = 0;
@@ -1015,77 +1121,147 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
   CacheKey key = make_key(net, (int)op, n, L, fusion);
   if (net->cache.find(key) != net->cache.end())
     return 1; /* hit */
-  UniqueD graph;
+  const int C = L.c_in_pad, H = L.spec.h_in, W = L.spec.w_in, K = L.spec.c_out;
+  const int R = L.spec.k, S = L.spec.k;
+  const int Ho = L.h_out, Wo = L.w_out;
+
   CachedPlan rec;
   rec.n_uids = 0;
-  const int C = L.c_in_pad, H = L.spec.h_in, W = L.spec.w_in, K = L.spec.c_out;
-  const int R = L.spec.k, S = L.spec.k, pad = L.spec.pad, stride = L.spec.stride;
-  const int Ho = L.h_out, Wo = L.w_out;
-  if (op == OP_FWD) {
-    std::snprintf(rec.tag, sizeof(rec.tag), "L%d FWD", layer);
-    if (build_fwd_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, &graph,
-                        rec.uids, &rec.n_uids) != 0)
-      return -1;
-  } else if (op == OP_WGRAD) {
-    std::snprintf(rec.tag, sizeof(rec.tag), "L%d WGRAD b=%.0f", layer, beta);
-    if (build_wgrad_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, beta,
-                          &graph, rec.uids, &rec.n_uids) != 0)
-      return -1;
-  } else {
-    std::snprintf(rec.tag, sizeof(rec.tag), "L%d DGRAD", layer);
-    if (build_dgrad_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, &graph,
-                          rec.uids, &rec.n_uids) != 0)
-      return -1;
-  }
-  rec.graph = graph.release();
-  __half *x = nullptr, *w = nullptr, *y = nullptr, *b = nullptr, *dy = nullptr,
-         *dw = nullptr, *dx = nullptr;
-  const size_t nx = (size_t)n * (size_t)H * (size_t)W * (size_t)C;
-  const size_t nw = (size_t)K * (size_t)R * (size_t)S * (size_t)C;
-  const size_t ny = (size_t)n * (size_t)Ho * (size_t)Wo * (size_t)K;
-  const size_t nb = (size_t)K;
-  if (alloc_h(&x, nx) || alloc_h(&w, nw) || alloc_h(&y, ny) || alloc_h(&b, nb) ||
-      alloc_h(&dy, ny) || alloc_h(&dw, nw) || alloc_h(&dx, nx)) {
-    set_err("timing buffer alloc failed");
-    free_h(x);
-    free_h(w);
-    free_h(y);
-    free_h(b);
-    free_h(dy);
-    free_h(dw);
-    free_h(dx);
+  UniqueD graph;
+  if (build_op_graph(net, layer, op, n, beta, &graph, rec.uids, &rec.n_uids,
+                     rec.tag, sizeof(rec.tag)) != 0)
     return -1;
-  }
-  void *ptrs[8] = {};
-  if (op == OP_FWD) {
-    ptrs[0] = x;
-    ptrs[1] = w;
-    ptrs[2] = b;
-    ptrs[3] = y;
-  } else if (op == OP_WGRAD) {
-    ptrs[0] = x;
-    ptrs[1] = dy;
-    ptrs[2] = dw;
-  } else {
-    ptrs[0] = w;
-    ptrs[1] = dy;
-    ptrs[2] = dx;
-  }
-  const int64_t volume = (int64_t)n * H * W * C;
-  const int rc =
-      pick_timed(net->dnn, net->ws, rec.graph, rec.uids, rec.n_uids, ptrs,
-                 volume, &rec);
-  free_h(x);
-  free_h(w);
-  free_h(y);
-  free_h(b);
-  free_h(dy);
-  free_h(dw);
-  free_h(dx);
-  if (rc != 0) {
+  rec.graph = graph.release();
+
+  /* Candidates at the real n. The winner's plan must come from here whatever
+   * n the race runs at. */
+  std::vector<Cand> cb;
+  int heur_b = 0;
+  if (collect_supported(net->dnn, rec.graph, &cb, &heur_b) != 0) {
     free_plan(&rec);
     return -1;
   }
+
+  /* Cost of racing at n: the seven timing buffers plus the arena grow that the
+   * would-be timed set forces. */
+  const int64_t budget = ws_budget();
+  const int64_t have = net->ws ? (int64_t)net->ws->bytes : 0;
+  int64_t wsmax_b = 0;
+  {
+    int taken = 0;
+    for (size_t i = 0; i < cb.size() && taken < kTopK; ++i)
+      if (cb[i].ws <= have || cb[i].ws <= budget) {
+        if (cb[i].ws > wsmax_b)
+          wsmax_b = cb[i].ws;
+        ++taken;
+      }
+  }
+  const int64_t tb_full = (int64_t)tbuf_bytes(n, C, H, W, K, R, S, Ho, Wo);
+  int race_n = n;
+  if (tb_full + wsmax_b > budget) {
+    /* Walk down the bucket ladder. Workspace scales about linearly with n, so
+     * scale wsmax to choose; the race at race_n re-queries the heuristics and
+     * applies its own budget, so an optimistic estimate stays safe. */
+    int rn = prev_bucket(n, net->max_n);
+    while (rn > 0) {
+      const int64_t cost =
+          (int64_t)tbuf_bytes(rn, C, H, W, K, R, S, Ho, Wo) +
+          (int64_t)((double)wsmax_b * (double)rn / (double)n);
+      if (cost <= budget)
+        break;
+      rn = prev_bucket(rn, net->max_n);
+    }
+    if (rn > 0)
+      race_n = rn;
+  }
+
+  int chosen = -1;
+  if (race_n != n) {
+    /* Race small, then finalize only the winner at n. */
+    CachedPlan sc;
+    sc.n_uids = 0;
+    UniqueD rg;
+    if (build_op_graph(net, layer, op, race_n, beta, &rg, sc.uids, &sc.n_uids,
+                       sc.tag, sizeof(sc.tag)) == 0) {
+      sc.graph = rg.release();
+      std::vector<Cand> cr;
+      int heur_r = 0;
+      if (collect_supported(net->dnn, sc.graph, &cr, &heur_r) == 0) {
+        TBufs t;
+        if (alloc_tbufs(&t, race_n, C, H, W, K, R, S, Ho, Wo) == 0) {
+          void *ptrs[8];
+          tbuf_ptrs(t, op, ptrs);
+          const int64_t vol = (int64_t)race_n * H * W * C;
+          std::vector<int64_t> rank;
+          const int rb =
+              time_and_pick(net->dnn, net->ws, &cr, sc.uids, sc.n_uids, ptrs,
+                            vol, heur_r, &sc, &rank);
+          free_tbufs(&t);
+          if (rb >= 0) {
+            /* First ranked engine that also supports n. */
+            for (size_t a = 0; a < rank.size() && chosen < 0; ++a)
+              for (size_t i = 0; i < cb.size(); ++i)
+                if (cb[i].engine_id == rank[a]) {
+                  chosen = (int)i;
+                  break;
+                }
+          }
+        }
+        destroy_cands(&cr, -1);
+      }
+      sc.plan = nullptr; /* owned by cr, already destroyed */
+      free_plan(&sc);
+    }
+    if (chosen >= 0) {
+      const Cand &w = cb[(size_t)chosen];
+      rec.plan = w.plan;
+      rec.ws = w.ws;
+      rec.engine_id = w.engine_id;
+      rec.time_us = 0.0;
+      rec.note_mask = w.mask;
+      std::snprintf(rec.notes, sizeof(rec.notes), "%s", w.notes);
+      std::fprintf(stderr,
+                   "nn_conv_graph race n=%d for bucket=%d %s winner=eng=%lld "
+                   "ws=%lld\n",
+                   race_n, n, rec.tag, (long long)w.engine_id,
+                   (long long)w.ws);
+      /* The arena must cover the plan we actually keep. */
+      if (rec.ws > 0 && net->ws &&
+          nn_ws_ensure(net->ws, (size_t)rec.ws) != 0) {
+        set_err("workspace grow failed");
+        destroy_cands(&cb, chosen);
+        free_plan(&rec);
+        return -1;
+      }
+    } else {
+      std::fprintf(stderr,
+                   "nn_conv_graph race n=%d for bucket=%d %s no engine carried "
+                   "over; full race\n",
+                   race_n, n, rec.tag);
+    }
+  }
+
+  if (chosen < 0) {
+    /* Full race at n. Identical to the old path. */
+    TBufs t;
+    if (alloc_tbufs(&t, n, C, H, W, K, R, S, Ho, Wo) != 0) {
+      destroy_cands(&cb, -1);
+      free_plan(&rec);
+      return -1;
+    }
+    void *ptrs[8];
+    tbuf_ptrs(t, op, ptrs);
+    const int64_t volume = (int64_t)n * H * W * C;
+    chosen = time_and_pick(net->dnn, net->ws, &cb, rec.uids, rec.n_uids, ptrs,
+                           volume, heur_b, &rec, nullptr);
+    free_tbufs(&t);
+    if (chosen < 0) {
+      destroy_cands(&cb, -1);
+      free_plan(&rec);
+      return -1;
+    }
+  }
+  destroy_cands(&cb, chosen);
   net->cache.emplace(key, rec);
   return 0;
 }
