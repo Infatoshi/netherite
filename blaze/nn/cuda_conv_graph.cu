@@ -426,6 +426,22 @@ bool note_tc_gemm(uint32_t m) {
   return (tc || dn) && !note_fft(m) && !note_wino(m);
 }
 
+/* Workspace budget for the timed race. The arena grows to the MAX workspace
+ * over the timed set, so one fat candidate can OOM a step that the winner
+ * alone fits. Keep this many free bytes back for the rest of the step. */
+constexpr int64_t kWsMargin = (int64_t)1 << 30; /* 1 GiB */
+
+/* Free device bytes minus the margin. INT64_MAX when the query fails, so a
+ * failed query keeps the old behavior instead of starving the race. */
+int64_t ws_budget() {
+  size_t freeb = 0, totalb = 0;
+  if (cudaMemGetInfo(&freeb, &totalb) != cudaSuccess)
+    return INT64_MAX;
+  if ((int64_t)freeb <= kWsMargin)
+    return 0;
+  return (int64_t)freeb - kWsMargin;
+}
+
 struct Cand {
   cudnnBackendDescriptor_t cfg = nullptr;
   cudnnBackendDescriptor_t plan = nullptr;
@@ -482,11 +498,38 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
     return -1;
   }
   const int nsup = (int)supported.size();
-  int ntime = std::min(kTopK, nsup);
+  /* Take the first kTopK supported engines that fit the budget. When the whole
+   * head of the list fits, this is the old top-K set in the old order. */
+  const int64_t budget = ws_budget();
+  std::vector<int> tidx;
+  for (int i = 0; i < nsup && (int)tidx.size() < kTopK; ++i)
+    if (supported[(size_t)i].ws <= budget)
+      tidx.push_back(i);
+  int capped = 0;
+  {
+    const int nhead = std::min(kTopK, nsup);
+    for (int i = 0; i < nhead; ++i)
+      if (supported[(size_t)i].ws > budget)
+        capped = 1;
+  }
+  if (tidx.empty()) {
+    /* Nothing fits. Keep the smallest workspace and let the grow speak. */
+    int small = 0;
+    for (int i = 1; i < nsup; ++i)
+      if (supported[(size_t)i].ws < supported[(size_t)small].ws)
+        small = i;
+    tidx.push_back(small);
+    std::fprintf(stderr,
+                 "nn_conv_graph ws budget %lld B fits no engine of %d; trying "
+                 "smallest ws=%lld B\n",
+                 (long long)budget, nsup,
+                 (long long)supported[(size_t)small].ws);
+  }
+  const int ntime = (int)tidx.size();
   int64_t need = 0;
-  for (int i = 0; i < ntime; ++i)
-    if (supported[(size_t)i].ws > need)
-      need = supported[(size_t)i].ws;
+  for (int t = 0; t < ntime; ++t)
+    if (supported[(size_t)tidx[(size_t)t]].ws > need)
+      need = supported[(size_t)tidx[(size_t)t]].ws;
   if (need > 0) {
     if (!arena || nn_ws_ensure(arena, (size_t)need) != 0) {
       set_err("workspace grow failed");
@@ -504,7 +547,8 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
   const int reps = (volume < 1000000) ? 3 : 10;
   int best = -1;
   int gemm_i = -1;
-  for (int i = 0; i < ntime; ++i) {
+  for (int t = 0; t < ntime; ++t) {
+    const int i = tidx[(size_t)t];
     Cand &c = supported[(size_t)i];
     if (c.ws > 0 && !wsptr)
       continue;
@@ -552,10 +596,10 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
   out->note_mask = w.mask;
   std::snprintf(out->notes, sizeof(out->notes), "%s", w.notes);
   std::fprintf(stderr,
-               "nn_conv_graph pick %s heur=%d supported=%d timed=%d winner="
-               "eng=%lld %.1fus notes=%s ws=%lld\n",
-               out->tag, nAplusB, nsup, ntime, (long long)w.engine_id, w.us,
-               w.notes, (long long)w.ws);
+               "nn_conv_graph pick %s heur=%d supported=%d timed=%d budget=%lld"
+               " capped=%d winner=eng=%lld %.1fus notes=%s ws=%lld\n",
+               out->tag, nAplusB, nsup, ntime, (long long)budget, capped,
+               (long long)w.engine_id, w.us, w.notes, (long long)w.ws);
   for (int i = 0; i < nsup; ++i) {
     if (i == best)
       continue;
