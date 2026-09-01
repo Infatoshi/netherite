@@ -1,5 +1,72 @@
 # DEVLOG (compressed)
 
+## 2026-09-01 conv race at a reduced n (not merged)
+
+Branch `wip/nn-ws-cap`, on top of the arena shrink below. The arena is no
+longer what sets max-N. The race itself is: for a bucket `b` it allocates
+seven half-precision timing buffers at `b` plus the max workspace over the
+timed set. At T=8 N=4352 that transient is larger than the step it times.
+
+`ensure_plan` now costs the race before it runs. It adds the exact timing
+buffer bytes at `n` to the max workspace over the eligible candidates, and
+compares that to `ws_budget()` (free VRAM minus 1 GiB). If it fits, the
+race runs at `n = b`, byte-identical to before. If not, it walks down the
+existing `bucket_n` ladder to the largest smaller bucket whose race cost
+fits, races there, and then builds ONLY the winning engine at `n = b`
+through the normal plan path. No new sizes are invented. Workspace scales
+about linearly with `n`, so the cost at a candidate `rn` is scaled from
+the heuristic query at `n`.
+
+The rank comes from `race_n`, but the workspace that must be held is the
+one at `b`. So the rank walk also requires the candidate to fit the arena
+or the budget at `b`. When no ranked engine fits, cuDNN's own heuristic
+order is used and the first fitting candidate wins. When `check_support`
+carries no engine to `b`, the full race runs, and fails honestly.
+
+Caveat: an engine ranked fastest at `race_n` need not be fastest at `b`.
+This is accepted only to convert an OOM into a run. A reduced `n` is never
+used when the full race fits.
+
+Anvil, device 0, exclusive lease `netherite-ws-cap-4`, 97887 MiB, CUDA
+13.2, cuDNN 92500. Same harness as below. Every reported run polled
+foreign GPU processes at 1 s and read `foreign_mib=0`.
+
+`make -C blaze/nn test-cuda` ALL TESTS PASSED. `make -C blaze/rl
+smoke-cuda` PASS. T=8 N=1024 guard: PASS, grad_norm 0.174396, value_loss
+0.0281173, zero buckets raced at a reduced n.
+
+| N | T | max_n | result | peak MiB | buckets at reduced n |
+|---|---|---|---|---|---|
+| 1024 | 8 | 8192 | PASS | 52096 | 0 |
+| 4352 | 8 | 34816 | PASS | 96242 | 5 |
+| 4608 | 8 | 36864 | PASS | 96206 | 12 |
+| 4864 | 8 | 38912 | PASS | 96220 | 12 |
+| 5120 | 8 | 40960 | PASS | 96266 | 20 |
+| 5376 | 8 | 43008 | fail | 86404 | 0 |
+| 2560 | 32 | 81920 | PASS | 95090 | 6 |
+| 2816 | 32 | 90112 | PASS | 96212 | 6 |
+| 3072 | 32 | 98304 | PASS | 96262 | 7 |
+| 3328 | 32 | 106496 | fail | 96262 | 13 |
+
+Max-N is 5120 at T=8, up from 4352. Max-N is 3072 at T=32, up from 2304.
+
+Both boundary errors are now outside the conv plan policy. T=8 N=5376
+stops at `ppo: nn_create: cudaMalloc arenas failed`, before the graph
+builds. T=32 N=3328 stops at `ppo: nn_update: fc dx cam failed`, a
+cuBLASLt call in `cuda.cu`, with the conv picks already made and a
+`budget=` of 17 MiB. The policy side of this road ends here. More N needs
+smaller named allocations, not a better race.
+
+Throughput at T=8, same build, one chunk:
+
+| N | ticks | wall s | ticks/s | nn ms |
+|---|---|---|---|---|
+| 4352 | 139264 | 11.6 | 12006 | 2188 |
+| 5120 | 163840 | 10.0 | 16384 | 2750 |
+
+The largest PASS is the fastest, so no reduced-n winner is badly ranked
+at these shapes.
+
 ## 2026-09-01 conv arena shrink (not merged)
 
 Branch `wip/nn-ws-cap`, on top of the timing budget below. Two changes.
