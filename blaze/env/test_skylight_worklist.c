@@ -66,10 +66,6 @@ static int setup_env(Blaze *e, u16 **cells, u8 **light, Chunk **window,
     e->sky_cz0 = 0;
     e->sky_cnx = CU_SEC_SPAN(rnx);
     e->sky_cnz = CU_SEC_SPAN(rnz);
-    e->rt_c_cx = 0x7fffffff;
-    e->rt_c_cz = 0x7fffffff;
-    e->rt_c_sec = -1;
-    e->rt_c_base0 = -1;
     return 1;
 }
 
@@ -205,17 +201,6 @@ int main(void) {
         !setup_env(&ref, &cells_r, &light_r, &win_r, &lq_r, &sq_r, &sc_r,
                    rnx, rny, rnz))
         return 1;
-
-    {
-        int x, y, z, match = 1;
-        for (x = -2; x <= rnx + 2 && match; ++x)
-            for (y = -1; y <= rny + 1 && match; ++y)
-                for (z = -2; z <= rnz + 2 && match; ++z)
-                    if (cu_rt_region_idx(&live, x, y, z) !=
-                        cu_region_idx(&live, x, y, z))
-                        match = 0;
-        expect(match, "section-pointer cache idx == cu_region_idx");
-    }
 
     /* directed: 3x3x3 water in open sky, both paths from sky=15 air. */
     {

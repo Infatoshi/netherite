@@ -65,6 +65,13 @@ static inline void blaze_create_opts_default(BlazeCreateOpts *o) {
 /* opts may be NULL (defaults). device is ignored by the CPU backend. */
 void *blaze_create(int device, int n, const BlazeCreateOpts *opts);
 
+/* CUDA warp path: ndec decisions in one k_tick_warp. actions is device
+ * [ndec][n][13]. obs/final once at the end. Returns -1 on CPU / non-warp. */
+int blaze_step_ndec(void *vh, const double *actions, int ndec, int repeat,
+                    unsigned short *cam, unsigned char *depth,
+                    unsigned char *edge, float *scal, float *rew,
+                    unsigned char *done, float *pose);
+
 /* phase_time readout: column count, then n * BLAZE_PHASE_K u64s (env-major)
  * copied to host `out`. Returns -1 when phase_time was 0 at create. */
 int blaze_phase_k(void);

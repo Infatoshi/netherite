@@ -274,6 +274,10 @@ int blaze_reset(void *vh, const unsigned char *mask);
 int blaze_step(void *vh, const double *actions, int repeat,
                unsigned short *cam, unsigned char *depth, unsigned char *edge,
                float *scal, float *rew, unsigned char *done, float *pose);
+int blaze_step_ndec(void *vh, const double *actions, int ndec, int repeat,
+                    unsigned short *cam, unsigned char *depth,
+                    unsigned char *edge, float *scal, float *rew,
+                    unsigned char *done, float *pose);
 int blaze_step_full(void *vh, const double *actions, int repeat,
                     unsigned short *cam, unsigned char *depth,
                     unsigned char *edge, float *scal, float *rew,
@@ -884,27 +888,30 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
                             McAABB *aabb_pool, const CRRecipe *recipes,
                             int nrecipes, double atk_gate,
                             unsigned long long *stage_cycles,
-                            const double *inv) {
+                            const double *inv, int ndec) {
     const unsigned FULL = 0xffffffffu;
     int w = (int)((blockIdx.x * (unsigned)blockDim.x + threadIdx.x) >> 5);
     int lane = (int)(threadIdx.x & 31u);
+    int d, nd = ndec < 1 ? 1 : ndec;
     if (w >= n) return;                    /* whole tail warp exits together */
     Blaze *e = &envs[w];
-    const double *a = actions + (size_t)w * BLAZE_ACT_HEADS;
-    int exec = 0;
     int want_clk = (stage_cycles != NULL) || (cu_phase != NULL);
     unsigned long long t0 = 0, t1 = 0;
     unsigned long long c_begin = 0, c_re = 0, c_sub = 0;
     if (want_clk && lane == 0) t0 = cu_clk64();
+    for (d = 0; d < nd; ++d) {
+    const double *a = actions + ((size_t)d * (size_t)n + (size_t)w) *
+                      BLAZE_ACT_HEADS;
+    int exec = 0;
     if (lane == 0)
         exec = blaze_decision_begin(e, st, a, recipes, nrecipes);
     exec = __shfl_sync(FULL, exec, 0);
     if (lane == 0 && exec)
-        cu_apply_inv_click(e, inv, w);
+        cu_apply_inv_click(e, nd == 1 ? inv : NULL, w);
     if (want_clk && lane == 0) {
         t1 = cu_clk64();
-        c_begin = t1 - t0;
-        cu_phase_add(BLAZE_PHASE_BEGIN, c_begin);
+        c_begin += t1 - t0;
+        cu_phase_add(BLAZE_PHASE_BEGIN, t1 - t0);
         t0 = t1;
     }
     for (int rep = 0; rep < repeat; ++rep) {
@@ -962,6 +969,7 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
             t0 = cu_clk64();
         }
     }
+    } /* ndec */
     if (stage_cycles && lane == 0) {
         atomicAdd((unsigned long long *)&stage_cycles[0], c_begin);
         atomicAdd((unsigned long long *)&stage_cycles[1], c_re);
@@ -1868,7 +1876,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                                    repeat, v->d_aabb, v->d_recipes,
                                    v->nrecipes, v->atk_gate,
                                    v->stage_time ? v->d_stage_cycles : NULL,
-                                   NULL);
+                                   NULL, 1);
     else
         k_tick<<<(v->n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(v->d_envs, v->n, v->d_st, actions, repeat,
@@ -1907,6 +1915,33 @@ int blaze_step(void *vh, const double *actions, int repeat,
                float *scal, float *rew, unsigned char *done, float *pose) {
     return blaze_step_full(vh, actions, repeat, cam, depth, edge, scal, rew,
                            done, pose, NULL);
+}
+
+/* ndec decisions in one k_tick_warp. actions is [ndec][n][13] on device.
+ * k_obs + k_final run once after the last decision (drain). */
+int blaze_step_ndec(void *vh, const double *actions, int ndec, int repeat,
+                    unsigned short *cam, unsigned char *depth,
+                    unsigned char *edge, float *scal, float *rew,
+                    unsigned char *done, float *pose) {
+    CuVecCu *v = (CuVecCu *)vh;
+    int eblocks, pblocks;
+    if (!v || !actions || repeat < 1 || ndec < 1) return -1;
+    if (!v->warp_tick || v->legacy_recenter) return -1;
+    cudaSetDevice(v->device);
+    eblocks = (v->n + CU_TPB - 1) / CU_TPB;
+    pblocks = (int)(((size_t)v->n * CU_NPIX + CU_TPB - 1) / CU_TPB);
+    k_tick_warp<<<(unsigned)(((size_t)v->n * 32 + 127) / 128), 128, 0,
+                  v->stream>>>(v->d_envs, v->n, v->d_st, actions,
+                               repeat, v->d_aabb, v->d_recipes,
+                               v->nrecipes, v->atk_gate,
+                               v->stage_time ? v->d_stage_cycles : NULL,
+                               NULL, ndec);
+    k_obs<<<pblocks, CU_TPB, 0, v->stream>>>(v->d_envs, v->n, v->d_st,
+                                             cam, depth, edge);
+    k_final<<<eblocks, CU_TPB, 0, v->stream>>>(v->d_envs, v->n, v->d_st,
+                                               scal, rew, done, pose,
+                                               v->atk_gate, NULL);
+    return cu_ck(cudaStreamSynchronize(v->stream), "blaze_step_ndec");
 }
 
 /* Capture a LIVE env's full state into snapshot slot `slot` (self-generated
@@ -2521,7 +2556,7 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                       v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                                    v->d_recipes, v->nrecipes, v->atk_gate,
                                    v->stage_time ? v->d_stage_cycles : NULL,
-                                   inv);
+                                   inv, 1);
     else
         k_tick<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(envs, n, v->d_st, act, repeat, aabb,

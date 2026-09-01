@@ -809,6 +809,16 @@ int blaze_step(void *vh, const double *actions, int repeat,
                            done, pose, NULL);
 }
 
+int blaze_step_ndec(void *vh, const double *actions, int ndec, int repeat,
+                    unsigned short *cam, unsigned char *depth,
+                    unsigned char *edge, float *scal, float *rew,
+                    unsigned char *done, float *pose) {
+    (void)vh; (void)actions; (void)ndec; (void)repeat;
+    (void)cam; (void)depth; (void)edge; (void)scal; (void)rew;
+    (void)done; (void)pose;
+    return -1;
+}
+
 /* Capture a LIVE env's full state into snapshot slot `slot` (self-generated
  * start-state curriculum). slot may overwrite an existing snapshot or append
  * at nsnaps (dense growth). The slot inherits the env's current region cells

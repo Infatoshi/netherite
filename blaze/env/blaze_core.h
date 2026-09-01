@@ -346,11 +346,6 @@ typedef struct {
     long rvol;                   /* rnx * rny * rnz */
     int gsx0, gsy0, gsz0;        /* grass_sec grid origin (SECTION coords) */
     int gsnx, gsny, gsnz;        /* grass_sec grid dims (sections) */
-    /* Randtick last-section memo: origin index of (cx,sec,cz). Sentinel
-     * at reset. Hit skips bounds + two multiplies in cu_region_idx. */
-    int  rt_c_cx, rt_c_cz, rt_c_sec;
-    long rt_c_base0;
-    long rt_c_sx, rt_c_sy;       /* rny*rnz, rnz */
 
     /* player + vitals (window-local pose) */
     PsvPlayer pl;
@@ -559,35 +554,6 @@ MC_HD static inline long cu_grass_sec_idx(const Blaze *e,
 /* gm_world_block/gm_world_meta equivalent over the snapshot region: outside
  * the region (or y outside [0,127]) reads as air, mirroring the design's
  * out-of-region = air rule. Items/plants/obs use these (WORLD coords). */
-MC_HD static inline long cu_rt_region_idx(Blaze *e, int wx, int wy, int wz) {
-    int cx, cz, sec;
-    long i, b1;
-    if (!e || wy < 0 || wy >= 256)
-        return cu_region_idx(e, wx, wy, wz);
-    cx = psv_floordiv16(wx);
-    cz = psv_floordiv16(wz);
-    sec = wy >> 4;
-    if (cx == e->rt_c_cx && cz == e->rt_c_cz && sec == e->rt_c_sec &&
-        e->rt_c_base0 >= 0)
-        return e->rt_c_base0 + (long)(wx - cx * 16) * e->rt_c_sx +
-               (long)(wy - sec * 16) * e->rt_c_sy + (wz - cz * 16);
-    i = cu_region_idx(e, wx, wy, wz);
-    e->rt_c_cx = cx;
-    e->rt_c_cz = cz;
-    e->rt_c_sec = sec;
-    e->rt_c_sx = (long)e->rny * (long)e->rnz;
-    e->rt_c_sy = (long)e->rnz;
-    if (i >= 0) {
-        long base = i - (long)(wx - cx * 16) * e->rt_c_sx -
-                    (long)(wy - sec * 16) * e->rt_c_sy - (wz - cz * 16);
-        b1 = cu_region_idx(e, cx * 16 + 15, sec * 16 + 15, cz * 16 + 15);
-        e->rt_c_base0 = (b1 >= 0) ? base : -1;
-    } else {
-        e->rt_c_base0 = -1;
-    }
-    return i;
-}
-
 MC_HD static inline int cu_world_block(const Blaze *e, int wx, int wy, int wz) {
     long i = cu_region_idx(e, wx, wy, wz);
     CU_OP(e, CU_OP_WORLD_LOAD);
@@ -1263,35 +1229,6 @@ MC_HD static inline int cu_rt_block_light_at(const Blaze *e,
     return (int)(e->light[i] & 15);
 }
 
-MC_HD static inline int cu_rt_world_block(Blaze *e, int wx, int wy, int wz) {
-    long i = cu_rt_region_idx(e, wx, wy, wz);
-    CU_OP(e, CU_OP_WORLD_LOAD);
-    return i < 0 ? 0 : mc_state_id(e->cells[i]);
-}
-
-MC_HD static inline int cu_rt_world_meta(Blaze *e, int wx, int wy, int wz) {
-    long i = cu_rt_region_idx(e, wx, wy, wz);
-    CU_OP(e, CU_OP_WORLD_LOAD);
-    return i < 0 ? 0 : mc_state_meta(e->cells[i]);
-}
-
-MC_HD static inline int cu_rt_world_light(Blaze *e, int wx, int wy, int wz) {
-    long i = cu_rt_region_idx(e, wx, wy, wz);
-    int packed, sky, block;
-    if (i < 0) return 15;
-    packed = e->light[i];
-    sky = packed >> 4;
-    block = packed & 15;
-    return sky > block ? sky : block;
-}
-
-MC_HD static inline int cu_rt_world_block_light(Blaze *e, int wx, int wy,
-                                                int wz) {
-    long i = cu_rt_region_idx(e, wx, wy, wz);
-    if (i < 0) return 0;
-    return (int)(e->light[i] & 15);
-}
-
 MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
     long g;
     if (!e->grass_sec) return 1;
@@ -1301,11 +1238,10 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 }
 
 #define RT_W Blaze
-#define rt_live_id(w, x, y, z) cu_rt_world_block((w), (x), (y), (z))
-#define rt_live_meta(w, x, y, z) (cu_rt_world_meta((w), (x), (y), (z)) & 15)
-#define rt_live_light(w, x, y, z) cu_rt_world_light((w), (x), (y), (z))
-#define rt_live_block_light(w, x, y, z) \
-    cu_rt_world_block_light((w), (x), (y), (z))
+#define rt_live_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define rt_live_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
+#define rt_live_light(w, x, y, z) cu_rt_light_at((w), (x), (y), (z))
+#define rt_live_block_light(w, x, y, z) cu_rt_block_light_at((w), (x), (y), (z))
 #define rt_live_set(w, x, y, z, id, meta) \
     cu_world_set_state((w), (x), (y), (z), (id), (meta))
 #define rt_live_biome(w, x, z) cu_biome_at((w), (x), (z))
@@ -6594,10 +6530,6 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                 env->biome[i] = (u8)BLAZE_SNAP_BIOME_PLAINS;
     }
     cu_grass_grid_init(env);     /* bulk phase fills grass_sec from this */
-    env->rt_c_cx = 0x7fffffff;
-    env->rt_c_cz = 0x7fffffff;
-    env->rt_c_sec = -1;
-    env->rt_c_base0 = -1;
     env->sky_cx0 = env->rx0 >> 4;
     env->sky_cz0 = env->rz0 >> 4;
     if (env->sky_clean && env->sky_cnx > 0 && env->sky_cnz > 0) {
