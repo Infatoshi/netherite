@@ -1,5 +1,5 @@
-/* CUDA Blaze policy. Fable: NHWC graph conv, cublasLt dense, y>0 ReLU bwd.
- * Host ABI and checkpoints stay NCHW / KCRS. See cuda_fable_contract.h. */
+/* CUDA Blaze policy. Fable: NHWC fp16 acts, cublasLt dense, y>0 ReLU bwd.
+ * Host ABI and checkpoints stay NCHW / KCRS fp32. See cuda_fable_contract.h. */
 #include "cuda.h"
 #include "cuda_conv_graph.h"
 #include "cuda_fable_contract.h"
@@ -10,6 +10,7 @@
 #include "model.h"
 
 #include <cublasLt.h>
+#include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <cudnn.h>
 
@@ -461,12 +462,15 @@ struct NnCuda {
 
   uint8_t *d_planes;
   float *d_scalars;
-  float *d_obs;
-  float *d_act_c1;
-  float *d_act_c2;
-  float *d_dpre_c1;
-  float *d_dpre_c2;
-  float *d_dc1;
+  __half *d_obs;
+  __half *d_act_c1;
+  __half *d_act_c2;
+  __half *d_dpre_c1;
+  __half *d_dpre_c2;
+  __half *d_dc1;
+  float *d_c2_f;
+  __half *d_conv1_b;
+  __half *d_conv2_b;
   float *d_act_h;
   float *d_dpre_h;
   float *d_dhidden;
@@ -488,13 +492,13 @@ struct NnCuda {
   float *d_norm;
   int reduce_blocks;
 
-  float *d_conv1_w;
-  float *d_conv2_w;
+  __half *d_conv1_w;
+  __half *d_conv2_w;
   float *d_fc_w;
   float *d_hv_w;
   float *d_hv_b;
-  float *d_conv1_gw;
-  float *d_conv2_gw;
+  __half *d_conv1_gw;
+  __half *d_conv2_gw;
   float *d_fc_gw;
   float *d_hv_gw;
   float *d_hv_gb;
@@ -521,6 +525,16 @@ static int sync_work_from_params(NnCuda *nn) {
   if (nn_layout_kcrs_to_krsc(nn->d_t[NN_T_CONV2_W], nn->d_conv2_w, NN_C_OUT2,
                              NN_C_OUT1, NN_K2, NN_K2, NN_C_OUT1) != 0) {
     set_err("conv2 kcrs->krsc failed");
+    return -1;
+  }
+  if (nn_layout_f32_to_f16(nn->d_t[NN_T_CONV1_B], nn->d_conv1_b, NN_C_OUT1) !=
+      0) {
+    set_err("conv1 bias f16 failed");
+    return -1;
+  }
+  if (nn_layout_f32_to_f16(nn->d_t[NN_T_CONV2_B], nn->d_conv2_b, NN_C_OUT2) !=
+      0) {
+    set_err("conv2 bias f16 failed");
     return -1;
   }
   if (nn_layout_fc_chw_to_hwc(nn->d_t[NN_T_FC_W], nn->d_fc_w, NN_FC_OUT,
@@ -575,6 +589,7 @@ static int sync_grads_to_params(NnCuda *nn) {
 static int forward_device(NnCuda *nn, int n) {
   const int thr = 256;
   const int bn = bucket_n(n, nn->max_n);
+  const size_t n_c2 = (size_t)n * NN_C_OUT2 * NN_H2 * NN_W2;
   if (nn_conv_net_prepare(nn->conv, n) != 0) {
     set_err("conv prepare failed");
     return -1;
@@ -586,7 +601,7 @@ static int forward_device(NnCuda *nn, int n) {
   if (bn > n) {
     const size_t elt = (size_t)NN_CAM_H * NN_CAM_W * (size_t)nn->c0_pad;
     CU_CHECK(cudaMemset(nn->d_obs + (size_t)n * elt, 0,
-                        (size_t)(bn - n) * elt * sizeof(float)));
+                        (size_t)(bn - n) * elt * sizeof(__half)));
   }
   if (nn_layout_obs_to_nhwc(nn->d_planes, nn->d_obs, n, NN_N_CH, NN_CAM_H,
                             NN_CAM_W, nn->c0_pad, NN_DEPTH_CH0,
@@ -594,18 +609,22 @@ static int forward_device(NnCuda *nn, int n) {
     set_err("obs to nhwc failed");
     return -1;
   }
-  if (nn_conv_net_fwd(nn->conv, 0, nn->d_obs, nn->d_conv1_w,
-                      nn->d_t[NN_T_CONV1_B], nn->d_act_c1) != 0) {
+  if (nn_conv_net_fwd(nn->conv, 0, nn->d_obs, nn->d_conv1_w, nn->d_conv1_b,
+                      nn->d_act_c1) != 0) {
     set_err("conv0 fwd failed");
     return -1;
   }
-  if (nn_conv_net_fwd(nn->conv, 1, nn->d_act_c1, nn->d_conv2_w,
-                      nn->d_t[NN_T_CONV2_B], nn->d_act_c2) != 0) {
+  if (nn_conv_net_fwd(nn->conv, 1, nn->d_act_c1, nn->d_conv2_w, nn->d_conv2_b,
+                      nn->d_act_c2) != 0) {
     set_err("conv1 fwd failed");
     return -1;
   }
+  if (nn_layout_f16_to_f32(nn->d_act_c2, nn->d_c2_f, n_c2) != 0) {
+    set_err("conv2 y upcast failed");
+    return -1;
+  }
   if (nn_lt_gemm(nn->ltg, n, NN_FC_OUT, NN_FLAT, NN_FC_IN, nn->d_fc_w,
-                 nn->d_act_c2, nn->d_act_h, 0.f) != 0) {
+                 nn->d_c2_f, nn->d_act_h, 0.f) != 0) {
     set_err("fc cam gemm failed");
     return -1;
   }
@@ -661,8 +680,12 @@ static int backward_device(NnCuda *nn, int n) {
   }
   CU_CHECK(cudaMemset(nn->d_fc_gw, 0,
                       (size_t)NN_FC_OUT * NN_FC_IN * sizeof(float)));
+  if (nn_layout_f16_to_f32(nn->d_act_c2, nn->d_c2_f, n_c2) != 0) {
+    set_err("conv2 y upcast (dw) failed");
+    return -1;
+  }
   if (nn_lt_bwd_dw_ex(nn->ltg, n, NN_FC_OUT, NN_FLAT, NN_FC_IN, nn->d_dpre_h,
-                      nn->d_act_c2, nn->d_fc_gw, nullptr, 0.f) != 0) {
+                      nn->d_c2_f, nn->d_fc_gw, nullptr, 0.f) != 0) {
     set_err("fc dw cam failed");
     return -1;
   }
@@ -671,10 +694,15 @@ static int backward_device(NnCuda *nn, int n) {
     set_err("fc dw scal failed");
     return -1;
   }
-  CU_CHECK(cudaMemset(nn->d_dpre_c2, 0, n_c2b * sizeof(float)));
+  CU_CHECK(cudaMemset(nn->d_c2_f, 0, n_c2b * sizeof(float)));
   if (nn_lt_bwd_dx_ex(nn->ltg, n, NN_FC_OUT, NN_FLAT, NN_FC_IN, nn->d_fc_w,
-                      nn->d_dpre_h, nn->d_dpre_c2, 0.f) != 0) {
+                      nn->d_dpre_h, nn->d_c2_f, 0.f) != 0) {
     set_err("fc dx cam failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemset(nn->d_dpre_c2, 0, n_c2b * sizeof(__half)));
+  if (nn_layout_f32_to_f16(nn->d_c2_f, nn->d_dpre_c2, n_c2) != 0) {
+    set_err("conv2 dy downcast failed");
     return -1;
   }
 
@@ -687,13 +715,13 @@ static int backward_device(NnCuda *nn, int n) {
   }
   CU_CHECK(cudaMemset(nn->d_conv2_gw, 0,
                       (size_t)NN_C_OUT2 * NN_K2 * NN_K2 * NN_C_OUT1 *
-                          sizeof(float)));
+                          sizeof(__half)));
   if (nn_conv_net_wgrad(nn->conv, 1, nn->d_act_c1, nn->d_dpre_c2, nn->d_conv2_gw,
                         0.f) != 0) {
     set_err("conv2 wgrad failed");
     return -1;
   }
-  CU_CHECK(cudaMemset(nn->d_dc1, 0, n_c1b * sizeof(float)));
+  CU_CHECK(cudaMemset(nn->d_dc1, 0, n_c1b * sizeof(__half)));
   if (nn_conv_net_dgrad(nn->conv, 1, nn->d_conv2_w, nn->d_dpre_c2, nn->d_dc1) !=
       0) {
     set_err("conv2 dgrad failed");
@@ -701,7 +729,7 @@ static int backward_device(NnCuda *nn, int n) {
   }
 
   CU_CHECK(cudaMemset(nn->d_g[NN_T_CONV1_B], 0, NN_C_OUT1 * sizeof(float)));
-  CU_CHECK(cudaMemset(nn->d_dpre_c1, 0, n_c1b * sizeof(float)));
+  CU_CHECK(cudaMemset(nn->d_dpre_c1, 0, n_c1b * sizeof(__half)));
   if (nn_layout_relu_bwd_bias(nn->d_dc1, nn->d_act_c1, nn->d_dpre_c1,
                               nn->d_g[NN_T_CONV1_B], n, NN_C_OUT1, NN_H1,
                               NN_W1) != 0) {
@@ -710,7 +738,7 @@ static int backward_device(NnCuda *nn, int n) {
   }
   CU_CHECK(cudaMemset(nn->d_conv1_gw, 0,
                       (size_t)NN_C_OUT1 * NN_K1 * NN_K1 * (size_t)nn->c0_pad *
-                          sizeof(float)));
+                          sizeof(__half)));
   if (nn_conv_net_wgrad(nn->conv, 0, nn->d_obs, nn->d_dpre_c1, nn->d_conv1_gw,
                         0.f) != 0) {
     set_err("conv1 wgrad failed");
@@ -805,6 +833,9 @@ static void free_nn(NnCuda *nn) {
   free_ptr(nn->d_dpre_c1);
   free_ptr(nn->d_dpre_c2);
   free_ptr(nn->d_dc1);
+  free_ptr(nn->d_c2_f);
+  free_ptr(nn->d_conv1_b);
+  free_ptr(nn->d_conv2_b);
   free_ptr(nn->d_act_h);
   free_ptr(nn->d_dpre_h);
   free_ptr(nn->d_dhidden);
@@ -849,6 +880,14 @@ static void free_nn(NnCuda *nn) {
 static int cuda_malloc_f(float **p, size_t n) {
   *p = nullptr;
   size_t b = n * sizeof(float);
+  if (b == 0)
+    b = 1;
+  return cudaMalloc(p, b) == cudaSuccess ? 0 : -1;
+}
+
+static int cuda_malloc_h(__half **p, size_t n) {
+  *p = nullptr;
+  size_t b = n * sizeof(__half);
   if (b == 0)
     b = 1;
   return cudaMalloc(p, b) == cudaSuccess ? 0 : -1;
@@ -967,10 +1006,13 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
       cuda_malloc_f(&nn->d_adam_v, nn->n_params) ||
       cudaMalloc(&nn->d_planes, plane_bytes) != cudaSuccess ||
       cuda_malloc_f(&nn->d_scalars, N * NN_N_SCAL) ||
-      cuda_malloc_f(&nn->d_obs, n_obs) || cuda_malloc_f(&nn->d_act_c1, n_c1) ||
-      cuda_malloc_f(&nn->d_act_c2, n_c2) ||
-      cuda_malloc_f(&nn->d_dpre_c1, n_c1) ||
-      cuda_malloc_f(&nn->d_dpre_c2, n_c2) || cuda_malloc_f(&nn->d_dc1, n_c1) ||
+      cuda_malloc_h(&nn->d_obs, n_obs) || cuda_malloc_h(&nn->d_act_c1, n_c1) ||
+      cuda_malloc_h(&nn->d_act_c2, n_c2) ||
+      cuda_malloc_h(&nn->d_dpre_c1, n_c1) ||
+      cuda_malloc_h(&nn->d_dpre_c2, n_c2) || cuda_malloc_h(&nn->d_dc1, n_c1) ||
+      cuda_malloc_f(&nn->d_c2_f, n_c2) ||
+      cuda_malloc_h(&nn->d_conv1_b, NN_C_OUT1) ||
+      cuda_malloc_h(&nn->d_conv2_b, NN_C_OUT2) ||
       cuda_malloc_f(&nn->d_act_h, N * NN_FC_OUT) ||
       cuda_malloc_f(&nn->d_dpre_h, N * NN_FC_OUT) ||
       cuda_malloc_f(&nn->d_dhidden, N * NN_FC_OUT) ||
@@ -985,13 +1027,13 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
       cuda_malloc_f(&nn->d_ret, N) ||
       cuda_malloc_f(&nn->d_dlogits, N * NN_N_LOGITS) ||
       cuda_malloc_f(&nn->d_dvalue, N) || cuda_malloc_f(&nn->d_stats, 8) ||
-      cuda_malloc_f(&nn->d_norm, 1) || cuda_malloc_f(&nn->d_conv1_w, n_c1w) ||
-      cuda_malloc_f(&nn->d_conv2_w, n_c2w) ||
+      cuda_malloc_f(&nn->d_norm, 1) || cuda_malloc_h(&nn->d_conv1_w, n_c1w) ||
+      cuda_malloc_h(&nn->d_conv2_w, n_c2w) ||
       cuda_malloc_f(&nn->d_fc_w, (size_t)NN_FC_OUT * NN_FC_IN) ||
       cuda_malloc_f(&nn->d_hv_w, (size_t)kHvOut * NN_FC_OUT) ||
       cuda_malloc_f(&nn->d_hv_b, kHvOut) ||
-      cuda_malloc_f(&nn->d_conv1_gw, n_c1w) ||
-      cuda_malloc_f(&nn->d_conv2_gw, n_c2w) ||
+      cuda_malloc_h(&nn->d_conv1_gw, n_c1w) ||
+      cuda_malloc_h(&nn->d_conv2_gw, n_c2w) ||
       cuda_malloc_f(&nn->d_fc_gw, (size_t)NN_FC_OUT * NN_FC_IN) ||
       cuda_malloc_f(&nn->d_hv_gw, (size_t)kHvOut * NN_FC_OUT) ||
       cuda_malloc_f(&nn->d_hv_gb, kHvOut)) {

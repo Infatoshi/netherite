@@ -121,9 +121,10 @@ $(CUDA_BIN): test_cuda.cu $(CUDA_OBJS)
 	$(NVCC) $(NVCCFLAGS) -o $@ test_cuda.cu $(CUDA_OBJS) $(CUDA_LIBS)
 
 $(CUDA_CONV_BIN): test_cuda_conv_graph.cu $(CUDA_OUT)/cuda_ws.o \
-	$(CUDA_OUT)/cuda_conv_graph.o | $(CUDA_OUT)
+	$(CUDA_OUT)/cuda_conv_graph.o $(CUDA_OUT)/cuda_layout.o | $(CUDA_OUT)
 	$(NVCC) $(NVCCFLAGS) -o $@ test_cuda_conv_graph.cu \
-		$(CUDA_OUT)/cuda_ws.o $(CUDA_OUT)/cuda_conv_graph.o $(CUDA_LIBS)
+		$(CUDA_OUT)/cuda_ws.o $(CUDA_OUT)/cuda_conv_graph.o \
+		$(CUDA_OUT)/cuda_layout.o $(CUDA_LIBS)
 
 $(CUDA_LT_BIN): test_cuda_lt_gemm.cu $(CUDA_OUT)/cuda_ws.o \
 	$(CUDA_OUT)/cuda_lt_gemm.o | $(CUDA_OUT)

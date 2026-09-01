@@ -1,8 +1,9 @@
-/* Shape-agnostic cuDNN-graph conv. NHWC / KRSC, fp32 store, TF32 compute.
+/* Shape-agnostic cuDNN-graph conv. NHWC / KRSC, fp16 store, fp32 accumulate.
  * Fable: heur A/B, check_support, time top K=8. See cuda_fable_contract.h. */
 #include "cuda_conv_graph.h"
 #include "cuda_fable_contract.h"
 
+#include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <cudnn.h>
 #include <cudnn_backend.h>
@@ -150,7 +151,7 @@ UniqueD make_tensor(int64_t uid, const int64_t dim[4], const int64_t str[4],
   if (!t)
     return UniqueD();
   cudnnBackendDescriptor_t p = t.get();
-  cudnnDataType_t dt = CUDNN_DATA_FLOAT;
+  cudnnDataType_t dt = CUDNN_DATA_HALF;
   int64_t align = kAlign;
   bool v = virt;
   if (cudnnBackendSetAttribute(p, CUDNN_ATTR_TENSOR_DATA_TYPE,
@@ -419,7 +420,7 @@ bool note_wino(uint32_t m) {
                (1u << CUDNN_NUMERICAL_NOTE_WINOGRAD_TILE_13x13))) != 0;
 }
 
-bool note_tf32_gemm(uint32_t m) {
+bool note_tc_gemm(uint32_t m) {
   const bool tc = (m & (1u << CUDNN_NUMERICAL_NOTE_TENSOR_CORE)) != 0;
   const bool dn = (m & (1u << CUDNN_NUMERICAL_NOTE_DOWN_CONVERT_INPUTS)) != 0;
   return (tc || dn) && !note_fft(m) && !note_wino(m);
@@ -513,7 +514,7 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
     c.us = us;
     if (best < 0 || us < supported[(size_t)best].us)
       best = i;
-    if (note_tf32_gemm(c.mask) &&
+    if (note_tc_gemm(c.mask) &&
         (gemm_i < 0 || us < supported[(size_t)gemm_i].us))
       gemm_i = i;
   }
@@ -532,10 +533,10 @@ int pick_timed(cudnnHandle_t h, NnWsArena *arena, cudnnBackendDescriptor_t graph
     const Cand &g = supported[(size_t)gemm_i];
     std::fprintf(stderr,
                  "nn_conv_graph FATAL FFT won (eng=%lld %.1fus notes=%s) over "
-                 "TF32 GEMM (eng=%lld %.1fus notes=%s)\n",
+                 "TC GEMM (eng=%lld %.1fus notes=%s)\n",
                  (long long)w.engine_id, w.us, w.notes, (long long)g.engine_id,
                  g.us, g.notes);
-    set_err("FFT won timed race over TF32 implicit-GEMM");
+    set_err("FFT won timed race over tensor-core implicit-GEMM");
     for (auto &c : supported) {
       if (c.plan)
         cudnnBackendDestroyDescriptor(c.plan);
@@ -843,14 +844,14 @@ int build_dgrad_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
   return 0;
 }
 
-int alloc_f(float **p, size_t n) {
-  if (cudaMalloc(p, n * sizeof(float)) != cudaSuccess)
+int alloc_h(__half **p, size_t n) {
+  if (cudaMalloc(p, n * sizeof(__half)) != cudaSuccess)
     return -1;
-  cudaMemset(*p, 0, n * sizeof(float));
+  cudaMemset(*p, 0, n * sizeof(__half));
   return 0;
 }
 
-void free_f(float *p) {
+void free_h(__half *p) {
   if (p)
     cudaFree(p);
 }
@@ -940,7 +941,7 @@ static CacheKey make_key(const NnConvNet *net, int op, int n, const Layer &L,
   k.pad = L.spec.pad;
   k.stride = L.spec.stride;
   k.dil = 1;
-  k.dtype = (int)CUDNN_DATA_FLOAT;
+  k.dtype = (int)CUDNN_DATA_HALF;
   k.layout = 1; /* NHWC */
   k.fusion = fusion;
   k.cudnn_ver = net->cudnn_ver;
@@ -983,22 +984,22 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
       return -1;
   }
   rec.graph = graph.release();
-  float *x = nullptr, *w = nullptr, *y = nullptr, *b = nullptr, *dy = nullptr,
-        *dw = nullptr, *dx = nullptr;
+  __half *x = nullptr, *w = nullptr, *y = nullptr, *b = nullptr, *dy = nullptr,
+         *dw = nullptr, *dx = nullptr;
   const size_t nx = (size_t)n * (size_t)H * (size_t)W * (size_t)C;
   const size_t nw = (size_t)K * (size_t)R * (size_t)S * (size_t)C;
   const size_t ny = (size_t)n * (size_t)Ho * (size_t)Wo * (size_t)K;
   const size_t nb = (size_t)K;
-  if (alloc_f(&x, nx) || alloc_f(&w, nw) || alloc_f(&y, ny) || alloc_f(&b, nb) ||
-      alloc_f(&dy, ny) || alloc_f(&dw, nw) || alloc_f(&dx, nx)) {
+  if (alloc_h(&x, nx) || alloc_h(&w, nw) || alloc_h(&y, ny) || alloc_h(&b, nb) ||
+      alloc_h(&dy, ny) || alloc_h(&dw, nw) || alloc_h(&dx, nx)) {
     set_err("timing buffer alloc failed");
-    free_f(x);
-    free_f(w);
-    free_f(y);
-    free_f(b);
-    free_f(dy);
-    free_f(dw);
-    free_f(dx);
+    free_h(x);
+    free_h(w);
+    free_h(y);
+    free_h(b);
+    free_h(dy);
+    free_h(dw);
+    free_h(dx);
     return -1;
   }
   void *ptrs[8] = {};
@@ -1020,13 +1021,13 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
   const int rc =
       pick_timed(net->dnn, net->ws, rec.graph, rec.uids, rec.n_uids, ptrs,
                  volume, &rec);
-  free_f(x);
-  free_f(w);
-  free_f(y);
-  free_f(b);
-  free_f(dy);
-  free_f(dw);
-  free_f(dx);
+  free_h(x);
+  free_h(w);
+  free_h(y);
+  free_h(b);
+  free_h(dy);
+  free_h(dw);
+  free_h(dx);
   if (rc != 0) {
     free_plan(&rec);
     return -1;
@@ -1142,8 +1143,8 @@ static int exec_cached(NnConvNet *net, const CachedPlan *p, void **ptrs) {
   return 0;
 }
 
-int nn_conv_net_fwd(NnConvNet *net, int layer, const float *x, const float *w,
-                    const float *bias, float *y) {
+int nn_conv_net_fwd(NnConvNet *net, int layer, const __half *x, const __half *w,
+                    const __half *bias, __half *y) {
   if (!net || layer < 0 || layer >= (int)net->layers.size() || !x || !w ||
       !bias || !y) {
     set_err("fwd: bad args");
@@ -1154,8 +1155,8 @@ int nn_conv_net_fwd(NnConvNet *net, int layer, const float *x, const float *w,
   return exec_cached(net, p, ptrs);
 }
 
-int nn_conv_net_wgrad(NnConvNet *net, int layer, const float *x,
-                      const float *dpre, float *dw, float beta) {
+int nn_conv_net_wgrad(NnConvNet *net, int layer, const __half *x,
+                      const __half *dpre, __half *dw, float beta) {
   if (!net || layer < 0 || layer >= (int)net->layers.size() || !x || !dpre ||
       !dw) {
     set_err("wgrad: bad args");
@@ -1166,8 +1167,8 @@ int nn_conv_net_wgrad(NnConvNet *net, int layer, const float *x,
   return exec_cached(net, p, ptrs);
 }
 
-int nn_conv_net_dgrad(NnConvNet *net, int layer, const float *w,
-                      const float *dpre, float *dx) {
+int nn_conv_net_dgrad(NnConvNet *net, int layer, const __half *w,
+                      const __half *dpre, __half *dx) {
   if (!net || layer < 0 || layer >= (int)net->layers.size())
     return -1;
   if (layer == 0)

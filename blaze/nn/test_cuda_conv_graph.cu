@@ -1,8 +1,10 @@
 /* Lane A: fused cuDNN-graph conv. Naive CPU ref lives here only. */
 #include "cuda_conv_graph.h"
+#include "cuda_layout.h"
 #include "cuda_ws.h"
 #include "model.h"
 
+#include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <cudnn.h>
 
@@ -96,11 +98,41 @@ static float *halloc(size_t n) {
   return p;
 }
 
-static int dalloc(float **p, size_t n) {
-  if (cudaMalloc(p, n * sizeof(float)) != cudaSuccess)
+static int dalloc_h(__half **p, size_t n) {
+  if (cudaMalloc(p, n * sizeof(__half)) != cudaSuccess)
     return -1;
-  cudaMemset(*p, 0, n * sizeof(float));
+  cudaMemset(*p, 0, n * sizeof(__half));
   return 0;
+}
+
+static int h2d_f16(const float *h, __half *d, size_t n) {
+  float *tmp = nullptr;
+  if (cudaMalloc(&tmp, n * sizeof(float)) != cudaSuccess)
+    return -1;
+  if (cudaMemcpy(tmp, h, n * sizeof(float), cudaMemcpyHostToDevice) !=
+      cudaSuccess) {
+    cudaFree(tmp);
+    return -1;
+  }
+  int rc = nn_layout_f32_to_f16(tmp, d, n);
+  cudaFree(tmp);
+  return rc;
+}
+
+static int d2h_f16(const __half *d, float *h, size_t n) {
+  float *tmp = nullptr;
+  if (cudaMalloc(&tmp, n * sizeof(float)) != cudaSuccess)
+    return -1;
+  if (nn_layout_f16_to_f32(d, tmp, n) != 0) {
+    cudaFree(tmp);
+    return -1;
+  }
+  int rc = cudaMemcpy(h, tmp, n * sizeof(float), cudaMemcpyDeviceToHost) ==
+                   cudaSuccess
+               ? 0
+               : -1;
+  cudaFree(tmp);
+  return rc;
 }
 
 static int grep_banned(void) {
@@ -247,31 +279,31 @@ int main(void) {
   for (size_t i = 0; i < ny1; ++i)
     hdpre1[i] = urand(&rng) * 0.1f;
 
-  float *dx0, *dw0, *db0, *dy0, *dw1, *db1, *dy1, *ddpre0, *ddpre1, *ddw0,
+  __half *dx0, *dw0, *db0, *dy0, *dw1, *db1, *dy1, *ddpre0, *ddpre1, *ddw0,
       *ddw1, *ddx1;
-  expect(dalloc(&dx0, nx0) == 0 && dalloc(&dw0, nw0) == 0 &&
-             dalloc(&db0, nb0) == 0 && dalloc(&dy0, ny0) == 0 &&
-             dalloc(&dw1, nw1) == 0 && dalloc(&db1, nb1) == 0 &&
-             dalloc(&dy1, ny1) == 0 && dalloc(&ddpre0, ny0) == 0 &&
-             dalloc(&ddpre1, ny1) == 0 && dalloc(&ddw0, nw0) == 0 &&
-             dalloc(&ddw1, nw1) == 0 && dalloc(&ddx1, nx1) == 0,
+  expect(dalloc_h(&dx0, nx0) == 0 && dalloc_h(&dw0, nw0) == 0 &&
+             dalloc_h(&db0, nb0) == 0 && dalloc_h(&dy0, ny0) == 0 &&
+             dalloc_h(&dw1, nw1) == 0 && dalloc_h(&db1, nb1) == 0 &&
+             dalloc_h(&dy1, ny1) == 0 && dalloc_h(&ddpre0, ny0) == 0 &&
+             dalloc_h(&ddpre1, ny1) == 0 && dalloc_h(&ddw0, nw0) == 0 &&
+             dalloc_h(&ddw1, nw1) == 0 && dalloc_h(&ddx1, nx1) == 0,
          "device alloc");
 
-  cudaMemcpy(dx0, hx0, nx0 * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(dw0, hw0, nw0 * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(db0, hb0, nb0 * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(dw1, hw1, nw1 * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(db1, hb1, nb1 * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(ddpre0, hdpre0, ny0 * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(ddpre1, hdpre1, ny1 * sizeof(float), cudaMemcpyHostToDevice);
+  expect(h2d_f16(hx0, dx0, nx0) == 0, "x0 H2D");
+  expect(h2d_f16(hw0, dw0, nw0) == 0, "w0 H2D");
+  expect(h2d_f16(hb0, db0, nb0) == 0, "b0 H2D");
+  expect(h2d_f16(hw1, dw1, nw1) == 0, "w1 H2D");
+  expect(h2d_f16(hb1, db1, nb1) == 0, "b1 H2D");
+  expect(h2d_f16(hdpre0, ddpre0, ny0) == 0, "dpre0 H2D");
+  expect(h2d_f16(hdpre1, ddpre1, ny1) == 0, "dpre1 H2D");
 
   expect(nn_conv_net_fwd(net, 0, dx0, dw0, db0, dy0) == 0, "fwd L0");
-  cudaMemcpy(hy0, dy0, ny0 * sizeof(float), cudaMemcpyDeviceToHost);
+  expect(d2h_f16(dy0, hy0, ny0) == 0, "y0 D2H");
   expect(all_finite(hy0, ny0, "y0"), "y0 finite");
   expect(any_nonzero(hy0, ny0), "y0 not all zero");
 
   expect(nn_conv_net_fwd(net, 1, dy0, dw1, db1, dy1) == 0, "fwd L1");
-  cudaMemcpy(hy1, dy1, ny1 * sizeof(float), cudaMemcpyDeviceToHost);
+  expect(d2h_f16(dy1, hy1, ny1) == 0, "y1 D2H");
   expect(all_finite(hy1, ny1, "y1"), "y1 finite");
   expect(any_nonzero(hy1, ny1), "y1 not all zero");
 
@@ -286,18 +318,18 @@ int main(void) {
   for (size_t i = 0; i < ny1; ++i)
     max1 = std::max(max1, std::fabs(hy1[i] - hy1c[i]));
   const float max_err = std::max(max0, max1);
-  std::printf("max err L0=%.6g L1=%.6g atol=2e-2\n", max0, max1);
-  expect(max0 <= 2e-2f, "L0 TF32 atol 2e-2");
-  expect(max1 <= 2e-2f, "L1 TF32 atol 2e-2");
+  std::printf("max err L0=%.6g L1=%.6g atol=5e-2 (fp16 store)\n", max0, max1);
+  expect(max0 <= 5e-2f, "L0 fp16 atol 5e-2");
+  expect(max1 <= 5e-2f, "L1 fp16 atol 5e-2");
 
   expect(nn_conv_net_wgrad(net, 0, dx0, ddpre0, ddw0, 0.f) == 0, "wgrad L0");
   expect(nn_conv_net_wgrad(net, 1, dy0, ddpre1, ddw1, 0.f) == 0, "wgrad L1");
   expect(nn_conv_net_dgrad(net, 1, dw1, ddpre1, ddx1) == 0, "dgrad L1");
   expect(nn_conv_net_dgrad(net, 0, dw0, ddpre0, ddx1) == 0, "dgrad L0 skip");
 
-  cudaMemcpy(hdw0, ddw0, nw0 * sizeof(float), cudaMemcpyDeviceToHost);
-  cudaMemcpy(hdw1, ddw1, nw1 * sizeof(float), cudaMemcpyDeviceToHost);
-  cudaMemcpy(hdx1, ddx1, nx1 * sizeof(float), cudaMemcpyDeviceToHost);
+  expect(d2h_f16(ddw0, hdw0, nw0) == 0, "dw0 D2H");
+  expect(d2h_f16(ddw1, hdw1, nw1) == 0, "dw1 D2H");
+  expect(d2h_f16(ddx1, hdx1, nx1) == 0, "dx1 D2H");
   expect(all_finite(hdw0, nw0, "dw0"), "dw0 finite");
   expect(all_finite(hdw1, nw1, "dw1"), "dw1 finite");
   expect(all_finite(hdx1, nx1, "dx1"), "dx1 finite");

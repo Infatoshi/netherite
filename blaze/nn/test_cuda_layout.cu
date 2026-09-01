@@ -2,6 +2,7 @@
 #include "cuda_layout.h"
 #include "model.h"
 
+#include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
 #include <cmath>
@@ -44,6 +45,8 @@ static T *dalloc(size_t n, const char *what) {
     return nullptr;
   return p;
 }
+
+static float f16_round(float x) { return __half2float(__float2half(x)); }
 
 static void cpu_obs_to_nhwc(const uint8_t *planes, float *out, int n, int n_ch,
                             int h, int w, int c_pad, int depth0, int depth1) {
@@ -235,14 +238,17 @@ static void test_obs_to_nhwc(void) {
 
   std::vector<uint8_t> planes(n_in);
   std::vector<float> want(n_out), got(n_out);
+  std::vector<__half> got_h(n_out);
   for (size_t i = 0; i < n_in; ++i)
     planes[i] = (uint8_t)((i * 17u + 11u) & 255u);
 
   cpu_obs_to_nhwc(planes.data(), want.data(), n, n_ch, h, w, c_pad, depth0,
                   depth1);
+  for (size_t i = 0; i < n_out; ++i)
+    want[i] = f16_round(want[i]);
 
   uint8_t *d_planes = dalloc<uint8_t>(n_in, "obs planes");
-  float *d_out = dalloc<float>(n_out, "obs out");
+  __half *d_out = dalloc<__half>(n_out, "obs out");
   if (!d_planes || !d_out)
     return;
   if (!cu_ok(cudaMemcpy(d_planes, planes.data(), n_in, cudaMemcpyHostToDevice),
@@ -251,12 +257,14 @@ static void test_obs_to_nhwc(void) {
   expect_eq_i(nn_layout_obs_to_nhwc(d_planes, d_out, n, n_ch, h, w, c_pad,
                                     depth0, depth1),
               0, "obs kernel rc");
-  if (!cu_ok(cudaMemcpy(got.data(), d_out, n_out * sizeof(float),
+  if (!cu_ok(cudaMemcpy(got_h.data(), d_out, n_out * sizeof(__half),
                         cudaMemcpyDeviceToHost),
              "obs D2H"))
     return;
+  for (size_t i = 0; i < n_out; ++i)
+    got[i] = __half2float(got_h[i]);
 
-  expect_true(floats_eq(got.data(), want.data(), n_out, "obs"), "obs exact");
+  expect_true(floats_eq(got.data(), want.data(), n_out, "obs"), "obs f16 exact");
 
   int extra_ok = 1, depth_ok = 1, other_ok = 1;
   for (int ni = 0; ni < n; ++ni) {
@@ -275,9 +283,9 @@ static void test_obs_to_nhwc(void) {
               (((size_t)ni * n_ch + c) * h + hh) * w + ww;
           const float raw = (float)planes[src];
           if (c == depth0 || c == depth1) {
-            if (got[dst] != raw * (1.f / 255.f))
+            if (got[dst] != f16_round(raw * (1.f / 255.f)))
               depth_ok = 0;
-          } else if (got[dst] != raw) {
+          } else if (got[dst] != f16_round(raw)) {
             other_ok = 0;
           }
         }
@@ -300,14 +308,17 @@ static void test_kcrs_krsc(void) {
 
   std::vector<float> kcrs(n_kcrs), krsc_want(n_krsc), krsc_got(n_krsc);
   std::vector<float> kcrs_rt(n_kcrs), kcrs_rt_got(n_kcrs);
+  std::vector<__half> krsc_h(n_krsc);
   for (size_t i = 0; i < n_kcrs; ++i)
     kcrs[i] = (float)((int)(i % 251) - 80) * 0.125f;
 
   cpu_kcrs_to_krsc(kcrs.data(), krsc_want.data(), k, c, r, s, c_pad);
+  for (size_t i = 0; i < n_krsc; ++i)
+    krsc_want[i] = f16_round(krsc_want[i]);
   cpu_krsc_to_kcrs(krsc_want.data(), kcrs_rt.data(), k, c, r, s, c_pad);
 
   float *d_kcrs = dalloc<float>(n_kcrs, "kcrs");
-  float *d_krsc = dalloc<float>(n_krsc, "krsc");
+  __half *d_krsc = dalloc<__half>(n_krsc, "krsc");
   float *d_kcrs2 = dalloc<float>(n_kcrs, "kcrs2");
   if (!d_kcrs || !d_krsc || !d_kcrs2)
     return;
@@ -318,19 +329,19 @@ static void test_kcrs_krsc(void) {
               "kcrs_to_krsc rc");
   expect_eq_i(nn_layout_krsc_to_kcrs(d_krsc, d_kcrs2, k, c, r, s, c_pad), 0,
               "krsc_to_kcrs rc");
-  cu_ok(cudaMemcpy(krsc_got.data(), d_krsc, n_krsc * sizeof(float),
+  cu_ok(cudaMemcpy(krsc_h.data(), d_krsc, n_krsc * sizeof(__half),
                    cudaMemcpyDeviceToHost),
         "krsc D2H");
+  for (size_t i = 0; i < n_krsc; ++i)
+    krsc_got[i] = __half2float(krsc_h[i]);
   cu_ok(cudaMemcpy(kcrs_rt_got.data(), d_kcrs2, n_kcrs * sizeof(float),
                    cudaMemcpyDeviceToHost),
         "kcrs2 D2H");
 
   expect_true(floats_eq(krsc_got.data(), krsc_want.data(), n_krsc, "krsc"),
-              "kcrs->krsc exact");
-  expect_true(floats_eq(kcrs_rt_got.data(), kcrs.data(), n_kcrs, "kcrs_rt"),
-              "krsc->kcrs roundtrip exact");
-  expect_true(floats_eq(kcrs_rt.data(), kcrs.data(), n_kcrs, "cpu_rt"),
-              "cpu roundtrip identity");
+              "kcrs->krsc f16 exact");
+  expect_true(floats_eq(kcrs_rt_got.data(), kcrs_rt.data(), n_kcrs, "kcrs_rt"),
+              "krsc->kcrs roundtrip f16");
 
   int pad_ok = 1;
   for (int kk = 0; kk < k; ++kk)
@@ -428,15 +439,22 @@ static void run_relu_bwd_bias(int n, int c, int h, int w, int require_grid64) {
   cpu_relu_bwd_bias(dy.data(), y.data(), dpre_want.data(), db_want.data(), n, c,
                     h, w);
 
-  float *d_y = dalloc<float>(nelt, "relu y");
-  float *d_dy = dalloc<float>(nelt, "relu dy");
-  float *d_dpre = dalloc<float>(nelt, "relu dpre");
+  std::vector<__half> y_h(nelt), dy_h(nelt), dpre_h(nelt);
+  for (size_t i = 0; i < nelt; ++i) {
+    y_h[i] = __float2half(y[i]);
+    dy_h[i] = __float2half(dy[i]);
+    dpre_want[i] = f16_round(dpre_want[i]);
+  }
+
+  __half *d_y = dalloc<__half>(nelt, "relu y");
+  __half *d_dy = dalloc<__half>(nelt, "relu dy");
+  __half *d_dpre = dalloc<__half>(nelt, "relu dpre");
   float *d_db = dalloc<float>((size_t)c, "relu db");
   if (!d_y || !d_dy || !d_dpre || !d_db)
     return;
-  cu_ok(cudaMemcpy(d_y, y.data(), nelt * sizeof(float), cudaMemcpyHostToDevice),
+  cu_ok(cudaMemcpy(d_y, y_h.data(), nelt * sizeof(__half), cudaMemcpyHostToDevice),
         "relu y H2D");
-  cu_ok(cudaMemcpy(d_dy, dy.data(), nelt * sizeof(float),
+  cu_ok(cudaMemcpy(d_dy, dy_h.data(), nelt * sizeof(__half),
                    cudaMemcpyHostToDevice),
         "relu dy H2D");
   cu_ok(cudaMemset(d_db, 0, (size_t)c * sizeof(float)), "relu db zero");
@@ -451,9 +469,11 @@ static void run_relu_bwd_bias(int n, int c, int h, int w, int require_grid64) {
   if (require_grid64)
     expect_true(gx >= 64, "relu_bwd_bias gridDim.x >= 64");
 
-  cu_ok(cudaMemcpy(dpre_got.data(), d_dpre, nelt * sizeof(float),
+  cu_ok(cudaMemcpy(dpre_h.data(), d_dpre, nelt * sizeof(__half),
                    cudaMemcpyDeviceToHost),
         "relu dpre D2H");
+  for (size_t i = 0; i < nelt; ++i)
+    dpre_got[i] = __half2float(dpre_h[i]);
   cu_ok(cudaMemcpy(db_got.data(), d_db, (size_t)c * sizeof(float),
                    cudaMemcpyDeviceToHost),
         "relu db D2H");

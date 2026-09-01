@@ -222,11 +222,11 @@ static void test_forward_sample_update(void) {
 
     for (int i = 0; i < n * NN_N_LOGITS; ++i) {
       note_fwd_err(lc[i], lg[i]);
-      expect_near(lg[i], lc[i], 5e-3f, "logit");
+      expect_near(lg[i], lc[i], 5e-2f, "logit");
     }
     for (int i = 0; i < n; ++i) {
       note_fwd_err(vc[i], vg[i]);
-      expect_near(vg[i], vc[i], 5e-3f, "value");
+      expect_near(vg[i], vc[i], 5e-2f, "value");
     }
 
     free(planes);
@@ -336,13 +336,13 @@ static void test_forward_sample_update(void) {
                 "grad_norm=%.9g kl=%.9g clip=%.9g\n",
                 sg.policy_loss, sg.value_loss, sg.entropy_mean, sg.total_loss,
                 sg.grad_norm, sg.approx_kl, sg.clipfrac);
-    expect_near(sg.policy_loss, sc.policy_loss, 2e-3f, "policy loss");
-    expect_near(sg.value_loss, sc.value_loss, 2e-3f, "value loss");
-    expect_near(sg.entropy_mean, sc.entropy_mean, 2e-3f, "entropy mean");
-    expect_near(sg.total_loss, sc.total_loss, 2e-3f, "total loss");
-    expect_near(sg.approx_kl, sc.approx_kl, 2e-3f, "approx_kl");
-    expect_near(sg.clipfrac, sc.clipfrac, 2e-3f, "clipfrac");
-    check_grad_norm_rel("full grad_norm", sc.grad_norm, sg.grad_norm, 0.02f);
+    expect_near(sg.policy_loss, sc.policy_loss, 2e-2f, "policy loss");
+    expect_near(sg.value_loss, sc.value_loss, 2e-2f, "value loss");
+    expect_near(sg.entropy_mean, sc.entropy_mean, 2e-2f, "entropy mean");
+    expect_near(sg.total_loss, sc.total_loss, 2e-2f, "total loss");
+    expect_near(sg.approx_kl, sc.approx_kl, 2e-2f, "approx_kl");
+    expect_near(sg.clipfrac, sc.clipfrac, 2e-2f, "clipfrac");
+    check_grad_norm_rel("full grad_norm", sc.grad_norm, sg.grad_norm, 0.05f);
 
     char path_c[256], path_g[256];
     tmp_path(path_c, sizeof(path_c), "cpu_upd");
@@ -382,7 +382,7 @@ static void test_forward_sample_update(void) {
       const float dg = pg[i] - p0[i];
       if (dc * dg < 0.f)
         sign_mismatch++;
-      expect_near(pg[i], pc[i], 5e-3f, "updated weight");
+      expect_near(pg[i], pc[i], 5e-2f, "updated weight");
     }
     size_t base = 0;
     int max_t = 0;
@@ -461,16 +461,16 @@ static void test_forward_sample_update(void) {
                 "total=%.9g grad_norm=%.9g kl=%.9g clip=%.9g\n",
                 sg.policy_loss, sg.value_loss, sg.entropy_mean, sg.total_loss,
                 sg.grad_norm, sg.approx_kl, sg.clipfrac);
-    expect_near(sg.policy_loss, sc.policy_loss, 2e-3f,
+    expect_near(sg.policy_loss, sc.policy_loss, 2e-2f,
                 "policy-only policy loss");
-    expect_near(sg.value_loss, sc.value_loss, 2e-3f,
+    expect_near(sg.value_loss, sc.value_loss, 2e-2f,
                 "policy-only value loss");
-    expect_near(sg.total_loss, sc.total_loss, 2e-3f,
+    expect_near(sg.total_loss, sc.total_loss, 2e-2f,
                 "policy-only total loss");
-    expect_near(sg.approx_kl, sc.approx_kl, 2e-3f, "policy-only approx_kl");
-    expect_near(sg.clipfrac, sc.clipfrac, 2e-3f, "policy-only clipfrac");
+    expect_near(sg.approx_kl, sc.approx_kl, 2e-2f, "policy-only approx_kl");
+    expect_near(sg.clipfrac, sc.clipfrac, 2e-2f, "policy-only clipfrac");
     check_grad_norm_rel("policy-only grad_norm", sc.grad_norm, sg.grad_norm,
-                        0.02f);
+                        0.05f);
 
     free(planes);
     free(scalars);
@@ -588,16 +588,16 @@ int main(void) {
   test_forward_sample_update();
   test_no_gpu_mem_growth();
 
-  std::printf("\nmax forward abs error:   %.6g (limit 5e-3, TF32)\n",
+  std::printf("\nmax forward abs error:   %.6g (limit 5e-2, fp16 store)\n",
               g_max_fwd_err);
-  std::printf("max updated weight error: %.6g (limit 5e-3)\n", g_max_w_err);
+  std::printf("max updated weight error: %.6g (limit 5e-2)\n", g_max_w_err);
 
-  if (g_max_fwd_err > 5e-3f) {
-    std::fprintf(stderr, "FAIL: forward max_abs exceeds 5e-3\n");
+  if (g_max_fwd_err > 5e-2f) {
+    std::fprintf(stderr, "FAIL: forward max_abs exceeds 5e-2\n");
     g_fails++;
   }
-  if (g_max_w_err > 5e-3f) {
-    std::fprintf(stderr, "FAIL: weight max_abs exceeds 5e-3\n");
+  if (g_max_w_err > 5e-2f) {
+    std::fprintf(stderr, "FAIL: weight max_abs exceeds 5e-2\n");
     g_fails++;
   }
 
