@@ -768,6 +768,40 @@ static int backward_device(NnCuda *nn, int n) {
   return 0;
 }
 
+/* Build every plan for batch size n: the cuDNN conv graphs AND the cuBLASLt
+ * algos, which are otherwise picked lazily inside the first update. One dry
+ * forward+backward on the device buffers touches exactly the ops the run will
+ * touch, so no shape list can drift out of sync. The values are meaningless;
+ * only the shapes matter. Grads are zeroed after, and every real update
+ * overwrites them anyway. */
+static int prepare_bucket(NnCuda *nn, int n) {
+  CU_CHECK(cudaMemset(nn->d_planes, 0,
+                      (size_t)n * NN_N_CH * NN_CAM_H * NN_CAM_W));
+  CU_CHECK(cudaMemset(nn->d_scalars, 0,
+                      (size_t)n * NN_N_SCAL * sizeof(float)));
+  CU_CHECK(cudaMemset(nn->d_dlogits, 0,
+                      (size_t)n * NN_N_LOGITS * sizeof(float)));
+  CU_CHECK(cudaMemset(nn->d_dvalue, 0, (size_t)n * sizeof(float)));
+  if (forward_device(nn, n) != 0)
+    return -1;
+  if (backward_device(nn, n) != 0)
+    return -1;
+  /* The lt picks above may have grown the shared arena. Settle it over every
+   * conv plan of every prepared bucket plus the new lt floor. */
+  nn_conv_net_set_ws_floor(nn->conv, nn_lt_max_ws(nn->ltg));
+  if (nn_conv_net_prepare(nn->conv, n) != 0) {
+    set_err("conv arena settle failed");
+    return -1;
+  }
+  CU_CHECK(cudaMemset(nn->d_grads, 0, nn->n_params * sizeof(float)));
+  if (cudaDeviceSynchronize() != cudaSuccess) {
+    set_err("prepare sync failed");
+    return -1;
+  }
+  std::fprintf(stderr, "nn_prepare bucket n=%d done\n", n);
+  return 0;
+}
+
 static int clip_and_adam(NnCuda *nn, float *grad_norm_out) {
   const int thr = 256;
   const size_t n = nn->n_params;
@@ -1093,14 +1127,7 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
     return nullptr;
   }
 
-  nn_conv_net_set_ws_floor(nn->conv, nn_lt_max_ws(nn->ltg));
-  if (nn_conv_net_prepare(nn->conv, max_n) != 0) {
-    set_err("conv prepare(max_n) failed");
-    free_nn(nn);
-    return nullptr;
-  }
-  if (nn_lt_prepare(nn->ltg, max_n) != 0) {
-    set_err("lt prepare(max_n) failed");
+  if (prepare_bucket(nn, max_n) != 0) {
     free_nn(nn);
     return nullptr;
   }
@@ -1131,25 +1158,18 @@ int nn_cuda_prepare_n(NnCuda *nn, int n) {
   }
   if (bind_device(nn) != 0)
     return -1;
-  nn_conv_net_set_ws_floor(nn->conv, nn_lt_max_ws(nn->ltg));
-  if (nn_conv_net_prepare(nn->conv, n) != 0) {
-    set_err("conv prepare failed");
-    return -1;
-  }
-  if (nn_lt_prepare(nn->ltg, n) != 0) {
-    set_err("lt prepare failed");
-    return -1;
-  }
-  if (cudaDeviceSynchronize() != cudaSuccess) {
-    set_err("prepare sync failed");
-    return -1;
-  }
-  return 0;
+  return prepare_bucket(nn, n);
 }
 
 int nn_cuda_seal(NnCuda *nn) {
   if (!nn) {
     set_err("null handle");
+    return -1;
+  }
+  if (bind_device(nn) != 0)
+    return -1;
+  if (nn_lt_seal(nn->ltg) != 0) {
+    set_err("lt seal failed");
     return -1;
   }
   nn->sealed = 1;

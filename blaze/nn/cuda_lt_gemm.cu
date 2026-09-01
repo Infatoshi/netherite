@@ -78,6 +78,7 @@ struct NnLtGemm {
   size_t time_bytes;
   Plan plans[kPlanCap];
   int n_plans;
+  int sealed; /* 1 = plan set frozen; a lazy pick is an error */
   cudaEvent_t ev0, ev1;
 };
 
@@ -236,19 +237,49 @@ static int ensure_ws(NnLtGemm *g, size_t need) {
   return nn_ws_ensure(g->ws, need);
 }
 
+/* Free device bytes minus a margin. Mirrors ws_budget() in cuda_conv_graph.cu
+ * so a plan pick never eats the VRAM the rest of the step needs.
+ * INT64_MAX when the query fails, so a failed query keeps the old behavior. */
+static int64_t time_budget(void) {
+  size_t freeb = 0, totalb = 0;
+  const int64_t margin = (int64_t)1 << 30; /* 1 GiB, = kWsMargin */
+  if (cudaMemGetInfo(&freeb, &totalb) != cudaSuccess)
+    return INT64_MAX;
+  if ((int64_t)freeb <= margin)
+    return 0;
+  return (int64_t)freeb - margin;
+}
+
+/* Scratch for the timed pick. Hands the old buffer back first, so the budget
+ * sees those bytes as free. Fails (never OOMs) when the budget says no; the
+ * caller then picks on the cuBLASLt heuristic order alone. */
 static int ensure_time(NnLtGemm *g, size_t bytes) {
   if (bytes == 0)
     bytes = 1;
   if (g->d_time && g->time_bytes >= bytes)
     return 0;
+  if (g->d_time) {
+    cudaFree(g->d_time);
+    g->d_time = nullptr;
+    g->time_bytes = 0;
+  }
+  if ((int64_t)bytes > time_budget())
+    return -1;
   float *p = nullptr;
   if (cudaMalloc(&p, bytes) != cudaSuccess)
     return -1;
-  if (g->d_time)
-    cudaFree(g->d_time);
   g->d_time = p;
   g->time_bytes = bytes;
   return 0;
+}
+
+/* Drop the timing scratch. Only safe once no further pick can happen. */
+static void free_time(NnLtGemm *g) {
+  if (!g->d_time)
+    return;
+  cudaFree(g->d_time);
+  g->d_time = nullptr;
+  g->time_bytes = 0;
 }
 
 static GemmSpec spec_fwd(int n, int out, int k, cublasLtEpilogue_t epi) {
@@ -431,10 +462,11 @@ static int heur_and_time(NnLtGemm *g, GemmSpec s, const void *A, const void *B,
   /* Time into scratch, beta=0. Never write the caller's D. */
   s.beta = 0.f;
   const size_t out_bytes = (size_t)s.ldc * (size_t)s.n * sizeof(float);
-  if (ensure_time(g, out_bytes) != 0)
-    goto done;
-  D = g->d_time;
-  C = g->d_time;
+  const int can_time = (ensure_time(g, out_bytes) == 0);
+  if (can_time) {
+    D = g->d_time;
+    C = g->d_time;
+  }
 
   std::memset(heur, 0, sizeof(heur));
   if (make_desc(&s, bias, aux, aux_ld, &desc) != 0)
@@ -451,6 +483,27 @@ static int heur_and_time(NnLtGemm *g, GemmSpec s, const void *A, const void *B,
   if (cublasLtMatmulAlgoGetHeuristic(g->lt, desc, Ad, Bd, Cd, Dd, pref, kHeurN,
                                      heur, &nret) != CUBLAS_STATUS_SUCCESS)
     nret = 0;
+
+  if (!can_time) {
+    /* The timing scratch did not fit the free-VRAM budget. Take cuBLASLt's own
+     * first choice that fits the workspace instead of failing the pick. */
+    for (int i = 0; i < nret; ++i) {
+      if (heur[i].state != CUBLAS_STATUS_SUCCESS)
+        continue;
+      if (heur[i].workspaceSize > ws_cap)
+        continue;
+      *algo_out = heur[i].algo;
+      *ws_out = heur[i].workspaceSize;
+      rc = 0;
+      std::fprintf(stderr,
+                   "nn_lt heur-only pick m=%d n=%d k=%d epi=%d ws=%lld "
+                   "(timing scratch %lld B over budget)\n",
+                   s.m, s.n, s.k, (int)s.epi, (long long)heur[i].workspaceSize,
+                   (long long)out_bytes);
+      break;
+    }
+    goto done;
+  }
 
   {
     int ntime = 0;
@@ -547,6 +600,14 @@ static int pick_plan(NnLtGemm *g, int kind, int n, int out, int k, GemmSpec s,
     *outp = p;
     return 0;
   }
+  if (g->sealed) {
+    /* Every plan was picked before the run. A pick here would query and time
+     * cuBLASLt algos mid-step and allocate GiB-scale timing scratch. */
+    std::fprintf(stderr,
+                 "nn: unprepared lt plan kind=%d n=%d out=%d k=%d max_n=%d\n",
+                 kind, n, out, k, g->max_n);
+    return -1;
+  }
   p = alloc_plan(g);
   if (!p)
     return -1;
@@ -585,6 +646,11 @@ static int pick_plan(NnLtGemm *g, int kind, int n, int out, int k, GemmSpec s,
       p->epi = st.epi;
       p->fallback = (st.epi != s.epi) ? 1 : 0;
       p->valid = 1;
+      std::fprintf(stderr,
+                   "nn_lt pick kind=%d n=%d out=%d k=%d epi=%d ws=%lld "
+                   "fallback=%d\n",
+                   kind, n, out, k, (int)p->epi, (long long)p->ws_need,
+                   p->fallback);
       *outp = p;
       return 0;
     }
@@ -662,6 +728,21 @@ long long nn_lt_max_ws(const NnLtGemm *g) {
     if (g->plans[i].valid && g->plans[i].ws_need > m)
       m = g->plans[i].ws_need;
   return (long long)m;
+}
+
+int nn_lt_seal(NnLtGemm *g) {
+  if (!g)
+    return -1;
+  if (cudaSetDevice(g->device) != cudaSuccess)
+    return -1;
+  cudaDeviceSynchronize();
+  /* No pick can follow, so the timing scratch is dead weight. Freeing it
+   * returns the largest single transient of the whole create path. */
+  free_time(g);
+  g->sealed = 1;
+  std::fprintf(stderr, "nn_lt seal: %d plans, max ws=%lld B\n", g->n_plans,
+               nn_lt_max_ws(g));
+  return 0;
 }
 
 int nn_lt_prepare(NnLtGemm *g, int n) {

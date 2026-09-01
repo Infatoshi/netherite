@@ -1105,9 +1105,9 @@ int main(int argc, char **argv) {
      * run uses, then seal, so no plan is built after this point. The last
      * prepare shrinks the workspace arena over both buckets. */
     if (n != nd.max_n && nn_prepare_n(nn_roll, n) != 0)
-      dief("nn_prepare_n(%d): %s", n, nn_last_error());
+      dief("nn_prepare_n (rollout n): %s", nn_last_error());
     if (upd_n != nd.max_n && upd_n != n && nn_prepare_n(nn_roll, upd_n) != 0)
-      dief("nn_prepare_n(%d): %s", upd_n, nn_last_error());
+      dief("nn_prepare_n (update n): %s", nn_last_error());
     if (cfg.mb > 0) {
       /* mb>0 drops the tail minibatch, so update n is always mb. */
       if (nn_seal(nn_roll) != 0)
