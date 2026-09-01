@@ -780,7 +780,7 @@ static void gather_mb(struct RolloutBuf *b, const int *perm, int k, int nmb) {
 }
 
 static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
-                       int n, int T, int batch, int is_metal, int is_cuda,
+                       int n, int T, int batch, int is_metal, int drop_tail,
                        uint64_t *rng, NnUpdateStats *stats) {
   int mb = cfg->mb;
   int ep, rc;
@@ -845,10 +845,20 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
     int k;
     shuffle_int(b->perm, n_tr, rng);
     /* Metal and CUDA drop the tail minibatch so every update runs at n=mb.
-     * CUDA needs it because the prepared cuDNN bucket set is sealed at create.
+     * CUDA needs it because the prepared bucket set is sealed at create.
      * Cost: up to mb-1 of the n_tr rows per epoch; the reshuffle picks a
-     * different tail each epoch. */
-    if (is_metal || is_cuda) {
+     * different tail each epoch. n_tr < mb would drop everything, so that
+     * chunk falls back to one update at n_tr. */
+    if (is_metal || drop_tail) {
+      if (n_tr < mb) {
+        gather_mb(b, b->perm, 0, n_tr);
+        memset(&st, 0, sizeof(st));
+        rc = nn_update(nn_upd, b->planes_mb, b->scal_mb, b->acts_mb, b->logp_mb,
+                       b->adv_mb, b->ret_mb, n_tr, &st);
+        if (rc != 0)
+          return rc;
+        TR_ACCUM_UPD_STATS();
+      }
       for (k = 0; k + mb <= n_tr; k += mb) {
         gather_mb(b, b->perm, k, mb);
         memset(&st, 0, sizeof(st));
@@ -929,6 +939,7 @@ int main(int argc, char **argv) {
   uint64_t rng;
   double t0_wall;
   int split_nn = 0;
+  int drop_tail = 0;
   int upd_n;
   float best_t0 = -1.f;
   int64_t best_ticks = 0;
@@ -1108,17 +1119,21 @@ int main(int argc, char **argv) {
       dief("nn_prepare_n (rollout n): %s", nn_last_error());
     if (upd_n != nd.max_n && upd_n != n && nn_prepare_n(nn_roll, upd_n) != 0)
       dief("nn_prepare_n (update n): %s", nn_last_error());
-    if (cfg.mb > 0) {
-      /* mb>0 drops the tail minibatch, so update n is always mb. */
+    /* Drop the tail minibatch, and seal, only when a full minibatch is sure
+     * to fit: burn-in invalidates one step per env, so n_tr >= batch - n_envs.
+     * mb == batch (or close) would otherwise drop every row. */
+    drop_tail = is_cuda && cfg.mb > 0 && cfg.mb <= batch - n;
+    if (drop_tail) {
       if (nn_seal(nn_roll) != 0)
         dief("nn_seal: %s", nn_last_error());
       printf("ppo: nn buckets fwd_n=%d upd_n=%d max_n=%d sealed=1\n", n, upd_n,
              nd.max_n);
     } else {
-      /* mb==0 updates on the compacted valid rows, so update n varies with
-       * burn-in. Cannot seal. */
-      printf("ppo: nn buckets fwd_n=%d upd_n<=%d max_n=%d sealed=0 (mb=0)\n", n,
-             upd_n, nd.max_n);
+      /* mb==0 updates the compacted valid rows and mb>batch-n_envs may too,
+       * so update n varies with burn-in. Cannot seal. */
+      printf("ppo: nn buckets fwd_n=%d upd_n<=%d max_n=%d sealed=0 "
+             "(mb=%d batch=%d)\n",
+             n, upd_n, nd.max_n, cfg.mb, batch);
     }
     fflush(stdout);
   }
@@ -1422,8 +1437,8 @@ int main(int argc, char **argv) {
       }
 
       t_upd0 = wall_sec();
-      rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, is_cuda, &rng,
-                       &stats);
+      rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, drop_tail,
+                       &rng, &stats);
       if (rc != 0)
         dief("nn_update: %s", nn_last_error());
       ms_upd = (wall_sec() - t_upd0) * 1000.0;
