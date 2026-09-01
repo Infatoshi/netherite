@@ -1,5 +1,86 @@
 # DEVLOG (compressed)
 
+## 2026-09-01 combined max-N: stack_kib 96 plus conv ws-cap (not merged)
+
+Branch `wip/nn-vram-combined` = `wip/nn-ws-cap` `43a7ba1` with
+`wip/nn-stack-kib` `b7520ef` merged. The code files are disjoint. Only
+DEVLOG conflicted; both entries stay.
+
+Anvil, device 0, exclusive lease `netherite-ws-cap-5`, 97887 MiB, CUDA
+13.2, cuDNN 92500, lane `~/nlanes/nn-vram-combined`. Every run below
+polled foreign GPU processes at 1 s and read `foreign_mib=0`. The GPU was
+drained under 200 MiB before each run.
+
+Gates on the merged tree. `make -C blaze/nn test-cuda` ALL TESTS PASSED.
+`smoke-cuda` PASS. The stack sensitive fluids M2 row passes at
+`stack_kib=96` on both kernels: `verify_cuda.py --chain
+--expected-chain-actions 61 --snapshot
+verify/fixtures/port/s10_t0_r64_fluid_spread.bsnp --tape
+blaze/rl/fixtures/fluid_spread_s10.json --port-parity
+--strict-capabilities --features fluids --m2-kernel raw|warp --stack-kib
+96`, rc=0 both.
+
+Control at `stack_kib=128` reproduces the ws-cap branch exactly: T=8
+N=1024 peak 52096 MiB, grad_norm 0.174396, value_loss 0.0281173; T=8
+N=5120 peak 96266 MiB with 20 buckets raced at a reduced n. The merge
+shifted nothing.
+
+`stack_kib=96` frees 9024 MiB, as the bisect predicted: T=8 N=1024 peak
+drops 52096 -> 43072 MiB, the same grad_norm and value_loss.
+
+One chunk per run (`max_chunks=1`), `stack_kib=96`:
+
+| stack_kib | N | T | result | peak MiB | boundary alloc |
+|---|---|---|---|---|---|
+| 96 | 5120 | 8 | PASS | 96146 | |
+| 96 | 5376 | 8 | PASS | 96088 | |
+| 96 | 5632 | 8 | PASS | 96246 | |
+| 96 | 5888 | 8 | PASS | 96260 | |
+| 96 | 6144 | 8 | fail | 84524 | `nn_cuda_create` `d_c2_f`, 1233125376 B, 859 MiB free |
+| 96 | 3072 | 32 | PASS | 95850 | |
+| 96 | 3328 | 32 | PASS | 96228 | |
+| 96 | 3584 | 32 | PASS | 96258 | |
+| 96 | 3840 | 32 | fail | 96066 | `cuda_lt_gemm` `ensure_time`, 2984945152 B, 1107 MiB free |
+
+Both boundary allocations were named with a temporary stderr probe in
+`nn_cuda_create` and in `cuda_lt_gemm`. The probe printed only on a
+failed `cudaMalloc`. It is reverted and not committed.
+
+`d_c2_f` is the one activation still held as fp32 after the fp16 act
+store pass. At max_n it is 25088 B per sample. `ensure_time` is the
+cuBLASLt plan timing scratch, the same class of create-time transient the
+reduced-n conv race just cut. Both are the next fruit.
+
+One chunk is not a sustained run. With `max_chunks=4` the largest N drops
+one step at T=8 and one at T=32, and the failure is always `ensure_time`
+reached through `ppo: nn_update: fc dx cam failed` on chunk 1.
+
+| stack_kib | T | max-N, 1 chunk | max-N, 4 chunks |
+|---|---|---|---|
+| 128 | 8 | 5120 | 4864 |
+| 128 | 32 | 3072 | 3072 |
+| 96 | 8 | 5888 | 5632 |
+| 96 | 32 | 3584 | 3328 |
+
+Steady state, `max_chunks=4`, `stack_kib=96`, chunks 2 to 4 only, so
+staging, `nn_create`, and the plan races are excluded. Wall per chunk is
+the difference of the cumulative `wall=` the ppo log prints; ticks per
+chunk is `N * T * 4`.
+
+| T | N | chunk wall ms | env-ticks/s | nn ms |
+|---|---|---|---|---|
+| 8 | 2816 | 3200 | 28160 | 62.1 |
+| 8 | 5632 | 4267 | 42240 | 121.5 |
+| 32 | 1024 | 26633 | 4922 | 88.8 |
+| 32 | 3328 | 42733 | 9969 | 269.1 |
+
+Read the wall and ticks/s columns as a floor, not a rate. The env phase
+holds 95 percent of the chunk at T=32 and swings by 4x between chunks as
+the world fills, so three chunks is not enough to average it out.
+`max_chunks=4` is short. The `nn` column is the stable one: per sample it
+is 2.76 us at T=8 N=2816 against 2.70 us at N=5632, and 2.71 us at T=32
+N=1024 against 2.53 us at N=3328. No reduced-n winner costs throughput.
+
 ## 2026-09-01 conv race at a reduced n (not merged)
 
 Branch `wip/nn-ws-cap`, on top of the arena shrink below. The arena is no
