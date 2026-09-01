@@ -34,6 +34,27 @@ At the sizes this branch targets it is under 1 percent (N=6912 T=32:
 1264 of 214272). The tail size is not static: burn-in rows come from
 episode resets. Padding the tail to `mb` would keep every row; not done.
 
+Fix after review. `77d1b2d` is wrong. When `n_tr < mb` it runs one
+update at `n_tr`. No backend accepts that. Metal fixes the batch size at
+create. A sealed CUDA net holds buckets only for `n_envs` and `mb`. On
+the 8-row smoke config Metal dies with `nn_update: batch size mismatch
+(fixed at create)` at `mb=5` and `mb=6`. The fix skips the update for
+that chunk, as Metal did before `77d1b2d`. It prints `ppo: update
+skipped n_tr=... < mb=...` once per chunk, and counts the skips. The
+count prints as `ppo: update skips=... chunks=...` before the PASS line,
+and only when it is above zero. The old comment says burn-in costs one
+step per env. That is false. Every reset in the chunk sets burn-in, and
+each burn-in makes one more step per env invalid, so `n_tr` can be
+`batch - k*n_envs` for `k` resets. The `mb <= batch - n_envs` gate
+stays. It guarantees one full minibatch only when each env resets at
+most once in the chunk.
+
+Arena settle. `nn_conv_net_prepare` runs on every forward. It ended with
+an arena settle that syncs the device, frees and re-allocs. It now
+settles only when a plan was added, the arena changed size, or the lt
+floor moved. A sealed run changes none of the three, so the settle is a
+no-op.
+
 Anvil, device 0, exclusive lease `netherite-static-buckets`, mb=8192
 (the real training config), fixture `s10_t0_r64_no_liquid.bsnp`,
 action_repeat 4, ktime 0, warp_tick 1, epochs 1. Baseline binary =
@@ -289,7 +310,11 @@ live `bytes` at every launch, and picks plans lazily during execute, so
 `cuda.cu` publishes `nn_lt_max_ws` as a floor before each prepare. The
 floor also holds at lt's `kWsMin` (32 MiB). Shrink runs at prepare time
 only, so "grow only outside a PPO step" still holds. `nn_ws_shrink`
-restores the old size on failure and never leaves a smaller arena.
+frees the old block first, because the shrink runs when VRAM is nearly
+full. On failure it tries to allocate the old size back. If that also
+fails the arena is empty. The caller cannot tell the two cases apart, so
+`-1` is fatal. `cuda_ws.h` states this, and `arena_settle` stops the
+run.
 
 Anvil, device 0, exclusive lease `netherite-ws-cap-3`, 97887 MiB, CUDA
 13.2, cuDNN 92500. Same harness as below. Every run polled foreign GPU
