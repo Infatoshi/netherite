@@ -124,6 +124,7 @@ typedef struct EvalCfg {
   int warp_tick;
   int op_trace;
   int no_ore_xy;
+  int stack_kib; /* CUDA per-thread stack limit, KiB (default 128) */
   int stage; /* 0..4, or EVAL_STAGE_ALL */
   int transfer; /* EVAL_XFER_CLOSED | EVAL_XFER_REPLAY */
   char magma_bin[EVAL_STR_MAX];
@@ -476,6 +477,7 @@ static void cfg_defaults(EvalCfg *c) {
   c->metal_max_cells = 2097152;
   (void)str_copy_fit(c->metallib, sizeof(c->metallib), "auto");
   c->warp_tick = 1;
+  c->stack_kib = 128;
   c->stage = 0;
   c->transfer = EVAL_XFER_CLOSED;
   (void)str_copy_fit(c->magma_bin, sizeof(c->magma_bin), "magma/magma_game");
@@ -1011,6 +1013,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     opts.warp_tick = cfg->warp_tick;
     opts.op_trace = cfg->op_trace;
     opts.no_ore_xy = cfg->no_ore_xy;
+    opts.stack_kib = cfg->stack_kib;
     if (blaze_fns_load(&fns, kEnvCpuSo, 0, 1) != 0) {
       fprintf(stderr, "eval: failed to load %s for magma replay\n", kEnvCpuSo);
       goto fail;
@@ -1471,6 +1474,7 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
   opts.warp_tick = cfg->warp_tick;
   opts.op_trace = cfg->op_trace;
   opts.no_ore_xy = cfg->no_ore_xy;
+  opts.stack_kib = cfg->stack_kib;
 
   env = fns.create(cfg->device, n, &opts);
   if (!env)

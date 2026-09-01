@@ -124,6 +124,7 @@ void tr_cfg_defaults(TrainConfig *c) {
   c->warp_tick = 1;
   c->op_trace = 0;
   c->no_ore_xy = 0;
+  c->stack_kib = 128;
 }
 
 int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
@@ -403,6 +404,13 @@ int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
     c->no_ore_xy = t;
     return 0;
   }
+  if (!strcmp(key, "stack_kib")) {
+    int t;
+    if (!p_int(val, &t) || t <= 0 || t > 1024)
+      return -2;
+    c->stack_kib = t;
+    return 0;
+  }
   return -1;
 }
 
@@ -516,6 +524,7 @@ void tr_cfg_dump(const TrainConfig *c, FILE *out) {
   fprintf(out, "  %-16s = %d\n", "warp_tick", c->warp_tick);
   fprintf(out, "  %-16s = %d\n", "op_trace", c->op_trace);
   fprintf(out, "  %-16s = %d\n", "no_ore_xy", c->no_ore_xy);
+  fprintf(out, "  %-16s = %d\n", "stack_kib", c->stack_kib);
 }
 
 /* True if token looks like a CLI option, not a conf path. */
