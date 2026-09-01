@@ -1,5 +1,128 @@
 # DEVLOG (compressed)
 
+## 2026-09-01 static nn buckets, net sized at max(N, mb), nn before env (not merged)
+
+Branch `wip/nn-static-buckets` on `wip/nn-vram-combined` `8845049`.
+Commits `92127c7` (static cuDNN bucket set, sealed at create), `d73f7e0`
+(seal cuBLASLt too; pick every plan at create), `77d1b2d` (do not drop
+every row when mb >= n_tr). The Opus delegate that wrote them ran the
+sweep below and then hit its session limit; the parent verified the
+diff, the logs in `anvil:~/nlanes/sbruns`, and wrote this entry.
+
+What changed.
+
+- `ppo.c`: the CUDA/CPU net is sized `max_n = max(n_envs, upd_n)`, not
+  `batch`. Forward only ever gets `n_envs` rows; update never gets more
+  than `mb`. The rollout batch lives in the host store and reaches the
+  net one minibatch at a time. `mb=0` keeps `max_n = batch`.
+- `ppo.c`: `nn_create` runs BEFORE `blaze_create`. The cuDNN race sees
+  the empty card, not the stack tax plus every world.
+- `nn_prepare_n` builds the second bucket at create. The set is
+  `{bucket(n_envs), bucket(mb)}`. The arena shrinks over both. Then
+  `nn_seal`: a cuDNN or cuBLASLt plan miss after create is a hard error,
+  not a lazy race. cuBLASLt plans are picked at create for every gemm
+  site and both buckets; before this they were picked lazily in the
+  first update.
+- CUDA drops the tail minibatch when `mb > 0`, as Metal already did, so
+  the update bucket stays static. The seal is armed only when
+  `mb <= batch - n_envs`; otherwise (mb == batch, T=1 configs) the run
+  prints `sealed=0` and keeps the lazy path.
+
+Cost of drop-tail. At N=1024 T=32 mb=8192 the tail is 7168 of 31744
+valid rows, 22.6 percent of that chunk, three updates instead of four.
+At the sizes this branch targets it is under 1 percent (N=6912 T=32:
+1264 of 214272). The tail size is not static: burn-in rows come from
+episode resets. Padding the tail to `mb` would keep every row; not done.
+
+Anvil, device 0, exclusive lease `netherite-static-buckets`, mb=8192
+(the real training config), fixture `s10_t0_r64_no_liquid.bsnp`,
+action_repeat 4, ktime 0, warp_tick 1, epochs 1. Baseline binary =
+`~/nlanes/nn-vram-combined` `8845049`. `foreign_mib=0` on every run.
+
+Guard, same seed, `stack_kib=128`, one chunk:
+
+| config | binary | grad_norm | value_loss | peak MiB |
+|---|---|---|---|---|
+| T=8 N=1024 mb=8192 | base | 0.174396 | 0.0281173 | 54896 |
+| T=8 N=1024 mb=8192 | new | 0.174396 | 0.0281173 | 52064 |
+| T=8 N=1024 mb=0 | base | 0.174396 | 0.0281173 | 54896 |
+| T=8 N=1024 mb=0 | new | 0.174395 | 0.0281173 | 55092 |
+| T=32 N=1024 mb=8192 | base | 0.127909 | 0.0500395 | 85020 |
+| T=32 N=1024 mb=8192 | new | 0.141672 | 0.0515985 | 50188 |
+
+T=8 rows are identical (policy_loss differs at 1e-8, fp16 TC noise).
+The T=32 row differs because the new binary drops the 7168-row tail:
+three Adam steps instead of four. Expected from the semantics change,
+not a numerics bug. Peak at T=32 N=1024 drops 34.8 GiB.
+
+Seal evidence. In every sealed run the seven cuDNN picks per bucket and
+the 18 cuBLASLt plans print before the first env line, then
+`ppo: nn buckets fwd_n=... upd_n=8192 max_n=8192 sealed=1`, then zero
+pick lines through chunk 3. Checked on N=1024 T=32, N=6912 T=32 one
+chunk, and N=6912 T=32 four chunks.
+
+Max-N at mb=8192, `stack_kib=96`:
+
+| binary | N | T | chunks | result | peak MiB | boundary |
+|---|---|---|---|---|---|---|
+| base | 5888 | 8 | 1 | PASS | 96256 | |
+| base | 6144 | 8 | 1 | fail | 84524 | `nn_create: cudaMalloc arenas failed` (max_n 49152) |
+| base | 3840 | 32 | 1 | PASS | 96262 | |
+| base | 4096 | 32 | 1 | fail | 1 | `nn_create: cudaMalloc arenas failed` (max_n 131072) |
+| new | 6144 | 32 | 1 | PASS | 88772 | |
+| new | 6656 | 32 | 1 | PASS | 93536 | |
+| new | 6912 | 32 | 1 | PASS | 95914 | |
+| new | 6912 | 32 | 4 | PASS | 95914 | |
+| new | 7168 | 32 | 1 | fail | 55080 | `blaze_load_snapshots: region pool cudaMalloc failed (128x128x128 x 7168 envs = 45.1 GB)` |
+| new | 6912 | 8 | 1 | PASS | 95914 | |
+| new | 6912 | 8 | 4 | PASS | 95914 | |
+| new | 7168 | 8 | 1 | fail | 55080 | same region pool line |
+| new | 6912 | 8 and 32 | 1 | fail at `stack_kib=128` | 63268 | control |
+
+Max-N, mb=8192: T=8 5888 -> 6912; T=32 3840 -> 6912. Against the
+session start (`wip/nn-fable`, mb=0 probe): T=8 2816 -> 6912 (2.45x),
+T=32 1024 -> 6912 (6.75x). T no longer moves the ceiling. The policy is
+a fixed ~8 GiB at mb=8192. The wall is the sim region pool at 9.31
+MiB/env plus the 26.5 GiB stack tax at 96 KiB. One-chunk and four-chunk
+maxima coincide; the seal removed the chunk-1 `ensure_time` failure.
+
+Throughput, new binary, mb=8192, `stack_kib=96`, `max_chunks=4`. Per
+chunk wall is the difference of the cumulative `wall=`; env/nn/upd are
+the `ppo: phases` line. Chunks 1-3 (chunk 0 excluded).
+
+| N | T | ticks/chunk | env ms c1/c2/c3 | nn ms | upd ms | wall s mean c1-3 | env-ticks/s |
+|---|---|---|---|---|---|---|---|
+| 5120 | 8 | 163840 | 1593 / 4127 / 9244 | 111 | 260 | 5.8 | 28k |
+| 6912 | 8 | 221184 | 4228 / 5482 / 10610 | 155 | 400 | 8.0 | 28k |
+| 3072 | 32 | 393216 | 34024 / 40401 / 42483 | 248 | 693 | 41.0 | 9.6k |
+| 6912 | 32 | 884736 | 43515 / 42875 / 44087 | 550 | 1640 | 48.1 | 18k |
+| 1024 | 32 (base) | 131072 | 18322 / 29102 / 32929 | 90 | 260 | 27.5 | 4.8k |
+| 1024 | 32 (new) | 131072 | 16964 / 36195 / 28581 | 92 | 240 | 28.0 | 4.7k |
+
+nn is flat at 2.5-2.8 us/sample. upd is flat per sample. The env phase
+is 90-97 percent of the chunk and GROWS with world age: at T=8 it is
+1.6 s on chunks 0-1 and 9.2 s on chunk 3 for the same tick count; at
+T=32 it plateaus after chunk 1 at about 4x the fresh-world cost. The
+baseline binary shows the same curve, so it is the sim, not this
+branch. This is the k_tick straggler effect the 2026-08-26 spawn
+trainer entry recorded (172-550 ms/step under a random policy on long
+T versus 9 ms at spawn start). The fresh-world chunk here (N=5120 T=8,
+103k env-ticks/s) matches that entry's first-steady N=1024 figure
+(103-117k). The 3.9-4.1M figure is M3 sim-only on curriculum snapshots
+at N=8192 with mobs off (2026-08-06 matrix), a different regime, and
+the sim has since gained mob AI, natural spawn, XP orbs, beds and the
+light flood. What makes the aged worlds slow has not been looked at.
+
+Env-only python bench on this lane (`verify_cuda.py --bench --t0`,
+random full-decode actions, `warp_tick=1`, `stack_kib=128`, exclusive
+card): N=1024, 25 decisions plus 2 warmup, 69.45 s, 1.5k env-ticks/s,
+0/1024 done. The 250-decision default did not finish in 15 min at
+N=1024 or N=4096. The 2026-08-06 matrix had 0.150M at N=1024 on this
+card, and the trainer's fresh-world chunk on the same `.so` runs 60-70x
+faster than this bench. Not explained. The branch carries the light
+flood port `4b0cdc3` and the mob and XP sidecars that landed after the
+matrix; none of them is measured in isolation here. Open.
+
 ## 2026-09-01 combined max-N: stack_kib 96 plus conv ws-cap (not merged)
 
 Branch `wip/nn-vram-combined` = `wip/nn-ws-cap` `43a7ba1` with
