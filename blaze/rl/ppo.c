@@ -781,7 +781,7 @@ static void gather_mb(struct RolloutBuf *b, const int *perm, int k, int nmb) {
 
 static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
                        int n, int T, int batch, int is_metal, int drop_tail,
-                       uint64_t *rng, NnUpdateStats *stats) {
+                       uint64_t *rng, NnUpdateStats *stats, int *n_skip) {
   int mb = cfg->mb;
   int ep, rc;
   int n_tr;
@@ -838,27 +838,28 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
     goto done;
   }
 
+  /* Metal and CUDA drop the tail minibatch so every update runs at n=mb.
+   * CUDA needs it because the prepared bucket set is sealed at create.
+   * Cost: up to mb-1 of the n_tr rows per epoch; the reshuffle picks a
+   * different tail each epoch.
+   * n_tr < mb has no full minibatch. An update at n_tr cannot run: Metal
+   * fixes n at create, and a sealed CUDA net has no bucket for n_tr. So the
+   * whole chunk skips its update. n_tr does not change over the epochs, so
+   * this reports once per chunk. */
+  if ((is_metal || drop_tail) && n_tr < mb) {
+    (*n_skip)++;
+    printf("ppo: update skipped n_tr=%d < mb=%d\n", n_tr, mb);
+    fflush(stdout);
+    goto done;
+  }
+
   for (i = 0; i < n_tr; ++i)
     b->perm[i] = i;
 
   for (ep = 0; ep < cfg->epochs; ++ep) {
     int k;
     shuffle_int(b->perm, n_tr, rng);
-    /* Metal and CUDA drop the tail minibatch so every update runs at n=mb.
-     * CUDA needs it because the prepared bucket set is sealed at create.
-     * Cost: up to mb-1 of the n_tr rows per epoch; the reshuffle picks a
-     * different tail each epoch. n_tr < mb would drop everything, so that
-     * chunk falls back to one update at n_tr. */
     if (is_metal || drop_tail) {
-      if (n_tr < mb) {
-        gather_mb(b, b->perm, 0, n_tr);
-        memset(&st, 0, sizeof(st));
-        rc = nn_update(nn_upd, b->planes_mb, b->scal_mb, b->acts_mb, b->logp_mb,
-                       b->adv_mb, b->ret_mb, n_tr, &st);
-        if (rc != 0)
-          return rc;
-        TR_ACCUM_UPD_STATS();
-      }
       for (k = 0; k + mb <= n_tr; k += mb) {
         gather_mb(b, b->perm, k, mb);
         memset(&st, 0, sizeof(st));
@@ -940,6 +941,7 @@ int main(int argc, char **argv) {
   double t0_wall;
   int split_nn = 0;
   int drop_tail = 0;
+  int n_upd_skip = 0;
   int upd_n;
   float best_t0 = -1.f;
   int64_t best_ticks = 0;
@@ -1119,9 +1121,13 @@ int main(int argc, char **argv) {
       dief("nn_prepare_n (rollout n): %s", nn_last_error());
     if (upd_n != nd.max_n && upd_n != n && nn_prepare_n(nn_roll, upd_n) != 0)
       dief("nn_prepare_n (update n): %s", nn_last_error());
-    /* Drop the tail minibatch, and seal, only when a full minibatch is sure
-     * to fit: burn-in invalidates one step per env, so n_tr >= batch - n_envs.
-     * mb == batch (or close) would otherwise drop every row. */
+    /* Drop the tail minibatch, and seal, only when mb <= batch - n_envs.
+     * Every reset in the chunk sets burn-in and each burn-in invalidates one
+     * more step per env, so n_tr can be batch - k*n_envs for k resets. The
+     * gate only guarantees one full minibatch when each env resets at most
+     * once in the chunk. With more resets n_tr can drop below mb; that chunk
+     * then skips its update and ppo_updates logs the skip. The gate still
+     * stops mb == batch (or close) from dropping every row every chunk. */
     drop_tail = is_cuda && cfg.mb > 0 && cfg.mb <= batch - n;
     if (drop_tail) {
       if (nn_seal(nn_roll) != 0)
@@ -1438,7 +1444,7 @@ int main(int argc, char **argv) {
 
       t_upd0 = wall_sec();
       rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, drop_tail,
-                       &rng, &stats);
+                       &rng, &stats, &n_upd_skip);
       if (rc != 0)
         dief("nn_update: %s", nn_last_error());
       ms_upd = (wall_sec() - t_upd0) * 1000.0;
@@ -1517,6 +1523,9 @@ int main(int argc, char **argv) {
     dief("nn_save: %s", nn_last_error());
   if (rl_ckpt_load(split_nn ? nn_upd : nn_roll, cfg.checkpoint) != 0)
     dief("nn_load: %s", nn_last_error());
+
+  if (n_upd_skip > 0)
+    printf("ppo: update skips=%d chunks=%d\n", n_upd_skip, chunk);
 
   printf("ppo: PASS backend=%s device=%d n_envs=%d rollout_steps=%d batch=%d "
          "chunks=%d ticks=%lld grad_norm=%.6g policy_loss=%.6g "
