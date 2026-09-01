@@ -1,5 +1,78 @@
 # DEVLOG (compressed)
 
+## 2026-09-01 conv arena shrink (not merged)
+
+Branch `wip/nn-ws-cap`, on top of the timing budget below. Two changes.
+
+Eligibility. A candidate whose workspace already fits the arena needs no
+grow, so it costs nothing. It now stays eligible whatever the free VRAM
+is: `ws <= arena->bytes || ws <= budget`. Before this, a low-free moment
+late in prepare could drop an engine that was already paid for.
+
+Shrink. `nn_conv_net_prepare` now ends by dropping the arena to the max
+workspace over the CHOSEN plans. The timed race grows it to the max over
+the timed SET, and a winner with `ws=0` parked GiBs for the whole run.
+Every cached plan of every bucket counts, so `workspace too small in
+execute` stays impossible. `cuda_lt_gemm` shares the arena, reads its
+live `bytes` at every launch, and picks plans lazily during execute, so
+`cuda.cu` publishes `nn_lt_max_ws` as a floor before each prepare. The
+floor also holds at lt's `kWsMin` (32 MiB). Shrink runs at prepare time
+only, so "grow only outside a PPO step" still holds. `nn_ws_shrink`
+restores the old size on failure and never leaves a smaller arena.
+
+Anvil, device 0, exclusive lease `netherite-ws-cap-3`, 97887 MiB, CUDA
+13.2, cuDNN 92500. Same harness as below. Every run polled foreign GPU
+processes at 1 s and reported `foreign_mib=0`, so the GPU was ours.
+
+`make -C blaze/rl smoke-cuda` PASS.
+
+Arena reclaimed at create:
+
+| shape | max_n | arena before | arena after | back |
+|---|---|---|---|---|
+| T=8 N=1024 | 8192 | 7235239952 | 2018315759 | 4.86 GiB |
+| T=32 N=1024 | 32768 | 28833808400 | 8058113519 | 19.35 GiB |
+
+At T=32 N=1024 the winner that sets the floor is L0 WGRAD eng=40
+ws=8058113519. L1 DGRAD wins with `ws=0` and no longer keeps its race
+peak. T=8 N=4352 shrinks three times, once to the 32 MiB floor
+(3013452831 -> 33554432 B): every chosen plan there needs no workspace.
+
+Peak, pre-shrink vs post-shrink, same binaries' lineage, both exclusive:
+
+| N | T | result | peak MiB before | peak MiB after |
+|---|---|---|---|---|
+| 1024 | 8 | PASS | 56844 | 52096 |
+| 1024 | 32 | PASS | 85020 | 85020 |
+| 4352 | 8 | PASS | 97148 | 94498 |
+| 4608 | 8 | FAIL | - | - |
+| 2304 | 32 | PASS | 94954 | 94954 |
+| 2560 | 32 | FAIL | - | - |
+
+Max that trains does NOT move: T=8 N=4352, T=32 N=2304. Same as the
+budget alone. The boundary error is unchanged and verbatim:
+
+```
+nn_conv_graph: timing buffer alloc failed
+ppo: nn_create: conv prepare(max_n) failed
+```
+
+Why the reclaim does not raise max-N. The peak lands DURING the race at
+create, while the arena still holds the race maximum. The shrink runs
+after. It cuts the steady state, not the create transient. max-N is set
+by that transient, and its first casualty is the per-plan timing buffers
+(2*x + 2*y + 2*w, allocated before `pick_timed`), not the arena.
+
+Regression guard T=8 N=1024: `grad_norm=0.174396`,
+`value_loss=0.0281173`, identical to the budget-only build. All picks
+`capped=0`; the budget did not bind at that size.
+
+Open. To raise max-N, cut the create transient: size the timing buffers
+from the winner instead of allocating all seven up front, or race at a
+small n and reuse the plan at max_n.
+
+Logs: anvil `~/nlanes/nn-ws-cap/out/wscap_n<N>_t<T>.log`.
+
 ## 2026-09-01 conv timing workspace budget (not merged)
 
 Branch `wip/nn-ws-cap` off `wip/nn-fable` `498507f`. One patch:
