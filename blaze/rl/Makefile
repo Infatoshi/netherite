@@ -107,6 +107,7 @@ TEST_ELYTRA_BIN := $(OUT)/test_elytra
 TEST_HAZARDS_BIN := $(OUT)/test_hazards
 TEST_POTIONS_BIN := $(OUT)/test_potions
 TEST_PLACE_BIN := $(OUT)/test_placement
+TEST_DIMS_BIN := $(OUT)/test_portals_dimensions
 TEST_BEDS_BIN := $(OUT)/test_beds
 TEST_SKY_BIN := $(OUT)/test_skylight_water
 TEST_BLK_BIN := $(OUT)/test_blocklight
@@ -361,6 +362,11 @@ $(TEST_PLACE_BIN): $(ENV_SRC)/test_placement.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_placement.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_DIMS_BIN): $(ENV_SRC)/test_portals_dimensions.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/nether_portal.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_portals_dimensions.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 $(TEST_BEDS_BIN): $(REPO)/magma/tests/test_beds.c $(CORE_SRC)/player_bed.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(REPO)/magma/tests/test_beds.c -lm
 
@@ -467,6 +473,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_hazards
 	cd $(REPO) && ./out/blaze/rl/test_potions
 	cd $(REPO) && ./out/blaze/rl/test_placement
+	cd $(REPO) && ./out/blaze/rl/test_portals_dimensions
 	cd $(REPO) && ./out/blaze/rl/test_beds
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
 	cd $(REPO) && ./out/blaze/rl/test_blocklight
@@ -482,6 +489,9 @@ test-potions: $(TEST_POTIONS_BIN)
 
 test-placement: $(TEST_PLACE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_placement
+
+test-portals-dimensions: $(TEST_DIMS_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_portals_dimensions
 
 test-beds: $(TEST_BEDS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_beds
