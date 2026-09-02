@@ -886,6 +886,28 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
             out->active_mask |= BP_BIT(BP_ELYTRA);
     }
 
+    {
+        int feet = gm_world_block(r->world, (int)floor(r->player.ent.posX + (double)r->ox),
+                                  (int)floor(r->player.ent.posY), (int)floor(r->player.ent.posZ + (double)r->oz));
+        int head = gm_world_block(r->world, (int)floor(r->player.ent.posX + (double)r->ox),
+                                  (int)floor(r->player.ent.posY + 1.0), (int)floor(r->player.ent.posZ + (double)r->oz));
+        int in_portal = (feet == 90 || head == 90) ? 1 : ((feet == 119 || head == 119) ? 2 : 0);
+        h = bp_portals_digest(r->portal_time, r->portal_cooldown, in_portal);
+        out->digest[BP_PORTALS] = h;
+        out->evidence[BP_PORTALS] = 1;
+        if (r->portal_time > 0 || r->portal_cooldown > 0 || in_portal > 0)
+            out->active_mask |= BP_BIT(BP_PORTALS);
+    }
+
+    {
+        int has_sky = (r->dimension == 0) ? 1 : 0;
+        float sun_brightness = (r->dimension == -1) ? 0.2f : ((r->dimension == 1) ? 0.0f : 1.0f);
+        h = bp_dimensions_digest(r->dimension, has_sky, sun_brightness);
+        out->digest[BP_DIMENSIONS] = h;
+        out->evidence[BP_DIMENSIONS] = 1;
+        out->active_mask |= BP_BIT(BP_DIMENSIONS);
+    }
+
     h = bp_hash_begin();
     for (i = 0; i < RL_NCOAL; ++i) {
         int present = i < rl_ncoal;

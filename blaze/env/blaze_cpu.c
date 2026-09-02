@@ -62,6 +62,8 @@ typedef struct {
     int   *assign;
     CuSnapshot snaps[BLAZE_MAX_SNAPS];
     int    nsnaps;
+    CuSnapshot dim_snaps[3];
+    int    dim_loaded[3];
     /* capture may replace coal/xy_off while live envs still alias the old
      * buffer (env->ore / env->ore_xy bind by pointer at reset). Do not
      * free those until destroy. */
@@ -300,6 +302,8 @@ void blaze_destroy(void *vh) {
     int i;
     if (!v) return;
     for (i = 0; i < v->nsnaps; ++i) blaze_snapshot_free(&v->snaps[i]);
+    if (v->dim_loaded[0]) blaze_snapshot_free(&v->dim_snaps[0]);
+    if (v->dim_loaded[2]) blaze_snapshot_free(&v->dim_snaps[2]);
     for (i = 0; i < v->nretired; ++i) free(v->retired[i]);
     free(v->envs); free(v->assign);
     free(v->cells_pool); free(v->light_pool); free(v->biome_pool);
@@ -352,6 +356,32 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         }
         v->nsnaps++;
     }
+    if (v->nsnaps > 0) {
+        /* Dimension 0 (Overworld) default is snaps[0] */
+        v->dim_snaps[1] = v->snaps[0];
+        v->dim_loaded[1] = 1;
+
+        /* Auto-probe counterpart dimension snapshot if not already loaded */
+        if (!v->dim_loaded[0] && count > 0 && paths[0]) {
+            const char *p = paths[0];
+            const char *match = strstr(p, "portals.bsnp");
+            if (match) {
+                char nether_path[1024];
+                size_t prefix = (size_t)(match - p);
+                if (prefix + strlen("nether.bsnp") < sizeof(nether_path)) {
+                    memcpy(nether_path, p, prefix);
+                    strcpy(nether_path + prefix, "nether.bsnp");
+                    FILE *test_f = fopen(nether_path, "rb");
+                    if (test_f) {
+                        fclose(test_f);
+                        if (blaze_snapshot_load(nether_path, &v->dim_snaps[0], err, err_cap, v->no_ore_xy)) {
+                            v->dim_loaded[0] = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
     return v->nsnaps;
 }
 
@@ -399,6 +429,8 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->cont, s->ncont, s->mobs, s->n_mobs,
                               s->orbs, s->n_orbs, s->biome,
                               s->world_rand_seed, v->success_item);
+    v->envs[i].dim_bank = v->dim_snaps;
+    v->envs[i].dimension = 0;
     v->envs[i].pl.fire = s->player_fire;
     v->envs[i].pl.air = s->player_air;
     {

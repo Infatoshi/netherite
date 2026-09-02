@@ -88,6 +88,7 @@ enum BpDebugField {
      BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_EXPLOSIONS) | \
      BP_BIT(BP_WEATHER) | \
      BP_BIT(BP_CHESTS) | BP_BIT(BP_XP) | BP_BIT(BP_BOATS) | BP_BIT(BP_ELYTRA) | \
+     BP_BIT(BP_PORTALS) | BP_BIT(BP_DIMENSIONS) | \
      BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
@@ -97,6 +98,7 @@ enum BpDebugField {
      BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_EXPLOSIONS) | \
      BP_BIT(BP_WEATHER) | \
      BP_BIT(BP_CHESTS) | BP_BIT(BP_XP) | BP_BIT(BP_BOATS) | BP_BIT(BP_ELYTRA) | \
+     BP_BIT(BP_PORTALS) | BP_BIT(BP_DIMENSIONS) | \
      BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
@@ -704,6 +706,26 @@ BP_HD static inline uint64_t bp_elytra_digest(
     h = bp_hash_double(h, my);
     h = bp_hash_double(h, mz);
     return bp_hash_i32(h, on_ground);
+}
+
+/* Nether/End portal contact and cooldown state (BP_PORTALS). */
+BP_HD static inline uint64_t bp_portals_digest(
+    int32_t portal_time, int32_t portal_cooldown, int32_t in_portal) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x31524F50)); /* "POR1" */
+    h = bp_hash_i32(h, portal_time);
+    h = bp_hash_i32(h, portal_cooldown);
+    return bp_hash_i32(h, in_portal);
+}
+
+/* Dimension identity and environmental constants (BP_DIMENSIONS). */
+BP_HD static inline uint64_t bp_dimensions_digest(
+    int32_t dimension, int32_t has_sky, float sun_brightness) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x314D4944)); /* "DIM1" */
+    h = bp_hash_i32(h, dimension);
+    h = bp_hash_i32(h, has_sky);
+    return bp_hash_float(h, sun_brightness);
 }
 
 BP_HD static inline void bp_record_init(BpParityRecord *r, int64_t tick) {
