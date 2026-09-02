@@ -768,7 +768,12 @@ int gm_world_section_needs_randtick(const GmWorld *w, int cx, int sec, int cz) {
         }
         return 0;
     }
-    return 1;
+    /* No snapshot (interactive / unit tests): the full world, no clip. The
+     * census is still the gate - the scan this replaced returned 0 for an
+     * empty section, and RT_SECTION_NEEDS decides whether the section's three
+     * updateLCG draws happen. Returning 1 unconditionally here advances the
+     * LCG on every empty section and desyncs the world from Java. */
+    return light_section_needs_randtick(w->light, cx, sec, cz);
 }
 
 int gm_world_fall_parity_state(const GmWorld *w, uint64_t *digest,

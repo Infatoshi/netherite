@@ -54,6 +54,18 @@ OBJ_ASSETS = assets/blockmodels.o
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/world_spawn.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o game/audio_live.o
 
+# Object set a headless game-level test needs (same list game/test_randtick.sh
+# links): the live world store plus everything gm_world_* pulls in.
+OBJ_GAME_TEST_DEPS = game/world_live.o game/config.o game/caps.o game/randtick.o \
+                     game/live_sim.o game/fluid_live.o game/player_ctl.o game/sel_box.o \
+                     game/mob_live.o game/dragon_live.o game/structures_live.o \
+                     game/portal_live.o game/furnace_live.o game/chest_live.o \
+                     game/container_live.o game/world_spawn.o game/runtime.o \
+                     core/config.o core/math.o core/shade.o \
+                     world/light.o world/mesh_mc.o world/populate_mc.o \
+                     world/gen_prefetch.o world/blocks.o world/mesh.o world/world.o \
+                     renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o
+
 .PHONY: all world game game-cuda game-metal test test-raster-smoke test-world-spawn test-fall-reanchor test-sky-weather test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui test-beds test-xp-orbs test-potions
 all: game
 
@@ -425,6 +437,15 @@ test-potions:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_potions.c -o tests/test_potions $(LDLIBS)
 	./tests/test_potions
 
+.PHONY: test-randtick-census
+# The O(1) per-section random-tick census (LChunk.rt_count) vs the 4096-cell
+# scan it replaced, under every parity setting. RT_SECTION_NEEDS gates the
+# updateLCG draws, so a census that disagrees desyncs the Java oracle.
+test-randtick-census: $(OBJ_GAME_TEST_DEPS)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core -I. tests/test_randtick_census.c \
+	    $(OBJ_GAME_TEST_DEPS) -o tests/test_randtick_census $(LDLIBS)
+	./tests/test_randtick_census
+
 .PHONY: test-explosions
 test-explosions:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_explosions.c -o tests/test_explosions $(LDLIBS)
@@ -439,7 +460,7 @@ test-furnace-registry:
 	    -o tests/test_furnace_registry $(LDLIBS)
 	./tests/test_furnace_registry
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items test-beds test-xp-orbs test-potions
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight test-furnace-registry test-placement test-explosions test-live-items test-beds test-xp-orbs test-potions test-randtick-census
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 .PHONY: test-live-items
@@ -656,7 +677,7 @@ clean:
 	find . -name '*.d' -delete
 	rm -f tests/test_raster_smoke tests/test_transform tests/test_present tests/test_scene tests/test_world \
 	      tests/test_raster_parity tests/test_assets tests/test_light tests/test_water_skylight tests/test_mesh_mc \
-	      tests/test_live_items \
+	      tests/test_live_items tests/test_randtick_census \
 	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
 	      tests/test_sky_weather \
 	      tests/test_fog_radial \
