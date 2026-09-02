@@ -830,10 +830,10 @@ MC_HD static inline void cu_skylight_chunk(Blaze *e, int wx, int wz,
         }
 }
 
-/* Raise-only flood over a box. Magma compute_skylight_spread (light.c:541)
- * is a BFS; 15 in-place passes are the same max-flood (air costs 1, sky
- * 15 dies in 15 steps). Early-exit when a pass raises nothing. */
-MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
+/* Raise-only flood over a box, the slow way: up to 15 in-place passes over
+ * every cell. Kept as the fallback for a region the worklist cannot pack
+ * and for a queue overflow. Early-exit when a pass raises nothing. */
+MC_HD static inline void cu_skylight_spread_jacobi(Blaze *e, int x0, int y0,
                                                 int z0, int x1, int y1,
                                                 int z1, CuSkyMoves *mv) {
     int pass, x, y, z, changed;
@@ -863,6 +863,109 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
                 }
         if (!changed) break;
     }
+}
+
+/* Per-env int scratch, shared with cu_check_light_for_block below (the sky
+ * worklist drains before the BLOCK flood starts). */
+#define CU_LIGHT_Q 32768
+
+/* Logical cap of the sky worklist inside the shared light_q buffer. Always
+ * CU_LIGHT_Q in a product build; test_skylight_incr builds a second binary
+ * with a tiny cap so the overflow fallback below is exercised. */
+#ifndef CU_SKY_Q
+#define CU_SKY_Q CU_LIGHT_Q
+#endif
+#define CU_SKY_PACK(IX, IY, IZ) (((IX) << 20) | ((IY) << 10) | (IZ))
+
+/* Raise-only flood over a box. Magma compute_skylight_spread (light.c:541)
+ * is a frontier BFS, so this is one sweep in the pass order above followed
+ * by a drain of everything the sweep raised. Same least fixed point as the
+ * 15 passes: the relaxation only raises and is monotone, so every schedule
+ * that runs to quiescence lands on the same point, and the sweep visits
+ * every cell once so nothing raisable is missed.
+ *
+ * This is what makes the first edit in a chunk affordable. The chunk
+ * rebuild before it puts 256 columns back to their bare baseline, which
+ * costs the whole box its flood, and the passes then re-raise it one ring
+ * per pass over 46 x 46 x rny cells. The drain touches a cell once per
+ * raise instead.
+ *
+ * Falls back to the passes when the region will not pack into the 10-bit
+ * fields or when the shared queue overflows. The partial state at that
+ * point is still <= the fixed point (raise-only, every raise bounded by
+ * it), so the passes finish at the same place. */
+MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
+                                                int z0, int x1, int y1,
+                                                int z1, CuSkyMoves *mv) {
+    static const int dx6[6] = {1, -1, 0, 0, 0, 0};
+    static const int dy6[6] = {0, 0, 1, -1, 0, 0};
+    static const int dz6[6] = {0, 0, 0, 0, 1, -1};
+    int *q = e->light_q;
+    int x, y, z, qh = 0, qn = 0, ovf = 0;
+    int rx1 = e->rx0 + e->rnx - 1, ry1 = e->ry0 + e->rny - 1,
+        rz1 = e->rz0 + e->rnz - 1;
+    if (x0 < e->rx0) x0 = e->rx0;
+    if (y0 < e->ry0) y0 = e->ry0;
+    if (z0 < e->rz0) z0 = e->rz0;
+    if (x1 > rx1) x1 = rx1;
+    if (y1 > ry1) y1 = ry1;
+    if (z1 > rz1) z1 = rz1;
+    if (x0 > x1 || y0 > y1 || z0 > z1) return;
+    if (!q || e->rnx > 1024 || e->rny > 1024 || e->rnz > 1024) {
+        cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
+        return;
+    }
+#define CU_SPB_PUSH(IX, IY, IZ) do {                                        \
+        if (qn >= CU_SKY_Q) { ovf = 1; }                                    \
+        else {                                                              \
+            int qt_ = qh + qn; if (qt_ >= CU_SKY_Q) qt_ -= CU_SKY_Q;        \
+            q[qt_] = CU_SKY_PACK(IX, IY, IZ);                               \
+            ++qn;                                                           \
+        }                                                                   \
+    } while (0)
+#define CU_SPB_PUSH_NB(X, Y, Z) do {                                        \
+        int f_;                                                             \
+        for (f_ = 0; f_ < 6; ++f_) {                                        \
+            int nx_ = (X) + dx6[f_], ny_ = (Y) + dy6[f_],                   \
+                nz_ = (Z) + dz6[f_];                                        \
+            if (nx_ < x0 || nx_ > x1 || ny_ < y0 || ny_ > y1 ||             \
+                nz_ < z0 || nz_ > z1) continue;                             \
+            CU_SPB_PUSH(nx_ - e->rx0, ny_ - e->ry0, nz_ - e->rz0);          \
+        }                                                                   \
+    } while (0)
+    for (x = x0; x <= x1 && !ovf; ++x)
+        for (z = z0; z <= z1 && !ovf; ++z)
+            for (y = y0; y <= y1 && !ovf; ++y) {
+                long i = cu_region_idx(e, x, y, z);
+                int before;
+                if (i < 0) continue;
+                before = e->light[i] >> 4;
+                cu_light_relax_cell(e, x, y, z);
+                if ((e->light[i] >> 4) > before) {
+                    cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
+                    CU_SPB_PUSH_NB(x, y, z);
+                }
+            }
+    while (qn > 0 && !ovf) {
+        int p = q[qh], ix, iy, iz;
+        long i;
+        int before;
+        ++qh; if (qh >= CU_SKY_Q) qh = 0;
+        --qn;
+        ix = (p >> 20) & 1023; iy = (p >> 10) & 1023; iz = p & 1023;
+        x = e->rx0 + ix; y = e->ry0 + iy; z = e->rz0 + iz;
+        i = ((long)ix * e->rny + iy) * e->rnz + iz;
+        before = e->light[i] >> 4;
+        cu_light_relax_cell(e, x, y, z);
+        if ((e->light[i] >> 4) > before) {
+            cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
+            CU_SPB_PUSH_NB(x, y, z);
+        }
+    }
+    if (ovf)                       /* exact, just the slow way */
+        cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
+#undef CU_SPB_PUSH
+#undef CU_SPB_PUSH_NB
 }
 
 /* Magma light_set_state (light.c:751) sets column_dirty on opacity change;
@@ -925,9 +1028,6 @@ MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx,
  * the stale set is always safe - the cells around it are already at the
  * fixed point and the flood puts them straight back. */
 #define CU_SKY_NC CU_SKY_NC_DECL
-/* Per-env int scratch, shared with cu_check_light_for_block below (the sky
- * worklist drains before the BLOCK flood starts). */
-#define CU_LIGHT_Q 32768
 
 /* Chunk columns the region spans on one axis, clamped to the array. */
 MC_HD static inline int cu_sky_nc(int r0, int n) {
@@ -1015,7 +1115,6 @@ MC_HD static inline void cu_sky_settle(Blaze *e, int ci,
 }
 
 /* Packed region coordinate for the worklist: 10 bits per axis. */
-#define CU_SKY_PACK(IX, IY, IZ) (((IX) << 20) | ((IY) << 10) | (IZ))
 
 MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
                                                 int wz, int old_op) {
@@ -1076,12 +1175,6 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
             if (y > yhi) yhi = y;
         }
 
-/* Logical cap of the sky worklist inside the shared light_q buffer. Always
- * CU_LIGHT_Q in a product build; test_skylight_incr builds a second binary
- * with a tiny cap so the overflow fallback below is exercised. */
-#ifndef CU_SKY_Q
-#define CU_SKY_Q CU_LIGHT_Q
-#endif
 #define CU_SKY_PUSH(IX, IY, IZ) do {                                        \
         if (qn >= CU_SKY_Q) { ovf = 1; }                                    \
         else {                                                              \
