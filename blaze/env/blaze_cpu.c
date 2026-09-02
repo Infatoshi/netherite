@@ -97,6 +97,7 @@ typedef struct {
     int    natural_spawn_passive;
     i64    world_time_pin;   /* -1 unset; else ww.worldTime after reset */
     int    elytra_kit;       /* magma --elytra on: chest 443 after reset */
+    int    det_entity_rng;   /* detmob Java EntityAITasks + PathFinder A* */
 } CuVec;
 
 /* OPT-IN training-reward mode: gate the +0.03 crosshair-attack bonus on
@@ -128,6 +129,17 @@ int blaze_set_mobs_enabled(void *vh, int on) {
     if (v->envs)
         for (i = 0; i < v->n; ++i)
             v->envs[i].mobs_enabled = v->mobs_enabled;
+    return 0;
+}
+
+int blaze_set_det_entity_rng(void *vh, int on) {
+    CuVec *v = (CuVec *)vh;
+    int i;
+    if (!v) return -1;
+    v->det_entity_rng = on ? 1 : 0;
+    if (v->envs)
+        for (i = 0; i < v->n; ++i)
+            v->envs[i].det_entity_rng = v->det_entity_rng;
     return 0;
 }
 
@@ -693,6 +705,7 @@ static void cu_reset_env(CuVec *v, int i) {
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
     v->envs[i].natural_spawn_passive = v->natural_spawn_passive;
+    v->envs[i].det_entity_rng = v->det_entity_rng;
     if (v->world_time_pin >= 0)
         v->envs[i].ww.worldTime = v->world_time_pin;
     v->envs[i].elytra_kit = v->elytra_kit;
