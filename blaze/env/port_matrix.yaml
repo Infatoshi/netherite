@@ -976,6 +976,80 @@ subsystems:
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
+  - name: mobs_det
+    supported: true
+    resume: true
+    sources:
+      magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
+      shared:
+        - blaze/core/mob_ai_tasks.h
+        - blaze/core/path_finder.h
+        - blaze/core/path_node_processor.h
+        - blaze/core/hostile_live.h
+        - blaze/core/hostile_spawn.h
+        - blaze/core/entity_hostile_spine.h
+        - blaze/core/entity_spine.h
+        - blaze/core/port_parity.h
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
+    dependencies: [mobs]
+    required_features: [mobs]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_mobs_passive.bsnp
+        - blaze/rl/fixtures/mobs_passive_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_mobs_passive.bsnp
+        - blaze/rl/fixtures/mobs_passive_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_detmob.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_mobs_passive.bsnp
+      - --tape
+      - blaze/rl/fixtures/mobs_passive_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - mobs,xp
+      - --mobs-on
+      - --natural-spawn-passive
+      - --det-entity-rng
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_mobs_passive.bsnp
+      - --tape
+      - blaze/rl/fixtures/mobs_passive_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - mobs,xp
+      - --mobs-on
+      - --natural-spawn-passive
+    m2_kernels: [raw, warp, scalar]
+    timeout: 1500
+
   - name: mobs_ss
     supported: true
     resume: true

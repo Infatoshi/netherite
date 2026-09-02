@@ -521,12 +521,13 @@ def parse_bsnp_mobs(path):
         f.read(vol * 2)
         ncoal = struct.unpack("<I", f.read(4))[0]
         f.read(ncoal * 12)
-        f.read(vol)
+        version = struct.unpack_from("<I", head, 4)[0]
+        mob_sz = 604 if version >= 10 else (572 if version >= 7 else 556)
         n_mobs = struct.unpack("<I", f.read(4))[0]
         rows = []
         for _ in range(n_mobs):
-            raw = f.read(SNAP_MOB_SIZE)
-            if len(raw) != SNAP_MOB_SIZE:
+            raw = f.read(mob_sz)
+            if len(raw) != mob_sz:
                 raise RuntimeError(f"truncated .bsnp mobs: {path}")
             slot, _id, typ, alive = struct.unpack_from("<iiii", raw, 0)
             x, y, z = struct.unpack_from("<ddd", raw, 20)
@@ -930,7 +931,7 @@ def run_seed_parity(seed, snap, actions, label, features,
                     strict_capabilities=False, require_evidence=True,
                     track_liquid=False, result=None, mobs_on=False,
                     natural_spawn=False, natural_spawn_passive=False,
-                    dump_mobs=False):
+                    dump_mobs=False, det_entity_rng=False):
     """Lockstep Magma vs Blaze CPU on PARY digests. Existing callers unchanged.
 
     require_evidence: default True is the --port-parity gate (zero evidence
@@ -1045,6 +1046,13 @@ def run_seed_parity(seed, snap, actions, label, features,
             cu.lib.blaze_set_world_time.restype = ctypes.c_int
             if cu.lib.blaze_set_world_time(ctypes.c_void_p(cu.h), 6000) != 0:
                 raise RuntimeError("blaze_set_world_time failed")
+        if det_entity_rng:
+            extra.extend(["--set", "det_entity_rng=1"])
+            cu.lib.blaze_set_det_entity_rng.argtypes = [
+                ctypes.c_void_p, ctypes.c_int]
+            cu.lib.blaze_set_det_entity_rng.restype = ctypes.c_int
+            if cu.lib.blaze_set_det_entity_rng(ctypes.c_void_p(cu.h), 1) != 0:
+                raise RuntimeError("blaze_set_det_entity_rng failed")
         real = RealEnv(seed, snap, port_parity=True, magma_args=extra)
         cu.emit(1)
         real_parity = real.parity_rec
@@ -1255,7 +1263,8 @@ def run_port_parity(args, seeds, features):
             args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False),
             natural_spawn=getattr(args, "natural_spawn", False),
             natural_spawn_passive=getattr(args, "natural_spawn_passive", False),
-            dump_mobs=getattr(args, "dump_mobs", False))
+            dump_mobs=getattr(args, "dump_mobs", False),
+            det_entity_rng=getattr(args, "det_entity_rng", False))
         return port_parity_result([status], "chain fixture")
 
     statuses = []
@@ -1349,6 +1358,9 @@ def main():
     ap.add_argument(
         "--mobs-on", action="store_true",
         help="enable magma --set mobs=1 and blaze hostile AI (mobs row)")
+    ap.add_argument(
+        "--det-entity-rng", action="store_true",
+        help="enable det_entity_rng=1 (Java EntityAITasks + PathFinder A*) in magma and blaze")
     ap.add_argument(
         "--natural-spawn", action="store_true",
         help="enable WorldEntitySpawner (magma --set natural_spawn=1 set_time=18000)")
