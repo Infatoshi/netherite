@@ -18,6 +18,8 @@ static int gm_rt_biome(GmWorld *w, int x, int z) {
     return b < 0 ? 1 : b;
 }
 #define rt_live_biome(w, x, z) gm_rt_biome((w), (x), (z))
+#define RT_SECTION_NEEDS(w, cx, sec, cz) \
+    gm_world_section_needs_randtick((w), (cx), (sec), (cz))
 #include "randtick_live.h"
 
 static int gm_rt_surr[RT_LIVE_SURR];

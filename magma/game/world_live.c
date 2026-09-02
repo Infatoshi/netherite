@@ -720,12 +720,9 @@ int gm_world_rt_meta(const GmWorld *w, int wx, int wy, int wz) {
 }
 
 int gm_world_rt_light(const GmWorld *w, int wx, int wy, int wz) {
-    int sky, blk;
     if (!w) return 15;
     if (!gm_rt_in_parity(w, wx, wy, wz)) return 15;
-    sky = gm_world_sky_light(w, wx, wy, wz);
-    blk = gm_world_block_light(w, wx, wy, wz);
-    return sky > blk ? sky : blk;
+    return light_combined_max(w->light, wx, wy, wz);
 }
 
 int gm_world_rt_block_light(const GmWorld *w, int wx, int wy, int wz) {
@@ -738,6 +735,45 @@ void gm_world_rt_set(GmWorld *w, int wx, int wy, int wz, int id, int meta) {
     if (!w) return;
     if (!gm_rt_in_parity(w, wx, wy, wz)) return;
     gm_world_set_block_meta(w, wx, wy, wz, id, meta);
+}
+
+int gm_world_section_needs_randtick(const GmWorld *w, int cx, int sec, int cz) {
+    if (!w) return 0;
+    if (w->parity_valid) {
+        int x0 = w->parity_x0, z0 = w->parity_z0, y0 = w->parity_y0;
+        int x1 = x0 + w->parity_nx, z1 = z0 + w->parity_nz, y1 = y0 + w->parity_ny;
+        int bx = cx * 16, bz = cz * 16, by = sec * 16;
+        if (bx + 15 < x0 || bx >= x1 || bz + 15 < z0 || bz >= z1 ||
+            by + 15 < y0 || by >= y1)
+            return 0;
+        if (!light_section_needs_randtick(w->light, cx, sec, cz))
+            return 0;
+        if (bx >= x0 && bx + 15 < x1 && bz >= z0 && bz + 15 < z1 &&
+            by >= y0 && by + 15 < y1)
+            return 1;
+        /* Section partially intersects parity region: check only cells inside parity. */
+        for (int lx = 0; lx < 16; ++lx) {
+            int wx = bx + lx;
+            if (wx < x0 || wx >= x1) continue;
+            for (int lz = 0; lz < 16; ++lz) {
+                int wz = bz + lz;
+                if (wz < z0 || wz >= z1) continue;
+                for (int ly = 0; ly < 16; ++ly) {
+                    int wy = by + ly;
+                    if (wy < y0 || wy >= y1) continue;
+                    if (bp_is_randtick_state(light_state(w->light, wx, wy, wz)))
+                        return 1;
+                }
+            }
+        }
+        return 0;
+    }
+    /* No snapshot (interactive / unit tests): the full world, no clip. The
+     * census is still the gate - the scan this replaced returned 0 for an
+     * empty section, and RT_SECTION_NEEDS decides whether the section's three
+     * updateLCG draws happen. Returning 1 unconditionally here advances the
+     * LCG on every empty section and desyncs the world from Java. */
+    return light_section_needs_randtick(w->light, cx, sec, cz);
 }
 
 int gm_world_fall_parity_state(const GmWorld *w, uint64_t *digest,
