@@ -46,9 +46,12 @@ Findings.
   chunk and a 46x46 box. Not done here.
 
 Compile time, measured on gamer with `nvcc --time` on the rl rule:
-cicc 1503.8 s (25.1 min), cudafe++ 0.26 s, preprocessing 0.13 s;
-ptxas about 8 min from the sky-on lane timestamps (26 min cicc, then
-08:20 to 08:28). One translation unit, single-threaded. Four tick
+cicc 1503.8 s (25.1 min), ptxas 569.3 s (9.5 min), cudafe++ 0.26 s,
+preprocessing 0.13 s, host gcc and link 0.06 s. One translation unit,
+single-threaded. `-Xptxas -v`: all four tick kernels sit at the 255
+register cap with a 45-47 KB stack frame each (k_tick_raw 44576 B,
+k_tick_legacy 46944, k_tick_warp 47120, k_tick 47072); spills are small
+(k_tick_warp 212 B stores / 576 B loads, scalar k_tick 504 / 2376). Four tick
 kernels (k_tick, k_tick_warp, k_tick_legacy, k_tick_raw) each inline
 the whole sim. The anvil build script compiles that unit twice per lane
 (magma rule and rl rule), 66 min per lane on gamer. Proposed, not done:
