@@ -111,6 +111,7 @@ TEST_BEDS_BIN := $(OUT)/test_beds
 TEST_SKY_BIN := $(OUT)/test_skylight_water
 TEST_BLK_BIN := $(OUT)/test_blocklight
 TEST_SKYINC_BIN := $(OUT)/test_skylight_incr
+TEST_SKYOVF_BIN := $(OUT)/test_skylight_incr_ovf
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
 EVAL_MAGMA_OBJ := $(OUT)/eval_magma.o
@@ -126,7 +127,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight test-skylight-incr smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight test-skylight-incr test-skylight-ovf smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval test-eval-magma eval-magma
 
@@ -396,6 +397,14 @@ $(TEST_SKYINC_BIN): $(ENV_SRC)/test_skylight_incr.c \
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_skylight_incr.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+# Same test with a 12-entry sky worklist, so every drain overflows and the
+# whole-chunk fallback in cu_light_after_opacity is the path under test.
+$(TEST_SKYOVF_BIN): $(ENV_SRC)/test_skylight_incr.c \
+		$(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h \
+		$(ENV_SRC)/blaze_core.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -DCU_SKY_Q=12 -o $@ \
+		$(ENV_SRC)/test_skylight_incr.c $(ENV_SRC)/blaze_snapshot.c -lm
+
 $(TEST_BLK_BIN): $(ENV_SRC)/test_blocklight.c \
 		$(ENV_SRC)/test_blocklight_magma_oracle.c \
 		$(ENV_SRC)/blaze_core.h | $(OUT)
@@ -453,7 +462,8 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 		$(TEST_BEDS_BIN) \
 		$(TEST_SKY_BIN) \
 		$(TEST_BLK_BIN) \
-		$(TEST_SKYINC_BIN)
+		$(TEST_SKYINC_BIN) \
+		$(TEST_SKYOVF_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -481,6 +491,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
 	cd $(REPO) && ./out/blaze/rl/test_blocklight
 	cd $(REPO) && ./out/blaze/rl/test_skylight_incr
+	cd $(REPO) && ./out/blaze/rl/test_skylight_incr_ovf
 
 test-hazards: $(TEST_HAZARDS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_hazards
@@ -546,6 +557,9 @@ test-blocklight: $(TEST_BLK_BIN)
 
 test-skylight-incr: $(TEST_SKYINC_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_skylight_incr
+
+test-skylight-ovf: $(TEST_SKYOVF_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_skylight_incr_ovf
 
 # Default smoke: committed ppo.conf (backend=cpu).
 smoke: smoke-cpu

@@ -606,6 +606,9 @@ int main(int argc, char **argv) {
     if (only && !strcmp(only, "new")) mode_new = 1;
     dbg = getenv("SKY_DBG") != NULL;
     audit = getenv("SKY_AUDIT") != NULL;
+    if (CU_SKY_Q != CU_LIGHT_Q)
+        fprintf(stderr, "sky worklist cap %d (overflow fallback build)\n",
+                CU_SKY_Q);
 
     if (argc > 1) {
         for (i = 1; i < argc; ++i)

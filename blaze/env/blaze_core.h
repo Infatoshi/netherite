@@ -1076,10 +1076,16 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
             if (y > yhi) yhi = y;
         }
 
+/* Logical cap of the sky worklist inside the shared light_q buffer. Always
+ * CU_LIGHT_Q in a product build; test_skylight_incr builds a second binary
+ * with a tiny cap so the overflow fallback below is exercised. */
+#ifndef CU_SKY_Q
+#define CU_SKY_Q CU_LIGHT_Q
+#endif
 #define CU_SKY_PUSH(IX, IY, IZ) do {                                        \
-        if (qn >= CU_LIGHT_Q) { ovf = 1; }                                  \
+        if (qn >= CU_SKY_Q) { ovf = 1; }                                    \
         else {                                                              \
-            int qt_ = qh + qn; if (qt_ >= CU_LIGHT_Q) qt_ -= CU_LIGHT_Q;    \
+            int qt_ = qh + qn; if (qt_ >= CU_SKY_Q) qt_ -= CU_SKY_Q;        \
             q[qt_] = CU_SKY_PACK(IX, IY, IZ);                               \
             ++qn;                                                           \
         }                                                                   \
@@ -1160,7 +1166,7 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
     while (qn > 0 && !ovf) {
         int p = q[qh], ix, iy, iz, x, z, op, sky, best, f;
         long i;
-        ++qh; if (qh >= CU_LIGHT_Q) qh = 0;
+        ++qh; if (qh >= CU_SKY_Q) qh = 0;
         --qn;
         ix = (p >> 20) & 1023; iy = (p >> 10) & 1023; iz = p & 1023;
         x = e->rx0 + ix; y = e->ry0 + iy; z = e->rz0 + iz;
