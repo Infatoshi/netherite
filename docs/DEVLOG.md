@@ -1,5 +1,60 @@
 # DEVLOG (compressed)
 
+## 2026-09-02 skylight rebuild is the trainer bottleneck: gamer A/B (not merged)
+
+Question. Does the per-edit skylight rebuild from c3f1851 (found by the
+env-only bisect) also dominate the native trainer, and is it the
+world-age growth of the env phase?
+
+Method. anvil was down. gamer RTX 3090 (sm_86), exclusive, 1 MiB before
+and after. Two worktrees of wip/nn-fable ae01059: `sky-on` unchanged;
+`sky-off` = same tree with the body of `cu_light_after_opacity`
+(blaze_core.h) replaced by the pre-c3f1851 radius-15 relaxation over
+`cu_light_relax_cell`. One-line comment marks it `SKY-OFF A/B`. Not
+committed. Both built with the repo's rl rule (`-O2 --fmad=false
+-arch sm_86`). Trainer: `ppo`, fixture `s10_t0_r64_no_liquid.bsnp`,
+N=512, mb=2048, stack_kib=96, action_repeat 4, ktime 0, warp_tick 1,
+epochs 1, 4 chunks. Bench: `verify_cuda.py --bench --t0 --n 512
+--decisions 25 --warmup 2 --snaps <dir with the no_liquid fixture>`.
+Logs `gamer:~/nlanes/skyruns/`.
+
+| run | sky-on | sky-off | ratio |
+|---|---|---|---|
+| bench N=512, 25 decisions | 38.44 s (1.3k env-ticks/s) | 0.43 s (119k) | 89x |
+| trainer T=8 env ms c0..c3 | 105 / 105 / 104 / 1909 | 105 / 105 / 104 / 114 | 1x then 17x |
+| trainer T=8 wall 4 chunks | 2.7 s | 0.9 s | 3x |
+| trainer T=32 env ms c0..c3 | 7625 / 20177 / 29023 / 12925 | 442 / 505 / 526 / 504 | 17-55x |
+| trainer T=32 wall 4 chunks | 71.8 s | 4.1 s | 17.5x |
+
+Both binaries PASS with the same seeds; grad_norm and losses agree to
+3 digits on every chunk (light values differ, so not bit-identical).
+Peak VRAM 17586 MiB on every run.
+
+Findings.
+- The env phase is the skylight rebuild. With it gone the T=32 env
+  phase is flat at about 0.5 s per 65536 ticks and does not grow with
+  world age. The growth seen on anvil (chunk 3 at 4-6x chunk 0) is
+  the same effect: more block edits as episodes run, each one a chunk
+  rebuild plus 15 spread passes.
+- After the fix the env phase is about half the chunk at N=512 T=32
+  (pack 125, nn 66, env 505, host 122, upd 169 ms). The trainer is no
+  longer sim-bound at this N; host and pack are the next targets.
+- The sky-off patch restores the old per-edit light path, which the
+  lockstep digests do not accept (c3f1851 exists for parity with
+  magma). The production fix is an incremental rebuild: only the
+  edited column and the columns its spread can reach, not the whole
+  chunk and a 46x46 box. Not done here.
+
+Compile time, measured on gamer with `nvcc --time` on the rl rule:
+cicc 1503.8 s (25.1 min), cudafe++ 0.26 s, preprocessing 0.13 s;
+ptxas about 8 min from the sky-on lane timestamps (26 min cicc, then
+08:20 to 08:28). One translation unit, single-threaded. Four tick
+kernels (k_tick, k_tick_warp, k_tick_legacy, k_tick_raw) each inline
+the whole sim. The anvil build script compiles that unit twice per lane
+(magma rule and rl rule), 66 min per lane on gamer. Proposed, not done:
+drop k_tick_legacy, move k_tick_raw to its own unit built by verify
+targets only, gate the scalar k_tick behind a build flag.
+
 ## 2026-09-02 nn VRAM stack merged into wip/nn-fable (not merged to master)
 
 Fast-forward of `wip/nn-static-buckets` into `wip/nn-fable`, tip = this commit.
