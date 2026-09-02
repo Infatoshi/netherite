@@ -334,6 +334,7 @@ int       gm_world_rt_meta(const GmWorld *w, int wx, int wy, int wz);
 int       gm_world_rt_light(const GmWorld *w, int wx, int wy, int wz);
 int       gm_world_rt_block_light(const GmWorld *w, int wx, int wy, int wz);
 void      gm_world_rt_set(GmWorld *w, int wx, int wy, int wz, int id, int meta);
+int       gm_world_section_needs_randtick(const GmWorld *w, int cx, int sec, int cz);
 /* XOR of gravity-block cell tokens (sand/gravel) in the configured parity
  * region plus live count and mutation count. */
 int       gm_world_fall_parity_state(const GmWorld *w, uint64_t *digest,
