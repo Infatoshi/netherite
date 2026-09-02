@@ -45,6 +45,8 @@ int      light_block(const CrLight *, int wx, int wy, int wz); /* CB/PB id, 0 ai
 /* Canonical packed vanilla 1.11.2 state used by gameplay. This is deliberately
  * separate from light_block(), whose compact value is only a renderer model key. */
 uint16_t light_state(const CrLight *, int wx, int wy, int wz);
+int      light_section_needs_randtick(const CrLight *, int cx, int sec, int cz);
+int      light_combined_max(const CrLight *, int wx, int wy, int wz);
 int      light_biome(const CrLight *, int wx, int wz);         /* voronoi biome id, -1 unloaded */
 /* Snapshot restore: write Java Chunk.blockBiomeArray column id (0..255).
  * Chunk must already be ensured. Index (wx&15)+(wz&15)*16 matches
