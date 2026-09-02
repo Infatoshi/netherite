@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 sharded CPU replica for blaze verification gates
+
+Added ShardedCpuVec in blaze/env/sharded_vec.py and --cpu-workers CLI flag in blaze/env/verify_cuda.py.
+The flag defaults to min(16, os.cpu_count() or 1). Value 1 keeps the single-process VecBlaze path.
+ShardedCpuVec partitions N lanes into contiguous slices across worker processes spawned via the spawn multiprocessing method.
+Outputs are assembled in lane order and bitwise equal to single-process output.
+Self-consistency test blaze/env/test_verify_shard.py stepped 64 lanes for 20 decisions on t0 snapshots.
+On this Mac, stepping time dropped from 0.70s (workers=1, 28.6 decisions/s) to 0.22s (workers=8, 91.7 decisions/s), a 3.20x speedup with all arrays matching bitwise.
+The anvil --mixed timing is unmeasured.
+
 ## 2026-09-02 skylight rebuild is the trainer bottleneck: gamer A/B (not merged)
 
 Question. Does the per-edit skylight rebuild from c3f1851 (found by the
