@@ -1,5 +1,10 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 build: blaze/rl Makefile tracks blaze/nn source prerequisites
+Added NN_DEPS wildcard dependencies to nn object rules in blaze/rl/Makefile.
+Stale nn objects in out/blaze/nn now rebuild when nn sources or headers change.
+Clean subsequent invocations perform no redundant recompilation or relinking.
+
 ## 2026-09-02 skylight rebuild is the trainer bottleneck: gamer A/B (not merged)
 
 Question. Does the per-edit skylight rebuild from c3f1851 (found by the
