@@ -204,14 +204,32 @@ $(ENV_CPU_SO): $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		-lm $(OMP_LDFLAGS)
 
 ifneq ($(UNAME_S),Darwin)
-$(ENV_CUDA_SO): $(ENV_SRC)/blaze_cuda.cu $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
-		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h \
-		$(CORE_SRC)/falling_live.h $(CORE_SRC)/explosion_live.h \
-		$(CORE_SRC)/explosion.h | $(ENV_OUT)
-	$(NVCC) $(NVCCFLAGS) --shared \
-		-o $@ $(ENV_SRC)/blaze_cuda.cu $(ENV_SRC)/blaze_snapshot.c \
-		-lcudart
+# Two CUDA translation units, compiled to objects and linked into ONE .so:
+# blaze_cuda.cu (training path) and blaze_cuda_verify.cu (gate-only kernels).
+# Each unit inlines the whole header-only sim, so this is the compile-time
+# win: make -j runs the two cicc/ptxas passes at the same time, and an edit to
+# one unit does not recompile the other. Flags are unchanged, and no device
+# call crosses a unit, so no -rdc and the same SASS per kernel.
+ENV_CUDA_HDRS := $(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
+		$(ENV_SRC)/blaze_cuda_int.h $(ENV_SRC)/blaze_snapshot.h \
+		$(CORE_SRC)/entity_spine.h $(CORE_SRC)/falling_live.h \
+		$(CORE_SRC)/explosion_live.h $(CORE_SRC)/explosion.h
+ENV_CUDA_OBJS := $(ENV_OUT)/blaze_cuda.o $(ENV_OUT)/blaze_cuda_verify.o \
+		$(ENV_OUT)/blaze_snapshot_cu.o
+
+$(ENV_OUT)/blaze_cuda.o: $(ENV_SRC)/blaze_cuda.cu $(ENV_CUDA_HDRS) | $(ENV_OUT)
+	$(NVCC) $(NVCCFLAGS) -c -o $@ $(ENV_SRC)/blaze_cuda.cu
+
+$(ENV_OUT)/blaze_cuda_verify.o: $(ENV_SRC)/blaze_cuda_verify.cu \
+		$(ENV_CUDA_HDRS) | $(ENV_OUT)
+	$(NVCC) $(NVCCFLAGS) -c -o $@ $(ENV_SRC)/blaze_cuda_verify.cu
+
+$(ENV_OUT)/blaze_snapshot_cu.o: $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h | $(ENV_OUT)
+	$(NVCC) $(NVCCFLAGS) -c -o $@ $(ENV_SRC)/blaze_snapshot.c
+
+$(ENV_CUDA_SO): $(ENV_CUDA_OBJS) | $(ENV_OUT)
+	$(NVCC) $(NVCCFLAGS) --shared -o $@ $(ENV_CUDA_OBJS) -lcudart
 
 TEST_SPINE_FP_BIN := $(OUT)/test_entity_spine_fp
 $(TEST_SPINE_FP_BIN): $(ENV_SRC)/test_entity_spine_fp.cu \
@@ -650,7 +668,7 @@ clean:
 	rm -rf $(OUT)
 	rm -f $(ENV_CPU_SO)
 ifneq ($(UNAME_S),Darwin)
-	rm -f $(ENV_CUDA_SO)
+	rm -f $(ENV_CUDA_SO) $(ENV_CUDA_OBJS)
 endif
 ifeq ($(UNAME_S),Darwin)
 	rm -f $(METAL_AIR) $(METAL_LIB) $(METAL_HOST_OBJ)
