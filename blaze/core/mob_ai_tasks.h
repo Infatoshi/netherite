@@ -47,6 +47,12 @@ enum {
 #define HT_VILLAGER 4u
 #define HT_GOLEM 8u
 
+#define GM_MOB_DESPAWN_SOFT 32.0
+#define GM_MOB_DESPAWN_HARD 128.0
+#define GM_MOB_DESPAWN_DELAY 600
+#define GM_MOB_FIRE_TICKS 160
+
+
 /* ---- Species Attributes & Sizing ---- */
 MC_HD static inline void mai_size(int type, float *width, float *height) {
     if (type == EW_TYPE_BLAZE) { *width = 0.6f; *height = 1.8f; return; }
@@ -759,6 +765,1116 @@ MC_HD static inline void mai_nav_update(Blaze *e, int i) {
             if (ey > vy && mc_floor(m->x) == mc_floor(vx) &&
                 mc_floor(m->z) == mc_floor(vz))
                 m->path_i = (unsigned char)(idx + 1);
+        }
+    }
+}
+
+MC_HD static inline void mai_look_update(Blaze *e, int i, int looking,
+                                         double look_x, double look_y, double look_z) {
+    RlSnapMob *m = &e->mobs[i];
+    float pitch = 0.0f;
+    float head = e->mob_head_yaw[i];
+    float body = m->yaw_body;
+    if (looking) {
+        double dx = look_x - m->x;
+        double dy = look_y - (m->y + mai_eye_height(m->type));
+        double dz = look_z - m->z;
+        double horiz = (double)(float)sqrt(dx * dx + dz * dz);
+        float target_yaw = mai_atan2_yaw(dz, dx);
+        float target_pitch = -mai_deg(mc_atan2(dy, horiz));
+        pitch = mai_update_rotation(0.0f, target_pitch, 40.0f);
+        head = mai_update_rotation(head, target_yaw, 10.0f);
+    } else {
+        head = mai_update_rotation(head, body, 10.0f);
+    }
+    if (m->path_n > 0 && m->path_i < m->path_n) {
+        float rel = mai_wrap_degrees(head - body);
+        if (rel < -75.0f) head = body - 75.0f;
+        if (rel > 75.0f) head = body + 75.0f;
+    }
+    e->mob_head_yaw[i] = head;
+    m->pitch = pitch;
+}
+
+MC_HD static inline void mai_apply_current_look(Blaze *e, int i,
+                                                double px, double py, double pz) {
+    RlSnapMob *m = &e->mobs[i];
+    if (m->task_bits & PAI_BIT(PAI_WATCH)) {
+        mai_look_update(e, i, 1, px, mai_player_eye_y(py), pz);
+    } else if (m->task_bits & PAI_BIT(PAI_IDLE)) {
+        mai_look_update(e, i, 1,
+                        m->x + m->wander_x,
+                        m->y + mai_eye_height(m->type),
+                        m->z + m->wander_z);
+    } else {
+        mai_look_update(e, i, 0, 0.0, 0.0, 0.0);
+    }
+}
+
+MC_HD static inline void mai_hai_look(Blaze *e, int i,
+                                      double px, double py, double pz) {
+    RlSnapMob *m = &e->mobs[i];
+    unsigned t = m->task_bits;
+    float yaw_d = 10.0f, pitch_d = 40.0f;
+    int looking = 0;
+    double lx = 0.0, ly = 0.0, lz = 0.0;
+    if (t & (hai_bit(HMELEE) | hai_bit(HBOW))) {
+        looking = 1;
+        yaw_d = 30.0f; pitch_d = 30.0f;
+        lx = px; ly = mai_player_eye_y(py); lz = pz;
+    } else if (t & hai_bit(HWATCH)) {
+        looking = 1;
+        lx = px; ly = mai_player_eye_y(py); lz = pz;
+    } else if (t & hai_bit(HIDLE)) {
+        looking = 1;
+        lx = m->x + m->wander_x;
+        ly = m->y + mai_eye_height(m->type);
+        lz = m->z + m->wander_z;
+    }
+    {
+        float pitch = 0.0f;
+        float head = e->mob_head_yaw[i];
+        float body = m->yaw_body;
+        if (looking) {
+            double dx = lx - m->x;
+            double dy = ly - (m->y + mai_eye_height(m->type));
+            double dz = lz - m->z;
+            double horiz = (double)(float)sqrt(dx * dx + dz * dz);
+            float target_yaw = mai_atan2_yaw(dz, dx);
+            float target_pitch = -mai_deg(mc_atan2(dy, horiz));
+            pitch = mai_update_rotation(0.0f, target_pitch, pitch_d);
+            head = mai_update_rotation(head, target_yaw, yaw_d);
+        } else {
+            head = mai_update_rotation(head, body, 10.0f);
+        }
+        if (m->path_n > 0 && m->path_i < m->path_n) {
+            float rel = mai_wrap_degrees(head - body);
+            if (rel < -75.0f) head = body - 75.0f;
+            if (rel > 75.0f) head = body + 75.0f;
+        }
+        e->mob_head_yaw[i] = head;
+        m->pitch = pitch;
+    }
+}
+
+MC_HD static inline void mai_body_update(Blaze *e, int i, double prev_x, double prev_z) {
+    RlSnapMob *m = &e->mobs[i];
+    double d0 = m->x - prev_x;
+    double d1 = m->z - prev_z;
+    if (d0 * d0 + d1 * d1 > 2.500000277905201e-7) {
+        m->yaw_body = m->yaw;
+        e->mob_head_yaw[i] = mai_angle_bound(m->yaw_body, e->mob_head_yaw[i], 75.0f);
+        e->mob_prev_head_yaw[i] = e->mob_head_yaw[i];
+        e->mob_body_ticks[i] = 0;
+    } else {
+        float f = 75.0f;
+        float head = e->mob_head_yaw[i];
+        if (fabsf(head - e->mob_prev_head_yaw[i]) > 15.0f) {
+            e->mob_body_ticks[i] = 0;
+            e->mob_prev_head_yaw[i] = head;
+        } else {
+            ++e->mob_body_ticks[i];
+            if (e->mob_body_ticks[i] > 10)
+                f = fmaxf(1.0f - (float)(e->mob_body_ticks[i] - 10) / 10.0f, 0.0f) * 75.0f;
+        }
+        m->yaw_body = mai_angle_bound(head, m->yaw_body, f);
+    }
+}
+
+MC_HD static inline int mai_pai_can_use(const Blaze *e, int type, int i, int task) {
+    const RlSnapMob *m = &e->mobs[i];
+    int mask = mai_mutex(task);
+    for (int t = 0; t < PAI_NTASKS; ++t) {
+        if (t == task) continue;
+        if ((m->task_bits & PAI_BIT(t)) &&
+            (mai_mutex(t) & mask) &&
+            mai_priority(type, t) <= mai_priority(type, task))
+            return 0;
+    }
+    return 1;
+}
+
+MC_HD static inline int mai_pai_continue(const Blaze *e, int i, int task,
+                                         double px, double py, double pz) {
+    const RlSnapMob *m = &e->mobs[i];
+    if (task == PAI_SWIM) {
+        return mai_in_material(e, m, 0) || mai_in_material(e, m, 1);
+    }
+    if (task == PAI_PANIC) {
+        return m->path_n > 0 && m->path_i < m->path_n;
+    }
+    if (task == PAI_EAT) {
+        return e->mob_eat_time[i] > 0;
+    }
+    if (task == PAI_WANDER) {
+        return m->path_n > 0 && m->path_i < m->path_n;
+    }
+    if (task == PAI_WATCH) {
+        if (e->mob_watch_time[i] <= 0) return 0;
+        double dx = px - m->x;
+        double dy = py - m->y;
+        double dz = pz - m->z;
+        return (dx * dx + dy * dy + dz * dz) <= mai_watch_range_sq(m->type);
+    }
+    if (task == PAI_IDLE) {
+        return e->mob_idle_time[i] > 0;
+    }
+    return 0;
+}
+
+MC_HD static inline void mai_pai_reset(Blaze *e, int i, int task) {
+    RlSnapMob *m = &e->mobs[i];
+    m->task_bits &= ~PAI_BIT(task);
+    if (task == PAI_PANIC || task == PAI_WANDER) {
+        m->path_n = 0;
+    } else if (task == PAI_EAT) {
+        e->mob_eat_time[i] = 0;
+    } else if (task == PAI_WATCH) {
+        e->mob_watch_time[i] = 0;
+    } else if (task == PAI_IDLE) {
+        e->mob_idle_time[i] = 0;
+    }
+}
+
+MC_HD static inline int mai_pai_try_start(Blaze *e, int i, int task,
+                                          double px, double py, double pz) {
+    RlSnapMob *m = &e->mobs[i];
+    int type = m->type;
+    JavaRandom jr; jr.seed = m->seed48;
+    int started = 0;
+
+    if (task == PAI_SWIM) {
+        if (mai_in_material(e, m, 0) || mai_in_material(e, m, 1)) {
+            m->task_bits |= PAI_BIT(task);
+            started = 1;
+        }
+    } else if (task == PAI_PANIC) {
+        if (m->panic) {
+            double tx, ty, tz;
+            int found = 0;
+            if (m->fire_ticks > 0)
+                found = mai_nearest_water(e, m, &tx, &ty, &tz);
+            if (!found)
+                found = mai_random_position(e, m, 5, 4, 1, &tx, &ty, &tz);
+            if (found && mai_set_path(e, i, tx, ty, tz, mai_panic_multiplier(type))) {
+                m->task_bits |= PAI_BIT(task);
+                started = 1;
+            }
+        }
+    } else if (task == PAI_EAT) {
+        if (jrand_int_bound(&jr, 1000) == 0) {
+            int bx = mc_floor(m->x), by = mc_floor(m->y), bz = mc_floor(m->z);
+            int ok = 0;
+            if (cu_world_block(e, bx, by, bz) == 31 &&
+                cu_world_meta(e, bx, by, bz) == 1) ok = 1;
+            else if (cu_world_block(e, bx, by - 1, bz) == 2) ok = 1;
+            if (ok) {
+                e->mob_eat_time[i] = 40;
+                m->task_bits |= PAI_BIT(task);
+                m->path_n = 0;
+                started = 1;
+            }
+        }
+    } else if (task == PAI_WANDER) {
+        if (jrand_int_bound(&jr, 120) == 0) {
+            double tx, ty, tz;
+            if (mai_random_position(e, m, 10, 7, 0, &tx, &ty, &tz) &&
+                mai_set_path(e, i, tx, ty, tz, 1.0)) {
+                m->task_bits |= PAI_BIT(task);
+                started = 1;
+            }
+        }
+    } else if (task == PAI_WATCH) {
+        if (jrand_float(&jr) < 0.02f) {
+            double dx = px - m->x;
+            double dy = py - m->y;
+            double dz = pz - m->z;
+            if ((dx * dx + dy * dy + dz * dz) <= mai_watch_range_sq(type)) {
+                e->mob_watch_time[i] = 40 + jrand_int_bound(&jr, 40);
+                m->task_bits |= PAI_BIT(task);
+                started = 1;
+            }
+        }
+    } else if (task == PAI_IDLE) {
+        if (jrand_float(&jr) < 0.02f) {
+            double ang = (double)(jrand_float(&jr) * (2.0f * (float)MC_PI));
+            m->wander_x = cos(ang);
+            m->wander_z = sin(ang);
+            e->mob_idle_time[i] = 20 + jrand_int_bound(&jr, 20);
+            m->task_bits |= PAI_BIT(task);
+            started = 1;
+        }
+    }
+
+    m->seed48 = jr.seed;
+    return started;
+}
+
+MC_HD static inline void mai_pai_tick(Blaze *e, int i,
+                                      double px, double py, double pz, int mob_griefing,
+                                      int *moving, int *jump, int *wandering, int *swim_jump,
+                                      double *nav_speed) {
+    RlSnapMob *m = &e->mobs[i];
+    int type = m->type;
+    int setup = (e->mob_task_tick[i]++ % 3) == 0;
+
+    if (setup && type == EW_TYPE_BLAZE) {
+        JavaRandom jr; jr.seed = m->seed48;
+        (void)jrand_int_bound(&jr, 10);
+        m->seed48 = jr.seed;
+    }
+    if (setup && type == EW_TYPE_ENDERMAN) {
+        JavaRandom jr; jr.seed = m->seed48;
+        (void)jrand_int_bound(&jr, 10);
+        m->seed48 = jr.seed;
+    }
+
+    for (int task = 0; task < PAI_NTASKS; ++task) {
+        if (mai_priority(type, task) >= 99) continue;
+        int using_task = (m->task_bits & PAI_BIT(task)) != 0;
+        if (setup) {
+            if (using_task) {
+                if (!mai_pai_can_use(e, type, i, task) ||
+                    !mai_pai_continue(e, i, task, px, py, pz))
+                    mai_pai_reset(e, i, task);
+            } else if (mai_pai_can_use(e, type, i, task)) {
+                (void)mai_pai_try_start(e, i, task, px, py, pz);
+            }
+        } else if (using_task && !mai_pai_continue(e, i, task, px, py, pz)) {
+            mai_pai_reset(e, i, task);
+        }
+    }
+
+    for (int task = 0; task < PAI_NTASKS; ++task) {
+        if (!(m->task_bits & PAI_BIT(task))) continue;
+        if (task == PAI_SWIM) {
+            JavaRandom jr; jr.seed = m->seed48;
+            if (jrand_float(&jr) < 0.8f) *swim_jump = 1;
+            m->seed48 = jr.seed;
+        } else if (task == PAI_EAT) {
+            if (e->mob_eat_time[i] > 0) --e->mob_eat_time[i];
+            if (e->mob_eat_time[i] == 4) {
+                int bx = mc_floor(m->x), by = mc_floor(m->y), bz = mc_floor(m->z);
+                if (cu_world_block(e, bx, by, bz) == 31 &&
+                    cu_world_meta(e, bx, by, bz) == 1) {
+                    if (mob_griefing) cu_world_set_state(e, bx, by, bz, 0, 0);
+                    e->mob_cstate[i] = 0; /* eatGrassBonus resets sheared */
+                } else if (cu_world_block(e, bx, by - 1, bz) == 2) {
+                    if (mob_griefing) cu_world_set_state(e, bx, by - 1, bz, 3, 0);
+                    e->mob_cstate[i] = 0;
+                }
+            }
+        } else if (task == PAI_WATCH) {
+            --e->mob_watch_time[i];
+        } else if (task == PAI_IDLE) {
+            --e->mob_idle_time[i];
+        }
+    }
+
+    if (m->path_n > 0)
+        mai_nav_update(e, i);
+
+    if (type == EW_TYPE_BLAZE) {
+        --e->mob_blaze_hot[i];
+        if (e->mob_blaze_hot[i] <= 0) {
+            e->mob_blaze_hot[i] = 100;
+            e->mob_blaze_hof[i] = 0.5f + (float)mai_gaussian(m) * 3.0f;
+        }
+    }
+
+    *moving = (m->path_n > 0 && m->path_i < m->path_n);
+    *wandering = *moving && (m->task_bits & PAI_BIT(PAI_WANDER));
+    *jump = 0;
+    *nav_speed = *moving ? e->mob_nav_speed[i] : 0.0;
+}
+
+MC_HD static inline int mai_hai_can_use(const Blaze *e, int type, int i, int task) {
+    unsigned mutex = (unsigned)hai_mutex(task);
+    int pri = hai_pri(type, task), other;
+    for (other = 0; other < HN; ++other) {
+        if (other == task || !(e->mobs[i].task_bits & hai_bit(other))) continue;
+        if (pri >= hai_pri(type, other) && (mutex & (unsigned)hai_mutex(other))) return 0;
+    }
+    return 1;
+}
+
+MC_HD static inline int mai_hai_player_range(const Blaze *e, int i, double px, double py, double pz) {
+    const RlSnapMob *m = &e->mobs[i];
+    double fr = hai_follow(m->type);
+    double dx = px - m->x, dz = pz - m->z;
+    double dy = mai_player_eye_y(py) - (m->y + mai_eye_height(m->type));
+    if (dx * dx + dz * dz > fr * fr) return 0;
+    if (fabs(dy) > fr) return 0;
+    return 1;
+}
+
+MC_HD static inline void mai_hai_clear_nav(Blaze *e, int i) {
+    e->mobs[i].path_n = 0;
+}
+
+MC_HD static inline int mai_hai_continue(const Blaze *e, int i, int task,
+                                         double px, double py, double pz) {
+    const RlSnapMob *m = &e->mobs[i];
+    if (task == HSWIM) return mai_in_material(e, m, 0) || mai_in_material(e, m, 1);
+    if (task == HMELEE) return (m->target_idx != 0) && (m->path_n > 0 && m->path_i < m->path_n);
+    if (task == HSWELL) return 1;
+    if (task == HBOW) return m->target_idx != 0;
+    if (task == HREST) return 0;
+    if (task == HFLEE || task == HAVOID || task == HHOME || task == HVILL || task == HWAND)
+        return (m->path_n > 0 && m->path_i < m->path_n);
+    if (task == HWATCH) {
+        double dx = px - m->x, dy = py - m->y, dz = pz - m->z;
+        return (dx * dx + dy * dy + dz * dz <= 64.0) && (e->mob_watch_time[i] > 0);
+    }
+    if (task == HIDLE) return e->mob_idle_time[i] >= 0;
+    return 0;
+}
+
+MC_HD static inline void mai_hai_reset(Blaze *e, int i, int task) {
+    RlSnapMob *m = &e->mobs[i];
+    m->task_bits &= ~hai_bit(task);
+    if (task == HWATCH) e->mob_watch_time[i] = 0;
+    if (task == HMELEE || task == HWAND || task == HBOW)
+        mai_hai_clear_nav(e, i);
+    if (task == HMELEE) e->mob_raise_arm[i] = 0;
+    if (task == HBOW) {
+        m->see_time = 0;
+        m->bow_attack_time = -1;
+        m->stime = -1;
+    }
+}
+
+MC_HD static inline int mai_hai_try_start(Blaze *e, int i, int task,
+                                          double px, double py, double pz, int day) {
+    RlSnapMob *m = &e->mobs[i];
+    int type = m->type;
+    (void)day;
+    if (task == HSWIM)
+        return mai_pai_try_start(e, i, PAI_SWIM, px, py, pz);
+    if (task == HMELEE) {
+        if (!m->target_idx) return 0;
+        if (!mai_find_path(e, i, px, py, pz)) {
+            float width, height;
+            double reach, ddx, ddz, ddy;
+            mai_size(type, &width, &height);
+            (void)height;
+            reach = (double)(width * 2.0f * width * 2.0f + 0.6f);
+            ddx = px - m->x; ddz = pz - m->z;
+            ddy = py - m->y;
+            if (ddx * ddx + ddz * ddz + ddy * ddy > reach) return 0;
+        }
+        e->mob_nav_speed[i] = type == EW_TYPE_SKELETON ? 1.2 : 1.0;
+        m->melee_delay = 0;
+        e->mob_melee_tx[i] = e->mob_melee_ty[i] = e->mob_melee_tz[i] = 0.0;
+        e->mob_raise_arm[i] = 0;
+        m->task_bits |= hai_bit(HMELEE);
+        return 1;
+    }
+    if (task == HSWELL) {
+        double dx = px - m->x, dy = py - m->y, dz = pz - m->z;
+        if (e->mob_cstate[i] <= 0 && !(m->target_idx && dx * dx + dy * dy + dz * dz < 9.0))
+            return 0;
+        mai_hai_clear_nav(e, i);
+        m->task_bits |= hai_bit(HSWELL);
+        return 1;
+    }
+    if (task == HBOW) {
+        if (!m->target_idx || type != EW_TYPE_SKELETON) return 0;
+        e->mob_nav_speed[i] = 1.0;
+        m->task_bits |= hai_bit(HBOW);
+        return 1;
+    }
+    if (task == HREST || task == HFLEE || task == HAVOID || task == HHOME || task == HVILL)
+        return 0;
+    if (task == HWAND) {
+        int ok = mai_pai_try_start(e, i, PAI_WANDER, px, py, pz);
+        if (ok && type == EW_TYPE_CREEPER) e->mob_nav_speed[i] = 0.8;
+        return ok;
+    }
+    if (task == HWATCH) {
+        JavaRandom jr; jr.seed = m->seed48;
+        if (jrand_float(&jr) >= 0.02f) {
+            m->seed48 = jr.seed;
+            return 0;
+        }
+        double dx = px - m->x, dy = py - m->y, dz = pz - m->z;
+        if (dx * dx + dy * dy + dz * dz > 64.0) {
+            m->seed48 = jr.seed;
+            return 0;
+        }
+        e->mob_watch_time[i] = 40 + jrand_int_bound(&jr, 40);
+        m->task_bits |= hai_bit(HWATCH);
+        m->seed48 = jr.seed;
+        return 1;
+    }
+    if (task == HIDLE)
+        return mai_pai_try_start(e, i, PAI_IDLE, px, py, pz);
+    return 0;
+}
+
+MC_HD static inline void mai_hai_melee_update(Blaze *e, int i,
+                                              double px, double py, double pz) {
+    RlSnapMob *m = &e->mobs[i];
+    int see, fire_repath;
+    double d0, moved;
+    --m->melee_delay;
+    see = ml_los_clear(e, m->x, m->y + mai_eye_height(m->type), m->z,
+                       px, mai_player_eye_y(py), pz);
+    d0 = (px - m->x) * (px - m->x) + (py - m->y) * (py - m->y) + (pz - m->z) * (pz - m->z);
+    moved = (px - e->mob_melee_tx[i]) * (px - e->mob_melee_tx[i])
+          + (py - e->mob_melee_ty[i]) * (py - e->mob_melee_ty[i])
+          + (pz - e->mob_melee_tz[i]) * (pz - e->mob_melee_tz[i]);
+    fire_repath = 0;
+    JavaRandom jr; jr.seed = m->seed48;
+    if (see && m->melee_delay <= 0) {
+        if (e->mob_melee_tx[i] == 0.0 && e->mob_melee_ty[i] == 0.0 && e->mob_melee_tz[i] == 0.0)
+            fire_repath = 1;
+        else if (moved >= 1.0)
+            fire_repath = 1;
+        else if (jrand_float(&jr) < 0.05f)
+            fire_repath = 1;
+    }
+    if (fire_repath) {
+        e->mob_melee_tx[i] = px;
+        e->mob_melee_ty[i] = py;
+        e->mob_melee_tz[i] = pz;
+        m->melee_delay = 4 + jrand_int_bound(&jr, 7);
+        if (d0 > 1024.0) m->melee_delay += 10;
+        else if (d0 > 256.0) m->melee_delay += 5;
+        if (!mai_find_path(e, i, px, py, pz))
+            m->melee_delay += 15;
+        e->mob_nav_speed[i] = (m->type == EW_TYPE_SKELETON ? 1.2 : 1.0);
+    }
+    m->seed48 = jr.seed;
+    ++e->mob_raise_arm[i];
+}
+
+MC_HD static inline void mai_hai_bow_update(Blaze *e, int i,
+                                            double px, double py, double pz) {
+    RlSnapMob *m = &e->mobs[i];
+    int see;
+    double d0;
+    see = ml_los_clear(e, m->x, m->y + mai_eye_height(m->type), m->z,
+                       px, mai_player_eye_y(py), pz);
+    d0 = (px - m->x) * (px - m->x) + (py - m->y) * (py - m->y) + (pz - m->z) * (pz - m->z);
+    if (see) {
+        if (m->see_time < 0) m->see_time = 0;
+        ++m->see_time;
+    } else {
+        if (m->see_time > 0) m->see_time = 0;
+        --m->see_time;
+    }
+    if (d0 <= 225.0 && m->see_time >= 20) {
+        mai_hai_clear_nav(e, i);
+        ++m->stime;
+    } else {
+        (void)mai_find_path(e, i, px, py, pz);
+        e->mob_nav_speed[i] = 1.0;
+        m->stime = -1;
+    }
+    JavaRandom jr; jr.seed = m->seed48;
+    if (m->stime >= 20) {
+        if ((double)jrand_float(&jr) < 0.3)
+            e->mob_strafe_cw[i] = (unsigned char)!e->mob_strafe_cw[i];
+        if ((double)jrand_float(&jr) < 0.3)
+            e->mob_strafe_back[i] = (unsigned char)!e->mob_strafe_back[i];
+        m->stime = 0;
+    }
+    if (m->stime > -1) {
+        if (d0 > 225.0 * 0.75) e->mob_strafe_back[i] = 0;
+        else if (d0 < 225.0 * 0.25) e->mob_strafe_back[i] = 1;
+    }
+    if (e->mob_raise_arm[i] > 0) {
+        if (!see && m->see_time < -60) e->mob_raise_arm[i] = 0;
+        else if (see) {
+            ++e->mob_raise_arm[i];
+            if (e->mob_raise_arm[i] >= 20) {
+                (void)jrand_float(&jr); /* shoot playSound pitch */
+                e->mob_raise_arm[i] = 0;
+                m->bow_attack_time = 40;
+            }
+        }
+    } else if (--m->bow_attack_time <= 0 && m->see_time >= -60) {
+        e->mob_raise_arm[i] = 1;
+    }
+    m->seed48 = jr.seed;
+}
+
+MC_HD static inline void mai_hai_swell_update(Blaze *e, int i,
+                                              double px, double py, double pz) {
+    RlSnapMob *m = &e->mobs[i];
+    double dx = px - m->x, dy = py - m->y, dz = pz - m->z;
+    double d2 = dx * dx + dy * dy + dz * dz;
+    int see = ml_los_clear(e, m->x, m->y + mai_eye_height(m->type), m->z,
+                           px, mai_player_eye_y(py), pz);
+    if (!m->target_idx || d2 > 49.0 || !see) e->mob_cstate[i] = -1;
+    else e->mob_cstate[i] = 1;
+}
+
+MC_HD static inline void mai_hai_target_tick(Blaze *e, int i,
+                                             double px, double py, double pz) {
+    RlSnapMob *m = &e->mobs[i];
+    int type = m->type;
+    int setup = (e->mob_target_tick[i]++ % 3) == 0;
+    unsigned using_t = m->target_tasks;
+    int order[4];
+    int n = 0, k;
+    if (type == EW_TYPE_CREEPER) { order[n++] = 2; order[n++] = 1; }
+    else {
+        order[n++] = 1;
+        order[n++] = 2;
+        if (type == EW_TYPE_ZOMBIE) order[n++] = 4;
+        if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON) order[n++] = 8;
+    }
+    JavaRandom jr; jr.seed = m->seed48;
+    for (k = 0; k < n; ++k) {
+        unsigned bit = (unsigned)order[k];
+        int is_using = (using_t & bit) != 0;
+        int mutex_ok = 1;
+        unsigned o;
+        for (o = 1; o <= 8; o <<= 1) {
+            if (o == bit) continue;
+            if ((using_t & o) && 1) { mutex_ok = 0; break; }
+        }
+        if (!setup) {
+            if (is_using) {
+                int keep = 0;
+                if (bit == HT_PLAYER)
+                    keep = m->target_idx && mai_hai_player_range(e, i, px, py, pz);
+                if (!keep) {
+                    using_t &= ~bit;
+                    if (bit == HT_PLAYER) m->target_idx = 0;
+                }
+            }
+            continue;
+        }
+        if (is_using) {
+            int keep = (bit == HT_PLAYER) && m->target_idx && mai_hai_player_range(e, i, px, py, pz);
+            if (!keep) {
+                using_t &= ~bit;
+                if (bit == HT_PLAYER) m->target_idx = 0;
+            }
+        } else if (mutex_ok) {
+            if (bit == HT_HURT) {
+                /* no revenge in these tapes */
+            } else {
+                if (jrand_int_bound(&jr, 10) == 0) {
+                    if (bit == HT_PLAYER && mai_hai_player_range(e, i, px, py, pz) &&
+                        ml_los_clear(e, m->x, m->y + mai_eye_height(type), m->z,
+                                     px, mai_player_eye_y(py), pz)) {
+                        using_t |= HT_PLAYER;
+                        m->target_idx = 1;
+                    }
+                }
+            }
+        }
+    }
+    m->target_tasks = using_t;
+    m->seed48 = jr.seed;
+}
+
+MC_HD static inline void mai_hai_living(Blaze *e, int i, int day) {
+    RlSnapMob *m = &e->mobs[i];
+    int type = m->type;
+    int lst = e->mob_living_sound[i];
+    JavaRandom jr; jr.seed = m->seed48;
+    int sound_draw = jrand_int_bound(&jr, 1000);
+    e->mob_living_sound[i] = lst + 1;
+    if (sound_draw < lst) {
+        e->mob_living_sound[i] = -80;
+        if (type != EW_TYPE_CREEPER) {
+            (void)jrand_float(&jr);
+            (void)jrand_float(&jr);
+        }
+    }
+    if (day && (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON)) {
+        float f = mai_brightness(e, mc_floor(m->x), mc_floor(m->y), mc_floor(m->z));
+        if (f > 0.5f) {
+            float nf = jrand_float(&jr);
+            if (nf * 30.0f < (f - 0.4f) * 2.0f &&
+                ml_sky_exposed(e, m->x, m->y, m->z))
+                m->fire_ticks = 160;
+        }
+    }
+    e->mob_entity_age[i] = 0;
+    m->seed48 = jr.seed;
+}
+
+MC_HD static inline void mai_hai_tick(Blaze *e, int i,
+                                      double px, double py, double pz, int day,
+                                      int *moving, int *jump, int *wandering, int *swim_jump,
+                                      double *nav_speed, int mob_griefing) {
+    RlSnapMob *m = &e->mobs[i];
+    int type = m->type;
+    const int *goals = hai_goals(type, e->mob_skel_melee[i]);
+    int setup, g;
+    if (type == EW_TYPE_CREEPER) {
+        m->swell += (int)e->mob_cstate[i];
+        if (m->swell < 0) m->swell = 0;
+        if (m->swell >= 30) {
+            m->alive = 0;
+            m->type = EW_TYPE_NONE;
+            m->swell = 0;
+            e->explosion_pending = 1;
+            e->explosion_x = m->x;
+            e->explosion_y = m->y;
+            e->explosion_z = m->z;
+            e->explosion_size = exl_creeper_size(0);
+            e->explosion_smoking = mob_griefing ? 1 : 0;
+            e->explosion_flaming = 0;
+            cu_explode(e, e->explosion_x, e->explosion_y, e->explosion_z,
+                       e->explosion_size, e->explosion_smoking,
+                       e->explosion_flaming);
+            e->explosion_pending = 0;
+            *moving = 0; *jump = 0; *wandering = 0; *swim_jump = 0; *nav_speed = 0.0;
+            return;
+        }
+    }
+    setup = (e->mob_task_tick[i]++ % 3) == 0;
+    mai_hai_target_tick(e, i, px, py, pz);
+    for (g = 0; goals[g] >= 0; ++g) {
+        int task = goals[g];
+        int using_task = (m->task_bits & hai_bit(task)) != 0;
+        if (setup) {
+            if (using_task) {
+                if (!mai_hai_can_use(e, type, i, task) ||
+                    !mai_hai_continue(e, i, task, px, py, pz))
+                    mai_hai_reset(e, i, task);
+            } else if (mai_hai_can_use(e, type, i, task)) {
+                (void)mai_hai_try_start(e, i, task, px, py, pz, day);
+            }
+        } else if (using_task && !mai_hai_continue(e, i, task, px, py, pz)) {
+            mai_hai_reset(e, i, task);
+        }
+    }
+    *swim_jump = 0;
+    if (m->task_bits & hai_bit(HSWIM)) {
+        JavaRandom jr; jr.seed = m->seed48;
+        if (jrand_float(&jr) < 0.8f) *swim_jump = 1;
+        m->seed48 = jr.seed;
+    }
+    if (m->task_bits & hai_bit(HWATCH)) --e->mob_watch_time[i];
+    if (m->task_bits & hai_bit(HIDLE)) --e->mob_idle_time[i];
+    if (m->task_bits & hai_bit(HMELEE))
+        mai_hai_melee_update(e, i, px, py, pz);
+    if (m->task_bits & hai_bit(HBOW))
+        mai_hai_bow_update(e, i, px, py, pz);
+    if (m->task_bits & hai_bit(HSWELL))
+        mai_hai_swell_update(e, i, px, py, pz);
+
+    if (m->path_n > 0)
+        mai_nav_update(e, i);
+
+    *moving = (m->path_n > 0 && m->path_i < m->path_n);
+    if ((m->task_bits & hai_bit(HBOW)) && m->stime > -1)
+        *moving = 1;
+    *wandering = *moving && (m->task_bits & hai_bit(HWAND));
+    *jump = 0;
+    *nav_speed = *moving ? e->mob_nav_speed[i] : 0.0;
+}
+
+MC_HD static inline void mai_living_aabb(const Blaze *e, int i, McAABB *out) {
+    const RlSnapMob *m = &e->mobs[i];
+    if (m->box_on) {
+        *out = mc_aabb_make(m->box_minx, m->box_miny, m->box_minz,
+                            m->box_maxx, m->box_maxy, m->box_maxz);
+        return;
+    }
+    float w, h;
+    mai_size(m->type, &w, &h);
+    *out = mc_aabb_make(m->x - (double)w * 0.5, m->y, m->z - (double)w * 0.5,
+                        m->x + (double)w * 0.5, m->y + (double)h,
+                        m->z + (double)w * 0.5);
+}
+
+MC_HD static inline void mai_apply_collision_vel(double ax, double az, double bx, double bz,
+                                                double *avx, double *avz, double *bvx, double *bvz) {
+    double d0 = bx - ax;
+    double d1 = bz - az;
+    double ad0 = d0 < 0.0 ? -d0 : d0;
+    double ad1 = d1 < 0.0 ? -d1 : d1;
+    double d2 = ad0 > ad1 ? ad0 : ad1;
+    double d3;
+    if (d2 < 0.009999999776482582) return;
+    d2 = (double)(float)sqrt(d2);
+    d0 /= d2;
+    d1 /= d2;
+    d3 = 1.0 / d2;
+    if (d3 > 1.0) d3 = 1.0;
+    d0 *= d3;
+    d1 *= d3;
+    d0 *= 0.05000000074505806;
+    d1 *= 0.05000000074505806;
+    if (avx) {
+        *avx -= d0;
+        *avz -= d1;
+    }
+    if (bvx) {
+        *bvx += d0;
+        *bvz += d1;
+    }
+}
+
+MC_HD static inline void mai_collide_nearby(Blaze *e, int i, const McAABB *player_bb, double px, double pz) {
+    McAABB self;
+    unsigned j;
+    RlSnapMob *m = &e->mobs[i];
+    if (!m->alive || !mai_det_living(m->type)) return;
+    mai_living_aabb(e, i, &self);
+    for (j = 0; j < e->n_mobs; ++j) {
+        McAABB other;
+        RlSnapMob *oj = &e->mobs[j];
+        if ((int)j == i || !oj->alive || !mai_det_living(oj->type)) continue;
+        mai_living_aabb(e, j, &other);
+        if (!mc_aabb_intersects(&self, &other)) continue;
+        mai_apply_collision_vel(m->x, m->z, oj->x, oj->z,
+                                &m->mx, &m->mz, &oj->mx, &oj->mz);
+    }
+    if (player_bb && mc_aabb_intersects(&self, player_bb))
+        mai_apply_collision_vel(m->x, m->z, px, pz,
+                                &m->mx, &m->mz, NULL, NULL);
+}
+
+MC_HD static inline void mai_player_collide_mobs(Blaze *e, const McAABB *player_bb, double px, double pz) {
+    unsigned i;
+    for (i = 0; i < e->n_mobs; ++i) {
+        McAABB mob;
+        RlSnapMob *m = &e->mobs[i];
+        if (!m->alive || !mai_det_living(m->type)) continue;
+        mai_living_aabb(e, i, &mob);
+        if (!mc_aabb_intersects(player_bb, &mob)) continue;
+        mai_apply_collision_vel(px, pz, m->x, m->z,
+                                NULL, NULL, &m->mx, &m->mz);
+    }
+}
+
+MC_HD static inline int mai_collect_blocks(const Blaze *e, const McAABB *q, PcfBlock *out, int cap) {
+    int n = 0;
+    int x0 = mc_floor(q->minX) - 1, x1 = mc_floor(q->maxX) + 1;
+    int y0 = mc_floor(q->minY) - 1, y1 = mc_floor(q->maxY) + 1;
+    int z0 = mc_floor(q->minZ) - 1, z1 = mc_floor(q->maxZ) + 1;
+    if (y0 < 0) y0 = 0;
+    if (y1 > 255) y1 = 255;
+    for (int x = x0; x <= x1; ++x)
+        for (int y = y0; y <= y1; ++y)
+            for (int z = z0; z <= z1; ++z) {
+                int id = cu_world_block(e, x, y, z);
+                if (!ml_solid_id(id)) continue;
+                if (n == cap) return n;
+                out[n].block_id = id;
+                out[n].ox = x; out[n].oy = y; out[n].oz = z;
+                out[n].ladder_facing = 0;
+                ++n;
+            }
+    return n;
+}
+
+MC_HD static inline void mai_move_mob(Blaze *e, const McSinTable *st, int i,
+                                      int moving, int jump, int swim_jump, double nav_speed,
+                                      double *prev_x, double *prev_z) {
+    RlSnapMob *m = &e->mobs[i];
+    EhsIntent intent;
+    EbLiving liv;
+    PcfBlock blocks[ESS_MOB_BLOCKS];
+    int type = m->type;
+
+    *prev_x = m->x;
+    *prev_z = m->z;
+
+    intent.yaw = m->yaw;
+    intent.moveForward = 0.0f;
+    intent.moveStrafing = 0.0f;
+    intent.isJumping = 0;
+
+    double tx = 0.0, ty = 0.0, tz = 0.0;
+    if (moving && m->path_n > 0 && m->path_i < m->path_n) {
+        float width, height;
+        mai_size(type, &width, &height);
+        int off = pnp_floor_d((double)(width + 1.0f));
+        tx = (double)m->path_x[m->path_i] + (double)off * 0.5;
+        ty = (double)m->path_y[m->path_i];
+        tz = (double)m->path_z[m->path_i] + (double)off * 0.5;
+
+        double ddx = tx - m->x;
+        double ddy = ty - m->y;
+        double ddz = tz - m->z;
+        if (ddx * ddx + ddy * ddy + ddz * ddz >= 2.500000277905201e-7) {
+            intent.yaw = mai_limit_angle(m->yaw, mai_atan2_yaw(ddz, ddx), 90.0f);
+        } else {
+            moving = 0;
+            intent.yaw = m->yaw;
+        }
+    } else if (!moving && !(hai_ok(type) && (m->task_bits & 256u) && m->stime > -1)) {
+        moving = 0;
+    }
+
+    if (moving && jump) intent.isJumping = 1;
+
+    /* Load living */
+    float w, h;
+    mai_size(type, &w, &h);
+    elb_init(&liv, w, h, m->x, m->y, m->z);
+    liv.base.phys.motionX = m->mx;
+    liv.base.phys.motionY = m->my;
+    liv.base.phys.motionZ = m->mz;
+    liv.base.phys.onGround = m->on_ground ? 1 : 0;
+    liv.base.rotationYaw = intent.yaw;
+    liv.jumpMovementFactor = 0.02f;
+    liv.isServerWorld = 1;
+    liv.jumpTicks = 0;
+
+    if (m->box_on) {
+        liv.base.phys.box = mc_aabb_make(m->box_minx, m->box_miny, m->box_minz,
+                                         m->box_maxx, m->box_maxy, m->box_maxz);
+    }
+
+    float ai_speed = (float)(nav_speed * mai_attribute_speed(type));
+    liv.landMovementFactor = ai_speed;
+    liv.moveForward = moving ? ai_speed : 0.0f;
+    liv.moveStrafing = 0.0f;
+    if (hai_ok(type) && (m->task_bits & 256u) && m->stime > -1) {
+        liv.moveForward = (e->mob_strafe_back[i] ? -0.5f : 0.5f) * ai_speed;
+        liv.moveStrafing = (e->mob_strafe_cw[i] ? 0.5f : -0.5f) * ai_speed;
+    }
+    if (moving) {
+        double ddx = tx - m->x;
+        double ddy = ty - m->y;
+        double ddz = tz - m->z;
+        if (ddy > liv.base.phys.stepHeight && ddx * ddx + ddz * ddz < fmax(1.0, (double)liv.base.width))
+            liv.isJumping = 1;
+    }
+
+    /* EntityBlaze slow fall */
+    if (type == EW_TYPE_BLAZE && !liv.base.phys.onGround && liv.base.phys.motionY < 0.0)
+        liv.base.phys.motionY *= 0.6;
+
+    /* Fluid travel */
+    if (mai_in_material(e, m, 0) || mai_in_material(e, m, 1)) {
+        int in_water = mai_in_material(e, m, 0);
+        eb_on_entity_update(&liv.base);
+        if (fabs(liv.base.phys.motionX) < 0.003) liv.base.phys.motionX = 0.0;
+        if (fabs(liv.base.phys.motionY) < 0.003) liv.base.phys.motionY = 0.0;
+        if (fabs(liv.base.phys.motionZ) < 0.003) liv.base.phys.motionZ = 0.0;
+        if (swim_jump) liv.base.phys.motionY += 0.03999999910593033;
+        liv.moveStrafing *= 0.98f;
+        liv.moveForward *= 0.98f;
+        eb_move_relative(&liv.base, liv.moveStrafing, liv.moveForward, 0.02f, st);
+        McAABB fq = mc_aabb_addcoord(&liv.base.phys.box, liv.base.phys.motionX,
+                                     liv.base.phys.motionY, liv.base.phys.motionZ);
+        fq.minY -= liv.base.phys.stepHeight; fq.maxY += liv.base.phys.stepHeight;
+        int fn = mai_collect_blocks(e, &fq, blocks, ESS_MOB_BLOCKS);
+        eb_move(&liv.base, liv.base.phys.motionX, liv.base.phys.motionY,
+                liv.base.phys.motionZ, blocks, fn);
+        double drag = in_water ? 0.800000011920929 : 0.5;
+        liv.base.phys.motionX *= drag;
+        liv.base.phys.motionY *= drag;
+        liv.base.phys.motionZ *= drag;
+        if (!liv.base.hasNoGravity) liv.base.phys.motionY -= 0.02;
+
+        m->x = liv.base.phys.posX;
+        m->y = liv.base.phys.posY;
+        m->z = liv.base.phys.posZ;
+        m->mx = liv.base.phys.motionX;
+        m->my = liv.base.phys.motionY;
+        m->mz = liv.base.phys.motionZ;
+        m->on_ground = liv.base.phys.onGround ? 1 : 0;
+        m->yaw = liv.base.rotationYaw;
+        m->box_minx = liv.base.phys.box.minX;
+        m->box_miny = liv.base.phys.box.minY;
+        m->box_minz = liv.base.phys.box.minZ;
+        m->box_maxx = liv.base.phys.box.maxX;
+        m->box_maxy = liv.base.phys.box.maxY;
+        m->box_maxz = liv.base.phys.box.maxZ;
+        m->box_on = 1;
+        return;
+    }
+
+    float slip = 0.6f;
+    if (liv.base.phys.onGround) {
+        int id = cu_world_block(e, mc_floor(liv.base.phys.posX),
+                                mc_floor(liv.base.phys.box.minY) - 1,
+                                mc_floor(liv.base.phys.posZ));
+        if (id == 79 || id == 174 || id == 212) slip = 0.98f;
+        if (id == 8 || id == 9) slip = 0.8f;
+    }
+    if (type == EW_TYPE_PIGMAN && m->anger > 0)
+        liv.landMovementFactor += 0.05f;
+
+    McAABB q = mc_aabb_addcoord(&liv.base.phys.box, liv.base.phys.motionX,
+                                liv.base.phys.motionY, liv.base.phys.motionZ);
+    q.minY -= liv.base.phys.stepHeight; q.maxY += liv.base.phys.stepHeight;
+    int n = mai_collect_blocks(e, &q, blocks, ESS_MOB_BLOCKS);
+    eb_tick_living(&liv, slip, 0, blocks, n, st);
+
+    m->x = liv.base.phys.posX;
+    m->y = liv.base.phys.posY;
+    m->z = liv.base.phys.posZ;
+    m->mx = liv.base.phys.motionX;
+    m->my = liv.base.phys.motionY;
+    m->mz = liv.base.phys.motionZ;
+    m->on_ground = liv.base.phys.onGround ? 1 : 0;
+    m->yaw = liv.base.rotationYaw;
+    m->box_minx = liv.base.phys.box.minX;
+    m->box_miny = liv.base.phys.box.minY;
+    m->box_minz = liv.base.phys.box.minZ;
+    m->box_maxx = liv.base.phys.box.maxX;
+    m->box_maxy = liv.base.phys.box.maxY;
+    m->box_maxz = liv.base.phys.box.maxZ;
+    m->box_on = 1;
+}
+
+MC_HD static inline void mai_det_tick(Blaze *e, const McSinTable *st,
+                                      double px, double py, double pz, int day) {
+    unsigned i;
+    McAABB player_bb = mc_aabb_make(px - 0.3, py, pz - 0.3, px + 0.3, py + 1.8, pz + 0.3);
+
+    mai_player_collide_mobs(e, &player_bb, px, pz);
+
+    for (i = 0; i < e->n_mobs; ++i) {
+        RlSnapMob *m = &e->mobs[i];
+        if (!m->alive || !mai_det_living(m->type)) continue;
+
+        int type = m->type;
+        int hostile = mai_is_hostile(type);
+        int passive = mai_is_passive(type);
+
+        /* Corpse tick / death */
+        if (m->health <= 0.0f) {
+            if (m->death_time == 0) cu_mob_on_death(e, m);
+            if (!ml_on_death_update(m)) cu_mob_finish_dead(e, m);
+            continue;
+        }
+
+        /* Attack cooldown / anger */
+        if (type != EW_TYPE_BLAZE && m->attack_time > 0) --m->attack_time;
+        if (type == EW_TYPE_PIGMAN && m->anger > 0) --m->anger;
+
+        /* Despawn check */
+        double dx = px - m->x, dy = py - m->y, dz = pz - m->z;
+        double d = sqrt(dx * dx + dy * dy + dz * dz);
+        if (hostile) {
+            if (!(hai_ok(type) || m->persist)) {
+                if (d > GM_MOB_DESPAWN_HARD) { m->alive = 0; continue; }
+                if (d > GM_MOB_DESPAWN_SOFT) {
+                    if (++e->mob_despawn[i] >= GM_MOB_DESPAWN_DELAY) {
+                        m->alive = 0; continue;
+                    }
+                } else e->mob_despawn[i] = 0;
+            }
+        }
+
+        /* Fire ticks from daylight burn for zombie/skeleton */
+        if (!hai_ok(type) && day && (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON) &&
+            m->fire_ticks <= 0 && ml_sky_exposed(e, m->x, m->y, m->z))
+            m->fire_ticks = GM_MOB_FIRE_TICKS;
+
+        /* Lava fire: setFire(15) = 300 ticks */
+        if (passive && mai_in_material(e, m, 1) && m->fire_ticks < 300)
+            m->fire_ticks = 300;
+
+        /* Fire countdown & damage every 20 ticks */
+        if (m->fire_ticks > 0) {
+            --m->fire_ticks;
+            if (m->fire_ticks % 20 == 0) {
+                m->health -= 1.0f;
+                if (m->health <= 0.0f) {
+                    m->health = 0.0f;
+                    if (m->death_time == 0) cu_mob_on_death(e, m);
+                    if (!ml_on_death_update(m)) cu_mob_finish_dead(e, m);
+                    continue;
+                }
+            }
+        }
+
+        /* Aggro check */
+        int aggro = 0;
+        if (hostile) {
+            int wants = 1;
+            if (type == EW_TYPE_ENDERMAN) wants = m->anger > 0;
+            else if (type == EW_TYPE_SPIDER) wants = !day || m->anger > 0;
+            else if (type == EW_TYPE_PIGMAN) wants = m->anger > 0;
+            else if (type == EW_TYPE_SLIME) wants = m->swell > 1;
+            if (wants && d <= mai_follow_range(type)) {
+                float mw, mh;
+                mai_size(type, &mw, &mh);
+                if (type == EW_TYPE_GHAST) aggro = 1;
+                else aggro = ml_los_clear(e, m->x, m->y + (double)mh * 0.85, m->z,
+                                          px, py + (double)(float)PSV_EYE_HEIGHT, pz);
+            }
+        }
+
+        int moving = 0, jump = 0, wandering = 0, swim_jump = 0;
+        double nav_speed = 1.0;
+
+        /* Hostiles vs Passives living check */
+        if (hai_ok(type)) {
+            mai_hai_living(e, i, day);
+        }
+        if (mai_det_ai(type)) {
+            int lst = e->mob_living_sound[i];
+            JavaRandom jr; jr.seed = m->seed48;
+            int sound_draw = jrand_int_bound(&jr, 1000);
+            lst += 1;
+            if (sound_draw < lst - 1) {
+                lst = -mai_talk_interval(type);
+                (void)jrand_float(&jr);
+                (void)jrand_float(&jr);
+            }
+            e->mob_living_sound[i] = lst;
+
+            double d3 = dx * dx + dy * dy + dz * dz;
+            e->mob_entity_age[i]++;
+            if (m->persist) {
+                e->mob_entity_age[i] = 0;
+            } else if (e->mob_entity_age[i] > 600) {
+                (void)jrand_int_bound(&jr, 800);
+                if (d3 < 1024.0) e->mob_entity_age[i] = 0;
+            } else if (d3 < 1024.0) {
+                e->mob_entity_age[i] = 0;
+            }
+            m->seed48 = jr.seed;
+        }
+
+        /* AI tick */
+        if (mai_det_ai(type) && !aggro) {
+            mai_pai_tick(e, i, px, py, pz, e->mob_griefing,
+                         &moving, &jump, &wandering, &swim_jump, &nav_speed);
+        } else if (hai_ok(type)) {
+            mai_hai_tick(e, i, px, py, pz, day,
+                         &moving, &jump, &wandering, &swim_jump, &nav_speed,
+                         e->mob_griefing);
+            if (!m->alive) continue;
+        }
+
+        /* Look update before move */
+        if (mai_det_ai(type)) mai_apply_current_look(e, i, px, py, pz);
+        if (hai_ok(type)) mai_hai_look(e, i, px, py, pz);
+
+        /* Move mob */
+        double prev_x = m->x, prev_z = m->z;
+        mai_move_mob(e, st, i, moving, jump, swim_jump, nav_speed, &prev_x, &prev_z);
+
+        /* Collide nearby */
+        mai_collide_nearby(e, i, &player_bb, px, pz);
+
+        /* Body update */
+        mai_body_update(e, i, prev_x, prev_z);
+
+        /* Chicken egg timer */
+        if (passive && type == EW_TYPE_CHICKEN) {
+            if (--e->mob_chicken_egg[i] <= 0) {
+                JavaRandom jr; jr.seed = m->seed48;
+                (void)jrand_float(&jr);
+                (void)jrand_float(&jr);
+                e->mob_chicken_egg[i] = jrand_int_bound(&jr, 6000) + 6000;
+                m->seed48 = jr.seed;
+            }
+        }
+
+        /* Slime squish */
+        if (type == EW_TYPE_SLIME) {
+            int on = m->on_ground ? 1 : 0;
+            if (on && !m->see_time) m->see_time = 1;
         }
     }
 }

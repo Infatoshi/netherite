@@ -2021,6 +2021,12 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     tod = (int)(e->ww.worldTime % 24000LL);
     if (tod < 0) tod += 24000;
     day = tod < 12000;
+    if (e->det_entity_rng) {
+        mai_det_tick(e, st, px, py, pz, day);
+        cu_mobs_compact(e);
+        e->mob_tick++;
+        return;
+    }
     for (i = 0; i < e->n_mobs; ++i) {
         MlMob mm;
         MlAiOut o;
