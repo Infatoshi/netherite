@@ -22,7 +22,9 @@
  * With no argument it loads the fixtures under verify/fixtures/port.
  * Env: SKY_EDITS=n       random edits per stream (default 400)
  *      SKY_ONLY=ref|new  run one path alone, to time it
- *      SKY_DBG=1         print region dims and the first spills */
+ *      SKY_DBG=1         print region dims and the first spills
+ *      SKY_AUDIT=1       prove every sky_dirty claim after every edit
+ *                        (one full rebuild per chunk per edit; slow) */
 #define _POSIX_C_SOURCE 200809L
 #include "blaze_core.h"
 #include "blaze_snapshot.h"
@@ -39,6 +41,8 @@ static long long walk_edits, walk_incr;
 static long long spills, spills_full, firsts;
 static int mode_ref, mode_new;   /* SKY_ONLY=ref|new: time one path alone */
 static int dbg;
+static int audit;                /* SKY_AUDIT=1: prove every sky_dirty claim */
+static long long audit_clean, audit_box;
 
 /* ------------------------------------------------------------------ */
 /* Reference (pre-optimisation) implementation, verbatim copy.         */
@@ -230,6 +234,58 @@ static int is_relax_fixed_point(Blaze *e, long *bad_idx) {
     return 1;
 }
 
+/* SKY_AUDIT=1: prove the sky_dirty claim on plane B directly instead of
+ * waiting for a later edit to expose it. For every chunk column of the
+ * region, run the reference full rebuild on a COPY of plane B and require
+ *   CU_SKY_CLEAN -> not one cell moves;
+ *   CU_SKY_BOX   -> every cell that moves is inside the recorded box.
+ * CU_SKY_ALL claims nothing, so it is never checked. The cost is one full
+ * rebuild per chunk per edit, so run it with a small SKY_EDITS. */
+static u8 *audit_buf;
+static int audit_pair(Pair *p, const char *tag) {
+    Blaze c = p->b;
+    int ix, iz, ncx = cu_sky_nc(p->b.rx0, p->b.rnx),
+        ncz = cu_sky_nc(p->b.rz0, p->b.rnz);
+    int cx00 = p->b.rx0 >> 4, cz00 = p->b.rz0 >> 4;
+    if (!audit_buf) audit_buf = (u8 *)malloc((size_t)p->rvol);
+    if (!audit_buf) return 1;
+    c.light = audit_buf;
+    for (ix = 0; ix < ncx; ++ix)
+        for (iz = 0; iz < ncz; ++iz) {
+            int ci = ix * CU_SKY_NC + iz, st = p->b.sky_dirty[ci].state;
+            const CuSkyDirty *d = &p->b.sky_dirty[ci];
+            int wx = (cx00 + ix) << 4, wz = (cz00 + iz) << 4;
+            long j;
+            if (st == CU_SKY_ALL) continue;
+            if (cu_region_idx(&p->b, wx, p->b.ry0, wz) < 0 &&
+                cu_region_idx(&p->b, wx + 15, p->b.ry0, wz + 15) < 0)
+                continue;
+            memcpy(audit_buf, p->light_b, (size_t)p->rvol);
+            ref_after_opacity(&c, wx, p->b.ry0, wz);
+            if (st == CU_SKY_CLEAN) ++audit_clean; else ++audit_box;
+            for (j = 0; j < p->rvol; ++j) {
+                int lx, ly, lz;
+                if (audit_buf[j] == p->light_b[j]) continue;
+                lz = (int)(j % p->b.rnz);
+                ly = (int)((j / p->b.rnz) % p->b.rny);
+                lx = (int)(j / ((long)p->b.rnz * p->b.rny));
+                if (st == CU_SKY_BOX && lx >= d->x0 && lx <= d->x1 &&
+                    ly >= d->y0 && ly <= d->y1 && lz >= d->z0 && lz <= d->z1)
+                    continue;
+                fprintf(stderr,
+                        "AUDIT: %s [%s] chunk (%d,%d) state %d: cell "
+                        "(%d,%d,%d) moved %d -> %d, box x %d..%d y %d..%d "
+                        "z %d..%d\n",
+                        p->path, tag, cx00 + ix, cz00 + iz, st, lx, ly, lz,
+                        p->light_b[j] >> 4, audit_buf[j] >> 4,
+                        d->x0, d->x1, d->y0, d->y1, d->z0, d->z1);
+                fails = 1;
+                return 0;
+            }
+        }
+    return 1;
+}
+
 /* One edit on both planes, then a bit-for-bit compare of the two light
  * planes. Returns 0 on the first divergence. tag names the scenario. */
 static int p_edit(Pair *p, int wx, int wy, int wz, int id, int meta,
@@ -278,7 +334,8 @@ static int p_edit(Pair *p, int wx, int wy, int wz, int id, int meta,
     ++total_edits;
 
     if (mode_ref || mode_new) return 1;
-    if (memcmp(p->light_a, p->light_b, (size_t)p->rvol) == 0) return 1;
+    if (memcmp(p->light_a, p->light_b, (size_t)p->rvol) == 0)
+        return audit ? audit_pair(p, tag) : 1;
     {
         long j, first = -1, ndiff = 0;
         for (j = 0; j < p->rvol; ++j)
@@ -548,6 +605,7 @@ int main(int argc, char **argv) {
     if (only && !strcmp(only, "ref")) mode_ref = 1;
     if (only && !strcmp(only, "new")) mode_new = 1;
     dbg = getenv("SKY_DBG") != NULL;
+    audit = getenv("SKY_AUDIT") != NULL;
 
     if (argc > 1) {
         for (i = 1; i < argc; ++i)
@@ -562,6 +620,9 @@ int main(int argc, char **argv) {
             fails ? "FAIL" : "OK", total_edits, total_incr, total_skipped);
     fprintf(stderr, "full-path edits %lld, spill events %lld (%lld on a full "
                     "rebuild)\n", firsts, spills, spills_full);
+    if (audit)
+        fprintf(stderr, "sky_dirty claims audited: %lld clean, %lld box\n",
+                audit_clean, audit_box);
     fprintf(stderr, "walking-player edits: %lld, incremental %lld (%.1f%%)\n",
             walk_edits, walk_incr,
             walk_edits ? 100.0 * (double)walk_incr / (double)walk_edits : 0.0);

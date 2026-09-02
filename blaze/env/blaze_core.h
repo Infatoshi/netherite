@@ -701,7 +701,15 @@ MC_HD static inline void cu_sky_lowered(CuSkyMoves *m, int ix, int iy,
 
 /* One cell of the flood box went up to nv. Only a cell on the x/z wall can
  * reach outside (the box always spans the full region height), and only if
- * the outside neighbour is now raisable. */
+ * the outside neighbour is now raisable.
+ *
+ * INVARIANT the callers must keep: every flood box is full region height.
+ * CuSkyMoves carries no y bounds, so a y-clipped box would lose ALL vertical
+ * spill detection here with no compile error - the symptom would be a wrong
+ * CU_SKY_CLEAN claim many edits later. The callers that hold it today are
+ * cu_light_after_opacity_full (full ry0..ry0+rny-1), the CU_SKY_PUSH_NB
+ * clamp and the reset clamp in cu_light_after_opacity, and both
+ * cu_skylight_column paths (whole columns). */
 MC_HD static inline void cu_sky_raised(const Blaze *e, CuSkyMoves *m, int wx,
                                        int wy, int wz, int nv) {
     static const int dx4[4] = {1, -1, 0, 0};
@@ -1175,6 +1183,12 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
             CU_SKY_PUSH_NB(x, y, z);
         }
     }
+    /* Queue overflow. Safe because the partial state W left by an aborted
+     * drain satisfies V0 <= W <= LFP(V0): the drain only raises, and every
+     * raise is bounded by the least fixed point. The full path then resets
+     * all of chunk c back to the exact baseline, so it re-seeds at V0 inside
+     * c and somewhere in [V0, LFP] outside it, and a raise-only relaxation
+     * from any such state has the same least fixed point. */
     if (ovf)                       /* exact, just the slow way */
         cu_light_after_opacity_full(e, wx, wz, &mv);
     cu_sky_settle(e, ci, &mv);
