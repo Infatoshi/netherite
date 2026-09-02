@@ -113,15 +113,12 @@ Two consequences worth stating plainly:
 
 - **Dimensions do not exist in blaze.** The GPU sim is overworld snapshots
   only; Nether and End (`portals_dimensions`, `nether_route`) are entirely
-  on the magma side today.
-- **Detmob A* still does not exist in blaze.** Snapshot living slots tick the
-  Entity.move spine (`entity_spine`) and the magma generic (det_entity_rng off)
-  zombie/skeleton/creeper chase/melee path (`mobs`, M1+M2 VERIFIED). Java
-  EntityAITasks + PathFinder A* stay magma-CPU (detmob). The agreed GPU design
-  is `blaze/GPU_MOB_AI.md` (v2, codex-reviewed): one warp per env, lane-0
-  sequential mob tick with A* inline, magma-semantics (32x24x32 window,
-  48-point path cap), IntHashMap aliasing reproduced, all 8 detmob tapes
-  must be blaze-exact.
+- **Detmob A* implemented in blaze.** Snapshot living slots support both the
+  Entity.move spine (`entity_spine`) and the full Java EntityAITasks + PathFinder A*
+  mob AI when det_entity_rng is enabled (`mobs_det`, M1 VERIFIED). The agreed GPU
+  design is `blaze/GPU_MOB_AI.md` (v2, codex-reviewed): sequential mob tick with
+  A* inline, magma semantics (32x24x32 window, 48-point path cap), and IntHashMap
+  aliasing reproduced.
 
 ## Spawn -> dragon (policy vs magma)
 

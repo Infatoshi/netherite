@@ -1,5 +1,26 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 mob AI: Java EntityAITasks and PathFinder A* ported to blaze
+
+Ported Java EntityAITasks task schedulers, LookHelper, EntityBodyHelper,
+LivingBase movement, swept box collision, and PathFinder A* into blaze
+(blaze/core/mob_ai_tasks.h) following the GPU_MOB_AI.md v2 specification.
+Sidecar arrays were placed in the Blaze struct and CuVec with runtime
+zeroing on reset, keeping the snapshot format backward compatible without
+a version bump.
+
+Acceptance gate results.
+M1 subsystem mobs_det passed:
+VERIFIED mobs_det: all required gates passed with evidence
+SUMMARY VERIFIED=1 BLOCKED=0 FAILED=0
+Subsystem passives and mobs rows passed M1 verification with 64 ticks zero-diff.
+Scenario tapes verified bit-equal:
+scenario_detmob_panic_20260821T170933Z.jsonl: 407 ticks, walked eid=2983 xz=3.55891
+scenario_detmob_passive_20260821T152220Z.jsonl: 1203 ticks, 3 tracked standing
+scenario_detmob_hostile_ambient_20260821T181540Z.jsonl: 625 ticks, walked eid=3691 xz=9.06245
+Magma test passed with fall_reanchor PASS and test_furnace_registry PASS (51 recipes).
+Blaze rl test-chain passed with test_chain_reward PASS.
+
 ## 2026-09-02 skylight rebuild is the trainer bottleneck: gamer A/B (not merged)
 
 Question. Does the per-edit skylight rebuild from c3f1851 (found by the
