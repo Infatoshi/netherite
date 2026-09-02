@@ -14,7 +14,9 @@ extern "C" {
 typedef struct BlazeCreateOpts {
     int ktime;            /* BLAZE_KTIME: kernel event timing at destroy */
     int stage_time;       /* BLAZE_STAGE_TIME: k_tick stage cycle counters */
-    int legacy_recenter;  /* BLAZE_LEGACY_RECENTER: serial-recenter kernel */
+    int legacy_recenter;  /* removed A/B knob. The CUDA backend deleted
+                           * k_tick_legacy. blaze_create fails when this
+                           * is nonzero. Keep it 0. */
     int warp_tick;        /* BLAZE_WARP_TICK: 1 = warp-per-env (default), 0 = flat */
     int op_trace;         /* BLAZE_OP_TRACE: per-env CU_OP_* activity counters */
     int no_ore_xy;        /* BLAZE_NO_ORE_XY: skip ore spatial index at snap load */

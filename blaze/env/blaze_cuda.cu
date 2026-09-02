@@ -7,8 +7,7 @@
  *             thread (dyaw/dpitch on sub-tick 0 only; craft/interact
  *             pre-tick on sub-tick 0), full 12-double raw action rows;
  *             physics-window recenter refills run WARP-COOPERATIVELY (see
- *             the kernel comment; create opts.legacy_recenter=1 selects the
- *             old serial-recenter kernel at create for A/B).
+ *             the kernel comment).
  *             blaze_tick (verify) launches this when warp_tick=0.
  *   k_tick_warp : one env per warp (create opts.warp_tick=1, default;
  *             blaze.conf / ppo.conf / blaze_abi.h). Lane 0 runs the serial
@@ -206,9 +205,6 @@ typedef struct {
     int natural_spawn_passive;
     long long world_time_pin;
     int elytra_kit;   /* magma --elytra on: chest 443 after reset */
-    int legacy_recenter;  /* create opts: A/B fallback to the serial-recenter
-                           * k_tick_legacy (host-side launch pick; zero tick
-                           * cost) */
     int warp_tick;        /* create opts (default 1): one env per WARP -
                            * 32x resident warps for the latency-bound serial
                            * chains + warp-parallel coal sweep. 0 = flat
@@ -941,20 +937,6 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
     }
 }
 
-/* Pre-cooperative kernel, selectable at CREATE time (BLAZE_LEGACY_RECENTER=1)
- * for A/B benching; zero cost on the default path (host-side launch pick). */
-__global__ void k_tick_legacy(Blaze *envs, int n, const McSinTable *st,
-                              const double *actions, int repeat,
-                              McAABB *aabb_pool, const CRRecipe *recipes,
-                              int nrecipes, double atk_gate) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= n) return;
-    blaze_decision_ticks(&envs[i], st,
-                         actions + (size_t)i * BLAZE_ACT_HEADS, repeat,
-                         aabb_pool + (size_t)i * PSV_MAX_BLOCKS, 0, atk_gate,
-                         recipes, nrecipes);
-}
-
 __global__ void k_obs(Blaze *envs, int n, const McSinTable *st,
                       unsigned short *cam, unsigned char *depth,
                       unsigned char *edge) {
@@ -1096,6 +1078,16 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     if (n <= 0) return NULL;
     if (opts) o = *opts;
     else blaze_create_opts_default(&o);
+    /* k_tick_legacy (the pre-cooperative serial-recenter A/B control) is
+     * deleted. The opts field stays for ABI and .conf compatibility, but a
+     * nonzero value no longer selects anything, so refuse it instead of
+     * running a different kernel than the caller asked for. */
+    if (o.legacy_recenter) {
+        fprintf(stderr, "blaze_cuda: legacy_recenter=%d is not supported: "
+                        "k_tick_legacy was removed. Set legacy_recenter = 0.\n",
+                o.legacy_recenter);
+        return NULL;
+    }
     if (cu_ck(cudaSetDevice(device), "cudaSetDevice")) return NULL;
     /* BlockDynamicLiquid.getSlopeDistance recurses to depth 4 (java:178/196).
      * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA).
@@ -1122,7 +1114,6 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     v->world_time_pin = -1;
     v->ktime = o.ktime ? 1 : 0;
     v->stage_time = o.stage_time ? 1 : 0;
-    v->legacy_recenter = o.legacy_recenter ? 1 : 0;
     v->warp_tick = o.warp_tick;   /* default 1; 0 = flat k_tick */
     v->op_trace = o.op_trace ? 1 : 0;
     v->no_ore_xy = o.no_ore_xy ? 1 : 0;
@@ -1781,12 +1772,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
     eblocks = (v->n + CU_TPB - 1) / CU_TPB;
     pblocks = (int)(((size_t)v->n * CU_NPIX + CU_TPB - 1) / CU_TPB);
     if (v->ktime) cudaEventRecord(v->ev[0], v->stream);
-    if (v->legacy_recenter)
-        k_tick_legacy<<<(v->n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB,
-                        0, v->stream>>>(v->d_envs, v->n, v->d_st, actions,
-                                        repeat, v->d_aabb, v->d_recipes,
-                                        v->nrecipes, v->atk_gate);
-    else if (v->warp_tick)
+    if (v->warp_tick)
         k_tick_warp<<<(unsigned)(((size_t)v->n * 32 + 127) / 128), 128, 0,
                       v->stream>>>(v->d_envs, v->n, v->d_st, actions,
                                    repeat, v->d_aabb, v->d_recipes,
@@ -2423,12 +2409,7 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                                const double *act, McAABB *aabb,
                                const double *inv) {
     int repeat = 1;
-    if (v->legacy_recenter)
-        k_tick_legacy<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB,
-                        0, v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
-                                        v->d_recipes, v->nrecipes,
-                                        v->atk_gate);
-    else if (v->warp_tick)
+    if (v->warp_tick)
         k_tick_warp<<<(unsigned)(((size_t)n * 32 + 127) / 128), 128, 0,
                       v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                                    v->d_recipes, v->nrecipes, v->atk_gate,

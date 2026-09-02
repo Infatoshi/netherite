@@ -936,7 +936,9 @@ def build_parser():
     ap.add_argument("--stage-time", action="store_true",
                     help="enable k_tick stage cycle counters at create")
     ap.add_argument("--legacy-recenter", action="store_true",
-                    help="use serial-recenter k_tick at create (A/B)")
+                    help="REMOVED: k_tick_legacy is deleted. blaze_create "
+                         "fails when this is set. Kept so an old command "
+                         "line reports the removal instead of a parse error.")
     ap.add_argument("--no-ore-xy", action="store_true",
                     help="skip ore spatial index at snapshot load")
     ap.add_argument("--warp-tick", type=int, default=None,
