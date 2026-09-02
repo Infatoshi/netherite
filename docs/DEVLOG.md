@@ -1,5 +1,24 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 random tick pass optimization via section census
+
+Profile of magma_game on Mac (s10_t0 snapshot, 2000 ticks) showed 97.6% of main-thread CPU time spent in gm_world_rt_block (51.8%), gm_randtick_pass (36.5%), and light_state (7.7%).
+
+Investigation. randtick_live.h provides RT_SECTION_NEEDS to skip empty 16x16x16 sections matching Java ExtendedBlockStorage.getNeedsRandomTick. Magma did not define RT_SECTION_NEEDS, causing it to fall back to scanning all 4,096 cells of every section in every loaded chunk via rt_live_id (gm_world_rt_block) every tick. Across 25 chunks and 16 sections, this executed up to 1,638,400 block and light lookups per tick.
+
+Fix. LChunk in magma/world/light.c now maintains rt_count[16], a census of cells matching bp_is_randtick_state per 16x16x16 section. It is populated at chunk generation and updated incrementally in light_set_state and light_debug_set_block_meta. magma/game/randtick.c defines RT_SECTION_NEEDS via gm_world_section_needs_randtick, which checks the section census in O(1). When parity bounds are configured (snapshot mode), sections entirely inside use the census directly, sections outside are skipped, and boundary-crossing sections evaluate only cells within the configured bounds to ensure bit-identical updateLCG advancement. gm_world_rt_light was also consolidated via light_combined_max to avoid redundant chunk lookups.
+
+| metric | before | after | change |
+|---|---|---|---|
+| 2000-tick tick duration | 25425.1 us | 979.3 us | 26.0x faster |
+| 2000-tick step rate | 39 steps/s | 770 steps/s | 19.7x throughput |
+| 10 s profile: gm_world_rt_block | 4383 samples (51.8%) | 33 samples (0.39%) | 133x fewer |
+| 10 s profile: gm_randtick_pass | 3082 samples (36.5%) | 16 samples (0.19%) | 192x fewer |
+| 10 s profile: light_state (randtick) | 647 samples (7.7%) | 0 samples (0.00%) | eliminated |
+| 10 s profile: combined randtick self | 8112 samples (96.0%) | 294 samples (3.49%) | 27.6x fewer |
+
+Acceptance. make -C magma test passed. make -C blaze/rl test-eval-magma passed. port_matrix M1 random_ticks and random_ticks_bodies passed with verified evidence. Replay tapes scenario_rain_thunder and scenario_detmob_* completed with no physics or world hash divergence.
+
 ## 2026-09-02 skylight rebuild is the trainer bottleneck: gamer A/B (not merged)
 
 Question. Does the per-edit skylight rebuild from c3f1851 (found by the
