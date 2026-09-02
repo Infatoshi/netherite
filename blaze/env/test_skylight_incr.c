@@ -23,6 +23,7 @@
  * Env: SKY_EDITS=n       random edits per stream (default 400)
  *      SKY_ONLY=ref|new  run one path alone, to time it
  *      SKY_DBG=1         print region dims and the first spills
+ *      SKY_SEED=n        offset the edit stream (default 0)
  *      SKY_AUDIT=1       prove every sky_dirty claim after every edit
  *                        (one full rebuild per chunk per edit; slow) */
 #define _POSIX_C_SOURCE 200809L
@@ -606,6 +607,9 @@ int main(int argc, char **argv) {
     if (only && !strcmp(only, "new")) mode_new = 1;
     dbg = getenv("SKY_DBG") != NULL;
     audit = getenv("SKY_AUDIT") != NULL;
+    {   const char *sd = getenv("SKY_SEED");
+        if (sd) { rng_s += (unsigned long long)atoll(sd) * 0x9E3779B97F4A7C15ull;
+                  fprintf(stderr, "edit stream seed offset %s\n", sd); } }
     if (CU_SKY_Q != CU_LIGHT_Q)
         fprintf(stderr, "sky worklist cap %d (overflow fallback build)\n",
                 CU_SKY_Q);
