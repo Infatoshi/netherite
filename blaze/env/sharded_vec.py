@@ -27,14 +27,7 @@ from blaze import (
 
 
 def resolve_cpu_so(so_path=None):
-    if so_path and os.path.exists(so_path):
-        return so_path
-    if os.path.exists(CPU_SO):
-        return CPU_SO
-    candidate = os.path.abspath(os.path.join(HERE, "../../out/blaze/env/blaze_cpu.so"))
-    if os.path.exists(candidate):
-        return candidate
-    return CPU_SO
+    return so_path if so_path else CPU_SO
 
 
 def _worker_loop(conn, n_lanes, so_path, kw):
