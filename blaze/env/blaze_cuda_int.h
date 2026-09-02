@@ -237,6 +237,24 @@ int blaze_op_count(void);
 int blaze_op_trace(void *vh, unsigned long long *out);
 }
 
+/* BLAZE_SCALAR_TICK: build the scalar one-env-per-thread k_tick. OFF.
+ *
+ * k_tick is the flat kernel that create opts warp_tick=0 selects. The trainer
+ * and every default gate run k_tick_warp instead, so the scalar kernel only
+ * serves verify_cuda.py --m2-kernel scalar and the port-matrix scalar rows.
+ * Building it costs a whole extra inline of the header-only sim in cicc and
+ * ptxas, which is minutes.
+ *
+ * The warp_tick knob is unchanged. In a build without the kernel,
+ * blaze_create REFUSES warp_tick=0 with a message instead of quietly running
+ * the warp kernel, so a scalar-row gate fails loudly. Build the kernel with
+ *   make -C blaze/rl env-cuda BLAZE_SCALAR_TICK=1
+ *   make -C magma blaze_cuda_so BLAZE_SCALAR_TICK=1
+ */
+#ifndef BLAZE_SCALAR_TICK
+#define BLAZE_SCALAR_TICK 0
+#endif
+
 /* CUDA error check + report, shared by both units. */
 static inline int cu_ck(cudaError_t e, const char *what) {
     if (e == cudaSuccess) return 0;

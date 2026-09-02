@@ -26,7 +26,9 @@ craft:N + interact). --m2-kernel raw (default) uses blaze_tick_raw
 (k_tick_raw, env=-1 broadcast). --m2-kernel warp uses blaze_tick with
 create opts.warp_tick=1 (k_tick_warp, 32 lanes per env; blaze.conf /
 ppo.conf / blaze_abi.h default). --m2-kernel scalar uses blaze_tick with
-warp_tick=0 (k_tick, one thread per env, warp-cooperative recenter).
+warp_tick=0 (k_tick, one thread per env, warp-cooperative recenter). k_tick
+is a build option: build the .so with BLAZE_SCALAR_TICK=1 for scalar rows,
+otherwise blaze_create refuses warp_tick=0 and says so.
 EVERY tick, EVERY lane's full BOLR record must match the batch-of-1 CPU
 blaze record byte-for-byte (the CPU env is itself byte-exact vs the real
 game per verify_cpu.py --chain) - one loop covers both the CPU==CUDA chain
@@ -950,7 +952,8 @@ def build_parser():
         help="focused M2 tick kernel: raw=blaze_tick_raw/k_tick_raw "
              "(default), warp=blaze_tick+k_tick_warp, scalar=blaze_tick+k_tick. "
              "Create-time warp_tick comes from blaze_abi.h / blaze.conf "
-             "(default 1). No env vars.")
+             "(default 1). No env vars. scalar needs a .so built with "
+             "BLAZE_SCALAR_TICK=1; the default build refuses warp_tick=0.")
     ap.add_argument("--no-parity-all", action="store_true",
                     help="force per-lane blaze_parity_state (A/B vs batched)")
     return ap

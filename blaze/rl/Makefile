@@ -64,6 +64,13 @@ BACKEND_DEFS := -DNN_HAVE_CUDA=1 -DBLAZE_RL_HAVE_CUDA=1 -DBLAZE_RL_HAVE_METAL=0
 CPPFLAGS := $(CPPFLAGS_COMMON) -I$(CUDA_HOME)/include $(BACKEND_DEFS)
 NVCCFLAGS := -O2 -arch=$(BLAZE_SM) --fmad=false \
 	-I$(CORE_SRC) -I$(ENV_SRC) -Xcompiler -fPIC,-ffp-contract=off
+# Opt-in scalar k_tick (create opts warp_tick=0). Off by default: it is one
+# more full inline of the sim for a kernel only the M2 scalar gate row runs.
+# Without it blaze_create refuses warp_tick=0. See blaze_cuda_int.h.
+BLAZE_SCALAR_TICK ?= 0
+ifneq ($(BLAZE_SCALAR_TICK),0)
+NVCCFLAGS += -DBLAZE_SCALAR_TICK=1
+endif
 CUDA_LIBS := -L$(CUDA_HOME)/lib64 \
 	-L$(CUDA_HOME)/targets/x86_64-linux/lib \
 	-lcudnn -lcublas -lcublasLt -lcudart -lstdc++ -lm -ldl

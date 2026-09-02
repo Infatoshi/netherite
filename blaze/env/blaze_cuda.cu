@@ -3,7 +3,8 @@
  * tick, one thread per pixel for the camera (DESIGN Part 2.3):
  *   k_reset_scalar/_bulk : snapshot restore from the device-resident cache
  *             (host-compacted env list; bulk = 1 thread/cell)
- *   k_tick  : blaze_decision_begin + `repeat` blaze_decision_subtick per env
+ *   k_tick  : BUILD OPTION BLAZE_SCALAR_TICK, off by default (see
+ *             blaze_cuda_int.h). blaze_decision_begin + `repeat` blaze_decision_subtick per env
  *             thread (dyaw/dpitch on sub-tick 0 only; craft/interact
  *             pre-tick on sub-tick 0), full 12-double raw action rows;
  *             physics-window recenter refills run WARP-COOPERATIVELY (see
@@ -420,6 +421,7 @@ __device__ __forceinline__ void cu_apply_inv_click(Blaze *e, const double *inv,
         (void)blaze_container_click(e, (int)x[1], (int)x[2], (int)x[3]);
 }
 
+#if BLAZE_SCALAR_TICK
 __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
                        const double *actions, int repeat, McAABB *aabb_pool,
                        const CRRecipe *recipes, int nrecipes,
@@ -493,6 +495,7 @@ __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
         atomicAdd((unsigned long long *)&stage_cycles[2], c_sub);
     }
 }
+#endif /* BLAZE_SCALAR_TICK */
 
 /* ---- warp-per-env tick (BLAZE_WARP_TICK, default ON) ----
  *
@@ -775,6 +778,18 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                 o.legacy_recenter);
         return NULL;
     }
+#if !BLAZE_SCALAR_TICK
+    /* The scalar one-env-per-thread k_tick is a build option, off by default:
+     * it is a whole extra inline of the sim for a kernel only the M2 scalar
+     * gate row runs. The warp_tick knob stays; a build without the kernel
+     * refuses warp_tick=0 rather than silently running the warp kernel. */
+    if (!o.warp_tick) {
+        fprintf(stderr, "blaze_cuda: warp_tick=0 needs the scalar k_tick, "
+                        "which this .so was not built with. Rebuild with "
+                        "BLAZE_SCALAR_TICK=1, or use warp_tick=1.\n");
+        return NULL;
+    }
+#endif
     if (cu_ck(cudaSetDevice(device), "cudaSetDevice")) return NULL;
     /* BlockDynamicLiquid.getSlopeDistance recurses to depth 4 (java:178/196).
      * Default CUDA stack is 1024 B; live CA overflows it (k_tick_raw IMA).
@@ -1466,6 +1481,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                                    v->nrecipes, v->atk_gate,
                                    v->stage_time ? v->d_stage_cycles : NULL,
                                    NULL);
+#if BLAZE_SCALAR_TICK
     else
         k_tick<<<(v->n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(v->d_envs, v->n, v->d_st, actions, repeat,
@@ -1473,6 +1489,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                               v->atk_gate,
                               v->stage_time ? v->d_stage_cycles : NULL,
                               NULL);
+#endif  /* else unreachable: blaze_create rejects warp_tick == 0 */
     if (v->ktime) cudaEventRecord(v->ev[1], v->stream);
     k_obs<<<pblocks, CU_TPB, 0, v->stream>>>(v->d_envs, v->n, v->d_st,
                                              cam, depth, edge);
@@ -2026,11 +2043,13 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                                    v->d_recipes, v->nrecipes, v->atk_gate,
                                    v->stage_time ? v->d_stage_cycles : NULL,
                                    inv);
+#if BLAZE_SCALAR_TICK
     else
         k_tick<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                               v->d_recipes, v->nrecipes, v->atk_gate,
                               v->stage_time ? v->d_stage_cycles : NULL, inv);
+#endif  /* else unreachable: blaze_create rejects warp_tick == 0 */
     return cu_ck(cudaStreamSynchronize(v->stream), "blaze_tick");
 }
 

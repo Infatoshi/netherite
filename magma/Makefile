@@ -650,8 +650,13 @@ BLAZE_CUDA_HDRS := ../blaze/env/blaze_core.h ../blaze/env/blaze_abi.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
                         $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_BED) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
                         $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
+# Opt-in scalar k_tick (create opts warp_tick=0). Off by default: it is one
+# more full inline of the sim for a kernel only the M2 scalar gate row runs.
+# Without it blaze_create refuses warp_tick=0. See blaze_cuda_int.h.
+BLAZE_SCALAR_TICK ?= 0
 BLAZE_CUDA_CFLAGS := -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
-                        -Xcompiler -fPIC
+                        -Xcompiler -fPIC \
+                        $(if $(filter-out 0,$(BLAZE_SCALAR_TICK)),-DBLAZE_SCALAR_TICK=1,)
 BLAZE_CUDA_OBJS := obj/blaze/blaze_cuda.o obj/blaze/blaze_cuda_verify.o \
                         obj/blaze/blaze_snapshot.o
 .PHONY: blaze_cuda_so
