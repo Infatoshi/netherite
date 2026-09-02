@@ -110,6 +110,7 @@ TEST_PLACE_BIN := $(OUT)/test_placement
 TEST_BEDS_BIN := $(OUT)/test_beds
 TEST_SKY_BIN := $(OUT)/test_skylight_water
 TEST_BLK_BIN := $(OUT)/test_blocklight
+TEST_SKYINC_BIN := $(OUT)/test_skylight_incr
 SMOKE_BIN := $(OUT)/ppo
 EVAL_BIN := $(OUT)/eval
 EVAL_MAGMA_OBJ := $(OUT)/eval_magma.o
@@ -125,7 +126,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight test-skylight-incr smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval test-eval-magma eval-magma
 
@@ -387,6 +388,14 @@ $(TEST_SKY_BIN): $(ENV_SRC)/test_skylight_water.c \
 	$(CC) $(ENV_CFLAGS) -o $@ $(OUT)/test_skylight_water.o \
 	    $(OUT)/test_skylight_magma_oracle.o $(SKY_MAGMA_OBJS) -lm
 
+# Incremental skylight parity: the pre-optimisation cu_light_after_opacity
+# is copied into the test, so this needs no magma objects.
+$(TEST_SKYINC_BIN): $(ENV_SRC)/test_skylight_incr.c \
+		$(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h \
+		$(ENV_SRC)/blaze_core.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_skylight_incr.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 $(TEST_BLK_BIN): $(ENV_SRC)/test_blocklight.c \
 		$(ENV_SRC)/test_blocklight_magma_oracle.c \
 		$(ENV_SRC)/blaze_core.h | $(OUT)
@@ -443,7 +452,8 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 		$(TEST_PLACE_BIN) \
 		$(TEST_BEDS_BIN) \
 		$(TEST_SKY_BIN) \
-		$(TEST_BLK_BIN)
+		$(TEST_BLK_BIN) \
+		$(TEST_SKYINC_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_capture_cont
 	cd $(REPO) && ./out/blaze/rl/test_mob_snapshot
 	cd $(REPO) && ./out/blaze/rl/test_entity_spine
@@ -470,6 +480,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_beds
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
 	cd $(REPO) && ./out/blaze/rl/test_blocklight
+	cd $(REPO) && ./out/blaze/rl/test_skylight_incr
 
 test-hazards: $(TEST_HAZARDS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_hazards
@@ -532,6 +543,9 @@ test-skylight-water: $(TEST_SKY_BIN)
 
 test-blocklight: $(TEST_BLK_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_blocklight
+
+test-skylight-incr: $(TEST_SKYINC_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_skylight_incr
 
 # Default smoke: committed ppo.conf (backend=cpu).
 smoke: smoke-cpu

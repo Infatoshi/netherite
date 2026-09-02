@@ -276,6 +276,22 @@ typedef struct {
 #pragma pack(pop)
 
 /* ---- one env. Pointers reference caller-allocated pools (create-time). */
+/* Per region chunk, how much of its stored skylight the next edit there
+ * must rebuild. State 0 (CU_SKY_ALL) is "everything", so a zeroed Blaze is
+ * safe by construction. See cu_light_after_opacity. */
+/* Chunk columns per axis. A region is at most 256 wide (the guard in
+ * cu_light_after_opacity), and an unaligned 256-wide region touches 17
+ * chunk columns. The loops below run over the span the region really has,
+ * so a small region does not pay for the declared size. */
+#define CU_SKY_NC_DECL 17
+#define CU_SKY_ALL   0           /* rebuild every column of the chunk */
+#define CU_SKY_CLEAN 1           /* a full rebuild here would change nothing */
+#define CU_SKY_BOX   2           /* only the box below can be too high */
+typedef struct {
+    u8 state;
+    u8 x0, x1, y0, y1, z0, z1;   /* region-local, inclusive; CU_SKY_BOX only */
+} CuSkyDirty;
+
 typedef struct {
     /* large per-env buffers (pool) */
     u16   *cells;                /* region packed states (id<<4)|meta; also
@@ -330,6 +346,12 @@ typedef struct {
     int     *rt_leaf;            /* RT_LIVE_SURR ints; BlockLeaves surroundings */
     int     *light_q;            /* CU_LIGHT_Q ints; World.java:161 BLOCK flood queue */
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
+    CuSkyDirty sky_dirty[CU_SKY_NC_DECL * CU_SKY_NC_DECL];
+                                 /* per region chunk: how much of its stored
+                                  * skylight the next edit there must rebuild
+                                  * (cu_light_after_opacity). Derived state;
+                                  * a reset or a snapshot restore puts every
+                                  * chunk back to "rebuild everything". */
 
     u16   *fluid_cur, *fluid_tmp; /* CU_FLUID_VOL CA grids; NULL = skip CA */
     CuFluidRegion fluid_reg[CU_FLUID_REGIONS];
@@ -644,47 +666,159 @@ MC_HD static inline void cu_light_relax_cell(Blaze *e, int x, int y, int z) {
         e->light[i] = (u8)((best << 4) | (e->light[i] & 15));
 }
 
-/* Chunk.generateSkylightMap one column (Chunk.java:238-297) via magma
- * cr_k17_skylight_column (light.c:69, topSeg=240 so nY=256, nn[]=1 at
- * light.c:292). Zero the column, walk down from world top, air costs 0
- * while k1==15 else 1, stop at i1<=0 || k1<=0. Region y above rny is air
- * so k1 stays 15; start at the in-region top. */
-MC_HD static inline void cu_skylight_column(Blaze *e, int wx, int wz) {
-    int y, k1, j1, wy0, wy1;
-    long i;
-    wy0 = e->ry0;
-    wy1 = e->ry0 + e->rny - 1;
-    for (y = wy0; y <= wy1; ++y) {
-        i = cu_region_idx(e, wx, y, wz);
-        if (i < 0) continue;
-        e->light[i] = (u8)(e->light[i] & 15);
+#define CU_SKY_MAX_NY 128        /* blaze_core.h rny invariant */
+
+/* What one update did, for the sky_dirty book-keeping below.
+ *  - lowered cells (region-local box): their debt travels to the chunks
+ *    within 15 steps, which now hold light that is too high.
+ *  - spill: a raise on the wall of the flood box left a cell OUTSIDE the
+ *    box raisable, so the rest of the region is no longer quiescent. */
+typedef struct {
+    int lx0, lx1, ly0, ly1, lz0, lz1;   /* lowered; lx0 > lx1 = none */
+    int bx0, bx1, bz0, bz1;             /* flood box, world x/z, inclusive */
+    int spill;
+} CuSkyMoves;
+
+MC_HD static inline void cu_sky_moves_init(CuSkyMoves *m, int bx0, int bx1,
+                                           int bz0, int bz1) {
+    m->lx0 = m->ly0 = m->lz0 = 1 << 20;
+    m->lx1 = m->ly1 = m->lz1 = -(1 << 20);
+    m->bx0 = bx0; m->bx1 = bx1;
+    m->bz0 = bz0; m->bz1 = bz1;
+    m->spill = 0;
+}
+
+MC_HD static inline void cu_sky_lowered(CuSkyMoves *m, int ix, int iy,
+                                        int iz) {
+    if (!m) return;
+    if (ix < m->lx0) m->lx0 = ix;
+    if (ix > m->lx1) m->lx1 = ix;
+    if (iy < m->ly0) m->ly0 = iy;
+    if (iy > m->ly1) m->ly1 = iy;
+    if (iz < m->lz0) m->lz0 = iz;
+    if (iz > m->lz1) m->lz1 = iz;
+}
+
+/* One cell of the flood box went up to nv. Only a cell on the x/z wall can
+ * reach outside (the box always spans the full region height), and only if
+ * the outside neighbour is now raisable. */
+MC_HD static inline void cu_sky_raised(const Blaze *e, CuSkyMoves *m, int wx,
+                                       int wy, int wz, int nv) {
+    static const int dx4[4] = {1, -1, 0, 0};
+    static const int dz4[4] = {0, 0, 1, -1};
+    int f;
+    if (!m || m->spill) return;
+    if (wx > m->bx0 && wx < m->bx1 && wz > m->bz0 && wz < m->bz1) return;
+    for (f = 0; f < 4; ++f) {
+        int nx = wx + dx4[f], nz = wz + dz4[f], op;
+        long ni;
+        if (nx >= m->bx0 && nx <= m->bx1 && nz >= m->bz0 && nz <= m->bz1)
+            continue;                            /* still inside the box */
+        ni = cu_region_idx(e, nx, wy, nz);
+        if (ni < 0) continue;                    /* region wall, not a spill */
+        op = cu_sky_opacity(mc_state_id(e->cells[ni]));
+        if (op > 15) op = 15;
+        if (op < 1) op = 1;
+        if (nv - op > (e->light[ni] >> 4)) { m->spill = 1; return; }
     }
+}
+
+
+/* Chunk.generateSkylightMap for one column, into base[y - lo] over
+ * [lo, hi]. op_ovr replaces the opacity of the cell at y == y_ovr (pass
+ * y_ovr < ry0 for none), which gives the pre-edit baseline. */
+MC_HD static inline void cu_skylight_col_base(const Blaze *e, int wx, int wz,
+                                              int lo, int hi, int y_ovr,
+                                              int op_ovr, u8 *base) {
+    int y, k1, j1, wy1 = e->ry0 + e->rny - 1;
+    long i;
+    for (y = lo; y <= hi; ++y) base[y - lo] = 0;
     k1 = 15;
     y = wy1;
     if (y < 0) return;
     while (1) {
         i = cu_region_idx(e, wx, y, wz);
         j1 = 0;
-        if (i >= 0)
+        if (i >= 0) {
             j1 = cu_sky_opacity(mc_state_id(e->cells[i]));
+            if (y == y_ovr) j1 = op_ovr;
+        }
         if (j1 == 0 && k1 != 15) j1 = 1;
         k1 -= j1;
-        if (k1 > 0 && i >= 0)
-            e->light[i] = (u8)((k1 << 4) | (e->light[i] & 15));
+        if (k1 > 0 && i >= 0 && y >= lo && y <= hi) base[y - lo] = (u8)k1;
         --y;
         if (y <= 0 || k1 <= 0) break;
+        if (y < lo) break;         /* nothing left inside [lo, hi] */
+    }
+}
+
+/* Chunk.generateSkylightMap one column (Chunk.java:238-297) via magma
+ * cr_k17_skylight_column (light.c:69, topSeg=240 so nY=256, nn[]=1 at
+ * light.c:292). Zero the column, walk down from world top, air costs 0
+ * while k1==15 else 1, stop at i1<=0 || k1<=0. Region y above rny is air
+ * so k1 stays 15; start at the in-region top. */
+/* bb (or NULL): running x/z bounds of the cells whose sky nibble MOVED,
+ * kept so cu_sky_norm_update can invalidate only the chunks that can see
+ * the change. */
+
+MC_HD static inline void cu_skylight_column(Blaze *e, int wx, int wz,
+                                            CuSkyMoves *mv) {
+    u8 base[CU_SKY_MAX_NY];
+    int y, wy0 = e->ry0, wy1 = e->ry0 + e->rny - 1;
+    long i;
+    if (e->rny > CU_SKY_MAX_NY) {          /* defensive: rny <= 128 holds */
+        int k1, j1;
+        for (y = wy0; y <= wy1; ++y) {
+            i = cu_region_idx(e, wx, y, wz);
+            if (i < 0) continue;
+            if (e->light[i] >> 4)
+                cu_sky_lowered(mv, wx - e->rx0, y - e->ry0, wz - e->rz0);
+            e->light[i] = (u8)(e->light[i] & 15);
+        }
+        k1 = 15;
+        y = wy1;
+        if (y < 0) return;
+        while (1) {
+            i = cu_region_idx(e, wx, y, wz);
+            j1 = 0;
+            if (i >= 0)
+                j1 = cu_sky_opacity(mc_state_id(e->cells[i]));
+            if (j1 == 0 && k1 != 15) j1 = 1;
+            k1 -= j1;
+            if (k1 > 0 && i >= 0) {
+                e->light[i] = (u8)((k1 << 4) | (e->light[i] & 15));
+                cu_sky_raised(e, mv, wx, y, wz, k1);
+            }
+            --y;
+            if (y <= 0 || k1 <= 0) break;
+        }
+        return;
+    }
+    /* Same result as zero-then-walk, and mv sees only the cells that move
+     * (the zero pass alone would report the whole column as lowered). */
+    cu_skylight_col_base(e, wx, wz, wy0, wy1, wy0 - 1, 0, base);
+    for (y = wy0; y <= wy1; ++y) {
+        int nv = (int)base[y - wy0], cur;
+        i = cu_region_idx(e, wx, y, wz);
+        if (i < 0) continue;
+        cur = e->light[i] >> 4;
+        if (cur == nv) continue;
+        e->light[i] = (u8)((nv << 4) | (e->light[i] & 15));
+        if (nv > cur) cu_sky_raised(e, mv, wx, y, wz, nv);
+        else cu_sky_lowered(mv, wx - e->rx0, y - e->ry0, wz - e->rz0);
     }
 }
 
 /* Magma compute_skylight (light.c:290): every column of the chunk. */
-MC_HD static inline void cu_skylight_chunk(Blaze *e, int wx, int wz) {
+MC_HD static inline void cu_skylight_chunk(Blaze *e, int wx, int wz,
+                                           CuSkyMoves *mv) {
     int bx = (wx >> 4) << 4, bz = (wz >> 4) << 4;
     int lx, lz;
     for (lx = 0; lx < 16; ++lx)
         for (lz = 0; lz < 16; ++lz) {
             int cx = bx + lx, cz = bz + lz;
             if (cu_region_idx(e, cx, e->ry0, cz) < 0) continue;
-            cu_skylight_column(e, cx, cz);
+            cu_skylight_column(e, cx, cz, mv);
         }
 }
 
@@ -693,7 +827,7 @@ MC_HD static inline void cu_skylight_chunk(Blaze *e, int wx, int wz) {
  * 15 dies in 15 steps). Early-exit when a pass raises nothing. */
 MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
                                                 int z0, int x1, int y1,
-                                                int z1) {
+                                                int z1, CuSkyMoves *mv) {
     int pass, x, y, z, changed;
     int rx1 = e->rx0 + e->rnx - 1, ry1 = e->ry0 + e->rny - 1,
         rz1 = e->rz0 + e->rnz - 1;
@@ -714,7 +848,10 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
                     if (i < 0) continue;
                     before = e->light[i] >> 4;
                     cu_light_relax_cell(e, x, y, z);
-                    if ((e->light[i] >> 4) > before) changed = 1;
+                    if ((e->light[i] >> 4) > before) {
+                        changed = 1;
+                        cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
+                    }
                 }
         if (!changed) break;
     }
@@ -730,12 +867,11 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
  * generateSkylightMap is per-column independent; rebuilding the whole
  * chunk then spreading matches magma, and the lockstep digests agree
  * because both sides store those nibbles. */
-MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
-                                                int wz) {
+MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx,
+                                                     int wz, CuSkyMoves *mv) {
     int cx, cz, x0, x1, z0, z1;
-    (void)wy;
     if (!e->light_valid) return;
-    cu_skylight_chunk(e, wx, wz);
+    cu_skylight_chunk(e, wx, wz, mv);
     cx = wx >> 4;
     cz = wz >> 4;
     x0 = (cx << 4) - 15;
@@ -743,7 +879,307 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
     z0 = (cz << 4) - 15;
     z1 = (cz << 4) + 30;
     cu_skylight_spread_box(e, x0, e->ry0, z0, x1,
-                           e->ry0 + e->rny - 1, z1);
+                           e->ry0 + e->rny - 1, z1, mv);
+}
+
+/* ---------------- incremental form of the same update -------------------
+ * cu_light_after_opacity_full costs 256 full-height column walks plus up to
+ * 15 relaxation passes over a 46 x 46 x rny box on EVERY opacity edit, one
+ * warp lane per env. Nearly all of it is repeated work.
+ *
+ * What the full path computes, for the chunk c that holds the edit, is
+ *   light(c) = the least fixed point of the raise-only relaxation over
+ *              box(c) = chunk c +-15, seeded with the rebuilt column
+ *              baselines inside c and the stored light outside it,
+ * and it leaves every cell of box(c) quiescent (nothing can be raised).
+ * The operation is idempotent, so after it runs, chunk c holds exactly
+ * that fixed point. An edit then moves only what it can reach:
+ *  - Lower opacity (new_op < old_op) can only RAISE the fixed point, so no
+ *    cell needs a reset: seed a worklist with the edited column's new
+ *    baseline plus the edited cell and flood.
+ *  - Higher opacity can only LOWER it, and only within 15 steps (L1) of a
+ *    changed baseline cell or of the edited cell. Reset that octahedron of
+ *    chunk columns to the baseline and re-flood.
+ * The relaxation is monotone, so a worklist drained to quiescence lands on
+ * the same least fixed point as the pass loop, in any visit order (light 15
+ * dies in 15 steps, so the 15-pass cap never truncates either). Writes stay
+ * inside box(c) - the same cells the full path may write.
+ *
+ * The catch is that an edit LOWERS cells only inside its own chunk, so
+ * light in a NEIGHBOUR chunk that leaned on them stays too high until that
+ * neighbour is itself edited and rebuilt. sky_dirty carries that debt per
+ * region chunk: state 1 = rebuild everything (the state a snapshot loads
+ * in, since stored light is neither a fixed point nor free of light that
+ * leaked in from outside the region), state 2 = only the recorded box can
+ * be too high, state 0 = clean. An edit resets the union of its own
+ * octahedron and the chunk's stale box, floods, then hands its lowered
+ * cells (grown by 15) to the chunks that can see them. Resetting MORE than
+ * the stale set is always safe - the cells around it are already at the
+ * fixed point and the flood puts them straight back. */
+#define CU_SKY_NC CU_SKY_NC_DECL
+/* Per-env int scratch, shared with cu_check_light_for_block below (the sky
+ * worklist drains before the BLOCK flood starts). */
+#define CU_LIGHT_Q 32768
+
+/* Chunk columns the region spans on one axis, clamped to the array. */
+MC_HD static inline int cu_sky_nc(int r0, int n) {
+    int nc = (((r0 + n - 1) >> 4) - (r0 >> 4)) + 1;
+    return nc > CU_SKY_NC ? CU_SKY_NC : nc;
+}
+
+/* Index into Blaze.sky_dirty, or -1 when the chunk is outside the tracked
+ * span (then the full path always runs). */
+MC_HD static inline int cu_sky_ci(const Blaze *e, int cx, int cz) {
+    int ix = cx - (e->rx0 >> 4), iz = cz - (e->rz0 >> 4);
+    if (ix < 0 || ix >= cu_sky_nc(e->rx0, e->rnx) ||
+        iz < 0 || iz >= cu_sky_nc(e->rz0, e->rnz)) return -1;
+    return ix * CU_SKY_NC + iz;
+}
+
+MC_HD static inline void cu_sky_all_unknown(Blaze *e) {
+    int ix, iz, nx = cu_sky_nc(e->rx0, e->rnx), nz = cu_sky_nc(e->rz0, e->rnz);
+    for (ix = 0; ix < nx; ++ix)
+        for (iz = 0; iz < nz; ++iz)
+            e->sky_dirty[ix * CU_SKY_NC + iz].state = CU_SKY_ALL;
+}
+
+/* Union one region-local box into chunk ci's stale box. */
+MC_HD static inline void cu_sky_mark_stale(Blaze *e, int ci, int x0, int x1,
+                                           int y0, int y1, int z0, int z1) {
+    CuSkyDirty *d = &e->sky_dirty[ci];
+    if (d->state == CU_SKY_ALL) return;
+    if (d->state == CU_SKY_CLEAN) {
+        d->state = CU_SKY_BOX;
+        d->x0 = (u8)x0; d->x1 = (u8)x1;
+        d->y0 = (u8)y0; d->y1 = (u8)y1;
+        d->z0 = (u8)z0; d->z1 = (u8)z1;
+        return;
+    }
+    if (x0 < d->x0) d->x0 = (u8)x0;
+    if (x1 > d->x1) d->x1 = (u8)x1;
+    if (y0 < d->y0) d->y0 = (u8)y0;
+    if (y1 > d->y1) d->y1 = (u8)y1;
+    if (z0 < d->z0) d->z0 = (u8)z0;
+    if (z1 > d->z1) d->z1 = (u8)z1;
+}
+
+/* Cells that were lowered (region-local box) can leave light up to 15 steps
+ * away too high. Record that debt on every chunk but the edited one. */
+MC_HD static inline void cu_sky_spread_stale(Blaze *e, int lx0, int lx1,
+                                             int ly0, int ly1, int lz0,
+                                             int lz1, int skip_ci) {
+    int ex0 = lx0 - 15, ex1 = lx1 + 15, ey0 = ly0 - 15, ey1 = ly1 + 15;
+    int ez0 = lz0 - 15, ez1 = lz1 + 15, ix, iz;
+    int cx0 = e->rx0 >> 4, cz0 = e->rz0 >> 4;
+    int nx = cu_sky_nc(e->rx0, e->rnx), nz = cu_sky_nc(e->rz0, e->rnz);
+    if (ex0 < 0) ex0 = 0;
+    if (ey0 < 0) ey0 = 0;
+    if (ez0 < 0) ez0 = 0;
+    if (ex1 > e->rnx - 1) ex1 = e->rnx - 1;
+    if (ey1 > e->rny - 1) ey1 = e->rny - 1;
+    if (ez1 > e->rnz - 1) ez1 = e->rnz - 1;
+    for (ix = 0; ix < nx; ++ix)
+        for (iz = 0; iz < nz; ++iz) {
+            int ci = ix * CU_SKY_NC + iz;
+            int kx0 = ((cx0 + ix) << 4) - e->rx0, kx1 = kx0 + 15;
+            int kz0 = ((cz0 + iz) << 4) - e->rz0, kz1 = kz0 + 15;
+            if (ci == skip_ci) continue;
+            if (kx0 < ex0) kx0 = ex0;
+            if (kx1 > ex1) kx1 = ex1;
+            if (kz0 < ez0) kz0 = ez0;
+            if (kz1 > ez1) kz1 = ez1;
+            if (kx0 > kx1 || kz0 > kz1) continue;
+            cu_sky_mark_stale(e, ci, kx0, kx1, ey0, ey1, kz0, kz1);
+        }
+}
+
+/* Book-keeping after one update of chunk ci: hand the lowered cells to the
+ * neighbours, mark ci clean. A spill (the flood left a cell outside box(c)
+ * raisable) breaks the "box(c') is quiescent" half of every other chunk's
+ * clean claim, so drop all tracking. */
+MC_HD static inline void cu_sky_settle(Blaze *e, int ci,
+                                       const CuSkyMoves *m) {
+    if (m->spill) { cu_sky_all_unknown(e); return; }
+    if (m->lx0 <= m->lx1)
+        cu_sky_spread_stale(e, m->lx0, m->lx1, m->ly0, m->ly1, m->lz0,
+                            m->lz1, ci);
+    if (ci >= 0) e->sky_dirty[ci].state = CU_SKY_CLEAN;
+}
+
+/* Packed region coordinate for the worklist: 10 bits per axis. */
+#define CU_SKY_PACK(IX, IY, IZ) (((IX) << 20) | ((IY) << 10) | (IZ))
+
+MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
+                                                int wz, int old_op) {
+    u8 bnew[CU_SKY_MAX_NY], bcol[CU_SKY_MAX_NY];
+    CuSkyMoves mv;
+    int *q;
+    int wy1, new_op, y, ylo, yhi, ci, cx, cz, lower;
+    int x0, x1, z0, z1, cxb, czb, px, pz;
+    int dx0 = 0, dx1 = -1, dy0 = 0, dy1 = -1, dz0 = 0, dz1 = -1;
+    int qh = 0, qn = 0, ovf = 0;
+    long i0;
+    static const int dx6[6] = {1, -1, 0, 0, 0, 0};
+    static const int dy6[6] = {0, 0, 1, -1, 0, 0};
+    static const int dz6[6] = {0, 0, 0, 0, 1, -1};
+
+    if (!e->light_valid || !e->light) return;
+    q = e->light_q;
+    i0 = cu_region_idx(e, wx, wy, wz);
+    cx = wx >> 4;
+    cz = wz >> 4;
+    cxb = cx << 4;
+    czb = cz << 4;
+    wy1 = e->ry0 + e->rny - 1;
+    x0 = cxb - 15; x1 = cxb + 30;
+    z0 = czb - 15; z1 = czb + 30;
+    if (x0 < e->rx0) x0 = e->rx0;
+    if (z0 < e->rz0) z0 = e->rz0;
+    if (x1 > e->rx0 + e->rnx - 1) x1 = e->rx0 + e->rnx - 1;
+    if (z1 > e->rz0 + e->rnz - 1) z1 = e->rz0 + e->rnz - 1;
+    ci = cu_sky_ci(e, cx, cz);
+    cu_sky_moves_init(&mv, x0, x1, z0, z1);
+    if (!q || i0 < 0 || ci < 0 || e->rny > CU_SKY_MAX_NY || e->rnx > 256 ||
+        e->rny > 256 || e->rnz > 256 ||
+        e->sky_dirty[ci].state == CU_SKY_ALL) {
+        cu_light_after_opacity_full(e, wx, wz, &mv);
+        if (ci < 0 || e->rnx > 256 || e->rny > 256 || e->rnz > 256)
+            cu_sky_all_unknown(e);   /* cannot record boxes for this region */
+        else
+            cu_sky_settle(e, ci, &mv);
+        return;
+    }
+    new_op = cu_sky_opacity(mc_state_id(e->cells[i0]));
+    lower = new_op > old_op;
+    if (e->sky_dirty[ci].state == CU_SKY_BOX) {
+        dx0 = e->sky_dirty[ci].x0 + e->rx0; dx1 = e->sky_dirty[ci].x1 + e->rx0;
+        dy0 = e->sky_dirty[ci].y0 + e->ry0; dy1 = e->sky_dirty[ci].y1 + e->ry0;
+        dz0 = e->sky_dirty[ci].z0 + e->rz0; dz1 = e->sky_dirty[ci].z1 + e->rz0;
+    }
+
+    /* new and old baselines of the edited column; they differ only at and
+     * below the edit, whose own opacity changed too. */
+    cu_skylight_col_base(e, wx, wz, e->ry0, wy1, e->ry0 - 1, 0, bnew);
+    cu_skylight_col_base(e, wx, wz, e->ry0, wy1, wy, old_op, bcol);
+    ylo = yhi = wy;
+    for (y = e->ry0; y <= wy1; ++y)
+        if (bnew[y - e->ry0] != bcol[y - e->ry0]) {
+            if (y < ylo) ylo = y;
+            if (y > yhi) yhi = y;
+        }
+
+#define CU_SKY_PUSH(IX, IY, IZ) do {                                        \
+        if (qn >= CU_LIGHT_Q) { ovf = 1; }                                  \
+        else {                                                              \
+            int qt_ = qh + qn; if (qt_ >= CU_LIGHT_Q) qt_ -= CU_LIGHT_Q;    \
+            q[qt_] = CU_SKY_PACK(IX, IY, IZ);                               \
+            ++qn;                                                           \
+        }                                                                   \
+    } while (0)
+#define CU_SKY_PUSH_NB(X, Y, Z) do {                                        \
+        int f_;                                                             \
+        for (f_ = 0; f_ < 6; ++f_) {                                        \
+            int nx_ = (X) + dx6[f_], ny_ = (Y) + dy6[f_],                   \
+                nz_ = (Z) + dz6[f_];                                        \
+            if (nx_ < x0 || nx_ > x1 || nz_ < z0 || nz_ > z1 ||             \
+                ny_ < e->ry0 || ny_ > wy1) continue;                        \
+            CU_SKY_PUSH(nx_ - e->rx0, ny_ - e->ry0, nz_ - e->rz0);          \
+        }                                                                   \
+    } while (0)
+
+    /* Reset pass: the octahedron the edit can lower (higher opacity only),
+     * plus whatever a neighbour's earlier edit left too high here. */
+    for (px = cxb; px < cxb + 16; ++px)
+        for (pz = czb; pz < czb + 16; ++pz) {
+            int clo = 1 << 20, chi = -(1 << 20);
+            const u8 *b;
+            if (cu_region_idx(e, px, e->ry0, pz) < 0) continue;
+            if (lower) {
+                int adx = px - wx, adz = pz - wz, rr;
+                if (adx < 0) adx = -adx;
+                if (adz < 0) adz = -adz;
+                rr = 15 - adx - adz;
+                if (rr >= 0) { clo = ylo - rr; chi = yhi + rr; }
+            }
+            if (px >= dx0 && px <= dx1 && pz >= dz0 && pz <= dz1) {
+                if (dy0 < clo) clo = dy0;
+                if (dy1 > chi) chi = dy1;
+            }
+            if (clo < e->ry0) clo = e->ry0;
+            if (chi > wy1) chi = wy1;
+            if (clo > chi) continue;
+            if (px == wx && pz == wz) {
+                b = bnew + (clo - e->ry0);
+            } else {
+                cu_skylight_col_base(e, px, pz, clo, chi, e->ry0 - 1, 0,
+                                     bcol);
+                b = bcol;
+            }
+            for (y = clo; y <= chi; ++y) {
+                long i = cu_region_idx(e, px, y, pz);
+                int nv = (int)b[y - clo], cur;
+                if (i < 0) continue;
+                cur = e->light[i] >> 4;
+                if (nv == cur) continue;
+                e->light[i] = (u8)((nv << 4) | (e->light[i] & 15));
+                CU_SKY_PUSH(px - e->rx0, y - e->ry0, pz - e->rz0);
+                if (nv > cur) {
+                    cu_sky_raised(e, &mv, px, y, pz, nv);
+                    CU_SKY_PUSH_NB(px, y, pz);
+                } else {
+                    cu_sky_lowered(&mv, px - e->rx0, y - e->ry0,
+                                   pz - e->rz0);
+                }
+            }
+        }
+
+    if (!lower) {                  /* raise the edited column to its new
+                                    * baseline and let the edited cell pull */
+        for (y = ylo; y <= yhi; ++y) {
+            long i = cu_region_idx(e, wx, y, wz);
+            int b = (int)bnew[y - e->ry0];
+            if (i < 0) continue;
+            if (b > (e->light[i] >> 4)) {
+                e->light[i] = (u8)((b << 4) | (e->light[i] & 15));
+                cu_sky_raised(e, &mv, wx, y, wz, b);
+                CU_SKY_PUSH_NB(wx, y, wz);
+            }
+        }
+        CU_SKY_PUSH(wx - e->rx0, wy - e->ry0, wz - e->rz0);
+    }
+
+    /* raise-only worklist to quiescence (cu_light_relax_cell per cell) */
+    while (qn > 0 && !ovf) {
+        int p = q[qh], ix, iy, iz, x, z, op, sky, best, f;
+        long i;
+        ++qh; if (qh >= CU_LIGHT_Q) qh = 0;
+        --qn;
+        ix = (p >> 20) & 1023; iy = (p >> 10) & 1023; iz = p & 1023;
+        x = e->rx0 + ix; y = e->ry0 + iy; z = e->rz0 + iz;
+        i = ((long)ix * e->rny + iy) * e->rnz + iz;
+        op = cu_sky_opacity(mc_state_id(e->cells[i]));
+        if (op > 15) op = 15;
+        if (op < 1) op = 1;
+        sky = e->light[i] >> 4;
+        best = sky;
+        for (f = 0; f < 6; ++f) {
+            long ni = cu_region_idx(e, x + dx6[f], y + dy6[f], z + dz6[f]);
+            int cand;
+            if (ni < 0) continue;
+            cand = (e->light[ni] >> 4) - op;
+            if (cand > best) best = cand;
+        }
+        if (best > sky) {
+            e->light[i] = (u8)((best << 4) | (e->light[i] & 15));
+            cu_sky_raised(e, &mv, x, y, z, best);
+            CU_SKY_PUSH_NB(x, y, z);
+        }
+    }
+    if (ovf)                       /* exact, just the slow way */
+        cu_light_after_opacity_full(e, wx, wz, &mv);
+    cu_sky_settle(e, ci, &mv);
+#undef CU_SKY_PUSH
+#undef CU_SKY_PUSH_NB
 }
 
 /* Packed BLOCK nibble. EnumSkyBlock.BLOCK defaultLightValue is 0
@@ -806,7 +1242,6 @@ MC_HD static inline int cu_get_raw_block_light(const Blaze *e, int x, int y,
  * a 128 KiB CUDA thread-stack array overflows default cudaLimitStackSize
  * (~1 KiB) and the existing 128 KiB raise. MC_NOINLINE keeps any leftover
  * frame from folding into k_tick_raw. */
-#define CU_LIGHT_Q 32768
 MC_HD MC_NOINLINE static void cu_check_light_for_block(Blaze *e, int i1,
                                                        int j1, int k1) {
     int *q = e->light_q;
@@ -974,7 +1409,7 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
         old_op = cu_sky_opacity(mc_state_id(old_state));
         new_op = cu_sky_opacity(id);
         if (old_op != new_op)
-            cu_light_after_opacity(e, wx, wy, wz);
+            cu_light_after_opacity(e, wx, wy, wz, old_op);
         /* World.checkLight (World.java:2952-2961) always runs BLOCK
          * checkLightFor after a setBlockState write. Torch/air both have
          * opacity 0 so the sky path above is skipped; blight still floods.
@@ -6241,6 +6676,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->ore_xy = ore_xy;
     env->n_cont = ncont;
     env->light_valid = light_valid;
+    cu_sky_all_unknown(env);     /* stored light is not a relaxed fixed point */
     if (ncont > 0)
         for (i = 0; i < ncont * 3; ++i) env->cont[i] = cont[i];
 
