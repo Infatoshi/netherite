@@ -12,7 +12,12 @@
  * compiles them as separate device functions instead of inlining the whole tree into one giant
  * __global__ (that blowup is superlinear: chunk_provider went from tens of minutes / 6GB+ to
  * ~12s / 0.45GB). Numerics are unchanged, so CPU==CUDA bitwise verification is preserved. Use
- * ONLY on large multi-statement functions; keep tiny hot accessors (cb_get/cb_set) inline. */
+ * ONLY on large multi-statement functions; keep tiny hot accessors (cb_get/cb_set) inline.
+ * The same policy now covers the blaze RL tick: blaze_player_tick and the per-tick world
+ * subsystem entry points in blaze_core.h. That set was picked by measurement, not by taste -
+ * see docs/DEVLOG.md 2026-09-02 "blaze CUDA compile split". More marks are not better: marking
+ * the decision protocol, the observation/reset helpers, or blaze_subtick_phys made ptxas SLOWER
+ * on the same tree. Measure before adding one. */
 #define MC_NOINLINE __noinline__
 #else
 #define MC_HD

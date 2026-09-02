@@ -1569,7 +1569,7 @@ MC_HD MC_NOINLINE static inline void cu_explode(Blaze *e, double ex, double ey, 
     e->parity_ex_kb_z = blast.mapz;
 }
 
-MC_HD static inline void cu_explosion_tick(Blaze *e) {
+MC_HD MC_NOINLINE static inline void cu_explosion_tick(Blaze *e) {
     unsigned i;
     if (!e) return;
     for (i = 0; i < e->n_mobs; ) {
@@ -2090,7 +2090,7 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     e->mob_tick++;
 }
 
-MC_HD static inline void cu_randtick_pass(Blaze *e) {
+MC_HD MC_NOINLINE static inline void cu_randtick_pass(Blaze *e) {
     McGameRules gr;
     int raining, thundering;
     if (!e->light_valid) return;
@@ -2747,9 +2747,11 @@ MC_HD static inline void cu_dig_destroy(Chunk *window, PsvPlayer *pl,
  * space (act.use is rejected upstream): FOV/bow render state, rightClickMouse
  * FIRE + place/interact/bucket, eating. The rc_delay timer and use edge ARE
  * kept ticking (snapshot state must evolve identically). */
-MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
-                                           CuAction act, CuEdit *edits, int *nedits,
-                                           int max_edits, McAABB *blocks) {
+MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
+                                           const McSinTable *st,
+                                           CuAction act, CuEdit *edits,
+                                           int *nedits, int max_edits,
+                                           McAABB *blocks) {
     Chunk *window = env->window;
     PsvPlayer *pl = &env->pl;
     PvStats *vit = &env->vit;
@@ -3268,7 +3270,7 @@ MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
 
 /* gm_live_tick item slice + gm_live_tick_player pickup via item_live.h.
  * Falling scheduled updates and EntityFallingBlock ticks run first. */
-MC_HD static inline void cu_live_tick_player(Blaze *env) {
+MC_HD MC_NOINLINE static inline void cu_live_tick_player(Blaze *env) {
     int i, k, n;
     double px, py, pz;
     McItem its[CU_MAX_ITEMS];
@@ -3416,7 +3418,7 @@ MC_HD static inline SRStack cu_furnace_extract(CuFurnace *f, int slot,
 /* verbatim furnace_live_tick (FftFurnace kernel round-trip; sr_build per
  * tick like the real env - the table is a pure constant so this is
  * value-identical however it is produced) */
-MC_HD static inline void cu_furnace_tick(CuFurnace *f) {
+MC_HD MC_NOINLINE static inline void cu_furnace_tick(CuFurnace *f) {
     FftFurnace kernel;
     kernel.slot0 = f->input;
     kernel.slot1 = f->fuel;
@@ -4334,7 +4336,7 @@ MC_HD MC_NOINLINE static int cu_fluid_step_region(Blaze *e, CuFluidRegion *rg) {
 
 /* Magma gm_world_tick with weather_enabled (runtime.c). Isolated JavaRandom
  * from ww_init(seed); RL daylight/weather cycle both on. */
-MC_HD static inline void cu_weather_tick(Blaze *e) {
+MC_HD MC_NOINLINE static inline void cu_weather_tick(Blaze *e) {
     ww_tick(&e->ww);
 }
 
@@ -4376,7 +4378,7 @@ MC_HD static inline int cu_collect_orb_blocks(const Blaze *e, const McAABB *q,
     return n;
 }
 
-MC_HD static inline void cu_xp_tick(Blaze *e) {
+MC_HD MC_NOINLINE static inline void cu_xp_tick(Blaze *e) {
     McAABB player;
     int i;
     if (!e) return;
@@ -4450,7 +4452,8 @@ MC_HD static inline void cu_boat_dismount(Blaze *e) {
     e->boat_ride = -1;
 }
 
-MC_HD static inline void cu_boat_tick(Blaze *e, float forward, float strafe) {
+MC_HD MC_NOINLINE static inline void cu_boat_tick(Blaze *e, float forward,
+                                                  float strafe) {
     unsigned i;
     if (!e) return;
     for (i = 0; i < e->n_mobs; ++i) {
