@@ -1,5 +1,19 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 dimensions and region swap in blaze CPU: portals_dimensions M1 verified
+
+Question. Can Blaze CPU track portal contacts, dimension identity, and execute region swaps from a per-dimension snapshot bank to achieve bit-equal lockstep parity with Magma across portal transit?
+
+Method. Designed single-region swap architecture in `blaze/GPU_DIMENSIONS.md`. Authored `blaze/env/test_portals_dimensions.c` to unit test portal constants and coordinate transforms, and baked strict cross-backend fixture pair `verify/fixtures/port/s10_t0_r64_portals.bsnp` (Overworld with lit portal at z=11) and `verify/fixtures/port/s10_t0_r64_nether.bsnp` (Nether snapshot dumped by `magma_game` upon arrival at x=1.5, y=103.0, z=1.5) with 96-action tape `blaze/rl/fixtures/portals_s10.json`. Implemented `cu_portal_tick` and `cu_dimension_swap_apply` in `blaze/core/dimension_swap.h`. Added dimension fields in one contiguous block at the end of `struct Blaze` in `blaze/env/blaze_core.h`. Added `BP_PORTALS` and `BP_DIMENSIONS` digest helpers and masks in `blaze/core/port_parity.h`. Hooked parity emission into `magma/game/rl_mode.c` and `blaze/env/blaze_core.h`. Populated snapshot bank in `blaze/env/blaze_cpu.c`. Enabled `portals_dimensions` in `blaze/env/port_matrix.yaml`.
+
+Findings.
+- Acceptance command `uv run --no-project --with pyyaml python blaze/env/port_matrix.py --tier m1 --subsystem portals_dimensions --no-deps` reported VERIFIED with returncode 0 in 5.59 seconds across 96 ticks.
+- Parity digests for `player`, `portals`, and `dimensions` matched on every single tick from tick 0 to tick 95.
+- On tick 87, portal transit fired after 82 ticks in the portal block. The active region was swapped from Overworld to Nether, player coordinates transitioned from (8.500, 65.000, 11.700) to (1.500, 103.000, 1.500), and `dimension` switched from 0 to -1.
+- Unit test suite `make -C blaze/rl test-capture` passed with 0 failures, including new unit test `test_portals_dimensions`.
+- Regression check on existing port-matrix rows passed: `world_dynamics`, `spawn_to_torch`, and `fluids` all reported VERIFIED.
+- Magma test suite `make -C magma test` passed with 0 failures.
+
 ## 2026-09-02 skylight rebuild is the trainer bottleneck: gamer A/B (not merged)
 
 Question. Does the per-edit skylight rebuild from c3f1851 (found by the
