@@ -80,6 +80,7 @@ from verify_cpu import (
 )
 
 from blaze import CPU_SO, CUDA_SO, VecBlaze
+from sharded_vec import ShardedCpuVec
 
 RL = os.path.join(os.path.dirname(HERE), "rl")
 SNAPS = os.path.join(RL, "out", "snaps")
@@ -250,7 +251,12 @@ def _create_kw(args=None):
 
 def make_envs(n_cpu, n_cuda, paths, cpu_assign, cuda_assign, device, args=None):
     kw = _create_kw(args)
-    cpu = VecBlaze(n_cpu, device=0, so_path=CPU_SO, **kw)
+    cpu_workers = getattr(args, "cpu_workers", 1) if args is not None else 1
+    if cpu_workers > 1 and n_cpu > 1:
+        workers = min(cpu_workers, n_cpu)
+        cpu = ShardedCpuVec(n_cpu, workers=workers, device=0, so_path=CPU_SO, **kw)
+    else:
+        cpu = VecBlaze(n_cpu, device=0, so_path=CPU_SO, **kw)
     cuda = VecBlaze(n_cuda, device=device, so_path=CUDA_SO, **kw)
     for e, asn in ((cpu, cpu_assign), (cuda, cuda_assign)):
         e.load_snapshots(paths)
@@ -929,6 +935,11 @@ def build_parser():
     ap.add_argument("--repeat", type=int, default=4)
     ap.add_argument("--warmup", type=int, default=10)
     ap.add_argument("--device", type=int, default=0)
+    ap.add_argument(
+        "--cpu-workers", type=int,
+        default=min(16, os.cpu_count() or 1),
+        help="number of CPU worker processes for replica lanes (default: "
+             "min(16, os.cpu_count()), 1=single-process VecBlaze)")
     ap.add_argument("--ktime", action="store_true",
                     help="print per-kernel timings at destroy")
     ap.add_argument("--op-trace", action="store_true",
