@@ -1,5 +1,23 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 portals_dimensions review: the M1 row does not cover the Nether
+
+Question. The row below claims `portals_dimensions` M1 VERIFIED. What does that gate actually assert?
+
+Method. Decoded `BP_PORTALS` / `BP_DIMENSIONS` per tick on both backends over the shipped tape; re-ran the same fixture with extra `--features`; mutated copies of the Nether fixture and re-ran.
+
+Findings.
+- The transit is real and it is bit-equal. Both backends swap at observation 87 (portal_time 0->81 over t=5..86), (8.5, 65.0, 11.7) -> (1.5, 103.0, 1.5), dimension 0 -> -1, cooldown 100. 9 ticks follow in the Nether.
+- Those 9 ticks assert nothing. The player arrives standing inside the arrival portal pane, `Entity.setPortal` refreshes cooldown to 100 every tick, and nothing else moves: the `observations` digest is byte-constant from t=87 to t=95.
+- The gate runs `--features player,portals,dimensions`. Flipping 6006 Nether cells within 25 blocks of the arrival point still reports VERIFIED, even with `observations` added - the arrival pose is walled in, so the camera carries no information about the region. The Nether region content is not covered.
+- It cannot be covered by this harness as written. After the swap magma's `r->world` is a fresh `GmWorld` with `parity_valid == 0`, so `gm_world_parity_state` fails and `world` / `fluids` / `random_ticks` drop out of `measured_mask` (rl_mode.c:508, 641, 660): adding `--features world` returns BLOCKED at observation 88, not VERIFIED.
+- Blaze does not port `Teleporter.placeInPortal`. `cu_dimension_swap_apply` reads the arrival pose out of the destination bank's `RlSnapHead`. Editing `head.py` 103.0 -> 104.0 in the Nether fixture makes the gate FAIL with `player_y: Magma=103.0, Blaze=104.0` - the answer is recorded in the fixture, not computed.
+- `gm_runtime_set_pose` (runtime.c:1686-1705) also runs `gm_container_close` and `gm_player_dig_reset`; the swap path resets only `dig_hitting` / `dig_progress` / `container`. Adding `attack` to the tape from t=70 and running `--features player,portals,dimensions,dig` FAILS at observation 88 on `atk_prev: Magma=0, Blaze=1`.
+- Memory is fine. Per-env 9,741,510 -> 9,741,542 bytes (`sizeof(Blaze)` 691,912 -> 691,944, +32 B); the bank is one 6.016 MiB Nether region on the handle, shared across envs, not per env.
+- The overworld fixture is reproducible: `test_portals_dimensions --write-fixture verify/fixtures/port/s10_t0_r64_placement.bsnp verify/fixtures/port/s10_t0_r64_portals.bsnp` rebuilds it byte-identical (and the baker's chain writer now emits the committed 10-forward tape). `s10_t0_r64_nether.bsnp` still has no recorded recipe.
+- `dim_bank` is set only in `blaze_cpu.c:432`; `blaze_cuda.cu` never sets it, so on CUDA the swap silently no-ops and the M2 row will FAIL, not BLOCK.
+- Removed the dead `swap_target_x/y/z` fields, which held the fixture's own arrival constants (1.5 / 103.0 / 1.5) and were never read.
+
 ## 2026-09-03 dimensions and region swap in blaze CPU: portals_dimensions M1 verified
 
 Question. Can Blaze CPU track portal contacts, dimension identity, and execute region swaps from a per-dimension snapshot bank to achieve bit-equal lockstep parity with Magma across portal transit?

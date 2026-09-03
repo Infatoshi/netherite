@@ -488,9 +488,6 @@ typedef struct {
     int in_portal;            /* 1 nether portal (block 90), 2 end portal (119) */
     int swap_pending;         /* 1 if transfer fired on this tick */
     int swap_target_dim;      /* destination dimension ID */
-    double swap_target_x;     /* target player world X */
-    double swap_target_y;     /* target player world Y */
-    double swap_target_z;     /* target player world Z */
     const void *dim_bank;     /* pointer to dimension snapshot bank */
 } Blaze;
 
@@ -6295,9 +6292,6 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->in_portal = 0;
     env->swap_pending = 0;
     env->swap_target_dim = 0;
-    env->swap_target_x = 0.0;
-    env->swap_target_y = 0.0;
-    env->swap_target_z = 0.0;
     ww_init(&env->ww, env->seed);
     env->rain_strength = 0.0f;
     env->thunder_strength = 0.0f;

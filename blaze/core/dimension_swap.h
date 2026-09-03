@@ -33,17 +33,16 @@ MC_HD static inline void cu_portal_tick(Blaze *env) {
 
     if (in_nether_portal && env->portal_cooldown == 0 && (env->dimension == 0 || env->dimension == -1)) {
         if (++env->portal_time >= 82) {
-            int nd = (env->dimension == 0) ? -1 : 0;
-            double scale = (nd == -1) ? 0.125 : 8.0;
-            double cur_x = env->pl.ent.posX + (double)env->ox;
-            double cur_z = env->pl.ent.posZ + (double)env->oz;
-            int nx = (int)floor(cur_x * scale);
-            int nz = (int)floor(cur_z * scale);
+            /* NOTE: Teleporter.placeInPortal is NOT ported. Magma runs
+             * gm_portal_find_or_make on a live-generated destination world
+             * (portal_live.c:30-63) and teleports to its result; blaze reads
+             * the arrival pose straight out of the destination bank's
+             * RlSnapHead (cu_dimension_swap_apply below). The 8:1 / 1:8
+             * coordinate scaling that would pick the search origin is
+             * therefore not applied anywhere yet - do not add hardcoded
+             * per-fixture arrival constants here to paper over that. */
             env->swap_pending = 1;
-            env->swap_target_dim = nd;
-            env->swap_target_x = (nd == -1) ? 1.5 : ((double)nx + 0.5);
-            env->swap_target_y = (nd == -1) ? 103.0 : 65.0;
-            env->swap_target_z = (nd == -1) ? 1.5 : ((double)nz + 0.5);
+            env->swap_target_dim = (env->dimension == 0) ? -1 : 0;
             env->portal_cooldown = 100;
             env->portal_time = 0;
         }
@@ -64,9 +63,16 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
         return;
     }
 
-    /* 1. Swap active region voxels, lighting, and biomes */
+    /* 1. Swap active region voxels, lighting, and biomes.
+     * Fail closed: if the destination region does not fit the env pool there
+     * is no swap at all - do NOT fall through and stamp the new dimension id
+     * and arrival pose onto the old region. */
     long vol = (long)target->head.rnx * target->head.rny * target->head.rnz;
-    if (env->cells && target->cells && vol <= env->rvol) {
+    if (!env->cells || vol > env->rvol) {
+        env->swap_pending = 0;
+        return;
+    }
+    {
         memcpy(env->cells, target->cells, vol * sizeof(u16));
         if (env->light && target->light)
             memcpy(env->light, target->light, vol);

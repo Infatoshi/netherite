@@ -52,7 +52,7 @@ static int write_chain(const char *path) {
     fputc('[', f);
     for (t = 0; t < 96; ++t) {
         if (t) fputc(',', f);
-        if (t < 8)
+        if (t < 10)
             fputs("{\"forward\":1.0}", f);
         else
             fputs("{}", f);
