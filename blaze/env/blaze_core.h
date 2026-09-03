@@ -2062,7 +2062,15 @@ MC_HD static inline void cu_mob_to_env(Blaze *e, unsigned i, const MlMob *o) {
     e->mob_fire[i] = o->fire_ticks;
 }
 
-#include "mob_ai_tasks.h" /* Java EntityAITasks + PathFinder A* */
+#ifndef __CUDACC__
+/* Java EntityAITasks + PathFinder A*. Host only: mc_atan2 (mc_math.h) is
+ * host-only, blaze_cuda.cu exports no det_entity_rng setter, so on the CUDA
+ * path det_entity_rng is always 0 and mai_det_tick is dead code. Keeping it
+ * out of the device build keeps k_tick registers, stack and cicc time where
+ * the 2026-09-03 compile-split measurements put them. mobs_det M2 is BLOCKED
+ * until the setter, the look_px xtra load and a device mc_atan2 exist. */
+#include "mob_ai_tasks.h"
+#endif
 
 MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     unsigned i;
@@ -2081,12 +2089,14 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     tod = (int)(e->ww.worldTime % 24000LL);
     if (tod < 0) tod += 24000;
     day = tod < 12000;
+#ifndef __CUDACC__
     if (e->det_entity_rng) {
         mai_det_tick(e, st, px, py, pz, day);
         cu_mobs_compact(e);
         e->mob_tick++;
         return;
     }
+#endif
     for (i = 0; i < e->n_mobs; ++i) {
         MlMob mm;
         MlAiOut o;
