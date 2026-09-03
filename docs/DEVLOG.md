@@ -1,5 +1,13 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 portals_dimensions M1 covers the Nether region
+
+Question. After the review that the first VERIFIED only covered transit, does Blaze CPU stay bit-equal to magma on world and random_ticks for 60 ticks in the Nether?
+
+Method. Rebuilt grass_sec after the region memcpy, matched gm_player_dig_reset on transit, and named the Nether bank with BlazeCreateOpts plus a s10_t0_r64_portals.bsnp.banks sidecar instead of rewriting the filename. Rebaked the Nether dump (10 forward, 80 idle, snapshot_r=64 at tick 90) and compared hashes.
+
+Findings. uv run --no-project --with numpy python blaze/env/verify_cpu.py --chain --expected-chain-actions 170 --snapshot verify/fixtures/port/s10_t0_r64_portals.bsnp --tape blaze/rl/fixtures/portals_s10.json --port-parity --strict-capabilities --features player,portals,dimensions,world,random_ticks reported VERIFIED 170 ticks in 6.90s. A named missing bank failed closed: load_snapshots: nether bank missing: /tmp/gem-dims-no-such-nether.bsnp. Rebake matched s10_t0_r64_portals.bsnp sha256 0260d2908ab8c73dfe0b63210efa5c5a892ea94b55a2f4d2ebf9fc80b08e1621 (6458852 bytes) and s10_t0_r64_nether.bsnp sha256 4e0dd2640a6a9a31d818fddcaaf00d0f2a71843b9ec4e5bca766370d26e4dd62 (6316584 bytes). port_matrix --tier m1 --no-deps VERIFIED portals_dimensions, world_dynamics, spawn_to_torch, and fluids. make -C magma test ended fall_reanchor: PASS. make -C blaze/rl test ended ppo: PASS backend=cpu n_envs=2 chunks=1 ticks=32. sizeof(Blaze) is 691952. Snapshot version stays 11. CUDA M2 is BLOCKED: CUDA swap copy from bank not implemented. End transit is out: no End bank, cu_portal_tick records block 119 but does not swap, magma End platform (100.5, 49.0, 0.5) is not built.
+
 ## 2026-09-03 portals_dimensions review: the M1 row does not cover the Nether
 
 Question. The row below claims `portals_dimensions` M1 VERIFIED. What does that gate actually assert?
