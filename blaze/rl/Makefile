@@ -12,6 +12,14 @@ ENV_SRC := ../env
 CORE_SRC := ../core
 CONF := ppo.conf
 
+# blaze_core.h pulls the mob AI + A* headers in. Without them here an edit to
+# mob_ai_tasks.h leaves the trainer's blaze_cpu.so stale (make prints
+# "Nothing to be done") while magma/Makefile's blaze_so rule does rebuild -
+# the two .so copies then disagree. Mirrors magma/Makefile BLAZE_MOBS.
+MOB_AI_HDRS := $(CORE_SRC)/mob_ai_tasks.h $(CORE_SRC)/path_finder.h \
+	$(CORE_SRC)/path_node_processor.h $(CORE_SRC)/pathfinding12.h \
+	$(CORE_SRC)/hostile_live.h $(CORE_SRC)/passive_live.h
+
 UNAME_S := $(shell uname -s)
 
 CPPFLAGS_COMMON := -I. -I$(NN_SRC) -I$(ENV_SRC) -I$(CORE_SRC)
@@ -199,7 +207,7 @@ $(ENV_CPU_SO): $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h \
 		$(CORE_SRC)/falling_live.h $(CORE_SRC)/explosion_live.h \
-		$(CORE_SRC)/explosion.h | $(ENV_OUT)
+		$(CORE_SRC)/explosion.h $(MOB_AI_HDRS) | $(ENV_OUT)
 	$(CC) $(ENV_CFLAGS) $(OMP_CFLAGS) -I$(ENV_SRC) -I$(CORE_SRC) -shared \
 		-o $@ $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		-lm $(OMP_LDFLAGS)
@@ -209,7 +217,7 @@ $(ENV_CUDA_SO): $(ENV_SRC)/blaze_cuda.cu $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h \
 		$(CORE_SRC)/falling_live.h $(CORE_SRC)/explosion_live.h \
-		$(CORE_SRC)/explosion.h | $(ENV_OUT)
+		$(CORE_SRC)/explosion.h $(MOB_AI_HDRS) | $(ENV_OUT)
 	$(NVCC) $(NVCCFLAGS) --shared \
 		-o $@ $(ENV_SRC)/blaze_cuda.cu $(ENV_SRC)/blaze_snapshot.c \
 		-lcudart
