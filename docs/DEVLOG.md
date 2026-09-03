@@ -1,25 +1,54 @@
 # DEVLOG (compressed)
 
-## 2026-09-03 mob AI: Java EntityAITasks and PathFinder A* ported to blaze
+## 2026-09-03 mob AI: EntityAITasks + PathFinder A* blaze M1 on a panic fixture
 
-Ported Java EntityAITasks task schedulers, LookHelper, EntityBodyHelper,
-LivingBase movement, swept box collision, and PathFinder A* into blaze
-(blaze/core/mob_ai_tasks.h) following the GPU_MOB_AI.md v2 specification.
-Sidecar arrays were placed in the Blaze struct and CuVec with runtime
-zeroing on reset, keeping the snapshot format backward compatible without
-a version bump.
+Java EntityAITasks, LookHelper, EntityBodyHelper, LivingBase movement, and
+PathFinder A* (32x24x32 window, 48-point cap, 200 heap-pop) live in
+blaze/core/mob_ai_tasks.h, path_finder.h, and path_node_processor.h. New
+Blaze struct fields sit at the end under the GPU_MOB_AI.md comment.
+Snapshot stays v11. No v12 sidecar. blaze_cuda.cu was not edited.
 
-Acceptance gate results.
-M1 subsystem mobs_det passed:
-VERIFIED mobs_det: all required gates passed with evidence
-SUMMARY VERIFIED=1 BLOCKED=0 FAILED=0
-Subsystem passives and mobs rows passed M1 verification with 64 ticks zero-diff.
-Scenario tapes verified bit-equal:
-scenario_detmob_panic_20260821T170933Z.jsonl: 407 ticks, walked eid=2983 xz=3.55891
-scenario_detmob_passive_20260821T152220Z.jsonl: 1203 ticks, 3 tracked standing
-scenario_detmob_hostile_ambient_20260821T181540Z.jsonl: 625 ticks, walked eid=3691 xz=9.06245
-Magma test passed with fall_reanchor PASS and test_furnace_registry PASS (51 recipes).
-Blaze rl test-chain passed with test_chain_reward PASS.
+mai_pai_try_start writes the live JavaRandom cursor back onto the mob
+before PathFinder so A* cannot reload the pre-shouldExecute seed.
+Remaining wander/panic gaps vs magma/game/mob_live.c: panic countdown
+after shouldExecute, pai_in_material water inset 0.001 lava 0.1, hai_bit
+packing table not 1<<enum, skeleton combat appended after wander.
+
+Fixture verify/fixtures/port/s10_t0_r64_mobs_det.bsnp plants
+panic_ticks=101 on the sheep from the passives bake. Chain
+blaze/rl/fixtures/mobs_det_s10.json is 600 idle {}.
+
+Fail-closed on the old 64-tick passives fixture (verify_detmob.py forces
+--require-findpath):
+  blaze_mob_ai_stats pf_calls=0 pf_paths=0
+  seed 10 [full chain x64] FAIL: blaze_mob_ai_stats reports zero findPath calls
+  FAILED: 0/1 chain fixture verified
+  EXIT:1 runtime 2.35s
+
+mobs_det M1 after blaze_cpu.so rebuild (port_matrix --tier m1 --subsystem
+mobs_det --no-deps):
+  digest MATCH mobs=0x20dd0601b63f75c7 xp=0xaabfbe90fd1d846d
+  blaze_mob_ai_stats pf_calls=9 pf_paths=9
+  seed 10 [full chain x600]: VERIFIED 600 ticks for mobs,xp
+  VERIFIED: 1/1 chain fixture verified
+  runtime 16.85s
+  VERIFIED mobs_det: all required gates passed with evidence
+  SUMMARY VERIFIED=1 BLOCKED=0 FAILED=0
+
+mobs M1 --no-deps VERIFIED (resume N=48 M=16 dump version=11).
+world_dynamics M1 --no-deps VERIFIED (resume N=2026 M=32 dump version=11).
+make -C magma test: fall_reanchor PASS, test_furnace_registry PASS (51 recipes).
+make -C blaze/rl test: test_train_config PASS, test_chain_reward PASS,
+ppo PASS backend=cpu n_envs=2 ticks=32.
+
+Resume for --det-entity-rng is dropped. verify_resume_parity.py FAILs
+closed (EXIT:1) because living_sound, entity_age, task_tick, watch/idle/eat,
+chicken_egg, and follow are not in the v11 trailer. mobs_det resume: false.
+
+The verify/tapes/scenario_detmob_*.jsonl tapes stay magma-only
+(detmob_gate vs Java). They are not blaze-replayed. M2 unmeasured on this
+Mac. Still out: mate/tempt/follow/eat/watch, PathNavigateClimber,
+EntityPotion, Nether/End in the env, CUDA M2 for mobs_det.
 
 ## 2026-09-02 skylight rebuild is the trainer bottleneck: gamer A/B (not merged)
 
