@@ -86,6 +86,9 @@
 #include "elytra_live.h"        /* START_FALL_FLYING + updateElytra */
 #include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
 #include "item_overflow.h"       /* 32-slot FIFO when CU_MAX_ITEMS is full */
+#include "path_node_processor.h" /* Pf12 32x24x32 volume definition */
+#include "path_finder.h"         /* pf12_findPath */
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -490,6 +493,55 @@ typedef struct {
     int swap_target_dim;      /* destination dimension ID */
     const void *dim_bank;     /* CuSnapshot[3]: [0]=nether, [2]=end */
     const void *dim_ow;       /* this env's own overworld snapshot */
+
+    /* mob AI (GPU_MOB_AI.md) */
+    int det_entity_rng;
+    /* Previous tick's player pose, magma GmMobs look_px/look_have
+     * (mob_live.h:107-108). EntityLookHelper and the melee path destination
+     * read this, not the live pose; the task range tests read the live one.
+     * Loaded from the snapshot xtra on reset, stored at the end of
+     * mai_det_tick. Off the det path nothing reads it. */
+    double look_px, look_py, look_pz;
+    int look_have;
+    /* A* scratch, 1.09 MiB. NOT embedded: it is 62% of sizeof(Blaze) and the
+     * env array is n * sizeof(Blaze) in host RAM and again in VRAM, so an
+     * inline Pf12 costs +8.9 GiB at the N=8192 perf pin for a feature that
+     * is off by default. blaze_cpu.c allocates the pool on the first
+     * blaze_set_det_entity_rng(1) and binds one slot per env; like ops and
+     * light_q it is set outside reset and reset never touches it. NULL
+     * whenever det_entity_rng is 0, which is the only state the CUDA path
+     * has (blaze_cuda.cu exports no setter). */
+    Pf12 *pf;
+    /* PathFinder coverage counters, same contract as ops above: cumulative,
+     * reset does NOT touch them, never hashed, never snapshotted. The
+     * mobs_det gate reads them through blaze_mob_ai_stats and fails closed
+     * when the A* was never called, so a tape that never paths cannot be
+     * mistaken for a verified pathfinder. */
+    unsigned long long pf_calls;
+    unsigned long long pf_paths;
+    int mob_living_sound[BLAZE_SNAP_MAX_MOBS];
+    int mob_entity_age[BLAZE_SNAP_MAX_MOBS];
+    int mob_task_tick[BLAZE_SNAP_MAX_MOBS];
+    int mob_target_tick[BLAZE_SNAP_MAX_MOBS];
+    int mob_watch_time[BLAZE_SNAP_MAX_MOBS];
+    int mob_idle_time[BLAZE_SNAP_MAX_MOBS];
+    int mob_eat_time[BLAZE_SNAP_MAX_MOBS];
+    int mob_chicken_egg[BLAZE_SNAP_MAX_MOBS];
+    int mob_body_ticks[BLAZE_SNAP_MAX_MOBS];
+    float mob_head_yaw[BLAZE_SNAP_MAX_MOBS];
+    float mob_prev_head_yaw[BLAZE_SNAP_MAX_MOBS];
+    double mob_melee_tx[BLAZE_SNAP_MAX_MOBS];
+    double mob_melee_ty[BLAZE_SNAP_MAX_MOBS];
+    double mob_melee_tz[BLAZE_SNAP_MAX_MOBS];
+    int mob_raise_arm[BLAZE_SNAP_MAX_MOBS];
+    unsigned char mob_strafe_cw[BLAZE_SNAP_MAX_MOBS];
+    unsigned char mob_strafe_back[BLAZE_SNAP_MAX_MOBS];
+    signed char mob_cstate[BLAZE_SNAP_MAX_MOBS];
+    int mob_blaze_hot[BLAZE_SNAP_MAX_MOBS];
+    float mob_blaze_hof[BLAZE_SNAP_MAX_MOBS];
+    double mob_nav_speed[BLAZE_SNAP_MAX_MOBS];
+    float mob_follow[BLAZE_SNAP_MAX_MOBS];
+    int mob_skel_melee[BLAZE_SNAP_MAX_MOBS];
 } Blaze;
 
 /* =================== region / window accessors =================== */
@@ -1709,6 +1761,29 @@ MC_HD static inline void cu_mobs_compact(Blaze *e) {
             e->mob_repath[o] = e->mob_repath[i];
             e->mob_despawn[o] = e->mob_despawn[i];
             e->mob_fire[o] = e->mob_fire[i];
+            e->mob_living_sound[o] = e->mob_living_sound[i];
+            e->mob_entity_age[o] = e->mob_entity_age[i];
+            e->mob_task_tick[o] = e->mob_task_tick[i];
+            e->mob_target_tick[o] = e->mob_target_tick[i];
+            e->mob_watch_time[o] = e->mob_watch_time[i];
+            e->mob_idle_time[o] = e->mob_idle_time[i];
+            e->mob_eat_time[o] = e->mob_eat_time[i];
+            e->mob_chicken_egg[o] = e->mob_chicken_egg[i];
+            e->mob_body_ticks[o] = e->mob_body_ticks[i];
+            e->mob_head_yaw[o] = e->mob_head_yaw[i];
+            e->mob_prev_head_yaw[o] = e->mob_prev_head_yaw[i];
+            e->mob_melee_tx[o] = e->mob_melee_tx[i];
+            e->mob_melee_ty[o] = e->mob_melee_ty[i];
+            e->mob_melee_tz[o] = e->mob_melee_tz[i];
+            e->mob_raise_arm[o] = e->mob_raise_arm[i];
+            e->mob_strafe_cw[o] = e->mob_strafe_cw[i];
+            e->mob_strafe_back[o] = e->mob_strafe_back[i];
+            e->mob_cstate[o] = e->mob_cstate[i];
+            e->mob_blaze_hot[o] = e->mob_blaze_hot[i];
+            e->mob_blaze_hof[o] = e->mob_blaze_hof[i];
+            e->mob_nav_speed[o] = e->mob_nav_speed[i];
+            e->mob_follow[o] = e->mob_follow[i];
+            e->mob_skel_melee[o] = e->mob_skel_melee[i];
         }
         ++o;
     }
@@ -1987,6 +2062,8 @@ MC_HD static inline void cu_mob_to_env(Blaze *e, unsigned i, const MlMob *o) {
     e->mob_fire[i] = o->fire_ticks;
 }
 
+#include "mob_ai_tasks.h" /* Java EntityAITasks + PathFinder A* */
+
 MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     unsigned i;
     double px, py, pz;
@@ -2004,6 +2081,12 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
     tod = (int)(e->ww.worldTime % 24000LL);
     if (tod < 0) tod += 24000;
     day = tod < 12000;
+    if (e->det_entity_rng) {
+        mai_det_tick(e, st, px, py, pz, day);
+        cu_mobs_compact(e);
+        e->mob_tick++;
+        return;
+    }
     for (i = 0; i < e->n_mobs; ++i) {
         MlMob mm;
         MlAiOut o;
@@ -6439,6 +6522,33 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     memset(env->mob_repath, 0, sizeof env->mob_repath);
     memset(env->mob_despawn, 0, sizeof env->mob_despawn);
     memset(env->mob_fire, 0, sizeof env->mob_fire);
+    env->look_px = 0.0;
+    env->look_py = 0.0;
+    env->look_pz = 0.0;
+    env->look_have = 0;
+    memset(env->mob_living_sound, 0, sizeof env->mob_living_sound);
+    memset(env->mob_entity_age, 0, sizeof env->mob_entity_age);
+    memset(env->mob_task_tick, 0, sizeof env->mob_task_tick);
+    memset(env->mob_target_tick, 0, sizeof env->mob_target_tick);
+    memset(env->mob_watch_time, 0, sizeof env->mob_watch_time);
+    memset(env->mob_idle_time, 0, sizeof env->mob_idle_time);
+    memset(env->mob_eat_time, 0, sizeof env->mob_eat_time);
+    memset(env->mob_chicken_egg, 0, sizeof env->mob_chicken_egg);
+    memset(env->mob_body_ticks, 0, sizeof env->mob_body_ticks);
+    memset(env->mob_head_yaw, 0, sizeof env->mob_head_yaw);
+    memset(env->mob_prev_head_yaw, 0, sizeof env->mob_prev_head_yaw);
+    memset(env->mob_melee_tx, 0, sizeof env->mob_melee_tx);
+    memset(env->mob_melee_ty, 0, sizeof env->mob_melee_ty);
+    memset(env->mob_melee_tz, 0, sizeof env->mob_melee_tz);
+    memset(env->mob_raise_arm, 0, sizeof env->mob_raise_arm);
+    memset(env->mob_strafe_cw, 0, sizeof env->mob_strafe_cw);
+    memset(env->mob_strafe_back, 0, sizeof env->mob_strafe_back);
+    memset(env->mob_cstate, 0, sizeof env->mob_cstate);
+    memset(env->mob_blaze_hot, 0, sizeof env->mob_blaze_hot);
+    memset(env->mob_blaze_hof, 0, sizeof env->mob_blaze_hof);
+    memset(env->mob_nav_speed, 0, sizeof env->mob_nav_speed);
+    memset(env->mob_follow, 0, sizeof env->mob_follow);
+    memset(env->mob_skel_melee, 0, sizeof env->mob_skel_melee);
     env->player_hurt_resistant = 0;
     env->player_last_damage = 0.0f;
     env->player_attack_cooldown = 0;
@@ -6452,6 +6562,11 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
             env->mob_repath[u] = mobs[u].repath_timer;
             env->mob_despawn[u] = mobs[u].despawn_ticks;
             env->mob_fire[u] = mobs[u].fire_ticks;
+            env->mob_head_yaw[u] = mobs[u].yaw;
+            env->mob_prev_head_yaw[u] = mobs[u].yaw;
+            env->mob_follow[u] = mai_follow_range(mobs[u].type);
+            env->mob_skel_melee[u] = (mobs[u].type == EW_TYPE_SKELETON && !(mobs[u].task_bits & 256u)) ? 1 : 0;
+            env->mob_nav_speed[u] = 1.0;
         }
     }
     {

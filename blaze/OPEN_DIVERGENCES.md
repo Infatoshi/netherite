@@ -19,6 +19,7 @@ Definitions, so the list stays honest:
 Last reviewed: wip/gem-dims 2026-09-03 merge review (Fable). Rebuilt magma_game + blaze_cpu.so from clean and re-ran: portals_dimensions M1 VERIFIED in 7.72s; world_dynamics, spawn_to_torch, fluids M1 VERIFIED --no-deps; make -C magma test PASS; make -C blaze/rl test PASS. Gate is not void: one flipped Nether cell (wx=1,wy=100,wz=1, state 1392 -> 0) FAILS at observation 88 on the world digest, and world/random_ticks are hard requirements (verify_cpu.py parity_pair_status BLOCKs on missing measured bits, it does not drop them). Tape ends in the Nether on both sides: t=170 dim=-1 has_sky=0 sun=0.2 pos=(1.5, 103.0, 5.8134), 83 distinct random_ticks digests after the swap. sizeof(Blaze) 691952 (+40 B vs base 64aa804: 6 ints + 2 pointers; the bank is one shared 6.016 MiB region on the handle, not per env). NEW: the return leg is a measured M1 FAIL and the swap's entity/RNG partition is uncovered - see "Dimension swap semantics".
 Last verified: wip/gem-dims 2026-09-03 (portals_dimensions M1 VERIFIED 170 ticks player,portals,dimensions,world,random_ticks in 6.90s on s10_t0_r64_portals.bsnp + s10_t0_r64_nether.bsnp. M2 BLOCKED: CUDA swap copy from bank not implemented. End transit not implemented. world_dynamics, spawn_to_torch, fluids M1 VERIFIED --no-deps. make -C magma test PASS. make -C blaze/rl test PASS. SNAP v11 unchanged.)
 Last documented: 2026-08-26 magma 13-seed transfer (`retrain_0821_best.bin` closed == cpu == cuda, 0/13 torches; replay MATCH 56/65. `ppo_ckpt_best.bin` closed t0:13; replay MATCH 45/65. Cam-px DIVERGE not blessed). No new M1/M2.
+Last verified: lane/gem-mobai 2026-09-03 (`mobs_det` M1 VERIFIED 600 ticks on `s10_t0_r64_mobs_det.bsnp`, digest mobs=0x20dd0601b63f75c7 xp=0xaabfbe90fd1d846d, `blaze_mob_ai_stats` pf_calls=9 pf_paths=9. Fail-closed: old `s10_t0_r64_mobs_passive.bsnp` 64 ticks pf_calls=0 EXIT:1. Resume dropped: v11 trailer has no det AI sidecars. `scenario_detmob_*.jsonl` stay magma-only. SNAP v11 unchanged. M2 unmeasured on this Mac.)
 Last verified: lane/blocklight 2026-08-25 (Sweep row 3: World.checkLightFor BLOCK flood. test_blocklight matches magma Manhattan 0..14. Fluids M2 raw/warp/scalar VERIFIED after moving CU_LIGHT_Q off the CUDA thread stack. listed --no-deps M1 27 VERIFIED; M2 27 VERIFIED; mining_slice M1+M2 BLOCKED rc=3. Root make test PASS. SNAP v11 unchanged. No BP_ light digest.)
 Last verified: lane/potions 2026-08-24 (Sweep row 13: SNAP v11 potion trailer after resume v10. Magma skip double fire decrement on shared hostile path. potions M1+M2 VERIFIED 120 raw/warp/scalar + resume N=90 M=30 dump version=11. listed --no-deps M1 27 VERIFIED; M2 27 VERIFIED; mining_slice BLOCKED: s14_t0_r48_no_liquid.bsnp is a v1 bake, 12 *_d*.bsnp present. Root make test PASS.)
 Last verified: lane/resumegate 2026-08-23 (Sweep rows 4 and 8: snapshot v10 resume trailers + mob sidecars. continuous-vs-resume BP_ gate. listed --no-deps M1 VERIFIED; M2 VERIFIED raw/warp/scalar except mining_slice BLOCKED missing *_d*.bsnp).
@@ -76,6 +77,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | mobs_ss | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | mobs_end | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | mobs_witch | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
+| mobs_det | VERIFIED (chain 600 idle, planted panic sheep, `--det-entity-rng --require-findpath`, pf_calls=9 pf_paths=9, resume dropped) | BLOCKED (no m2 command: blaze_cuda.cu has no det AI and no `blaze_set_det_entity_rng`) |
 | biome_plane | VERIFIED (chain 64, `--features random_ticks,mobs --mobs-on`, seed 7 swamp plane) | VERIFIED (64 CUDA lanes) |
 | biome_plane_spawn | VERIFIED (chain 64, seed 7 swamp, `--features random_ticks,mobs --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | biome_plane_ice | VERIFIED (chain 64, seed 42 ice plains, `--features random_ticks,mobs --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
@@ -199,14 +201,50 @@ Magma reference: `magma/game/runtime.c:1630-1650` (the transit block) plus
    `cu_portal_tick` is also now unconditional in `blaze_tick`, replacing the
    old "blocks 90/119 cannot occur in an overworld training region - skipped"
    comment: two extra `cu_world_block` lookups per env per tick on every row.
-- **Detmob A* still does not exist in blaze.** Snapshot living slots tick the
-  Entity.move spine (`entity_spine`) and the magma generic (det_entity_rng off)
-  zombie/skeleton/creeper chase/melee path (`mobs`, M1+M2 VERIFIED). Java
-  EntityAITasks + PathFinder A* stay magma-CPU (detmob). The agreed GPU design
-  is `blaze/GPU_MOB_AI.md` (v2, codex-reviewed): one warp per env, lane-0
-  sequential mob tick with A* inline, magma-semantics (32x24x32 window,
-  48-point path cap), IntHashMap aliasing reproduced, all 8 detmob tapes
-  must be blaze-exact.
+- **Detmob A* is in blaze; the scenario_detmob tapes stay magma-only.**
+  Snapshot living slots tick the Entity.move spine (`entity_spine`) and the
+  magma generic (det_entity_rng off) zombie/skeleton/creeper chase/melee
+  path (`mobs`, M1+M2 VERIFIED). Java EntityAITasks + PathFinder A* run in
+  blaze when det_entity_rng is on. `mobs_det` M1 is VERIFIED 600 ticks on
+  `verify/fixtures/port/s10_t0_r64_mobs_det.bsnp` (planted panic=101 sheep)
+  with `blaze_mob_ai_stats` pf_calls=9 pf_paths=9; the gate FAILs closed if
+  pf_calls is 0 (old 64-tick passives fixture EXIT:1). The
+  `verify/tapes/scenario_detmob_*.jsonl` tapes (panic, passive, wander,
+  hostile ambient, hostile target, nether, end) stay magma-only:
+  `magma/game/detmob_gate.c` / `verify/trace/detmob_gate.py` vs the Java
+  oracle. They are not blaze-replayed and are not the `mobs_det` M1 fixture.
+  Resume for det_entity_rng is dropped (v11 trailer has no det AI sidecars;
+  `verify_resume_parity.py` FAILs if `--det-entity-rng` is passed). M2
+  unmeasured. The agreed GPU design is `blaze/GPU_MOB_AI.md` (v2): sequential
+  mob tick with A* inline, magma semantics (32x24x32 window, 48-point path
+  cap), IntHashMap aliasing reproduced.
+
+  What the mobs_det M1 fixture does NOT cover (2026-09-03 merge review,
+  measured, not argued): 4 mobs, one panicking sheep, 9 findPath calls, a
+  stationary player, and air-over-solid destination columns only. Two real
+  transcription divergences were found and fixed with the 600-tick digests
+  byte-identical on both sides of the fix - `mai_path_to_pos` was a two-way
+  solid test instead of the three-way Material dispatch, and the look helper
+  read the live player pose instead of magma's previous-tick `look_px`. The
+  fixture can see neither. `test_mobs_det` now pins the path_to_pos columns
+  directly. No hostile/melee path, no water destination, no moving player,
+  no second seed.
+
+  KNOWN, not fixed: `mai_brightness` reads `cu_world_light`, which returns
+  15 outside the blaze region where magma's `light_sky` returns 0 for a
+  missing chunk. On `mai_random_position`'s scoring path
+  (`mai_block_path_weight` -> `br - 0.5f`) that is a 1.0 swing in the
+  RandomPositionGenerator best-weight for a candidate outside the region, so
+  a different wander target and A* path. This is the systemic
+  finite-region limitation the whole port carries, not a mob AI bug;
+  changing `cu_world_light` would move every other VERIFIED row.
+
+  CUDA: `blaze_cuda.cu` was not touched. It exports no
+  `blaze_set_det_entity_rng` and `verify_cuda.py` has no `--det-entity-rng`,
+  so mobs_det has no m2 command and the row is BLOCKED at m2. It also needs
+  the `look_px` xtra load mirrored, and `mai_det_tick` is now inlined into
+  `cu_mob_ai_tick` inside k_tick - register pressure and compile time on
+  that path are unmeasured.
 
 ## Spawn -> dragon (policy vs magma)
 
@@ -241,7 +279,8 @@ magma `player_ctl`:
   log / leaves / coal / stone / dirt / table / occupancy / depth /
   edge (`obs_pack.h` `pack_frame`). No mob, light, or health plane.
 - Sweep 6: death is terminal.
-- Detmob A* is magma-CPU (above).
+- Detmob A* blaze M1 is the panic fixture (`mobs_det`); the
+  scenario_detmob tapes stay magma-only (above).
 - M1/M2 are BP_ digests inside that region, not a streamed survival
   world.
 
@@ -284,6 +323,11 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    supported listed row. mining_slice BLOCKED (v1 fixture and missing
    `*_d*.bsnp`; no recapture on gamer). Potion/shield/sleep stay other
    lanes. Item overflow queue stays row 9. Forensics: `docs/DEVLOG.md`.
+   det_entity_rng / `mobs_det` is not in that set. Resume is dropped:
+   `verify_resume_parity.py` FAILs if `--det-entity-rng` is passed because
+   living_sound, entity_age, task_tick, watch/idle/eat, chicken_egg, and
+   follow are not in the v11 snapshot trailer. `port_matrix.yaml` sets
+   `resume: false`. No v12 sidecar.
 5. Focused M2 production kernels: CLOSED 2026-08-23 lane `warpm2`.
    `verify_cuda.py --m2-kernel raw|warp|scalar` and per-row `m2_kernels:`
    (default raw, warp, scalar). warp/scalar drive `blaze_tick` ->

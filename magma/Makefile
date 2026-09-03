@@ -589,7 +589,8 @@ BLAZE_CHEST = ../blaze/core/tile_entity_chest.h ../blaze/core/container_click.h
 BLAZE_PROJECTILES = ../blaze/core/projectile_live.h
 BLAZE_EXPLOSIONS = ../blaze/core/explosion.h ../blaze/core/explosion_live.h
 BLAZE_MOBS = ../blaze/core/hostile_live.h ../blaze/core/hostile_spawn.h \
-             ../blaze/core/passive_live.h
+             ../blaze/core/passive_live.h ../blaze/core/mob_ai_tasks.h \
+             ../blaze/core/path_finder.h ../blaze/core/path_node_processor.h
 BLAZE_XP = ../blaze/core/xp_live.h ../blaze/core/entity_xp_orb.h \
              ../blaze/core/xp_world_tick.h
 BLAZE_ITEMS = ../blaze/core/entity_item.h ../blaze/core/item_live.h \

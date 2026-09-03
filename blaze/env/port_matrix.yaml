@@ -976,6 +976,68 @@ subsystems:
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
+  - name: mobs_det
+    supported: true
+    resume: false
+    sources:
+      magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
+      shared:
+        - blaze/core/mob_ai_tasks.h
+        - blaze/core/path_finder.h
+        - blaze/core/path_node_processor.h
+        - blaze/core/hostile_live.h
+        - blaze/core/hostile_spawn.h
+        - blaze/core/entity_hostile_spine.h
+        - blaze/core/entity_spine.h
+        - blaze/core/port_parity.h
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
+    dependencies: [mobs]
+    required_features: [mobs]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_mobs_det.bsnp
+        - blaze/rl/fixtures/mobs_det_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_mobs_det.bsnp
+        - blaze/rl/fixtures/mobs_det_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_detmob.py
+      - --chain
+      - --expected-chain-actions
+      - "600"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_mobs_det.bsnp
+      - --tape
+      - blaze/rl/fixtures/mobs_det_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - mobs,xp
+      - --mobs-on
+      - --natural-spawn-passive
+      - --det-entity-rng
+      - --require-findpath
+    # M2 is not runnable yet, so the row carries no command and stays BLOCKED
+    # at m2 instead of reporting a bogus FAILED. blaze_cuda.cu was not touched
+    # by the mob AI port: it exports no blaze_set_det_entity_rng, and
+    # verify_cuda.py has no --det-entity-rng flag, so the command this row
+    # used to hold died in argparse ("unrecognized arguments:
+    # --det-entity-rng", rc=2) on any host that had blaze_cuda.so. Restore a
+    # command here only together with the CUDA setter and the flag.
+    m2: []
+    m2_kernels: [raw, warp, scalar]
+    timeout: 2400
+
   - name: mobs_ss
     supported: true
     resume: true

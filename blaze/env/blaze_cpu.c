@@ -80,6 +80,9 @@ typedef struct {
     u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
     int   *rt_leaf_pool;     /* per-env BlockLeaves surroundings[32768] */
     int   *light_q_pool;     /* per-env CU_LIGHT_Q BLOCK flood queue */
+    Pf12  *pf_pool;          /* per-env PathFinder scratch, 1.09 MiB each.
+                              * Allocated on the first det_entity_rng enable,
+                              * never on the default path. */
     u8    *light_pool, *biome_pool, *dep_pool, *edg_pool;
     Chunk *window_pool;
     CuCand *cand_pool;
@@ -101,6 +104,7 @@ typedef struct {
     int    natural_spawn_passive;
     i64    world_time_pin;   /* -1 unset; else ww.worldTime after reset */
     int    elytra_kit;       /* magma --elytra on: chest 443 after reset */
+    int    det_entity_rng;   /* detmob Java EntityAITasks + PathFinder A* */
 } CuVec;
 
 /* OPT-IN training-reward mode: gate the +0.03 crosshair-attack bonus on
@@ -132,6 +136,25 @@ int blaze_set_mobs_enabled(void *vh, int on) {
     if (v->envs)
         for (i = 0; i < v->n; ++i)
             v->envs[i].mobs_enabled = v->mobs_enabled;
+    return 0;
+}
+
+int blaze_set_det_entity_rng(void *vh, int on) {
+    CuVec *v = (CuVec *)vh;
+    int i;
+    if (!v) return -1;
+    if (on && !v->pf_pool) {
+        /* One A* scratch per env, allocated the first time the det path is
+         * asked for. Fail closed: the caller (verify_cpu.py) raises. */
+        v->pf_pool = (Pf12 *)calloc((size_t)v->n, sizeof *v->pf_pool);
+        if (!v->pf_pool) return -1;
+    }
+    v->det_entity_rng = on ? 1 : 0;
+    if (v->envs)
+        for (i = 0; i < v->n; ++i) {
+            v->envs[i].det_entity_rng = v->det_entity_rng;
+            v->envs[i].pf = v->pf_pool ? &v->pf_pool[i] : NULL;
+        }
     return 0;
 }
 
@@ -323,6 +346,7 @@ void blaze_destroy(void *vh) {
     free(v->fluid_cur_pool); free(v->fluid_tmp_pool);
     free(v->rt_leaf_pool);
     free(v->light_q_pool);
+    free(v->pf_pool);
     free(v->ops_pool);
     free(v);
 }
@@ -773,6 +797,11 @@ static void cu_reset_env(CuVec *v, int i) {
                 e->explosion_size = s->explosion_size;
                 e->parity_xp_pickups = s->xtra.xp_pickups;
                 e->next_orb_id = s->xtra.next_orb_id;
+                /* magma rl_mode.c:2195-2198 restores these into GmMobs. */
+                e->look_px = s->xtra.look_px;
+                e->look_py = s->xtra.look_py;
+                e->look_pz = s->xtra.look_pz;
+                e->look_have = s->xtra.look_have ? 1 : 0;
                 e->spawn_world_seed48 = s->xtra.spawn_world_seed48;
                 e->spawn_math_seed48 = s->xtra.spawn_math_seed48;
                 e->spawn_shuffle_seed48 = s->xtra.spawn_shuffle_seed48;
@@ -880,6 +909,8 @@ static void cu_reset_env(CuVec *v, int i) {
     v->envs[i].mobs_enabled = v->mobs_enabled;
     v->envs[i].natural_spawn = v->natural_spawn;
     v->envs[i].natural_spawn_passive = v->natural_spawn_passive;
+    v->envs[i].det_entity_rng = v->det_entity_rng;
+    v->envs[i].pf = v->pf_pool ? &v->pf_pool[i] : NULL;
     if (v->world_time_pin >= 0)
         v->envs[i].ww.worldTime = v->world_time_pin;
     v->envs[i].elytra_kit = v->elytra_kit;
@@ -1551,6 +1582,18 @@ int blaze_mobs_get(void *vh, int env, int i, int *slot, int *type, int *alive,
     if (x) *x = m->x;
     if (y) *y = m->y;
     if (z) *z = m->z;
+    return 0;
+}
+
+/* mobs_det coverage evidence: cumulative PathFinder call / non-empty-path
+ * counts for one env. Not sim state (never hashed, never snapshotted, not
+ * cleared by reset). The gate fails closed when calls == 0. */
+int blaze_mob_ai_stats(void *vh, int env, unsigned long long *calls,
+                       unsigned long long *paths) {
+    CuVec *v = (CuVec *)vh;
+    if (!v || env < 0 || env >= v->n) return -1;
+    if (calls) *calls = v->envs[env].pf_calls;
+    if (paths) *paths = v->envs[env].pf_paths;
     return 0;
 }
 

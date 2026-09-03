@@ -272,6 +272,8 @@ _RESUME_BOOL_FLAGS = frozenset(
         "--mobs-on",
         "--natural-spawn",
         "--natural-spawn-passive",
+        "--det-entity-rng",
+        "--require-findpath",
     )
 )
 
