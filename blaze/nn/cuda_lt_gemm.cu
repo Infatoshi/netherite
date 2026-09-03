@@ -74,6 +74,7 @@ struct NnLtGemm {
   cublasHandle_t blas;
   int device;
   int max_n;
+  NnPrec prec;
   int prepared_n;
   NnWsArena *ws;
   float *d_ones;
@@ -387,10 +388,11 @@ static int make_layouts(const GemmSpec *s, cublasLtMatrixLayout_t *Ad,
   return 0;
 }
 
-static int make_desc(const GemmSpec *s, void *bias, void *aux, int64_t aux_ld,
-                     cublasLtMatmulDesc_t *desc) {
-  if (cublasLtMatmulDescCreate(desc, CUBLAS_COMPUTE_32F_FAST_TF32,
-                               CUDA_R_32F) != CUBLAS_STATUS_SUCCESS)
+static int make_desc(const NnLtGemm *g, const GemmSpec *s, void *bias, void *aux,
+                     int64_t aux_ld, cublasLtMatmulDesc_t *desc) {
+  cublasComputeType_t comp =
+      (g && g->prec == NN_PREC_F32) ? CUBLAS_COMPUTE_32F : CUBLAS_COMPUTE_32F_FAST_TF32;
+  if (cublasLtMatmulDescCreate(desc, comp, CUDA_R_32F) != CUBLAS_STATUS_SUCCESS)
     return -1;
   if (cublasLtMatmulDescSetAttribute(*desc, CUBLASLT_MATMUL_DESC_TRANSA, &s->ta,
                                      sizeof(s->ta)) != CUBLAS_STATUS_SUCCESS)
@@ -405,9 +407,9 @@ static int make_desc(const GemmSpec *s, void *bias, void *aux, int64_t aux_ld,
   if (s->has_bias && bias) {
     cudaDataType_t bt = CUDA_R_32F;
     cublasLtMatmulDescSetAttribute(*desc, CUBLASLT_MATMUL_DESC_BIAS_DATA_TYPE,
-                                   &bt, sizeof(bt));
+                                    &bt, sizeof(bt));
     if (cublasLtMatmulDescSetAttribute(*desc, CUBLASLT_MATMUL_DESC_BIAS_POINTER,
-                                       &bias, sizeof(bias)) !=
+                                        &bias, sizeof(bias)) !=
         CUBLAS_STATUS_SUCCESS)
       return -1;
   }
@@ -417,8 +419,8 @@ static int make_desc(const GemmSpec *s, void *bias, void *aux, int64_t aux_ld,
             sizeof(aux)) != CUBLAS_STATUS_SUCCESS)
       return -1;
     if (cublasLtMatmulDescSetAttribute(*desc,
-                                       CUBLASLT_MATMUL_DESC_EPILOGUE_AUX_LD,
-                                       &aux_ld, sizeof(aux_ld)) !=
+                                        CUBLASLT_MATMUL_DESC_EPILOGUE_AUX_LD,
+                                        &aux_ld, sizeof(aux_ld)) !=
         CUBLAS_STATUS_SUCCESS)
       return -1;
   }
@@ -447,7 +449,7 @@ static int launch_lt(NnLtGemm *g, const GemmSpec *s,
                      void *aux, int64_t aux_ld, size_t ws_cap) {
   cublasLtMatmulDesc_t desc = nullptr;
   cublasLtMatrixLayout_t Ad = nullptr, Bd = nullptr, Cd = nullptr, Dd = nullptr;
-  if (make_desc(s, bias, aux, aux_ld, &desc) != 0)
+  if (make_desc(g, s, bias, aux, aux_ld, &desc) != 0)
     goto fail;
   if (make_layouts(s, &Ad, &Bd, &Cd, &Dd) != 0)
     goto fail;
@@ -458,6 +460,17 @@ static int launch_lt(NnLtGemm *g, const GemmSpec *s,
 fail:
   destroy_layouts(Ad, Bd, Cd, Dd, desc);
   return -1;
+}
+
+static bool algo_disallows_tf32(const cublasLtMatmulAlgo_t *algo) {
+  uint64_t flags = 0;
+  if (cublasLtMatmulAlgoCapGetAttribute(
+          algo, CUBLASLT_ALGO_CAP_NUMERICAL_IMPL_FLAGS, &flags, sizeof(flags),
+          nullptr) == CUBLAS_STATUS_SUCCESS) {
+    if ((flags & CUBLASLT_NUMERICAL_IMPL_FLAGS_INPUT_TF32) != 0)
+      return false;
+  }
+  return true;
 }
 
 static int heur_and_time(NnLtGemm *g, GemmSpec s, const void *A, const void *B,
@@ -481,7 +494,7 @@ static int heur_and_time(NnLtGemm *g, GemmSpec s, const void *A, const void *B,
   }
 
   std::memset(heur, 0, sizeof(heur));
-  if (make_desc(&s, bias, aux, aux_ld, &desc) != 0)
+  if (make_desc(g, &s, bias, aux, aux_ld, &desc) != 0)
     goto done;
   if (make_layouts(&s, &Ad, &Bd, &Cd, &Dd) != 0)
     goto done;
@@ -504,6 +517,8 @@ static int heur_and_time(NnLtGemm *g, GemmSpec s, const void *A, const void *B,
         continue;
       if (heur[i].workspaceSize > ws_cap)
         continue;
+      if (g && g->prec == NN_PREC_F32 && !algo_disallows_tf32(&heur[i].algo))
+        continue;
       *algo_out = heur[i].algo;
       *ws_out = heur[i].workspaceSize;
       rc = 0;
@@ -525,6 +540,8 @@ static int heur_and_time(NnLtGemm *g, GemmSpec s, const void *A, const void *B,
       if (heur[i].state != CUBLAS_STATUS_SUCCESS)
         continue;
       if (heur[i].workspaceSize > ws_cap)
+        continue;
+      if (g && g->prec == NN_PREC_F32 && !algo_disallows_tf32(&heur[i].algo))
         continue;
       float times[kRepeat];
       int ok = 1;
@@ -715,7 +732,7 @@ static int sgemv_db(NnLtGemm *g, int out, int n, const float *dpre, float *db) {
 }
 
 NnLtGemm *nn_lt_create(cublasLtHandle_t lt, int device, int max_n,
-                       NnWsArena *ws) {
+                       NnWsArena *ws, NnPrec prec) {
   if (!lt || !ws || max_n < 1 || device < 0)
     return nullptr;
   if (cudaSetDevice(device) != cudaSuccess)
@@ -725,6 +742,7 @@ NnLtGemm *nn_lt_create(cublasLtHandle_t lt, int device, int max_n,
   g->lt = lt;
   g->device = device;
   g->max_n = max_n;
+  g->prec = prec;
   g->prepared_n = -1;
   g->ws = ws;
   if (cublasCreate(&g->blas) != CUBLAS_STATUS_SUCCESS) {

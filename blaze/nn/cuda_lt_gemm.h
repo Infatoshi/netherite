@@ -3,6 +3,7 @@
 #pragma once
 
 #include "cuda_ws.h"
+#include "nn.h"
 
 #include <cublasLt.h>
 #include <stddef.h>
@@ -14,7 +15,7 @@ extern "C" {
 typedef struct NnLtGemm NnLtGemm;
 
 NnLtGemm *nn_lt_create(cublasLtHandle_t lt, int device, int max_n,
-                       NnWsArena *ws);
+                       NnWsArena *ws, NnPrec prec);
 void nn_lt_destroy(NnLtGemm *g);
 int nn_lt_prepare(NnLtGemm *g, int n);
 /* Keep every plan at this n through plan-table eviction (prepared buckets). */

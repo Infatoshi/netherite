@@ -83,6 +83,7 @@ static void test_defaults(void) {
   expect_eq_i(c.op_trace, 0, "default op_trace");
   expect_eq_i(c.no_ore_xy, 0, "default no_ore_xy");
   expect_eq_i(c.stack_kib, 128, "default stack_kib");
+  expect_eq_s(c.nn_prec, "fast", "default nn_prec");
 }
 
 static void test_file_load(void) {
@@ -221,6 +222,14 @@ static void test_bad_value(void) {
   expect_eq_i(rc, -2, "stage_snaps=2 bad");
   rc = tr_cfg_set(&c, "stage_snaps", "true");
   expect_eq_i(rc, -2, "stage_snaps=true bad");
+  rc = tr_cfg_set(&c, "nn_prec", "fp32");
+  expect_eq_i(rc, -2, "nn_prec=fp32 bad");
+  rc = tr_cfg_set(&c, "nn_prec", "f32");
+  expect_eq_i(rc, 0, "nn_prec=f32 ok");
+  expect_eq_s(c.nn_prec, "f32", "nn_prec=f32 applied");
+  rc = tr_cfg_set(&c, "nn_prec", "fast");
+  expect_eq_i(rc, 0, "nn_prec=fast ok");
+  expect_eq_s(c.nn_prec, "fast", "nn_prec=fast applied");
 }
 
 static void test_nonfinite_and_seed_and_overlong(void) {
@@ -305,7 +314,7 @@ static const char *const k_accepted_keys[] = {
     "init_from",       "metal_max_cells",
     "metallib",        "ktime",           "stage_time",
     "legacy_recenter", "warp_tick",       "op_trace",
-    "no_ore_xy",       "stack_kib",
+    "no_ore_xy",       "stack_kib",       "nn_prec",
 };
 
 static void test_committed_conf(void) {
@@ -334,6 +343,7 @@ static void test_committed_conf(void) {
   expect_eq_i(c.stage_snaps, 0, "committed stage_snaps");
   expect_eq_i(c.metal_max_cells, 2097152, "committed metal_max_cells");
   expect_eq_s(c.metallib, "auto", "committed metallib");
+  expect_eq_s(c.nn_prec, "fast", "committed nn_prec");
 
   /* Exact key presence: parse non-comment lines up to '=', reject duplicates. */
   f = fopen("ppo.conf", "r");

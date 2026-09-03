@@ -245,6 +245,26 @@ static void test_shape(NnLtGemm *g, int n, int out, int k, int do_relu,
   dev_free(&d);
 }
 
+static void run_lt_suite(cublasLtHandle_t lt, NnPrec prec, const char *name) {
+  std::printf("--- lt suite prec=%s ---\n", name);
+  NnWsArena ws{};
+  ws.device = 0;
+  NnLtGemm *g = nn_lt_create(lt, 0, 8, &ws, prec);
+  expect_true(g != nullptr, "nn_lt_create");
+  if (!g)
+    return;
+
+  expect_eq_i(nn_lt_prepare(g, 8), 0, "prepare(8) first");
+  expect_eq_i(nn_lt_prepare(g, 8), 0, "prepare(8) cache hit");
+
+  test_shape(g, 8, NN_FC_OUT, NN_FLAT, 1, "hidden");
+  test_shape(g, 8, NN_N_LOGITS + 1, NN_FC_OUT, 0, "heads+value");
+  test_shape(g, 4, 64, 128, 1, "generic");
+
+  nn_lt_destroy(g);
+  nn_ws_free(&ws);
+}
+
 int main(void) {
   int ndev = 0;
   if (cudaGetDeviceCount(&ndev) != cudaSuccess || ndev < 1) {
@@ -258,24 +278,10 @@ int main(void) {
     std::fprintf(stderr, "cublasLtCreate failed\n");
     return 1;
   }
-  NnWsArena ws{};
-  ws.device = 0;
-  NnLtGemm *g = nn_lt_create(lt, 0, 8, &ws);
-  expect_true(g != nullptr, "nn_lt_create");
-  if (!g) {
-    cublasLtDestroy(lt);
-    return 1;
-  }
 
-  expect_eq_i(nn_lt_prepare(g, 8), 0, "prepare(8) first");
-  expect_eq_i(nn_lt_prepare(g, 8), 0, "prepare(8) cache hit");
+  run_lt_suite(lt, NN_PREC_FAST, "fast");
+  run_lt_suite(lt, NN_PREC_F32, "f32");
 
-  test_shape(g, 8, NN_FC_OUT, NN_FLAT, 1, "hidden");
-  test_shape(g, 8, NN_N_LOGITS + 1, NN_FC_OUT, 0, "heads+value");
-  test_shape(g, 4, 64, 128, 1, "generic");
-
-  nn_lt_destroy(g);
-  nn_ws_free(&ws);
   cublasLtDestroy(lt);
 
   if (g_fails) {

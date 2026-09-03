@@ -86,12 +86,13 @@ static void fill_inputs(uint8_t *planes, float *scalars, int n, uint64_t seed) {
 }
 
 static Nn *create_backend(NnBackend backend, int max_n, int device,
-                          const NnConfig *cfg) {
+                          const NnConfig *cfg, NnPrec prec = NN_PREC_FAST) {
   NnCreate desc;
   desc.backend = backend;
   desc.device = device;
   desc.max_n = max_n;
   desc.config = cfg ? *cfg : nn_config_default();
+  desc.prec = prec;
   return nn_create(&desc);
 }
 
@@ -99,8 +100,9 @@ static Nn *create_cpu(int max_n, const NnConfig *cfg) {
   return create_backend(NN_BACKEND_CPU, max_n, 0, cfg);
 }
 
-static Nn *create_cuda(int max_n, int device, const NnConfig *cfg) {
-  return create_backend(NN_BACKEND_CUDA, max_n, device, cfg);
+static Nn *create_cuda(int max_n, int device, const NnConfig *cfg,
+                       NnPrec prec = NN_PREC_FAST) {
+  return create_backend(NN_BACKEND_CUDA, max_n, device, cfg, prec);
 }
 
 static size_t gpu_free_bytes(int device) {
@@ -183,8 +185,9 @@ static void test_invalid_batch_and_action(void) {
   nn_destroy(nn);
 }
 
-static void test_forward_sample_update(void) {
-  std::printf("test_forward_sample_update\n");
+static void test_forward_sample_update(NnPrec prec) {
+  std::printf("test_forward_sample_update (prec=%s)\n",
+              prec == NN_PREC_F32 ? "f32" : "fast");
   const int max_n = 8;
   const int device = 0;
   NnConfig cfg = nn_config_default();
@@ -192,7 +195,7 @@ static void test_forward_sample_update(void) {
   cfg.rng_seed = 42;
 
   Nn *cpu = create_cpu(max_n, &cfg);
-  Nn *gpu = create_cuda(max_n, device, &cfg);
+  Nn *gpu = create_cuda(max_n, device, &cfg, prec);
   expect_true(cpu && gpu, "create cpu+gpu");
   if (!cpu || !gpu)
     return;
@@ -490,7 +493,7 @@ static void test_forward_sample_update(void) {
     char p2[256];
     tmp_path(p2, sizeof(p2), "rt");
     expect_eq_i(nn_save(gpu, p2), 0, "save rt");
-    Nn *g2 = create_cuda(max_n, device, &cfg);
+    Nn *g2 = create_cuda(max_n, device, &cfg, prec);
     expect_true(g2 != nullptr, "create g2");
     if (g2) {
       expect_eq_i(nn_load(g2, p2), 0, "load rt");
@@ -585,7 +588,8 @@ static void test_no_gpu_mem_growth(void) {
 int main(void) {
   test_invalid_config_and_device();
   test_invalid_batch_and_action();
-  test_forward_sample_update();
+  test_forward_sample_update(NN_PREC_FAST);
+  test_forward_sample_update(NN_PREC_F32);
   test_no_gpu_mem_growth();
 
   std::printf("\nmax forward abs error:   %.6g (limit 5e-2, fp16 store)\n",

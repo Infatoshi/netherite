@@ -17,7 +17,7 @@ typedef struct NnCuda NnCuda;
 /* Create handle with fixed arenas for batches up to max_n on CUDA device.
  * device is the CUDA ordinal (fixed for the handle lifetime).
  * cfg may be NULL (uses nn_config_default). Returns NULL on failure. */
-NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg);
+NnCuda *nn_cuda_create(const NnCreate *desc);
 
 void nn_cuda_destroy(NnCuda *nn);
 

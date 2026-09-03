@@ -29,6 +29,11 @@ typedef struct NnConfig {
   uint64_t rng_seed;   /* base hash-RNG seed for Gumbel sample */
 } NnConfig;
 
+typedef enum NnPrec {
+  NN_PREC_FAST = 0,
+  NN_PREC_F32 = 1
+} NnPrec;
+
 /* Create descriptor. backend, device, max_n, and training config are required.
  * device: CPU and Metal accept 0 only; CUDA uses a device ordinal.
  * max_n: CPU/CUDA allow n in [1,max_n]; Metal fixes the batch at max_n. */
@@ -37,7 +42,10 @@ typedef struct NnCreate {
   int device;
   int max_n;
   NnConfig config;
+  NnPrec prec;
 } NnCreate;
+
+typedef struct NnCreate NnDesc;
 
 /* Optional metrics from one PPO update.
  * approx_kl / clipfrac are diagnostic only: they must not enter the loss

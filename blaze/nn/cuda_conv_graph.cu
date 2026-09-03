@@ -149,12 +149,11 @@ int fin(cudnnBackendDescriptor_t d) {
 }
 
 UniqueD make_tensor(int64_t uid, const int64_t dim[4], const int64_t str[4],
-                    bool virt) {
+                    bool virt, cudnnDataType_t dt = CUDNN_DATA_HALF) {
   UniqueD t = make_desc(CUDNN_BACKEND_TENSOR_DESCRIPTOR);
   if (!t)
     return UniqueD();
   cudnnBackendDescriptor_t p = t.get();
-  cudnnDataType_t dt = CUDNN_DATA_HALF;
   int64_t align = kAlign;
   bool v = virt;
   if (cudnnBackendSetAttribute(p, CUDNN_ATTR_TENSOR_DATA_TYPE,
@@ -461,12 +460,12 @@ struct Cand {
 
 /* Bytes the seven timing buffers need at n. */
 size_t tbuf_bytes(int n, int C, int H, int W, int K, int R, int S, int Ho,
-                  int Wo) {
+                  int Wo, size_t elem_size = sizeof(__half)) {
   const size_t nx = (size_t)n * (size_t)H * (size_t)W * (size_t)C;
   const size_t nw = (size_t)K * (size_t)R * (size_t)S * (size_t)C;
   const size_t ny = (size_t)n * (size_t)Ho * (size_t)Wo * (size_t)K;
   const size_t nb = (size_t)K;
-  return (2 * nx + 2 * ny + 2 * nw + nb) * sizeof(__half);
+  return (2 * nx + 2 * ny + 2 * nw + nb) * elem_size;
 }
 
 /* Next bucket below b on the ladder bucket_n produces. 0 when there is none. */
@@ -484,7 +483,8 @@ int prev_bucket(int b, int max_n) {
 
 /* Heuristic configs that pass check_support, deduped by engine id. */
 int collect_supported(cudnnHandle_t h, cudnnBackendDescriptor_t graph,
-                      std::vector<Cand> *out, int *heur_n) {
+                      std::vector<Cand> *out, int *heur_n,
+                      NnPrec prec = NN_PREC_FAST) {
   std::vector<cudnnBackendDescriptor_t> raw;
   if (collect_heur(graph, CUDNN_HEUR_MODE_A, &raw) != 0 ||
       collect_heur(graph, CUDNN_HEUR_MODE_B, &raw) != 0) {
@@ -504,6 +504,12 @@ int collect_supported(cudnnHandle_t h, cudnnBackendDescriptor_t graph,
         0) {
       cudnnBackendDestroyDescriptor(cfg);
       continue;
+    }
+    if (prec == NN_PREC_F32) {
+      if ((c.mask & (1u << CUDNN_NUMERICAL_NOTE_DOWN_CONVERT_INPUTS)) != 0) {
+        cudnnBackendDestroyDescriptor(cfg);
+        continue;
+      }
     }
     bool dup = false;
     for (int64_t id : seen)
@@ -655,8 +661,8 @@ int time_and_pick(cudnnHandle_t h, NnWsArena *arena, std::vector<Cand> *sup,
 }
 
 int build_fwd_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
-                    int S, int pad, int stride, int dil, UniqueD *graph_out,
-                    int64_t *uids, int *n_uids) {
+                    int S, int pad, int stride, int dil, cudnnDataType_t dt,
+                    UniqueD *graph_out, int64_t *uids, int *n_uids) {
   const int Ho = out_dim(H, pad, R, stride, dil);
   const int Wo = out_dim(W, pad, S, stride, dil);
   int64_t xdim[4] = {n, C, H, W};
@@ -668,12 +674,12 @@ int build_fwd_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
   krsc_stride(K, C, R, S, wst);
   nhwc_stride(n, K, Ho, Wo, yst);
   nhwc_stride(1, K, 1, 1, bst);
-  UniqueD x = make_tensor(kUidX, xdim, xst, false);
-  UniqueD w = make_tensor(kUidW, wdim, wst, false);
-  UniqueD y = make_tensor(kUidY, ydim, yst, false);
-  UniqueD b = make_tensor(kUidB, bdim, bst, false);
-  UniqueD v0 = make_tensor(kUidV0, ydim, yst, true);
-  UniqueD v1 = make_tensor(kUidV1, ydim, yst, true);
+  UniqueD x = make_tensor(kUidX, xdim, xst, false, dt);
+  UniqueD w = make_tensor(kUidW, wdim, wst, false, dt);
+  UniqueD y = make_tensor(kUidY, ydim, yst, false, dt);
+  UniqueD b = make_tensor(kUidB, bdim, bst, false, dt);
+  UniqueD v0 = make_tensor(kUidV0, ydim, yst, true, dt);
+  UniqueD v1 = make_tensor(kUidV1, ydim, yst, true, dt);
   UniqueD conv = make_conv(pad, stride, dil);
   UniqueD pw_add = make_pw(CUDNN_POINTWISE_ADD);
   UniqueD pw_relu = make_pw(CUDNN_POINTWISE_RELU_FWD);
@@ -786,8 +792,8 @@ int build_fwd_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
 }
 
 int build_wgrad_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
-                      int S, int pad, int stride, int dil, float beta,
-                      UniqueD *graph_out, int64_t *uids, int *n_uids) {
+                      int S, int pad, int stride, int dil, cudnnDataType_t dt,
+                      float beta, UniqueD *graph_out, int64_t *uids, int *n_uids) {
   const int Ho = out_dim(H, pad, R, stride, dil);
   const int Wo = out_dim(W, pad, S, stride, dil);
   int64_t xdim[4] = {n, C, H, W};
@@ -797,9 +803,9 @@ int build_wgrad_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
   nhwc_stride(n, C, H, W, xst);
   krsc_stride(K, C, R, S, wst);
   nhwc_stride(n, K, Ho, Wo, yst);
-  UniqueD x = make_tensor(kUidX, xdim, xst, false);
-  UniqueD dw = make_tensor(kUidDw, wdim, wst, false);
-  UniqueD dy = make_tensor(kUidDy, ydim, yst, false);
+  UniqueD x = make_tensor(kUidX, xdim, xst, false, dt);
+  UniqueD dw = make_tensor(kUidDw, wdim, wst, false, dt);
+  UniqueD dy = make_tensor(kUidDy, ydim, yst, false, dt);
   UniqueD conv = make_conv(pad, stride, dil);
   UniqueD op =
       make_desc(CUDNN_BACKEND_OPERATION_CONVOLUTION_BACKWARD_FILTER_DESCRIPTOR);
@@ -858,8 +864,8 @@ int build_wgrad_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
 }
 
 int build_dgrad_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
-                      int S, int pad, int stride, int dil, UniqueD *graph_out,
-                      int64_t *uids, int *n_uids) {
+                      int S, int pad, int stride, int dil, cudnnDataType_t dt,
+                      UniqueD *graph_out, int64_t *uids, int *n_uids) {
   const int Ho = out_dim(H, pad, R, stride, dil);
   const int Wo = out_dim(W, pad, S, stride, dil);
   int64_t xdim[4] = {n, C, H, W};
@@ -869,9 +875,9 @@ int build_dgrad_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
   nhwc_stride(n, C, H, W, xst);
   krsc_stride(K, C, R, S, wst);
   nhwc_stride(n, K, Ho, Wo, yst);
-  UniqueD dx = make_tensor(kUidDx, xdim, xst, false);
-  UniqueD w = make_tensor(kUidW, wdim, wst, false);
-  UniqueD dy = make_tensor(kUidDy, ydim, yst, false);
+  UniqueD dx = make_tensor(kUidDx, xdim, xst, false, dt);
+  UniqueD w = make_tensor(kUidW, wdim, wst, false, dt);
+  UniqueD dy = make_tensor(kUidDy, ydim, yst, false, dt);
   UniqueD conv = make_conv(pad, stride, dil);
   UniqueD op =
       make_desc(CUDNN_BACKEND_OPERATION_CONVOLUTION_BACKWARD_DATA_DESCRIPTOR);
@@ -929,18 +935,6 @@ int build_dgrad_graph(cudnnHandle_t h, int n, int C, int H, int W, int K, int R,
   return 0;
 }
 
-int alloc_h(__half **p, size_t n) {
-  if (cudaMalloc(p, n * sizeof(__half)) != cudaSuccess)
-    return -1;
-  cudaMemset(*p, 0, n * sizeof(__half));
-  return 0;
-}
-
-void free_h(__half *p) {
-  if (p)
-    cudaFree(p);
-}
-
 } // namespace
 
 struct NnConvNet {
@@ -959,6 +953,7 @@ struct NnConvNet {
    * syncs the device, frees and re-allocs. */
   size_t ws_settled = 0;
   int64_t ws_floor_settled = -1;
+  NnPrec prec = NN_PREC_FAST;
   std::vector<Layer> layers;
   std::map<CacheKey, CachedPlan> cache;
 };
@@ -974,7 +969,7 @@ static void free_plan(CachedPlan *p) {
 
 NnConvNet *nn_conv_net_create(cudnnHandle_t dnn, int device, int max_n,
                               const NnConvLayerSpec *layers, int n_layers,
-                              NnWsArena *ws) {
+                              NnWsArena *ws, NnPrec prec) {
   if (!dnn || !layers || n_layers < 1 || max_n < 1 || !ws) {
     set_err("create: bad args");
     return nullptr;
@@ -988,6 +983,7 @@ NnConvNet *nn_conv_net_create(cudnnHandle_t dnn, int device, int max_n,
   net->device = device;
   net->max_n = max_n;
   net->ws = ws;
+  net->prec = prec;
   net->cudnn_ver = (int)cudnnGetVersion();
   net->layers.resize((size_t)n_layers);
   for (int i = 0; i < n_layers; ++i) {
@@ -1035,7 +1031,7 @@ static CacheKey make_key(const NnConvNet *net, int op, int n, const Layer &L,
   k.pad = L.spec.pad;
   k.stride = L.spec.stride;
   k.dil = 1;
-  k.dtype = (int)CUDNN_DATA_HALF;
+  k.dtype = (net->prec == NN_PREC_F32) ? (int)CUDNN_DATA_FLOAT : (int)CUDNN_DATA_HALF;
   k.layout = 1; /* NHWC */
   k.fusion = fusion;
   k.cudnn_ver = net->cudnn_ver;
@@ -1087,47 +1083,52 @@ static int build_op_graph(NnConvNet *net, int layer, OpKind op, int n,
   const Layer &L = net->layers[(size_t)layer];
   const int C = L.c_in_pad, H = L.spec.h_in, W = L.spec.w_in, K = L.spec.c_out;
   const int R = L.spec.k, S = L.spec.k, pad = L.spec.pad, stride = L.spec.stride;
+  cudnnDataType_t dt = (net->prec == NN_PREC_F32) ? CUDNN_DATA_FLOAT : CUDNN_DATA_HALF;
   if (op == OP_FWD) {
     std::snprintf(tag, tagsz, "L%d FWD", layer);
-    return build_fwd_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, graph,
+    return build_fwd_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, dt, graph,
                            uids, n_uids);
   }
   if (op == OP_WGRAD) {
     std::snprintf(tag, tagsz, "L%d WGRAD b=%.0f", layer, beta);
-    return build_wgrad_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1,
+    return build_wgrad_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, dt,
                              beta, graph, uids, n_uids);
   }
   std::snprintf(tag, tagsz, "L%d DGRAD", layer);
-  return build_dgrad_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, graph,
+  return build_dgrad_graph(net->dnn, n, C, H, W, K, R, S, pad, stride, 1, dt, graph,
                            uids, n_uids);
 }
 
 namespace {
 struct TBufs {
-  __half *x = nullptr, *w = nullptr, *y = nullptr, *b = nullptr;
-  __half *dy = nullptr, *dw = nullptr, *dx = nullptr;
+  void *x = nullptr, *w = nullptr, *y = nullptr, *b = nullptr;
+  void *dy = nullptr, *dw = nullptr, *dx = nullptr;
 };
 
 void free_tbufs(TBufs *t) {
-  free_h(t->x);
-  free_h(t->w);
-  free_h(t->y);
-  free_h(t->b);
-  free_h(t->dy);
-  free_h(t->dw);
-  free_h(t->dx);
+  if (t->x) cudaFree(t->x);
+  if (t->w) cudaFree(t->w);
+  if (t->y) cudaFree(t->y);
+  if (t->b) cudaFree(t->b);
+  if (t->dy) cudaFree(t->dy);
+  if (t->dw) cudaFree(t->dw);
+  if (t->dx) cudaFree(t->dx);
   *t = TBufs();
 }
 
 int alloc_tbufs(TBufs *t, int n, int C, int H, int W, int K, int R, int S,
-                int Ho, int Wo) {
+                int Ho, int Wo, size_t elem_size = sizeof(__half)) {
   const size_t nx = (size_t)n * (size_t)H * (size_t)W * (size_t)C;
   const size_t nw = (size_t)K * (size_t)R * (size_t)S * (size_t)C;
   const size_t ny = (size_t)n * (size_t)Ho * (size_t)Wo * (size_t)K;
   const size_t nb = (size_t)K;
-  if (alloc_h(&t->x, nx) || alloc_h(&t->w, nw) || alloc_h(&t->y, ny) ||
-      alloc_h(&t->b, nb) || alloc_h(&t->dy, ny) || alloc_h(&t->dw, nw) ||
-      alloc_h(&t->dx, nx)) {
+  if (cudaMalloc(&t->x, nx * elem_size) != cudaSuccess ||
+      cudaMalloc(&t->w, nw * elem_size) != cudaSuccess ||
+      cudaMalloc(&t->y, ny * elem_size) != cudaSuccess ||
+      cudaMalloc(&t->b, nb * elem_size) != cudaSuccess ||
+      cudaMalloc(&t->dy, ny * elem_size) != cudaSuccess ||
+      cudaMalloc(&t->dw, nw * elem_size) != cudaSuccess ||
+      cudaMalloc(&t->dx, nx * elem_size) != cudaSuccess) {
     set_err("timing buffer alloc failed");
     free_tbufs(t);
     return -1;
@@ -1215,10 +1216,13 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
    * n the race runs at. */
   std::vector<Cand> cb;
   int heur_b = 0;
-  if (collect_supported(net->dnn, rec.graph, &cb, &heur_b) != 0) {
+  if (collect_supported(net->dnn, rec.graph, &cb, &heur_b, net->prec) != 0) {
     free_plan(&rec);
     return -1;
   }
+
+  const size_t elem_size =
+      (net->prec == NN_PREC_F32) ? sizeof(float) : sizeof(__half);
 
   /* Cost of racing at n: the seven timing buffers plus the arena grow that the
    * would-be timed set forces. */
@@ -1234,7 +1238,8 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
         ++taken;
       }
   }
-  const int64_t tb_full = (int64_t)tbuf_bytes(n, C, H, W, K, R, S, Ho, Wo);
+  const int64_t tb_full =
+      (int64_t)tbuf_bytes(n, C, H, W, K, R, S, Ho, Wo, elem_size);
   int race_n = n;
   if (tb_full + wsmax_b > budget) {
     /* Walk down the bucket ladder. Workspace scales about linearly with n, so
@@ -1243,7 +1248,7 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
     int rn = prev_bucket(n, net->max_n);
     while (rn > 0) {
       const int64_t cost =
-          (int64_t)tbuf_bytes(rn, C, H, W, K, R, S, Ho, Wo) +
+          (int64_t)tbuf_bytes(rn, C, H, W, K, R, S, Ho, Wo, elem_size) +
           (int64_t)((double)wsmax_b * (double)rn / (double)n);
       if (cost <= budget)
         break;
@@ -1267,9 +1272,9 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
       sc.graph = rg.release();
       std::vector<Cand> cr;
       int heur_r = 0;
-      if (collect_supported(net->dnn, sc.graph, &cr, &heur_r) == 0) {
+      if (collect_supported(net->dnn, sc.graph, &cr, &heur_r, net->prec) == 0) {
         TBufs t;
-        if (alloc_tbufs(&t, race_n, C, H, W, K, R, S, Ho, Wo) == 0) {
+        if (alloc_tbufs(&t, race_n, C, H, W, K, R, S, Ho, Wo, elem_size) == 0) {
           void *ptrs[8];
           tbuf_ptrs(t, op, ptrs);
           const int64_t vol = (int64_t)race_n * H * W * C;
@@ -1366,7 +1371,7 @@ static int ensure_plan(NnConvNet *net, int layer, OpKind op, int n, float beta) 
   if (chosen < 0) {
     /* Full race at n. Identical to the old path. */
     TBufs t;
-    if (alloc_tbufs(&t, n, C, H, W, K, R, S, Ho, Wo) != 0) {
+    if (alloc_tbufs(&t, n, C, H, W, K, R, S, Ho, Wo, elem_size) != 0) {
       destroy_cands(&cb, -1);
       free_plan(&rec);
       return -1;
@@ -1548,8 +1553,8 @@ static int exec_cached(NnConvNet *net, const CachedPlan *p, void **ptrs) {
   return 0;
 }
 
-int nn_conv_net_fwd(NnConvNet *net, int layer, const __half *x, const __half *w,
-                    const __half *bias, __half *y) {
+int nn_conv_net_fwd(NnConvNet *net, int layer, const void *x, const void *w,
+                    const void *bias, void *y) {
   if (!net || layer < 0 || layer >= (int)net->layers.size() || !x || !w ||
       !bias || !y) {
     set_err("fwd: bad args");
@@ -1560,8 +1565,8 @@ int nn_conv_net_fwd(NnConvNet *net, int layer, const __half *x, const __half *w,
   return exec_cached(net, p, ptrs);
 }
 
-int nn_conv_net_wgrad(NnConvNet *net, int layer, const __half *x,
-                      const __half *dpre, __half *dw, float beta) {
+int nn_conv_net_wgrad(NnConvNet *net, int layer, const void *x,
+                      const void *dpre, void *dw, float beta) {
   if (!net || layer < 0 || layer >= (int)net->layers.size() || !x || !dpre ||
       !dw) {
     set_err("wgrad: bad args");
@@ -1572,8 +1577,8 @@ int nn_conv_net_wgrad(NnConvNet *net, int layer, const __half *x,
   return exec_cached(net, p, ptrs);
 }
 
-int nn_conv_net_dgrad(NnConvNet *net, int layer, const __half *w,
-                      const __half *dpre, __half *dx) {
+int nn_conv_net_dgrad(NnConvNet *net, int layer, const void *w,
+                      const void *dpre, void *dx) {
   if (!net || layer < 0 || layer >= (int)net->layers.size())
     return -1;
   if (layer == 0)

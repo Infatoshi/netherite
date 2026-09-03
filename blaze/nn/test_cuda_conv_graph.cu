@@ -105,6 +105,13 @@ static int dalloc_h(__half **p, size_t n) {
   return 0;
 }
 
+static int dalloc_f(float **p, size_t n) {
+  if (cudaMalloc(p, n * sizeof(float)) != cudaSuccess)
+    return -1;
+  cudaMemset(*p, 0, n * sizeof(float));
+  return 0;
+}
+
 static int h2d_f16(const float *h, __half *d, size_t n) {
   float *tmp = nullptr;
   if (cudaMalloc(&tmp, n * sizeof(float)) != cudaSuccess)
@@ -172,29 +179,18 @@ static int grep_banned(void) {
   return hits;
 }
 
-int main(void) {
-  if (cudaSetDevice(0) != cudaSuccess) {
-    std::fprintf(stderr, "FAIL: cudaSetDevice\n");
-    return 1;
-  }
-  cudnnHandle_t dnn = nullptr;
-  if (cudnnCreate(&dnn) != CUDNN_STATUS_SUCCESS) {
-    std::fprintf(stderr, "FAIL: cudnnCreate\n");
-    return 1;
-  }
-
+static void run_conv_suite(cudnnHandle_t dnn, NnPrec prec, const char *name) {
+  std::printf("--- conv suite prec=%s ---\n", name);
   NnConvLayerSpec spec[2] = {
       {NN_N_CH, NN_C_OUT1, NN_K1, NN_S1, 0, NN_CAM_H, NN_CAM_W},
       {NN_C_OUT1, NN_C_OUT2, NN_K2, NN_S2, 0, NN_H1, NN_W1},
   };
   const int max_n = 8;
   NnWsArena ws{};
-  NnConvNet *net = nn_conv_net_create(dnn, 0, max_n, spec, 2, &ws);
+  NnConvNet *net = nn_conv_net_create(dnn, 0, max_n, spec, 2, &ws, prec);
   expect(net != nullptr, "create");
-  if (!net) {
-    cudnnDestroy(dnn);
-    return 1;
-  }
+  if (!net)
+    return;
   expect(nn_conv_net_n_layers(net) == 2, "n_layers");
   expect(nn_conv_net_c_in_pad(net, 0) == 20, "L0 c_in_pad");
   expect(nn_conv_net_c_out(net, 0) == NN_C_OUT1, "L0 c_out");
@@ -279,62 +275,122 @@ int main(void) {
   for (size_t i = 0; i < ny1; ++i)
     hdpre1[i] = urand(&rng) * 0.1f;
 
-  __half *dx0, *dw0, *db0, *dy0, *dw1, *db1, *dy1, *ddpre0, *ddpre1, *ddw0,
-      *ddw1, *ddx1;
-  expect(dalloc_h(&dx0, nx0) == 0 && dalloc_h(&dw0, nw0) == 0 &&
-             dalloc_h(&db0, nb0) == 0 && dalloc_h(&dy0, ny0) == 0 &&
-             dalloc_h(&dw1, nw1) == 0 && dalloc_h(&db1, nb1) == 0 &&
-             dalloc_h(&dy1, ny1) == 0 && dalloc_h(&ddpre0, ny0) == 0 &&
-             dalloc_h(&ddpre1, ny1) == 0 && dalloc_h(&ddw0, nw0) == 0 &&
-             dalloc_h(&ddw1, nw1) == 0 && dalloc_h(&ddx1, nx1) == 0,
-         "device alloc");
+  void *dx0 = nullptr, *dw0 = nullptr, *db0 = nullptr, *dy0 = nullptr;
+  void *dw1 = nullptr, *db1 = nullptr, *dy1 = nullptr;
+  void *ddpre0 = nullptr, *ddpre1 = nullptr, *ddw0 = nullptr, *ddw1 = nullptr,
+       *ddx1 = nullptr;
 
-  expect(h2d_f16(hx0, dx0, nx0) == 0, "x0 H2D");
-  expect(h2d_f16(hw0, dw0, nw0) == 0, "w0 H2D");
-  expect(h2d_f16(hb0, db0, nb0) == 0, "b0 H2D");
-  expect(h2d_f16(hw1, dw1, nw1) == 0, "w1 H2D");
-  expect(h2d_f16(hb1, db1, nb1) == 0, "b1 H2D");
-  expect(h2d_f16(hdpre0, ddpre0, ny0) == 0, "dpre0 H2D");
-  expect(h2d_f16(hdpre1, ddpre1, ny1) == 0, "dpre1 H2D");
+  if (prec == NN_PREC_F32) {
+    float *p_dx0, *p_dw0, *p_db0, *p_dy0, *p_dw1, *p_db1, *p_dy1;
+    float *p_ddpre0, *p_ddpre1, *p_ddw0, *p_ddw1, *p_ddx1;
+    expect(dalloc_f(&p_dx0, nx0) == 0 && dalloc_f(&p_dw0, nw0) == 0 &&
+               dalloc_f(&p_db0, nb0) == 0 && dalloc_f(&p_dy0, ny0) == 0 &&
+               dalloc_f(&p_dw1, nw1) == 0 && dalloc_f(&p_db1, nb1) == 0 &&
+               dalloc_f(&p_dy1, ny1) == 0 && dalloc_f(&p_ddpre0, ny0) == 0 &&
+               dalloc_f(&p_ddpre1, ny1) == 0 && dalloc_f(&p_ddw0, nw0) == 0 &&
+               dalloc_f(&p_ddw1, nw1) == 0 && dalloc_f(&p_ddx1, nx1) == 0,
+           "device alloc f32");
+    cudaMemcpy(p_dx0, hx0, nx0 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(p_dw0, hw0, nw0 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(p_db0, hb0, nb0 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(p_dw1, hw1, nw1 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(p_db1, hb1, nb1 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(p_ddpre0, hdpre0, ny0 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(p_ddpre1, hdpre1, ny1 * sizeof(float), cudaMemcpyHostToDevice);
+    dx0 = p_dx0;
+    dw0 = p_dw0;
+    db0 = p_db0;
+    dy0 = p_dy0;
+    dw1 = p_dw1;
+    db1 = p_db1;
+    dy1 = p_dy1;
+    ddpre0 = p_ddpre0;
+    ddpre1 = p_ddpre1;
+    ddw0 = p_ddw0;
+    ddw1 = p_ddw1;
+    ddx1 = p_ddx1;
+  } else {
+    __half *p_dx0, *p_dw0, *p_db0, *p_dy0, *p_dw1, *p_db1, *p_dy1;
+    __half *p_ddpre0, *p_ddpre1, *p_ddw0, *p_ddw1, *p_ddx1;
+    expect(dalloc_h(&p_dx0, nx0) == 0 && dalloc_h(&p_dw0, nw0) == 0 &&
+               dalloc_h(&p_db0, nb0) == 0 && dalloc_h(&p_dy0, ny0) == 0 &&
+               dalloc_h(&p_dw1, nw1) == 0 && dalloc_h(&p_db1, nb1) == 0 &&
+               dalloc_h(&p_dy1, ny1) == 0 && dalloc_h(&p_ddpre0, ny0) == 0 &&
+               dalloc_h(&p_ddpre1, ny1) == 0 && dalloc_h(&p_ddw0, nw0) == 0 &&
+               dalloc_h(&p_ddw1, nw1) == 0 && dalloc_h(&p_ddx1, nx1) == 0,
+           "device alloc h");
+    h2d_f16(hx0, p_dx0, nx0);
+    h2d_f16(hw0, p_dw0, nw0);
+    h2d_f16(hb0, p_db0, nb0);
+    h2d_f16(hw1, p_dw1, nw1);
+    h2d_f16(hb1, p_db1, nb1);
+    h2d_f16(hdpre0, p_ddpre0, ny0);
+    h2d_f16(hdpre1, p_ddpre1, ny1);
+    dx0 = p_dx0;
+    dw0 = p_dw0;
+    db0 = p_db0;
+    dy0 = p_dy0;
+    dw1 = p_dw1;
+    db1 = p_db1;
+    dy1 = p_dy1;
+    ddpre0 = p_ddpre0;
+    ddpre1 = p_ddpre1;
+    ddw0 = p_ddw0;
+    ddw1 = p_ddw1;
+    ddx1 = p_ddx1;
+  }
 
   expect(nn_conv_net_fwd(net, 0, dx0, dw0, db0, dy0) == 0, "fwd L0");
-  expect(d2h_f16(dy0, hy0, ny0) == 0, "y0 D2H");
+  if (prec == NN_PREC_F32) {
+    cudaMemcpy(hy0, dy0, ny0 * sizeof(float), cudaMemcpyDeviceToHost);
+  } else {
+    d2h_f16((const __half *)dy0, hy0, ny0);
+  }
   expect(all_finite(hy0, ny0, "y0"), "y0 finite");
   expect(any_nonzero(hy0, ny0), "y0 not all zero");
 
   expect(nn_conv_net_fwd(net, 1, dy0, dw1, db1, dy1) == 0, "fwd L1");
-  expect(d2h_f16(dy1, hy1, ny1) == 0, "y1 D2H");
+  if (prec == NN_PREC_F32) {
+    cudaMemcpy(hy1, dy1, ny1 * sizeof(float), cudaMemcpyDeviceToHost);
+  } else {
+    d2h_f16((const __half *)dy1, hy1, ny1);
+  }
   expect(all_finite(hy1, ny1, "y1"), "y1 finite");
   expect(any_nonzero(hy1, ny1), "y1 not all zero");
 
   cpu_conv_bias_relu(hx0, hw0, hb0, hy0c, n, c0, NN_CAM_H, NN_CAM_W, k0, NN_K1,
                      NN_K1, 0, NN_S1, h0o, w0o);
-  cpu_conv_bias_relu(hy0c, hw1, hb1, hy1c, n, c1, h0o, w0o, k1, NN_K2, NN_K2, 0,
-                     NN_S2, h1o, w1o);
+  cpu_conv_bias_relu(hy0c, hw1, hb1, hy1c, n, c1, h0o, w0o, k1, NN_K2, NN_K2,
+                     0, NN_S2, h1o, w1o);
 
   float max0 = 0.f, max1 = 0.f;
   for (size_t i = 0; i < ny0; ++i)
     max0 = std::max(max0, std::fabs(hy0[i] - hy0c[i]));
   for (size_t i = 0; i < ny1; ++i)
     max1 = std::max(max1, std::fabs(hy1[i] - hy1c[i]));
-  const float max_err = std::max(max0, max1);
-  std::printf("max err L0=%.6g L1=%.6g atol=5e-2 (fp16 store)\n", max0, max1);
-  expect(max0 <= 5e-2f, "L0 fp16 atol 5e-2");
-  expect(max1 <= 5e-2f, "L1 fp16 atol 5e-2");
+  const float limit = (prec == NN_PREC_F32) ? 1e-2f : 5e-2f;
+  std::printf("max err L0=%.6g L1=%.6g atol=%.6g (%s)\n", max0, max1, limit,
+              prec == NN_PREC_F32 ? "f32" : "fp16 store");
+  expect(max0 <= limit, "L0 atol");
+  expect(max1 <= limit, "L1 atol");
 
   expect(nn_conv_net_wgrad(net, 0, dx0, ddpre0, ddw0, 0.f) == 0, "wgrad L0");
   expect(nn_conv_net_wgrad(net, 1, dy0, ddpre1, ddw1, 0.f) == 0, "wgrad L1");
   expect(nn_conv_net_dgrad(net, 1, dw1, ddpre1, ddx1) == 0, "dgrad L1");
   expect(nn_conv_net_dgrad(net, 0, dw0, ddpre0, ddx1) == 0, "dgrad L0 skip");
 
-  expect(d2h_f16(ddw0, hdw0, nw0) == 0, "dw0 D2H");
-  expect(d2h_f16(ddw1, hdw1, nw1) == 0, "dw1 D2H");
-  expect(d2h_f16(ddx1, hdx1, nx1) == 0, "dx1 D2H");
+  if (prec == NN_PREC_F32) {
+    cudaMemcpy(hdw0, ddw0, nw0 * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hdw1, ddw1, nw1 * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hdx1, ddx1, nx1 * sizeof(float), cudaMemcpyDeviceToHost);
+  } else {
+    d2h_f16((const __half *)ddw0, hdw0, nw0);
+    d2h_f16((const __half *)ddw1, hdw1, nw1);
+    d2h_f16((const __half *)ddx1, hdx1, nx1);
+  }
   expect(all_finite(hdw0, nw0, "dw0"), "dw0 finite");
   expect(all_finite(hdw1, nw1, "dw1"), "dw1 finite");
   expect(all_finite(hdx1, nx1, "dx1"), "dx1 finite");
-
-  grep_banned();
 
   nn_conv_net_destroy(net);
   nn_ws_free(&ws);
@@ -364,12 +420,29 @@ int main(void) {
   std::free(hdpre1);
   std::free(hdw1);
   std::free(hdx1);
+}
+
+int main(void) {
+  if (cudaSetDevice(0) != cudaSuccess) {
+    std::fprintf(stderr, "FAIL: cudaSetDevice\n");
+    return 1;
+  }
+  cudnnHandle_t dnn = nullptr;
+  if (cudnnCreate(&dnn) != CUDNN_STATUS_SUCCESS) {
+    std::fprintf(stderr, "FAIL: cudnnCreate\n");
+    return 1;
+  }
+
+  run_conv_suite(dnn, NN_PREC_FAST, "fast");
+  run_conv_suite(dnn, NN_PREC_F32, "f32");
+
+  grep_banned();
   cudnnDestroy(dnn);
 
   if (g_fails) {
     std::fprintf(stderr, "test_cuda_conv_graph: %d FAIL\n", g_fails);
     return 1;
   }
-  std::printf("PASS max_err=%.6g\n", max_err);
+  std::printf("test_cuda_conv_graph: PASS\n");
   return 0;
 }

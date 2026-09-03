@@ -14,12 +14,18 @@ extern "C" {
  * Depth channels (7 and 16) scaled 1/255. */
 int nn_layout_obs_to_nhwc(const uint8_t *planes, __half *out, int n, int n_ch,
                           int h, int w, int c_pad, int depth0, int depth1);
+int nn_layout_obs_to_nhwc_f32(const uint8_t *planes, float *out, int n, int n_ch,
+                              int h, int w, int c_pad, int depth0, int depth1);
 
-/* Filter KCRS fp32 (checkpoint) <-> KRSC fp16 (device). c_in_pad >= c_in. */
+/* Filter KCRS fp32 (checkpoint) <-> KRSC fp16/fp32 (device). c_in_pad >= c_in. */
 int nn_layout_kcrs_to_krsc(const float *kcrs, __half *krsc, int k, int c,
                            int r, int s, int c_pad);
+int nn_layout_kcrs_to_krsc_f32(const float *kcrs, float *krsc, int k, int c,
+                               int r, int s, int c_pad);
 int nn_layout_krsc_to_kcrs(const __half *krsc, float *kcrs, int k, int c,
                            int r, int s, int c_pad);
+int nn_layout_krsc_to_kcrs_f32(const float *krsc, float *kcrs, int k, int c,
+                               int r, int s, int c_pad);
 
 int nn_layout_f32_to_f16(const float *src, __half *dst, size_t n);
 int nn_layout_f16_to_f32(const __half *src, float *dst, size_t n);
@@ -30,9 +36,11 @@ int nn_layout_fc_chw_to_hwc(const float *w_chw, float *w_hwc, int out, int in,
 int nn_layout_fc_hwc_to_chw(const float *w_hwc, float *w_chw, int out, int in,
                             int c, int h, int w);
 
-/* dpre = dy * (y > 0); db[c] += sum_{n,h,w} dpre. y, dy, dpre NHWC fp16. */
+/* dpre = dy * (y > 0); db[c] += sum_{n,h,w} dpre. y, dy, dpre NHWC fp16/fp32. */
 int nn_layout_relu_bwd_bias(const __half *dy, const __half *y, __half *dpre,
                             float *db, int n, int c, int h, int w);
+int nn_layout_relu_bwd_bias_f32(const float *dy, const float *y, float *dpre,
+                                float *db, int n, int c, int h, int w);
 
 #ifdef __cplusplus
 }

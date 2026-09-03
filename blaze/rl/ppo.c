@@ -1085,6 +1085,7 @@ int main(int argc, char **argv) {
                           : NN_BACKEND_CPU;
   nd.device = cfg.device;
   nd.config = nc;
+  nd.prec = (!strcmp(cfg.nn_prec, "f32")) ? NN_PREC_F32 : NN_PREC_FAST;
   if (is_metal) {
     nd.max_n = n;
     nn_roll = nn_create(&nd);

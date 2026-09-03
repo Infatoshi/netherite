@@ -25,8 +25,35 @@ static int layout_grid(size_t nelt) {
   return (int)g;
 }
 
+template <typename T>
+__device__ __forceinline__ T to_layout_dtype(float x);
+
+template <>
+__device__ __forceinline__ __half to_layout_dtype<__half>(float x) {
+  return __float2half(x);
+}
+
+template <>
+__device__ __forceinline__ float to_layout_dtype<float>(float x) {
+  return x;
+}
+
+template <typename T>
+__device__ __forceinline__ float from_layout_dtype(T x);
+
+template <>
+__device__ __forceinline__ float from_layout_dtype<__half>(__half x) {
+  return __half2float(x);
+}
+
+template <>
+__device__ __forceinline__ float from_layout_dtype<float>(float x) {
+  return x;
+}
+
+template <typename T>
 __global__ void k_obs_to_nhwc(const uint8_t *__restrict__ planes,
-                              __half *__restrict__ out, int n, int n_ch, int h,
+                              T *__restrict__ out, int n, int n_ch, int h,
                               int w, int c_pad, int depth0, int depth1) {
   const size_t total =
       (size_t)n * (size_t)h * (size_t)w * (size_t)c_pad;
@@ -40,7 +67,7 @@ __global__ void k_obs_to_nhwc(const uint8_t *__restrict__ planes,
     const int hh = (int)(t % (size_t)h);
     const int ni = (int)(t / (size_t)h);
     if (c >= n_ch) {
-      out[i] = __float2half(0.f);
+      out[i] = to_layout_dtype<T>(0.f);
       continue;
     }
     const size_t src =
@@ -50,12 +77,13 @@ __global__ void k_obs_to_nhwc(const uint8_t *__restrict__ planes,
     float x = (float)planes[src];
     if (c == depth0 || c == depth1)
       x *= (1.f / 255.f);
-    out[i] = __float2half(x);
+    out[i] = to_layout_dtype<T>(x);
   }
 }
 
+template <typename T>
 __global__ void k_kcrs_to_krsc(const float *__restrict__ kcrs,
-                               __half *__restrict__ krsc, int k, int c, int r,
+                               T *__restrict__ krsc, int k, int c, int r,
                                int s, int c_pad) {
   const size_t total =
       (size_t)k * (size_t)r * (size_t)s * (size_t)c_pad;
@@ -69,18 +97,19 @@ __global__ void k_kcrs_to_krsc(const float *__restrict__ kcrs,
     const int rr = (int)(t % (size_t)r);
     const int kk = (int)(t / (size_t)r);
     if (cc >= c) {
-      krsc[i] = __float2half(0.f);
+      krsc[i] = to_layout_dtype<T>(0.f);
       continue;
     }
     const size_t src =
         (((size_t)kk * (size_t)c + (size_t)cc) * (size_t)r + (size_t)rr) *
             (size_t)s +
         (size_t)ss;
-    krsc[i] = __float2half(kcrs[src]);
+    krsc[i] = to_layout_dtype<T>(kcrs[src]);
   }
 }
 
-__global__ void k_krsc_to_kcrs(const __half *__restrict__ krsc,
+template <typename T>
+__global__ void k_krsc_to_kcrs(const T *__restrict__ krsc,
                                float *__restrict__ kcrs, int k, int c, int r,
                                int s, int c_pad) {
   const size_t total = (size_t)k * (size_t)c * (size_t)r * (size_t)s;
@@ -97,7 +126,7 @@ __global__ void k_krsc_to_kcrs(const __half *__restrict__ krsc,
         (((size_t)kk * (size_t)r + (size_t)rr) * (size_t)s + (size_t)ss) *
             (size_t)c_pad +
         (size_t)cc;
-    kcrs[i] = __half2float(krsc[src]);
+    kcrs[i] = from_layout_dtype<T>(krsc[src]);
   }
 }
 
@@ -162,9 +191,10 @@ __global__ void k_fc_hwc_to_chw(const float *__restrict__ w_hwc,
 }
 
 /* NHWC dpre = dy * (y>0). Per-block db partials in smem, then atomicAdd. */
-__global__ void k_relu_bwd_bias(const __half *__restrict__ dy,
-                                const __half *__restrict__ y,
-                                __half *__restrict__ dpre, float *__restrict__ db,
+template <typename T>
+__global__ void k_relu_bwd_bias(const T *__restrict__ dy,
+                                const T *__restrict__ y,
+                                T *__restrict__ dpre, float *__restrict__ db,
                                 int n, int c, int h, int w) {
   extern __shared__ float sdb[];
   for (int ch = threadIdx.x; ch < c; ch += blockDim.x)
@@ -176,9 +206,9 @@ __global__ void k_relu_bwd_bias(const __half *__restrict__ dy,
   const size_t stride = (size_t)blockDim.x * (size_t)gridDim.x;
   for (size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x; i < total;
        i += stride) {
-    const float yv = __half2float(y[i]);
-    const float dp = __half2float(dy[i]) * (yv > 0.f ? 1.f : 0.f);
-    dpre[i] = __float2half(dp);
+    const float yv = from_layout_dtype<T>(y[i]);
+    const float dp = from_layout_dtype<T>(dy[i]) * (yv > 0.f ? 1.f : 0.f);
+    dpre[i] = to_layout_dtype<T>(dp);
     const int ch = (int)(i % (size_t)c);
     atomicAdd(&sdb[ch], dp);
   }
@@ -197,8 +227,20 @@ int nn_layout_obs_to_nhwc(const uint8_t *planes, __half *out, int n, int n_ch,
     return -1;
   const size_t nelt = (size_t)n * (size_t)h * (size_t)w * (size_t)c_pad;
   const int grid = layout_grid(nelt);
-  k_obs_to_nhwc<<<grid, kThr>>>(planes, out, n, n_ch, h, w, c_pad, depth0,
-                                depth1);
+  k_obs_to_nhwc<__half><<<grid, kThr>>>(planes, out, n, n_ch, h, w, c_pad,
+                                       depth0, depth1);
+  return cudaGetLastError() == cudaSuccess ? 0 : -1;
+}
+
+int nn_layout_obs_to_nhwc_f32(const uint8_t *planes, float *out, int n, int n_ch,
+                              int h, int w, int c_pad, int depth0, int depth1) {
+  if (!planes || !out || n <= 0 || n_ch <= 0 || h <= 0 || w <= 0 ||
+      c_pad < n_ch)
+    return -1;
+  const size_t nelt = (size_t)n * (size_t)h * (size_t)w * (size_t)c_pad;
+  const int grid = layout_grid(nelt);
+  k_obs_to_nhwc<float><<<grid, kThr>>>(planes, out, n, n_ch, h, w, c_pad,
+                                      depth0, depth1);
   return cudaGetLastError() == cudaSuccess ? 0 : -1;
 }
 
@@ -208,7 +250,17 @@ int nn_layout_kcrs_to_krsc(const float *kcrs, __half *krsc, int k, int c, int r,
     return -1;
   const size_t nelt = (size_t)k * (size_t)r * (size_t)s * (size_t)c_pad;
   const int grid = layout_grid(nelt);
-  k_kcrs_to_krsc<<<grid, kThr>>>(kcrs, krsc, k, c, r, s, c_pad);
+  k_kcrs_to_krsc<__half><<<grid, kThr>>>(kcrs, krsc, k, c, r, s, c_pad);
+  return cudaGetLastError() == cudaSuccess ? 0 : -1;
+}
+
+int nn_layout_kcrs_to_krsc_f32(const float *kcrs, float *krsc, int k, int c, int r,
+                               int s, int c_pad) {
+  if (!kcrs || !krsc || k <= 0 || c <= 0 || r <= 0 || s <= 0 || c_pad < c)
+    return -1;
+  const size_t nelt = (size_t)k * (size_t)r * (size_t)s * (size_t)c_pad;
+  const int grid = layout_grid(nelt);
+  k_kcrs_to_krsc<float><<<grid, kThr>>>(kcrs, krsc, k, c, r, s, c_pad);
   return cudaGetLastError() == cudaSuccess ? 0 : -1;
 }
 
@@ -218,7 +270,17 @@ int nn_layout_krsc_to_kcrs(const __half *krsc, float *kcrs, int k, int c, int r,
     return -1;
   const size_t nelt = (size_t)k * (size_t)c * (size_t)r * (size_t)s;
   const int grid = layout_grid(nelt);
-  k_krsc_to_kcrs<<<grid, kThr>>>(krsc, kcrs, k, c, r, s, c_pad);
+  k_krsc_to_kcrs<__half><<<grid, kThr>>>(krsc, kcrs, k, c, r, s, c_pad);
+  return cudaGetLastError() == cudaSuccess ? 0 : -1;
+}
+
+int nn_layout_krsc_to_kcrs_f32(const float *krsc, float *kcrs, int k, int c, int r,
+                               int s, int c_pad) {
+  if (!krsc || !kcrs || k <= 0 || c <= 0 || r <= 0 || s <= 0 || c_pad < c)
+    return -1;
+  const size_t nelt = (size_t)k * (size_t)c * (size_t)r * (size_t)s;
+  const int grid = layout_grid(nelt);
+  k_krsc_to_kcrs<float><<<grid, kThr>>>(krsc, kcrs, k, c, r, s, c_pad);
   return cudaGetLastError() == cudaSuccess ? 0 : -1;
 }
 
@@ -274,6 +336,20 @@ int nn_layout_relu_bwd_bias(const __half *dy, const __half *y, __half *dpre,
   nn_layout_last_grid_x = grid;
   nn_layout_last_grid_y = 1;
   nn_layout_last_grid_z = 1;
-  k_relu_bwd_bias<<<grid, kThr, smem>>>(dy, y, dpre, db, n, c, h, w);
+  k_relu_bwd_bias<__half><<<grid, kThr, smem>>>(dy, y, dpre, db, n, c, h, w);
+  return cudaGetLastError() == cudaSuccess ? 0 : -1;
+}
+
+int nn_layout_relu_bwd_bias_f32(const float *dy, const float *y, float *dpre,
+                                float *db, int n, int c, int h, int w) {
+  if (!dy || !y || !dpre || !db || n <= 0 || c <= 0 || h <= 0 || w <= 0)
+    return -1;
+  const size_t nelt = (size_t)n * (size_t)h * (size_t)w * (size_t)c;
+  const int grid = layout_grid(nelt);
+  const size_t smem = (size_t)c * sizeof(float);
+  nn_layout_last_grid_x = grid;
+  nn_layout_last_grid_y = 1;
+  nn_layout_last_grid_z = 1;
+  k_relu_bwd_bias<float><<<grid, kThr, smem>>>(dy, y, dpre, db, n, c, h, w);
   return cudaGetLastError() == cudaSuccess ? 0 : -1;
 }

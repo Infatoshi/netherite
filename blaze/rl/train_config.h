@@ -58,6 +58,7 @@ typedef struct TrainConfig {
   int op_trace;
   int no_ore_xy;
   int stack_kib; /* CUDA per-thread stack limit, KiB (default 128) */
+  char nn_prec[16]; /* "fast" (default) or "f32" */
 } TrainConfig;
 
 /* Compiled defaults. */

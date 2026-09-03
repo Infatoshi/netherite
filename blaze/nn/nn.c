@@ -96,8 +96,7 @@ Nn *nn_create(const NnCreate *desc) {
 
   case NN_BACKEND_CUDA: {
 #if NN_HAVE_CUDA
-    NnCuda *cuda =
-        nn_cuda_create(desc->max_n, desc->device, &desc->config);
+    NnCuda *cuda = nn_cuda_create(desc);
     if (!cuda) {
       set_err(nn_cuda_last_error());
       free(nn);

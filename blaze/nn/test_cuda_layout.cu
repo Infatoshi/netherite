@@ -495,11 +495,157 @@ static void test_relu_bwd_bias(void) {
   run_relu_bwd_bias(8, NN_C_OUT2, NN_H2, NN_W2, 0);
 }
 
+static void run_obs_to_nhwc_f32(int n) {
+  const int n_ch = NN_N_CH;
+  const int h = NN_CAM_H;
+  const int w = NN_CAM_W;
+  const int c_pad = 20;
+  const int depth0 = 7;
+  const int depth1 = 16;
+  const size_t n_in = (size_t)n * n_ch * h * w;
+  const size_t n_out = (size_t)n * h * w * c_pad;
+
+  std::vector<uint8_t> planes(n_in);
+  std::vector<float> want(n_out), got(n_out);
+  for (size_t i = 0; i < n_in; ++i)
+    planes[i] = (uint8_t)((i * 17u + 11u) & 255u);
+
+  cpu_obs_to_nhwc(planes.data(), want.data(), n, n_ch, h, w, c_pad, depth0,
+                  depth1);
+
+  uint8_t *d_planes = dalloc<uint8_t>(n_in, "obs planes");
+  float *d_out = dalloc<float>(n_out, "obs out f32");
+  if (!d_planes || !d_out)
+    return;
+  if (!cu_ok(cudaMemcpy(d_planes, planes.data(), n_in, cudaMemcpyHostToDevice),
+             "obs H2D"))
+    return;
+  expect_eq_i(nn_layout_obs_to_nhwc_f32(d_planes, d_out, n, n_ch, h, w, c_pad,
+                                        depth0, depth1),
+              0, "obs f32 kernel rc");
+  if (!cu_ok(cudaMemcpy(got.data(), d_out, n_out * sizeof(float),
+                        cudaMemcpyDeviceToHost),
+             "obs D2H"))
+    return;
+
+  expect_true(floats_eq(got.data(), want.data(), n_out, "obs f32"),
+              "obs f32 exact");
+  cudaFree(d_planes);
+  cudaFree(d_out);
+}
+
+static void test_obs_to_nhwc_f32(void) {
+  std::printf("test_obs_to_nhwc_f32\n");
+  run_obs_to_nhwc_f32(1);
+  run_obs_to_nhwc_f32(4);
+}
+
+static void test_kcrs_krsc_f32(void) {
+  std::printf("test_kcrs_krsc_f32\n");
+  const int k = 32, c = 18, r = 5, s = 5, c_pad = 20;
+  const size_t n_kcrs = (size_t)k * c * r * s;
+  const size_t n_krsc = (size_t)k * r * s * c_pad;
+
+  std::vector<float> kcrs(n_kcrs), krsc_want(n_krsc), krsc_got(n_krsc);
+  std::vector<float> kcrs_rt(n_kcrs), kcrs_rt_got(n_kcrs);
+  for (size_t i = 0; i < n_kcrs; ++i)
+    kcrs[i] = (float)((int)(i % 251) - 80) * 0.125f;
+
+  cpu_kcrs_to_krsc(kcrs.data(), krsc_want.data(), k, c, r, s, c_pad);
+  cpu_krsc_to_kcrs(krsc_want.data(), kcrs_rt.data(), k, c, r, s, c_pad);
+
+  float *d_kcrs = dalloc<float>(n_kcrs, "kcrs");
+  float *d_krsc = dalloc<float>(n_krsc, "krsc f32");
+  float *d_kcrs2 = dalloc<float>(n_kcrs, "kcrs2");
+  if (!d_kcrs || !d_krsc || !d_kcrs2)
+    return;
+  cu_ok(cudaMemcpy(d_kcrs, kcrs.data(), n_kcrs * sizeof(float),
+                   cudaMemcpyHostToDevice),
+        "kcrs H2D");
+  expect_eq_i(nn_layout_kcrs_to_krsc_f32(d_kcrs, d_krsc, k, c, r, s, c_pad), 0,
+              "kcrs_to_krsc_f32 rc");
+  expect_eq_i(nn_layout_krsc_to_kcrs_f32(d_krsc, d_kcrs2, k, c, r, s, c_pad), 0,
+              "krsc_to_kcrs_f32 rc");
+  cu_ok(cudaMemcpy(krsc_got.data(), d_krsc, n_krsc * sizeof(float),
+                   cudaMemcpyDeviceToHost),
+        "krsc D2H");
+  cu_ok(cudaMemcpy(kcrs_rt_got.data(), d_kcrs2, n_kcrs * sizeof(float),
+                   cudaMemcpyDeviceToHost),
+        "kcrs2 D2H");
+
+  expect_true(floats_eq(krsc_got.data(), krsc_want.data(), n_krsc, "krsc f32"),
+              "kcrs->krsc f32 exact");
+  expect_true(floats_eq(kcrs_rt_got.data(), kcrs_rt.data(), n_kcrs, "kcrs_rt f32"),
+              "krsc->kcrs roundtrip f32");
+
+  cudaFree(d_kcrs);
+  cudaFree(d_krsc);
+  cudaFree(d_kcrs2);
+}
+
+static void run_relu_bwd_bias_f32(int n, int c, int h, int w, int require_grid64) {
+  const size_t nelt = (size_t)n * c * h * w;
+  std::vector<float> y(nelt), dy(nelt), dpre_want(nelt), dpre_got(nelt);
+  std::vector<float> db_want(c), db_got(c);
+
+  for (size_t i = 0; i < nelt; ++i) {
+    const float v = (float)((int)(i % 101) - 30) * 0.1f;
+    y[i] = v > 0.f ? v : 0.f;
+    dy[i] = (float)((int)((i * 7u) % 83) - 41) * 0.05f;
+  }
+
+  cpu_relu_bwd_bias(dy.data(), y.data(), dpre_want.data(), db_want.data(), n, c,
+                    h, w);
+
+  float *d_y = dalloc<float>(nelt, "relu y f32");
+  float *d_dy = dalloc<float>(nelt, "relu dy f32");
+  float *d_dpre = dalloc<float>(nelt, "relu dpre f32");
+  float *d_db = dalloc<float>((size_t)c, "relu db f32");
+  if (!d_y || !d_dy || !d_dpre || !d_db)
+    return;
+  cu_ok(cudaMemcpy(d_y, y.data(), nelt * sizeof(float), cudaMemcpyHostToDevice),
+        "relu y H2D");
+  cu_ok(cudaMemcpy(d_dy, dy.data(), nelt * sizeof(float),
+                   cudaMemcpyHostToDevice),
+        "relu dy H2D");
+  cu_ok(cudaMemset(d_db, 0, (size_t)c * sizeof(float)), "relu db zero");
+
+  expect_eq_i(nn_layout_relu_bwd_bias_f32(d_dy, d_y, d_dpre, d_db, n, c, h, w),
+              0, "relu_bwd_bias_f32 rc");
+  cu_ok(cudaDeviceSynchronize(), "relu sync");
+
+  cu_ok(cudaMemcpy(dpre_got.data(), d_dpre, nelt * sizeof(float),
+                   cudaMemcpyDeviceToHost),
+        "relu dpre D2H");
+  cu_ok(cudaMemcpy(db_got.data(), d_db, (size_t)c * sizeof(float),
+                   cudaMemcpyDeviceToHost),
+        "relu db D2H");
+
+  expect_true(floats_eq(dpre_got.data(), dpre_want.data(), nelt, "dpre f32"),
+              "dpre exact vs CPU f32");
+  expect_true(floats_near(db_got.data(), db_want.data(), (size_t)c, 1e-4f, "db f32"),
+              "db atol 1e-4 vs CPU f32");
+
+  cudaFree(d_y);
+  cudaFree(d_dy);
+  cudaFree(d_dpre);
+  cudaFree(d_db);
+}
+
+static void test_relu_bwd_bias_f32(void) {
+  std::printf("test_relu_bwd_bias_f32\n");
+  run_relu_bwd_bias_f32(4, 32, 16, 30, 1);
+  run_relu_bwd_bias_f32(8, NN_C_OUT2, NN_H2, NN_W2, 0);
+}
+
 int main(void) {
   test_obs_to_nhwc();
+  test_obs_to_nhwc_f32();
   test_kcrs_krsc();
+  test_kcrs_krsc_f32();
   test_fc_chw_hwc();
   test_relu_bwd_bias();
+  test_relu_bwd_bias_f32();
   if (g_fails) {
     std::fprintf(stderr, "test_cuda_layout: %d FAIL\n", g_fails);
     return 1;
