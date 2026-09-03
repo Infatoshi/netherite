@@ -781,7 +781,8 @@ static void gather_mb(struct RolloutBuf *b, const int *perm, int k, int nmb) {
 
 static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
                        int n, int T, int batch, int is_metal, int drop_tail,
-                       uint64_t *rng, NnUpdateStats *stats, int *n_skip) {
+                       int tail_overlap, uint64_t *rng, NnUpdateStats *stats,
+                       int *n_skip) {
   int mb = cfg->mb;
   int ep, rc;
   int n_tr;
@@ -838,10 +839,13 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
     goto done;
   }
 
-  /* Metal and CUDA drop the tail minibatch so every update runs at n=mb.
-   * CUDA needs it because the prepared bucket set is sealed at create.
-   * Cost: up to mb-1 of the n_tr rows per epoch; the reshuffle picks a
-   * different tail each epoch.
+  /* Metal and a sealed CUDA net run every update at n=mb: Metal fixes n at
+   * create, CUDA has buckets only for n_envs and mb. The tail (n_tr mod mb)
+   * is then either dropped (tail_mb=drop) or, by default, trained once more
+   * as the last mb rows of the permutation (tail_mb=overlap: every row is
+   * seen, mb minus tail rows twice). Dropping it cost the 2026-09-03 wood
+   * probe half its t0: at mb=8192 and n_tr about 32.7k a quarter of each
+   * chunk never reached the optimizer.
    * n_tr < mb has no full minibatch. An update at n_tr cannot run: Metal
    * fixes n at create, and a sealed CUDA net has no bucket for n_tr. So the
    * whole chunk skips its update. n_tr does not change over the epochs, so
@@ -862,6 +866,15 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
     if (is_metal || drop_tail) {
       for (k = 0; k + mb <= n_tr; k += mb) {
         gather_mb(b, b->perm, k, mb);
+        memset(&st, 0, sizeof(st));
+        rc = nn_update(nn_upd, b->planes_mb, b->scal_mb, b->acts_mb, b->logp_mb,
+                       b->adv_mb, b->ret_mb, mb, &st);
+        if (rc != 0)
+          return rc;
+        TR_ACCUM_UPD_STATS();
+      }
+      if (tail_overlap && k < n_tr) {
+        gather_mb(b, b->perm, n_tr - mb, mb);
         memset(&st, 0, sizeof(st));
         rc = nn_update(nn_upd, b->planes_mb, b->scal_mb, b->acts_mb, b->logp_mb,
                        b->adv_mb, b->ret_mb, mb, &st);
@@ -1129,7 +1142,8 @@ int main(int argc, char **argv) {
      * once in the chunk. With more resets n_tr can drop below mb; that chunk
      * then skips its update and ppo_updates logs the skip. The gate still
      * stops mb == batch (or close) from dropping every row every chunk. */
-    drop_tail = is_cuda && cfg.mb > 0 && cfg.mb <= batch - n && cfg.drop_tail;
+    drop_tail = is_cuda && cfg.mb > 0 && cfg.mb <= batch - n &&
+                strcmp(cfg.tail_mb, "partial") != 0;
     if (drop_tail) {
       if (nn_seal(nn_roll) != 0)
         dief("nn_seal: %s", nn_last_error());
@@ -1446,7 +1460,8 @@ int main(int argc, char **argv) {
 
       t_upd0 = wall_sec();
       rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, drop_tail,
-                       &rng, &stats, &n_upd_skip);
+                       !strcmp(cfg.tail_mb, "overlap"), &rng, &stats,
+                       &n_upd_skip);
       if (rc != 0)
         dief("nn_update: %s", nn_last_error());
       ms_upd = (wall_sec() - t_upd0) * 1000.0;

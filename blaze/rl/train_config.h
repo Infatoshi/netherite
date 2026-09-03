@@ -59,7 +59,7 @@ typedef struct TrainConfig {
   int no_ore_xy;
   int stack_kib; /* CUDA per-thread stack limit, KiB (default 128) */
   char nn_prec[16]; /* "fast" (default) or "f32" */
-  int drop_tail;    /* CUDA mb>0: 1 = seal buckets and drop the tail minibatch (default), 0 = run the partial tail unsealed */
+  char tail_mb[16]; /* mb>0 tail rows (n_tr mod mb): "overlap" (default: one more update on the last mb rows, sealed), "drop" (never trained, sealed), "partial" (own update at its size, CUDA unsealed) */
 } TrainConfig;
 
 /* Compiled defaults. */

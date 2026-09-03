@@ -84,7 +84,7 @@ static void test_defaults(void) {
   expect_eq_i(c.no_ore_xy, 0, "default no_ore_xy");
   expect_eq_i(c.stack_kib, 128, "default stack_kib");
   expect_eq_s(c.nn_prec, "fast", "default nn_prec");
-  expect_eq_i(c.drop_tail, 1, "default drop_tail");
+  expect_eq_s(c.tail_mb, "overlap", "default tail_mb");
 }
 
 static void test_file_load(void) {
@@ -231,11 +231,13 @@ static void test_bad_value(void) {
   rc = tr_cfg_set(&c, "nn_prec", "fast");
   expect_eq_i(rc, 0, "nn_prec=fast ok");
   expect_eq_s(c.nn_prec, "fast", "nn_prec=fast applied");
-  rc = tr_cfg_set(&c, "drop_tail", "2");
-  expect_eq_i(rc, -2, "drop_tail=2 bad");
-  rc = tr_cfg_set(&c, "drop_tail", "0");
-  expect_eq_i(rc, 0, "drop_tail=0 ok");
-  expect_eq_i(c.drop_tail, 0, "drop_tail=0 applied");
+  rc = tr_cfg_set(&c, "tail_mb", "keep");
+  expect_eq_i(rc, -2, "tail_mb=keep bad");
+  rc = tr_cfg_set(&c, "tail_mb", "partial");
+  expect_eq_i(rc, 0, "tail_mb=partial ok");
+  expect_eq_s(c.tail_mb, "partial", "tail_mb=partial applied");
+  rc = tr_cfg_set(&c, "tail_mb", "drop");
+  expect_eq_i(rc, 0, "tail_mb=drop ok");
 }
 
 static void test_nonfinite_and_seed_and_overlong(void) {
@@ -320,7 +322,7 @@ static const char *const k_accepted_keys[] = {
     "init_from",       "metal_max_cells",
     "metallib",        "ktime",           "stage_time",
     "legacy_recenter", "warp_tick",       "op_trace",
-    "no_ore_xy",       "stack_kib",       "nn_prec",       "drop_tail",
+    "no_ore_xy",       "stack_kib",       "nn_prec",       "tail_mb",
 };
 
 static void test_committed_conf(void) {

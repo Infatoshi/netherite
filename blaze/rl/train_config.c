@@ -126,7 +126,7 @@ void tr_cfg_defaults(TrainConfig *c) {
   c->no_ore_xy = 0;
   c->stack_kib = 128;
   (void)str_copy_fit(c->nn_prec, sizeof(c->nn_prec), "fast");
-  c->drop_tail = 1;
+  (void)str_copy_fit(c->tail_mb, sizeof(c->tail_mb), "overlap");
 }
 
 int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
@@ -420,11 +420,11 @@ int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
       return -2;
     return 0;
   }
-  if (!strcmp(key, "drop_tail")) {
-    int t;
-    if (!p_int(val, &t) || (t != 0 && t != 1))
+  if (!strcmp(key, "tail_mb")) {
+    if (strcmp(val, "overlap") && strcmp(val, "drop") && strcmp(val, "partial"))
       return -2;
-    c->drop_tail = t;
+    if (!str_copy_fit(c->tail_mb, sizeof(c->tail_mb), val))
+      return -2;
     return 0;
   }
   return -1;
@@ -542,7 +542,7 @@ void tr_cfg_dump(const TrainConfig *c, FILE *out) {
   fprintf(out, "  %-16s = %d\n", "no_ore_xy", c->no_ore_xy);
   fprintf(out, "  %-16s = %d\n", "stack_kib", c->stack_kib);
   fprintf(out, "  %-16s = %s\n", "nn_prec", c->nn_prec);
-  fprintf(out, "  %-16s = %d\n", "drop_tail", c->drop_tail);
+  fprintf(out, "  %-16s = %s\n", "tail_mb", c->tail_mb);
 }
 
 /* True if token looks like a CLI option, not a conf path. */
