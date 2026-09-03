@@ -417,16 +417,20 @@ MC_HD static inline int mai_nearest_water(const Blaze *e, const RlSnapMob *m,
     return found;
 }
 
+/* RandomPositionGenerator.findRandomTarget. The caller owns the JavaRandom
+ * cursor: magma pai_random_position (mob_live.c:851) draws straight from the
+ * entity's live java.util.Random, so the draws MUST thread through the same
+ * cursor the surrounding EntityAIBase.shouldExecute roll used. */
 MC_HD static inline int mai_random_position(const Blaze *e, RlSnapMob *m,
                                             int xz, int yrange, int land,
+                                            JavaRandom *jr,
                                             double *out_x, double *out_y, double *out_z) {
     int found = 0, best_dx = 0, best_dy = 0, best_dz = 0;
     float best = -99999.0f;
-    JavaRandom jr; jr.seed = m->seed48;
     for (int k = 0; k < 10; ++k) {
-        int dx = jrand_int_bound(&jr, 2 * xz + 1) - xz;
-        int dy = jrand_int_bound(&jr, 2 * yrange + 1) - yrange;
-        int dz = jrand_int_bound(&jr, 2 * xz + 1) - xz;
+        int dx = jrand_int_bound(jr, 2 * xz + 1) - xz;
+        int dy = jrand_int_bound(jr, 2 * yrange + 1) - yrange;
+        int dz = jrand_int_bound(jr, 2 * xz + 1) - xz;
         int bx = mc_floor(m->x + dx);
         int by = mc_floor(m->y + dy);
         int bz = mc_floor(m->z + dz);
@@ -447,7 +451,6 @@ MC_HD static inline int mai_random_position(const Blaze *e, RlSnapMob *m,
             found = 1;
         }
     }
-    m->seed48 = jr.seed;
     if (!found) return 0;
     *out_x = m->x + best_dx;
     *out_y = m->y + best_dy;
@@ -957,7 +960,7 @@ MC_HD static inline int mai_pai_try_start(Blaze *e, int i, int task,
             if (m->fire_ticks > 0)
                 found = mai_nearest_water(e, m, &tx, &ty, &tz);
             if (!found)
-                found = mai_random_position(e, m, 5, 4, 1, &tx, &ty, &tz);
+                found = mai_random_position(e, m, 5, 4, 1, &jr, &tx, &ty, &tz);
             if (found && mai_set_path(e, i, tx, ty, tz, mai_panic_multiplier(type))) {
                 m->task_bits |= PAI_BIT(task);
                 started = 1;
@@ -980,7 +983,7 @@ MC_HD static inline int mai_pai_try_start(Blaze *e, int i, int task,
     } else if (task == PAI_WANDER) {
         if (jrand_int_bound(&jr, 120) == 0) {
             double tx, ty, tz;
-            if (mai_random_position(e, m, 10, 7, 0, &tx, &ty, &tz) &&
+            if (mai_random_position(e, m, 10, 7, 0, &jr, &tx, &ty, &tz) &&
                 mai_set_path(e, i, tx, ty, tz, 1.0)) {
                 m->task_bits |= PAI_BIT(task);
                 started = 1;
