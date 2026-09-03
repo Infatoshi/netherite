@@ -1,5 +1,23 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 gem-dims merge review: the outbound leg is real, the return leg is not
+
+Question. Does the `portals_dimensions` M1 row assert what the branch claims, and is wip/gem-dims mergeable into wip/nn-fable?
+
+Method. Deleted magma_game and both blaze_cpu.so copies and rebuilt (`make -C magma blaze_so magma_game`, `make -C blaze/rl env-cpu`; note the gate loads the in-tree `blaze/env/blaze_cpu.so`, built by `make -C magma blaze_so`, not the `out/blaze/env/` copy that `env-cpu` builds). Re-ran the row, mutated a copy of the Nether bank, decoded the BP_DIMENSIONS/BP_PORTALS digests per tick on both backends, diffed `cu_dimension_swap_apply` against `runtime.c:1630-1650`, and ran a 346-action round-trip tape.
+
+Findings.
+- The gate is real. `port_matrix.py --tier m1 --subsystem portals_dimensions --no-deps` VERIFIED in 7.72 s on a from-clean rebuild. `world` and `random_ticks` are hard requirements, not optional: `parity_pair_status` returns BLOCKED when a requested subsystem is missing from either side's `measured_mask`.
+- It is not void. Flipping one cell in a copy of the Nether bank (wx=1, wy=100, wz=1, packed state 1392 -> 0, id 87 -> air) and pointing the gate at it with `--nether-bank` FAILS at observation 88: `subsystem world digest differs`, Magma=0x68bdfb7822fb89a9 Blaze=0x6b30a478243e1716. A named missing bank fails closed: `load_snapshots: nether bank missing: PATH`.
+- The tape ends in the Nether on both sides. t=170 dim=-1 has_sky=0 sun_brightness=0.2, pos=(1.5, 103.0, 5.8134), portal cooldown 23, in_portal=0. The player walks out of the arrival pane (z 1.5 -> 5.81), so the post-swap ticks are not the frozen-in-pane window the earlier review found: 83 distinct `random_ticks` digests over the 83 post-swap ticks, magma-equal on every one.
+- The RETURN leg is a measured M1 FAIL. Magma returns to the live `r->worlds[1]`; blaze reloads the immutable `dim_ow` snapshot. 346-action tape (10 fwd, 80 idle, 8 fwd, 110 idle, 8 back, 130 idle) fails at observation 296: player_x Magma=9.5 Blaze=8.5, player_z Magma=11.5 Blaze=10.0. Magma lands on the existing overworld portal block; blaze lands on the snapshot head pose, and every overworld edit made before the transit is reverted. Recorded in `blaze/OPEN_DIVERGENCES.md` "Dimension swap semantics" with the Java references, along with the unported `Teleporter.placeInPortal` and the entity/RNG partition mismatch (magma reseeds `gm_mobs_init(seed ^ nd)` and keeps `GmRuntime` projectiles; blaze does neither).
+- Fixtures match their recorded hashes: portals sha256 0260d2908ab8c73dfe0b63210efa5c5a892ea94b55a2f4d2ebf9fc80b08e1621 (6458852 B), nether 4e0dd2640a6a9a31d818fddcaaf00d0f2a71843b9ec4e5bca766370d26e4dd62 (6316584 B).
+- Memory is as claimed. sizeof(Blaze) 691952, +40 B over base 64aa804 (6 ints + 2 pointers). Banks load only when named by create opts or a `PATH.banks` sidecar, so the default trainer path allocates nothing new. `cu_portal_tick` is now unconditional in `blaze_tick`: two extra `cu_world_block` lookups per env per tick on every row.
+- The magma-side diff is parity harness only. `gm_runtime_reanchor_parity` returns early unless `parity_rnx > 0`, which only `rl_mode` sets, so interactive play and existing tapes are untouched. `ppo.c` now calls `blaze_create_opts_default` on a struct that was previously uninitialized.
+- Regressions green: world_dynamics, spawn_to_torch, fluids M1 VERIFIED `--no-deps`; `make -C magma test` PASS (fall_reanchor); `make -C blaze/rl test` PASS (ppo backend=cpu n_envs=2 chunks=1 ticks=32).
+- b76e578 committed three Mach-O test binaries (`magma/tests/test_explosions`, `test_placement`, `test_potions`). Untracked and gitignored.
+- Merge with wip/nn-fable 580c5cb conflicts in 3 files: `blaze/env/blaze_cuda.cu`, `blaze/rl/Makefile`, `docs/DEVLOG.md`.
+
 ## 2026-09-03 portals_dimensions M1 covers the Nether region
 
 Question. After the review that the first VERIFIED only covered transit, does Blaze CPU stay bit-equal to magma on world and random_ticks for 60 ticks in the Nether?
