@@ -16,6 +16,7 @@ Definitions, so the list stays honest:
 - Gate runner: `blaze/env/port_matrix.py` over `blaze/env/port_matrix.yaml`
   (fail-closed; VERIFIED / BLOCKED / FAILED per row and tier).
 
+Last reviewed: wip/gem-dims 2026-09-03 merge review (Fable). Rebuilt magma_game + blaze_cpu.so from clean and re-ran: portals_dimensions M1 VERIFIED in 7.72s; world_dynamics, spawn_to_torch, fluids M1 VERIFIED --no-deps; make -C magma test PASS; make -C blaze/rl test PASS. Gate is not void: one flipped Nether cell (wx=1,wy=100,wz=1, state 1392 -> 0) FAILS at observation 88 on the world digest, and world/random_ticks are hard requirements (verify_cpu.py parity_pair_status BLOCKs on missing measured bits, it does not drop them). Tape ends in the Nether on both sides: t=170 dim=-1 has_sky=0 sun=0.2 pos=(1.5, 103.0, 5.8134), 83 distinct random_ticks digests after the swap. sizeof(Blaze) 691952 (+40 B vs base 64aa804: 6 ints + 2 pointers; the bank is one shared 6.016 MiB region on the handle, not per env). NEW: the return leg is a measured M1 FAIL and the swap's entity/RNG partition is uncovered - see "Dimension swap semantics".
 Last verified: wip/gem-dims 2026-09-03 (portals_dimensions M1 VERIFIED 170 ticks player,portals,dimensions,world,random_ticks in 6.90s on s10_t0_r64_portals.bsnp + s10_t0_r64_nether.bsnp. M2 BLOCKED: CUDA swap copy from bank not implemented. End transit not implemented. world_dynamics, spawn_to_torch, fluids M1 VERIFIED --no-deps. make -C magma test PASS. make -C blaze/rl test PASS. SNAP v11 unchanged.)
 Last documented: 2026-08-26 magma 13-seed transfer (`retrain_0821_best.bin` closed == cpu == cuda, 0/13 torches; replay MATCH 56/65. `ppo_ckpt_best.bin` closed t0:13; replay MATCH 45/65. Cam-px DIVERGE not blessed). No new M1/M2.
 Last verified: lane/blocklight 2026-08-25 (Sweep row 3: World.checkLightFor BLOCK flood. test_blocklight matches magma Manhattan 0..14. Fluids M2 raw/warp/scalar VERIFIED after moving CU_LIGHT_Q off the CUDA thread stack. listed --no-deps M1 27 VERIFIED; M2 27 VERIFIED; mining_slice M1+M2 BLOCKED rc=3. Root make test PASS. SNAP v11 unchanged. No BP_ light digest.)
@@ -105,21 +106,99 @@ start any time; deeper rows wait on their deps.
 | mobs_end | mobs, mobs_ss | closed 2026-08-23: EntityEnderman health 40 speed 0.3 attack 7 follow 64, isWet DROWN+teleport, daytime brightness teleport, teleportRandomly/attemptTeleport/teleportToEntity, shouldAttackPlayer stare, AIFindPlayer straight chase, HurtByTarget screaming, AITakeBlock/AIPlaceBlock RNG+world write, pearl 0..1, XP 5. PathNavigateGround A* stay design-gap (GPU_MOB_AI.md) |
 | mobs | world_dynamics, entity_spine, projectiles | closed 2026-08-22: planted zombie+skeleton generic AI (LOS/chase/melee), player i-frames, bone/flesh drops, skeleton arrows; 2026-08-22 lane/tntknock: EntityLivingBase.knockBack on generic melee; 2026-08-22 lane/natspawn: WorldEntitySpawner MONSTER + EntityLiving.despawnEntity (natural_spawn knob default 0); 2026-08-23 lane/passives: cow/pig/sheep/chicken as row `passives`; 2026-08-23 lane/spiderslime: spider+slime as `mobs_ss`; 2026-08-23 lane/enderman: enderman as `mobs_end`; 2026-08-23 lane/witch: witch as `mobs_witch` + type-1 arrow vs enderman 64-try teleport. det_entity_rng A*, EntityPotion stay out |
 | mobs_witch | mobs, mobs_end | closed 2026-08-23: EntityWitch size 0.6x1.95 health 26 speed 0.25, drink 32 + PotionType 3600, ENTITIES_WITCH loot stick weight 2, MONSTER weight 5/1-1, XP 5, type-1 PL_HIT_MOB enderman teleport. PathNavigateGround A* stay design-gap (GPU_MOB_AI.md). EntityPotion not a PlProj type |
-| portals_dimensions | world_dynamics | closed 2026-09-03: portal contact and 82-tick transfer and cooldown, dimension identity in Blaze CPU, region swap from per-dimension snapshot bank. M1 covers the Nether region (170-action tape, world + random_ticks after swap). M2 BLOCKED: CUDA swap copy from bank not implemented |
+| portals_dimensions | world_dynamics | closed 2026-09-03 for the OUTBOUND overworld -> Nether leg only: portal contact and 82-tick transfer and cooldown, dimension identity in Blaze CPU, region swap from per-dimension snapshot bank. M1 covers the Nether region (170-action tape, world + random_ticks after swap). The RETURN leg is a measured M1 FAIL and the swap's entity/RNG partition is uncovered - see "Dimension swap semantics" below. M2 BLOCKED: CUDA swap copy from bank not implemented |
 | nether_route | spawn_to_torch, portals_dimensions | no strict cross-backend fixture. End transit is separately out (see dragon_victory) |
 | boats_elytra_xp | fluids, entity_spine | closed 2026-08-22: split into xp_orbs, boats, elytra (all M1+M2). Java water accel / Mending / UNDER_* boat status / snapshot armor stay out |
 | dragon_victory | nether_route, mobs, explosions | End transit is not implemented: no End .bsnp bank, `cu_portal_tick` observes block 119 but does not swap, magma End spawn platform at (100.5, 49.0, 0.5) is not built. Dragon fight, death sequence, exit portal, and `won` are not verified end to end; dragon-fight RL is out of scope per GATES |
 
 Two consequences worth stating plainly:
 
-- **Nether transit exists in Blaze CPU.** Dimension identity, portal contacts,
-  and region swap from a named per-dimension snapshot bank (`GPU_DIMENSIONS.md`)
-  are implemented in Blaze CPU; `portals_dimensions` M1 covers the Nether
-  region (170 actions, world + random_ticks). CUDA M2 is BLOCKED until the
-  device copy from the bank exists. End transit is not implemented: no End
-  bank, `cu_portal_tick` records block 119 (`in_portal=2`) but never sets
-  `swap_pending`, and the magma End platform at (100.5, 49.0, 0.5) is not
-  built.
+- **One-way Nether transit exists in Blaze CPU.** Dimension identity, portal
+  contacts, and region swap from a named per-dimension snapshot bank
+  (`GPU_DIMENSIONS.md`) are implemented in Blaze CPU; `portals_dimensions` M1
+  covers the outbound overworld -> Nether leg and the Nether region after it
+  (170 actions, world + random_ticks). The return leg diverges (measured, see
+  below) and the swap's entity/RNG partition is outside the row's features.
+  CUDA M2 is BLOCKED until the device copy from the bank exists. End transit
+  is not implemented: no End bank, `cu_portal_tick` records block 119
+  (`in_portal=2`) but never sets `swap_pending`, and the magma End platform at
+  (100.5, 49.0, 0.5) is not built.
+
+### Dimension swap semantics (measured 2026-09-03, wip/gem-dims review)
+
+Magma reference: `magma/game/runtime.c:1630-1650` (the transit block) plus
+`gm_runtime_set_pose` (`runtime.c:1718-1737`) and `gm_portal_find_or_make`
+(`magma/game/portal_live.c:30-63`). Blaze: `blaze/core/dimension_swap.h`.
+
+1. **`Teleporter.placeInPortal` is not ported; the arrival pose is read out of
+   the fixture.** Magma computes the destination from the live world:
+   `nx = floor(v.x * scale)`, `nz = floor(v.z * scale)` with scale 0.125
+   entering the Nether and 8.0 returning (`runtime.c:1638-1641`;
+   `oracle-src/net/minecraft/server/management/PlayerList.java:621-733`
+   `transferEntityToWorld`), then a radius-128 ring scan for block 90 and a
+   radius-16 `makePortal` fallback (`portal_live.c:30-63`;
+   `oracle-src/net/minecraft/world/Teleporter.java:32-70`
+   `placeInPortal` / `placeInExistingPortal` / `makePortal`).
+   `cu_dimension_swap_apply` instead copies `px/py/pz` and `box[6]` straight
+   out of the destination bank's `RlSnapHead`. On the shipped fixture pair the
+   two agree only because `s10_t0_r64_nether.bsnp` was dumped from magma at
+   that exact arrival: the answer is recorded, not computed. Blaze also skips
+   `psv_player_box` and takes the stored box, so a bank whose head box does not
+   match its own pose would be accepted.
+
+2. **The return to the overworld is a measured M1 FAIL.** Magma keeps every
+   dimension alive in `r->worlds[3]` (`runtime.h:197`, seeded at
+   `runtime.c:986` with `r->worlds[1] = r->world`) and returns to that LIVE
+   overworld, so blocks edited before the transit are still edited and the
+   arrival is whatever `gm_portal_find_or_make` finds. Blaze reloads
+   `env->dim_ow`, the immutable `.bsnp` this env was created from
+   (`blaze_cpu.c:587`), so the overworld reverts to its t=0 contents and the
+   pose is the snapshot head. Repro on the shipped fixture pair, 346-action
+   tape (10 forward, 80 idle, 8 forward, 110 idle, 8 backward, 130 idle):
+
+   ```
+   FAILED at observation 296: subsystem player digest differs
+     differing scalar player_x: Magma=9.5, Blaze=8.5
+     differing scalar player_z: Magma=11.5, Blaze=10.0
+   ```
+
+   Magma lands on the existing overworld portal block (9, 11); Blaze lands on
+   the snapshot head pose (8.5, 10.0). The 170-action gate tape never returns,
+   so the row does not see this.
+
+3. **The entity / RNG partition across the swap does not match, and the row's
+   features do not cover it.** Magma's transit runs
+   `gm_mobs_init(&r->mobs, r->seed ^ (long long)nd)` and
+   `memset(&r->entities, 0, sizeof r->entities)` and nothing else.
+   - `gm_mobs_init` (`mob_live.c`) memsets `GmMobLive`: it reseeds
+     `spawn_world_seed48`, `spawn_math_seed48`, `spawn_shuffle_seed48` from
+     `seed ^ nd`, resets `next_id = 1`, `next_orb_id = 1000`, `boat_ride = -1`
+     and zeroes `player_hurt_resistant`. `cu_dimension_swap_apply` leaves all
+     of those on the env untouched.
+   - `memset(&r->entities, ...)` clears `GmLiveSim`, which owns ground items
+     AND `fall_updates` / `fall_landings` (`live_sim.h:69-70`) - blaze matches
+     there.
+   - `GmRuntimeProjectile projectiles[]` is a direct `GmRuntime` member
+     (`runtime.h:207`) and magma does NOT clear it on transit; blaze zeroes
+     `env->projectiles[p].active` for every slot. Arrows in flight survive a
+     magma transit and do not survive a blaze one.
+
+   None of this is measured: `required_features` is
+   `player, portals, dimensions, world, random_ticks`, and the fixture runs
+   with mobs and natural spawn off.
+
+4. **A transit with no bank silently no-ops instead of failing closed.** A
+   NAMED bank that is missing errors at load (`load_snapshots: nether bank
+   missing: PATH`, verified). But on the default training path no bank is
+   named, `env->dim_bank` slots are empty, and `cu_dimension_swap_apply`
+   returns after `swap_pending = 0` - while `cu_portal_tick` has already
+   stamped `portal_cooldown = 100` and `portal_time = 0`. Blaze stays in the
+   overworld where magma would transit. Harmless on the shipped training
+   snapshots (no block 90), but it is a fail-open, not a fail-closed.
+
+   `cu_portal_tick` is also now unconditional in `blaze_tick`, replacing the
+   old "blocks 90/119 cannot occur in an overworld training region - skipped"
+   comment: two extra `cu_world_block` lookups per env per tick on every row.
 - **Detmob A* still does not exist in blaze.** Snapshot living slots tick the
   Entity.move spine (`entity_spine`) and the magma generic (det_entity_rng off)
   zombie/skeleton/creeper chase/melee path (`mobs`, M1+M2 VERIFIED). Java
