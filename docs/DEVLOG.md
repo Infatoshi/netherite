@@ -65,18 +65,36 @@ bisect: `~/nlanes/ladder/wood_at.sh <commit> [--set k=v]` builds
 `~/nlanes/wood-<hash>` and runs the probe; `wood_seq.sh` runs seeds 1 and
 0 at 479a2c4, 11c57fc, fcab243 and d7508e8 (results below when done).
 
+Commit ladder, same recipe, seeds 1 and 0 (`wood_seq.sh` on gpu0, a
+gpu1 lease queue took d7508e8 seed 1):
+
+| tree | seed 1 best t0 | seed 0 best t0 | wall 6M ticks |
+|---|---|---|---|
+| 0943ce1 (08-21 lane/trainer) | 0.595 | 0.655 | 64-70 s |
+| 479a2c4 (08-26, parent of the Fable trainer lane) | 0.590 | 0.685 | 2733-2899 s |
+| 11c57fc (Fable trainer path, WIP) | exits at start, rc=1, empty log | same | - |
+| fcab243 (fp16 act store, WIP) | dies chunk 5 `nn_update: fc dw scal failed` | same | - |
+| d7508e8 (lane head before the env integration) | 0.050 | 0.410 | 2670-3984 s |
+| 14b2698 (wip/nn-fable) | 0.050 | 0.410 | 313-421 s |
+
+So: 08-21 to 08-26 keeps learning and loses 45x wall (the per-edit
+skylight rebuild found on 09-02). The Fable trainer lane (479a2c4 to
+d7508e8) keeps the wall and halves learning; its two WIP commits cannot
+be probed, the lane's end can. The env integration (d7508e8 to 14b2698)
+changes nothing in t0 (identical numbers on both seeds) and wins back
+6.5x to 9.5x wall. The learning regression is in the trainer lane.
+
 Precision A/B probe with knob `nn_prec` (`fast` vs `f32`) on `wip/nn-prec`.
 Unit tests (`test-cuda`, `test-cuda-conv`, `test-cuda-lt`, `test-cuda-layout`)
 and `smoke-cuda` PASS for both precision modes.
-Wood-break acceptance probes queued via `wood.sh` in tmux sessions `nnf-prec-s1`
-and `nnf-prec-s0` on anvil gpu0 (queued behind `wood_fcab243_s0`):
+Wood-break acceptance probes on anvil gpu0 (`wood.sh --set mb=8192`):
 
-| tree | prec | seed | best t0 (ticks) | end t0 | wall 6M ticks | status |
-|---|---|---|---|---|---|---|
-| 14b2698 (HEAD) | fast | 0 | 0.410 (5.5M) | 0.355 | 421 s | PASS |
-| 14b2698 (HEAD) | fast | 1 | 0.050 (6.0M) | 0.050 | 313 s | PASS |
-| 3cc6404 (wip/nn-prec) | f32 | 1 | - | - | - | queued in nnf-prec-s1 |
-| 3cc6404 (wip/nn-prec) | f32 | 0 | - | - | - | queued in nnf-prec-s0 |
+| tree | prec | seed | best t0 (ticks) | end t0 | wall 6M ticks |
+|---|---|---|---|---|---|
+| 14b2698 (HEAD) | fast | 0 | 0.410 (5.5M) | 0.355 | 421 s |
+| 14b2698 (HEAD) | fast | 1 | 0.050 (6.0M) | 0.050 | 313 s |
+| 3cc6404 (wip/nn-prec) | f32 | 0 | 0.295 (6.0M) | 0.295 | 362 s |
+| 3cc6404 (wip/nn-prec) | f32 | 1 | 0.150 (6.0M) | 0.150 | 431 s |
 
 Blaze V2 package A (phase-split tick library, gamer RTX 3090, lane
 `wip/blaze-v2` at 4c8a06e, delegate run 2026-09-03 05:30-08:00). Bitwise
