@@ -332,8 +332,9 @@ $(TEST_PASSIVES_BIN): $(ENV_SRC)/test_passives.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_MOBS_DET_BIN): $(ENV_SRC)/test_mobs_det.c $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/passive_live.h | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs_det.c \
+		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h \
+		$(CORE_SRC)/passive_live.h $(MOB_AI_HDRS) | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs_det.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_XP_BIN): $(ENV_SRC)/test_xp.c $(ENV_SRC)/blaze_snapshot.c \

@@ -464,16 +464,39 @@ MC_HD static inline int mai_random_position(const Blaze *e, RlSnapMob *m,
     return 1;
 }
 
+/* PathNavigateGround.getPathToPos is a THREE-way dispatch on the destination
+ * block's Material, not a two-way solid/not-solid test. Transcribed from
+ * magma/game/mob_live.c pai_mat_air / pai_mat_solid / pai_path_to_pos, which
+ * is the bit-verified reference for
+ * java/oracle-src/net/minecraft/pathfinding/PathNavigateGround.java:46-66. */
+MC_HD static inline int mai_mat_air(int id) { return id == 0; }
+
+MC_HD static inline int mai_mat_solid(int id) {
+    BptProps p;
+    if (id == 0 || id == 8 || id == 9 || id == 10 || id == 11 || id == 51)
+        return 0;
+    p = mc_bpt_props(id);
+    return (p.flags & BF_SOLID) != 0;
+}
+
 MC_HD static inline void mai_path_to_pos(const Blaze *e, int *bx, int *by, int *bz) {
-    int score_y = *by;
-    if (ml_solid_id(cu_world_block(e, *bx, score_y, *bz))) {
-        while (score_y < 256 && ml_solid_id(cu_world_block(e, *bx, score_y, *bz)))
-            score_y++;
-    } else {
-        while (score_y > 0 && !ml_solid_id(cu_world_block(e, *bx, score_y - 1, *bz)))
-            score_y--;
+    int id = cu_world_block(e, *bx, *by, *bz);
+    if (mai_mat_air(id)) {
+        int y = *by - 1;
+        while (y > 0 && mai_mat_air(cu_world_block(e, *bx, y, *bz))) --y;
+        if (y > 0) {
+            *by = y + 1;
+            return;
+        }
+        while (*by < 256 && mai_mat_air(cu_world_block(e, *bx, *by, *bz))) ++*by;
+        return;
     }
-    *by = score_y;
+    /* Non-air, non-solid (water, lava, torch, fire, snow layer): Java falls
+     * through to super.getPathToPos(pos) with pos unchanged. The old blaze
+     * code walked DOWN here, landing a panicking mob on the lakebed instead
+     * of the water surface. */
+    if (!mai_mat_solid(id)) return;
+    while (*by < 256 && mai_mat_solid(cu_world_block(e, *bx, *by, *bz))) ++*by;
 }
 
 MC_HD static inline void mai_fill_pf(Blaze *e, int i, int *ox, int *oy, int *oz) {
