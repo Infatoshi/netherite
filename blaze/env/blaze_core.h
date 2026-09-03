@@ -554,6 +554,34 @@ MC_HD static inline long cu_grass_sec_idx(const Blaze *e,
     return ((long)ix * e->gsny + iy) * e->gsnz + iz;
 }
 
+/* Rebuild the section census from env->cells after a region memcpy.
+ * cu_world_set_state keeps the counts exact for in-place edits; a dimension
+ * swap replaces the whole grid and must re-anchor gs* plus recount. */
+MC_HD static inline void cu_grass_census_rebuild(Blaze *e) {
+    long nsec, g;
+    if (!e || !e->grass_sec || !e->cells) return;
+    cu_grass_grid_init(e);
+    nsec = cu_grass_sec_count(e);
+    for (g = 0; g < nsec; ++g) {
+        int iz = (int)(g % e->gsnz);
+        int iy = (int)((g / e->gsnz) % e->gsny);
+        int ix = (int)(g / ((long)e->gsnz * e->gsny));
+        int bx = (e->gsx0 + ix) * 16;
+        int by = (e->gsy0 + iy) * 16;
+        int bz = (e->gsz0 + iz) * 16;
+        int lx, ly, lz, n = 0;
+        for (lx = 0; lx < 16; ++lx)
+            for (ly = 0; ly < 16; ++ly)
+                for (lz = 0; lz < 16; ++lz) {
+                    long ri = cu_region_idx(e, bx + lx, by + ly, bz + lz);
+                    if (ri >= 0 &&
+                        bp_is_randtick_id(mc_state_id(e->cells[ri])))
+                        ++n;
+                }
+        e->grass_sec[g] = (u16)n;
+    }
+}
+
 /* gm_world_block/gm_world_meta equivalent over the snapshot region: outside
  * the region (or y outside [0,127]) reads as air, mirroring the design's
  * out-of-region = air rule. Items/plants/obs use these (WORLD coords). */

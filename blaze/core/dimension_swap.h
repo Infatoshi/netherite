@@ -1,6 +1,7 @@
 #ifndef DIMENSION_SWAP_H
 #define DIMENSION_SWAP_H
 
+#include <limits.h>
 #include <math.h>
 #include <string.h>
 
@@ -89,10 +90,16 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
         env->rnz = target->head.rnz;
     }
 
-    /* 2. Update dimension identity */
+    /* 2. Update dimension identity. Inventory, vitals, yaw/pitch, world_rand,
+     * update_lcg, and ww.* stay on the env: magma keeps those on GmRuntime
+     * (runtime.c:1638-1647) and only replaces the world pointer. */
     env->dimension = target_dim;
+    cu_fluid_init(env);
+    env->fluid_dim = target_dim;
 
-    /* 3. Set destination player coordinates and bounding box */
+    /* 3. Arrival pose from the destination bank (Teleporter.placeInPortal is
+     * not ported). Yaw/pitch are NOT taken from the bank: magma's
+     * gm_runtime_set_pose keeps the pre-transit view (runtime.c:1643). */
     env->ox = target->head.ox;
     env->oz = target->head.oz;
     env->ccx = psv_floordiv16(env->ox);
@@ -108,7 +115,8 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
     env->pl.ent.onGround = 0;
     env->pl.fall_distance = 0.0f;
 
-    /* 4. Reset dimension-local transient entities and actions */
+    /* 4. Reset dimension-local transients. Dig/atk match gm_player_dig_reset
+     * (player_ctl.c:993) which gm_runtime_set_pose runs on every transit. */
     env->n_items = 0;
     env->n_mobs = 0;
     for (int o = 0; o < XL_MAX; ++o) {
@@ -119,12 +127,29 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
     for (int f = 0; f < CU_MAX_ITEMS; ++f) env->falls[f].active = 0;
     for (int u = 0; u < CU_FALL_UPDATES; ++u) env->fall_updates[u].active = 0;
     for (int l = 0; l < CU_MAX_ITEMS; ++l) env->fall_landings[l].active = 0;
-    env->dig_hitting = 0;
     env->dig_progress = 0.0f;
+    env->dig_hx = INT_MIN;
+    env->dig_hy = 0;
+    env->dig_hz = 0;
+    env->dig_hitting = 0;
+    env->dig_delay = 0;
+    env->atk_prev = 0;
+    env->left_click_counter = 0;
+    env->eat_ticks = 0;
+    env->eat_item = 0;
+    env->hurt_vel_reset = 0;
+    env->server_motion_x = 0.0;
+    env->server_motion_z = 0.0;
     env->container = 0;
+    env->container_wx = 0;
+    env->container_wy = 0;
+    env->container_wz = 0;
 
-    /* 5. Refill physics window at new player location */
+    /* 5. Refill physics window and the randtick section census. memcpy of
+     * cells does not go through cu_world_set_state, so grass_sec still held
+     * the overworld occupancy and the nether pass drew extra LCG steps. */
     cu_recenter_fill(env, env->ccx, env->ccz, 999, 999, 0, 1);
+    cu_grass_census_rebuild(env);
 
     /* 6. Re-anchor every parity cache on the destination region, mirroring
      * magma gm_world_parity_configure (world_live.c:634-676): a fresh region
