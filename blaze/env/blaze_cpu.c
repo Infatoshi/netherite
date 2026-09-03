@@ -1380,6 +1380,18 @@ int blaze_mobs_get(void *vh, int env, int i, int *slot, int *type, int *alive,
     return 0;
 }
 
+/* mobs_det coverage evidence: cumulative PathFinder call / non-empty-path
+ * counts for one env. Not sim state (never hashed, never snapshotted, not
+ * cleared by reset). The gate fails closed when calls == 0. */
+int blaze_mob_ai_stats(void *vh, int env, unsigned long long *calls,
+                       unsigned long long *paths) {
+    CuVec *v = (CuVec *)vh;
+    if (!v || env < 0 || env >= v->n) return -1;
+    if (calls) *calls = v->envs[env].pf_calls;
+    if (paths) *paths = v->envs[env].pf_paths;
+    return 0;
+}
+
 int blaze_parity_state(void *vh, int env, void *out) {
     CuVec *v = (CuVec *)vh;
     if (!v || env < 0 || env >= v->n || !out) return -1;

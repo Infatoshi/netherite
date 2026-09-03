@@ -631,6 +631,7 @@ MC_HD static inline int mai_find_path(Blaze *e, int i, double tx, double ty, dou
     }
     mai_fill_pf(e, i, &ox, &oy, &oz);
     mai_path_to_pos(e, &bx, &by, &bz);
+    e->pf_calls++;
     n = pf12_findPath(&e->pf,
                       (double)((float)bx + 0.5f) - (double)ox,
                       (double)((float)by + 0.5f) - (double)oy,
@@ -652,6 +653,7 @@ MC_HD static inline int mai_find_path(Blaze *e, int i, double tx, double ty, dou
         return 0;
     }
     if (n > PAI_NAV_MAX) n = PAI_NAV_MAX;
+    e->pf_paths++;
     m->path_n = (unsigned char)n;
     m->path_i = 0;
     for (k = 0; k < n; ++k) {

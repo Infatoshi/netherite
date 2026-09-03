@@ -487,6 +487,13 @@ typedef struct {
     /* mob AI (GPU_MOB_AI.md) */
     int det_entity_rng;
     Pf12 pf;
+    /* PathFinder coverage counters, same contract as ops above: cumulative,
+     * reset does NOT touch them, never hashed, never snapshotted. The
+     * mobs_det gate reads them through blaze_mob_ai_stats and fails closed
+     * when the A* was never called, so a tape that never paths cannot be
+     * mistaken for a verified pathfinder. */
+    unsigned long long pf_calls;
+    unsigned long long pf_paths;
     int mob_living_sound[BLAZE_SNAP_MAX_MOBS];
     int mob_entity_age[BLAZE_SNAP_MAX_MOBS];
     int mob_task_tick[BLAZE_SNAP_MAX_MOBS];
