@@ -957,14 +957,17 @@ MC_HD static inline int mai_pai_try_start(Blaze *e, int i, int task,
             started = 1;
         }
     } else if (task == PAI_PANIC) {
-        if (m->panic) {
+        /* EntityAIPanic.shouldExecute, magma pai_try_start (mob_live.c:1393-1401).
+         * isBurning() alone is enough to panic; the fallback wander is land=0;
+         * and a failed setPath still marks the task using. */
+        int burning = m->fire_ticks > 0;
+        if (m->panic > 0 || burning) {
             double tx, ty, tz;
-            int found = 0;
-            if (m->fire_ticks > 0)
-                found = mai_nearest_water(e, m, &tx, &ty, &tz);
+            int found = burning && mai_nearest_water(e, m, &tx, &ty, &tz);
             if (!found)
-                found = mai_random_position(e, m, 5, 4, 1, &jr, &tx, &ty, &tz);
-            if (found && mai_set_path(e, i, tx, ty, tz, mai_panic_multiplier(type))) {
+                found = mai_random_position(e, m, 5, 4, 0, &jr, &tx, &ty, &tz);
+            if (found) {
+                (void)mai_set_path(e, i, tx, ty, tz, mai_panic_multiplier(type));
                 m->task_bits |= PAI_BIT(task);
                 started = 1;
             }
