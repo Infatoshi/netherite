@@ -1,5 +1,83 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 mob AI merge review (Opus, wip/gem-mobai): 5 fixes, gate is real
+
+Re-ran the gate from a forced rebuild rather than trusting the branch's
+numbers. `port_matrix.py --tier m1 --subsystem mobs_det --no-deps`:
+VERIFIED, 600 ticks, digest mobs=0x20dd0601b63f75c7 xp=0xaabfbe90fd1d846d,
+pf_calls=9 pf_paths=9, 16.9 s. Fail-closed on the old 64-tick passives
+fixture reproduces: pf_calls=0, "FAIL: blaze_mob_ai_stats reports zero
+findPath calls", EXIT:1.
+
+The gate is real, and the two digests are independent: magma runs
+`magma/magma_game` over the .bsnp, blaze dlopens `blaze/env/blaze_cpu.so`,
+and blaze's task layer (`mob_ai_tasks.h`) is a second transcription of
+magma's `mob_live.c` - only the A* under it (`path_finder.h`,
+`path_node_processor.h`, both pre-existing at fd7c6ac, untouched by the
+branch) is one shared source. `run_seed_parity` compares BP_MOBS on every
+one of the 600 observations, not just at tick 0, and the digest hashes the
+whole 48-point path array plus path_n/path_i/seed48/task_bits/nav state
+(`blaze_snap_hash_one_mob`). Adding +1 to one stored path_z coordinate
+FAILs at observation 1 (Magma 0x4466059fb1090044 vs Blaze
+0xefb728c1cd94ce0e). The fixture is reproducible, not doctored: the
+checked-in baker regenerates it byte-for-byte from the passives fixture
+(sha256 0ab829a2...a601 both).
+
+Five fixes, one commit each.
+
+1. `blaze/rl/Makefile` never rebuilt `out/blaze/env/blaze_cpu.so` when a mob
+   AI header changed, so the trainer's .so could silently disagree with the
+   gate's. Found because the first perturbed run reported VERIFIED.
+2. `mai_path_to_pos` was a two-way `ml_solid_id` test where Java and magma
+   dispatch three ways on Material. Air-over-water landed a mob on the
+   lakebed instead of the surface; a water destination walked down instead of
+   staying put; a bottomless air column returned 0 instead of up-scanning.
+   Now transcribes `pai_mat_air` / `pai_mat_solid` / `pai_path_to_pos`.
+   `test_mobs_det` pins the five columns; three fail on the pre-fix body.
+3. The look helper read the live player pose. magma gives EntityLookHelper
+   and the melee path destination the PREVIOUS tick's pose (`look_px`,
+   round-tripped through the snapshot xtra) and only the task range tests
+   the live one. Blaze now carries look_px/py/pz/look_have.
+4. `Pf12 pf` was a member of Blaze: sizeof(Blaze) 691912 -> 1846568, i.e.
+   +1.09 MiB per env in host RAM AND VRAM, +8.9 GiB at N=8192, for a
+   feature that is off by default. Now a pool allocated on the first
+   `blaze_set_det_entity_rng(1)`; sizeof(Blaze) back to 701480.
+5. The `mobs_det` m2 command ended in `--det-entity-rng`, which
+   `verify_cuda.py` does not accept ("unrecognized arguments", rc=2), and
+   `blaze_cuda.cu` exports no `blaze_set_det_entity_rng`. On a CUDA host the
+   row would have reported FAILED for a tier that does not exist. m2 is now
+   empty, so the row is BLOCKED at m2 (and, note, under `--tier all`; run M1
+   with `--tier m1`).
+
+Fixes 2 and 3 leave the 600-tick digests byte-identical, which is the
+measurement of what the fixture covers: 4 mobs, one panicking sheep, 9
+findPath calls, a stationary player, and grass-pad destination columns
+only. No hostile/melee path, no water, no moving player, no second seed.
+
+Known and NOT fixed: `mai_brightness` reads `cu_world_light`, which returns
+15 outside the blaze region, where magma's `light_sky` returns 0 for a
+missing chunk. On `mai_random_position`'s scoring path that is a full 1.0
+swing in the RandomPositionGenerator best-weight for a candidate outside the
+region, so a different wander target. This is the systemic finite-region
+limitation, not something the branch introduced; changing `cu_world_light`
+would touch every other VERIFIED row.
+
+After the fixes: mobs_det M1 VERIFIED, mobs M1 VERIFIED, world_dynamics M1
+VERIFIED, `make -C magma test` PASS, `make -C blaze/rl test` PASS,
+`make -C blaze/rl test-capture` PASS.
+
+Merge into wip/nn-fable: one conflict (docs/DEVLOG.md) against 580c5cb.
+The branch moved to 66e4968 during the review (wip/gem-dims merged in);
+against that tip there are five: blaze/OPEN_DIVERGENCES.md (1 hunk),
+blaze/env/blaze_core.h (1), blaze/env/verify_cpu.py (2),
+blaze/rl/Makefile (2), docs/DEVLOG.md (1). All are adjacent-addition
+conflicts, no logic overlap.
+
+Still out: CUDA M2 (blaze_cuda.cu untouched - needs the setter, the
+verify_cuda.py flag, and the xtra look_p load; the mob AI is now inlined
+into k_tick on that path, register and compile-time cost unmeasured),
+mate/tempt/follow/eat/watch, PathNavigateClimber, resume for det_entity_rng.
+
 ## 2026-09-03 mob AI: EntityAITasks + PathFinder A* blaze M1 on a panic fixture
 
 Java EntityAITasks, LookHelper, EntityBodyHelper, LivingBase movement, and

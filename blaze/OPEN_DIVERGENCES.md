@@ -75,7 +75,7 @@ Last verified: lane/weather 2026-08-22 (weather_optional M1+M2; falling_blocks, 
 | mobs_ss | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | mobs_end | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | mobs_witch | VERIFIED (chain 64 stand/walk/melee, `--features mobs,xp --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
-| mobs_det | VERIFIED (chain 600 idle, planted panic sheep, `--det-entity-rng --require-findpath`, pf_calls=9 pf_paths=9, resume dropped) | unmeasured (Mac M1 only) |
+| mobs_det | VERIFIED (chain 600 idle, planted panic sheep, `--det-entity-rng --require-findpath`, pf_calls=9 pf_paths=9, resume dropped) | BLOCKED (no m2 command: blaze_cuda.cu has no det AI and no `blaze_set_det_entity_rng`) |
 | biome_plane | VERIFIED (chain 64, `--features random_ticks,mobs --mobs-on`, seed 7 swamp plane) | VERIFIED (64 CUDA lanes) |
 | biome_plane_spawn | VERIFIED (chain 64, seed 7 swamp, `--features random_ticks,mobs --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
 | biome_plane_ice | VERIFIED (chain 64, seed 42 ice plains, `--features random_ticks,mobs --mobs-on --natural-spawn`) | VERIFIED (64 CUDA lanes) |
@@ -133,6 +133,33 @@ Two consequences worth stating plainly:
   unmeasured. The agreed GPU design is `blaze/GPU_MOB_AI.md` (v2): sequential
   mob tick with A* inline, magma semantics (32x24x32 window, 48-point path
   cap), IntHashMap aliasing reproduced.
+
+  What the mobs_det M1 fixture does NOT cover (2026-09-03 merge review,
+  measured, not argued): 4 mobs, one panicking sheep, 9 findPath calls, a
+  stationary player, and air-over-solid destination columns only. Two real
+  transcription divergences were found and fixed with the 600-tick digests
+  byte-identical on both sides of the fix - `mai_path_to_pos` was a two-way
+  solid test instead of the three-way Material dispatch, and the look helper
+  read the live player pose instead of magma's previous-tick `look_px`. The
+  fixture can see neither. `test_mobs_det` now pins the path_to_pos columns
+  directly. No hostile/melee path, no water destination, no moving player,
+  no second seed.
+
+  KNOWN, not fixed: `mai_brightness` reads `cu_world_light`, which returns
+  15 outside the blaze region where magma's `light_sky` returns 0 for a
+  missing chunk. On `mai_random_position`'s scoring path
+  (`mai_block_path_weight` -> `br - 0.5f`) that is a 1.0 swing in the
+  RandomPositionGenerator best-weight for a candidate outside the region, so
+  a different wander target and A* path. This is the systemic
+  finite-region limitation the whole port carries, not a mob AI bug;
+  changing `cu_world_light` would move every other VERIFIED row.
+
+  CUDA: `blaze_cuda.cu` was not touched. It exports no
+  `blaze_set_det_entity_rng` and `verify_cuda.py` has no `--det-entity-rng`,
+  so mobs_det has no m2 command and the row is BLOCKED at m2. It also needs
+  the `look_px` xtra load mirrored, and `mai_det_tick` is now inlined into
+  `cu_mob_ai_tick` inside k_tick - register pressure and compile time on
+  that path are unmeasured.
 
 ## Spawn -> dragon (policy vs magma)
 
