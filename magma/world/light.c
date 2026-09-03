@@ -47,6 +47,7 @@
 #include "chunk_provider_end.h"
 #include "chunk_provider_flat.h" /* verified vanilla-default superflat provider */
 #include "block_props_table.h"   /* mc_bpt_props */
+#include "port_parity.h"         /* bp_is_randtick_id */
 #include "genlayer_biomes.h"     /* gl_build, gl_getInts */
 #include "mc_math.h"             /* McSinTable, mc_sin_table_init */
 
@@ -151,6 +152,7 @@ typedef struct {
     u8  sky[65536];   /* 0..15 */
     u8  blk[65536];   /* 0..15 */
     int biome[256];   /* full-res biome id, index x + z*16 */
+    uint16_t rt_count[16]; /* per-section count of bp_is_randtick_id cells */
 } LChunk;
 
 /* BFS cell for the block-light flood; queue is owned by CrLight (allocated once
@@ -387,6 +389,12 @@ static LChunk *gen_chunk(CrLight *L, int cx, int cz) {
                     }
                     if (!ok) { c->state[i] = 0; c->block[i] = 0; }
                 }
+    }
+
+    memset(c->rt_count, 0, sizeof(c->rt_count));
+    for (int i = 0; i < 65536; ++i) {
+        if (bp_is_randtick_state(c->state[i]))
+            c->rt_count[(i & 0xFF) >> 4]++;
     }
 
     /* full-res biome (biomeIndexLayer / voronoi), same as cp getBiomes. gl_getInts
@@ -738,6 +746,13 @@ void light_debug_set_block_meta(CrLight *L, int wx, int wy, int wz, int id, int 
         fprintf(stderr, "[light] FATAL: debug model key %d has no canonical state\n", id);
         abort();
     }
+    int was_rt = bp_is_randtick_state(c->state[i]);
+    int now_rt = bp_is_randtick_state((uint16_t)state);
+    if (was_rt != now_rt) {
+        int sec = wy >> 4;
+        if (now_rt) c->rt_count[sec]++;
+        else        c->rt_count[sec]--;
+    }
     c->block[i] = (u16)id;
     c->meta[i]  = (u8)(meta & 15);
     c->state[i] = (u16)state;
@@ -753,6 +768,13 @@ void light_set_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
     LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
     if (!c) return;
     int i = CB_INDEX(wx & 15, wy, wz & 15);
+    int was_rt = bp_is_randtick_state(c->state[i]);
+    int now_rt = bp_is_randtick_state(state);
+    if (was_rt != now_rt) {
+        int sec = wy >> 4;
+        if (now_rt) c->rt_count[sec]++;
+        else        c->rt_count[sec]--;
+    }
     int old_opacity = state_opacity(c->state[i]);
     int new_opacity = state_opacity(state);
     c->state[i] = state;
@@ -897,6 +919,23 @@ int light_blk(const CrLight *L, int wx, int wy, int wz) {
     LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
     if (!c) return 0;
     return c->blk[CB_INDEX(wx & 15, wy, wz & 15)];
+}
+
+int light_section_needs_randtick(const CrLight *L, int cx, int sec, int cz) {
+    if (!L || (unsigned)sec >= 16u) return 0;
+    LChunk *c = find_chunk(L, cx, cz);
+    if (!c) return 0;
+    return c->rt_count[sec] != 0;
+}
+
+int light_combined_max(const CrLight *L, int wx, int wy, int wz) {
+    if (!L || wy < 0 || wy >= WY) return 0;
+    LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return 0;
+    int i = CB_INDEX(wx & 15, wy, wz & 15);
+    int sky = c->sky[i];
+    int blk = c->blk[i];
+    return sky > blk ? sky : blk;
 }
 
 /* -------------------------- biome tint colours --------------------------- */

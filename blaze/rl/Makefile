@@ -137,14 +137,17 @@ $(OUT) $(SAN_OUT) $(ENV_OUT):
 	mkdir -p $@
 
 # ---- policy objects (platform backend) ----
+NN_DEPS := $(wildcard $(NN_SRC)/*.c $(NN_SRC)/*.h $(NN_SRC)/*.m $(NN_SRC)/*.cu $(NN_SRC)/*.metal $(NN_SRC)/Makefile)
 ifeq ($(UNAME_S),Darwin)
-$(NN_OUT)/nn.o $(NN_OUT)/cpu.o $(NN_OUT)/fixture.o $(NN_OUT)/metal.o:
+$(NN_OUT)/nn.o $(NN_OUT)/cpu.o $(NN_OUT)/fixture.o $(NN_OUT)/metal.o: $(NN_DEPS)
 	$(MAKE) -C $(NN_SRC) metal
+	@touch $(NN_OBJS)
 else
 $(NN_OUT)/nn.o $(NN_OUT)/cpu.o $(NN_OUT)/fixture.o $(NN_OUT)/cuda.o \
 $(NN_OUT)/cuda_ws.o $(NN_OUT)/cuda_conv_graph.o \
-$(NN_OUT)/cuda_lt_gemm.o $(NN_OUT)/cuda_layout.o:
+$(NN_OUT)/cuda_lt_gemm.o $(NN_OUT)/cuda_layout.o: $(NN_DEPS)
 	$(MAKE) -C $(NN_SRC) cuda BLAZE_SM=$(BLAZE_SM) CUDA_HOME=$(CUDA_HOME)
+	@touch $(NN_OBJS)
 endif
 
 $(OUT)/train_config.o: train_config.c train_config.h | $(OUT)

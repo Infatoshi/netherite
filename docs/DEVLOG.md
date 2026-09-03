@@ -1,5 +1,63 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 random tick pass optimization via section census
+
+Profile of magma_game on Mac (s10_t0 snapshot, 2000 ticks) showed 97.6% of main-thread CPU time spent in gm_world_rt_block (51.8%), gm_randtick_pass (36.5%), and light_state (7.7%).
+
+Investigation. randtick_live.h provides RT_SECTION_NEEDS to skip empty 16x16x16 sections matching Java ExtendedBlockStorage.getNeedsRandomTick. Magma did not define RT_SECTION_NEEDS, causing it to fall back to scanning all 4,096 cells of every section in every loaded chunk via rt_live_id (gm_world_rt_block) every tick. Across 25 chunks and 16 sections, this executed up to 1,638,400 block and light lookups per tick.
+
+Fix. LChunk in magma/world/light.c now maintains rt_count[16], a census of cells matching bp_is_randtick_state per 16x16x16 section. It is populated at chunk generation and updated incrementally in light_set_state and light_debug_set_block_meta. magma/game/randtick.c defines RT_SECTION_NEEDS via gm_world_section_needs_randtick, which checks the section census in O(1). When parity bounds are configured (snapshot mode), sections entirely inside use the census directly, sections outside are skipped, and boundary-crossing sections evaluate only cells within the configured bounds to ensure bit-identical updateLCG advancement. gm_world_rt_light was also consolidated via light_combined_max to avoid redundant chunk lookups.
+
+| metric | before | after | change |
+|---|---|---|---|
+| 2000-tick tick duration | 25425.1 us | 979.3 us | 26.0x faster |
+| 2000-tick step rate | 39 steps/s | 770 steps/s | 19.7x throughput |
+| 10 s profile: gm_world_rt_block | 4383 samples (51.8%) | 33 samples (0.39%) | 133x fewer |
+| 10 s profile: gm_randtick_pass | 3082 samples (36.5%) | 16 samples (0.19%) | 192x fewer |
+| 10 s profile: light_state (randtick) | 647 samples (7.7%) | 0 samples (0.00%) | eliminated |
+| 10 s profile: combined randtick self | 8112 samples (96.0%) | 294 samples (3.49%) | 27.6x fewer |
+
+Review fix (Opus, adversarial). The first cut returned 1 unconditionally when
+parity bounds are NOT configured - the interactive / no-snapshot case, which
+game.h calls "the full world". The scan it replaced returned 0 for an empty
+section, and RT_SECTION_NEEDS gates the section's three updateLCG draws, so
+every empty section above the surface was advancing the LCG cursor and
+desyncing the world from WorldServer.updateBlocks. The non-parity branch now
+returns the census. No existing gate could see this: `magma/game/script.c:490`
+sets `randtick_enabled = 0` for every tape replay, and the M1 rows and
+test-eval-magma all run from a snapshot, so parity_valid is 1 there.
+
+New gate `make -C magma test-randtick-census` (`magma/tests/test_randtick_census.c`,
+on `make -C magma test`) diffs gm_world_section_needs_randtick against the
+4096-cell scan for every section of a 3x3 chunk area, on a decorated overworld
+and a superflat, with no parity AABB / a 16-aligned one / a 16-unaligned one,
+before and after batches of randomized block edits. It fails on the pre-fix
+tree at the first sweep.
+
+Acceptance. make -C magma test passed (including the new census gate).
+make -C blaze/rl test-eval-magma PASS. port_matrix M1 random_ticks and
+random_ticks_bodies VERIFIED=1 BLOCKED=0 FAILED=0. Tapes
+(`replay_tape.py --cpu --no-gate --report`): rain_thunder physics NO divergence
+209 ticks, world_hash PASS; detmob end / nether_182154 / panic / wander x2
+world_hash PASS; hostile_target, nether_182511, passive x2 world_hash FAIL at
+the same counts DEVLOG already records as baseline; hostile_ambient is the
+known `script:1078 invalid spawn_particle` infrastructure failure. Replay
+cannot exercise this change either way (randtick off), so those are
+no-regression evidence, not randtick evidence.
+## 2026-09-03 build: blaze/rl Makefile tracks blaze/nn source prerequisites
+Added NN_DEPS wildcard dependencies to nn object rules in blaze/rl/Makefile.
+Stale nn objects in out/blaze/nn now rebuild when nn sources or headers change.
+Clean subsequent invocations perform no redundant recompilation or relinking.
+## 2026-09-03 sharded CPU replica for blaze verification gates
+
+Added ShardedCpuVec in blaze/env/sharded_vec.py and --cpu-workers CLI flag in blaze/env/verify_cuda.py.
+The flag defaults to min(16, os.cpu_count() or 1). Value 1 keeps the single-process VecBlaze path.
+ShardedCpuVec partitions N lanes into contiguous slices across worker processes spawned via the spawn multiprocessing method.
+Outputs are assembled in lane order and bitwise equal to single-process output.
+Self-consistency test blaze/env/test_verify_shard.py stepped 64 lanes for 20 decisions on t0 snapshots.
+On this Mac, stepping time dropped from 0.70s (workers=1, 28.6 decisions/s) to 0.22s (workers=8, 91.7 decisions/s), a 3.20x speedup with all arrays matching bitwise.
+The anvil --mixed timing is unmeasured.
+
 ## 2026-09-02 skylight rebuild is the trainer bottleneck: gamer A/B (not merged)
 
 Question. Does the per-edit skylight rebuild from c3f1851 (found by the
