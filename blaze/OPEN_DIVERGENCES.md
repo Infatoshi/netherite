@@ -104,17 +104,21 @@ start any time; deeper rows wait on their deps.
 | mobs_end | mobs, mobs_ss | closed 2026-08-23: EntityEnderman health 40 speed 0.3 attack 7 follow 64, isWet DROWN+teleport, daytime brightness teleport, teleportRandomly/attemptTeleport/teleportToEntity, shouldAttackPlayer stare, AIFindPlayer straight chase, HurtByTarget screaming, AITakeBlock/AIPlaceBlock RNG+world write, pearl 0..1, XP 5. PathNavigateGround A* stay design-gap (GPU_MOB_AI.md) |
 | mobs | world_dynamics, entity_spine, projectiles | closed 2026-08-22: planted zombie+skeleton generic AI (LOS/chase/melee), player i-frames, bone/flesh drops, skeleton arrows; 2026-08-22 lane/tntknock: EntityLivingBase.knockBack on generic melee; 2026-08-22 lane/natspawn: WorldEntitySpawner MONSTER + EntityLiving.despawnEntity (natural_spawn knob default 0); 2026-08-23 lane/passives: cow/pig/sheep/chicken as row `passives`; 2026-08-23 lane/spiderslime: spider+slime as `mobs_ss`; 2026-08-23 lane/enderman: enderman as `mobs_end`; 2026-08-23 lane/witch: witch as `mobs_witch` + type-1 arrow vs enderman 64-try teleport. det_entity_rng A*, EntityPotion stay out |
 | mobs_witch | mobs, mobs_end | closed 2026-08-23: EntityWitch size 0.6x1.95 health 26 speed 0.25, drink 32 + PotionType 3600, ENTITIES_WITCH loot stick weight 2, MONSTER weight 5/1-1, XP 5, type-1 PL_HIT_MOB enderman teleport. PathNavigateGround A* stay design-gap (GPU_MOB_AI.md). EntityPotion not a PlProj type |
-| portals_dimensions | world_dynamics | closed 2026-09-03: portal contact and 82-tick transfer and cooldown, dimension identity in Blaze CPU, region swap from per-dimension snapshot bank, M1 VERIFIED on s10_t0_r64_portals.bsnp x96 |
-| nether_route | spawn_to_torch, portals_dimensions | no strict cross-backend fixture |
+| portals_dimensions | world_dynamics | closed 2026-09-03: portal contact and 82-tick transfer and cooldown, dimension identity in Blaze CPU, region swap from per-dimension snapshot bank. M1 covers the Nether region (170-action tape, world + random_ticks after swap). M2 BLOCKED: CUDA swap copy from bank not implemented |
+| nether_route | spawn_to_torch, portals_dimensions | no strict cross-backend fixture. End transit is separately out (see dragon_victory) |
 | boats_elytra_xp | fluids, entity_spine | closed 2026-08-22: split into xp_orbs, boats, elytra (all M1+M2). Java water accel / Mending / UNDER_* boat status / snapshot armor stay out |
-| dragon_victory | nether_route, mobs, explosions | not verified end to end; dragon-fight RL is out of scope per GATES |
+| dragon_victory | nether_route, mobs, explosions | End transit is not implemented: no End .bsnp bank, `cu_portal_tick` observes block 119 but does not swap, magma End spawn platform at (100.5, 49.0, 0.5) is not built. Dragon fight, death sequence, exit portal, and `won` are not verified end to end; dragon-fight RL is out of scope per GATES |
 
 Two consequences worth stating plainly:
 
-- **Dimensions exist in Blaze CPU.** Dimension identity, portal contacts, and
-  region swap from per-dimension snapshot banks (`GPU_DIMENSIONS.md`) are
-  implemented in Blaze CPU; `portals_dimensions` is M1 VERIFIED. CUDA M2
-  remains open.
+- **Nether transit exists in Blaze CPU.** Dimension identity, portal contacts,
+  and region swap from a named per-dimension snapshot bank (`GPU_DIMENSIONS.md`)
+  are implemented in Blaze CPU; `portals_dimensions` M1 covers the Nether
+  region (170 actions, world + random_ticks). CUDA M2 is BLOCKED until the
+  device copy from the bank exists. End transit is not implemented: no End
+  bank, `cu_portal_tick` records block 119 (`in_portal=2`) but never sets
+  `swap_pending`, and the magma End platform at (100.5, 49.0, 0.5) is not
+  built.
 - **Detmob A* still does not exist in blaze.** Snapshot living slots tick the
   Entity.move spine (`entity_spine`) and the magma generic (det_entity_rng off)
   zombie/skeleton/creeper chase/melee path (`mobs`, M1+M2 VERIFIED). Java
@@ -140,11 +144,12 @@ magma bug.
 | PRODUCT step | Blaze env | Where |
 |---|---|---|
 | Overworld spawn, dig, craft, furnace, chests, fluids, TNT, overworld hostiles | yes, M1+M2 inside a `.bsnp` | Verified rows |
-| Food / bed / buckets / flint / portal ignite | buckets tick but are not in `rl_crafts`; fire->portal follower not ported; `dimension` is always 0; id 51 edits unreachable | `blaze_core.h` (`cu_world_set_state` follower); sweep 2 |
-| Linked Nether / End | yes in CPU (`portals_dimensions` M1 VERIFIED) | `blaze/core/dimension_swap.h`; `nether_route` unported |
+| Food / bed / buckets / flint / portal ignite | buckets tick but are not in `rl_crafts`; fire->portal follower not ported; id 51 edits unreachable. Lit-portal contact on a baked frame does transit | `blaze_core.h` (`cu_world_set_state` follower); sweep 2 |
+| Linked Nether | yes in CPU (`portals_dimensions` M1, 170-action Nether stay). CUDA M2 blocked: no device bank copy | `blaze/core/dimension_swap.h`; `nether_route` unported |
+| Linked End | no. `cu_portal_tick` sees block 119 but does not swap; no End `.bsnp` bank; magma End platform (100.5, 49.0, 0.5) not built | `dragon_victory` block_reason |
 | Fortress, blaze, ghast, pigman, magma cube, wither skeleton, silverfish | type tags exist (`entity_hostile_spine.h`); spawn table and live AI in the env are overworld only | `hostile_spawn.h` `hs_to_ew`; `blaze_core.h` header |
 | Throw eyes of ender / fireballs | magma-only | projectiles close note |
-| Stronghold hunt, end-portal frames, enter End | no dimension in the env. Magma vs Java stronghold is magma OPEN sweep 1 | magma `OPEN_DIVERGENCES.md` |
+| Stronghold hunt, end-portal frames, enter End | End transit out (above). Magma vs Java stronghold is magma OPEN sweep 1 | magma `OPEN_DIVERGENCES.md` |
 | Dragon, crystals, bed explode in DIM -1/1, exit portal, `won` | `ender_dragon.h` is a 200-tick fixed arena (no block destruction, no contact damage), not wired into `blaze_tick`. Bed explode in Nether/End is magma-only | unported `dragon_victory`; `player_bed.h` |
 
 Even on overworld snapshots, a trained policy does not see or act as

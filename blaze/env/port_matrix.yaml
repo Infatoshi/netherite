@@ -1585,7 +1585,7 @@ subsystems:
     m2: []
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
-    block_reason: The overworld-to-Nether progression route has no strict cross-backend fixture.
+    block_reason: The overworld-to-Nether progression route has no strict cross-backend fixture. End transit is separately out (see dragon_victory).
 
   - name: dragon_victory
     supported: false
@@ -1600,7 +1600,7 @@ subsystems:
     m2: []
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
-    block_reason: Dragon fight, death sequence, exit portal, and victory are not verified end to end.
+    block_reason: End transit is not implemented (no End .bsnp bank, cu_portal_tick observes block 119 but does not swap, magma End spawn platform at (100.5, 49.0, 0.5) is not built). Dragon fight, death sequence, exit portal, and victory are not verified end to end.
 
   - name: weather_optional
     supported: true

@@ -27,6 +27,9 @@ MC_HD static inline void cu_portal_tick(Blaze *env) {
     int in_end_portal = (feet == 119 || head == 119);
 
     env->in_portal = in_nether_portal ? 1 : (in_end_portal ? 2 : 0);
+    /* End portal (119): contact is recorded (in_portal=2) but transit is
+     * not implemented. No End snapshot bank, no End spawn platform.
+     * Block reason: dragon_victory in port_matrix.yaml. */
 
     /* Entity.setPortal: in-pane collision refreshes pending cooldown */
     if (in_nether_portal && env->portal_cooldown > 0)
