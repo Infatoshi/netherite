@@ -31,6 +31,11 @@ def resolve_cpu_so(so_path=None):
 
 
 def _worker_loop(conn, n_lanes, so_path, kw):
+    # blaze_cpu.so OpenMP-parallelizes over env index. Each worker already has
+    # a slice of lanes, so a default OMP_NUM_THREADS=nproc inside every
+    # process oversubscribes the box (16 workers x 32 threads). Pin to 1
+    # before ctypes.CDLL so libgomp sees it at init. Parent is unchanged.
+    os.environ["OMP_NUM_THREADS"] = "1"
     try:
         env = VecBlaze(n_lanes, device=0, so_path=so_path, **kw)
         conn.send(("ok", None))

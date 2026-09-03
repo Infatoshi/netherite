@@ -1,5 +1,33 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 blaze CUDA compile split measured on anvil, and why 16 CPU workers did not speed up mixed
+
+The compile split was measured on anvil, sm_120, CUDA 13.2, clean `make -C magma blaze_cuda_so -j` with `nvcc --time`. Pre-split 64aa804 is one translation unit holding every tick kernel: cicc 265.3 s, ptxas 653.0 s, wall 921 s. Two translation units plus scalar k_tick behind BLAZE_SCALAR_TICK (default off) cut that to cicc 74.1+88.3 s, ptxas 151.9+174.0 s, wall 265 s. MC_NOINLINE on blaze_player_tick and the seven world subsystem entries (the committed 3350b24 set) lands at cicc 28.4+28.9 s, ptxas 119.0+134.2 s, wall 165 s. The two units compile in parallel, so wall tracks max(cicc)+max(ptxas). That is a 5.6x compile. The no_liquid t0 bench N=1024, 25 decisions, 3 runs stayed 839 dec/s after those marks versus 855 before them.
+
+| tree | wall s | cicc s | ptxas s |
+|---|---|---|---|
+| 64aa804 one TU | 921 | 265.3 | 653.0 |
+| two TUs, scalar off | 265 | 74.1+88.3 | 151.9+174.0 |
+| 3350b24 MC_NOINLINE g13 | 165 | 28.4+28.9 | 119.0+134.2 |
+
+The MC_NOINLINE fan-out on 1c8fecc: world subsystems 245 s, decision protocol 267 s, player tick 174 s, both (g13, committed) 163-165 s. Adding the protocol, observation helpers, or blaze_subtick_phys on top of g13 made ptxas slower (193 / 186 / 182 s). Default .so registers at 3350b24: k_tick_warp 255 regs / 35504 B stack, k_tick_raw 255 / 32560. Scalar k_tick and k_tick_legacy are absent.
+
+Gate walls on 3350b24: build-env-cuda 173 s, cuda-gate 260 s, cuda-mixed 1851 s, cuda-big 2662 s. cuda-m2-scalar-default-build rc=1 is the intended refusal. BLAZE_SCALAR_TICK defaults to 0, blaze_create rejects warp_tick=0, and the opt-in scalar .so PASSed chain 2058 in 33.84 s. rl-test rc=2 was furnace_registry.py missing java/oracle-src Item.java. root-make-test rc=2 was magma/assets/atlas_gen.h missing. cpu-gate rc=1 was magma/magma_game missing. ~/nlanes/skylight-base at 64aa804 lacks those same three files, so those failures are lane bootstrap, not this branch. furnace_registry.py now returns 0 on the cuda-split lane after oracle-src appeared.
+
+Op-trace N=1024: world_load dominates fresh t0 (4893/subtick) and aged (5050/subtick). Aged worlds add item_tick 3.511/subtick versus 0.008 on fresh.
+
+16 CPU workers did not speed up mixed. The 1851 s run already used the default of 16, and the wall is the CUDA N=4096 tick. A 25-decision slice on gpu0 measured cuda 3.20-3.34 s/dec versus cpu 116 ms/dec at workers=16 (each worker inherited OpenMP nproc, 16x32 threads) and 11 ms/dec at workers=1 (one process, OpenMP over 64 lanes). Full-batch DtoH of the 4096-env cameras is 3.5 ms/dec. Over 250 decisions the worlds age into skylight rebuilds and mean cuda time grows to 7.4 s/dec, so workers cannot move the wall. The harness now pins OMP_NUM_THREADS=1 inside each worker before ctypes.CDLL, overlaps the CPU replica with the CUDA step, and gathers only the 64 replica lanes for the per-decision compare. 25-decision confirm stayed bitwise (sha256 5acab554...) at 83.51 s. Full mixed --cpu-workers 16:
+
+```
+final full-batch sha256: bed161ee9e41068bac5f60d3983ee9e635f4584a000554124bfec4563413c95d  (920/4096 done)
+float gate: rew:  bitwise; scal: bitwise
+PASS: mixed N=4096, 64 lanes exact vs CPU over 250 decisions (full action set)
+phase: actgen=2.495s step=1852.276s obs=0.096s cmp=0.019s sha=0.025s
+runtime: 1856.45s
+```
+
+That sha256 matches the previous 1890.47 s workers=16 run. The remaining mixed cost is k_tick_warp on aged t0 worlds, not the replica.
+
 ## 2026-09-03 random tick pass optimization via section census
 
 Profile of magma_game on Mac (s10_t0 snapshot, 2000 ticks) showed 97.6% of main-thread CPU time spent in gm_world_rt_block (51.8%), gm_randtick_pass (36.5%), and light_state (7.7%).

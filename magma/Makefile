@@ -658,16 +658,46 @@ BLAZE_SM := $(shell nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/nul
              grep -qi "3090" && echo sm_86 || echo sm_120)
 endif
 BLAZE_NVCODE := $(if $(filter sm_%,$(BLAZE_SM)),$(foreach a,$(patsubst sm_%,%,$(BLAZE_SM)),-gencode arch=compute_$(a),code=sm_$(a)),-arch=$(BLAZE_SM))
-.PHONY: blaze_cuda_so
-blaze_cuda_so: ../blaze/env/blaze_cuda.so
-../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
-                        ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
+# Two CUDA translation units linked into ONE .so: blaze_cuda.cu (training
+# path) and blaze_cuda_verify.cu (gate-only kernels). Objects go under
+# obj/blaze/ so make -j compiles the two units at the same time and an edit to
+# one does not recompile the other. Flags are unchanged.
+# These objects are NOT shared with blaze/rl's env-cuda rule: that rule builds
+# a different .so (out/blaze/env/blaze_cuda.so) with a different flag set
+# (single -arch, plus host -ffp-contract=off), so one recipe cannot serve both
+# without changing one of the two outputs.
+BLAZE_CUDA_HDRS := ../blaze/env/blaze_core.h ../blaze/env/blaze_abi.h \
+                        ../blaze/env/blaze_cuda_int.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
                         $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_BED) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \
                         $(BLAZE_MOBS) $(BLAZE_XP) $(BLAZE_BOATS) $(BLAZE_ELYTRA)
-	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
-	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
-	    ../blaze/env/blaze_snapshot.c -o $@
+# Opt-in scalar k_tick (create opts warp_tick=0). Off by default: it is one
+# more full inline of the sim for a kernel only the M2 scalar gate row runs.
+# Without it blaze_create refuses warp_tick=0. See blaze_cuda_int.h.
+BLAZE_SCALAR_TICK ?= 0
+BLAZE_CUDA_CFLAGS := -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
+                        -Xcompiler -fPIC \
+                        $(if $(filter-out 0,$(BLAZE_SCALAR_TICK)),-DBLAZE_SCALAR_TICK=1,)
+BLAZE_CUDA_OBJS := obj/blaze/blaze_cuda.o obj/blaze/blaze_cuda_verify.o \
+                        obj/blaze/blaze_snapshot.o
+.PHONY: blaze_cuda_so
+blaze_cuda_so: ../blaze/env/blaze_cuda.so
+
+obj/blaze:
+	mkdir -p $@
+
+obj/blaze/blaze_cuda.o: ../blaze/env/blaze_cuda.cu $(BLAZE_CUDA_HDRS) | obj/blaze
+	$(NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_cuda.cu -o $@
+
+obj/blaze/blaze_cuda_verify.o: ../blaze/env/blaze_cuda_verify.cu $(BLAZE_CUDA_HDRS) | obj/blaze
+	$(NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_cuda_verify.cu -o $@
+
+obj/blaze/blaze_snapshot.o: ../blaze/env/blaze_snapshot.c ../blaze/env/blaze_snapshot.h \
+                        ../blaze/env/blaze_core.h | obj/blaze
+	$(NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_snapshot.c -o $@
+
+../blaze/env/blaze_cuda.so: $(BLAZE_CUDA_OBJS)
+	$(NVCC) $(BLAZE_CUDA_CFLAGS) --shared $(BLAZE_CUDA_OBJS) -o $@
 
 clean:
 	rm -f magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal

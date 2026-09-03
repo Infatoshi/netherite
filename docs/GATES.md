@@ -60,7 +60,8 @@ cooperative cu_recenter (7778cd9, merged fada44c) - the old kernel had one lane 
 crossing envs and all 32 lanes stride each refill. Both bit-identical, full ladder green
 on sm_86 and sm_120 (default/chain/mixed CUDA gates + CPU 8-stream/chain zero-diff).
 Mining slice: 0.90-1.98M at N=4096-16384 (pre-H numbers; H adds 1.2-1.4x there).
-Legacy kernel kept behind create-time opts legacy_recenter=1 (zero tick cost).
+Legacy kernel was kept behind create-time opts legacy_recenter=1. It is deleted
+as of the 2026-09-02 CUDA compile split; blaze_create rejects a nonzero value.
 Re-confirmed at HEAD 2026-07-17: 1.02M env-ticks/s at N=9216.
 2026-07-19 update: 4.06M env-ticks/s full-feature t0 at N=8192 (4x the pin).
 Three stacked wins, each gated byte-exact: interact container-list (k_tick
