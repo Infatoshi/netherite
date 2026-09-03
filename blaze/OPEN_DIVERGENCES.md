@@ -113,12 +113,19 @@ Two consequences worth stating plainly:
 
 - **Dimensions do not exist in blaze.** The GPU sim is overworld snapshots
   only; Nether and End (`portals_dimensions`, `nether_route`) are entirely
-- **Detmob A* implemented in blaze.** Snapshot living slots support both the
-  Entity.move spine (`entity_spine`) and the full Java EntityAITasks + PathFinder A*
-  mob AI when det_entity_rng is enabled (`mobs_det`, M1 VERIFIED). The agreed GPU
-  design is `blaze/GPU_MOB_AI.md` (v2, codex-reviewed): sequential mob tick with
-  A* inline, magma semantics (32x24x32 window, 48-point path cap), and IntHashMap
-  aliasing reproduced.
+- **Detmob A* is in blaze; the scenario_detmob tapes stay magma-only.**
+  Snapshot living slots tick the Entity.move spine (`entity_spine`) and the
+  magma generic (det_entity_rng off) zombie/skeleton/creeper chase/melee
+  path (`mobs`, M1+M2 VERIFIED). Java EntityAITasks + PathFinder A* run in
+  blaze when det_entity_rng is on (`mobs_det`). The
+  `verify/tapes/scenario_detmob_*.jsonl` tapes (panic, passive, wander,
+  hostile ambient, hostile target, nether, end) stay magma-only:
+  `magma/game/detmob_gate.c` / `verify/trace/detmob_gate.py` vs the Java
+  oracle. They are not blaze-replayed and are not the `mobs_det` M1 fixture.
+  Resume for det_entity_rng is dropped (v11 trailer has no det AI sidecars).
+  The agreed GPU design is `blaze/GPU_MOB_AI.md` (v2): sequential mob tick
+  with A* inline, magma semantics (32x24x32 window, 48-point path cap),
+  IntHashMap aliasing reproduced.
 
 ## Spawn -> dragon (policy vs magma)
 
@@ -152,7 +159,8 @@ magma `player_ctl`:
   log / leaves / coal / stone / dirt / table / occupancy / depth /
   edge (`obs_pack.h` `pack_frame`). No mob, light, or health plane.
 - Sweep 6: death is terminal.
-- Detmob A* is magma-CPU (above).
+- Detmob A* blaze M1 is the panic fixture (`mobs_det`); the
+  scenario_detmob tapes stay magma-only (above).
 - M1/M2 are BP_ digests inside that region, not a streamed survival
   world.
 
