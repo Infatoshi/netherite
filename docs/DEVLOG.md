@@ -1,5 +1,47 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 trainer env-step growth vs world age
+
+Question. After incremental skylight, trainer env ms still grows across chunks (N=5120 T=8: 644 / 653 / 1277 / 2586). Dirty-column rebuild and move-list drain were a hypothesis. What actually grows, and is it a blaze-only inefficiency.
+
+Method. Branch wip/age-growth at ad256fd on top of wip/nn-fable c01c3aa (incr skylight already in). gpu1 lease netherite-age-growth, CUDA_VISIBLE_DEVICES=1, BLAZE_SM=sm_120, CUDA_HOME=/usr/local/cuda-13.2. Phase clocks and op-trace work-item counters (sky_full/incr/spill/ovf/q/col/dirty/moves, item_live, fluid_reg, light_q) sit behind create opts stage_time and op_trace; ktime=0 trainer path does not enable them. verify_cuda.py --bench now dumps those every 8 decisions. Fixture analog of 4 PPO chunks: --t0 --snaps with only s10_t0_r64_no_liquid.bsnp, N=1024, 32 decisions, repeat 4, warmup 2. Also the 13 t0 snaps and ~/nlanes/cuda-split/.aged_snaps. A try to send CU_SKY_ALL down the incremental path with a full-chunk stale box failed test-skylight-incr (border-corner / hop-x: ref sky 14 vs new 13 or 0). Reverted. That 46x46 first-edit scan is required because snapshot light is not a fixed point.
+
+Attribution, trainer fixture, N=1024, wall ms per 8-decision window (chunk 0/1/2/3 analog). Cycle share times wall; randtick cycles are flat so its ms inflate when light grows.
+
+| phase | c0 | c1 | c2 | c3 |
+|---|---|---|---|---|
+| light ms | 187 | 560 | 663 | 735 |
+| light cycles e9 | 26.6 | 54.7 | 64.8 | 81.0 |
+| randtick ms | 1332 | 1934 | 1927 | 1726 |
+| randtick cycles e9 | 190.0 | 189.0 | 188.5 | 190.4 |
+| items ms | 53 | 79 | 78 | 69 |
+| phys ms | 83 | 118 | 115 | 103 |
+| wall ms | 1742 | 2810 | 2908 | 2760 |
+| ms/dec | 218 | 351 | 363 | 345 |
+
+Work items per window (32768 env-subticks). fluid_reg=0, light_q=0, sky_spill=0, sky_ovf=0 in every window.
+
+| counter | c0 | c1 | c2 | c3 |
+|---|---|---|---|---|
+| sky_full | 28 | 57 | 67 | 85 |
+| sky_incr | 0 | 3 | 12 | 29 |
+| sky_col | 7168 | 14832 | 17883 | 22213 |
+| sky_dirty | 2268 | 4857 | 6387 | 9199 |
+| sky_moves | 7168 | 14848 | 17428 | 21240 |
+| item_live | 281 | 882 | 993 | 1009 |
+
+sky_col/sky_full = 256 in window 0: every full path rebuilds one chunk's columns. light cycles per sky_full stay ~0.95e9. The growing term is more unique-chunk first edits (CU_SKY_ALL) as the 1024 agents walk off spawn, each paying generateSkylightMap plus the 46x46 raise-only seed. Magma does that per opacity-changed chunk too. 13-snap t0 benches are already spread out, so wall stays ~347-356 ms/dec. Aged snaps already hold ~5 item ticks per subtick (item_live 153k in window 0); that is pre-existing drops, not the t0-trainer growth.
+
+Trainer remeasure, same knobs as the skylight entry (mb=8192, stack_kib=96, max_chunks=4, action_repeat=4, ktime=0, warp_tick=1, epochs=1, seed=0, fixture s10_t0_r64_no_liquid.bsnp). A co-tenant python job held 15 GiB on gpu1 at 0% util for the whole remeasure, so these are not exclusive-GPU numbers.
+
+| N | T | sky3 incr env ms c0/c1/c2/c3 | this run | nn ms | grad c0 |
+|---|---|---|---|---|---|
+| 5120 | 8 | 644 / 653 / 1277 / 2586 | 667 / 680 / 1310 / 2701 | 154-157 | 0.349 |
+| 3072 | 32 | (c0 n/a) / 8967 / 10904 / 10300 | 3579 / 9083 / 11013 / 10419 | 343-347 | 0.128 |
+
+Growth ratio is the same (T=8 env 4.0x c0 to c3). No tick-semantic change; the counters are flag-off on this path. M2 default/chain/mixed --cpu-workers 16 PASS (mixed sha256 bed161ee9e41068bac5f60d3983ee9e635f4584a000554124bfec4563413c95d). Mac test-skylight-incr PASS (4108 edits, 3548 incr). M1 spawn_to_torch, world_dynamics, fluids VERIFIED.
+
+Still out. First-edit-per-unique-chunk 46x46 scan, which is the magma-equivalent cost of exploring. N=5120 verify_cuda --bench OOM on the 32.2 GB cells pool with the 15 GiB co-tenant; trainer ppo still fitted.
 ## 2026-09-03 wip/nn-fable integration: compile split, dims, mob AI, incremental skylight
 
 Merged into wip/nn-fable today, in this order, each after its own review: wip/cuda-split (bd28dce), wip/gem-dims (66e4968), wip/gem-mobai (fc7fc87), wip/skylight-incr (c01c3aa). Two follow-up commits keep the det mob AI out of device builds (960fc4c, 8329a75): mc_atan2 is host-only and blaze_cuda.cu has no det_entity_rng setter, so mai_det_tick is dead code on the GPU and compiling it in only cost registers and cicc time. mobs_det M2 stays BLOCKED.

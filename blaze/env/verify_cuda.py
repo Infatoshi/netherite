@@ -808,7 +808,7 @@ def run_mixed(args):
     return ok
 
 
-def dump_op_trace(env, ops0, args):
+def dump_op_trace(env, ops0, args, write=True):
     """Print the op histogram + per-env activity fractions and dump the full
     per-env counter matrix (bit-level zoom traces: single-env histogram at
     --n 1, cross-env activity correlation input at big N)."""
@@ -827,6 +827,8 @@ def dump_op_trace(env, ops0, args):
         print(f"  {name:12s} {int(tot[i]):>14,}  "
               f"{tot[i]/max(sub, 1):>10.3f}/subtick  "
               f"active {100.0 * active[i]:5.1f}% of envs")
+    if not write:
+        return
     path = os.path.join(RL, "out",
                         f"op_trace_{'t0' if args.t0 else 'curr'}"
                         f"_n{args.n}.json")
@@ -839,6 +841,30 @@ def dump_op_trace(env, ops0, args):
                    "active_frac": [float(x) for x in active],
                    "per_env": d.tolist()}, f)
     print(f"op-trace written: {path}")
+
+
+def dump_phase_window(env, ph0, wall_s, n, ndec, tag):
+    """Print mean-env cycle share of each k_tick phase for one window."""
+    from blaze import PHASE_NAMES
+    ph = env.copy_phase()
+    if ph is None:
+        print(f"phase {tag}: unavailable (stage_time was not set at create)")
+        return ph
+    d = (ph - ph0).astype(np.int64) if ph0 is not None else ph.astype(np.int64)
+    tot = d.sum(axis=0)
+    s = int(tot.sum())
+    print(f"phase {tag} wall={wall_s*1000:.1f}ms "
+          f"({wall_s*1000/max(ndec,1):.2f} ms/dec, N={n}):")
+    if s <= 0:
+        print("  (empty)")
+        return ph
+    for i, name in enumerate(PHASE_NAMES):
+        if i >= len(tot):
+            break
+        share = tot[i] / s
+        print(f"  {name:10s} {share*100:6.1f}%  "
+              f"{wall_s*1000*share:8.1f} ms  cycles={int(tot[i])}")
+    return ph
 
 
 def run_bench(args):
@@ -891,19 +917,37 @@ def run_bench(args):
     for _ in range(args.warmup):
         env.step(rand_actions(), repeat=args.repeat)
     ops0 = env.op_trace() if args.op_trace else None
+    ops_win = ops0
+    ph_win = env.copy_phase() if args.stage_time else None
     # pre-generate every decision's actions on-device so the timed loop
     # measures the env, not torch's host RNG + H2D copies (the trainer
     # produces its actions on the GPU)
     acts = [rand_actions() for _ in range(args.decisions)]
     # periodic masked resets keep envs live (a done env's tick is a no-op,
     # which would flatter the numbers)
+    win = 8
     t0 = time.perf_counter()
+    t_win = t0
     for d in range(args.decisions):
         env.step(acts[d], repeat=args.repeat)
         if (d + 1) % 25 == 0:
             done = env.done.cpu().numpy()
             if done.any():
                 env.reset(done.astype(np.uint8))
+        if (d + 1) % win == 0 or d + 1 == args.decisions:
+            t_now = time.perf_counter()
+            nd = (d % win) + 1 if (d + 1) % win else win
+            if d + 1 == args.decisions and (d + 1) % win:
+                nd = (d + 1) % win
+            tag = f"d{d+1-nd+1}-{d+1}"
+            if args.stage_time:
+                ph_win = dump_phase_window(env, ph_win, t_now - t_win, n, nd,
+                                           tag)
+            if args.op_trace:
+                print(f"op-trace {tag}:")
+                dump_op_trace(env, ops_win, args, write=False)
+                ops_win = env.op_trace()
+            t_win = t_now
     t1 = time.perf_counter()
     dt = t1 - t0
     ticks = n * args.decisions * args.repeat
