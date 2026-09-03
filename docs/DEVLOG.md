@@ -1,5 +1,52 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 incremental skylight A/B on anvil gpu1
+
+Question. Does the CuSkyDirty/CuSkyMoves drain in cu_light_after_opacity beat the 46x46 box 15-pass rebuild on the trainer configs from 2026-09-01, and does M2 still pass.
+
+Method. Branch wip/skylight-incr a7bdad7 (merge of wip/nn-fable into the incremental skylight commits; Mac `make -C blaze/rl env-cpu` and `test-skylight-incr` PASS: 4108 opacity edits identical, 3548 on the incremental path, walking-player 1710/1712 incremental). Baseline lane ~/nlanes/skylight-base at 64aa804. Incr lane rebuilt 2026-09-03 04:46 MDT with BLAZE_SM=sm_120 CUDA_HOME=/usr/local/cuda-13.2, BUILD_OK. Exclusive gpu1 lease netherite-skylight3, CUDA_VISIBLE_DEVICES=1. gpu0 saw a co-tenant at 516-560 W during two aged n=4096 runs; t0 benches and both trainer rows had gpu0 idle. Fixture for trainer: verify/fixtures/port/s10_t0_r64_no_liquid.bsnp. Env bench --t0 uses the 13 128^3 t0 snapshots. Aged set is ~/nlanes/cuda-split/.aged_snaps (12 d-stage files, read-only); --t0 would match zero files there so aged runs used curriculum 5-head decode.
+
+M2 on incr (uv run --no-project --with numpy,torch python -u blaze/env/verify_cuda.py --device 0):
+
+| gate | result | runtime s | WALL_SEC |
+|---|---|---|---|
+| default N=64 x 250 | PASS bitwise cam/depth/edge/pose/done, rew/scal bitwise | 55.73 | 56 |
+| --chain s10 2058 ticks, 64 lanes, kernel=raw + state digests | PASS | 9.67 | 10 |
+| --mixed --cpu-workers 16 N=4096, 64 CPU replica lanes | PASS, sha256 bed161ee9e41068bac5f60d3983ee9e635f4584a000554124bfec4563413c95d, 920/4096 done | 133.34 | 133 |
+
+Tails:
+
+PASS: gate N=64 x 250 decisions (64000 env-ticks): cam/depth/edge/pose/done bitwise zero diffs
+
+PASS: chain s10 x 2058 ticks, 64 CUDA lanes vs CPU byte-exact (full BOLR record + state digests (player,dig,inventory,items,world,crafting,containers,furnaces,fluids,observations), every tick, kernel=raw)
+
+PASS: mixed N=4096, 64 lanes exact vs CPU over 250 decisions (full action set)
+
+Env-only `verify_cuda.py --bench --n N --decisions 25 --warmup 2`, three runs each, interleaved base then incr. env-ticks = N*25*4. The printed 0.00M/0.01M line is the .2f of ticks/s/1e6; numbers below are ticks/seconds.
+
+| set | N | base s (r1/r2/r3) | incr s (r1/r2/r3) | base env-ticks/s | incr env-ticks/s | ratio |
+|---|---|---|---|---|---|---|
+| t0 full decode | 1024 | 69.41 / 69.38 / 69.34 | 8.72 / 8.72 / 8.72 | 1475 / 1476 / 1477 | 11743 / 11743 / 11743 | 8.0x |
+| t0 full decode | 4096 | 87.12 / 87.73 / 88.56 | 10.72 / 10.76 / 10.50 | 4702 / 4669 / 4625 | 38134 / 38067 / 39010 | 8.2x |
+| aged 5-head | 1024 | 63.97 / 63.98 / 63.97 | 8.82 / 8.83 / 8.83 | 1601 / 1601 / 1601 | 11610 / 11597 / 11597 | 7.2x |
+| aged 5-head | 4096 | 75.75 / 76.90 / 78.47 | 10.62 / 10.64 / 10.84 | 5407 / 5326 / 5220 | 38569 / 38496 / 37786 | 7.2x |
+
+Op-trace once per library on the aged set, N=1024, 25 decisions. Both printed the same histogram (94006 env-subticks): world_edit 1129 (0.012/subtick, 62.4% of envs), dig_break 459 (0.005/subtick, 30.3%), world_load 475,965,140 (5063.136/subtick). There is no light op counter. Same edit work, cheaper skylight.
+
+Trainer, same 2026-09-01 knobs: mb=8192, stack_kib=96, max_chunks=4, action_repeat 4, ktime 0, warp_tick 1, epochs 1, seed 0. env-ticks/s uses chunks 1-3 mean wall from the cumulative wall= line, as that entry.
+
+| N | T | ticks/chunk | env ms c1/c2/c3 | nn ms | upd ms | wall s mean c1-3 | env-ticks/s | 2026-09-01 |
+|---|---|---|---|---|---|---|---|---|
+| 5120 base | 8 | 163840 | 1604 / 4142 / 9267 | 154 | 291 | 5.9 | 28k | 28k (1593 / 4127 / 9244) |
+| 5120 incr | 8 | 163840 | 653 / 1277 / 2586 | 154 | 292 | 2.4 | 68k | |
+| 3072 base | 32 | 393216 | 34138 / 40519 / 40556 | 340 | 782 | 40.6 | 9.7k | 9.6k (34024 / 40401 / 42483) |
+| 3072 incr | 32 | 393216 | 8967 / 10904 / 10300 | 340 | 779 | 12.2 | 32k | |
+
+Base T=8 and T=32 rows reproduce the 2026-09-01 table. Incr is faster: env-only about 8x on t0 and 7x on aged, trainer e2e 2.5x at T=8 (28k -> 68k) and 3.3x at T=32 (9.7k -> 32k). T=32 stays env-bound; T=8 pack/nn/upd are now a larger share so the e2e ratio is smaller than the env-only ratio. World-age growth is still there (T=8 incr env 644 ms on chunk 0 to 2586 ms on chunk 3) but the aged chunk is about 3.6x cheaper than base.
+
+Trainer chunk 0 grad_norm matches to three digits (T=8 both 0.349, T=32 both 0.128). Later chunks drift (T=8 final 0.786766 base vs 0.775822 incr). M2 is incr-CPU vs incr-CUDA, not incr vs the 46x46 baseline, so that drift is not a failed gate. The CPU oracle covers opacity edits, not the full PPO action stream.
+
+Not 66x/89x. Those numbers were sky-off (no skylight). Incremental still rebuilds dirty columns and drains the move lists. Logs: anvil:~/nlanes/sky3/.
 ## 2026-09-03 mob AI merge review (Opus, wip/gem-mobai): 5 fixes, gate is real
 
 Re-ran the gate from a forced rebuild rather than trusting the branch's
