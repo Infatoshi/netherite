@@ -1027,28 +1027,14 @@ subsystems:
       - --natural-spawn-passive
       - --det-entity-rng
       - --require-findpath
-    m2:
-      - uv
-      - run
-      - --no-project
-      - --with
-      - numpy,torch
-      - python
-      - blaze/env/verify_cuda.py
-      - --chain
-      - --expected-chain-actions
-      - "600"
-      - --snapshot
-      - verify/fixtures/port/s10_t0_r64_mobs_det.bsnp
-      - --tape
-      - blaze/rl/fixtures/mobs_det_s10.json
-      - --port-parity
-      - --strict-capabilities
-      - --features
-      - mobs,xp
-      - --mobs-on
-      - --natural-spawn-passive
-      - --det-entity-rng
+    # M2 is not runnable yet, so the row carries no command and stays BLOCKED
+    # at m2 instead of reporting a bogus FAILED. blaze_cuda.cu was not touched
+    # by the mob AI port: it exports no blaze_set_det_entity_rng, and
+    # verify_cuda.py has no --det-entity-rng flag, so the command this row
+    # used to hold died in argparse ("unrecognized arguments:
+    # --det-entity-rng", rc=2) on any host that had blaze_cuda.so. Restore a
+    # command here only together with the CUDA setter and the flag.
+    m2: []
     m2_kernels: [raw, warp, scalar]
     timeout: 2400
 
