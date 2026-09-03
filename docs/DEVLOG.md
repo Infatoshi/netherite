@@ -1,5 +1,88 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 wood-break probe on the merged tree: mb=0 crash fixed, t0 still 0.000
+
+The 1.92B-tick spawn-to-torch ladder run was the wrong first check: the
+Gate 1 row already says spawn-to-torch t0 ~0.4 is open on the native
+trainer, and the 60-minute row on the merged tree confirmed it (t0 0.000
+for the whole hour, 192M ticks). The cheapest recorded learning signal is
+the 2026-08-21 wood-break probe (`success_item=17`, N=1024, T=32, 6M
+ticks, end t0 0.495). Reproduced here as `~/nlanes/ladder/wood.sh` on
+anvil gpu0 (lease `netherite-ladder`), 13 t0 snaps instead of the 11 in
+the old note (the lane has 13 seeds; the note does not name its 11).
+
+Crash. With the conf default `mb = 0` the update runs on the compacted
+valid rows, so the update n changes every chunk (32737, 32738, 32745,
+32746, 31722, 32739, ...). Each new n picked one cuBLASLt plan per kind
+into a 64-entry table keyed by exact n; the table filled after 7 sizes
+and chunk 7 died with `ppo: nn_update: fc scal relu-bias failed`.
+Reproduced twice (88a89ee, 20e686b). Fix 14b2698: `alloc_plan` is a ring
+over the plans whose n is not pinned; `cuda.cu` pins each prepared bucket
+(rollout n, update n, max_n) with `nn_lt_pin` from `prepare_bucket`.
+`nn_lt_prepare` runs on every forward, so it cannot be the pin (the
+first version pinned there, and the table was then full of pinned plans).
+Sealed runs (`mb > 0`) never reach the ring. `test-cuda-lt` churns 20
+sizes past the cap and checks the pinned n survives: PASS on anvil.
+
+| run | tree | mb | result |
+|---|---|---|---|
+| wood 6M | 88a89ee, 20e686b | 0 | died chunk 7, plan table full |
+| wood 6M | 14b2698 | 0 | PASS 45 chunks, t0 0.000 every chunk, rew_mean -0.009..-0.013, 1042 eps (one timeout episode per env) |
+| wood 6M | 479a2c4 (2026-08-26, before the Fable trainer lane) | 0 | died in nn_update chunk 0: `cudnn CUDNN_STATUS_INTERNAL_ERROR`, kernel Xid 31 MMU write fault in the old cudnnConvolutionForward |
+
+The old note omitted `mb`. With the conf default `mb = 0` the trainer
+takes one update per chunk on all 32k rows; with `mb = 8192` it takes
+four. The recipe needs `mb = 8192` (the value every ladder and chain run
+uses). Same recipe, three seeds, both trees, anvil gpu0 exclusive:
+
+| tree | seed | best t0 (ticks) | end t0 | wall 6M ticks |
+|---|---|---|---|---|
+| 0943ce1 (2026-08-21 lane/trainer merge) | 0 | 0.655 (4.6M) | 0.525 | 64 s |
+| 0943ce1 | 1 | 0.595 (5.2M) | 0.500 | 70 s |
+| 0943ce1 | 2 | 0.645 (3.5M) | 0.390 | 64 s |
+| 14b2698 (HEAD) | 0 | 0.410 (5.5M) | 0.355 | 421 s |
+| 14b2698 | 1 | 0.050 (6.0M) | 0.050 | 313 s |
+| 14b2698 | 2 | 0.380 (5.8M) | 0.355 | 421 s |
+| 14b2698, planks (item 5) | 0 | 0.435 (5.5M) | 0.385 | 421 s |
+
+Chunk 0 is identical on both trees (rew_mean -0.0111, 22 episodes), so
+the env starts the same; the curves separate by chunk 9. HEAD learns wood
+on two seeds out of three and reaches about half the old best; the old
+tree reaches 0.60 to 0.66 on all three. HEAD is also 5x to 6.5x slower
+per chunk (env phase 5.4 to 9.1 s of 10 s; nn+update 0.3 s). Planks
+tracks wood exactly until the first success (one craft action away).
+
+Two regressions since 2026-08-21, both unattributed: learning (0.63 to
+0.28 mean best t0) and wall. 479a2c4 (2026-08-26, the parent of the
+Fable trainer lane) dies in chunk 0 with an MMU write fault inside the
+old `cudnnConvolutionForward` (Xid 31), which 0943ce1 does not, so
+something between 08-21 and 08-26 already broke the trainer's update
+path; the fp16 tree may only be masking it. A first-parent `git bisect`
+of that crash (`~/nlanes/ladder/wood_bisect.sh`, 115 commits, 300k-tick
+probes) is running on anvil gpu0. Bisect helper: `~/nlanes/ladder/wood_at.sh
+<commit> [--set k=v]` builds `~/nlanes/wood-<hash>` and runs the probe.
+
+Blaze V2 package A (phase-split tick library, gamer RTX 3090, lane
+`wip/blaze-v2` at 4c8a06e, delegate run 2026-09-03 05:30-08:00). Bitwise
+gates against V1: default PASS, chain PASS, mixed PASS at N=1536 (3379 s);
+mixed N=2048 does not fit 24 GB (128 KiB CUDA stack plus 12.9 GB of t0
+regions). Bench, 25 decisions, N=1024, three runs each, identical to the
+second:
+
+| lib | snaps | decisions/s | wall for 25 |
+|---|---|---|---|
+| v1 | t0 | 240 | 107 s |
+| v1 | aged | 261 | 98 s |
+| v2 | t0 | 91 | 280 s |
+| v2 | aged | 109 | 235 s |
+
+V2 is 2.4x to 2.6x slower than V1 at N=1024 on sm_86. N=4096 does not
+fit on the 3090 for either library. `--ktime` on V2 printed the same
+wall to the hundredth, so the per-kernel timing did not engage on the V2
+path and there is no phase attribution yet. Package A is bit-exact and
+not a win; the split is not worth carrying into `wip/nn-fable` until a
+phase breakdown on anvil shows where the 2.5x goes.
+
 ## 2026-09-03 trainer env-step growth vs world age
 
 Question. After incremental skylight, trainer env ms still grows across chunks (N=5120 T=8: 644 / 653 / 1277 / 2586). Dirty-column rebuild and move-list drain were a hypothesis. What actually grows, and is it a blaze-only inefficiency.
