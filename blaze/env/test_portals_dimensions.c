@@ -42,6 +42,16 @@ static void plant_cell(CuSnapshot *s, int wx, int wy, int wz, int id, int meta) 
     }
 }
 
+/* 10 forward into the overworld portal, idle through the 82-tick transfer,
+ * 20 forward out of the arrival pane onto netherrack (+Z), 60 idle in the
+ * Nether. Swap is observed at t=87 on this fixture; 83 ticks then follow
+ * in dimension -1. */
+#define PORTALS_WALK_IN 10
+#define PORTALS_WAIT 80
+#define PORTALS_WALK_OUT 20
+#define PORTALS_STAY 60
+#define PORTALS_CHAIN (PORTALS_WALK_IN + PORTALS_WAIT + PORTALS_WALK_OUT + PORTALS_STAY)
+
 static int write_chain(const char *path) {
     FILE *f = fopen(path, "w");
     int t;
@@ -50,16 +60,18 @@ static int write_chain(const char *path) {
         return 0;
     }
     fputc('[', f);
-    for (t = 0; t < 96; ++t) {
+    for (t = 0; t < PORTALS_CHAIN; ++t) {
         if (t) fputc(',', f);
-        if (t < 10)
+        if (t < PORTALS_WALK_IN ||
+            (t >= PORTALS_WALK_IN + PORTALS_WAIT &&
+             t < PORTALS_WALK_IN + PORTALS_WAIT + PORTALS_WALK_OUT))
             fputs("{\"forward\":1.0}", f);
         else
             fputs("{}", f);
     }
     fputs("]\n", f);
     fclose(f);
-    fprintf(stderr, "WROTE %s 96 actions\n", path);
+    fprintf(stderr, "WROTE %s %d actions\n", path, PORTALS_CHAIN);
     return 1;
 }
 

@@ -1532,7 +1532,7 @@ subsystems:
       shared: [blaze/core/nether_portal.h, blaze/core/end_portal.h, blaze/core/dimension_swap.h]
       blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
     dependencies: [world_dynamics]
-    required_features: [player, portals, dimensions]
+    required_features: [player, portals, dimensions, world, random_ticks]
     required_artifacts:
       m1:
         - magma/magma_game
@@ -1556,7 +1556,7 @@ subsystems:
       - blaze/env/verify_cpu.py
       - --chain
       - --expected-chain-actions
-      - "96"
+      - "170"
       - --snapshot
       - verify/fixtures/port/s10_t0_r64_portals.bsnp
       - --tape
@@ -1564,7 +1564,7 @@ subsystems:
       - --port-parity
       - --strict-capabilities
       - --features
-      - player,portals,dimensions
+      - player,portals,dimensions,world,random_ticks
     m2:
       - uv
       - run
@@ -1575,7 +1575,7 @@ subsystems:
       - blaze/env/verify_cuda.py
       - --chain
       - --expected-chain-actions
-      - "96"
+      - "170"
       - --snapshot
       - verify/fixtures/port/s10_t0_r64_portals.bsnp
       - --tape
@@ -1583,7 +1583,7 @@ subsystems:
       - --port-parity
       - --strict-capabilities
       - --features
-      - player,portals,dimensions
+      - player,portals,dimensions,world,random_ticks
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
 
