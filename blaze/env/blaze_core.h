@@ -152,11 +152,41 @@ enum {
     CU_OP_COAL_SWEEP,      /* coal candidate entries swept */
     CU_OP_INV_SCAN,        /* blaze_inv_count 36-slot sweeps */
     CU_OP_SUBTICK,         /* decision sub-ticks executed */
+    CU_OP_SKY_FULL,        /* cu_light_after_opacity_full */
+    CU_OP_SKY_INCR,        /* incremental cu_light_after_opacity */
+    CU_OP_SKY_SPILL,       /* CuSkyMoves.spill forced all-unknown */
+    CU_OP_SKY_OVF,         /* sky worklist overflow -> full */
+    CU_OP_SKY_Q,           /* sky worklist pops */
+    CU_OP_SKY_COL,         /* columns actually rebuilt */
+    CU_OP_SKY_DIRTY,       /* non-CLEAN sky_dirty chunks at an opacity edit */
+    CU_OP_SKY_MOVES,       /* lowered-box xz cells handed to neighbours */
+    CU_OP_ITEM_LIVE,       /* n_items sampled each live-item tick */
+    CU_OP_FLUID_REG,       /* active fluid regions per fluid tick */
+    CU_OP_LIGHT_Q,         /* block-light queue entries drained */
     CU_OP_N
 };
 #define CU_OP(e, k) do { if ((e)->ops) (e)->ops[k]++; } while (0)
 #define CU_OP_ADD(e, k, v) \
     do { if ((e)->ops) (e)->ops[k] += (unsigned long long)(v); } while (0)
+
+/* Per-env k_tick phase clocks (create opts.stage_time=1). NULL = off.
+ * Driver-owned pool slice, same contract as ops: reset does not touch it,
+ * never hashed, never snapshotted. */
+enum {
+    CU_PHASE_BEGIN = 0,
+    CU_PHASE_RECENTER,
+    CU_PHASE_PHYS,
+    CU_PHASE_LIGHT,
+    CU_PHASE_BLK,
+    CU_PHASE_FLUID,
+    CU_PHASE_RANDTICK,
+    CU_PHASE_ITEMS,
+    CU_PHASE_MOBS,
+    CU_PHASE_COAL,
+    CU_PHASE_POST,
+    CU_PHASE_REST,
+    CU_PHASE_K
+};
 
 /* ---- action (GmAction protocol subset; craft/interact are separate
  * pre-tick primitives - blaze_do_craft / blaze_do_interact) ---- */
@@ -564,7 +594,25 @@ typedef struct {
     double mob_nav_speed[BLAZE_SNAP_MAX_MOBS];
     float mob_follow[BLAZE_SNAP_MAX_MOBS];
     int mob_skel_melee[BLAZE_SNAP_MAX_MOBS];
+    /* stage_time clocks (driver-owned pool slice, CU_PHASE_K u64s; NULL = off).
+     * Same contract as ops: set at create, reset does not touch it. */
+    unsigned long long *phase;
 } Blaze;
+
+#if defined(__CUDA_ARCH__)
+__device__ __forceinline__ unsigned long long cu_clk64(void) {
+    unsigned long long t;
+    asm volatile("mov.u64 %0, %%clock64;" : "=l"(t) :: "memory");
+    return t;
+}
+#define CU_PHASE_T0(E) unsigned long long _cu_pt0 = ((E)->phase ? cu_clk64() : 0ULL)
+#define CU_PHASE_END(E, k) do { \
+    if ((E)->phase) (E)->phase[k] += cu_clk64() - _cu_pt0; \
+} while (0)
+#else
+#define CU_PHASE_T0(E) ((void)0)
+#define CU_PHASE_END(E, k) ((void)0)
+#endif
 
 /* =================== region / window accessors =================== */
 
@@ -864,6 +912,7 @@ MC_HD static inline void cu_skylight_column(Blaze *e, int wx, int wz,
     u8 base[CU_SKY_MAX_NY];
     int y, wy0 = e->ry0, wy1 = e->ry0 + e->rny - 1;
     long i;
+    CU_OP(e, CU_OP_SKY_COL);
     if (e->rny > CU_SKY_MAX_NY) {          /* defensive: rny <= 128 holds */
         int k1, j1;
         for (y = wy0; y <= wy1; ++y) {
@@ -1072,6 +1121,7 @@ MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx,
                                                      int wz, CuSkyMoves *mv) {
     int cx, cz, x0, x1, z0, z1;
     if (!e->light_valid) return;
+    CU_OP(e, CU_OP_SKY_FULL);
     cu_skylight_chunk(e, wx, wz, mv);
     cx = wx >> 4;
     cz = wz >> 4;
@@ -1197,10 +1247,18 @@ MC_HD static inline void cu_sky_spread_stale(Blaze *e, int lx0, int lx1,
  * clean claim, so drop all tracking. */
 MC_HD static inline void cu_sky_settle(Blaze *e, int ci,
                                        const CuSkyMoves *m) {
-    if (m->spill) { cu_sky_all_unknown(e); return; }
-    if (m->lx0 <= m->lx1)
+    if (m->spill) {
+        CU_OP(e, CU_OP_SKY_SPILL);
+        cu_sky_all_unknown(e);
+        return;
+    }
+    if (m->lx0 <= m->lx1) {
+        int dx = m->lx1 - m->lx0 + 1, dz = m->lz1 - m->lz0 + 1;
+        if (dx > 0 && dz > 0)
+            CU_OP_ADD(e, CU_OP_SKY_MOVES, (unsigned long long)dx * (unsigned long long)dz);
         cu_sky_spread_stale(e, m->lx0, m->lx1, m->ly0, m->ly1, m->lz0,
                             m->lz1, ci);
+    }
     if (ci >= 0) e->sky_dirty[ci].state = CU_SKY_CLEAN;
 }
 
@@ -1221,6 +1279,8 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
     static const int dz6[6] = {0, 0, 0, 0, 1, -1};
 
     if (!e->light_valid || !e->light) return;
+    {
+        CU_PHASE_T0(e);
     q = e->light_q;
     i0 = cu_region_idx(e, wx, wy, wz);
     cx = wx >> 4;
@@ -1236,6 +1296,15 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
     if (z1 > e->rz0 + e->rnz - 1) z1 = e->rz0 + e->rnz - 1;
     ci = cu_sky_ci(e, cx, cz);
     cu_sky_moves_init(&mv, x0, x1, z0, z1);
+    if (e->ops) {
+        int ix, iz, nd = 0;
+        int nx = cu_sky_nc(e->rx0, e->rnx), nz = cu_sky_nc(e->rz0, e->rnz);
+        for (ix = 0; ix < nx; ++ix)
+            for (iz = 0; iz < nz; ++iz)
+                if (e->sky_dirty[ix * CU_SKY_NC + iz].state != CU_SKY_CLEAN)
+                    nd++;
+        CU_OP_ADD(e, CU_OP_SKY_DIRTY, nd);
+    }
     if (!q || i0 < 0 || ci < 0 || e->rny > CU_SKY_MAX_NY || e->rnx > 256 ||
         e->rny > 256 || e->rnz > 256 ||
         e->sky_dirty[ci].state == CU_SKY_ALL) {
@@ -1244,8 +1313,10 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
             cu_sky_all_unknown(e);   /* cannot record boxes for this region */
         else
             cu_sky_settle(e, ci, &mv);
+        CU_PHASE_END(e, CU_PHASE_LIGHT);
         return;
     }
+    CU_OP(e, CU_OP_SKY_INCR);
     new_op = cu_sky_opacity(mc_state_id(e->cells[i0]));
     lower = new_op > old_op;
     if (e->sky_dirty[ci].state == CU_SKY_BOX) {
@@ -1305,6 +1376,7 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
             if (clo < e->ry0) clo = e->ry0;
             if (chi > wy1) chi = wy1;
             if (clo > chi) continue;
+            CU_OP(e, CU_OP_SKY_COL);
             if (px == wx && pz == wz) {
                 b = bnew + (clo - e->ry0);
             } else {
@@ -1349,6 +1421,7 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
     while (qn > 0 && !ovf) {
         int p = q[qh], ix, iy, iz, x, z, op, sky, best, f;
         long i;
+        CU_OP(e, CU_OP_SKY_Q);
         ++qh; if (qh >= CU_SKY_Q) qh = 0;
         --qn;
         ix = (p >> 20) & 1023; iy = (p >> 10) & 1023; iz = p & 1023;
@@ -1378,9 +1451,13 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
      * all of chunk c back to the exact baseline, so it re-seeds at V0 inside
      * c and somewhere in [V0, LFP] outside it, and a raise-only relaxation
      * from any such state has the same least fixed point. */
-    if (ovf)                       /* exact, just the slow way */
+    if (ovf) {                     /* exact, just the slow way */
+        CU_OP(e, CU_OP_SKY_OVF);
         cu_light_after_opacity_full(e, wx, wz, &mv);
+    }
     cu_sky_settle(e, ci, &mv);
+    CU_PHASE_END(e, CU_PHASE_LIGHT);
+    }
 #undef CU_SKY_PUSH
 #undef CU_SKY_PUSH_NB
 }
@@ -1456,6 +1533,8 @@ MC_HD MC_NOINLINE static void cu_check_light_for_block(Blaze *e, int i1,
     if (!q) return;
     if (!e->light_valid || !e->light) return;
     if (cu_region_idx(e, i1, j1, k1) < 0) return;
+    {
+    CU_PHASE_T0(e);
     qi = 0;
     qj = 0;
     k = cu_blk_nibble(e, i1, j1, k1);
@@ -1549,6 +1628,9 @@ MC_HD MC_NOINLINE static void cu_check_light_for_block(Blaze *e, int i1,
                 }
             }
         }
+    }
+    CU_OP_ADD(e, CU_OP_LIGHT_Q, qj);
+    CU_PHASE_END(e, CU_PHASE_BLK);
     }
 }
 
@@ -3958,6 +4040,7 @@ MC_HD MC_NOINLINE static inline void cu_live_tick_player(Blaze *env) {
     il_overflow_drain(env);
     fl_tick_scheduled(env, env);
     fl_tick_falling_ents(env, env);
+    CU_OP_ADD(env, CU_OP_ITEM_LIVE, env->n_items);
     n = 0;
     for (i = 0; i < CU_MAX_ITEMS; ++i) {
         CuItem *e = &env->items[i];
@@ -5020,17 +5103,19 @@ MC_HD MC_NOINLINE static inline void cu_weather_tick(Blaze *e) {
 }
 
 MC_HD MC_NOINLINE static int cu_fluid_tick(Blaze *e, int dim, long long world_time) {
-    int i, total = 0;
+    int i, total = 0, nreg = 0;
     if (!e->fluid_cur || !e->fluid_tmp) return 0;
     if (e->fluid_dim != dim) return 0;
     for (i = 0; i < CU_FLUID_REGIONS; ++i) {
         CuFluidRegion *rg = &e->fluid_reg[i];
         int period;
         if (!rg->active) continue;
+        nreg++;
         period = rg->has_water ? 5 : (dim == -1 ? 10 : 30);
         if (world_time % period != 0) continue;
         total += cu_fluid_step_region(e, rg);
     }
+    CU_OP_ADD(e, CU_OP_FLUID_REG, nreg);
     e->parity_fluid_mutations += (uint32_t)total;
     return total;
 }
@@ -5292,6 +5377,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     int n = 0, i;
 
     if (env->dead) return;                       /* r->dead || r->won gate */
+    {
+    CU_PHASE_T0(env);
 
     /* Magma runtime.c:927-944: use mounts a nearby boat; sneak dismounts;
      * riding suppresses player WASD so controlBoat owns motion. */
@@ -5440,6 +5527,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     /* Minecraft.runTick pins this GUI sentinel after key processing. */
     if (env->container >= 1 && env->container <= 3)
         env->left_click_counter = 10000;
+    CU_PHASE_END(env, CU_PHASE_PHYS);
+    }
 
     /* ghost pushers (runtime.c:328-354): tape-replay only, nghosts==0. */
 
@@ -5481,14 +5570,32 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 
     /* Magma runtime.c: weather then fluids then randtick then spine
      * then projectiles then live items. Dragon stays inert. */
-    cu_weather_tick(env);
-    cu_fluid_tick(env, 0, env->tick);
-    cu_randtick_pass(env);
-    if (env->mobs_enabled) cu_mob_ai_tick(env, st);
-    else cu_mob_spine_tick(env, st);
-    cu_boat_tick(env, env->boat_fwd, env->boat_str);
-    cu_xp_tick(env);
-    cu_explosion_tick(env);
+    {
+        CU_PHASE_T0(env);
+        cu_weather_tick(env);
+        CU_PHASE_END(env, CU_PHASE_REST);
+    }
+    {
+        CU_PHASE_T0(env);
+        cu_fluid_tick(env, 0, env->tick);
+        CU_PHASE_END(env, CU_PHASE_FLUID);
+    }
+    {
+        CU_PHASE_T0(env);
+        cu_randtick_pass(env);
+        CU_PHASE_END(env, CU_PHASE_RANDTICK);
+    }
+    {
+        CU_PHASE_T0(env);
+        if (env->mobs_enabled) cu_mob_ai_tick(env, st);
+        else cu_mob_spine_tick(env, st);
+        CU_PHASE_END(env, CU_PHASE_MOBS);
+    }
+    {
+        CU_PHASE_T0(env);
+        cu_boat_tick(env, env->boat_fwd, env->boat_str);
+        cu_xp_tick(env);
+        cu_explosion_tick(env);
     {
         int pi;
         for (pi = 0; pi < CU_MAX_PROJECTILES; ++pi) {
@@ -5514,8 +5621,14 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
             }
         }
     }
+        CU_PHASE_END(env, CU_PHASE_REST);
+    }
 
-    cu_live_tick_player(env);
+    {
+        CU_PHASE_T0(env);
+        cu_live_tick_player(env);
+        CU_PHASE_END(env, CU_PHASE_ITEMS);
+    }
 
     /* live furnace tick + 61<->62 lit block flip (runtime.c:398) */
     for (i = 0; i < CU_MAX_FURNACES; ++i) if (env->furnaces[i].active) {

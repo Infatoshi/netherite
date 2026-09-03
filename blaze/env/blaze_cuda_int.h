@@ -185,12 +185,11 @@ typedef struct {
     cudaEvent_t ev[4];
     double ms_tick, ms_obs, ms_final;
     long nsteps;
-    /* optional k_tick stage cycle counters (create opts.stage_time):
-     * [0] decision_begin  [1] recenter (pose+coop fill)  [2] decision_subtick
-     * sum of per-thread clock64 deltas; relative share of work, not wall. */
+    /* optional per-env k_tick phase clocks (create opts.stage_time):
+     * device pool of n * CU_PHASE_K u64s, sliced into every env's ->phase. */
     int stage_time;
-    unsigned long long *d_stage_cycles; /* device, 3 counters */
-    unsigned long long h_stage_cycles[3];
+    unsigned long long *d_phase;
+    unsigned long long *h_phase;
     /* optional op-trace activity counters (create opts.op_trace): device pool
      * of n * CU_OP_N u64s, sliced into every env's ->ops at create. */
     int op_trace;
@@ -237,6 +236,9 @@ int blaze_tick(void *vh, int env, const double a[17], int want_cam,
 int blaze_debug_state(void *vh, int env, double *out, int cap);
 int blaze_op_count(void);
 int blaze_op_trace(void *vh, unsigned long long *out);
+int blaze_phase_k(void);
+int blaze_copy_phase(void *vh, unsigned long long *out);
+int blaze_phase_clear(void *vh);
 }
 
 /* BLAZE_SCALAR_TICK: build the scalar one-env-per-thread k_tick. OFF.

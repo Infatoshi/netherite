@@ -57,7 +57,12 @@ OP_NAMES = (                     # blaze_core.h CU_OP_* order (op_trace cols)
     "world_load", "world_edit", "recenter", "fill_cell", "raycast",
     "ray_step", "dig_tick", "dig_break", "item_tick", "craft", "interact",
     "smelt", "furnace_tick", "phys_tick", "coal_call", "coal_rebuild",
-    "coal_sweep", "inv_scan", "subtick")
+    "coal_sweep", "inv_scan", "subtick",
+    "sky_full", "sky_incr", "sky_spill", "sky_ovf", "sky_q", "sky_col",
+    "sky_dirty", "sky_moves", "item_live", "fluid_reg", "light_q")
+PHASE_NAMES = (                  # blaze_core.h CU_PHASE_* order
+    "begin", "recenter", "phys", "light", "blk", "fluid",
+    "randtick", "items", "mobs", "coal", "post", "rest")
 
 
 class BlazeCreateOpts(ctypes.Structure):
@@ -132,6 +137,14 @@ class VecBlaze:
                                            ctypes.c_int]
         self.lib.blaze_op_count.restype = ctypes.c_int
         self.lib.blaze_op_trace.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        self.has_phase = hasattr(self.lib, "blaze_copy_phase")
+        if self.has_phase:
+            self.lib.blaze_phase_k.restype = ctypes.c_int
+            self.lib.blaze_copy_phase.argtypes = [ctypes.c_void_p,
+                                                  ctypes.c_void_p]
+            self.lib.blaze_copy_phase.restype = ctypes.c_int
+            self.lib.blaze_phase_clear.argtypes = [ctypes.c_void_p]
+            self.lib.blaze_phase_clear.restype = ctypes.c_int
         # Batched all-lanes emit (CUDA only; absent from blaze_cpu.so, which
         # the verify gates only ever drive one env at a time). Fills
         # n * blaze_obs_size() bytes in one call. Callers must treat a missing
@@ -241,6 +254,23 @@ class VecBlaze:
         r = self.lib.blaze_op_trace(self.h,
                                     ctypes.c_void_p(out.ctypes.data))
         return out if r == 0 else None
+
+    def copy_phase(self):
+        """Cumulative per-env phase clocks as uint64 [N, CU_PHASE_K].
+        Requires stage_time=True at create; returns None when off."""
+        import numpy as np
+        if not self.has_phase:
+            return None
+        k = int(self.lib.blaze_phase_k())
+        out = np.zeros((self.n, k), dtype=np.uint64)
+        r = self.lib.blaze_copy_phase(self.h,
+                                      ctypes.c_void_p(out.ctypes.data))
+        return out if r == 0 else None
+
+    def phase_clear(self):
+        if not self.has_phase:
+            return -1
+        return int(self.lib.blaze_phase_clear(self.h))
 
     def set_reward_gate(self, dist):
         """OPT-IN training-reward mode: require nearest-coal dist <= dist

@@ -401,12 +401,7 @@ __global__ void k_reset_bulk(Blaze *envs, const int *active,
  * the helpers' reads. State evolution is bit-identical to the serial
  * blaze_decision_ticks: same recenter sequence point, same fill values
  * (window bytes are a pure function of region + chunk coords). */
-/* Opaque clock with memory clobber so stage timers cannot reorder past work. */
-__device__ __forceinline__ unsigned long long cu_clk64(void) {
-    unsigned long long t;
-    asm volatile("mov.u64 %0, %%clock64;" : "=l"(t) :: "memory");
-    return t;
-}
+/* cu_clk64 lives in blaze_core.h under __CUDA_ARCH__. */
 
 /* Verify-only: trainer blaze_step passes inv==NULL (13-wide ABI). Focused
  * M2 packs a[13..16] here so chests/furnaces keep the same chain as
@@ -434,17 +429,18 @@ __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
     Blaze *e = &envs[valid ? i : 0];
     int exec = 0;
     unsigned long long t0 = 0, t1 = 0;
-    unsigned long long c_begin = 0, c_re = 0, c_sub = 0;
-    if (stage_cycles) t0 = cu_clk64();
+    int want_clk = valid && e->phase != NULL;
+    (void)stage_cycles;
+    if (want_clk) t0 = cu_clk64();
     if (valid)
         exec = blaze_decision_begin(e, st,
                                     actions + (size_t)i * BLAZE_ACT_HEADS,
                                     recipes, nrecipes);
     if (exec)
         cu_apply_inv_click(e, inv, i);
-    if (stage_cycles) {
+    if (want_clk) {
         t1 = cu_clk64();
-        c_begin = t1 - t0;
+        e->phase[CU_PHASE_BEGIN] += t1 - t0;
         t0 = t1;
     }
     for (int rep = 0; rep < repeat; ++rep) {
@@ -470,9 +466,9 @@ __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
             } while (m);
             __syncwarp();            /* helper fill writes -> owner reads */
         }
-        if (stage_cycles) {
+        if (want_clk) {
             t1 = cu_clk64();
-            c_re += t1 - t0;
+            e->phase[CU_PHASE_RECENTER] += t1 - t0;
             t0 = t1;
         }
         if (exec) {
@@ -483,16 +479,7 @@ __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
                                    0, atk_gate);
             if (e->done) exec = 0;
         }
-        if (stage_cycles) {
-            t1 = cu_clk64();
-            c_sub += t1 - t0;
-            t0 = t1;
-        }
-    }
-    if (stage_cycles) {
-        atomicAdd((unsigned long long *)&stage_cycles[0], c_begin);
-        atomicAdd((unsigned long long *)&stage_cycles[1], c_re);
-        atomicAdd((unsigned long long *)&stage_cycles[2], c_sub);
+        if (want_clk) t0 = cu_clk64();
     }
 }
 #endif /* BLAZE_SCALAR_TICK */
@@ -665,16 +652,17 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
     const double *a = actions + (size_t)w * BLAZE_ACT_HEADS;
     int exec = 0;
     unsigned long long t0 = 0, t1 = 0;
-    unsigned long long c_begin = 0, c_re = 0, c_sub = 0;
-    if (stage_cycles && lane == 0) t0 = cu_clk64();
+    int want_clk = (lane == 0) && (e->phase != NULL);
+    (void)stage_cycles;
+    if (want_clk) t0 = cu_clk64();
     if (lane == 0)
         exec = blaze_decision_begin(e, st, a, recipes, nrecipes);
     exec = __shfl_sync(FULL, exec, 0);
     if (lane == 0 && exec)
         cu_apply_inv_click(e, inv, w);
-    if (stage_cycles && lane == 0) {
+    if (want_clk) {
         t1 = cu_clk64();
-        c_begin = t1 - t0;
+        e->phase[CU_PHASE_BEGIN] += t1 - t0;
         t0 = t1;
     }
     for (int rep = 0; rep < repeat; ++rep) {
@@ -695,9 +683,9 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
             cu_recenter_fill(e, ccx, ccz, dcx, dcz, lane, 32);
             __syncwarp();        /* helper fill writes -> owner reads */
         }
-        if (stage_cycles && lane == 0) {
+        if (want_clk) {
             t1 = cu_clk64();
-            c_re += t1 - t0;
+            e->phase[CU_PHASE_RECENTER] += t1 - t0;
             t0 = t1;
         }
         if (exec) {
@@ -709,24 +697,21 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
                                    aabb_pool + (size_t)w * PSV_MAX_BLOCKS,
                                    0, &fx, &fy, &fz);
             __syncwarp();        /* lane-0 world/pose writes -> lane reads */
+            if (want_clk) t0 = cu_clk64();
             cu_coal_warp(e, lane, &have_nc, &ry, &rp, &dist);
+            if (want_clk) {
+                e->phase[CU_PHASE_COAL] += cu_clk64() - t0;
+                t0 = cu_clk64();
+            }
             if (lane == 0) {
                 blaze_subtick_post(e, rep, repeat, atk_gate, have_nc,
                                    ry, rp, dist);
                 if (e->done) exec = 0;
             }
+            if (want_clk)
+                e->phase[CU_PHASE_POST] += cu_clk64() - t0;
             exec = __shfl_sync(FULL, exec, 0);
         }
-        if (stage_cycles && lane == 0) {
-            t1 = cu_clk64();
-            c_sub += t1 - t0;
-            t0 = t1;
-        }
-    }
-    if (stage_cycles && lane == 0) {
-        atomicAdd((unsigned long long *)&stage_cycles[0], c_begin);
-        atomicAdd((unsigned long long *)&stage_cycles[1], c_re);
-        atomicAdd((unsigned long long *)&stage_cycles[2], c_sub);
     }
 }
 
@@ -931,6 +916,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->rt_leaf = v->d_rt_leaf + (size_t)i * RT_LIVE_SURR;
         e->light_q = v->d_light_q + (size_t)i * CU_LIGHT_Q;
         e->ops = v->d_ops ? v->d_ops + (size_t)i * CU_OP_N : NULL;
+        e->phase = NULL;
     }
     if (cu_ck(cudaMemcpy(v->d_envs, v->h_envs, (size_t)n * sizeof(Blaze),
                          cudaMemcpyHostToDevice), "env upload")) {
@@ -941,13 +927,22 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     if (v->ktime)
         for (i = 0; i < 4; ++i) cudaEventCreate(&v->ev[i]);
     if (v->stage_time) {
-        if (cudaMalloc(&v->d_stage_cycles, 3 * sizeof(unsigned long long)) !=
-            cudaSuccess) {
+        size_t nb = (size_t)n * (size_t)CU_PHASE_K * sizeof(unsigned long long);
+        v->h_phase = (unsigned long long *)calloc((size_t)n * (size_t)CU_PHASE_K,
+                                                  sizeof(unsigned long long));
+        if (!v->h_phase || cudaMalloc(&v->d_phase, nb) != cudaSuccess) {
             fprintf(stderr, "blaze_cuda: stage_time counter alloc failed\n");
             blaze_destroy(v);
             return NULL;
         }
-        cudaMemset(v->d_stage_cycles, 0, 3 * sizeof(unsigned long long));
+        cudaMemset(v->d_phase, 0, nb);
+        for (i = 0; i < n; ++i)
+            v->h_envs[i].phase = v->d_phase + (size_t)i * (size_t)CU_PHASE_K;
+        if (cu_ck(cudaMemcpy(v->d_envs, v->h_envs, (size_t)n * sizeof(Blaze),
+                             cudaMemcpyHostToDevice), "phase ptr upload")) {
+            blaze_destroy(v);
+            return NULL;
+        }
     }
     return v;
 }
@@ -972,26 +967,31 @@ void blaze_destroy(void *vh) {
                 v->ms_final, v->ms_final / v->nsteps);
         for (i = 0; i < 4; ++i) cudaEventDestroy(v->ev[i]);
     }
-    if (v->stage_time && v->d_stage_cycles) {
-        unsigned long long sum;
-        cudaMemcpy(v->h_stage_cycles, v->d_stage_cycles,
-                   3 * sizeof(unsigned long long), cudaMemcpyDeviceToHost);
-        sum = v->h_stage_cycles[0] + v->h_stage_cycles[1] +
-              v->h_stage_cycles[2];
+    if (v->stage_time && v->d_phase && v->h_phase) {
+        static const char *nm[CU_PHASE_K] = {
+            "begin", "recenter", "phys", "light", "blk", "fluid",
+            "randtick", "items", "mobs", "coal", "post", "rest"
+        };
+        unsigned long long tot[CU_PHASE_K], sum = 0;
+        int k, ei;
+        size_t nb = (size_t)v->n * (size_t)CU_PHASE_K * sizeof(unsigned long long);
+        memset(tot, 0, sizeof tot);
+        cudaMemcpy(v->h_phase, v->d_phase, nb, cudaMemcpyDeviceToHost);
+        for (ei = 0; ei < v->n; ++ei)
+            for (k = 0; k < CU_PHASE_K; ++k)
+                tot[k] += v->h_phase[(size_t)ei * (size_t)CU_PHASE_K + (size_t)k];
+        for (k = 0; k < CU_PHASE_K; ++k) sum += tot[k];
         if (sum) {
-            fprintf(stderr,
-                    "blaze_cuda stage_time (thread-cycle share of k_tick):  "
-                    "begin %.1f%%  recenter %.1f%%  subtick %.1f%%  "
-                    "(cycles begin=%llu re=%llu sub=%llu)\n",
-                    100.0 * (double)v->h_stage_cycles[0] / (double)sum,
-                    100.0 * (double)v->h_stage_cycles[1] / (double)sum,
-                    100.0 * (double)v->h_stage_cycles[2] / (double)sum,
-                    (unsigned long long)v->h_stage_cycles[0],
-                    (unsigned long long)v->h_stage_cycles[1],
-                    (unsigned long long)v->h_stage_cycles[2]);
+            fprintf(stderr, "blaze_cuda stage_time (thread-cycle share of k_tick):\n");
+            for (k = 0; k < CU_PHASE_K; ++k)
+                fprintf(stderr, "  %10s %6.1f%%  cycles=%llu\n", nm[k],
+                        100.0 * (double)tot[k] / (double)sum,
+                        (unsigned long long)tot[k]);
         }
-        cudaFree(v->d_stage_cycles);
-        v->d_stage_cycles = NULL;
+        cudaFree(v->d_phase);
+        v->d_phase = NULL;
+        free(v->h_phase);
+        v->h_phase = NULL;
     }
     for (i = 0; i < v->nsnaps; ++i) {
         cudaFree((void *)v->h_snaps[i].cells);
@@ -1489,7 +1489,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                       v->stream>>>(v->d_envs, v->n, v->d_st, actions,
                                    repeat, v->d_aabb, v->d_recipes,
                                    v->nrecipes, v->atk_gate,
-                                   v->stage_time ? v->d_stage_cycles : NULL,
+                                   NULL,
                                    NULL);
 #if BLAZE_SCALAR_TICK
     else
@@ -1497,7 +1497,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                  v->stream>>>(v->d_envs, v->n, v->d_st, actions, repeat,
                               v->d_aabb, v->d_recipes, v->nrecipes,
                               v->atk_gate,
-                              v->stage_time ? v->d_stage_cycles : NULL,
+                              NULL,
                               NULL);
 #endif  /* else unreachable: blaze_create rejects warp_tick == 0 */
     if (v->ktime) cudaEventRecord(v->ev[1], v->stream);
@@ -2051,14 +2051,14 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
         k_tick_warp<<<(unsigned)(((size_t)n * 32 + 127) / 128), 128, 0,
                       v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                                    v->d_recipes, v->nrecipes, v->atk_gate,
-                                   v->stage_time ? v->d_stage_cycles : NULL,
+                                   NULL,
                                    inv);
 #if BLAZE_SCALAR_TICK
     else
         k_tick<<<(n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
                  v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                               v->d_recipes, v->nrecipes, v->atk_gate,
-                              v->stage_time ? v->d_stage_cycles : NULL, inv);
+                              NULL, inv);
 #endif  /* else unreachable: blaze_create rejects warp_tick == 0 */
     return cu_ck(cudaStreamSynchronize(v->stream), "blaze_tick");
 }
@@ -2114,6 +2114,27 @@ int blaze_op_trace(void *vh, unsigned long long *out) {
                             (size_t)v->n * CU_OP_N *
                                 sizeof(unsigned long long),
                             cudaMemcpyDeviceToHost), "op-trace readback");
+}
+
+int blaze_phase_k(void) { return CU_PHASE_K; }
+
+int blaze_copy_phase(void *vh, unsigned long long *out) {
+    CuVecCu *v = (CuVecCu *)vh;
+    if (!v || !out || !v->d_phase) return -1;
+    cudaSetDevice(v->device);
+    return cu_ck(cudaMemcpy(out, v->d_phase,
+                            (size_t)v->n * (size_t)CU_PHASE_K *
+                                sizeof(unsigned long long),
+                            cudaMemcpyDeviceToHost), "phase readback");
+}
+
+int blaze_phase_clear(void *vh) {
+    CuVecCu *v = (CuVecCu *)vh;
+    if (!v || !v->d_phase) return -1;
+    cudaSetDevice(v->device);
+    return cu_ck(cudaMemset(v->d_phase, 0,
+                            (size_t)v->n * (size_t)CU_PHASE_K *
+                                sizeof(unsigned long long)), "phase clear");
 }
 
 int blaze_debug_state(void *vh, int env, double *out, int cap) {

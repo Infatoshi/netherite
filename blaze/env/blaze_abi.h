@@ -15,7 +15,7 @@ extern "C" {
 
 typedef struct BlazeCreateOpts {
     int ktime;            /* BLAZE_KTIME: kernel event timing at destroy */
-    int stage_time;       /* BLAZE_STAGE_TIME: k_tick stage cycle counters */
+    int stage_time;       /* per-env k_tick phase clocks [n][CU_PHASE_K] */
     int legacy_recenter;  /* removed A/B knob. The CUDA backend deleted
                            * k_tick_legacy. blaze_create fails when this
                            * is nonzero. Keep it 0. */
@@ -45,6 +45,13 @@ static inline void blaze_create_opts_default(BlazeCreateOpts *o) {
 
 /* opts may be NULL (defaults). device is ignored by the CPU backend. */
 void *blaze_create(int device, int n, const BlazeCreateOpts *opts);
+
+/* stage_time readout: column count, then n * columns u64s (env-major)
+ * copied to host `out`. Returns -1 when stage_time was 0 at create.
+ * blaze_phase_clear zeros the device (or host) counters. */
+int blaze_phase_k(void);
+int blaze_copy_phase(void *vh, unsigned long long *out);
+int blaze_phase_clear(void *vh);
 
 #ifdef __cplusplus
 }

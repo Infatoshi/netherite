@@ -299,6 +299,19 @@ int blaze_op_trace(void *vh, unsigned long long *out) {
     return 0;
 }
 
+int blaze_phase_k(void) { return CU_PHASE_K; }
+
+int blaze_copy_phase(void *vh, unsigned long long *out) {
+    (void)vh;
+    (void)out;
+    return -1;
+}
+
+int blaze_phase_clear(void *vh) {
+    (void)vh;
+    return -1;
+}
+
 /* Size the region pools from the first-loaded snapshot's dims (all further
  * snapshots must match). Init-time only. */
 static int cu_alloc_region_pools(CuVec *v, int rnx, int rny, int rnz) {
