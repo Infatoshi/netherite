@@ -1538,12 +1538,14 @@ subsystems:
         - magma/magma_game
         - blaze/env/blaze_cpu.so
         - verify/fixtures/port/s10_t0_r64_portals.bsnp
+        - verify/fixtures/port/s10_t0_r64_portals.bsnp.banks
         - verify/fixtures/port/s10_t0_r64_nether.bsnp
         - blaze/rl/fixtures/portals_s10.json
       m2:
         - blaze/env/blaze_cpu.so
         - blaze/env/blaze_cuda.so
         - verify/fixtures/port/s10_t0_r64_portals.bsnp
+        - verify/fixtures/port/s10_t0_r64_portals.bsnp.banks
         - verify/fixtures/port/s10_t0_r64_nether.bsnp
         - blaze/rl/fixtures/portals_s10.json
     m1:

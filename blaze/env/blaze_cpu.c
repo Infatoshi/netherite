@@ -94,6 +94,8 @@ typedef struct {
     int    success_item;     /* +10/done=1 item; 263 default (exact ppo_coal),
                               * 0 = disabled. Applied at reset. */
     int    no_ore_xy;        /* create-time: skip ore spatial index on load */
+    char   nether_bank_path[1024]; /* create opts; empty = unset */
+    char   end_bank_path[1024];    /* create opts; empty = unset */
     int    mobs_enabled;     /* magma --mobs on: hostile AI/combat live tick */
     int    natural_spawn;    /* WorldEntitySpawner MONSTER cycle */
     int    natural_spawn_passive;
@@ -197,6 +199,13 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     v->success_item = 263;
     v->world_time_pin = -1;
     v->no_ore_xy = o.no_ore_xy ? 1 : 0;
+    v->nether_bank_path[0] = 0;
+    v->end_bank_path[0] = 0;
+    if (o.nether_bank && o.nether_bank[0])
+        snprintf(v->nether_bank_path, sizeof v->nether_bank_path, "%s",
+                 o.nether_bank);
+    if (o.end_bank && o.end_bank[0])
+        snprintf(v->end_bank_path, sizeof v->end_bank_path, "%s", o.end_bank);
     mc_sin_table_init(&v->st);
     v->nrecipes = crf_build(v->recipes);
     v->envs = (Blaze *)calloc((size_t)n, sizeof *v->envs);
@@ -318,6 +327,157 @@ void blaze_destroy(void *vh) {
     free(v);
 }
 
+static void cu_trim_inplace(char *s) {
+    char *a = s, *e;
+    if (!s) return;
+    while (*a == ' ' || *a == '\t' || *a == '\n' || *a == '\r') a++;
+    if (a != s) memmove(s, a, strlen(a) + 1);
+    e = s + strlen(s);
+    while (e > s && (e[-1] == ' ' || e[-1] == '\t' ||
+                     e[-1] == '\n' || e[-1] == '\r'))
+        *--e = 0;
+}
+
+static int cu_join_snap_dir(char *out, size_t cap, const char *snap,
+                            const char *rel) {
+    const char *slash;
+    size_t n, rl;
+    if (!out || cap == 0 || !rel || !rel[0]) return -1;
+    rl = strlen(rel);
+    if (rel[0] == '/') {
+        if (rl + 1 > cap) return -1;
+        memcpy(out, rel, rl + 1);
+        return 0;
+    }
+    slash = snap ? strrchr(snap, '/') : NULL;
+    if (!slash) {
+        if (rl + 1 > cap) return -1;
+        memcpy(out, rel, rl + 1);
+        return 0;
+    }
+    n = (size_t)(slash - snap);
+    if (n + 1 + rl + 1 > cap) return -1;
+    memcpy(out, snap, n);
+    out[n] = '/';
+    memcpy(out + n + 1, rel, rl + 1);
+    return 0;
+}
+
+/* Sidecar PATH.banks names sibling nether/end banks. Missing sidecar is
+ * not an error; a named path that cannot be resolved is. */
+static int cu_read_banks_sidecar(const char *snap_path,
+                                 char *nether_out, size_t ncap,
+                                 char *end_out, size_t ecap,
+                                 char *err, int err_cap) {
+    char side[1080];
+    char line[1024];
+    FILE *f;
+    if (!snap_path || !snap_path[0]) return 0;
+    if (snprintf(side, sizeof side, "%s.banks", snap_path) >= (int)sizeof side)
+        return 0;
+    f = fopen(side, "r");
+    if (!f) return 0;
+    while (fgets(line, (int)sizeof line, f)) {
+        char *sep, *key, *val, resolved[1024];
+        cu_trim_inplace(line);
+        if (!line[0] || line[0] == '#') continue;
+        sep = strchr(line, '=');
+        if (sep) {
+            *sep = 0;
+            key = line;
+            val = sep + 1;
+        } else {
+            key = line;
+            val = line;
+            while (*val && *val != ' ' && *val != '\t') val++;
+            if (*val) *val++ = 0;
+            else val = (char *)"";
+        }
+        cu_trim_inplace(key);
+        cu_trim_inplace(val);
+        if (!val[0]) continue;
+        if (cu_join_snap_dir(resolved, sizeof resolved, snap_path, val) != 0) {
+            fclose(f);
+            if (err && err_cap > 0)
+                snprintf(err, (size_t)err_cap,
+                         "dimension bank path too long in %s", side);
+            return -1;
+        }
+        if (!strcmp(key, "nether") && nether_out && ncap && !nether_out[0]) {
+            if (strlen(resolved) + 1 > ncap) {
+                fclose(f);
+                if (err && err_cap > 0)
+                    snprintf(err, (size_t)err_cap,
+                             "nether bank path too long in %s", side);
+                return -1;
+            }
+            memcpy(nether_out, resolved, strlen(resolved) + 1);
+        } else if (!strcmp(key, "end") && end_out && ecap && !end_out[0]) {
+            if (strlen(resolved) + 1 > ecap) {
+                fclose(f);
+                if (err && err_cap > 0)
+                    snprintf(err, (size_t)err_cap,
+                             "end bank path too long in %s", side);
+                return -1;
+            }
+            memcpy(end_out, resolved, strlen(resolved) + 1);
+        }
+    }
+    fclose(f);
+    return 0;
+}
+
+static int cu_load_named_bank(CuVec *v, int bank_idx, const char *path,
+                              const char *label, char *err, int err_cap) {
+    FILE *tf;
+    const RlSnapHead *h;
+    if (!v || !path || !path[0]) return 0;
+    tf = fopen(path, "rb");
+    if (!tf) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "%s bank missing: %s",
+                     label ? label : "dimension", path);
+        return -1;
+    }
+    fclose(tf);
+    if (v->rvol == 0) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap,
+                     "%s bank requires an overworld snapshot first: %s",
+                     label ? label : "dimension", path);
+        return -1;
+    }
+    if (v->dim_loaded[bank_idx]) {
+        blaze_snapshot_free(&v->dim_snaps[bank_idx]);
+        v->dim_loaded[bank_idx] = 0;
+        memset(&v->dim_snaps[bank_idx], 0, sizeof v->dim_snaps[bank_idx]);
+    }
+    if (!blaze_snapshot_load(path, &v->dim_snaps[bank_idx], err, err_cap,
+                             v->no_ore_xy))
+        return -1;
+    h = &v->dim_snaps[bank_idx].head;
+    if (h->rny > CU_RNY_MAX) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "region rny %d > %d: %s",
+                     h->rny, CU_RNY_MAX, path);
+        blaze_snapshot_free(&v->dim_snaps[bank_idx]);
+        memset(&v->dim_snaps[bank_idx], 0, sizeof v->dim_snaps[bank_idx]);
+        return -1;
+    }
+    if (h->rnx != v->rnx || h->rny != v->rny || h->rnz != v->rnz) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap,
+                     "%s bank region dims %dx%dx%d != pool %dx%dx%d: %s",
+                     label ? label : "dimension",
+                     h->rnx, h->rny, h->rnz, v->rnx, v->rny, v->rnz, path);
+        blaze_snapshot_free(&v->dim_snaps[bank_idx]);
+        memset(&v->dim_snaps[bank_idx], 0, sizeof v->dim_snaps[bank_idx]);
+        return -1;
+    }
+    v->dim_loaded[bank_idx] = 1;
+    return 0;
+}
+
 int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                          char *err, int err_cap) {
     CuVec *v = (CuVec *)vh;
@@ -357,30 +517,24 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         v->nsnaps++;
     }
     if (v->nsnaps > 0) {
-        /* Dimension 0 (Overworld) default is snaps[0] */
-        v->dim_snaps[1] = v->snaps[0];
-        v->dim_loaded[1] = 1;
-
-        /* Auto-probe counterpart dimension snapshot if not already loaded */
-        if (!v->dim_loaded[0] && count > 0 && paths[0]) {
-            const char *p = paths[0];
-            const char *match = strstr(p, "portals.bsnp");
-            if (match) {
-                char nether_path[1024];
-                size_t prefix = (size_t)(match - p);
-                if (prefix + strlen("nether.bsnp") < sizeof(nether_path)) {
-                    memcpy(nether_path, p, prefix);
-                    strcpy(nether_path + prefix, "nether.bsnp");
-                    FILE *test_f = fopen(nether_path, "rb");
-                    if (test_f) {
-                        fclose(test_f);
-                        if (blaze_snapshot_load(nether_path, &v->dim_snaps[0], err, err_cap, v->no_ore_xy)) {
-                            v->dim_loaded[0] = 1;
-                        }
-                    }
-                }
-            }
-        }
+        char sc_nether[1024];
+        char sc_end[1024];
+        const char *nether;
+        const char *endb;
+        sc_nether[0] = 0;
+        sc_end[0] = 0;
+        if (count > 0 && paths[0] &&
+            cu_read_banks_sidecar(paths[0], sc_nether, sizeof sc_nether,
+                                  sc_end, sizeof sc_end, err, err_cap) != 0)
+            return -1;
+        nether = v->nether_bank_path[0] ? v->nether_bank_path : sc_nether;
+        endb = v->end_bank_path[0] ? v->end_bank_path : sc_end;
+        if (nether[0] &&
+            cu_load_named_bank(v, 0, nether, "nether", err, err_cap) != 0)
+            return -1;
+        if (endb[0] &&
+            cu_load_named_bank(v, 2, endb, "end", err, err_cap) != 0)
+            return -1;
     }
     return v->nsnaps;
 }
@@ -430,6 +584,7 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->orbs, s->n_orbs, s->biome,
                               s->world_rand_seed, v->success_item);
     v->envs[i].dim_bank = v->dim_snaps;
+    v->envs[i].dim_ow = &v->snaps[v->assign[i]];
     v->envs[i].dimension = 0;
     v->envs[i].pl.fire = s->player_fire;
     v->envs[i].pl.air = s->player_air;

@@ -55,9 +55,17 @@ MC_HD static inline void cu_portal_tick(Blaze *env) {
 /* Execute dimension region swap from snapshot bank */
 MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
     int target_dim = env->swap_target_dim;
-    int bank_idx = target_dim + 1; /* -1 -> 0, 0 -> 1, 1 -> 2 */
-    const CuSnapshot *bank = (const CuSnapshot *)env->dim_bank;
-    const CuSnapshot *target = bank ? &bank[bank_idx] : NULL;
+    const CuSnapshot *target = NULL;
+    if (target_dim == 0) {
+        /* Return uses this env's assigned overworld snapshot, never a
+         * shared snaps[0] alias that would mix seeds across a batch. */
+        target = (const CuSnapshot *)env->dim_ow;
+    } else {
+        int bank_idx = target_dim + 1; /* -1 -> 0, 1 -> 2 */
+        const CuSnapshot *bank = (const CuSnapshot *)env->dim_bank;
+        if (bank && (bank_idx == 0 || bank_idx == 2))
+            target = &bank[bank_idx];
+    }
 
     if (!target || !target->cells) {
         env->swap_pending = 0;

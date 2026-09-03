@@ -23,7 +23,10 @@ Therefore, **each env keeps exactly ONE active region** in memory, plus explicit
 - `dimension`: `int32_t` (0 = Overworld, -1 = Nether, 1 = The End; matches Oracle `DimensionType.java:8-10`)
 - `portal_time`: `int32_t` (accumulated continuous contact ticks with portal blocks; triggers transfer at 82 ticks)
 - `portal_cooldown`: `int32_t` (ticks before transit can trigger again; initialized to 100 on transit, refreshed to 100 while remaining in portal pane)
-- `dim_bank`: pointer to the per-dimension snapshot bank holding pre-baked `.bsnp` regions for that world seed.
+- `dim_bank`: pointer to the per-dimension snapshot bank holding pre-baked `.bsnp` regions for that world seed (`CuSnapshot[3]`, index 0 = Nether, 2 = End). Overworld is not stored here.
+- `dim_ow`: pointer to this env's own assigned overworld snapshot. Returning from the Nether reloads that snapshot, never a shared `snaps[0]`.
+
+Bank paths are named explicitly. `BlazeCreateOpts.nether_bank` / `end_bank` win if set at `blaze_create`. Otherwise `blaze_load_snapshots` reads a sidecar `<overworld>.bsnp.banks` next to the first loaded snapshot (`nether=` / `end=` relative to that directory). A named path that is missing fails closed (`nether bank missing: PATH`). Filename rewriting (`strstr(..., "portals.bsnp")`) is not used.
 
 ## State partitioning across a dimension swap
 

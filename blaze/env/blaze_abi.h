@@ -21,6 +21,8 @@ typedef struct BlazeCreateOpts {
     int stack_kib;        /* CUDA per-thread stack limit, KiB. 0 = 128 default.
                            * CPU backend ignores it. See blaze_cuda.cu
                            * blaze_create for why the default is 128. */
+    const char *nether_bank; /* path to Nether .bsnp bank, NULL = unset */
+    const char *end_bank;    /* path to End .bsnp bank, NULL = unset */
 } BlazeCreateOpts;
 
 /* Fill *o with the historical unset-env defaults. */
@@ -33,6 +35,8 @@ static inline void blaze_create_opts_default(BlazeCreateOpts *o) {
     o->op_trace = 0;
     o->no_ore_xy = 0;
     o->stack_kib = 128;
+    o->nether_bank = NULL;
+    o->end_bank = NULL;
 }
 
 /* opts may be NULL (defaults). device is ignored by the CPU backend. */

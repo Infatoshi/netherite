@@ -70,19 +70,23 @@ class BlazeCreateOpts(ctypes.Structure):
         ("op_trace", ctypes.c_int),
         ("no_ore_xy", ctypes.c_int),
         ("stack_kib", ctypes.c_int),
+        ("nether_bank", ctypes.c_char_p),
+        ("end_bank", ctypes.c_char_p),
     ]
 
     @classmethod
     def defaults(cls):
         return cls(ktime=0, stage_time=0, legacy_recenter=0,
-                   warp_tick=1, op_trace=0, no_ore_xy=0, stack_kib=128)
+                   warp_tick=1, op_trace=0, no_ore_xy=0, stack_kib=128,
+                   nether_bank=None, end_bank=None)
 
 
 class VecBlaze:
     def __init__(self, n, device=0, so_path=None, *,
                  ktime=False, stage_time=False, legacy_recenter=False,
                  warp_tick=1, op_trace=False, no_ore_xy=False,
-                 stack_kib=128, no_emit_all=False):
+                 stack_kib=128, no_emit_all=False,
+                 nether_bank=None, end_bank=None):
         if so_path is None:
             so_path = CPU_SO
             if os.path.exists(CUDA_SO):
@@ -142,6 +146,10 @@ class VecBlaze:
             self.lib.blaze_emit_all.argtypes = [ctypes.c_void_p, ctypes.c_int,
                                                 ctypes.c_void_p]
             self.lib.blaze_emit_all.restype = ctypes.c_int
+        self._bank_keepalive = (
+            nether_bank.encode() if nether_bank else None,
+            end_bank.encode() if end_bank else None,
+        )
         opts = BlazeCreateOpts(
             ktime=1 if ktime else 0,
             stage_time=1 if stage_time else 0,
@@ -150,6 +158,8 @@ class VecBlaze:
             op_trace=1 if op_trace else 0,
             no_ore_xy=1 if no_ore_xy else 0,
             stack_kib=int(stack_kib),
+            nether_bank=self._bank_keepalive[0],
+            end_bank=self._bank_keepalive[1],
         )
         self.h = self.lib.blaze_create(device, n, ctypes.byref(opts))
         if not self.h:

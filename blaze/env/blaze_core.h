@@ -488,7 +488,8 @@ typedef struct {
     int in_portal;            /* 1 nether portal (block 90), 2 end portal (119) */
     int swap_pending;         /* 1 if transfer fired on this tick */
     int swap_target_dim;      /* destination dimension ID */
-    const void *dim_bank;     /* pointer to dimension snapshot bank */
+    const void *dim_bank;     /* CuSnapshot[3]: [0]=nether, [2]=end */
+    const void *dim_ow;       /* this env's own overworld snapshot */
 } Blaze;
 
 /* =================== region / window accessors =================== */
