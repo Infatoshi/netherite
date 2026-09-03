@@ -23,3 +23,6 @@ tests/test_beds
 tests/test_xp_orbs
 game/test_block_registry
 game/test_play_compose
+tests/test_explosions
+tests/test_placement
+tests/test_potions
