@@ -40,7 +40,15 @@ enum {
 enum {
     HSWIM = 0, HMELEE, HSWELL, HBOW, HREST, HFLEE, HAVOID, HHOME, HVILL, HWAND, HWATCH, HIDLE, HN
 };
-#define hai_bit(t) (1u << (t))
+/* magma mob_live.c:1618. Bits are not 1<<enum: swim=1 wander=8 watch=16 idle=32
+ * melee=64 swell=128 bow=256. Snapshot task_bits and the 256u HBOW tests
+ * hash this packing. */
+MC_HD static inline unsigned hai_bit(int task) {
+    static const unsigned b[HN] = {
+        1u, 64u, 128u, 256u, 512u, 1024u, 2048u, 4096u, 8192u, 8u, 16u, 32u
+    };
+    return (task >= 0 && task < HN) ? b[task] : 0u;
+}
 
 #define HT_HURT 1u
 #define HT_PLAYER 2u
@@ -169,39 +177,27 @@ MC_HD static inline int mai_mutex(int task) {
 }
 
 MC_HD static inline int hai_pri(int type, int task) {
-    if (task == HSWIM) return 1;
-    if (type == EW_TYPE_CREEPER) {
-        if (task == HSWELL) return 2;
-        if (task == HAVOID) return 3;
-        if (task == HMELEE) return 4;
-        if (task == HWAND) return 5;
-        if (task == HWATCH) return 6;
-        if (task == HIDLE) return 6;
-    } else if (type == EW_TYPE_SKELETON) {
-        if (task == HREST) return 2;
-        if (task == HFLEE) return 3;
-        if (task == HAVOID) return 4;
-        if (task == HBOW || task == HMELEE) return 4;
-        if (task == HWAND) return 5;
-        if (task == HWATCH) return 6;
-        if (task == HIDLE) return 6;
-    } else if (type == EW_TYPE_ZOMBIE) {
-        if (task == HMELEE) return 2;
-        if (task == HWAND) return 7;
-        if (task == HWATCH) return 8;
-        if (task == HIDLE) return 8;
-    }
+    /* magma mob_live.c:1624 */
+    if (task == HSWIM) return type == EW_TYPE_ZOMBIE ? 0 : 1;
+    if (task == HMELEE) return type == EW_TYPE_ZOMBIE ? 2 : 4;
+    if (task == HSWELL) return 2;
+    if (task == HBOW || task == HREST)
+        return type == EW_TYPE_SKELETON && task == HREST ? 2 : 4;
+    if (task == HFLEE || task == HAVOID) return 3;
+    if (task == HHOME) return 5;
+    if (task == HVILL) return 6;
+    if (task == HWAND) return type == EW_TYPE_ZOMBIE ? 7 : 5;
+    if (task == HWATCH || task == HIDLE) return type == EW_TYPE_ZOMBIE ? 8 : 6;
     return 99;
 }
 
 MC_HD static inline int hai_mutex(int task) {
+    /* magma mob_live.c:1636. Wander mutex 1 overlaps melee/bow/idle 3. */
     if (task == HSWIM) return 4;
-    if (task == HREST || task == HFLEE || task == HAVOID || task == HMELEE ||
-        task == HBOW || task == HHOME || task == HVILL || task == HWAND) return 1;
-    if (task == HSWELL) return 1;
+    if (task == HMELEE || task == HBOW || task == HIDLE) return 3;
     if (task == HWATCH) return 2;
-    if (task == HIDLE) return 3;
-    return 0;
+    if (task == HREST) return 0;
+    return 1;
 }
 
 MC_HD static inline float hai_follow(int type) {
@@ -209,14 +205,16 @@ MC_HD static inline float hai_follow(int type) {
 }
 
 MC_HD static inline const int *hai_goals(int type, int skel_melee) {
-    static const int creeper[] = {HSWIM, HSWELL, HAVOID, HMELEE, HWAND, HWATCH, HIDLE, -1};
-    static const int skel_bow[] = {HSWIM, HREST, HFLEE, HAVOID, HBOW, HWAND, HWATCH, HIDLE, -1};
-    static const int skel_mel[] = {HSWIM, HREST, HFLEE, HAVOID, HMELEE, HWAND, HWATCH, HIDLE, -1};
-    static const int zombie[] = {HSWIM, HMELEE, HWAND, HWATCH, HIDLE, -1};
+    /* magma mob_live.c:1646. Skeleton combat is LinkedHashSet-appended after
+     * wander/watch/idle so those shouldExecute draws still run that setup tick. */
+    static const int z[] = {HSWIM, HMELEE, HHOME, HVILL, HWAND, HWATCH, HIDLE, -1};
+    static const int s_bow[] = {HSWIM, HREST, HFLEE, HAVOID, HWAND, HWATCH, HIDLE, HBOW, -1};
+    static const int s_melee[] = {HSWIM, HREST, HFLEE, HAVOID, HWAND, HWATCH, HIDLE, HMELEE, -1};
+    static const int c[] = {HSWIM, HSWELL, HAVOID, HMELEE, HWAND, HWATCH, HIDLE, -1};
     static const int empty[] = {-1};
-    if (type == EW_TYPE_CREEPER) return creeper;
-    if (type == EW_TYPE_SKELETON) return skel_melee ? skel_mel : skel_bow;
-    if (type == EW_TYPE_ZOMBIE) return zombie;
+    if (type == EW_TYPE_SKELETON) return skel_melee ? s_melee : s_bow;
+    if (type == EW_TYPE_CREEPER) return c;
+    if (type == EW_TYPE_ZOMBIE) return z;
     return empty;
 }
 
@@ -377,22 +375,27 @@ MC_HD static inline float mai_block_path_weight(const Blaze *e, int dim, int typ
     return 0.0f;
 }
 
-MC_HD static inline int mai_in_material(const Blaze *e, const RlSnapMob *m, int mat) {
+MC_HD static inline int mai_in_material(const Blaze *e, const RlSnapMob *m, int lava) {
+    /* magma pai_in_material (mob_live.c:766). Water inset 0.001 is the
+     * isInWater stand-in WanderAvoidWater.shouldExecute uses; lava uses
+     * isInsideOfMaterial 0.1 / no y-inset. */
     float width, height;
+    double inset;
+    int x0, x1, y0, y1, z0, z1, x, y, z;
     mai_size(m->type, &width, &height);
-    double hf = (double)width * 0.5;
-    McAABB bb = mc_aabb_make(m->x - hf, m->y, m->z - hf,
-                             m->x + hf, m->y + (double)height, m->z + hf);
-    McAABB eb = mc_aabb_expand(&bb, -0.10000000149011612, -0.4000000059604645, -0.10000000149011612);
-    int x0 = mc_floor(eb.minX), x1 = mc_floor(eb.maxX + 1.0);
-    int y0 = mc_floor(eb.minY), y1 = mc_floor(eb.maxY + 1.0);
-    int z0 = mc_floor(eb.minZ), z1 = mc_floor(eb.maxZ + 1.0);
-    for (int x = x0; x < x1; ++x)
-        for (int y = y0; y < y1; ++y)
-            for (int z = z0; z < z1; ++z) {
+    inset = lava ? 0.10000000149011612 : 0.001;
+    x0 = mc_floor(m->x - (double)width * 0.5 + inset);
+    x1 = mc_floor(m->x + (double)width * 0.5 - inset);
+    z0 = mc_floor(m->z - (double)width * 0.5 + inset);
+    z1 = mc_floor(m->z + (double)width * 0.5 - inset);
+    y0 = mc_floor(m->y - 0.4000000059604645 + (lava ? 0.0 : 0.001));
+    y1 = mc_floor(m->y + (double)height - (lava ? 0.0 : 0.001));
+    for (x = x0; x <= x1; ++x)
+        for (y = y0; y <= y1; ++y)
+            for (z = z0; z <= z1; ++z) {
                 int id = cu_world_block(e, x, y, z);
-                if (mat == 0 && (id == 8 || id == 9)) return 1;
-                if (mat == 1 && (id == 10 || id == 11)) return 1;
+                if ((!lava && (id == 8 || id == 9)) ||
+                    (lava && (id == 10 || id == 11))) return 1;
             }
     return 0;
 }
@@ -969,7 +972,11 @@ MC_HD static inline int mai_pai_try_start(Blaze *e, int i, int task,
             if (!found)
                 found = mai_random_position(e, m, 5, 4, 0, &jr, &tx, &ty, &tz);
             if (found) {
+                /* magma pai_jr mutates the live cursor before setPath. Write
+                 * back so PathFinder cannot reload the pre-shouldExecute seed. */
+                m->seed48 = jr.seed;
                 (void)mai_set_path(e, i, tx, ty, tz, mai_panic_multiplier(type));
+                jr.seed = m->seed48;
                 m->task_bits |= PAI_BIT(task);
                 started = 1;
             }
@@ -1009,8 +1016,11 @@ MC_HD static inline int mai_pai_try_start(Blaze *e, int i, int task,
             }
             if (ok) {
                 /* setPath failure does NOT cancel the task: magma marks it
-                 * using and lets continueExecuting drop it next tick. */
+                 * using and lets continueExecuting drop it next tick. Live
+                 * seed48 is committed before A* the same way pai_jr is. */
+                m->seed48 = jr.seed;
                 (void)mai_set_path(e, i, tx, ty, tz, 1.0);
+                jr.seed = m->seed48;
                 m->task_bits |= PAI_BIT(task);
                 started = 1;
             }
@@ -1117,6 +1127,9 @@ MC_HD static inline void mai_pai_tick(Blaze *e, int i,
     *wandering = *moving && (m->task_bits & PAI_BIT(PAI_WANDER));
     *jump = 0;
     *nav_speed = *moving ? e->mob_nav_speed[i] : 0.0;
+    /* magma pai_tick (mob_live.c:1601): revenge timer counts down AFTER
+     * shouldExecute, so a planted panic=1 still paths on that setup tick. */
+    if (m->panic > 0) --m->panic;
 }
 
 MC_HD static inline int mai_hai_can_use(const Blaze *e, int type, int i, int task) {
