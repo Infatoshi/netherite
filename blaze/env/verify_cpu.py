@@ -521,6 +521,7 @@ def parse_bsnp_mobs(path):
         f.read(vol * 2)
         ncoal = struct.unpack("<I", f.read(4))[0]
         f.read(ncoal * 12)
+        f.read(vol)  # v2+ packed light plane; skipping it mis-reads n_mobs
         version = struct.unpack_from("<I", head, 4)[0]
         mob_sz = 604 if version >= 10 else (572 if version >= 7 else 556)
         n_mobs = struct.unpack("<I", f.read(4))[0]
