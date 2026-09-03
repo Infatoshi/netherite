@@ -13,6 +13,11 @@ Backends:
 The dump is magma's pre-tick write at action index N (snapshot_bounds=inherit).
 Blaze has no live .bsnp writer on the verify ABI; magma dump is the format.
 
+--det-entity-rng is rejected (FAIL, nonzero). det AI sidecars
+(living_sound, entity_age, task_tick, watch/idle/eat, chicken_egg, follow)
+are not in the v11 snapshot trailer; a mid-episode dump would restore
+zeroed clocks. mobs_det sets resume: false in port_matrix.yaml.
+
 Usage:
   uv run --no-project --with numpy python blaze/env/verify_resume_parity.py \\
       --chain --snapshot PATH --tape PATH --features player,mobs --mobs-on
@@ -60,7 +65,7 @@ def _strip_snap(act):
 
 
 def magma_extras(features, mobs_on, natural_spawn, natural_spawn_passive,
-                 pin_time=True):
+                 pin_time=True, det_entity_rng=False):
     extra = []
     if "weather" in features:
         extra.extend(["--weather", "on"])
@@ -76,11 +81,14 @@ def magma_extras(features, mobs_on, natural_spawn, natural_spawn_passive,
         extra.extend(["--set", "natural_spawn_passive=1"])
         if pin_time:
             extra.extend(["--set", "set_time=6000"])
+    if det_entity_rng:
+        extra.extend(["--set", "det_entity_rng=1"])
     return extra
 
 
 def configure_blaze(cu, features, mobs_on, natural_spawn,
-                    natural_spawn_passive, pin_time=True):
+                    natural_spawn_passive, pin_time=True,
+                    det_entity_rng=False):
     """Match verify_cpu.py run_seed_parity flag application (post-reset).
 
     pin_time=False on resume: natural_spawn stays on so spawn still runs,
@@ -124,13 +132,20 @@ def configure_blaze(cu, features, mobs_on, natural_spawn,
             lib.blaze_set_world_time.restype = ctypes.c_int
             if lib.blaze_set_world_time(h, 6000) != 0:
                 raise RuntimeError("blaze_set_world_time failed")
+    if det_entity_rng:
+        lib.blaze_set_det_entity_rng.argtypes = [
+            ctypes.c_void_p, ctypes.c_int]
+        lib.blaze_set_det_entity_rng.restype = ctypes.c_int
+        if lib.blaze_set_det_entity_rng(h, 1) != 0:
+            raise RuntimeError("blaze_set_det_entity_rng failed")
 
 
 def make_blaze(snap, features, mobs_on, natural_spawn, natural_spawn_passive,
-               so_path=None, device=0, pin_time=True):
+               so_path=None, device=0, pin_time=True, det_entity_rng=False):
     cu = Blaze1(snap, port_parity=True, so_path=so_path, device=device)
     configure_blaze(cu, features, mobs_on, natural_spawn,
-                    natural_spawn_passive, pin_time=pin_time)
+                    natural_spawn_passive, pin_time=pin_time,
+                    det_entity_rng=det_entity_rng)
     return cu
 
 
@@ -289,9 +304,10 @@ def dump_blaze(cu, path):
 
 def run_blaze_continuous(snap, acts, n_plus_m, features, mobs_on,
                          natural_spawn, natural_spawn_passive, so_path=None,
-                         dump_path=None, dump_at=None):
+                         dump_path=None, dump_at=None, det_entity_rng=False):
     cu = make_blaze(snap, features, mobs_on, natural_spawn,
-                    natural_spawn_passive, so_path=so_path)
+                    natural_spawn_passive, so_path=so_path,
+                    det_entity_rng=det_entity_rng)
     pars = [cu.parity()]
     try:
         for t, act in enumerate(acts[:n_plus_m]):
@@ -305,10 +321,12 @@ def run_blaze_continuous(snap, acts, n_plus_m, features, mobs_on,
 
 
 def run_blaze_resume(dump_path, acts_tail, features, mobs_on,
-                     natural_spawn, natural_spawn_passive, so_path=None):
+                     natural_spawn, natural_spawn_passive, so_path=None,
+                     det_entity_rng=False):
     # Spawn knobs stay on; do not re-pin worldTime to the t0 night/day value.
     cu = make_blaze(dump_path, features, mobs_on, natural_spawn,
-                    natural_spawn_passive, so_path=so_path, pin_time=False)
+                    natural_spawn_passive, so_path=so_path, pin_time=False,
+                    det_entity_rng=det_entity_rng)
     pars = [cu.parity()]
     try:
         for act in acts_tail:
@@ -324,16 +342,27 @@ def run_one(args):
         name.strip() for name in (args.features or "").split(",")
         if name.strip()
     ]
+    if getattr(args, "det_entity_rng", False):
+        print(
+            "FAIL: --det-entity-rng resume is not supported. det AI sidecars "
+            "(living_sound, entity_age, task_tick, watch/idle/eat, chicken_egg, "
+            "follow) are not in the v11 snapshot trailer; a mid-episode dump "
+            "would restore zeroed clocks and a wrong JavaRandom consumption "
+            "order. mobs_det sets resume: false. See blaze/OPEN_DIVERGENCES.md."
+        )
+        return FAILED
     seed, snap, acts, blocked = load_actions(args)
     if blocked is not None:
         return blocked
     n, m = pick_nm(len(acts), args.n, args.m)
     extra = magma_extras(
         features, args.mobs_on, args.natural_spawn,
-        args.natural_spawn_passive, pin_time=True)
+        args.natural_spawn_passive, pin_time=True,
+        det_entity_rng=False)
     extra_resume = magma_extras(
         features, args.mobs_on, args.natural_spawn,
-        args.natural_spawn_passive, pin_time=False)
+        args.natural_spawn_passive, pin_time=False,
+        det_entity_rng=False)
     backends = []
     if args.cuda:
         backends.append("cuda")
@@ -427,6 +456,10 @@ def main():
     ap.add_argument("--mobs-on", action="store_true")
     ap.add_argument("--natural-spawn", action="store_true")
     ap.add_argument("--natural-spawn-passive", action="store_true")
+    ap.add_argument("--det-entity-rng", action="store_true",
+                    help="rejected: det AI sidecars are not snapshotted")
+    ap.add_argument("--require-findpath", action="store_true",
+                    help="accepted for port_matrix argv copy; unused")
     ap.add_argument("--n", type=int, default=None,
                     help="checkpoint action index (default: n_acts-M)")
     ap.add_argument("--m", type=int, default=None,

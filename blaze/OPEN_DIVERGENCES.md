@@ -195,6 +195,11 @@ closing needs. Spot-checked by hand on 2026-08-23: rows 7 and 10 confirmed.
    supported listed row. mining_slice BLOCKED (v1 fixture and missing
    `*_d*.bsnp`; no recapture on gamer). Potion/shield/sleep stay other
    lanes. Item overflow queue stays row 9. Forensics: `docs/DEVLOG.md`.
+   det_entity_rng / `mobs_det` is not in that set. Resume is dropped:
+   `verify_resume_parity.py` FAILs if `--det-entity-rng` is passed because
+   living_sound, entity_age, task_tick, watch/idle/eat, chicken_egg, and
+   follow are not in the v11 snapshot trailer. `port_matrix.yaml` sets
+   `resume: false`. No v12 sidecar.
 5. Focused M2 production kernels: CLOSED 2026-08-23 lane `warpm2`.
    `verify_cuda.py --m2-kernel raw|warp|scalar` and per-row `m2_kernels:`
    (default raw, warp, scalar). warp/scalar drive `blaze_tick` ->
