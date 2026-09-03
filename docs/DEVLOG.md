@@ -84,6 +84,31 @@ be probed, the lane's end can. The env integration (d7508e8 to 14b2698)
 changes nothing in t0 (identical numbers on both seeds) and wins back
 6.5x to 9.5x wall. The learning regression is in the trainer lane.
 
+Cause: the tail minibatch. The sealed CUDA path (d73f7e0, 92127c7)
+runs every update at n=mb and drops the tail rows, n_tr mod mb. With
+mb=8192 and n_tr about 32.7k that is up to 8191 rows, a quarter of the
+chunk, every chunk. The 2026-08-21 trainer ran the tail as a fourth,
+smaller update. Knob `tail_mb` (029ba26 as `drop_tail`, 059168c final):
+`drop` is the sealed behaviour above, `partial` runs the tail at its own
+size unsealed (lt plans through the ring, conv plans bucketed), `overlap`
+(default) keeps the seal and runs one more update on the last mb rows of
+the permutation, so every row is trained and mb minus tail rows twice.
+Same recipe, three seeds, wip/nn-prec, anvil:
+
+| tail_mb | seed 0 | seed 1 | seed 2 | mean best t0 | wall |
+|---|---|---|---|---|---|
+| drop (14b2698) | 0.410 | 0.050 | 0.380 | 0.28 | 313-421 s |
+| partial (029ba26) | 0.615 | 0.595 | 0.645 | 0.62 | 381-435 s |
+| overlap (059168c, default) | 0.525 | 0.615 | 0.560 | 0.57 | 348-434 s |
+| 08-21 trainer 0943ce1 | 0.655 | 0.595 | 0.645 | 0.63 | 64-70 s |
+
+The wood-break learning regression is closed by the default. `partial`
+is one seed-noise step ahead of `overlap`; it costs the seal (unsealed
+max_n is the larger of n_envs and mb, so VRAM is the same at these
+sizes, but the mid-run lt picks return). The wall regression (5x to
+6.5x vs 08-21, all env phase) stays open; it is the first-edit sky_full
+rebuild plus the mobs and dims work, see the age-growth entry below.
+
 Precision A/B probe with knob `nn_prec` (`fast` vs `f32`) on `wip/nn-prec`.
 Unit tests (`test-cuda`, `test-cuda-conv`, `test-cuda-lt`, `test-cuda-layout`)
 and `smoke-cuda` PASS for both precision modes.
