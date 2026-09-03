@@ -852,18 +852,34 @@ def dump_phase_window(env, ph0, wall_s, n, ndec, tag):
         return ph
     d = (ph - ph0).astype(np.int64) if ph0 is not None else ph.astype(np.int64)
     tot = d.sum(axis=0)
-    s = int(tot.sum())
+    names = list(PHASE_NAMES)
+    main_idx = [i for i, name in enumerate(names)
+                if i < len(tot) and not name.startswith("rt_")]
+    s = int(sum(int(tot[i]) for i in main_idx))
     print(f"phase {tag} wall={wall_s*1000:.1f}ms "
           f"({wall_s*1000/max(ndec,1):.2f} ms/dec, N={n}):")
     if s <= 0:
         print("  (empty)")
         return ph
-    for i, name in enumerate(PHASE_NAMES):
-        if i >= len(tot):
-            break
+    for i in main_idx:
+        name = names[i]
         share = tot[i] / s
         print(f"  {name:10s} {share*100:6.1f}%  "
               f"{wall_s*1000*share:8.1f} ms  cycles={int(tot[i])}")
+    rt_idx = [i for i, name in enumerate(names)
+              if i < len(tot) and name.startswith("rt_")]
+    if rt_idx:
+        rt_name = "randtick"
+        rt_i = names.index(rt_name) if rt_name in names else -1
+        rt_tot = int(tot[rt_i]) if rt_i >= 0 else int(sum(int(tot[i]) for i in rt_idx))
+        print("  randtick breakdown (subset clocks, not extra wall):")
+        rt_share = (tot[rt_i] / s) if (rt_i >= 0 and s) else 0.0
+        rt_ms = wall_s * 1000.0 * rt_share
+        for i in rt_idx:
+            name = names[i]
+            share = (tot[i] / rt_tot) if rt_tot else 0.0
+            print(f"    {name:10s} {share*100:6.1f}% of randtick  "
+                  f"{rt_ms * share:8.1f} ms  cycles={int(tot[i])}")
     return ph
 
 

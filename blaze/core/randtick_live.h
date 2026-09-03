@@ -10,6 +10,8 @@
  *   RT_SECTION_NEEDS(w,cx,sec,cz)  non-zero iff the 16^3 has a ticker
  *                                  (ExtendedBlockStorage.getNeedsRandomTick
  *                                  :86). Default scans with bp_is_randtick_id.
+ *   RT_COUNT(w,k) / RT_COUNT_ADD   op-trace (blaze create opts.op_trace).
+ *   RT_CLK_T0() / RT_CLK_END(k)    stage_time subset clocks (CUDA only).
  *
  * Java World.rand (World.java:108) and World.updateLCG (World.java:95-97)
  * are the live streams. Position picks are the int32 LCG, not JavaRandom.
@@ -102,6 +104,53 @@
 #endif
 #ifndef rt_live_water_vaporizes
 #define rt_live_water_vaporizes(w) 0 /* nether WorldProviderHell; blaze is overworld */
+#endif
+#ifndef RT_COUNT
+#define RT_COUNT(w, k) ((void)0)
+#define RT_COUNT_ADD(w, k, n) ((void)0)
+#endif
+#ifndef RT_CLK_T0
+#define RT_CLK_T0() ((void)0)
+#define RT_CLK_END(k) ((void)0)
+#endif
+#ifndef RT_ST_CHUNK
+#define RT_ST_CHUNK 0
+#define RT_ST_PRECIP 0
+#define RT_ST_SEC_CHECK 0
+#define RT_ST_SEC_NEED 0
+#define RT_ST_LCG 0
+#define RT_ST_LOOKUP 0
+#define RT_ST_H_GRASS 0
+#define RT_ST_H_LEAVES 0
+#define RT_ST_H_FIRE 0
+#define RT_ST_H_CROP 0
+#define RT_ST_H_SAPLING 0
+#define RT_ST_H_FARMLAND 0
+#define RT_ST_H_ICE 0
+#define RT_ST_H_SNOW 0
+#define RT_ST_H_MYCELIUM 0
+#define RT_ST_H_NONE 0
+#endif
+#ifndef RT_PH_PREFIX
+#define RT_PH_PREFIX 0
+#define RT_PH_SEC 0
+#define RT_PH_PICK 0
+#define RT_PH_HANDLER 0
+#endif
+/* Precip height scan start (inclusive). Out-of-region columns are air, so
+ * blaze sets this to the region top; default is the world top (Java). */
+#ifndef RT_PRECIP_Y_TOP
+#define RT_PRECIP_Y_TOP(w) 255
+#endif
+/* Non-zero iff column (x,z) can hold a non-air block. 0 => precip height 0
+ * and freeze/snow at y=-1 is a no-op (canBlockFreezeBody y<0). */
+#ifndef RT_COLUMN_PRESENT
+#define RT_COLUMN_PRESENT(w, x, z) 1
+#endif
+/* Non-zero iff any of the 16 sections of chunk (cx,cz) can need random ticks.
+ * 0 skips the section loop; weather prefix still runs. */
+#ifndef RT_CHUNK_MAY_NEED
+#define RT_CHUNK_MAY_NEED(w, cx, cz) 1
 #endif
 
 MC_HD static inline int rt_live_opacity(int id) {
@@ -496,8 +545,12 @@ MC_HD static inline int rt_live_can_see_sky(RT_W *w, int x, int y, int z) {
 /* Chunk.getPrecipitationHeight :1083-1114: first blocksMovement-or-liquid
  * from the top, then +1. Opacity>0 stands in for blocksMovement. */
 MC_HD static inline int rt_live_precip_y(RT_W *w, int x, int z) {
-    int y;
-    for (y = 255; y > 0; --y) {
+    int y, ytop;
+    if (!RT_COLUMN_PRESENT(w, x, z)) return 0;
+    ytop = RT_PRECIP_Y_TOP(w);
+    if (ytop > 255) ytop = 255;
+    if (ytop < 1) return 0;
+    for (y = ytop; y > 0; --y) {
         int id = rt_live_id(w, x, y, z);
         if (id == 8 || id == 9 || id == 10 || id == 11)
             return y + 1;
@@ -694,38 +747,49 @@ MC_HD static inline void rt_live_tick_block(RT_W *w, int wx, int wy, int wz,
     if (!gr) { def = mc_gamerules_default(); gr = &def; }
     if (wy < 0 || wy >= 256) return;
     id = rt_live_id(w, wx, wy, wz);
+    RT_COUNT(w, RT_ST_LOOKUP);
     switch (id) {
         case BLK_GRASS:
+            RT_COUNT(w, RT_ST_H_GRASS);
             rt_live_tick_grass(w, rng, wx, wy, wz);
             break;
         case RT_BLK_LEAVES:
         case RT_BLK_LEAVES2:
+            RT_COUNT(w, RT_ST_H_LEAVES);
             rt_live_tick_leaves(w, wx, wy, wz, leaf_surr);
             break;
         case RT_BLK_FIRE:
+            RT_COUNT(w, RT_ST_H_FIRE);
             rt_live_tick_fire(w, wx, wy, wz, rng, gr);
             break;
         case RT_BLK_WHEAT:
         case RT_BLK_CARROT:
         case RT_BLK_POTATO:
+            RT_COUNT(w, RT_ST_H_CROP);
             rt_live_tick_crop(w, rng, wx, wy, wz);
             break;
         case RT_BLK_SAPLING:
+            RT_COUNT(w, RT_ST_H_SAPLING);
             rt_live_tick_sapling(w, rng, wx, wy, wz);
             break;
         case RT_BLK_FARMLAND:
+            RT_COUNT(w, RT_ST_H_FARMLAND);
             rt_live_tick_farmland(w, wx, wy, wz, raining);
             break;
         case RT_BLK_ICE:
+            RT_COUNT(w, RT_ST_H_ICE);
             rt_live_tick_ice(w, wx, wy, wz);
             break;
         case RT_BLK_SNOW_LAYER:
+            RT_COUNT(w, RT_ST_H_SNOW);
             rt_live_tick_snow(w, wx, wy, wz);
             break;
         case RT_BLK_MYCELIUM:
+            RT_COUNT(w, RT_ST_H_MYCELIUM);
             rt_live_tick_mycelium(w, rng, wx, wy, wz);
             break;
         default:
+            RT_COUNT(w, RT_ST_H_NONE);
             break;
     }
 }
@@ -762,15 +826,20 @@ MC_HD static inline void rt_live_chunk_worldrand_prefix(RT_W *w, JavaRandom *rng
     if (jrand_int_bound(rng, 16) == 0) {
         i32 j2 = rt_live_step_lcg(lcg);
         int wx, wz, py, fy;
+        RT_COUNT(w, RT_ST_PRECIP);
         if (!w) return;
         wx = j + (j2 & 15);
         wz = k + ((j2 >> 8) & 15);
-        py = rt_live_precip_y(w, wx, wz);
-        fy = py - 1;
-        if (rt_live_can_block_freeze_no_water(w, wx, fy, wz))
-            rt_live_set(w, wx, fy, wz, RT_BLK_ICE, 0);
-        if (raining && rt_live_can_snow_at(w, wx, py, wz, 1))
-            rt_live_set(w, wx, py, wz, RT_BLK_SNOW_LAYER, 0);
+        /* All-air column: precip height is 0, fy=-1, freeze/snow no-op.
+         * Still consumed the updateLCG draw above. */
+        if (RT_COLUMN_PRESENT(w, wx, wz)) {
+            py = rt_live_precip_y(w, wx, wz);
+            fy = py - 1;
+            if (rt_live_can_block_freeze_no_water(w, wx, fy, wz))
+                rt_live_set(w, wx, fy, wz, RT_BLK_ICE, 0);
+            if (raining && rt_live_can_snow_at(w, wx, py, wz, 1))
+                rt_live_set(w, wx, py, wz, RT_BLK_SNOW_LAYER, 0);
+        }
     }
 }
 
@@ -792,20 +861,46 @@ MC_HD static inline void rt_live_pass(RT_W *w, JavaRandom *rng, i32 *update_lcg,
 
     for (cx = ccx - radius; cx <= ccx + radius; ++cx) {
         for (cz = ccz - radius; cz <= ccz + radius; ++cz) {
-            rt_live_chunk_worldrand_prefix(w, rng, update_lcg, raining, thundering,
-                                           cx * 16, cz * 16);
+            int need;
+            RT_COUNT(w, RT_ST_CHUNK);
+            {
+                RT_CLK_T0();
+                rt_live_chunk_worldrand_prefix(w, rng, update_lcg, raining,
+                                               thundering, cx * 16, cz * 16);
+                RT_CLK_END(RT_PH_PREFIX);
+            }
+            if (!RT_CHUNK_MAY_NEED(w, cx, cz)) continue;
             for (sec = 0; sec < 16; ++sec) {
                 int base_y = sec * 16;
-                if (!RT_SECTION_NEEDS(w, cx, sec, cz)) continue;
+                {
+                    RT_CLK_T0();
+                    need = RT_SECTION_NEEDS(w, cx, sec, cz);
+                    RT_CLK_END(RT_PH_SEC);
+                }
+                RT_COUNT(w, RT_ST_SEC_CHECK);
+                if (!need) continue;
+                RT_COUNT(w, RT_ST_SEC_NEED);
                 for (att = 0; att < rts; ++att) {
-                    i32 j1 = rt_live_step_lcg(update_lcg);
-                    int lx = j1 & 15;
-                    int lz = (j1 >> 8) & 15;
-                    int ly = (j1 >> 16) & 15;
-                    int wx = cx * 16 + lx;
-                    int wy = base_y + ly;
-                    int wz = cz * 16 + lz;
-                    rt_live_tick_block(w, wx, wy, wz, rng, gr, leaf_surr, raining);
+                    i32 j1;
+                    int lx, lz, ly, wx, wy, wz;
+                    {
+                        RT_CLK_T0();
+                        j1 = rt_live_step_lcg(update_lcg);
+                        RT_COUNT(w, RT_ST_LCG);
+                        RT_CLK_END(RT_PH_PICK);
+                    }
+                    lx = j1 & 15;
+                    lz = (j1 >> 8) & 15;
+                    ly = (j1 >> 16) & 15;
+                    wx = cx * 16 + lx;
+                    wy = base_y + ly;
+                    wz = cz * 16 + lz;
+                    {
+                        RT_CLK_T0();
+                        rt_live_tick_block(w, wx, wy, wz, rng, gr, leaf_surr,
+                                           raining);
+                        RT_CLK_END(RT_PH_HANDLER);
+                    }
                 }
             }
         }

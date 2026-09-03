@@ -163,6 +163,22 @@ enum {
     CU_OP_ITEM_LIVE,       /* n_items sampled each live-item tick */
     CU_OP_FLUID_REG,       /* active fluid regions per fluid tick */
     CU_OP_LIGHT_Q,         /* block-light queue entries drained */
+    CU_OP_RT_CHUNK,        /* randtick chunks visited (view-distance square) */
+    CU_OP_RT_PRECIP,       /* ice/snow prefix: World.rand nextInt(16)==0 */
+    CU_OP_RT_SEC_CHECK,    /* RT_SECTION_NEEDS evaluations */
+    CU_OP_RT_SEC_NEED,     /* sections whose census is nonzero */
+    CU_OP_RT_LCG,          /* updateLCG draws in the per-section pick loop */
+    CU_OP_RT_LOOKUP,       /* block-id reads of the picked cell */
+    CU_OP_RT_H_GRASS,      /* tick_block dispatch by id */
+    CU_OP_RT_H_LEAVES,
+    CU_OP_RT_H_FIRE,
+    CU_OP_RT_H_CROP,
+    CU_OP_RT_H_SAPLING,
+    CU_OP_RT_H_FARMLAND,
+    CU_OP_RT_H_ICE,
+    CU_OP_RT_H_SNOW,
+    CU_OP_RT_H_MYCELIUM,
+    CU_OP_RT_H_NONE,       /* pick landed on a non-tickable id */
     CU_OP_N
 };
 #define CU_OP(e, k) do { if ((e)->ops) (e)->ops[k]++; } while (0)
@@ -185,6 +201,10 @@ enum {
     CU_PHASE_COAL,
     CU_PHASE_POST,
     CU_PHASE_REST,
+    CU_PHASE_RT_PREFIX,    /* chunk loop + thunder/ice/snow prefix (subset of RANDTICK) */
+    CU_PHASE_RT_SEC,       /* RT_SECTION_NEEDS census checks */
+    CU_PHASE_RT_PICK,      /* updateLCG position draws */
+    CU_PHASE_RT_HANDLER,   /* picked-cell lookup + Block.randomTick bodies */
     CU_PHASE_K
 };
 
@@ -1732,6 +1752,23 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
     return e->grass_sec[g] != 0;
 }
 
+MC_HD static inline int cu_rt_chunk_may_need(const Blaze *e, int cx, int cz) {
+    if (!e->grass_sec) return 1;
+    if (cx < e->gsx0 || cx >= e->gsx0 + e->gsnx) return 0;
+    if (cz < e->gsz0 || cz >= e->gsz0 + e->gsnz) return 0;
+    return 1;
+}
+
+MC_HD static inline int cu_rt_column_present(const Blaze *e, int x, int z) {
+    return x >= e->rx0 && x < e->rx0 + e->rnx &&
+           z >= e->rz0 && z < e->rz0 + e->rnz;
+}
+
+MC_HD static inline int cu_rt_precip_y_top(const Blaze *e) {
+    int y = e->ry0 + e->rny - 1;
+    return y < 255 ? y : 255;
+}
+
 #define RT_W Blaze
 #define rt_live_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #define rt_live_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
@@ -1742,7 +1779,63 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 #define rt_live_biome(w, x, z) cu_biome_at((w), (x), (z))
 #define RT_SECTION_NEEDS(w, cx, sec, cz) \
     cu_rt_section_needs((w), (cx), (sec), (cz))
+#define RT_COLUMN_PRESENT(w, x, z) cu_rt_column_present((w), (x), (z))
+#define RT_PRECIP_Y_TOP(w) cu_rt_precip_y_top((w))
+#define RT_CHUNK_MAY_NEED(w, cx, cz) cu_rt_chunk_may_need((w), (cx), (cz))
+#define RT_COUNT(w, k) CU_OP((w), (k))
+#define RT_COUNT_ADD(w, k, n) CU_OP_ADD((w), (k), (n))
+#define RT_ST_CHUNK CU_OP_RT_CHUNK
+#define RT_ST_PRECIP CU_OP_RT_PRECIP
+#define RT_ST_SEC_CHECK CU_OP_RT_SEC_CHECK
+#define RT_ST_SEC_NEED CU_OP_RT_SEC_NEED
+#define RT_ST_LCG CU_OP_RT_LCG
+#define RT_ST_LOOKUP CU_OP_RT_LOOKUP
+#define RT_ST_H_GRASS CU_OP_RT_H_GRASS
+#define RT_ST_H_LEAVES CU_OP_RT_H_LEAVES
+#define RT_ST_H_FIRE CU_OP_RT_H_FIRE
+#define RT_ST_H_CROP CU_OP_RT_H_CROP
+#define RT_ST_H_SAPLING CU_OP_RT_H_SAPLING
+#define RT_ST_H_FARMLAND CU_OP_RT_H_FARMLAND
+#define RT_ST_H_ICE CU_OP_RT_H_ICE
+#define RT_ST_H_SNOW CU_OP_RT_H_SNOW
+#define RT_ST_H_MYCELIUM CU_OP_RT_H_MYCELIUM
+#define RT_ST_H_NONE CU_OP_RT_H_NONE
+#define RT_PH_PREFIX CU_PHASE_RT_PREFIX
+#define RT_PH_SEC CU_PHASE_RT_SEC
+#define RT_PH_PICK CU_PHASE_RT_PICK
+#define RT_PH_HANDLER CU_PHASE_RT_HANDLER
+#if defined(__CUDA_ARCH__)
+#define RT_CLK_T0() unsigned long long _rt_t0 = ((w)->phase ? cu_clk64() : 0ULL)
+#define RT_CLK_END(k) do { if ((w)->phase) (w)->phase[k] += cu_clk64() - _rt_t0; } while (0)
+#endif
 #include "randtick_live.h"
+#undef RT_COUNT
+#undef RT_COUNT_ADD
+#undef RT_CLK_T0
+#undef RT_CLK_END
+#undef RT_COLUMN_PRESENT
+#undef RT_PRECIP_Y_TOP
+#undef RT_CHUNK_MAY_NEED
+#undef RT_ST_CHUNK
+#undef RT_ST_PRECIP
+#undef RT_ST_SEC_CHECK
+#undef RT_ST_SEC_NEED
+#undef RT_ST_LCG
+#undef RT_ST_LOOKUP
+#undef RT_ST_H_GRASS
+#undef RT_ST_H_LEAVES
+#undef RT_ST_H_FIRE
+#undef RT_ST_H_CROP
+#undef RT_ST_H_SAPLING
+#undef RT_ST_H_FARMLAND
+#undef RT_ST_H_ICE
+#undef RT_ST_H_SNOW
+#undef RT_ST_H_MYCELIUM
+#undef RT_ST_H_NONE
+#undef RT_PH_PREFIX
+#undef RT_PH_SEC
+#undef RT_PH_PICK
+#undef RT_PH_HANDLER
 
 #define FL_W Blaze
 #define fl_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
