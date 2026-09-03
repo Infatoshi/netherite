@@ -1,5 +1,28 @@
 # DEVLOG (compressed)
 
+## 2026-09-03 wip/nn-fable integration: compile split, dims, mob AI, incremental skylight
+
+Merged into wip/nn-fable today, in this order, each after its own review: wip/cuda-split (bd28dce), wip/gem-dims (66e4968), wip/gem-mobai (fc7fc87), wip/skylight-incr (c01c3aa). Two follow-up commits keep the det mob AI out of device builds (960fc4c, 8329a75): mc_atan2 is host-only and blaze_cuda.cu has no det_entity_rng setter, so mai_det_tick is dead code on the GPU and compiling it in only cost registers and cicc time. mobs_det M2 stays BLOCKED.
+
+Mac gates on c01c3aa, all VERIFIED: port_matrix M1 rows world_dynamics, spawn_to_torch, fluids, mobs, mobs_det, portals_dimensions; make -C magma test; make -C blaze/rl test; test-skylight-incr (1712 walking-player edits, 1710 incremental).
+
+Anvil gpu0 (sm_120, lane ~/nlanes/nn-fable-fp16, scripts ~/nlanes/nnf_gates.sh, logs .meas/c01c3aa.gates.log):
+
+| step | wall s |
+|---|---|
+| make -C magma blaze_cuda_so -j | 160 |
+| make -C blaze/rl env-cuda -j | 161 |
+| cicc blaze_cuda.cu / blaze_cuda_verify.cu | 27.3 / 28.3 |
+| ptxas blaze_cuda.cu / blaze_cuda_verify.cu | 131.3 / 119.1 |
+| verify_cuda.py default gate | 29 |
+| verify_cuda.py --chain | 10 |
+| verify_cuda.py --mixed --cpu-workers 16 | 116 |
+| bench --t0 --n 1024 --decisions 25 (runs 2, 3) | 8.43, 8.73 |
+
+The mixed gate final full-batch sha256 is bed161ee9e41068bac5f60d3983ee9e635f4584a000554124bfec4563413c95d, the same value the cuda-split run (1851 s) and the skylight run (133 s) printed, so dims and mob AI changed nothing on the CUDA output path. The compile phase times match the cuda-split-only build within a second.
+
+Process note. anvil ~/dev/netherite has master checked out and every wip branch lives in a ~/nlanes worktree. Twice today a side-ref push followed by a fast-forward in ~/dev/netherite moved anvil's local master to a wip commit; both times it was reset to fae41d7 with ORIG_HEAD and origin was never touched. The rule is now: push tmp refs and fast-forward inside the lane worktree only.
+
 ## 2026-09-03 incremental skylight A/B on anvil gpu1
 
 Question. Does the CuSkyDirty/CuSkyMoves drain in cu_light_after_opacity beat the 46x46 box 15-pass rebuild on the trainer configs from 2026-09-01, and does M2 still pass.
