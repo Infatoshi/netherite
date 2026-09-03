@@ -278,11 +278,14 @@ MC_HD static inline float mai_update_rotation(float current, float target, float
     return current + d;
 }
 
+/* EntityMoveHelper.limitAngle (EntityMoveHelper.java:152-172): the result is
+ * folded into [0, 360], NOT wrapped into [-180, 180). magma pai_limit_angle
+ * (mob_live.c:1329). */
 MC_HD static inline float mai_limit_angle(float current, float target, float max_delta) {
-    float d = mai_wrap_degrees(target - current);
-    if (d > max_delta) d = max_delta;
-    if (d < -max_delta) d = -max_delta;
-    return mai_wrap_degrees(current + d);
+    float f1 = mai_update_rotation(current, target, max_delta);
+    if (f1 < 0.0f) f1 += 360.0f;
+    else if (f1 > 360.0f) f1 -= 360.0f;
+    return f1;
 }
 
 MC_HD static inline float mai_angle_bound(float a1, float a2, float maxd) {
