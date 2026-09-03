@@ -65,6 +65,19 @@ bisect: `~/nlanes/ladder/wood_at.sh <commit> [--set k=v]` builds
 `~/nlanes/wood-<hash>` and runs the probe; `wood_seq.sh` runs seeds 1 and
 0 at 479a2c4, 11c57fc, fcab243 and d7508e8 (results below when done).
 
+Precision A/B probe with knob `nn_prec` (`fast` vs `f32`) on `wip/nn-prec`.
+Unit tests (`test-cuda`, `test-cuda-conv`, `test-cuda-lt`, `test-cuda-layout`)
+and `smoke-cuda` PASS for both precision modes.
+Wood-break acceptance probes queued via `wood.sh` in tmux sessions `nnf-prec-s1`
+and `nnf-prec-s0` on anvil gpu0 (queued behind `wood_fcab243_s0`):
+
+| tree | prec | seed | best t0 (ticks) | end t0 | wall 6M ticks | status |
+|---|---|---|---|---|---|---|
+| 14b2698 (HEAD) | fast | 0 | 0.410 (5.5M) | 0.355 | 421 s | PASS |
+| 14b2698 (HEAD) | fast | 1 | 0.050 (6.0M) | 0.050 | 313 s | PASS |
+| 3cc6404 (wip/nn-prec) | f32 | 1 | - | - | - | queued in nnf-prec-s1 |
+| 3cc6404 (wip/nn-prec) | f32 | 0 | - | - | - | queued in nnf-prec-s0 |
+
 Blaze V2 package A (phase-split tick library, gamer RTX 3090, lane
 `wip/blaze-v2` at 4c8a06e, delegate run 2026-09-03 05:30-08:00). Bitwise
 gates against V1: default PASS, chain PASS, mixed PASS at N=1536 (3379 s);
