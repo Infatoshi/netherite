@@ -78,7 +78,7 @@ typedef struct {
     u16   *cells_pool, *cam_pool;
     u16   *fluid_cur_pool, *fluid_tmp_pool;
     u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
-    int   *rt_leaf_pool;     /* per-env BlockLeaves surroundings[32768] */
+    int   *rt_leaf_pool;     /* per-env BlockLeaves surroundings[RT_LIVE_SURR] */
     int   *light_q_pool;     /* per-env CU_LIGHT_Q BLOCK flood queue */
     Pf12  *pf_pool;          /* per-env PathFinder scratch, 1.09 MiB each.
                               * Allocated on the first det_entity_rng enable,

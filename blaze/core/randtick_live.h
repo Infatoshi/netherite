@@ -92,8 +92,19 @@
 #define RT_BLK_ICE        79
 #define RT_BLK_PACKED_ICE 174
 #define RT_BLK_MYCELIUM   110
-#define RT_LIVE_SURR      32768
+/* Java BlockLeaves.updateTick allocates int[32768] and indexes
+ * (dx+16)*1024+(dy+16)*32+(dz+16). The walk only touches dx,dy,dz in
+ * [-5,5] (fill [-4,4], then ±1 neighbours), so a packed 11^3 is
+ * value-identical at every index the algorithm reads. */
+#define RT_LEAF_R         5
+#define RT_LEAF_D         (2 * RT_LEAF_R + 1)
+#define RT_LIVE_SURR      (RT_LEAF_D * RT_LEAF_D * RT_LEAF_D)
 #define RT_DIST_HASH_MAGIC 1013904223u /* World.java:97 */
+
+MC_HD static inline int rt_leaf_idx(int dx, int dy, int dz) {
+    return ((dx + RT_LEAF_R) * RT_LEAF_D + (dy + RT_LEAF_R)) * RT_LEAF_D
+         + (dz + RT_LEAF_R);
+}
 
 /* Optional accessors. Magma/blaze define block light; tests default 0. */
 #ifndef rt_live_block_light
@@ -173,6 +184,18 @@ MC_HD static inline i32 rt_live_step_lcg(i32 *lcg) {
     u = u * 3u + RT_DIST_HASH_MAGIC;
     *lcg = (i32)u;
     return (*lcg) >> 2;
+}
+
+/* Affine skip of n updateLCG steps, bit-exact with n calls of step_lcg. */
+MC_HD static inline u32 rt_live_lcg_skip(u32 x, u32 n) {
+    u32 a = 3u, c = RT_DIST_HASH_MAGIC;
+    while (n) {
+        if (n & 1u) x = a * x + c;
+        c = a * c + c;
+        a = a * a;
+        n >>= 1;
+    }
+    return x;
 }
 
 /* BlockFire.init setFireInfo tables, magma/game/randtick.c:50-88. */
@@ -383,7 +406,7 @@ MC_HD MC_NOINLINE static void rt_live_tick_leaves(RT_W *w, int x, int y, int z,
         for (j2 = -4; j2 <= 4; ++j2)
             for (k2 = -4; k2 <= 4; ++k2) {
                 int bid = rt_live_id(w, x + i2, y + j2, z + k2);
-                int idx = (i2 + 16) * 1024 + (j2 + 16) * 32 + (k2 + 16);
+                int idx = rt_leaf_idx(i2, j2, k2);
                 if (rt_live_is_log(bid))
                     surroundings[idx] = 0;
                 else if (rt_live_is_leaves(bid))
@@ -396,23 +419,23 @@ MC_HD MC_NOINLINE static void rt_live_tick_leaves(RT_W *w, int x, int y, int z,
         for (j3 = -4; j3 <= 4; ++j3)
             for (k3 = -4; k3 <= 4; ++k3)
                 for (l3 = -4; l3 <= 4; ++l3) {
-                    int base = (j3 + 16) * 1024 + (k3 + 16) * 32 + (l3 + 16);
+                    int base = rt_leaf_idx(j3, k3, l3);
                     if (surroundings[base] != i3 - 1) continue;
-                    if (surroundings[(j3 + 16 - 1) * 1024 + (k3 + 16) * 32 + l3 + 16] == -2)
-                        surroundings[(j3 + 16 - 1) * 1024 + (k3 + 16) * 32 + l3 + 16] = i3;
-                    if (surroundings[(j3 + 16 + 1) * 1024 + (k3 + 16) * 32 + l3 + 16] == -2)
-                        surroundings[(j3 + 16 + 1) * 1024 + (k3 + 16) * 32 + l3 + 16] = i3;
-                    if (surroundings[(j3 + 16) * 1024 + (k3 + 16 - 1) * 32 + l3 + 16] == -2)
-                        surroundings[(j3 + 16) * 1024 + (k3 + 16 - 1) * 32 + l3 + 16] = i3;
-                    if (surroundings[(j3 + 16) * 1024 + (k3 + 16 + 1) * 32 + l3 + 16] == -2)
-                        surroundings[(j3 + 16) * 1024 + (k3 + 16 + 1) * 32 + l3 + 16] = i3;
-                    if (surroundings[(j3 + 16) * 1024 + (k3 + 16) * 32 + (l3 + 16 - 1)] == -2)
-                        surroundings[(j3 + 16) * 1024 + (k3 + 16) * 32 + (l3 + 16 - 1)] = i3;
-                    if (surroundings[(j3 + 16) * 1024 + (k3 + 16) * 32 + l3 + 16 + 1] == -2)
-                        surroundings[(j3 + 16) * 1024 + (k3 + 16) * 32 + l3 + 16 + 1] = i3;
+                    if (surroundings[rt_leaf_idx(j3 - 1, k3, l3)] == -2)
+                        surroundings[rt_leaf_idx(j3 - 1, k3, l3)] = i3;
+                    if (surroundings[rt_leaf_idx(j3 + 1, k3, l3)] == -2)
+                        surroundings[rt_leaf_idx(j3 + 1, k3, l3)] = i3;
+                    if (surroundings[rt_leaf_idx(j3, k3 - 1, l3)] == -2)
+                        surroundings[rt_leaf_idx(j3, k3 - 1, l3)] = i3;
+                    if (surroundings[rt_leaf_idx(j3, k3 + 1, l3)] == -2)
+                        surroundings[rt_leaf_idx(j3, k3 + 1, l3)] = i3;
+                    if (surroundings[rt_leaf_idx(j3, k3, l3 - 1)] == -2)
+                        surroundings[rt_leaf_idx(j3, k3, l3 - 1)] = i3;
+                    if (surroundings[rt_leaf_idx(j3, k3, l3 + 1)] == -2)
+                        surroundings[rt_leaf_idx(j3, k3, l3 + 1)] = i3;
                 }
 
-    l2 = surroundings[16912];
+    l2 = surroundings[rt_leaf_idx(0, 0, 0)];
     if (l2 >= 0)
         rt_live_set(w, x, y, z, id, meta & ~8);
     else
@@ -515,21 +538,54 @@ MC_HD static inline void rt_live_temperature_noise_init(CpPerlin *tn) {
     cp_simplex_init(&tn->levels[0], &r);
 }
 
+#if defined(__CUDACC__)
+static __device__ CpPerlin rt_tn_dev;
+static __device__ int rt_tn_dev_ready;
+#endif
+
+/* Java's table is a static; rebuild-on-every-call was a blaze/magma extra. */
+MC_HD static inline const CpPerlin *rt_live_temperature_noise(void) {
+#if defined(__CUDA_ARCH__)
+    if (!rt_tn_dev_ready) {
+        rt_live_temperature_noise_init(&rt_tn_dev);
+        rt_tn_dev_ready = 1;
+    }
+    return &rt_tn_dev;
+#else
+    static CpPerlin tbl;
+    static int ready = 0;
+    if (!ready) {
+        rt_live_temperature_noise_init(&tbl);
+        ready = 1;
+    }
+    return &tbl;
+#endif
+}
+
 /* Biome.getFloatTemperature :258-268.
  * JVM: (float)x/8.0F promoted to double for Perlin; *4.0D cast to float. */
 MC_HD static inline float rt_live_float_temperature(int biome, int wx, int wy,
                                                     int wz) {
     float temp = mc_bpf_temperature(biome);
     if (wy > 64) {
-        CpPerlin tn;
-        float f;
-        rt_live_temperature_noise_init(&tn);
-        f = (float)(cp_perlin_getValue(&tn,
+        float f = (float)(cp_perlin_getValue(rt_live_temperature_noise(),
                       (double)((float)wx / 8.0f),
                       (double)((float)wz / 8.0f)) * 4.0);
         return temp - (f + (float)wy - 64.0f) * 0.05f / 30.0f;
     }
     return temp;
+}
+
+/* Coldest getFloatTemperature at this biome is at max y (the wy term
+ * subtracts). |simplex getValue| <= 70*3*(0.5^4)=13.125 so |f|<=52.5.
+ * If even that lower bound is >= 0.15, freeze/snow are impossible. */
+MC_HD static inline int rt_live_temp_can_freeze(int biome, int wy) {
+    float temp = mc_bpf_temperature(biome);
+    float coldest;
+    if (wy <= 64) return temp < 0.15f;
+    if (wy > 255) wy = 255;
+    coldest = temp - (52.5f + (float)wy - 64.0f) * 0.05f / 30.0f;
+    return coldest < 0.15f;
 }
 
 MC_HD static inline int rt_live_can_see_sky(RT_W *w, int x, int y, int z) {
@@ -833,12 +889,17 @@ MC_HD static inline void rt_live_chunk_worldrand_prefix(RT_W *w, JavaRandom *rng
         /* All-air column: precip height is 0, fy=-1, freeze/snow no-op.
          * Still consumed the updateLCG draw above. */
         if (RT_COLUMN_PRESENT(w, wx, wz)) {
-            py = rt_live_precip_y(w, wx, wz);
-            fy = py - 1;
-            if (rt_live_can_block_freeze_no_water(w, wx, fy, wz))
-                rt_live_set(w, wx, fy, wz, RT_BLK_ICE, 0);
-            if (raining && rt_live_can_snow_at(w, wx, py, wz, 1))
-                rt_live_set(w, wx, py, wz, RT_BLK_SNOW_LAYER, 0);
+            int biome = rt_live_biome(w, wx, wz);
+            int want_ice = rt_live_temp_can_freeze(biome, 255);
+            int want_snow = raining;
+            if (want_ice || want_snow) {
+                py = rt_live_precip_y(w, wx, wz);
+                fy = py - 1;
+                if (want_ice && rt_live_can_block_freeze_no_water(w, wx, fy, wz))
+                    rt_live_set(w, wx, fy, wz, RT_BLK_ICE, 0);
+                if (want_snow && rt_live_can_snow_at(w, wx, py, wz, 1))
+                    rt_live_set(w, wx, py, wz, RT_BLK_SNOW_LAYER, 0);
+            }
         }
     }
 }

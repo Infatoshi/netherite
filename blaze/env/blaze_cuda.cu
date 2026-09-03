@@ -692,10 +692,37 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
             double fx = 0.0, fy = 0.0, fz = 0.0;
             double ry = 0.0, rp = 0.0, dist = 0.0;
             int have_nc = 0;
-            if (lane == 0)
-                blaze_subtick_phys(e, st, a, rep, repeat,
-                                   aabb_pool + (size_t)w * PSV_MAX_BLOCKS,
-                                   0, &fx, &fy, &fz);
+            int ran = 0;
+            if (lane == 0) {
+                CU_OP(e, CU_OP_SUBTICK);
+                if (!e->dead) {
+                    CuAction act;
+                    blaze_act_from_row(&act, a, rep);
+                    ran = blaze_runtime_tick_pre_rt(
+                        e, st, act,
+                        aabb_pool + (size_t)w * PSV_MAX_BLOCKS);
+                }
+            }
+            ran = __shfl_sync(FULL, ran, 0);
+            __syncwarp();
+            if (ran) {
+                if (want_clk) t0 = cu_clk64();
+                cu_randtick_pass_lanes(e, lane, 32);
+                if (want_clk) {
+                    e->phase[CU_PHASE_RANDTICK] += cu_clk64() - t0;
+                    t0 = cu_clk64();
+                }
+            }
+            __syncwarp();
+            if (lane == 0) {
+                if (ran) blaze_runtime_tick_post_rt(e, st);
+                if (e->swap_pending) cu_dimension_swap_apply(e);
+                if (rep == repeat - 1) e->dec_cam_fresh = 1;
+                fx = (double)(float)(e->pl.ent.posX + (double)e->ox);
+                fy = (double)(float)e->pl.ent.posY;
+                fz = (double)(float)e->pl.ent.posZ + (double)e->oz;
+            }
+            (void)fx; (void)fy; (void)fz;
             __syncwarp();        /* lane-0 world/pose writes -> lane reads */
             if (want_clk) t0 = cu_clk64();
             cu_coal_warp(e, lane, &have_nc, &ry, &rp, &dist);
