@@ -795,6 +795,10 @@ static int prepare_bucket(NnCuda *nn, int n) {
     return -1;
   if (backward_device(nn, n) != 0)
     return -1;
+  if (nn_lt_pin(nn->ltg, n) != 0) {
+    set_err("lt pin failed");
+    return -1;
+  }
   /* The lt picks above may have grown the shared arena. Settle it over every
    * conv plan of every prepared bucket plus the new lt floor. */
   nn_conv_net_set_ws_floor(nn->conv, nn_lt_max_ws(nn->ltg));

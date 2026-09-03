@@ -17,6 +17,8 @@ NnLtGemm *nn_lt_create(cublasLtHandle_t lt, int device, int max_n,
                        NnWsArena *ws);
 void nn_lt_destroy(NnLtGemm *g);
 int nn_lt_prepare(NnLtGemm *g, int n);
+/* Keep every plan at this n through plan-table eviction (prepared buckets). */
+int nn_lt_pin(NnLtGemm *g, int n);
 
 /* Freeze the plan set and drop the timing scratch. After the seal a plan that
  * was never picked fails instead of querying and timing algos mid-step. */

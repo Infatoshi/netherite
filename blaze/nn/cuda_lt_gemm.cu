@@ -34,6 +34,7 @@ enum {
   kTimeN = 8,
   kRepeat = 3,
   kPlanCap = 64,
+  kPrepCap = 8,
   kWsMin = 32 << 20
 };
 
@@ -86,6 +87,10 @@ struct NnLtGemm {
   Plan plans[kPlanCap];
   int n_plans;
   int sealed; /* 1 = plan set frozen; a lazy pick is an error */
+  int prep_ns[kPrepCap]; /* n values pinned by nn_lt_pin: never evicted */
+  int n_prep;
+  int evict_cur; /* ring cursor over the unpinned plans */
+  long long n_evict;
   cudaEvent_t ev0, ev1;
 };
 
@@ -589,12 +594,41 @@ static Plan *lookup(NnLtGemm *g, int kind, int n, int out, int k, int lda,
   return nullptr;
 }
 
+static int pinned_n(const NnLtGemm *g, int n) {
+  for (int i = 0; i < g->n_prep; ++i)
+    if (g->prep_ns[i] == n)
+      return 1;
+  return 0;
+}
+
+/* Plans are keyed by exact n. An unsealed run (ppo mb=0) updates on the
+ * compacted valid rows, so n_tr changes every chunk and each new n costs one
+ * plan per kind. The table is a ring over those plans: when it is full the
+ * oldest plan whose n is not pinned is reused. Pinned n (the rollout and
+ * update buckets, via nn_lt_pin) stay. A sealed run never gets here. */
 static Plan *alloc_plan(NnLtGemm *g) {
-  if (g->n_plans >= kPlanCap)
-    return nullptr;
-  Plan *p = &g->plans[g->n_plans++];
-  std::memset(p, 0, sizeof(*p));
-  return p;
+  if (g->n_plans < kPlanCap) {
+    Plan *p = &g->plans[g->n_plans++];
+    std::memset(p, 0, sizeof(*p));
+    return p;
+  }
+  for (int t = 0; t < kPlanCap; ++t) {
+    int i = (g->evict_cur + t) % kPlanCap;
+    Plan *p = &g->plans[i];
+    if (pinned_n(g, p->n))
+      continue;
+    g->evict_cur = (i + 1) % kPlanCap;
+    if (g->n_evict == 0)
+      std::fprintf(stderr,
+                   "nn_lt evict: plan table full (%d), reusing kind=%d n=%d "
+                   "(later evictions are silent)\n",
+                   kPlanCap, p->kind, p->n);
+    g->n_evict++;
+    std::memset(p, 0, sizeof(*p));
+    return p;
+  }
+  set_err("nn_lt: plan table full and every plan is pinned");
+  return nullptr;
 }
 
 static int pick_plan(NnLtGemm *g, int kind, int n, int out, int k, GemmSpec s,
@@ -780,6 +814,19 @@ int nn_lt_prepare(NnLtGemm *g, int n) {
   if (ensure_ones(g, n > g->max_n ? n : g->max_n) != 0)
     return -1;
   g->prepared_n = n;
+  return 0;
+}
+
+/* nn_lt_prepare runs on every forward, so it cannot mark buckets. The conv
+ * side calls this once per prepared bucket (rollout n, update n, max_n). */
+int nn_lt_pin(NnLtGemm *g, int n) {
+  if (!g || n < 1 || n > g->max_n)
+    return -1;
+  if (pinned_n(g, n))
+    return 0;
+  if (g->n_prep >= kPrepCap)
+    return -1;
+  g->prep_ns[g->n_prep++] = n;
   return 0;
 }
 
