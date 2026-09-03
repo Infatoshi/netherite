@@ -978,7 +978,7 @@ subsystems:
 
   - name: mobs_det
     supported: true
-    resume: true
+    resume: false
     sources:
       magma: [magma/game/mob_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
       shared:
@@ -997,13 +997,13 @@ subsystems:
       m1:
         - magma/magma_game
         - blaze/env/blaze_cpu.so
-        - verify/fixtures/port/s10_t0_r64_mobs_passive.bsnp
-        - blaze/rl/fixtures/mobs_passive_s10.json
+        - verify/fixtures/port/s10_t0_r64_mobs_det.bsnp
+        - blaze/rl/fixtures/mobs_det_s10.json
       m2:
         - blaze/env/blaze_cpu.so
         - blaze/env/blaze_cuda.so
-        - verify/fixtures/port/s10_t0_r64_mobs_passive.bsnp
-        - blaze/rl/fixtures/mobs_passive_s10.json
+        - verify/fixtures/port/s10_t0_r64_mobs_det.bsnp
+        - blaze/rl/fixtures/mobs_det_s10.json
     m1:
       - uv
       - run
@@ -1014,11 +1014,11 @@ subsystems:
       - blaze/env/verify_detmob.py
       - --chain
       - --expected-chain-actions
-      - "64"
+      - "600"
       - --snapshot
-      - verify/fixtures/port/s10_t0_r64_mobs_passive.bsnp
+      - verify/fixtures/port/s10_t0_r64_mobs_det.bsnp
       - --tape
-      - blaze/rl/fixtures/mobs_passive_s10.json
+      - blaze/rl/fixtures/mobs_det_s10.json
       - --port-parity
       - --strict-capabilities
       - --features
@@ -1026,6 +1026,7 @@ subsystems:
       - --mobs-on
       - --natural-spawn-passive
       - --det-entity-rng
+      - --require-findpath
     m2:
       - uv
       - run
@@ -1036,19 +1037,20 @@ subsystems:
       - blaze/env/verify_cuda.py
       - --chain
       - --expected-chain-actions
-      - "64"
+      - "600"
       - --snapshot
-      - verify/fixtures/port/s10_t0_r64_mobs_passive.bsnp
+      - verify/fixtures/port/s10_t0_r64_mobs_det.bsnp
       - --tape
-      - blaze/rl/fixtures/mobs_passive_s10.json
+      - blaze/rl/fixtures/mobs_det_s10.json
       - --port-parity
       - --strict-capabilities
       - --features
       - mobs,xp
       - --mobs-on
       - --natural-spawn-passive
+      - --det-entity-rng
     m2_kernels: [raw, warp, scalar]
-    timeout: 1500
+    timeout: 2400
 
   - name: mobs_ss
     supported: true

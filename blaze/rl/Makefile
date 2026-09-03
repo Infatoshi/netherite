@@ -100,6 +100,7 @@ TEST_MOBS_SS_BIN := $(OUT)/test_mobs_ss
 TEST_MOBS_END_BIN := $(OUT)/test_mobs_end
 TEST_MOBS_WITCH_BIN := $(OUT)/test_mobs_witch
 TEST_PASSIVES_BIN := $(OUT)/test_passives
+TEST_MOBS_DET_BIN := $(OUT)/test_mobs_det
 TEST_XP_BIN := $(OUT)/test_xp
 TEST_GROUND_BIN := $(OUT)/test_ground_items
 TEST_BOATS_BIN := $(OUT)/test_boats
@@ -125,7 +126,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
-	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight smoke smoke-cpu smoke-cuda \
+	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-mobs-det test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight smoke smoke-cpu smoke-cuda \
 	smoke-metal smoke-reset test sanitize clean env-cpu env-cuda \
 	env-metal eval test-eval-magma eval-magma
 
@@ -322,6 +323,11 @@ $(TEST_PASSIVES_BIN): $(ENV_SRC)/test_passives.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_passives.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_MOBS_DET_BIN): $(ENV_SRC)/test_mobs_det.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/passive_live.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs_det.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 $(TEST_XP_BIN): $(ENV_SRC)/test_xp.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/xp_live.h \
 		$(CORE_SRC)/xp_world_tick.h $(CORE_SRC)/entity_xp_orb.h | $(OUT)
@@ -437,7 +443,7 @@ test-chain: $(TEST_CHAIN_BIN)
 test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN) \
 		$(TEST_WEATHER_BIN) $(TEST_CHEST_BIN) $(TEST_FURNACE_BIN) $(TEST_PROJ_BIN) $(TEST_EXPL_BIN) \
 		$(TEST_RANDTICK_BIN) $(TEST_BIOME_BIN) \
-		$(TEST_MOBS_BIN) $(TEST_MOBS_SS_BIN) $(TEST_MOBS_END_BIN) $(TEST_MOBS_WITCH_BIN) $(TEST_PASSIVES_BIN) $(TEST_XP_BIN) $(TEST_GROUND_BIN) $(TEST_BOATS_BIN) $(TEST_ELYTRA_BIN) \
+		$(TEST_MOBS_BIN) $(TEST_MOBS_SS_BIN) $(TEST_MOBS_END_BIN) $(TEST_MOBS_WITCH_BIN) $(TEST_PASSIVES_BIN) $(TEST_MOBS_DET_BIN) $(TEST_XP_BIN) $(TEST_GROUND_BIN) $(TEST_BOATS_BIN) $(TEST_ELYTRA_BIN) \
 		$(TEST_HAZARDS_BIN) \
 		$(TEST_POTIONS_BIN) \
 		$(TEST_PLACE_BIN) \
@@ -460,6 +466,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_mobs_end
 	cd $(REPO) && ./out/blaze/rl/test_mobs_witch
 	cd $(REPO) && ./out/blaze/rl/test_passives
+	cd $(REPO) && ./out/blaze/rl/test_mobs_det
 	cd $(REPO) && ./out/blaze/rl/test_xp
 	cd $(REPO) && ./out/blaze/rl/test_ground_items
 	cd $(REPO) && ./out/blaze/rl/test_boats
@@ -526,6 +533,9 @@ test-mobs-witch: $(TEST_MOBS_WITCH_BIN)
 
 test-passives: $(TEST_PASSIVES_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_passives
+
+test-mobs-det: $(TEST_MOBS_DET_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_mobs_det
 
 test-skylight-water: $(TEST_SKY_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water

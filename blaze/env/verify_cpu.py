@@ -928,11 +928,30 @@ def print_initial_parity(seed, label, real_rec, blaze_rec, features):
               f"active={int(bool(blaze_rec.active & (1 << idx)))} [{match}]")
 
 
+def blaze_mob_ai_stats(cu):
+    """Return (pf_calls, pf_paths) for env 0, or None if the ABI is missing."""
+    fn = getattr(cu.lib, "blaze_mob_ai_stats", None)
+    if fn is None:
+        return None
+    fn.argtypes = [
+        ctypes.c_void_p, ctypes.c_int,
+        ctypes.POINTER(ctypes.c_ulonglong),
+        ctypes.POINTER(ctypes.c_ulonglong)]
+    fn.restype = ctypes.c_int
+    calls = ctypes.c_ulonglong(0)
+    paths = ctypes.c_ulonglong(0)
+    if fn(ctypes.c_void_p(cu.h), 0, ctypes.byref(calls),
+          ctypes.byref(paths)) != 0:
+        return None
+    return int(calls.value), int(paths.value)
+
+
 def run_seed_parity(seed, snap, actions, label, features,
                     strict_capabilities=False, require_evidence=True,
                     track_liquid=False, result=None, mobs_on=False,
                     natural_spawn=False, natural_spawn_passive=False,
-                    dump_mobs=False, det_entity_rng=False):
+                    dump_mobs=False, det_entity_rng=False,
+                    require_findpath=False):
     """Lockstep Magma vs Blaze CPU on PARY digests. Existing callers unchanged.
 
     require_evidence: default True is the --port-parity gate (zero evidence
@@ -1162,6 +1181,20 @@ def run_seed_parity(seed, snap, actions, label, features,
                       f"(Magma={int(real_evidence[name])}, "
                       f"Blaze={int(blaze_evidence[name])})")
             return out(BLOCKED)
+        stats = blaze_mob_ai_stats(cu) if det_entity_rng or require_findpath else None
+        if stats is not None:
+            print(f"  blaze_mob_ai_stats pf_calls={stats[0]} pf_paths={stats[1]}")
+            if result is not None:
+                result["pf_calls"] = stats[0]
+                result["pf_paths"] = stats[1]
+        if require_findpath:
+            if stats is None:
+                print(f"  seed {seed} [{label}] FAIL: blaze_mob_ai_stats missing")
+                return out(FAILED)
+            if stats[0] == 0:
+                print(f"  seed {seed} [{label}] FAIL: blaze_mob_ai_stats "
+                      "reports zero findPath calls")
+                return out(FAILED)
         print(f"  seed {seed} [{label}]: VERIFIED {len(actions)} ticks "
               f"for {','.join(features)}"
               + ("" if require_evidence else " (evidence not required)"))
@@ -1265,7 +1298,8 @@ def run_port_parity(args, seeds, features):
             natural_spawn=getattr(args, "natural_spawn", False),
             natural_spawn_passive=getattr(args, "natural_spawn_passive", False),
             dump_mobs=getattr(args, "dump_mobs", False),
-            det_entity_rng=getattr(args, "det_entity_rng", False))
+            det_entity_rng=getattr(args, "det_entity_rng", False),
+            require_findpath=getattr(args, "require_findpath", False))
         return port_parity_result([status], "chain fixture")
 
     statuses = []
@@ -1362,6 +1396,9 @@ def main():
     ap.add_argument(
         "--det-entity-rng", action="store_true",
         help="enable det_entity_rng=1 (Java EntityAITasks + PathFinder A*) in magma and blaze")
+    ap.add_argument(
+        "--require-findpath", action="store_true",
+        help="FAIL if blaze_mob_ai_stats reports zero PathFinder.findPath calls")
     ap.add_argument(
         "--natural-spawn", action="store_true",
         help="enable WorldEntitySpawner (magma --set natural_spawn=1 set_time=18000)")
