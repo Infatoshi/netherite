@@ -6574,7 +6574,11 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
             env->mob_fire[u] = mobs[u].fire_ticks;
             env->mob_head_yaw[u] = mobs[u].yaw;
             env->mob_prev_head_yaw[u] = mobs[u].yaw;
+#ifndef __CUDACC__
+            /* det AI only (mob_ai_tasks.h is host-only); CUDA keeps the
+             * memset 0, nothing off the det path reads mob_follow */
             env->mob_follow[u] = mai_follow_range(mobs[u].type);
+#endif
             env->mob_skel_melee[u] = (mobs[u].type == EW_TYPE_SKELETON && !(mobs[u].task_bits & 256u)) ? 1 : 0;
             env->mob_nav_speed[u] = 1.0;
         }

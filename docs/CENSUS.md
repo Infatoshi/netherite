@@ -12,6 +12,8 @@ and the honest totals.
 | entities | 81 | 23 | 24 | 15 | 19 | census/entities.md |
 | mechanics | 102 | 26 | 41 | 23 | 12 | census/mechanics.md |
 
+Numeric id lookup for the blocks row: [block_ids.md](block_ids.md). Meta variants: [block_metas.md](block_metas.md).
+
 Reading the numbers honestly:
 - "partial" dominates because the bar is total: a block is implemented only
   if it generates, renders, AND collides; an item only if behavior (not just
