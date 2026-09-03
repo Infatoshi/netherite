@@ -263,7 +263,8 @@ MC_HD static inline float mai_wrap_degrees(float v) {
 }
 
 MC_HD static inline float mai_deg(double rad) {
-    return (float)(rad * (180.0 / MC_PI));
+    /* magma pai_deg (mob_live.c:1340) rounds the constant to float first. */
+    return (float)(rad * (float)(180.0 / (float)MC_PI));
 }
 
 MC_HD static inline float mai_atan2_yaw(double dz, double dx) {
@@ -917,7 +918,8 @@ MC_HD static inline int mai_pai_continue(const Blaze *e, int i, int task,
         return (dx * dx + dy * dy + dz * dz) <= mai_watch_range_sq(m->type);
     }
     if (task == PAI_IDLE) {
-        return e->mob_idle_time[i] > 0;
+        /* magma pai_continue (mob_live.c:1372) uses >= 0, not > 0. */
+        return e->mob_idle_time[i] >= 0;
     }
     return 0;
 }
@@ -997,7 +999,7 @@ MC_HD static inline int mai_pai_try_start(Blaze *e, int i, int task,
         }
     } else if (task == PAI_IDLE) {
         if (jrand_float(&jr) < 0.02f) {
-            double ang = (double)(jrand_float(&jr) * (2.0f * (float)MC_PI));
+            double ang = 2.0 * MC_PI * jrand_double(&jr);
             m->wander_x = cos(ang);
             m->wander_z = sin(ang);
             e->mob_idle_time[i] = 20 + jrand_int_bound(&jr, 20);
