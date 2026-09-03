@@ -84,6 +84,7 @@ static void test_defaults(void) {
   expect_eq_i(c.no_ore_xy, 0, "default no_ore_xy");
   expect_eq_i(c.stack_kib, 128, "default stack_kib");
   expect_eq_s(c.nn_prec, "fast", "default nn_prec");
+  expect_eq_i(c.drop_tail, 1, "default drop_tail");
 }
 
 static void test_file_load(void) {
@@ -230,6 +231,11 @@ static void test_bad_value(void) {
   rc = tr_cfg_set(&c, "nn_prec", "fast");
   expect_eq_i(rc, 0, "nn_prec=fast ok");
   expect_eq_s(c.nn_prec, "fast", "nn_prec=fast applied");
+  rc = tr_cfg_set(&c, "drop_tail", "2");
+  expect_eq_i(rc, -2, "drop_tail=2 bad");
+  rc = tr_cfg_set(&c, "drop_tail", "0");
+  expect_eq_i(rc, 0, "drop_tail=0 ok");
+  expect_eq_i(c.drop_tail, 0, "drop_tail=0 applied");
 }
 
 static void test_nonfinite_and_seed_and_overlong(void) {
@@ -314,7 +320,7 @@ static const char *const k_accepted_keys[] = {
     "init_from",       "metal_max_cells",
     "metallib",        "ktime",           "stage_time",
     "legacy_recenter", "warp_tick",       "op_trace",
-    "no_ore_xy",       "stack_kib",       "nn_prec",
+    "no_ore_xy",       "stack_kib",       "nn_prec",       "drop_tail",
 };
 
 static void test_committed_conf(void) {

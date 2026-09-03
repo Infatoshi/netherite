@@ -1129,7 +1129,7 @@ int main(int argc, char **argv) {
      * once in the chunk. With more resets n_tr can drop below mb; that chunk
      * then skips its update and ppo_updates logs the skip. The gate still
      * stops mb == batch (or close) from dropping every row every chunk. */
-    drop_tail = is_cuda && cfg.mb > 0 && cfg.mb <= batch - n;
+    drop_tail = is_cuda && cfg.mb > 0 && cfg.mb <= batch - n && cfg.drop_tail;
     if (drop_tail) {
       if (nn_seal(nn_roll) != 0)
         dief("nn_seal: %s", nn_last_error());
