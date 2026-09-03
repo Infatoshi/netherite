@@ -322,6 +322,10 @@ int       gm_world_parity_state(const GmWorld *w, uint64_t *digest,
  * the live liquid-cell count. Used with the fluid scheduler hash. */
 int       gm_world_fluid_parity_state(const GmWorld *w, uint64_t *digest,
                                       unsigned *ncells);
+/* Live parity-region AABB currently configured on this world. Follows a
+ * dimension transit's re-anchor, unlike the load-time bounds. */
+int       gm_world_parity_bounds(const GmWorld *w, int *x0, int *y0, int *z0,
+                                 int *nx, int *ny, int *nz);
 /* XOR of random-tickable cell tokens (grass/leaves/fire/crops) in the
  * configured parity region plus live count and mutation count. */
 int       gm_world_rt_parity_state(const GmWorld *w, uint64_t *digest,

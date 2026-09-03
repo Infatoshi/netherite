@@ -819,6 +819,16 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     v->warp_tick = o.warp_tick;   /* default 1; 0 = flat k_tick */
     v->op_trace = o.op_trace ? 1 : 0;
     v->no_ore_xy = o.no_ore_xy ? 1 : 0;
+    v->nether_bank_path[0] = 0;
+    v->end_bank_path[0] = 0;
+    if (o.nether_bank && o.nether_bank[0])
+        snprintf(v->nether_bank_path, sizeof v->nether_bank_path, "%s",
+                 o.nether_bank);
+    if (o.end_bank && o.end_bank[0])
+        snprintf(v->end_bank_path, sizeof v->end_bank_path, "%s", o.end_bank);
+    /* GPU_DIMENSIONS.md: bank paths are host-side only. Device swap copy
+     * from the bank is not implemented; h_envs[i].dim_bank stays NULL so
+     * cu_dimension_swap_apply fail-closes on CUDA. */
     v->h_assign = (int *)calloc((size_t)n, sizeof *v->h_assign);
     v->h_active = (int *)calloc((size_t)n, sizeof *v->h_active);
     v->h_envs = (Blaze *)calloc((size_t)n, sizeof *v->h_envs);

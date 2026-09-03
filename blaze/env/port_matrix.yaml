@@ -1526,19 +1526,51 @@ subsystems:
     timeout: 1500
 
   - name: portals_dimensions
-    supported: false
+    supported: true
     sources:
       magma: [magma/game/portal_live.c, magma/game/world_live.c]
-      shared: [blaze/core/nether_portal.h, blaze/core/end_portal.h]
+      shared: [blaze/core/nether_portal.h, blaze/core/end_portal.h, blaze/core/dimension_swap.h]
       blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
     dependencies: [world_dynamics]
-    required_features: [portals, dimensions]
-    required_artifacts: {m1: [], m2: []}
-    m1: []
+    required_features: [player, portals, dimensions, world, random_ticks]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_portals.bsnp
+        - verify/fixtures/port/s10_t0_r64_portals.bsnp.banks
+        - verify/fixtures/port/s10_t0_r64_nether.bsnp
+        - blaze/rl/fixtures/portals_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_portals.bsnp
+        - verify/fixtures/port/s10_t0_r64_portals.bsnp.banks
+        - verify/fixtures/port/s10_t0_r64_nether.bsnp
+        - blaze/rl/fixtures/portals_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "170"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_portals.bsnp
+      - --tape
+      - blaze/rl/fixtures/portals_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - player,portals,dimensions,world,random_ticks
     m2: []
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
-    block_reason: Portal transfer and dimension identity are not measured by both backends.
+    block_reason: CUDA swap copy from bank not implemented
 
   - name: nether_route
     supported: false
@@ -1553,7 +1585,7 @@ subsystems:
     m2: []
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
-    block_reason: The overworld-to-Nether progression route has no strict cross-backend fixture.
+    block_reason: The overworld-to-Nether progression route has no strict cross-backend fixture. End transit is separately out (see dragon_victory).
 
   - name: dragon_victory
     supported: false
@@ -1568,7 +1600,7 @@ subsystems:
     m2: []
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
-    block_reason: Dragon fight, death sequence, exit portal, and victory are not verified end to end.
+    block_reason: End transit is not implemented (no End .bsnp bank, cu_portal_tick observes block 119 but does not swap, magma End spawn platform at (100.5, 49.0, 0.5) is not built). Dragon fight, death sequence, exit portal, and victory are not verified end to end.
 
   - name: weather_optional
     supported: true

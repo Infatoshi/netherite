@@ -114,6 +114,7 @@ TEST_ELYTRA_BIN := $(OUT)/test_elytra
 TEST_HAZARDS_BIN := $(OUT)/test_hazards
 TEST_POTIONS_BIN := $(OUT)/test_potions
 TEST_PLACE_BIN := $(OUT)/test_placement
+TEST_DIMS_BIN := $(OUT)/test_portals_dimensions
 TEST_BEDS_BIN := $(OUT)/test_beds
 TEST_SKY_BIN := $(OUT)/test_skylight_water
 TEST_BLK_BIN := $(OUT)/test_blocklight
@@ -208,7 +209,7 @@ $(ENV_CPU_SO): $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h \
 		$(CORE_SRC)/falling_live.h $(CORE_SRC)/explosion_live.h \
-		$(CORE_SRC)/explosion.h | $(ENV_OUT)
+		$(CORE_SRC)/explosion.h $(CORE_SRC)/dimension_swap.h | $(ENV_OUT)
 	$(CC) $(ENV_CFLAGS) $(OMP_CFLAGS) -I$(ENV_SRC) -I$(CORE_SRC) -shared \
 		-o $@ $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		-lm $(OMP_LDFLAGS)
@@ -223,7 +224,8 @@ ifneq ($(UNAME_S),Darwin)
 ENV_CUDA_HDRS := $(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_cuda_int.h $(ENV_SRC)/blaze_snapshot.h \
 		$(CORE_SRC)/entity_spine.h $(CORE_SRC)/falling_live.h \
-		$(CORE_SRC)/explosion_live.h $(CORE_SRC)/explosion.h
+		$(CORE_SRC)/explosion_live.h $(CORE_SRC)/explosion.h \
+		$(CORE_SRC)/dimension_swap.h
 ENV_CUDA_OBJS := $(ENV_OUT)/blaze_cuda.o $(ENV_OUT)/blaze_cuda_verify.o \
 		$(ENV_OUT)/blaze_snapshot_cu.o
 
@@ -389,6 +391,11 @@ $(TEST_PLACE_BIN): $(ENV_SRC)/test_placement.c $(ENV_SRC)/blaze_snapshot.c \
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_placement.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
+$(TEST_DIMS_BIN): $(ENV_SRC)/test_portals_dimensions.c $(ENV_SRC)/blaze_snapshot.c \
+		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/nether_portal.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_portals_dimensions.c \
+		$(ENV_SRC)/blaze_snapshot.c -lm
+
 $(TEST_BEDS_BIN): $(REPO)/magma/tests/test_beds.c $(CORE_SRC)/player_bed.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(REPO)/magma/tests/test_beds.c -lm
 
@@ -469,6 +476,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 		$(TEST_HAZARDS_BIN) \
 		$(TEST_POTIONS_BIN) \
 		$(TEST_PLACE_BIN) \
+		$(TEST_DIMS_BIN) \
 		$(TEST_BEDS_BIN) \
 		$(TEST_SKY_BIN) \
 		$(TEST_BLK_BIN)
@@ -495,6 +503,7 @@ test-capture: $(TEST_CAP_BIN) $(TEST_MOB_BIN) $(TEST_SPINE_BIN) $(TEST_FALL_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_hazards
 	cd $(REPO) && ./out/blaze/rl/test_potions
 	cd $(REPO) && ./out/blaze/rl/test_placement
+	cd $(REPO) && ./out/blaze/rl/test_portals_dimensions
 	cd $(REPO) && ./out/blaze/rl/test_beds
 	cd $(REPO) && ./out/blaze/rl/test_skylight_water
 	cd $(REPO) && ./out/blaze/rl/test_blocklight
@@ -510,6 +519,28 @@ test-potions: $(TEST_POTIONS_BIN)
 
 test-placement: $(TEST_PLACE_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_placement
+
+test-portals-dimensions: $(TEST_DIMS_BIN)
+	cd $(REPO) && ./out/blaze/rl/test_portals_dimensions
+
+# Rebake portals_dimensions fixtures (not part of `test`).
+# Overworld: plant a lit portal in front of the s10 placement snapshot.
+# Nether: 10 forward + 80 idle through the 82-tick transfer, then dump
+# snapshot_r=64 at tick 90. Rebake is byte-identical to the committed
+# s10_t0_r64_nether.bsnp (sha256 4e0dd2640a6a9a31d818fddcaaf00d0f2a71843b9ec4e5bca766370d26e4dd62).
+.PHONY: bake-portals-dimensions
+bake-portals-dimensions: $(TEST_DIMS_BIN)
+	$(MAKE) -C $(REPO)/magma magma_game
+	cd $(REPO) && ./out/blaze/rl/test_portals_dimensions --write-fixture \
+		verify/fixtures/port/s10_t0_r64_placement.bsnp \
+		verify/fixtures/port/s10_t0_r64_portals.bsnp
+	cd $(REPO) && { \
+		i=0; while [ $$i -lt 10 ]; do echo '{"forward":1.0}'; i=$$((i+1)); done; \
+		i=0; while [ $$i -lt 80 ]; do echo '{}'; i=$$((i+1)); done; \
+		echo '{"snapshot":"verify/fixtures/port/s10_t0_r64_nether.bsnp","snapshot_r":64}'; \
+	} | ./magma/magma_game --rl-bin --render off --pace unlimited --seed 10 --mobs off \
+		--snapshot-in verify/fixtures/port/s10_t0_r64_portals.bsnp
+
 
 test-beds: $(TEST_BEDS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_beds

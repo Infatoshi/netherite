@@ -178,6 +178,8 @@ typedef struct {
                            * chains + warp-parallel coal sweep. 0 = flat
                            * one-env-per-thread k_tick. */
     int no_ore_xy;        /* create opts: skip ore spatial index at snap load */
+    char nether_bank_path[1024]; /* create opts nether_bank; empty = unset */
+    char end_bank_path[1024];    /* create opts end_bank; empty = unset */
     /* optional kernel timing (create opts.ktime) */
     int ktime;
     cudaEvent_t ev[4];

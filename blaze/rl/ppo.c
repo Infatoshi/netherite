@@ -1167,6 +1167,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  blaze_create_opts_default(&opts);
   opts.ktime = cfg.ktime;
   opts.stage_time = cfg.stage_time;
   opts.legacy_recenter = cfg.legacy_recenter;

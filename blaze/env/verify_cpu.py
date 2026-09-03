@@ -307,7 +307,8 @@ class RealEnv:
 
 
 class Blaze1:
-    def __init__(self, snap, port_parity=False, so_path=None, device=0):
+    def __init__(self, snap, port_parity=False, so_path=None, device=0,
+                 nether_bank=None, end_bank=None):
         self.lib = ctypes.CDLL(so_path or SO)
         self.parity_enabled = port_parity
         if port_parity:
@@ -341,6 +342,12 @@ class Blaze1:
             ctypes.POINTER(BlazeCreateOpts)]
         self.lib.blaze_destroy.argtypes = [ctypes.c_void_p]
         opts = BlazeCreateOpts.defaults()
+        self._bank_keepalive = (
+            nether_bank.encode() if nether_bank else None,
+            end_bank.encode() if end_bank else None,
+        )
+        opts.nether_bank = self._bank_keepalive[0]
+        opts.end_bank = self._bank_keepalive[1]
         self.h = self.lib.blaze_create(int(device), 1, ctypes.byref(opts))
         assert self.h
         err = ctypes.create_string_buffer(256)
@@ -930,7 +937,7 @@ def run_seed_parity(seed, snap, actions, label, features,
                     strict_capabilities=False, require_evidence=True,
                     track_liquid=False, result=None, mobs_on=False,
                     natural_spawn=False, natural_spawn_passive=False,
-                    dump_mobs=False):
+                    dump_mobs=False, nether_bank=None, end_bank=None):
     """Lockstep Magma vs Blaze CPU on PARY digests. Existing callers unchanged.
 
     require_evidence: default True is the --port-parity gate (zero evidence
@@ -984,7 +991,8 @@ def run_seed_parity(seed, snap, actions, label, features,
                   f"xor 0x{liquid0[1]:016x}->0x{key[1]:016x}")
 
     try:
-        cu = Blaze1(snap, port_parity=True)
+        cu = Blaze1(snap, port_parity=True,
+                    nether_bank=nether_bank, end_bank=end_bank)
         requested = sum(1 << PARITY_INDEX[name] for name in features)
         if strict_capabilities:
             unsupported = requested & ~cu.capabilities
@@ -1229,7 +1237,9 @@ def run_port_parity(args, seeds, features):
             args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False),
             natural_spawn=getattr(args, "natural_spawn", False),
             natural_spawn_passive=getattr(args, "natural_spawn_passive", False),
-            dump_mobs=getattr(args, "dump_mobs", False))
+            dump_mobs=getattr(args, "dump_mobs", False),
+            nether_bank=getattr(args, "nether_bank", None),
+            end_bank=getattr(args, "end_bank", None))
         return port_parity_result([status], "iron fixture")
 
     if args.chain:
@@ -1255,7 +1265,9 @@ def run_port_parity(args, seeds, features):
             args.strict_capabilities, mobs_on=getattr(args, "mobs_on", False),
             natural_spawn=getattr(args, "natural_spawn", False),
             natural_spawn_passive=getattr(args, "natural_spawn_passive", False),
-            dump_mobs=getattr(args, "dump_mobs", False))
+            dump_mobs=getattr(args, "dump_mobs", False),
+            nether_bank=getattr(args, "nether_bank", None),
+            end_bank=getattr(args, "end_bank", None))
         return port_parity_result([status], "chain fixture")
 
     statuses = []
@@ -1355,6 +1367,12 @@ def main():
     ap.add_argument(
         "--natural-spawn-passive", action="store_true",
         help="enable CREATURE WorldEntitySpawner (natural_spawn_passive=1 set_time=6000)")
+    ap.add_argument(
+        "--nether-bank",
+        help="explicit Nether .bsnp bank path (overrides PATH.banks sidecar)")
+    ap.add_argument(
+        "--end-bank",
+        help="explicit End .bsnp bank path (overrides PATH.banks sidecar)")
     ap.add_argument(
         "--dump-mobs", action="store_true",
         help="print Magma/Blaze living-slot tables at observation 0 and "

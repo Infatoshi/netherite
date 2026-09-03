@@ -480,6 +480,16 @@ typedef struct {
      * Set once at create like the other pool pointers; reset does NOT touch
      * it (counters are cumulative). Not sim state - never verified. */
     unsigned long long *ops;
+
+    /* dimensions (GPU_DIMENSIONS.md) */
+    int dimension;            /* 0 overworld, -1 nether, 1 the_end */
+    int portal_time;          /* ticks standing in portal (transfers at 82) */
+    int portal_cooldown;      /* cooldown ticks after transfer (100) */
+    int in_portal;            /* 1 nether portal (block 90), 2 end portal (119) */
+    int swap_pending;         /* 1 if transfer fired on this tick */
+    int swap_target_dim;      /* destination dimension ID */
+    const void *dim_bank;     /* CuSnapshot[3]: [0]=nether, [2]=end */
+    const void *dim_ow;       /* this env's own overworld snapshot */
 } Blaze;
 
 /* =================== region / window accessors =================== */
@@ -543,6 +553,34 @@ MC_HD static inline long cu_grass_sec_idx(const Blaze *e,
         ix >= e->gsnx || iy >= e->gsny || iz >= e->gsnz)
         return -1;
     return ((long)ix * e->gsny + iy) * e->gsnz + iz;
+}
+
+/* Rebuild the section census from env->cells after a region memcpy.
+ * cu_world_set_state keeps the counts exact for in-place edits; a dimension
+ * swap replaces the whole grid and must re-anchor gs* plus recount. */
+MC_HD static inline void cu_grass_census_rebuild(Blaze *e) {
+    long nsec, g;
+    if (!e || !e->grass_sec || !e->cells) return;
+    cu_grass_grid_init(e);
+    nsec = cu_grass_sec_count(e);
+    for (g = 0; g < nsec; ++g) {
+        int iz = (int)(g % e->gsnz);
+        int iy = (int)((g / e->gsnz) % e->gsny);
+        int ix = (int)(g / ((long)e->gsnz * e->gsny));
+        int bx = (e->gsx0 + ix) * 16;
+        int by = (e->gsy0 + iy) * 16;
+        int bz = (e->gsz0 + iz) * 16;
+        int lx, ly, lz, n = 0;
+        for (lx = 0; lx < 16; ++lx)
+            for (ly = 0; ly < 16; ++ly)
+                for (lz = 0; lz < 16; ++lz) {
+                    long ri = cu_region_idx(e, bx + lx, by + ly, bz + lz);
+                    if (ri >= 0 &&
+                        bp_is_randtick_id(mc_state_id(e->cells[ri])))
+                        ++n;
+                }
+        e->grass_sec[g] = (u16)n;
+    }
 }
 
 /* gm_world_block/gm_world_meta equivalent over the snapshot region: outside
@@ -4601,6 +4639,8 @@ MC_HD static inline int cu_attack_hits_falling_block(const Blaze *env,
     return hit;
 }
 
+#include "dimension_swap.h"
+
 /* =================== one whole game tick (gm_runtime_tick slice) ========== */
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
@@ -4858,8 +4898,8 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         env->deaths++;
     }
 
-    /* portal contact checks (runtime.c:414-459): blocks 90/119 cannot occur
-     * in an overworld training region - skipped. */
+    /* dimensions (GPU_DIMENSIONS.md) */
+    cu_portal_tick(env);
 
     env->tick++;
 }
@@ -4871,6 +4911,9 @@ MC_HD static inline void blaze_runtime_tick(Blaze *env, const McSinTable *st,
                                             CuAction act, McAABB *blocks) {
     if (!env->dead) cu_recenter(env);
     blaze_runtime_tick_nr(env, st, act, blocks);
+    if (env->swap_pending) {
+        cu_dimension_swap_apply(env);
+    }
 }
 
 /* =================== observation (rl_mode.c rl_emit_obs port) ============= */
@@ -5293,6 +5336,9 @@ MC_HD static inline void blaze_subtick_phys(Blaze *e, const McSinTable *st,
     act.use = (int)a[8];
     act.hotbar_sel = (int)a[9];
     blaze_runtime_tick_nr(e, st, act, blocks);
+    if (e->swap_pending) {
+        cu_dimension_swap_apply(e);
+    }
     if (rep == repeat - 1) {
         e->dec_cam_fresh = 1;
         if (render_cam_inline) blaze_render_cam(e, st);
@@ -6095,6 +6141,23 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
             r->active_mask |= BP_BIT(BP_ELYTRA);
     }
 
+    {
+        h = bp_portals_digest(e->portal_time, e->portal_cooldown, e->in_portal);
+        r->digest[BP_PORTALS] = h;
+        r->evidence[BP_PORTALS] = 1;
+        if (e->portal_time > 0 || e->portal_cooldown > 0 || e->in_portal > 0)
+            r->active_mask |= BP_BIT(BP_PORTALS);
+    }
+
+    {
+        int has_sky = (e->dimension == 0) ? 1 : 0;
+        float sun_brightness = (e->dimension == -1) ? 0.2f : ((e->dimension == 1) ? 0.0f : 1.0f);
+        h = bp_dimensions_digest(e->dimension, has_sky, sun_brightness);
+        r->digest[BP_DIMENSIONS] = h;
+        r->evidence[BP_DIMENSIONS] = 1;
+        r->active_mask |= BP_BIT(BP_DIMENSIONS);
+    }
+
     (void)blaze_coal_list(e, coal);
     h = bp_hash_begin();
     for (i = 0; i < CU_NCOAL; ++i)
@@ -6254,6 +6317,13 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->weather_enabled = 0;
     env->dead = 0;
     env->deaths = 0;
+    /* dimensions (GPU_DIMENSIONS.md) */
+    env->dimension = 0;
+    env->portal_time = 0;
+    env->portal_cooldown = 0;
+    env->in_portal = 0;
+    env->swap_pending = 0;
+    env->swap_target_dim = 0;
     ww_init(&env->ww, env->seed);
     env->rain_strength = 0.0f;
     env->thunder_strength = 0.0f;

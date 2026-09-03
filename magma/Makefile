@@ -427,6 +427,11 @@ test-placement:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_placement.c -o tests/test_placement $(LDLIBS)
 	./tests/test_placement
 
+.PHONY: test-portals-dimensions
+test-portals-dimensions:
+	$(CC) $(CFLAGS) -I$(BLAZE)/core -I$(BLAZE)/env $(BLAZE)/env/test_portals_dimensions.c $(BLAZE)/env/blaze_snapshot.c -o tests/test_portals_dimensions $(LDLIBS)
+	./tests/test_portals_dimensions
+
 .PHONY: test-beds
 test-beds:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_beds.c -o tests/test_beds $(LDLIBS)
@@ -710,7 +715,7 @@ clean:
 	      tests/test_live_items tests/test_randtick_census \
 	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
 	      tests/test_sky_weather \
-	      tests/test_fog_radial \
+	      tests/test_fog_radial tests/test_portals_dimensions \
 	      tests/Golden.class renderkernels/test_rk *.ppm
 	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose game/test_particles_live
 	rm -f ../out/magma/assets ../out/magma/sound \

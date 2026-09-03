@@ -231,26 +231,33 @@ static unsigned char *rl_biome_plane_dup(const GmRuntime *r, int *nx, int *nz) {
     unsigned char *p;
     int x, z;
     long bvol;
-    if (!rl_loaded_bounds_valid || !r || !r->world) {
+    /* Follow the LIVE parity region, not the load-time bounds: a dimension
+     * transit re-anchors the region on the destination world, and the plane
+     * BP_RANDOM_TICKS hashes has to move with it or magma keeps hashing
+     * overworld columns while blaze hashes the swapped destination plane. */
+    int rx0 = 0, ry0 = 0, rz0 = 0, rnx = 0, rny = 0, rnz = 0;
+    if (!r || !r->world ||
+        !gm_world_parity_bounds(r->world, &rx0, &ry0, &rz0,
+                                &rnx, &rny, &rnz)) {
         if (nx) *nx = 0;
         if (nz) *nz = 0;
         return NULL;
     }
-    if (nx) *nx = rl_loaded_rnx;
-    if (nz) *nz = rl_loaded_rnz;
-    bvol = (long)rl_loaded_rnx * (long)rl_loaded_rnz;
+    (void)ry0; (void)rny;
+    if (nx) *nx = rnx;
+    if (nz) *nz = rnz;
+    bvol = (long)rnx * (long)rnz;
     p = (unsigned char *)malloc((size_t)bvol);
     if (!p) {
         if (nx) *nx = 0;
         if (nz) *nz = 0;
         return NULL;
     }
-    for (x = 0; x < rl_loaded_rnx; ++x)
-        for (z = 0; z < rl_loaded_rnz; ++z) {
-            int id = gm_world_biome(r->world, rl_loaded_rx0 + x,
-                                    rl_loaded_rz0 + z);
+    for (x = 0; x < rnx; ++x)
+        for (z = 0; z < rnz; ++z) {
+            int id = gm_world_biome(r->world, rx0 + x, rz0 + z);
             if (id < 0) id = BLAZE_SNAP_BIOME_PLAINS;
-            p[(long)x * rl_loaded_rnz + z] = (unsigned char)(id & 255);
+            p[(long)x * rnz + z] = (unsigned char)(id & 255);
         }
     return p;
 }
@@ -884,6 +891,28 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
                        r->player.ticks_elytra_flying);
         if (r->player.elytra_equipped || r->player.elytra_flying)
             out->active_mask |= BP_BIT(BP_ELYTRA);
+    }
+
+    {
+        int feet = gm_world_block(r->world, (int)floor(r->player.ent.posX + (double)r->ox),
+                                  (int)floor(r->player.ent.posY), (int)floor(r->player.ent.posZ + (double)r->oz));
+        int head = gm_world_block(r->world, (int)floor(r->player.ent.posX + (double)r->ox),
+                                  (int)floor(r->player.ent.posY + 1.0), (int)floor(r->player.ent.posZ + (double)r->oz));
+        int in_portal = (feet == 90 || head == 90) ? 1 : ((feet == 119 || head == 119) ? 2 : 0);
+        h = bp_portals_digest(r->portal_time, r->portal_cooldown, in_portal);
+        out->digest[BP_PORTALS] = h;
+        out->evidence[BP_PORTALS] = 1;
+        if (r->portal_time > 0 || r->portal_cooldown > 0 || in_portal > 0)
+            out->active_mask |= BP_BIT(BP_PORTALS);
+    }
+
+    {
+        int has_sky = (r->dimension == 0) ? 1 : 0;
+        float sun_brightness = (r->dimension == -1) ? 0.2f : ((r->dimension == 1) ? 0.0f : 1.0f);
+        h = bp_dimensions_digest(r->dimension, has_sky, sun_brightness);
+        out->digest[BP_DIMENSIONS] = h;
+        out->evidence[BP_DIMENSIONS] = 1;
+        out->active_mask |= BP_BIT(BP_DIMENSIONS);
     }
 
     h = bp_hash_begin();
@@ -1938,6 +1967,7 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         free(light);
         light = NULL;
     }
+    gm_runtime_set_parity_dims(r, h.rnx, h.rny, h.rnz);
     if (!gm_world_parity_configure(r->world, h.rx0, h.ry0, h.rz0,
                                    h.rnx, h.rny, h.rnz)) {
         snprintf(err, (size_t)err_cap,
