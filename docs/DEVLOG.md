@@ -1,5 +1,70 @@
 # DEVLOG (compressed)
 
+## 2026-09-04 randtick: cycles 2.2x, wood wall 421 s to 415 s
+
+Question. Age-growth had randtick at 69 percent of k_tick, flat with world age (190e9 cycles per 8-decision window at N=1024, 1.3 to 1.9 s of each 1.7 to 2.9 s window). How much of that is blaze-only overhead versus Java WorldServer.updateBlocks, and can the rest go warp-parallel without breaking M1/M2.
+
+Method. Branch wip/randtick from wip/nn-fable f20c2a3. anvil gpu1 lease netherite-randtick-0904, CUDA_VISIBLE_DEVICES=1, BLAZE_SM=sm_120, CUDA_HOME=/usr/local/cuda-13.2. Lane ~/nlanes/randtick. Fixture s10_t0_r64_no_liquid.bsnp, N=1024, 32 decisions, repeat 4, warmup 2, create opts stage_time+op_trace. Wood: LANE=~/nlanes/randtick TAG=randtick-1c24335 DEVICE=0 LOCK=gpu1, `--set mb=8192`, seed 0. Before wood wall is the f20c2a3 binary in ~/nlanes/nn-fable-fp16 (421 s), not re-run.
+
+Java work (WorldServer.updateBlocks). Per loaded PlayerChunkMap chunk (radius 8, 17x17=289, cx outer cz inner): World.rand thunder nextInt(100000) if raining+thundering, iceandsnow nextInt(16), then per section getNeedsRandomTick, then randomTickSpeed=3 updateLCG picks and Block.randomTick. Blaze already maintains the census: `grass_sec` / `cu_rt_section_needs` is RT_SECTION_NEEDS. Magma uses `rt_count[16]`. The pass is shared (`rt_live_pass` in blaze/core/randtick_live.h), serial on lane 0 of k_tick_warp.
+
+Counts per env per tick, s10 t0, all four windows, bit-identical across the opts (32768 env-subticks per window):
+
+| counter | per tick | Java? |
+|---|---|---|
+| rt_chunk | 289 | yes, view-distance 8 |
+| rt_precip (nextInt(16)==0) | 18.0 | yes |
+| rt_sec_check | 1296 | 81 in-region chunks x 16; 208 outside the 128^3 skip the section loop |
+| rt_sec_need | 148 | census |
+| rt_lcg / rt_lookup | 444 | 148 x randomTickSpeed 3 |
+| rt_h_grass | 8.2 to 9.5 | BlockGrass |
+| rt_h_leaves | 11.7 to 12.8 | BlockLeaves |
+| rt_h_none | 423 | pick landed on a non-ticker |
+| fire/crop/sapling/farmland/ice/snow/mycelium | 0 | none in this snap |
+
+Baseline f20c2a3, same bench. world_load 4864 to 4985 per subtick (18 precip hits times a 256-high precip_y scan, including all-air columns outside the region).
+
+| window | wall ms | randtick ms | share | cycles e9 | world_load/subtick |
+|---|---|---|---|---|---|
+| d1-8 | 1749.2 | 1337.7 | 76.5% | 190.0 | 4864 |
+| d9-16 | 2828.5 | 1947.7 | 68.9% | 188.9 | 4903 |
+| d17-24 | 2915.0 | 1932.4 | 66.3% | 188.4 | 4908 |
+| d25-32 | 2759.4 | 1725.7 | 62.5% | 190.3 | 4985 |
+
+N=1024: 10.25 s for 32 decisions (3196 dec/s). t0 `--bench --t0 --n 1024 --decisions 25` three runs: 8.80 / 8.80 / 8.80 s, 2910 to 2911 dec/s.
+
+Blaze-only overhead, in order. (1) precip_y walked y=255 to 0 on out-of-region air, then freeze/snow no-op at y=-1. Clip the column to the region (`RT_COLUMN_PRESENT`, `RT_PRECIP_Y_TOP`) and skip the freeze/snow body when the biome cannot freeze at y=255 and it is not raining; still consume both LCG draws. weather_enabled=0 on reset so thunder is off, but iceandsnow nextInt(16) still runs. (2) TEMPERATURE_NOISE is a Java static Perlin(seed 1234); the port rebuilt it on every getFloatTemperature. Cache one table. (3) BlockLeaves.updateTick allocated int[32768] with (dx+16)*1024 indexing; the walk only touches [-5,5]^3, so a packed 11^3 (RT_LIVE_SURR=1331) is value-identical. (4) Skip the 16-section loop on chunks outside the grass_sec grid (`RT_CHUNK_MAY_NEED`). Warp-parallel pick (LCG skip-ahead, 16-lane ballot, shfl apply on lane 0) was bit-exact (mixed sha256 unchanged) but pick went 29 to 140 ms and handler 303 to 650 ms; reverted. Serial lane-0 pass stays.
+
+Shipped HEAD 1c24335 (57bbeab precip/column/census skip, 1a04e70 cache+leaves, 1c24335 drop warp). Window 0 randtick subset clocks:
+
+| slice | baseline | precip clip | warp (reverted) | shipped |
+|---|---|---|---|---|
+| rt_prefix ms | (in 1338) | 312.7 | 28.9 | 26.1 |
+| rt_sec ms | | 201.9 | 38.0 | 243.7 |
+| rt_pick ms | | 28.8 | 139.6 | 35.1 |
+| rt_handler ms | | 302.8 | 649.5 | 368.5 |
+| randtick ms | 1337.7 | 1145.3 | 970.1 | 1042.9 |
+| randtick cycles e9 | 190.0 | 118.0 | 74.0 | 86.7 |
+| world_load/subtick | 4864 | 858 | 154 | 576 |
+| window wall ms | 1749.2 | 1715.6 | 1697.5 | 1710.0 |
+
+Four shipped windows: wall 1710.0 / 2807.5 / 2875.5 / 2718.3 ms; randtick 1042.9 / 1441.8 / 1387.5 / 1188.7 ms (61.0 / 51.4 / 48.3 / 43.7%); cycles 86.7 / 87.1 / 86.6 / 86.5 e9. N=1024: 10.11 s for 32 decisions (3241 dec/s). Cycle cut is 2.2x; window wall is 2 percent because k_tick_warp still occupies the whole warp on lane 0.
+
+`verify_cuda.py --bench --t0 --n 1024 --decisions 25` three runs after: 8.66 / 8.67 / 8.66 s, 2956 / 2954 / 2957 dec/s.
+
+Wood seed 0, `--set mb=8192`, 6.029M ticks, 45 chunks, N=1024 T=32. Before (f20c2a3): 421 s wall, env 5.4 to 9.1 s of each ~10 s chunk, best t0 0.525. After (1c24335): wall 414.6 s (ppo `wall=`), env 4.60 to 11.08 s (mean 8.19 s, chunk 0 6.55 s), best t0 0.525 at 3.932M ticks, end t0 0.435. t0 stayed in the overlap band. Wall cut is 6 s.
+
+Gates, shipped tree. Mac: `make -C magma test` PASS (`test_randtick_census: PASS`); `uv run --no-project --with numpy,pyyaml python blaze/env/port_matrix.py` rows world_dynamics, spawn_to_torch, fluids, mobs all VERIFIED=1 BLOCKED=0 FAILED=0. Anvil, CUDA_VISIBLE_DEVICES=1 `--device 0`:
+
+PASS: gate N=64 x 250 decisions (64000 env-ticks): cam/depth/edge/pose/done bitwise zero diffs (26.74 s)
+
+PASS: chain s10 x 2058 ticks, 64 CUDA lanes vs CPU byte-exact (full BOLR record + state digests (player,dig,inventory,items,world,crafting,containers,furnaces,fluids,observations), every tick, kernel=raw) (7.94 s)
+
+PASS: mixed N=4096, 64 lanes exact vs CPU over 250 decisions (full action set) (104.57 s)
+final full-batch sha256: bed161ee9e41068bac5f60d3983ee9e635f4584a000554124bfec4563413c95d  (920/4096 done)
+
+Still out. The remaining randtick cost is the Java loop on lane 0: 289 weather prefixes, 1296 census reads, 444 lookups, ~21 tickers. A warp pick that applied via shfl was slower than serial `rt_live_tick_block`. First-edit skylight (age-growth) is still the other half of the wood env phase.
+
 ## 2026-09-03 wood-break probe on the merged tree: mb=0 crash fixed, t0 still 0.000
 
 The 1.92B-tick spawn-to-torch ladder run was the wrong first check: the
