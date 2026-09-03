@@ -970,7 +970,8 @@ void blaze_destroy(void *vh) {
     if (v->stage_time && v->d_phase && v->h_phase) {
         static const char *nm[CU_PHASE_K] = {
             "begin", "recenter", "phys", "light", "blk", "fluid",
-            "randtick", "items", "mobs", "coal", "post", "rest"
+            "randtick", "items", "mobs", "coal", "post", "rest",
+            "skycol", "skyseed", "skydrain"
         };
         unsigned long long tot[CU_PHASE_K], sum = 0;
         int k, ei;

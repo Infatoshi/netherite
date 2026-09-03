@@ -160,6 +160,7 @@ enum {
     CU_OP_SKY_COL,         /* columns actually rebuilt */
     CU_OP_SKY_DIRTY,       /* non-CLEAN sky_dirty chunks at an opacity edit */
     CU_OP_SKY_MOVES,       /* lowered-box xz cells handed to neighbours */
+    CU_OP_SKY_SEED,        /* 46x46 raise-only seed-scan cells visited */
     CU_OP_ITEM_LIVE,       /* n_items sampled each live-item tick */
     CU_OP_FLUID_REG,       /* active fluid regions per fluid tick */
     CU_OP_LIGHT_Q,         /* block-light queue entries drained */
@@ -185,6 +186,9 @@ enum {
     CU_PHASE_COAL,
     CU_PHASE_POST,
     CU_PHASE_REST,
+    CU_PHASE_SKYCOL,       /* generateSkylightMap column pass (full path) */
+    CU_PHASE_SKYSEED,      /* 46x46 raise-only seed scan */
+    CU_PHASE_SKYDRAIN,     /* sky worklist drain after the seed scan */
     CU_PHASE_K
 };
 
@@ -1053,7 +1057,9 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
     if (z1 > rz1) z1 = rz1;
     if (x0 > x1 || y0 > y1 || z0 > z1) return;
     if (!q || e->rnx > 1024 || e->rny > 1024 || e->rnz > 1024) {
+        CU_PHASE_T0(e);
         cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
+        CU_PHASE_END(e, CU_PHASE_SKYDRAIN);
         return;
     }
 #define CU_SPB_PUSH(IX, IY, IZ) do {                                        \
@@ -1074,6 +1080,11 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
             CU_SPB_PUSH(nx_ - e->rx0, ny_ - e->ry0, nz_ - e->rz0);          \
         }                                                                   \
     } while (0)
+    CU_PHASE_T0(e);
+    CU_OP_ADD(e, CU_OP_SKY_SEED,
+              (unsigned long long)(x1 - x0 + 1) *
+              (unsigned long long)(z1 - z0 + 1) *
+              (unsigned long long)(y1 - y0 + 1));
     for (x = x0; x <= x1 && !ovf; ++x)
         for (z = z0; z <= z1 && !ovf; ++z)
             for (y = y0; y <= y1 && !ovf; ++y) {
@@ -1087,6 +1098,8 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
                     CU_SPB_PUSH_NB(x, y, z);
                 }
             }
+    CU_PHASE_END(e, CU_PHASE_SKYSEED);
+    CU_PHASE_T0(e);
     while (qn > 0 && !ovf) {
         int p = q[qh], ix, iy, iz;
         long i;
@@ -1105,6 +1118,7 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
     }
     if (ovf)                       /* exact, just the slow way */
         cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
+    CU_PHASE_END(e, CU_PHASE_SKYDRAIN);
 #undef CU_SPB_PUSH
 #undef CU_SPB_PUSH_NB
 }
@@ -1124,7 +1138,11 @@ MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx,
     int cx, cz, x0, x1, z0, z1;
     if (!e->light_valid) return;
     CU_OP(e, CU_OP_SKY_FULL);
-    cu_skylight_chunk(e, wx, wz, mv);
+    {
+        CU_PHASE_T0(e);
+        cu_skylight_chunk(e, wx, wz, mv);
+        CU_PHASE_END(e, CU_PHASE_SKYCOL);
+    }
     cx = wx >> 4;
     cz = wz >> 4;
     x0 = (cx << 4) - 15;
@@ -1282,7 +1300,6 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
 
     if (!e->light_valid || !e->light) return;
     {
-        CU_PHASE_T0(e);
     q = e->light_q;
     i0 = cu_region_idx(e, wx, wy, wz);
     cx = wx >> 4;
@@ -1315,9 +1332,11 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
             cu_sky_all_unknown(e);   /* cannot record boxes for this region */
         else
             cu_sky_settle(e, ci, &mv);
-        CU_PHASE_END(e, CU_PHASE_LIGHT);
+        /* Full-path cost is skycol+skyseed+skydrain, not the LIGHT bucket.
+         * LIGHT stays the incremental path so the dump splits first-edit. */
         return;
     }
+    CU_PHASE_T0(e);
     CU_OP(e, CU_OP_SKY_INCR);
     new_op = cu_sky_opacity(mc_state_id(e->cells[i0]));
     lower = new_op > old_op;
