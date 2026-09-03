@@ -123,12 +123,21 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
     env->dig_progress = 0.0f;
     env->container = 0;
 
-    /* 5. Invalidate parity cell caches */
-    env->parity_rt_cells_valid = 0;
-    env->parity_fall_cells_valid = 0;
-
-    /* 6. Refill physics window at new player location */
+    /* 5. Refill physics window at new player location */
     cu_recenter_fill(env, env->ccx, env->ccz, 999, 999, 0, 1);
+
+    /* 6. Re-anchor every parity cache on the destination region, mirroring
+     * magma gm_world_parity_configure (world_live.c:634-676): a fresh region
+     * means fresh digests and zeroed mutation counters on both sides. Must
+     * come after the window refill, which itself writes cells. */
+    env->parity_world_valid = 0;
+    env->parity_world_mutations = 0;
+    env->parity_fluid_cells_valid = 0;
+    env->parity_fluid_mutations = 0;
+    env->parity_rt_cells_valid = 0;
+    env->parity_rt_mutations = 0;
+    env->parity_fall_cells_valid = 0;
+    env->parity_fall_mutations = 0;
 
     env->swap_pending = 0;
 }

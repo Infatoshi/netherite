@@ -243,6 +243,13 @@ typedef struct GmRuntime {
     int quit_to_title;         /* Title Screen confirmed / episode end */
     int dimension;
     int portal_time, portal_cooldown;
+    /* Parity-region shape of the loaded .bsnp (0 = none). A dimension transit
+     * reconfigures the destination GmWorld with these dims recentred on the
+     * arrival pose, so world/fluids/random_ticks stay measured across the
+     * swap instead of silently dropping out of measured_mask. The blaze
+     * destination bank is baked with the same rule (rx0 = floor(px) - rnx/2,
+     * rz0 = floor(pz) - rnz/2, ry0 = 0), so the two regions coincide. */
+    int parity_rnx, parity_rny, parity_rnz;
     long long seed;
     long long tick;
     /* World.rand (World.java:108). Unseeded in Java; live cursor is the
@@ -453,6 +460,9 @@ void gm_runtime_set_vitals(GmRuntime *r, float health, int food);
  * Restores health to 20, clears dead + fire/hurt, resets death_screen_ticks. */
 void gm_runtime_respawn(GmRuntime *r);
 int gm_runtime_set_dimension(GmRuntime *r, int dimension);
+/* Record the loaded snapshot's parity-region shape so a dimension transit can
+ * reconfigure the destination world with the same extent. */
+void gm_runtime_set_parity_dims(GmRuntime *r, int rnx, int rny, int rnz);
 void gm_runtime_set_time(GmRuntime *r, long long world_time);
 void gm_runtime_set_total_time(GmRuntime *r, long long total_time);
 /* Tape/live GameRules. Runtime mechanics currently honor naturalRegeneration,

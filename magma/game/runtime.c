@@ -45,6 +45,9 @@
 } while (0)
 #include "explosion_live.h"
 
+static void gm_runtime_reanchor_parity(GmRuntime *r, double x, double z);
+
+
 /* EntityLivingBase.applyArmorCalculations + InventoryPlayer.damageArmor. */
 static float runtime_armor_damage(GmRuntime *r, float amount, int unblockable)
 {
@@ -1619,6 +1622,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 for(int y=49;y<=51;++y)gm_world_set_block(r->world,x,y,z,0);
             }
             gm_runtime_set_pose(r,100.5,49.0,0.5,90.0f,0.0f);
+            gm_runtime_reanchor_parity(r,100.5,0.5);
             gm_mobs_init(&r->mobs,r->seed^1LL);memset(&r->entities,0,sizeof r->entities);
             gm_dragon_init(&r->dragon,r->world,r->seed);
             r->portal_time=0;r->portal_cooldown=100;
@@ -1637,6 +1641,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 if(gm_portal_find_or_make(r->worlds[wi],nx,nz,&tx,&ty,&tz)){
                     r->world=r->worlds[wi];r->dimension=nd;
                     gm_runtime_set_pose(r,tx,ty,tz,v.yaw,v.pitch);
+                    gm_runtime_reanchor_parity(r,tx,tz);
                     gm_mobs_init(&r->mobs,r->seed^(long long)nd);
                     memset(&r->entities,0,sizeof r->entities);
                     r->portal_cooldown=100;r->portal_time=0;
@@ -1681,6 +1686,33 @@ void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
     out->mount_message_ticks = r->tape_boat_mount_message_ticks;
     out->xp_level = r->player.experienceLevel;
     out->xp_frac = r->player.experience;
+}
+
+void gm_runtime_set_parity_dims(GmRuntime *r, int rnx, int rny, int rnz) {
+    if (!r) return;
+    r->parity_rnx = rnx; r->parity_rny = rny; r->parity_rnz = rnz;
+}
+
+/* Re-anchor the parity region on the destination world after a dimension
+ * transit. Without this the fresh GmWorld has parity_valid = 0, so
+ * gm_world_parity_state / _fluid_ / _rt_ all fail and rl_parity_build clears
+ * BP_WORLD, BP_FLUIDS and BP_RANDOM_TICKS out of measured_mask: the
+ * destination region stops being compared at all. Same extent as the loaded
+ * snapshot, recentred on the arrival pose (the .bsnp bake rule in rl_mode.c,
+ * "h.rx0 = floor(px + ox) - radius"). */
+static void gm_runtime_reanchor_parity(GmRuntime *r, double x, double z) {
+    int rnx, rny, rnz, x0, y0, z0, half_x, half_z, ensure_r;
+    if (!r || !r->world) return;
+    rnx = r->parity_rnx; rny = r->parity_rny; rnz = r->parity_rnz;
+    if (rnx <= 0 || rny <= 0 || rnz <= 0) return;
+    half_x = rnx / 2; half_z = rnz / 2;
+    x0 = (int)floor(x) - half_x;
+    z0 = (int)floor(z) - half_z;
+    y0 = 0;
+    ensure_r = half_x > half_z ? half_x : half_z;
+    gm_world_ensure(r->world, psv_floordiv16(x0 + half_x),
+                    psv_floordiv16(z0 + half_z), (ensure_r + 15) / 16 + 1);
+    gm_world_parity_configure(r->world, x0, y0, z0, rnx, rny, rnz);
 }
 
 void gm_runtime_set_pose(GmRuntime *r, double x, double y, double z,

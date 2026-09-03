@@ -675,6 +675,18 @@ int gm_world_parity_configure(GmWorld *w, int x0, int y0, int z0,
     return 1;
 }
 
+int gm_world_parity_bounds(const GmWorld *w, int *x0, int *y0, int *z0,
+                           int *nx, int *ny, int *nz) {
+    if (!w || !w->parity_valid) return 0;
+    if (x0) *x0 = w->parity_x0;
+    if (y0) *y0 = w->parity_y0;
+    if (z0) *z0 = w->parity_z0;
+    if (nx) *nx = w->parity_nx;
+    if (ny) *ny = w->parity_ny;
+    if (nz) *nz = w->parity_nz;
+    return 1;
+}
+
 int gm_world_parity_state(const GmWorld *w, uint64_t *digest,
                           unsigned *mutations) {
     if (!w || !w->parity_valid || !digest || !mutations) return 0;

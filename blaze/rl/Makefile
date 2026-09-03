@@ -199,7 +199,7 @@ $(ENV_CPU_SO): $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h \
 		$(CORE_SRC)/falling_live.h $(CORE_SRC)/explosion_live.h \
-		$(CORE_SRC)/explosion.h | $(ENV_OUT)
+		$(CORE_SRC)/explosion.h $(CORE_SRC)/dimension_swap.h | $(ENV_OUT)
 	$(CC) $(ENV_CFLAGS) $(OMP_CFLAGS) -I$(ENV_SRC) -I$(CORE_SRC) -shared \
 		-o $@ $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		-lm $(OMP_LDFLAGS)
@@ -209,7 +209,7 @@ $(ENV_CUDA_SO): $(ENV_SRC)/blaze_cuda.cu $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h \
 		$(CORE_SRC)/falling_live.h $(CORE_SRC)/explosion_live.h \
-		$(CORE_SRC)/explosion.h | $(ENV_OUT)
+		$(CORE_SRC)/explosion.h $(CORE_SRC)/dimension_swap.h | $(ENV_OUT)
 	$(NVCC) $(NVCCFLAGS) --shared \
 		-o $@ $(ENV_SRC)/blaze_cuda.cu $(ENV_SRC)/blaze_snapshot.c \
 		-lcudart
