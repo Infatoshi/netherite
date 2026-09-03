@@ -493,6 +493,25 @@ test-placement: $(TEST_PLACE_BIN)
 test-portals-dimensions: $(TEST_DIMS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_portals_dimensions
 
+# Rebake portals_dimensions fixtures (not part of `test`).
+# Overworld: plant a lit portal in front of the s10 placement snapshot.
+# Nether: 10 forward + 80 idle through the 82-tick transfer, then dump
+# snapshot_r=64 at tick 90. Rebake is byte-identical to the committed
+# s10_t0_r64_nether.bsnp (sha256 4e0dd2640a6a9a31d818fddcaaf00d0f2a71843b9ec4e5bca766370d26e4dd62).
+.PHONY: bake-portals-dimensions
+bake-portals-dimensions: $(TEST_DIMS_BIN)
+	$(MAKE) -C $(REPO)/magma magma_game
+	cd $(REPO) && ./out/blaze/rl/test_portals_dimensions --write-fixture \
+		verify/fixtures/port/s10_t0_r64_placement.bsnp \
+		verify/fixtures/port/s10_t0_r64_portals.bsnp
+	cd $(REPO) && { \
+		i=0; while [ $$i -lt 10 ]; do echo '{"forward":1.0}'; i=$$((i+1)); done; \
+		i=0; while [ $$i -lt 80 ]; do echo '{}'; i=$$((i+1)); done; \
+		echo '{"snapshot":"verify/fixtures/port/s10_t0_r64_nether.bsnp","snapshot_r":64}'; \
+	} | ./magma/magma_game --rl-bin --render off --pace unlimited --seed 10 --mobs off \
+		--snapshot-in verify/fixtures/port/s10_t0_r64_portals.bsnp
+
+
 test-beds: $(TEST_BEDS_BIN)
 	cd $(REPO) && ./out/blaze/rl/test_beds
 

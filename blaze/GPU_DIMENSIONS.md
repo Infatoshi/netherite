@@ -104,14 +104,27 @@ Rationale:
 ## Acceptance fixture and port matrix
 
 The acceptance fixture for `portals_dimensions` requires:
-- An overworld snapshot `verify/fixtures/port/s10_t0_r64_portals.bsnp` (seed 10) with a lit Nether portal frame (block 90) adjacent to the player spawn.
-- A matching Nether snapshot `verify/fixtures/port/s10_t0_r64_nether.bsnp` (seed 10) containing the paired Nether portal.
-- An action tape `blaze/rl/fixtures/portals_s10.json` (100 actions):
-  - Ticks 0..8: Player steps into the portal block.
-  - Ticks 9..89: Player stands in the portal pane accumulating contact ticks (`portal_time` increments $0 \to 81$).
-  - Tick 90: `portal_time` reaches 82; region swap executes. Dimension becomes -1. Player arrives in Nether at scaled coordinates with `portal_cooldown = 100`.
-  - Ticks 91..100: Player stands in destination portal; cooldown decrements or refreshes; `dimension == -1` holds.
-- M1 lockstep check: `BP_PORTALS` and `BP_DIMENSIONS` must be bit-equal between `magma_game` and `blaze_cpu.so` on every tick.
+- An overworld snapshot `verify/fixtures/port/s10_t0_r64_portals.bsnp` (seed 10, v9) with a lit Nether portal frame (block 90) at z=11, player at (8.5, 65.0, 10.0).
+- A matching Nether snapshot `verify/fixtures/port/s10_t0_r64_nether.bsnp` (seed 10, v11, tick 90) region (-63,0,-63) 128^3, arrival (1.5, 103.0, 1.5). Sibling named by `s10_t0_r64_portals.bsnp.banks`.
+- An action tape `blaze/rl/fixtures/portals_s10.json` (170 actions): 10 forward into the overworld pane, 80 idle through the 82-tick transfer (swap at observation 87), 20 forward +Z out of the arrival pane onto netherrack, 60 idle in dimension -1.
+- M1 lockstep check: `player,portals,dimensions,world,random_ticks` must be bit-equal between `magma_game` and `blaze_cpu.so` on every tick, including after the swap.
+
+Bake (byte-identical to the committed files; `make -C blaze/rl bake-portals-dimensions`):
+
+```
+out/blaze/rl/test_portals_dimensions --write-fixture \
+    verify/fixtures/port/s10_t0_r64_placement.bsnp \
+    verify/fixtures/port/s10_t0_r64_portals.bsnp
+
+# 10 forward + 80 idle, dump snapshot_r=64 at tick 90
+{ i=0; while [ $i -lt 10 ]; do echo '{"forward":1.0}'; i=$((i+1)); done
+  i=0; while [ $i -lt 80 ]; do echo '{}'; i=$((i+1)); done
+  echo '{"snapshot":"verify/fixtures/port/s10_t0_r64_nether.bsnp","snapshot_r":64}'
+} | magma/magma_game --rl-bin --render off --pace unlimited --seed 10 --mobs off \
+    --snapshot-in verify/fixtures/port/s10_t0_r64_portals.bsnp
+```
+
+Rebake 2026-09-03 matched committed hashes: overworld sha256 `0260d2908ab8c73dfe0b63210efa5c5a892ea94b55a2f4d2ebf9fc80b08e1621` (6458852 bytes), nether sha256 `4e0dd2640a6a9a31d818fddcaaf00d0f2a71843b9ec4e5bca766370d26e4dd62` (6316584 bytes).
 
 ## Citations to oracle-src and magma
 
