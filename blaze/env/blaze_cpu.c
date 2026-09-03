@@ -598,6 +598,11 @@ static void cu_reset_env(CuVec *v, int i) {
                 e->explosion_size = s->explosion_size;
                 e->parity_xp_pickups = s->xtra.xp_pickups;
                 e->next_orb_id = s->xtra.next_orb_id;
+                /* magma rl_mode.c:2195-2198 restores these into GmMobs. */
+                e->look_px = s->xtra.look_px;
+                e->look_py = s->xtra.look_py;
+                e->look_pz = s->xtra.look_pz;
+                e->look_have = s->xtra.look_have ? 1 : 0;
                 e->spawn_world_seed48 = s->xtra.spawn_world_seed48;
                 e->spawn_math_seed48 = s->xtra.spawn_math_seed48;
                 e->spawn_shuffle_seed48 = s->xtra.spawn_shuffle_seed48;

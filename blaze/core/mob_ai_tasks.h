@@ -1794,6 +1794,16 @@ MC_HD static inline void mai_det_tick(Blaze *e, const McSinTable *st,
                                       double px, double py, double pz, int day) {
     unsigned i;
     McAABB player_bb = mc_aabb_make(px - 0.3, py, pz - 0.3, px + 0.3, py + 1.8, pz + 0.3);
+    /* magma/game/mob_live.c:3495-3497. EntityLookHelper samples the server
+     * EntityPlayerMP, which on the det tapes is the PREVIOUS tick's player
+     * pose, while the task shouldExecute/continueExecuting range tests use
+     * this tick's. Both the look helper and the melee path destination read
+     * that same lagged pose (mob_live.c:3707). look_p is stored at the end of
+     * gm_mobs_tick (mob_live.c:3963-3966) and round-trips through the
+     * snapshot xtra (rl_mode.c:1461/2195). */
+    double lx = e->look_have ? e->look_px : px;
+    double ly = e->look_have ? e->look_py : py;
+    double lz = e->look_have ? e->look_pz : pz;
 
     mai_player_collide_mobs(e, &player_bb, px, pz);
 
@@ -1907,15 +1917,15 @@ MC_HD static inline void mai_det_tick(Blaze *e, const McSinTable *st,
             mai_pai_tick(e, i, px, py, pz, e->mob_griefing,
                          &moving, &jump, &wandering, &swim_jump, &nav_speed);
         } else if (hai_ok(type)) {
-            mai_hai_tick(e, i, px, py, pz, day,
+            mai_hai_tick(e, i, lx, ly, lz, day,
                          &moving, &jump, &wandering, &swim_jump, &nav_speed,
                          e->mob_griefing);
             if (!m->alive) continue;
         }
 
         /* Look update before move */
-        if (mai_det_ai(type)) mai_apply_current_look(e, i, px, py, pz);
-        if (hai_ok(type)) mai_hai_look(e, i, px, py, pz);
+        if (mai_det_ai(type)) mai_apply_current_look(e, i, lx, ly, lz);
+        if (hai_ok(type)) mai_hai_look(e, i, lx, ly, lz);
 
         /* Move mob */
         double prev_x = m->x, prev_z = m->z;
@@ -1944,6 +1954,12 @@ MC_HD static inline void mai_det_tick(Blaze *e, const McSinTable *st,
             if (on && !m->see_time) m->see_time = 1;
         }
     }
+
+    /* magma/game/mob_live.c:3963-3966, after the mob loop and tick_xp_orbs. */
+    e->look_px = px;
+    e->look_py = py;
+    e->look_pz = pz;
+    e->look_have = 1;
 }
 
 #endif /* MC_MOB_AI_TASKS_H */

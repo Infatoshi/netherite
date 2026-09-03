@@ -486,6 +486,13 @@ typedef struct {
 
     /* mob AI (GPU_MOB_AI.md) */
     int det_entity_rng;
+    /* Previous tick's player pose, magma GmMobs look_px/look_have
+     * (mob_live.h:107-108). EntityLookHelper and the melee path destination
+     * read this, not the live pose; the task range tests read the live one.
+     * Loaded from the snapshot xtra on reset, stored at the end of
+     * mai_det_tick. Off the det path nothing reads it. */
+    double look_px, look_py, look_pz;
+    int look_have;
     Pf12 pf;
     /* PathFinder coverage counters, same contract as ops above: cumulative,
      * reset does NOT touch them, never hashed, never snapshotted. The
@@ -6434,6 +6441,10 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     memset(env->mob_repath, 0, sizeof env->mob_repath);
     memset(env->mob_despawn, 0, sizeof env->mob_despawn);
     memset(env->mob_fire, 0, sizeof env->mob_fire);
+    env->look_px = 0.0;
+    env->look_py = 0.0;
+    env->look_pz = 0.0;
+    env->look_have = 0;
     memset(env->mob_living_sound, 0, sizeof env->mob_living_sound);
     memset(env->mob_entity_age, 0, sizeof env->mob_entity_age);
     memset(env->mob_task_tick, 0, sizeof env->mob_task_tick);
