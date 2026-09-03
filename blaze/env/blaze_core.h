@@ -599,12 +599,10 @@ typedef struct {
     unsigned long long *phase;
 } Blaze;
 
+#ifdef __CUDACC__
+__device__ unsigned long long cu_clk64(void);
+#endif
 #if defined(__CUDA_ARCH__)
-__device__ __forceinline__ unsigned long long cu_clk64(void) {
-    unsigned long long t;
-    asm volatile("mov.u64 %0, %%clock64;" : "=l"(t) :: "memory");
-    return t;
-}
 #define CU_PHASE_T0(E) unsigned long long _cu_pt0 = ((E)->phase ? cu_clk64() : 0ULL)
 #define CU_PHASE_END(E, k) do { \
     if ((E)->phase) (E)->phase[k] += cu_clk64() - _cu_pt0; \
