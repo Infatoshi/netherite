@@ -1080,45 +1080,49 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
             CU_SPB_PUSH(nx_ - e->rx0, ny_ - e->ry0, nz_ - e->rz0);          \
         }                                                                   \
     } while (0)
-    CU_PHASE_T0(e);
-    CU_OP_ADD(e, CU_OP_SKY_SEED,
-              (unsigned long long)(x1 - x0 + 1) *
-              (unsigned long long)(z1 - z0 + 1) *
-              (unsigned long long)(y1 - y0 + 1));
-    for (x = x0; x <= x1 && !ovf; ++x)
-        for (z = z0; z <= z1 && !ovf; ++z)
-            for (y = y0; y <= y1 && !ovf; ++y) {
-                long i = cu_region_idx(e, x, y, z);
-                int before;
-                if (i < 0) continue;
-                before = e->light[i] >> 4;
-                cu_light_relax_cell(e, x, y, z);
-                if ((e->light[i] >> 4) > before) {
-                    cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
-                    CU_SPB_PUSH_NB(x, y, z);
+    {
+        CU_PHASE_T0(e);
+        CU_OP_ADD(e, CU_OP_SKY_SEED,
+                  (unsigned long long)(x1 - x0 + 1) *
+                  (unsigned long long)(z1 - z0 + 1) *
+                  (unsigned long long)(y1 - y0 + 1));
+        for (x = x0; x <= x1 && !ovf; ++x)
+            for (z = z0; z <= z1 && !ovf; ++z)
+                for (y = y0; y <= y1 && !ovf; ++y) {
+                    long i = cu_region_idx(e, x, y, z);
+                    int before;
+                    if (i < 0) continue;
+                    before = e->light[i] >> 4;
+                    cu_light_relax_cell(e, x, y, z);
+                    if ((e->light[i] >> 4) > before) {
+                        cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
+                        CU_SPB_PUSH_NB(x, y, z);
+                    }
                 }
-            }
-    CU_PHASE_END(e, CU_PHASE_SKYSEED);
-    CU_PHASE_T0(e);
-    while (qn > 0 && !ovf) {
-        int p = q[qh], ix, iy, iz;
-        long i;
-        int before;
-        ++qh; if (qh >= CU_SKY_Q) qh = 0;
-        --qn;
-        ix = (p >> 20) & 1023; iy = (p >> 10) & 1023; iz = p & 1023;
-        x = e->rx0 + ix; y = e->ry0 + iy; z = e->rz0 + iz;
-        i = ((long)ix * e->rny + iy) * e->rnz + iz;
-        before = e->light[i] >> 4;
-        cu_light_relax_cell(e, x, y, z);
-        if ((e->light[i] >> 4) > before) {
-            cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
-            CU_SPB_PUSH_NB(x, y, z);
-        }
+        CU_PHASE_END(e, CU_PHASE_SKYSEED);
     }
-    if (ovf)                       /* exact, just the slow way */
-        cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
-    CU_PHASE_END(e, CU_PHASE_SKYDRAIN);
+    {
+        CU_PHASE_T0(e);
+        while (qn > 0 && !ovf) {
+            int p = q[qh], ix, iy, iz;
+            long i;
+            int before;
+            ++qh; if (qh >= CU_SKY_Q) qh = 0;
+            --qn;
+            ix = (p >> 20) & 1023; iy = (p >> 10) & 1023; iz = p & 1023;
+            x = e->rx0 + ix; y = e->ry0 + iy; z = e->rz0 + iz;
+            i = ((long)ix * e->rny + iy) * e->rnz + iz;
+            before = e->light[i] >> 4;
+            cu_light_relax_cell(e, x, y, z);
+            if ((e->light[i] >> 4) > before) {
+                cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
+                CU_SPB_PUSH_NB(x, y, z);
+            }
+        }
+        if (ovf)                   /* exact, just the slow way */
+            cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
+        CU_PHASE_END(e, CU_PHASE_SKYDRAIN);
+    }
 #undef CU_SPB_PUSH
 #undef CU_SPB_PUSH_NB
 }
