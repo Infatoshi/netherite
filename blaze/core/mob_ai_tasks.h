@@ -981,10 +981,28 @@ MC_HD static inline int mai_pai_try_start(Blaze *e, int i, int task,
             }
         }
     } else if (task == PAI_WANDER) {
+        /* EntityAIWanderAvoidWater.shouldExecute, magma pai_try_start
+         * (mob_live.c:1408-1421). The 100-tick idle gate is checked BEFORE the
+         * 1-in-120 roll, so an aged mob consumes no draw at all. */
+        if (e->mob_entity_age[i] >= 100) {
+            m->seed48 = jr.seed;
+            return 0;
+        }
         if (jrand_int_bound(&jr, 120) == 0) {
             double tx, ty, tz;
-            if (mai_random_position(e, m, 10, 7, 0, &jr, &tx, &ty, &tz) &&
-                mai_set_path(e, i, tx, ty, tz, 1.0)) {
+            int ok;
+            if (mai_in_material(e, m, 0)) {
+                ok = mai_random_position(e, m, 15, 7, 1, &jr, &tx, &ty, &tz);
+                if (!ok)
+                    ok = mai_random_position(e, m, 10, 7, 0, &jr, &tx, &ty, &tz);
+            } else {
+                int land = jrand_float(&jr) >= mai_avoid_water_p(m->type);
+                ok = mai_random_position(e, m, 10, 7, land, &jr, &tx, &ty, &tz);
+            }
+            if (ok) {
+                /* setPath failure does NOT cancel the task: magma marks it
+                 * using and lets continueExecuting drop it next tick. */
+                (void)mai_set_path(e, i, tx, ty, tz, 1.0);
                 m->task_bits |= PAI_BIT(task);
                 started = 1;
             }
