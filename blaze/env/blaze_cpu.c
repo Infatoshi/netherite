@@ -78,6 +78,9 @@ typedef struct {
     u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
     int   *rt_leaf_pool;     /* per-env BlockLeaves surroundings[32768] */
     int   *light_q_pool;     /* per-env CU_LIGHT_Q BLOCK flood queue */
+    Pf12  *pf_pool;          /* per-env PathFinder scratch, 1.09 MiB each.
+                              * Allocated on the first det_entity_rng enable,
+                              * never on the default path. */
     u8    *light_pool, *biome_pool, *dep_pool, *edg_pool;
     Chunk *window_pool;
     CuCand *cand_pool;
@@ -136,10 +139,18 @@ int blaze_set_det_entity_rng(void *vh, int on) {
     CuVec *v = (CuVec *)vh;
     int i;
     if (!v) return -1;
+    if (on && !v->pf_pool) {
+        /* One A* scratch per env, allocated the first time the det path is
+         * asked for. Fail closed: the caller (verify_cpu.py) raises. */
+        v->pf_pool = (Pf12 *)calloc((size_t)v->n, sizeof *v->pf_pool);
+        if (!v->pf_pool) return -1;
+    }
     v->det_entity_rng = on ? 1 : 0;
     if (v->envs)
-        for (i = 0; i < v->n; ++i)
+        for (i = 0; i < v->n; ++i) {
             v->envs[i].det_entity_rng = v->det_entity_rng;
+            v->envs[i].pf = v->pf_pool ? &v->pf_pool[i] : NULL;
+        }
     return 0;
 }
 
@@ -322,6 +333,7 @@ void blaze_destroy(void *vh) {
     free(v->fluid_cur_pool); free(v->fluid_tmp_pool);
     free(v->rt_leaf_pool);
     free(v->light_q_pool);
+    free(v->pf_pool);
     free(v->ops_pool);
     free(v);
 }
@@ -711,6 +723,7 @@ static void cu_reset_env(CuVec *v, int i) {
     v->envs[i].natural_spawn = v->natural_spawn;
     v->envs[i].natural_spawn_passive = v->natural_spawn_passive;
     v->envs[i].det_entity_rng = v->det_entity_rng;
+    v->envs[i].pf = v->pf_pool ? &v->pf_pool[i] : NULL;
     if (v->world_time_pin >= 0)
         v->envs[i].ww.worldTime = v->world_time_pin;
     v->envs[i].elytra_kit = v->elytra_kit;

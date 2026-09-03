@@ -503,8 +503,8 @@ MC_HD static inline void mai_fill_pf(Blaze *e, int i, int *ox, int *oy, int *oz)
     RlSnapMob *m = &e->mobs[i];
     float width, height;
     int x, y, z;
-    memset(e->pf.blocks, 0, sizeof e->pf.blocks);
-    e->pf.overflow = 0;
+    memset(e->pf->blocks, 0, sizeof e->pf->blocks);
+    e->pf->overflow = 0;
     *ox = mc_floor(m->x) - 16;
     *oy = mc_floor(m->y) - 8;
     *oz = mc_floor(m->z) - 16;
@@ -512,28 +512,28 @@ MC_HD static inline void mai_fill_pf(Blaze *e, int i, int *ox, int *oy, int *oz)
     for (y = 0; y < PNP_DY; ++y)
         for (z = 0; z < PNP_DZ; ++z)
             for (x = 0; x < PNP_DX; ++x)
-                pnp_setblock(e->pf.blocks, x, y, z,
+                pnp_setblock(e->pf->blocks, x, y, z,
                              mai_mc_to_pb(cu_world_block(e, *ox + x, *oy + y, *oz + z)));
-    memset(&e->pf.ent, 0, sizeof e->pf.ent);
+    memset(&e->pf->ent, 0, sizeof e->pf->ent);
     mai_size(m->type, &width, &height);
-    e->pf.ent.width = width;
-    e->pf.ent.height = height;
-    e->pf.ent.stepHeight = 0.6f;
-    e->pf.ent.canSwim = 0;
-    e->pf.ent.canEnterDoors = 1;
-    e->pf.ent.canBreakDoors = 0;
-    e->pf.ent.maxFallHeight = 3;
-    e->pf.ent.onGround = m->on_ground ? 1 : 0;
-    e->pf.ent.inWater = mai_in_material(e, m, 0);
-    e->pf.ent.posX = m->x - (double)(*ox);
-    e->pf.ent.posY = m->y - (double)(*oy);
-    e->pf.ent.posZ = m->z - (double)(*oz);
-    pnp_ent_default_priorities(&e->pf.ent);
+    e->pf->ent.width = width;
+    e->pf->ent.height = height;
+    e->pf->ent.stepHeight = 0.6f;
+    e->pf->ent.canSwim = 0;
+    e->pf->ent.canEnterDoors = 1;
+    e->pf->ent.canBreakDoors = 0;
+    e->pf->ent.maxFallHeight = 3;
+    e->pf->ent.onGround = m->on_ground ? 1 : 0;
+    e->pf->ent.inWater = mai_in_material(e, m, 0);
+    e->pf->ent.posX = m->x - (double)(*ox);
+    e->pf->ent.posY = m->y - (double)(*oy);
+    e->pf->ent.posZ = m->z - (double)(*oz);
+    pnp_ent_default_priorities(&e->pf->ent);
     if (m->type == EW_TYPE_BLAZE) {
-        e->pf.ent.pathPriority[PNT_WATER] = -1.0f;
-        e->pf.ent.pathPriority[PNT_LAVA] = 8.0f;
-        e->pf.ent.pathPriority[PNT_DANGER_FIRE] = 0.0f;
-        e->pf.ent.pathPriority[PNT_DAMAGE_FIRE] = 0.0f;
+        e->pf->ent.pathPriority[PNT_WATER] = -1.0f;
+        e->pf->ent.pathPriority[PNT_LAVA] = 8.0f;
+        e->pf->ent.pathPriority[PNT_DANGER_FIRE] = 0.0f;
+        e->pf->ent.pathPriority[PNT_DAMAGE_FIRE] = 0.0f;
     }
 }
 
@@ -547,7 +547,7 @@ MC_HD static inline int mai_position_clear(const Blaze *e, int ox, int oy, int o
                 double dx = (double)ix + 0.5 - vx;
                 double dz = (double)iz + 0.5 - vz;
                 if (dx * d0 + dz * d1 >= 0.0) {
-                    int id = pnp_getblock(e->pf.blocks, ix - ox, iy - oy, iz - oz);
+                    int id = pnp_getblock(e->pf->blocks, ix - ox, iy - oy, iz - oz);
                     if (!pnp_blockdef(id).isPassable) return 0;
                 }
             }
@@ -572,16 +572,16 @@ MC_HD static inline int mai_safe_stand(Blaze *e, int ox, int oy, int oz,
                 if (!pnp_in(k - ox, (y - 1) - oy, l - oz) ||
                     !pnp_in(k - ox, y - oy, l - oz))
                     return 0;
-                t = pnp_getPathNodeTypeSize(&e->pf, k - ox, (y - 1) - oy, l - oz,
+                t = pnp_getPathNodeTypeSize(e->pf, k - ox, (y - 1) - oy, l - oz,
                                             sizeX, sizeY, sizeZ,
-                                            e->pf.ent.canBreakDoors,
-                                            e->pf.ent.canEnterDoors);
+                                            e->pf->ent.canBreakDoors,
+                                            e->pf->ent.canEnterDoors);
                 if (t == PNT_WATER || t == PNT_LAVA || t == PNT_OPEN) return 0;
-                t2 = pnp_getPathNodeTypeSize(&e->pf, k - ox, y - oy, l - oz,
+                t2 = pnp_getPathNodeTypeSize(e->pf, k - ox, y - oy, l - oz,
                                              sizeX, sizeY, sizeZ,
-                                             e->pf.ent.canBreakDoors,
-                                             e->pf.ent.canEnterDoors);
-                f = pnp_getPathPriority(&e->pf.ent, t2);
+                                             e->pf->ent.canBreakDoors,
+                                             e->pf->ent.canEnterDoors);
+                f = pnp_getPathPriority(&e->pf->ent, t2);
                 if (f < 0.0f || f >= 8.0f) return 0;
                 if (t2 == PNT_DAMAGE_FIRE || t2 == PNT_DANGER_FIRE || t2 == PNT_DAMAGE_OTHER)
                     return 0;
@@ -658,17 +658,17 @@ MC_HD static inline int mai_find_path(Blaze *e, int i, double tx, double ty, dou
     mai_fill_pf(e, i, &ox, &oy, &oz);
     mai_path_to_pos(e, &bx, &by, &bz);
     e->pf_calls++;
-    n = pf12_findPath(&e->pf,
+    n = pf12_findPath(e->pf,
                       (double)((float)bx + 0.5f) - (double)ox,
                       (double)((float)by + 0.5f) - (double)oy,
                       (double)((float)bz + 0.5f) - (double)oz,
                       e->mob_follow[i] > 0.5f ? e->mob_follow[i]
                                               : mai_follow_range(m->type));
     if (n > 0 && !pnp_in(bx - ox, by - oy, bz - oz)) {
-        int sx = e->pf.resultPts[0], sy = e->pf.resultPts[1], sz = e->pf.resultPts[2];
-        int ex = e->pf.resultPts[(n - 1) * 3 + 0];
-        int ey = e->pf.resultPts[(n - 1) * 3 + 1];
-        int ez = e->pf.resultPts[(n - 1) * 3 + 2];
+        int sx = e->pf->resultPts[0], sy = e->pf->resultPts[1], sz = e->pf->resultPts[2];
+        int ex = e->pf->resultPts[(n - 1) * 3 + 0];
+        int ey = e->pf->resultPts[(n - 1) * 3 + 1];
+        int ez = e->pf->resultPts[(n - 1) * 3 + 2];
         int md = (ex > sx ? ex - sx : sx - ex)
                + (ey > sy ? ey - sy : sy - ey)
                + (ez > sz ? ez - sz : sz - ez);
@@ -683,9 +683,9 @@ MC_HD static inline int mai_find_path(Blaze *e, int i, double tx, double ty, dou
     m->path_n = (unsigned char)n;
     m->path_i = 0;
     for (k = 0; k < n; ++k) {
-        m->path_x[k] = (short)(e->pf.resultPts[k * 3 + 0] + ox);
-        m->path_y[k] = (short)(e->pf.resultPts[k * 3 + 1] + oy);
-        m->path_z[k] = (short)(e->pf.resultPts[k * 3 + 2] + oz);
+        m->path_x[k] = (short)(e->pf->resultPts[k * 3 + 0] + ox);
+        m->path_y[k] = (short)(e->pf->resultPts[k * 3 + 1] + oy);
+        m->path_z[k] = (short)(e->pf->resultPts[k * 3 + 2] + oz);
     }
     return 1;
 }

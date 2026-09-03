@@ -493,7 +493,15 @@ typedef struct {
      * mai_det_tick. Off the det path nothing reads it. */
     double look_px, look_py, look_pz;
     int look_have;
-    Pf12 pf;
+    /* A* scratch, 1.09 MiB. NOT embedded: it is 62% of sizeof(Blaze) and the
+     * env array is n * sizeof(Blaze) in host RAM and again in VRAM, so an
+     * inline Pf12 costs +8.9 GiB at the N=8192 perf pin for a feature that
+     * is off by default. blaze_cpu.c allocates the pool on the first
+     * blaze_set_det_entity_rng(1) and binds one slot per env; like ops and
+     * light_q it is set outside reset and reset never touches it. NULL
+     * whenever det_entity_rng is 0, which is the only state the CUDA path
+     * has (blaze_cuda.cu exports no setter). */
+    Pf12 *pf;
     /* PathFinder coverage counters, same contract as ops above: cumulative,
      * reset does NOT touch them, never hashed, never snapshotted. The
      * mobs_det gate reads them through blaze_mob_ai_stats and fails closed
