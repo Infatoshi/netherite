@@ -7,6 +7,8 @@
 #ifndef BLAZE_ABI_H
 #define BLAZE_ABI_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
