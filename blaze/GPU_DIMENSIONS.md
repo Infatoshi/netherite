@@ -147,7 +147,9 @@ Rebake 2026-09-03 matched committed hashes: overworld sha256 `0260d2908ab8c73dfe
 ## TODO list for CUDA-side plumbing
 
 When merging with the CUDA backend (`blaze/env/blaze_cuda.cu`):
-1. **Device bank allocation**: Allocate host-pinned or device memory for inactive dimension snapshot banks (`cudaMalloc` or `cudaMallocHost`).
+0. **Host paths are already stashed**: `blaze_create` copies `BlazeCreateOpts.nether_bank` / `end_bank` into `CuVecCu`. `h_envs[i].dim_bank` stays NULL, so a CUDA transit fail-closes. `portals_dimensions` M2 is BLOCKED: "CUDA swap copy from bank not implemented".
+1. **Device bank allocation**: Allocate host-pinned or device memory for inactive dimension snapshot banks (`cudaMalloc` or `cudaMallocHost`). Load the named banks the same way `blaze_cpu.c` does (create opts, then `<snap>.banks` sidecar).
 2. **Asynchronous DMA swap**: On dimension transit, execute `cudaMemcpyAsync` to replace device `cells`, `light`, and `biome` pools from host snapshot bank.
-3. **Window re-anchoring kernel**: Trigger `k_recenter` after host copies destination origin `rx0, ry0, rz0`.
+3. **Window re-anchoring kernel**: Trigger `k_recenter` after host copies destination origin `rx0, ry0, rz0`. Rebuild `grass_sec` after the copy.
 4. **Lane convergence**: Portal transfer is an env-level branch; lanes in the env's warp sync on swap completion before resuming `k_tick`.
+5. **Per-env overworld pointer**: `dim_ow` must alias that env's assigned overworld snapshot, not a shared `snaps[0]`.

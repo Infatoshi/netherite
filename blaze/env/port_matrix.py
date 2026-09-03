@@ -362,6 +362,9 @@ def classify(
 
     missing_gates = [tier for tier in tiers if not row[tier]]
     if missing_gates:
+        reason = row.get("block_reason")
+        if isinstance(reason, str) and reason.strip():
+            return BLOCKED, reason
         return BLOCKED, f"missing required gates: {', '.join(missing_gates)}"
     if absent_artifacts:
         return BLOCKED, f"missing artifacts: {', '.join(absent_artifacts)}"
