@@ -43,6 +43,7 @@ static long long spills, spills_full, firsts;
 static int mode_ref, mode_new;   /* SKY_ONLY=ref|new: time one path alone */
 static int dbg;
 static int audit;                /* SKY_AUDIT=1: prove every sky_dirty claim */
+static int census;               /* SKY_CENSUS=1: snapshot vs baseline vs LFP */
 static long long audit_clean, audit_box;
 
 /* ------------------------------------------------------------------ */
@@ -233,6 +234,194 @@ static int is_relax_fixed_point(Blaze *e, long *bad_idx) {
                 }
             }
     return 1;
+}
+
+/* Snapshot vs generateSkylightMap column baseline vs first-edit LFP.
+ * Prints per-chunk and totals; does not mutate the fixture planes. */
+static void census_snap(Pair *p) {
+    Blaze e = p->a;
+    u8 *work, *after_col;
+    int ncx, ncz, ix, iz, lx, lz, y, wy0, wy1;
+    long col_n = 0, col_eq = 0, col_any_above = 0, col_any_below = 0;
+    long cell_n = 0, cell_eq = 0, cell_above = 0, cell_below = 0;
+    long fe_in_moved = 0, fe_in_cells = 0, fe_box_moved = 0, fe_box_cells = 0;
+    long fe_raise = 0, fe_lower = 0, col_moved_cells = 0, spread_raised = 0;
+    long chunk_n = 0, bad = -1;
+    u8 base[CU_SKY_MAX_NY];
+    CuSkyMoves mv;
+
+    work = (u8 *)malloc((size_t)p->rvol);
+    after_col = (u8 *)malloc((size_t)p->rvol);
+    if (!work || !after_col) {
+        fprintf(stderr, "CENSUS: alloc fail\n");
+        free(work);
+        free(after_col);
+        return;
+    }
+    wy0 = e.ry0;
+    wy1 = e.ry0 + e.rny - 1;
+    ncx = cu_sky_nc(e.rx0, e.rnx);
+    ncz = cu_sky_nc(e.rz0, e.rnz);
+    {
+        long raisable = 0;
+        int x, z;
+        static const int dx[6] = {1, -1, 0, 0, 0, 0};
+        static const int dy[6] = {0, 0, 1, -1, 0, 0};
+        static const int dz[6] = {0, 0, 0, 0, 1, -1};
+        for (x = e.rx0; x < e.rx0 + e.rnx; ++x)
+            for (z = e.rz0; z < e.rz0 + e.rnz; ++z)
+                for (y = e.ry0; y < e.ry0 + e.rny; ++y) {
+                    long i = cu_region_idx(&e, x, y, z);
+                    int op, sky, q;
+                    if (i < 0) continue;
+                    op = cu_sky_opacity(mc_state_id(e.cells[i]));
+                    if (op > 15) op = 15;
+                    if (op < 1) op = 1;
+                    sky = e.light[i] >> 4;
+                    for (q = 0; q < 6; ++q) {
+                        long ni = cu_region_idx(&e, x + dx[q], y + dy[q],
+                                                z + dz[q]);
+                        if (ni < 0) continue;
+                        if ((e.light[ni] >> 4) - op > sky) {
+                            ++raisable;
+                            break;
+                        }
+                    }
+                }
+        fprintf(stderr,
+                "CENSUS %s r0=(%d,%d,%d) n=(%d,%d,%d) chunks %dx%d rny=%d "
+                "relax_fp=%s raisable_cells=%ld/%ld\n",
+                p->path, e.rx0, e.ry0, e.rz0, e.rnx, e.rny, e.rnz, ncx, ncz,
+                e.rny, raisable ? "NO" : "yes", raisable, p->rvol);
+        (void)bad;
+    }
+
+    for (ix = 0; ix < ncx; ++ix)
+        for (iz = 0; iz < ncz; ++iz) {
+            int wx0 = ((e.rx0 >> 4) + ix) << 4;
+            int wz0 = ((e.rz0 >> 4) + iz) << 4;
+            int chunk_has = 0, x, z;
+            long cin_moved = 0, cbox_moved = 0, ccol_moved = 0, cspread = 0;
+            int x0, x1, z0, z1;
+
+            for (lx = 0; lx < 16; ++lx)
+                for (lz = 0; lz < 16; ++lz) {
+                    int wx = wx0 + lx, wz = wz0 + lz;
+                    int eq = 1, any_above = 0, any_below = 0;
+                    if (cu_region_idx(&e, wx, wy0, wz) < 0) continue;
+                    chunk_has = 1;
+                    cu_skylight_col_base(&e, wx, wz, wy0, wy1, wy0 - 1, 0,
+                                         base);
+                    ++col_n;
+                    for (y = wy0; y <= wy1; ++y) {
+                        long i = cu_region_idx(&e, wx, y, wz);
+                        int snap, b;
+                        if (i < 0) continue;
+                        snap = p->light_a[i] >> 4;
+                        b = (int)base[y - wy0];
+                        ++cell_n;
+                        if (snap == b) ++cell_eq;
+                        else if (snap > b) {
+                            ++cell_above;
+                            any_above = 1;
+                            eq = 0;
+                        } else {
+                            ++cell_below;
+                            any_below = 1;
+                            eq = 0;
+                        }
+                    }
+                    if (eq) ++col_eq;
+                    if (any_above) ++col_any_above;
+                    if (any_below) ++col_any_below;
+                }
+            if (!chunk_has) continue;
+            ++chunk_n;
+
+            memcpy(work, p->light_a, (size_t)p->rvol);
+            e.light = work;
+            e.light_q = p->q_a;
+            cu_sky_moves_init(&mv, wx0 - 15, wx0 + 30, wz0 - 15, wz0 + 30);
+            cu_skylight_chunk(&e, wx0, wz0, &mv, NULL);
+            memcpy(after_col, work, (size_t)p->rvol);
+            x0 = wx0 - 15;
+            x1 = wx0 + 30;
+            z0 = wz0 - 15;
+            z1 = wz0 + 30;
+            if (x0 < e.rx0) x0 = e.rx0;
+            if (z0 < e.rz0) z0 = e.rz0;
+            if (x1 > e.rx0 + e.rnx - 1) x1 = e.rx0 + e.rnx - 1;
+            if (z1 > e.rz0 + e.rnz - 1) z1 = e.rz0 + e.rnz - 1;
+            cu_skylight_spread_box(&e, x0, wy0, z0, x1, wy1, z1, &mv);
+
+            for (x = wx0; x < wx0 + 16; ++x)
+                for (z = wz0; z < wz0 + 16; ++z) {
+                    if (cu_region_idx(&e, x, wy0, z) < 0) continue;
+                    for (y = wy0; y <= wy1; ++y) {
+                        long i = cu_region_idx(&e, x, y, z);
+                        int snap, colv, fp;
+                        if (i < 0) continue;
+                        snap = p->light_a[i] >> 4;
+                        colv = after_col[i] >> 4;
+                        fp = work[i] >> 4;
+                        ++fe_in_cells;
+                        if (colv != snap) {
+                            ++col_moved_cells;
+                            ++ccol_moved;
+                        }
+                        if (fp != snap) {
+                            ++fe_in_moved;
+                            ++cin_moved;
+                            if (fp > snap) ++fe_raise;
+                            else ++fe_lower;
+                        }
+                        if (fp > colv) {
+                            ++spread_raised;
+                            ++cspread;
+                        }
+                    }
+                }
+            for (x = x0; x <= x1; ++x)
+                for (z = z0; z <= z1; ++z) {
+                    if (cu_region_idx(&e, x, wy0, z) < 0) continue;
+                    for (y = wy0; y <= wy1; ++y) {
+                        long i = cu_region_idx(&e, x, y, z);
+                        if (i < 0) continue;
+                        ++fe_box_cells;
+                        if ((work[i] >> 4) != (p->light_a[i] >> 4)) {
+                            ++fe_box_moved;
+                            ++cbox_moved;
+                        }
+                    }
+                }
+            fprintf(stderr,
+                    "CENSUS chunk (%d,%d) interior_moved=%ld/%ld "
+                    "box_moved=%ld/%ld col_moved=%ld spread_raise=%ld "
+                    "spill=%d\n",
+                    (e.rx0 >> 4) + ix, (e.rz0 >> 4) + iz, cin_moved,
+                    (long)e.rny * 256, cbox_moved, (long)(x1 - x0 + 1) *
+                    (z1 - z0 + 1) * e.rny, ccol_moved, cspread, mv.spill);
+            e.light = p->light_a;
+        }
+
+    fprintf(stderr,
+            "CENSUS totals chunks=%ld cols=%ld col_eq_baseline=%ld "
+            "(%.1f%%) col_any_above=%ld col_any_below=%ld\n",
+            chunk_n, col_n, col_eq,
+            col_n ? 100.0 * (double)col_eq / (double)col_n : 0.0,
+            col_any_above, col_any_below);
+    fprintf(stderr,
+            "CENSUS cells vs generateSkylightMap: n=%ld eq=%ld above=%ld "
+            "below=%ld (above=snapshot has extra horizontal light)\n",
+            cell_n, cell_eq, cell_above, cell_below);
+    fprintf(stderr,
+            "CENSUS first-edit vs snapshot: interior_moved=%ld/%ld "
+            "raise=%ld lower=%ld; col_pass_moved=%ld spread_raise=%ld; "
+            "46x46_moved=%ld/%ld\n",
+            fe_in_moved, fe_in_cells, fe_raise, fe_lower, col_moved_cells,
+            spread_raised, fe_box_moved, fe_box_cells);
+    free(work);
+    free(after_col);
 }
 
 /* SKY_AUDIT=1: prove the sky_dirty claim on plane B directly instead of
@@ -557,6 +746,19 @@ static int run_one(const char *path, int n_edits) {
     p.b.light = p.light_b;
     p.b.window = p.win_b;
     p.b.light_q = p.q_b;
+    {
+        int un = cu_sky_under_collect(&p.a, NULL, 0);
+        int *ub = (int *)malloc(un > 0 ? (size_t)un * sizeof(int) : sizeof(int));
+        if (!ub) {
+            fprintf(stderr, "FAIL: sky_under alloc\n");
+            return 0;
+        }
+        if (un > 0) cu_sky_under_collect(&p.a, ub, un);
+        p.a.sky_under = ub;
+        p.a.sky_under_n = un;
+        p.b.sky_under = ub;
+        p.b.sky_under_n = un;
+    }
     /* A zeroed Blaze reads as CU_SKY_ALL everywhere, which is what a fresh
      * load must be: the stored light is not a relaxed fixed point. */
 
@@ -570,7 +772,12 @@ static int run_one(const char *path, int n_edits) {
                             "(first idx %ld)\n", path, bad);
     }
 
-    ok = scenarios(&p) && random_stream(&p, n_edits);
+    if (census) {
+        census_snap(&p);
+        ok = 1;
+    } else {
+        ok = scenarios(&p) && random_stream(&p, n_edits);
+    }
 
     if (ok)
         fprintf(stderr, "OK: %s %d opacity edits identical%s\n", path,
@@ -582,6 +789,7 @@ static int run_one(const char *path, int n_edits) {
     free(p.win_b);
     free(p.q_a);
     free(p.q_b);
+    free(p.a.sky_under);
     blaze_snapshot_free(&p.s);
     return ok;
 }
@@ -607,6 +815,7 @@ int main(int argc, char **argv) {
     if (only && !strcmp(only, "new")) mode_new = 1;
     dbg = getenv("SKY_DBG") != NULL;
     audit = getenv("SKY_AUDIT") != NULL;
+    census = getenv("SKY_CENSUS") != NULL;
     {   const char *sd = getenv("SKY_SEED");
         if (sd) { rng_s += (unsigned long long)atoll(sd) * 0x9E3779B97F4A7C15ull;
                   fprintf(stderr, "edit stream seed offset %s\n", sd); } }

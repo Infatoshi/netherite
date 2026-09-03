@@ -161,6 +161,9 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
      * the overworld occupancy and the nether pass drew extra LCG steps. */
     cu_recenter_fill(env, env->ccx, env->ccz, 999, 999, 0, 1);
     cu_grass_census_rebuild(env);
+    env->sky_under = NULL;
+    env->sky_under_n = 0;
+    cu_sky_all_unknown(env);
 
     /* 6. Re-anchor every parity cache on the destination region, mirroring
      * magma gm_world_parity_configure (world_live.c:634-676): a fresh region

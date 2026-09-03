@@ -77,6 +77,8 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
                        s->mobs, s->n_mobs, s->orbs, s->n_orbs,
                        s->biome, s->world_rand_seed, success_item);
+    envs[i].sky_under = (int *)s->sky_under;
+    envs[i].sky_under_n = s->sky_under_n;
     envs[i].pl.fire = s->player_fire;
     envs[i].pl.air = s->player_air;
     {
@@ -997,6 +999,7 @@ void blaze_destroy(void *vh) {
     for (i = 0; i < v->nsnaps; ++i) {
         cudaFree((void *)v->h_snaps[i].cells);
         cudaFree((void *)v->h_snaps[i].light);
+        cudaFree((void *)v->h_snaps[i].sky_under);
         cudaFree((void *)v->h_snaps[i].biome);
         cudaFree((void *)v->h_snaps[i].coal);
         cudaFree((void *)v->h_snaps[i].xy_off);
@@ -1182,6 +1185,33 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         memcpy(d->items, s.items, sizeof d->items);
         d->cells = d_cells;
         d->light = d_light;
+        d->sky_under = NULL;
+        d->sky_under_n = 0;
+        if (s.light && s.cells) {
+            Blaze e;
+            int un, *ub;
+            int *d_under = NULL;
+            memset(&e, 0, sizeof e);
+            e.cells = s.cells;
+            e.light = s.light;
+            e.rx0 = s.head.rx0; e.ry0 = s.head.ry0; e.rz0 = s.head.rz0;
+            e.rnx = s.head.rnx; e.rny = s.head.rny; e.rnz = s.head.rnz;
+            un = cu_sky_under_collect(&e, NULL, 0);
+            ub = (int *)malloc(un > 0 ? (size_t)un * sizeof(int) : sizeof(int));
+            if (ub) {
+                size_t nb = (un > 0 ? (size_t)un : 1) * sizeof(int);
+                if (un > 0) cu_sky_under_collect(&e, ub, un);
+                if (cudaMalloc(&d_under, nb) == cudaSuccess &&
+                    cudaMemcpy(d_under, ub, nb, cudaMemcpyHostToDevice) ==
+                        cudaSuccess) {
+                    d->sky_under = d_under;
+                    d->sky_under_n = un;
+                } else {
+                    cudaFree(d_under);
+                }
+                free(ub);
+            }
+        }
         d->biome = d_biome;
         d->coal = d_coal;
         d->ncoal = (int)s.ncoal;

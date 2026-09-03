@@ -62,6 +62,8 @@ typedef struct {
     int   *assign;
     CuSnapshot snaps[BLAZE_MAX_SNAPS];
     int    nsnaps;
+    int   *snap_sky_under[BLAZE_MAX_SNAPS];
+    int    snap_sky_under_n[BLAZE_MAX_SNAPS];
     CuSnapshot dim_snaps[3];
     int    dim_loaded[3];
     /* capture may replace coal/xy_off while live envs still alias the old
@@ -346,7 +348,10 @@ void blaze_destroy(void *vh) {
     CuVec *v = (CuVec *)vh;
     int i;
     if (!v) return;
-    for (i = 0; i < v->nsnaps; ++i) blaze_snapshot_free(&v->snaps[i]);
+    for (i = 0; i < v->nsnaps; ++i) {
+        blaze_snapshot_free(&v->snaps[i]);
+        free(v->snap_sky_under[i]);
+    }
     if (v->dim_loaded[0]) blaze_snapshot_free(&v->dim_snaps[0]);
     if (v->dim_loaded[2]) blaze_snapshot_free(&v->dim_snaps[2]);
     for (i = 0; i < v->nretired; ++i) free(v->retired[i]);
@@ -551,6 +556,28 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
             blaze_snapshot_free(&v->snaps[v->nsnaps]);
             return -1;
         }
+        {
+            CuSnapshot *s = &v->snaps[v->nsnaps];
+            Blaze e;
+            int un = 0, *ub = NULL;
+            if (s->light && s->cells) {
+                memset(&e, 0, sizeof e);
+                e.cells = s->cells;
+                e.light = s->light;
+                e.rx0 = h->rx0; e.ry0 = h->ry0; e.rz0 = h->rz0;
+                e.rnx = h->rnx; e.rny = h->rny; e.rnz = h->rnz;
+                un = cu_sky_under_collect(&e, NULL, 0);
+                ub = (int *)malloc(un > 0 ? (size_t)un * sizeof(int)
+                                          : sizeof(int));
+                if (!ub) {
+                    blaze_snapshot_free(s);
+                    return -1;
+                }
+                if (un > 0) cu_sky_under_collect(&e, ub, un);
+            }
+            v->snap_sky_under[v->nsnaps] = ub;
+            v->snap_sky_under_n[v->nsnaps] = un;
+        }
         v->nsnaps++;
     }
     if (v->nsnaps > 0) {
@@ -620,6 +647,8 @@ static void cu_reset_env(CuVec *v, int i) {
                               s->cont, s->ncont, s->mobs, s->n_mobs,
                               s->orbs, s->n_orbs, s->biome,
                               s->world_rand_seed, v->success_item);
+    v->envs[i].sky_under = v->snap_sky_under[v->assign[i]];
+    v->envs[i].sky_under_n = v->snap_sky_under_n[v->assign[i]];
     v->envs[i].dim_bank = v->dim_snaps;
     v->envs[i].dim_ow = &v->snaps[v->assign[i]];
     v->envs[i].dimension = 0;

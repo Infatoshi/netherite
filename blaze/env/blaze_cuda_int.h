@@ -50,6 +50,8 @@ typedef struct {
     RlSnapItem items[BLAZE_SNAP_MAX_ITEMS];
     const u16 *cells;            /* device, head.rnx*rny*rnz packed states */
     const u8 *light;             /* device, packed (sky<<4)|block or NULL */
+    const int *sky_under;        /* device, packed load-time raisable cells */
+    int sky_under_n;
     const u8 *biome;             /* device, rnx*rnz column ids; v7 = plains */
     const int *coal;             /* device, ncoal x 3 */
     int ncoal;
