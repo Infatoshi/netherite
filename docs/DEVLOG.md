@@ -53,14 +53,17 @@ per chunk (env phase 5.4 to 9.1 s of 10 s; nn+update 0.3 s). Planks
 tracks wood exactly until the first success (one craft action away).
 
 Two regressions since 2026-08-21, both unattributed: learning (0.63 to
-0.28 mean best t0) and wall. 479a2c4 (2026-08-26, the parent of the
-Fable trainer lane) dies in chunk 0 with an MMU write fault inside the
-old `cudnnConvolutionForward` (Xid 31), which 0943ce1 does not, so
-something between 08-21 and 08-26 already broke the trainer's update
-path; the fp16 tree may only be masking it. A first-parent `git bisect`
-of that crash (`~/nlanes/ladder/wood_bisect.sh`, 115 commits, 300k-tick
-probes) is running on anvil gpu0. Bisect helper: `~/nlanes/ladder/wood_at.sh
-<commit> [--set k=v]` builds `~/nlanes/wood-<hash>` and runs the probe.
+0.28 mean best t0) and wall. The 08-26 crash was a false lead: 479a2c4
+(the parent of the Fable trainer lane) dies in chunk 0 with an MMU write
+fault inside the old `cudnnConvolutionForward` (Xid 31) at `mb = 0`, but
+so does 0943ce1 itself at `mb = 0` (`wood_0943ce1_mb0.log`, one second
+after start). The old trainer cannot run the 32768-row update on the
+current cuDNN (92500) at all; every 2026-08 result used `mb = 8192`. A
+first-parent bisect of that crash therefore reported the first commit
+after the good end (12a8fb5) and means nothing. Helper for the real
+bisect: `~/nlanes/ladder/wood_at.sh <commit> [--set k=v]` builds
+`~/nlanes/wood-<hash>` and runs the probe; `wood_seq.sh` runs seeds 1 and
+0 at 479a2c4, 11c57fc, fcab243 and d7508e8 (results below when done).
 
 Blaze V2 package A (phase-split tick library, gamer RTX 3090, lane
 `wip/blaze-v2` at 4c8a06e, delegate run 2026-09-03 05:30-08:00). Bitwise
