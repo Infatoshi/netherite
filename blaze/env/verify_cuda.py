@@ -214,11 +214,30 @@ class Cmp:
         return "; ".join(r)
 
 
-def outputs(env):
-    return {"cam": to_np(env.cam), "depth": to_np(env.depth),
-            "edge": to_np(env.edge), "scal": to_np(env.scal),
-            "rew": to_np(env.rew), "done": to_np(env.done),
-            "pose": to_np(env.pose)}
+def outputs(env, lanes=None):
+    """Host copies of env outputs. lanes indexes on device first so a CUDA
+    N=4096 gather for a 64-lane replica does not DtoH the full batch."""
+    def grab(x):
+        if lanes is not None:
+            x = x[lanes]
+        return to_np(x)
+    return {"cam": grab(env.cam), "depth": grab(env.depth),
+            "edge": grab(env.edge), "scal": grab(env.scal),
+            "rew": grab(env.rew), "done": grab(env.done),
+            "pose": grab(env.pose)}
+
+
+def _step_cpu_cuda(cpu, cuda, cpu_acts, cuda_acts, repeat, device, pool):
+    """CPU replica and CUDA batch are independent. Overlap the replica
+    (other processes, or OpenMP in a thread) with the GPU tick."""
+    import torch
+    fut = pool.submit(cpu.step, cpu_acts, repeat)
+    if not isinstance(cuda_acts, torch.Tensor):
+        cuda_acts = torch.as_tensor(cuda_acts, device=f"cuda:{device}")
+    elif cuda_acts.device.type != "cuda":
+        cuda_acts = cuda_acts.to(f"cuda:{device}")
+    cuda.step(cuda_acts, repeat=repeat)
+    fut.result()
 
 
 def _create_kw(args=None):
@@ -266,7 +285,6 @@ def make_envs(n_cpu, n_cuda, paths, cpu_assign, cuda_assign, device, args=None):
 
 
 def run_gate(args):
-    import torch
     paths = snap_paths()
     n = 64
     assign = [i % len(paths) for i in range(n)]
@@ -276,27 +294,28 @@ def run_gate(args):
     streams = [ActStream(i) for i in range(n)]
     cmp = Cmp()
     ok = True
-    for d in range(args.decisions):
-        acts = np.array([s.next_action() for s in streams], dtype=np.int32)
-        cpu.step(acts, repeat=args.repeat)
-        cuda.step(torch.as_tensor(acts).to(f"cuda:{args.device}"),
-                  repeat=args.repeat)
-        a, b = outputs(cpu), outputs(cuda)
-        if not cmp.compare(d, a, b):
-            print(f"FAIL {cmp.fail}")
-            ok = False
-            break
-        if (d + 1) % 50 == 0:
-            mask = a["done"] != 0
-            if d + 1 == 100:
-                # force a partial reset even if nothing is done, so the
-                # masked k_reset path is exercised mid-run on both backends
-                mask = mask | (np.arange(n) % 3 == 0)
-            if mask.any():
-                cpu.reset(mask.astype(np.uint8))
-                cuda.reset(mask.astype(np.uint8))
-            print(f"  decision {d+1}: identical so far "
-                  f"({int(mask.sum())} envs mask-reset)")
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        for d in range(args.decisions):
+            acts = np.array([s.next_action() for s in streams], dtype=np.int32)
+            _step_cpu_cuda(cpu, cuda, acts, acts, args.repeat, args.device,
+                           pool)
+            a, b = outputs(cpu), outputs(cuda)
+            if not cmp.compare(d, a, b):
+                print(f"FAIL {cmp.fail}")
+                ok = False
+                break
+            if (d + 1) % 50 == 0:
+                mask = a["done"] != 0
+                if d + 1 == 100:
+                    # force a partial reset even if nothing is done, so the
+                    # masked k_reset path is exercised mid-run on both backends
+                    mask = mask | (np.arange(n) % 3 == 0)
+                if mask.any():
+                    cpu.reset(mask.astype(np.uint8))
+                    cuda.reset(mask.astype(np.uint8))
+                print(f"  decision {d+1}: identical so far "
+                      f"({int(mask.sum())} envs mask-reset)")
     print(f"float gate: {cmp.summary()}")
     ticks = args.decisions * args.repeat * n
     if ok:
@@ -310,10 +329,10 @@ def run_gate(args):
 
 
 def run_big(args):
-    import torch
     paths = snap_paths()
     nbig, nsub = args.n, 64
     lanes = sorted(random.Random(1234).sample(range(nbig), nsub))
+    lanes_np = np.array(lanes)
     assign_big = [i % len(paths) for i in range(nbig)]
     assign_sub = [assign_big[l] for l in lanes]
     print(f"big-N spot check: CUDA N={nbig}, {args.decisions} decisions; "
@@ -323,20 +342,22 @@ def run_big(args):
     big_streams = [ActStream(i) for i in range(nbig)]
     cmp = Cmp()
     ok = True
-    for d in range(args.decisions):
-        acts = np.array([s.next_action() for s in big_streams],
-                        dtype=np.int32)
-        cpu.step(acts[lanes], repeat=args.repeat)
-        cuda.step(torch.as_tensor(acts).to(f"cuda:{args.device}"),
-                  repeat=args.repeat)
-        a, b = outputs(cpu), outputs(cuda)
-        if not cmp.compare(d, a, b, lanes=np.array(lanes)):
-            print(f"FAIL {cmp.fail}")
-            ok = False
-            break
-        if (d + 1) % 50 == 0:
-            print(f"  decision {d+1}: {nsub} lanes identical so far "
-                  f"({int(b['done'][lanes].sum())} of them done)")
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        for d in range(args.decisions):
+            acts = np.array([s.next_action() for s in big_streams],
+                            dtype=np.int32)
+            _step_cpu_cuda(cpu, cuda, acts[lanes], acts, args.repeat,
+                           args.device, pool)
+            a = outputs(cpu)
+            b = outputs(cuda, lanes=lanes_np)
+            if not cmp.compare(d, a, b):
+                print(f"FAIL {cmp.fail}")
+                ok = False
+                break
+            if (d + 1) % 50 == 0:
+                print(f"  decision {d+1}: {nsub} lanes identical so far "
+                      f"({int(b['done'].sum())} of them done)")
     if ok:
         h = hashlib.sha256()
         b = outputs(cuda)
@@ -725,10 +746,10 @@ def run_chain(args, iron=False):
 
 
 def run_mixed(args):
-    import torch
     paths = snap_paths(t0=True)
     nbig, nsub = args.n, 64
     lanes = sorted(random.Random(1234).sample(range(nbig), nsub))
+    lanes_np = np.array(lanes)
     assign_big = [i % len(paths) for i in range(nbig)]
     assign_sub = [assign_big[l] for l in lanes]
     print(f"mixed big-N FULL-action gate: CUDA N={nbig} on {len(paths)} t0 "
@@ -739,25 +760,41 @@ def run_mixed(args):
     big_streams = [ActStream(i) for i in range(nbig)]
     cmp = Cmp()
     ok = True
-    for d in range(args.decisions):
-        acts = np.array([s.next_full() for s in big_streams],
-                        dtype=np.float64)
-        cpu.step(acts[lanes], repeat=args.repeat)
-        cuda.step(torch.as_tensor(acts).to(f"cuda:{args.device}"),
-                  repeat=args.repeat)
-        a, b = outputs(cpu), outputs(cuda)
-        if not cmp.compare(d, a, b, lanes=np.array(lanes)):
-            print(f"FAIL {cmp.fail}")
-            ok = False
-            break
-        if (d + 1) % 50 == 0:
-            print(f"  decision {d+1}: {nsub} lanes identical so far "
-                  f"({int(b['done'][lanes].sum())} of them done)")
+    phase = getattr(args, "phase_time", False)
+    acc = {"actgen": 0.0, "step": 0.0, "obs": 0.0, "cmp": 0.0, "sha": 0.0}
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        for d in range(args.decisions):
+            t0 = time.perf_counter()
+            acts = np.array([s.next_full() for s in big_streams],
+                            dtype=np.float64)
+            t1 = time.perf_counter()
+            _step_cpu_cuda(cpu, cuda, acts[lanes], acts, args.repeat,
+                           args.device, pool)
+            t2 = time.perf_counter()
+            a = outputs(cpu)
+            b = outputs(cuda, lanes=lanes_np)
+            t3 = time.perf_counter()
+            if not cmp.compare(d, a, b):
+                print(f"FAIL {cmp.fail}")
+                ok = False
+                break
+            t4 = time.perf_counter()
+            if phase:
+                acc["actgen"] += t1 - t0
+                acc["step"] += t2 - t1
+                acc["obs"] += t3 - t2
+                acc["cmp"] += t4 - t3
+            if (d + 1) % 50 == 0:
+                print(f"  decision {d+1}: {nsub} lanes identical so far "
+                      f"({int(b['done'].sum())} of them done)")
     if ok:
+        t_s0 = time.perf_counter()
         h = hashlib.sha256()
         b = outputs(cuda)
         for name in ("cam", "depth", "edge", "scal", "rew", "done", "pose"):
             h.update(b[name].tobytes())
+        acc["sha"] = time.perf_counter() - t_s0
         ndone = int((b["done"] != 0).sum())
         print(f"final full-batch sha256: {h.hexdigest()}  "
               f"({ndone}/{nbig} done)")
@@ -765,6 +802,8 @@ def run_mixed(args):
     print(("PASS" if ok else "FAIL") +
           f": mixed N={nbig}, {nsub} lanes exact vs CPU over "
           f"{args.decisions} decisions (full action set)")
+    if phase:
+        print("phase: " + " ".join(f"{k}={v:.3f}s" for k, v in acc.items()))
     cpu.close(); cuda.close()
     return ok
 
@@ -940,6 +979,9 @@ def build_parser():
         default=min(16, os.cpu_count() or 1),
         help="number of CPU worker processes for replica lanes (default: "
              "min(16, os.cpu_count()), 1=single-process VecBlaze)")
+    ap.add_argument(
+        "--phase-time", action="store_true",
+        help="with --mixed: print actgen/step/obs/cmp/sha wall seconds")
     ap.add_argument("--ktime", action="store_true",
                     help="print per-kernel timings at destroy")
     ap.add_argument("--op-trace", action="store_true",
