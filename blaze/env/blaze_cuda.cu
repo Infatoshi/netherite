@@ -401,11 +401,7 @@ __global__ void k_reset_bulk(Blaze *envs, const int *active,
  * the helpers' reads. State evolution is bit-identical to the serial
  * blaze_decision_ticks: same recenter sequence point, same fill values
  * (window bytes are a pure function of region + chunk coords). */
-__device__ __forceinline__ unsigned long long cu_clk64(void) {
-    unsigned long long t;
-    asm volatile("mov.u64 %0, %%clock64;" : "=l"(t) :: "memory");
-    return t;
-}
+/* cu_clk64 is static inline in blaze_core.h under __CUDACC__ (each TU). */
 
 /* Verify-only: trainer blaze_step passes inv==NULL (13-wide ABI). Focused
  * M2 packs a[13..16] here so chests/furnaces keep the same chain as
