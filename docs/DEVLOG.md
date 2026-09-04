@@ -1,5 +1,39 @@
 # DEVLOG (compressed)
 
+## 2026-09-04 CUDA build profiles: ptxas is the wall, ccache makes an unchanged sim free
+
+Question. A lane that only verifies or ports should not wait 160 s for nvcc on every iteration. Where does the time go, which flags are safe to change for that kind of work, and what does a delegate need to know to pick the right build?
+
+Measured on anvil (sm_120, CUDA 13.2, 32 cores, other lanes compiling at the same time so cicc and ptxas are 10 to 15 percent slower than the quiet 2026-09-03 numbers), worktree ~/nlanes/buildprof at f20c2a3, clean `make -C blaze/rl env-cuda -j`, `nvcc --time`. Two translation units compile in parallel, so wall is the slower unit plus link.
+
+| flags | cicc cuda / verify s | ptxas cuda / verify s | k_tick_warp SASS instrs | regs / stack B / spill st+ld B |
+|---|---|---|---|---|
+| gate: -O2 --fmad=false (default) | 30.9 / 31.8 | 142.5 / 126.5 | 394296 | 255 / 35568 / 3328+3804 |
+| dev: gate + -Xptxas -O1 | 30.5 / 31.5 | 114.1 / 105.0 | 382744 | 255 / 35648 / 3120+3084 |
+| gate + -Xptxas -O0 | 30.7 / 31.7 | 148.6 / 106.5 | (not counted) | |
+
+The time is ptxas on one function. k_tick_warp inlines the whole sim, 394k SASS instructions at the 255-register cap with a 35 KB stack frame, and ptxas is one single-threaded process per kernel, so `make -j` cannot help beyond the two units. The optimizer level is not the cost either: -O0 is no faster than -O2. The 2026-09-03 MC_NOINLINE fan-out already took the single-unit 921 s to 160 s and more fan-out made ptxas slower. Below about 110 s per iteration the only lever left is a smaller kernel.
+
+ccache 4.12.3 (already on anvil) caches nvcc as a compiler type. Same preprocessed source and flags from any worktree hit the same object.
+
+| build | wall |
+|---|---|
+| clean, ccache miss | one full compile |
+| clean, ccache hit (`NVCC_WRAP=ccache`) | 1 s |
+
+Shipped. `BLAZE_BUILD=gate|dev` on `make -C magma blaze_cuda_so`, `make -C blaze/rl env-cuda`, and `smoke-cuda`. gate is the default and the only profile a wall, ticks/s, or probe number may come from. dev adds `-Xptxas -O1` and keeps everything else (fmad off, fp-contract off, same source), for port, verify, and divergence lanes. A stamp file under the object dir records the profile, so switching rebuilds the sim objects without a clean. `NVCC_WRAP=ccache` prefixes nvcc; the cache dir is ccache's default, shared by every lane on the box. Documented in AGENTS.md and docs/SUBAGENT.md. Delegate prompts state the profile per lane type.
+
+Exactness and runtime cost of the dev profile, anvil gpu1, same tree, the two .so files swapped in place:
+
+| .so | verify default | chain | mixed --cpu-workers 16 | mixed final sha256 | t0 bench N=1024 25 dec, 4 runs |
+|---|---|---|---|---|---|
+| gate | PASS 28 s | PASS 11 s | PASS 107 s | bed161ee9e41068b... | 8.82 / 8.82 / 8.83 / 8.83 s |
+| dev (-Xptxas -O1) | PASS 28 s | PASS 12 s | PASS 110 s | bed161ee9e41068b... | 8.89 / 8.89 / 8.89 / 8.89 s |
+
+Same sha, so the dev build is bit-exact on every gate; it runs 0.8 percent slower, which is why it is not a profile a number may come from. Makefile behaviour checked on 6d7d779 in the same worktree: `BLAZE_BUILD=dev NVCC_WRAP=ccache` clean 150 s with four -Xptxas -O1 compiles (the box was busy), the same command again 0 s and no nvcc line, switching back to the default gate profile rebuilt the three sim objects (191 s, no -O1), a clean gate build on the warm cache 1 s, a clean dev build on the warm cache 0 s, `BLAZE_BUILD=bogus` refused, and the blaze/rl env-cuda rule under dev 154 s clean with its own stamp.
+
+What this means for the flywheel. A port or verify lane whose edits stay out of the sim headers pays 1 s per build. A lane that edits blaze_core.h or anything it includes pays ptxas on 394k instructions every iteration, 105 to 115 s under dev, and no flag changes that. The ceiling on that kind of lane is the kernel, not the toolchain: either the sim gets split into kernels that compile separately (Blaze V2 did, and ran 2.4x slower on the 3090), or the tick shrinks.
+
 ## 2026-09-04 randtick: cycles 2.2x, wood wall 421 s to 415 s
 
 Review addendum (Opus review of f20c2a3..037a9d4, then bb008e0). The Perlin cache from 1a04e70 was a lazily filled shared static: a `__device__` singleton every lane-0 thread could write on CUDA, and a function-local static written under the OpenMP env loop on the CPU. No fence, no atomic, so the first freeze or snow check in a cold biome or with rain on could read a torn table, and the s10 fixture never reaches that path (plains, weather off, ice and snow counters 0), so the gates could not see it. bb008e0 builds the table once on the host in blaze_create and keeps one read-only copy per vec (`Blaze.tn`, `d_tn` on CUDA, `RT_TEMP_NOISE(w)` in randtick_live.h); magma keeps its single-threaded lazy static. Same commit drops the unused `rt_live_lcg_skip` and `RT_COUNT_ADD` from the reverted warp pick and moves the precip counter after the null-world guard. Two review notes stay open as latent: `rt_live_temp_can_freeze` hardcodes the one-octave 52.5 bound with nothing tying it to `tn->n = 1`, and the 421 s before-wall above is the f20c2a3 lane binary, not a re-run, so the 6 s wall delta is inside the seed noise this entry documents. The randtick-slice clocks in the table above are instrumented against an uninstrumented baseline; the cycle drop is real, the split rows are not comparable to f20c2a3 as printed.
