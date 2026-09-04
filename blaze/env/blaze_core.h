@@ -161,6 +161,7 @@ enum {
     CU_OP_SKY_COL,         /* columns actually rebuilt */
     CU_OP_SKY_DIRTY,       /* non-CLEAN sky_dirty chunks at an opacity edit */
     CU_OP_SKY_MOVES,       /* lowered-box xz cells handed to neighbours */
+    CU_OP_SKY_SEED,        /* 46x46 raise-only seed-scan cells visited */
     CU_OP_ITEM_LIVE,       /* n_items sampled each live-item tick */
     CU_OP_FLUID_REG,       /* active fluid regions per fluid tick */
     CU_OP_LIGHT_Q,         /* block-light queue entries drained */
@@ -206,6 +207,9 @@ enum {
     CU_PHASE_RT_SEC,       /* RT_SECTION_NEEDS census checks */
     CU_PHASE_RT_PICK,      /* updateLCG position draws */
     CU_PHASE_RT_HANDLER,   /* picked-cell lookup + Block.randomTick bodies */
+    CU_PHASE_SKYCOL,       /* generateSkylightMap column pass (full path) */
+    CU_PHASE_SKYSEED,      /* 46x46 raise-only seed scan */
+    CU_PHASE_SKYDRAIN,     /* sky worklist drain after the seed scan */
     CU_PHASE_K
 };
 
@@ -399,6 +403,8 @@ typedef struct {
     uint32_t parity_fall_mutations;
     int     *rt_leaf;            /* RT_LIVE_SURR ints; BlockLeaves surroundings */
     int     *light_q;            /* CU_LIGHT_Q ints; World.java:161 BLOCK flood queue */
+    int     *sky_under;          /* packed load-time raisable cells; NULL = 46x46 */
+    int      sky_under_n;        /* count of sky_under; 0 is a valid empty list */
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
     CuSkyDirty sky_dirty[CU_SKY_NC_DECL * CU_SKY_NC_DECL];
                                  /* per region chunk: how much of its stored
@@ -833,6 +839,87 @@ MC_HD static inline void cu_light_relax_cell(Blaze *e, int x, int y, int z) {
 
 #define CU_SKY_MAX_NY 128        /* blaze_core.h rny invariant */
 
+/* Per-env int scratch, shared with cu_check_light_for_block below (the sky
+ * worklist drains before the BLOCK flood starts). */
+#define CU_LIGHT_Q 32768
+
+/* Logical cap of the sky worklist inside the shared light_q buffer. Always
+ * CU_LIGHT_Q in a product build; test_skylight_incr builds a second binary
+ * with a tiny cap so the overflow fallback below is exercised. */
+#ifndef CU_SKY_Q
+#define CU_SKY_Q CU_LIGHT_Q
+#endif
+#define CU_SKY_PACK(IX, IY, IZ) (((IX) << 20) | ((IY) << 10) | (IZ))
+
+typedef struct {
+    int *q;
+    int qh, qn, ovf;
+    int x0, x1, y0, y1, z0, z1;
+} CuSkyQ;
+
+MC_HD static inline void cu_sky_q_push(CuSkyQ *sq, int ix, int iy, int iz) {
+    int qt;
+    if (!sq || sq->ovf || !sq->q) return;
+    if (sq->qn >= CU_SKY_Q) { sq->ovf = 1; return; }
+    qt = sq->qh + sq->qn;
+    if (qt >= CU_SKY_Q) qt -= CU_SKY_Q;
+    sq->q[qt] = CU_SKY_PACK(ix, iy, iz);
+    sq->qn++;
+}
+
+MC_HD static inline void cu_sky_q_push_world(CuSkyQ *sq, const Blaze *e,
+                                             int x, int y, int z) {
+    if (!sq) return;
+    if (x < sq->x0 || x > sq->x1 || y < sq->y0 || y > sq->y1 ||
+        z < sq->z0 || z > sq->z1) return;
+    cu_sky_q_push(sq, x - e->rx0, y - e->ry0, z - e->rz0);
+}
+
+MC_HD static inline void cu_sky_q_push_nb(CuSkyQ *sq, const Blaze *e,
+                                          int x, int y, int z) {
+    static const int dx6[6] = {1, -1, 0, 0, 0, 0};
+    static const int dy6[6] = {0, 0, 1, -1, 0, 0};
+    static const int dz6[6] = {0, 0, 0, 0, 1, -1};
+    int f;
+    if (!sq) return;
+    for (f = 0; f < 6; ++f)
+        cu_sky_q_push_world(sq, e, x + dx6[f], y + dy6[f], z + dz6[f]);
+}
+
+/* Snapshot cells that the raise-only relax can still lift. First-edit of a
+ * chunk seeds these (clipped to the 46x46 box) instead of scanning the box. */
+MC_HD static inline int cu_sky_under_collect(const Blaze *e, int *out, int cap) {
+    static const int dx[6] = {1, -1, 0, 0, 0, 0};
+    static const int dy[6] = {0, 0, 1, -1, 0, 0};
+    static const int dz[6] = {0, 0, 0, 0, 1, -1};
+    int x, y, z, n = 0;
+    if (!e || !e->light || !e->cells) return 0;
+    for (x = e->rx0; x < e->rx0 + e->rnx; ++x)
+        for (z = e->rz0; z < e->rz0 + e->rnz; ++z)
+            for (y = e->ry0; y < e->ry0 + e->rny; ++y) {
+                long i = cu_region_idx(e, x, y, z);
+                int op, sky, q;
+                if (i < 0) continue;
+                op = cu_sky_opacity(mc_state_id(e->cells[i]));
+                if (op > 15) op = 15;
+                if (op < 1) op = 1;
+                sky = e->light[i] >> 4;
+                for (q = 0; q < 6; ++q) {
+                    long ni = cu_region_idx(e, x + dx[q], y + dy[q],
+                                            z + dz[q]);
+                    if (ni < 0) continue;
+                    if ((e->light[ni] >> 4) - op > sky) {
+                        if (out && n < cap)
+                            out[n] = CU_SKY_PACK(x - e->rx0, y - e->ry0,
+                                                 z - e->rz0);
+                        n++;
+                        break;
+                    }
+                }
+            }
+    return n;
+}
+
 /* What one update did, for the sky_dirty book-keeping below.
  *  - lowered cells (region-local box): their debt travels to the chunks
  *    within 15 steps, which now hold light that is too high.
@@ -935,7 +1022,7 @@ MC_HD static inline void cu_skylight_col_base(const Blaze *e, int wx, int wz,
  * the change. */
 
 MC_HD static inline void cu_skylight_column(Blaze *e, int wx, int wz,
-                                            CuSkyMoves *mv) {
+                                            CuSkyMoves *mv, CuSkyQ *sq) {
     u8 base[CU_SKY_MAX_NY];
     int y, wy0 = e->ry0, wy1 = e->ry0 + e->rny - 1;
     long i;
@@ -945,8 +1032,10 @@ MC_HD static inline void cu_skylight_column(Blaze *e, int wx, int wz,
         for (y = wy0; y <= wy1; ++y) {
             i = cu_region_idx(e, wx, y, wz);
             if (i < 0) continue;
-            if (e->light[i] >> 4)
+            if (e->light[i] >> 4) {
                 cu_sky_lowered(mv, wx - e->rx0, y - e->ry0, wz - e->rz0);
+                cu_sky_q_push_world(sq, e, wx, y, wz);
+            }
             e->light[i] = (u8)(e->light[i] & 15);
         }
         k1 = 15;
@@ -960,8 +1049,15 @@ MC_HD static inline void cu_skylight_column(Blaze *e, int wx, int wz,
             if (j1 == 0 && k1 != 15) j1 = 1;
             k1 -= j1;
             if (k1 > 0 && i >= 0) {
+                int cur = e->light[i] >> 4;
                 e->light[i] = (u8)((k1 << 4) | (e->light[i] & 15));
-                cu_sky_raised(e, mv, wx, y, wz, k1);
+                if (k1 > cur) {
+                    cu_sky_raised(e, mv, wx, y, wz, k1);
+                    cu_sky_q_push_nb(sq, e, wx, y, wz);
+                } else if (k1 < cur) {
+                    cu_sky_lowered(mv, wx - e->rx0, y - e->ry0, wz - e->rz0);
+                    cu_sky_q_push_world(sq, e, wx, y, wz);
+                }
             }
             --y;
             if (y <= 0 || k1 <= 0) break;
@@ -978,21 +1074,26 @@ MC_HD static inline void cu_skylight_column(Blaze *e, int wx, int wz,
         cur = e->light[i] >> 4;
         if (cur == nv) continue;
         e->light[i] = (u8)((nv << 4) | (e->light[i] & 15));
-        if (nv > cur) cu_sky_raised(e, mv, wx, y, wz, nv);
-        else cu_sky_lowered(mv, wx - e->rx0, y - e->ry0, wz - e->rz0);
+        if (nv > cur) {
+            cu_sky_raised(e, mv, wx, y, wz, nv);
+            cu_sky_q_push_nb(sq, e, wx, y, wz);
+        } else {
+            cu_sky_lowered(mv, wx - e->rx0, y - e->ry0, wz - e->rz0);
+            cu_sky_q_push_world(sq, e, wx, y, wz);
+        }
     }
 }
 
 /* Magma compute_skylight (light.c:290): every column of the chunk. */
 MC_HD static inline void cu_skylight_chunk(Blaze *e, int wx, int wz,
-                                           CuSkyMoves *mv) {
+                                           CuSkyMoves *mv, CuSkyQ *sq) {
     int bx = (wx >> 4) << 4, bz = (wz >> 4) << 4;
     int lx, lz;
     for (lx = 0; lx < 16; ++lx)
         for (lz = 0; lz < 16; ++lz) {
             int cx = bx + lx, cz = bz + lz;
             if (cu_region_idx(e, cx, e->ry0, cz) < 0) continue;
-            cu_skylight_column(e, cx, cz, mv);
+            cu_skylight_column(e, cx, cz, mv, sq);
         }
 }
 
@@ -1031,18 +1132,6 @@ MC_HD static inline void cu_skylight_spread_jacobi(Blaze *e, int x0, int y0,
     }
 }
 
-/* Per-env int scratch, shared with cu_check_light_for_block below (the sky
- * worklist drains before the BLOCK flood starts). */
-#define CU_LIGHT_Q 32768
-
-/* Logical cap of the sky worklist inside the shared light_q buffer. Always
- * CU_LIGHT_Q in a product build; test_skylight_incr builds a second binary
- * with a tiny cap so the overflow fallback below is exercised. */
-#ifndef CU_SKY_Q
-#define CU_SKY_Q CU_LIGHT_Q
-#endif
-#define CU_SKY_PACK(IX, IY, IZ) (((IX) << 20) | ((IY) << 10) | (IZ))
-
 /* Raise-only flood over a box. Magma compute_skylight_spread (light.c:541)
  * is a frontier BFS, so this is one sweep in the pass order above followed
  * by a drain of everything the sweep raised. Same least fixed point as the
@@ -1078,7 +1167,9 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
     if (z1 > rz1) z1 = rz1;
     if (x0 > x1 || y0 > y1 || z0 > z1) return;
     if (!q || e->rnx > 1024 || e->rny > 1024 || e->rnz > 1024) {
+        CU_PHASE_T0(e);
         cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
+        CU_PHASE_END(e, CU_PHASE_SKYDRAIN);
         return;
     }
 #define CU_SPB_PUSH(IX, IY, IZ) do {                                        \
@@ -1099,25 +1190,64 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
             CU_SPB_PUSH(nx_ - e->rx0, ny_ - e->ry0, nz_ - e->rz0);          \
         }                                                                   \
     } while (0)
-    for (x = x0; x <= x1 && !ovf; ++x)
-        for (z = z0; z <= z1 && !ovf; ++z)
-            for (y = y0; y <= y1 && !ovf; ++y) {
-                long i = cu_region_idx(e, x, y, z);
-                int before;
-                if (i < 0) continue;
-                before = e->light[i] >> 4;
-                cu_light_relax_cell(e, x, y, z);
-                if ((e->light[i] >> 4) > before) {
-                    cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
-                    CU_SPB_PUSH_NB(x, y, z);
+    {
+        CU_PHASE_T0(e);
+        CU_OP_ADD(e, CU_OP_SKY_SEED,
+                  (unsigned long long)(x1 - x0 + 1) *
+                  (unsigned long long)(z1 - z0 + 1) *
+                  (unsigned long long)(y1 - y0 + 1));
+        for (x = x0; x <= x1 && !ovf; ++x)
+            for (z = z0; z <= z1 && !ovf; ++z)
+                for (y = y0; y <= y1 && !ovf; ++y) {
+                    long i = cu_region_idx(e, x, y, z);
+                    int before;
+                    if (i < 0) continue;
+                    before = e->light[i] >> 4;
+                    cu_light_relax_cell(e, x, y, z);
+                    if ((e->light[i] >> 4) > before) {
+                        cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
+                        CU_SPB_PUSH_NB(x, y, z);
+                    }
                 }
+        CU_PHASE_END(e, CU_PHASE_SKYSEED);
+    }
+    {
+        CU_PHASE_T0(e);
+        while (qn > 0 && !ovf) {
+            int p = q[qh], ix, iy, iz;
+            long i;
+            int before;
+            ++qh; if (qh >= CU_SKY_Q) qh = 0;
+            --qn;
+            ix = (p >> 20) & 1023; iy = (p >> 10) & 1023; iz = p & 1023;
+            x = e->rx0 + ix; y = e->ry0 + iy; z = e->rz0 + iz;
+            i = ((long)ix * e->rny + iy) * e->rnz + iz;
+            before = e->light[i] >> 4;
+            cu_light_relax_cell(e, x, y, z);
+            if ((e->light[i] >> 4) > before) {
+                cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
+                CU_SPB_PUSH_NB(x, y, z);
             }
-    while (qn > 0 && !ovf) {
-        int p = q[qh], ix, iy, iz;
+        }
+        if (ovf)                   /* exact, just the slow way */
+            cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
+        CU_PHASE_END(e, CU_PHASE_SKYDRAIN);
+    }
+#undef CU_SPB_PUSH
+#undef CU_SPB_PUSH_NB
+}
+
+MC_HD static inline void cu_skylight_drain(Blaze *e, CuSkyQ *sq,
+                                           CuSkyMoves *mv) {
+    int x0 = sq->x0, x1 = sq->x1, y0 = sq->y0, y1 = sq->y1, z0 = sq->z0,
+        z1 = sq->z1;
+    CU_PHASE_T0(e);
+    while (sq->qn > 0 && !sq->ovf) {
+        int p = sq->q[sq->qh], ix, iy, iz, x, y, z;
         long i;
         int before;
-        ++qh; if (qh >= CU_SKY_Q) qh = 0;
-        --qn;
+        ++sq->qh; if (sq->qh >= CU_SKY_Q) sq->qh = 0;
+        --sq->qn;
         ix = (p >> 20) & 1023; iy = (p >> 10) & 1023; iz = p & 1023;
         x = e->rx0 + ix; y = e->ry0 + iy; z = e->rz0 + iz;
         i = ((long)ix * e->rny + iy) * e->rnz + iz;
@@ -1125,13 +1255,12 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
         cu_light_relax_cell(e, x, y, z);
         if ((e->light[i] >> 4) > before) {
             cu_sky_raised(e, mv, x, y, z, e->light[i] >> 4);
-            CU_SPB_PUSH_NB(x, y, z);
+            cu_sky_q_push_nb(sq, e, x, y, z);
         }
     }
-    if (ovf)                       /* exact, just the slow way */
+    if (sq->ovf)
         cu_skylight_spread_jacobi(e, x0, y0, z0, x1, y1, z1, mv);
-#undef CU_SPB_PUSH
-#undef CU_SPB_PUSH_NB
+    CU_PHASE_END(e, CU_PHASE_SKYDRAIN);
 }
 
 /* Magma light_set_state (light.c:751) sets column_dirty on opacity change;
@@ -1143,21 +1272,71 @@ MC_HD static inline void cu_skylight_spread_box(Blaze *e, int x0, int y0,
  * raises, so it rebuilds the chunk ladder instead of relightBlock.
  * generateSkylightMap is per-column independent; rebuilding the whole
  * chunk then spreading matches magma, and the lockstep digests agree
- * because both sides store those nibbles. */
+ * because both sides store those nibbles.
+ *
+ * When sky_under is set (snapshot load tabulated the raisable cells), the
+ * 46x46 scan is replaced by seeding the worklist from generateSkylightMap
+ * cells that moved plus those load-time raisable cells in the box. Same
+ * least fixed point: every cell that the scan could raise is either a
+ * lowered column cell, a neighbour of a raised column cell, already
+ * raisable at load, or in the cascade of those. */
 MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx,
                                                      int wz, CuSkyMoves *mv) {
-    int cx, cz, x0, x1, z0, z1;
+    int cx, cz, x0, x1, z0, z1, rx1, ry1, rz1;
+    CuSkyQ sq;
     if (!e->light_valid) return;
     CU_OP(e, CU_OP_SKY_FULL);
-    cu_skylight_chunk(e, wx, wz, mv);
     cx = wx >> 4;
     cz = wz >> 4;
     x0 = (cx << 4) - 15;
     x1 = (cx << 4) + 30;
     z0 = (cz << 4) - 15;
     z1 = (cz << 4) + 30;
-    cu_skylight_spread_box(e, x0, e->ry0, z0, x1,
-                           e->ry0 + e->rny - 1, z1, mv);
+    rx1 = e->rx0 + e->rnx - 1;
+    ry1 = e->ry0 + e->rny - 1;
+    rz1 = e->rz0 + e->rnz - 1;
+    if (x0 < e->rx0) x0 = e->rx0;
+    if (z0 < e->rz0) z0 = e->rz0;
+    if (x1 > rx1) x1 = rx1;
+    if (z1 > rz1) z1 = rz1;
+    sq.q = e->light_q;
+    sq.qh = sq.qn = sq.ovf = 0;
+    sq.x0 = x0; sq.x1 = x1;
+    sq.y0 = e->ry0; sq.y1 = ry1;
+    sq.z0 = z0; sq.z1 = z1;
+    if (e->sky_under && sq.q && CU_SKY_Q >= 4096 && e->rnx <= 1024 &&
+        e->rny <= 1024 && e->rnz <= 1024) {
+        int i;
+        {
+            CU_PHASE_T0(e);
+            cu_skylight_chunk(e, wx, wz, mv, &sq);
+            CU_PHASE_END(e, CU_PHASE_SKYCOL);
+        }
+        {
+            CU_PHASE_T0(e);
+            CU_OP_ADD(e, CU_OP_SKY_SEED, (unsigned long long)e->sky_under_n);
+            for (i = 0; i < e->sky_under_n && !sq.ovf; ++i) {
+                int p = e->sky_under[i];
+                int ix = (p >> 20) & 1023, iy = (p >> 10) & 1023,
+                    iz = p & 1023;
+                cu_sky_q_push_world(&sq, e, e->rx0 + ix, e->ry0 + iy,
+                                    e->rz0 + iz);
+            }
+            CU_PHASE_END(e, CU_PHASE_SKYSEED);
+        }
+        if (!sq.ovf) {
+            cu_skylight_drain(e, &sq, mv);
+            return;
+        }
+        cu_skylight_spread_jacobi(e, x0, e->ry0, z0, x1, ry1, z1, mv);
+        return;
+    }
+    {
+        CU_PHASE_T0(e);
+        cu_skylight_chunk(e, wx, wz, mv, NULL);
+        CU_PHASE_END(e, CU_PHASE_SKYCOL);
+    }
+    cu_skylight_spread_box(e, x0, e->ry0, z0, x1, ry1, z1, mv);
 }
 
 /* ---------------- incremental form of the same update -------------------
@@ -1307,7 +1486,6 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
 
     if (!e->light_valid || !e->light) return;
     {
-        CU_PHASE_T0(e);
     q = e->light_q;
     i0 = cu_region_idx(e, wx, wy, wz);
     cx = wx >> 4;
@@ -1340,9 +1518,11 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
             cu_sky_all_unknown(e);   /* cannot record boxes for this region */
         else
             cu_sky_settle(e, ci, &mv);
-        CU_PHASE_END(e, CU_PHASE_LIGHT);
+        /* Full-path cost is skycol+skyseed+skydrain, not the LIGHT bucket.
+         * LIGHT stays the incremental path so the dump splits first-edit. */
         return;
     }
+    CU_PHASE_T0(e);
     CU_OP(e, CU_OP_SKY_INCR);
     new_op = cu_sky_opacity(mc_state_id(e->cells[i0]));
     lower = new_op > old_op;
