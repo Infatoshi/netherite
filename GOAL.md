@@ -54,17 +54,46 @@ through the derived best output. The source input hash stayed unchanged.
 unavailable. Sanitized native trainer execution passed on Mac; the independent
 phase, world-options and policy-contract tests also passed their sanitizer runs.
 
-Gamer CUDA validation is staged in `~/nlanes/training-recipe`. The original
-environment build stays pinned to `6829035` until compilation finishes. The
-owned `training-recipe-validation` tmux watcher then verifies no simulation
-source changed, switches only its isolated worktree to `bc68460`, builds the
-native trainer/evaluator for `sm_86`, and requires an idle leased GPU0. Scripts,
-heartbeat and results live under `out/verify/training-recipe-gpu-bc68460/`.
-It covers CUDA NN optimizer counters, the two-phase recipe, default/nondefault
-training, complete CUDA evaluation and contract mismatch refusal. Compilation
-and a live waiting process do not establish a CUDA runtime result; review its
-exit codes and artifacts before closing this task. No existing Anvil watcher or
-unrelated GPU process is stopped.
+Gamer CUDA validation passed at `a899bb0` in `~/nlanes/training-recipe` on its
+RTX 3090. Parent verified the copied source revision, 151 file hashes, 19 return
+codes with explicit expected failures, nine complete evaluation reports, phase
+events and final process/lease inventories under
+`out/verify/training-recipe-gpu-bc68460/`. The directory retains its original
+source label; its `revision` file identifies the final tested code. CUDA phases
+completed 128 nominal ticks, 32x128x32 then 64x128x64, with optimizer counters
+2 then 4 and both fixed evaluations covering 2/2 episodes. Default and nondefault
+CUDA runs each completed 64 ticks; matching CUDA evaluations covered 2/2 each.
+The intentional policy mismatch failed with no score. The final CUDA checkpoint
+SHA256 is `e79468bff6e0213303dd7bf0cda83cec162a41d6c3c1c5674d566d7679652b75`;
+it remains at the same verification path's `phase.bin` on Gamer. The checked NN
+executable SHA256 is
+`40f36b41611df1b41c7d9c01cf19b87f2744dbbb972bb57358057ecb48f13c6e`.
+
+Actual runtime validation found a Linux OpenMP unload race: the evaluator's
+main thread called dlclose while worker threads still executed libgomp code.
+The all-thread backtrace is preserved under `first-runtime-failure/`. Fix
+`a899bb0` keeps Linux environment libraries mapped until process exit in both
+PPO and eval; environment destruction still frees state. The failing CPU eval
+then passed three consecutive runs, and CPU two-phase execution also passed.
+Final Mac root tests and native builds passed on this code; their zero return
+codes and logs are `out/verify/training-recipe-mac-*-final.*`.
+The independent Anvil audit on `a899bb0` also passed: root tests in 187 seconds,
+native builds and CPU two-phase training/evaluation. Parent checked its exact
+revision, all return codes, both complete reports, optimizer events and empty
+source status/diff in `out/verify/training-recipe-loader/`.
+
+Gamer's original CPU compiler was stopped before exhausting host memory; no
+unrelated GPU job was touched. Anvil cross-compiled the unchanged environment
+for sm_86 with CUDA 13.3, dev profile and scalar tick enabled. Actual make rc=0
+was captured after 44m27s; a replaced timeout supervisor's separate rc=137 is
+not the compiler result. Parent verified the 10,388,288-byte library SHA256
+`ead855749146007f92b70b6dceab7e389ebde1bdb2a7ecd4afb5e7575345cbc0`
+and the copied evidence in `out/verify/training-recipe-cuda-fallback/`.
+All 200 environment/core source hashes matched before import to Gamer.
+This dev build supplies functional evidence only, not throughput measurements.
+All owned build/validation processes have stopped, GPU leases are released,
+and one-use scripts are removed. The clean Gamer worktree retains runnable
+binaries and checkpoints; earlier unrelated Anvil watchers remain untouched.
 
 Authorized 2026-09-04 after the architecture review at `4ccbf35`.
 

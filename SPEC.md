@@ -199,6 +199,9 @@ objects stay alive; the optimizer update counter must advance through every
 phase. Episode/reward/curriculum state and captured starts are rebuilt for the
 new phase. The existing bootstrap at the end of a rollout remains valid before
 the phase reset. This is a scheduled phase transition, not chunk streaming.
+On Linux, environment drivers and their runtimes remain mapped until process
+exit because OpenMP workers can outlive an environment. Destroying an environment
+still frees its state; phase teardown must not unload code under those workers.
 
 Backend/device, environment count, rollout length, minibatch layout, precision,
 random seed, observation/action contract, warm-start input, checkpoint path and

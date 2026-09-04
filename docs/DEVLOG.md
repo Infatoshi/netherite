@@ -43,8 +43,39 @@ Mac root tests passed. Independent fresh Anvil root tests at `bc68460` passed in
 contract checks, CPU NN tests, 32 replay cases and the 3,617-tick tape inventory.
 Recipe/reward/observation checks also passed their isolated sanitizers; native
 trainer sanitizer execution passed on Mac. Default reward/sampler outputs were
-byte-identical over 10,000 comparison steps. Gamer GPU validation is pending
-compilation in its isolated worktree; no CUDA runtime result is claimed here.
+byte-identical over 10,000 comparison steps.
+
+Gamer CUDA validation passed at `a899bb0` after actual execution exposed a
+Linux OpenMP unload race. The first evaluator completed its episodes, then
+worker threads faulted in unmapped libgomp code while the main thread called
+dlclose. Both native loaders now keep Linux environment code/runtime mapped
+until process exit while destroying environment state normally. The original
+CPU evaluation passed three repeats after the fix, and CPU phases also passed.
+Final Mac root tests and native builds passed after this change.
+Independent Anvil validation on `a899bb0` passed root tests in 187 seconds,
+native builds and the CPU two-phase recipe with both evaluations complete.
+Parent checked the final revision, return codes, reports, events and clean
+source in `out/verify/training-recipe-loader/`.
+
+The 3090 CUDA recipe completed 128 nominal ticks through 32x128x32 and
+64x128x64 worlds with Adam steps 2 then 4; both fixed CPU evaluations covered
+2/2 episodes. Default and nondefault CUDA training each completed 64 ticks,
+matching CUDA evaluation covered 2/2 each, and a mismatched checkpoint was
+rejected without a score. Parent verified 151 copied file hashes, 19 return
+codes with expected failures and nine complete evaluation reports in
+`out/verify/training-recipe-gpu-bc68460/`; `revision` identifies the final source.
+The final CUDA checkpoint SHA256 is
+`e79468bff6e0213303dd7bf0cda83cec162a41d6c3c1c5674d566d7679652b75`.
+These short runs establish execution and state retention, not learning quality.
+
+The CUDA library was cross-compiled on Anvil after Gamer's CPU assembler grew
+near its RAM limit. Build evidence is in `out/verify/training-recipe-cuda-fallback/`:
+CUDA 13.3, sm_86, dev profile, scalar tick enabled, actual make rc=0 in 44m27s.
+Its SHA256 is `ead855749146007f92b70b6dceab7e389ebde1bdb2a7ecd4afb5e7575345cbc0`.
+The timeout supervisor was replaced separately, so its rc=137 is not a compile
+failure. All source hashes matched before library import. No throughput claim
+comes from this dev build. Owned processes are stopped, GPU leases released,
+and temporary scripts removed; Gamer keeps the runnable isolated worktree.
 
 ## 2026-09-04 configurable finite training worlds and boundary truncation
 
