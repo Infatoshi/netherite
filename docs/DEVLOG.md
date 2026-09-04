@@ -36,6 +36,13 @@ CUDA source compiles with scalar and warp paths. Integrated GPU validation is
 still pending a free leased Anvil GPU. Root tests and final artifact hashes are
 tracked in `GOAL.md`; do not promote compilation to an M2 result.
 
+Mac validation exposed an existing MPSGraph shutdown race. A fresh unchanged
+Metal NN build crashed during process teardown in two of five runs, matching
+an older crash report. Both graph compilation sites now request completion
+before returning on macOS 13 and later. The patched fresh executable passed ten
+of ten runs. The new native replay test also needs `_DARWIN_C_SOURCE` on Apple
+to expose `mkdtemp`, matching the driver; all 32 cases pass on Mac.
+
 ## 2026-09-04 the 5x wall was one straggler: nsys on the wood probe, merged tree back to 08-21 speed
 
 Review addendum (Opus review of the sky-first diff f20c2a3..ef16b13, fix 4db5139). The seeded full path missed one cell class the gates could not see: an opacity drop under cover (cliff face, overhang, cave wall) moves no generateSkylightMap column value and was not raisable at load, so nothing was pushed and the cell stayed dark where the 46x46 scan lit it. Reproduced by an A/B of the same binary with sky_under unset versus set, exhaustive over every dark solid cell with a lit neighbour, broken as its chunk's first edit:
