@@ -487,11 +487,16 @@ static int build_forward_graph(NnMetal *nn) {
     add_feed(nn->fwdWPh[t]);
 
   NSArray *targets = @[ nn->fwdLogits, nn->fwdValues ];
+  /* Compilation can otherwise outlive an unused executable and race process
+   * teardown. The blocking descriptor property is available from macOS 13. */
+  MPSGraphCompilationDescriptor *compilation = [MPSGraphCompilationDescriptor new];
+  if (@available(macOS 13.0, *))
+    compilation.waitForCompilationCompletion = YES;
   nn->fwdExec = [g compileWithDevice:nn->mpsDevice
                                feeds:feeds
                        targetTensors:targets
                     targetOperations:nil
-               compilationDescriptor:nil];
+               compilationDescriptor:compilation];
   if (!nn->fwdExec) {
     set_err("forward graph compile failed");
     return -1;
@@ -824,11 +829,14 @@ static int build_update_graph(NnMetal *nn) {
   [targets addObject:nn->updApproxKl];
   [targets addObject:nn->updClipfrac];
 
+  MPSGraphCompilationDescriptor *compilation = [MPSGraphCompilationDescriptor new];
+  if (@available(macOS 13.0, *))
+    compilation.waitForCompilationCompletion = YES;
   nn->updExec = [g compileWithDevice:nn->mpsDevice
                                feeds:feeds
                        targetTensors:targets
                     targetOperations:nil
-               compilationDescriptor:nil];
+               compilationDescriptor:compilation];
   if (!nn->updExec) {
     set_err("update graph compile failed");
     return -1;
