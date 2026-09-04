@@ -119,7 +119,7 @@ __global__ void k_tick_raw(Blaze *envs, int env, int n, const McSinTable *st,
         (void)blaze_do_smelt(&envs[i]);
     blaze_runtime_tick(&envs[i], st, act,
                        aabb_pool + (size_t)i * PSV_MAX_BLOCKS);
-    if (out && env >= 0)
+    if (out && env >= 0 && !envs[i].dimension_error)
         blaze_emit_bolr(&envs[i], st, out, want_cam);
 }
 

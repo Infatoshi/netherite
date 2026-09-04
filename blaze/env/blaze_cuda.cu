@@ -734,6 +734,7 @@ __global__ void k_obs(Blaze *envs, int n, const McSinTable *st,
     int i = gi / CU_NPIX, pix = gi % CU_NPIX;
     if (i >= n) return;
     Blaze *e = &envs[i];
+    if (e->dimension_error) return;
     if (e->dec_cam_fresh)
         blaze_render_cam_pixel(e, st, pix);
     if (cam)   cam[(size_t)i * CU_NPIX + pix] = e->cam[pix];
@@ -746,7 +747,7 @@ __global__ void k_final(Blaze *envs, int n, const McSinTable *st,
                         unsigned char *done, float *pose, double atk_gate,
                         int *status) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= n) return;
+    if (i >= n || envs[i].dimension_error) return;
     blaze_decision_finalize(&envs[i], st,
                             scal ? scal + (size_t)i * 6 : NULL,
                             rew ? rew + i : NULL,
