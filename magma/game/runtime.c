@@ -1706,6 +1706,14 @@ static void gm_runtime_reanchor_parity(GmRuntime *r, double x, double z) {
     rnx = r->parity_rnx; rny = r->parity_rny; rnz = r->parity_rnz;
     if (rnx <= 0 || rny <= 0 || rnz <= 0) return;
     half_x = rnx / 2; half_z = rnz / 2;
+    /* A returning world retains its complete comparison region. Recentring
+     * it on a different portal would compare a different set of blocks and
+     * discard coverage of edits made before departure. Reset counters over
+     * the same world-coordinate extent on every arrival. */
+    if (gm_world_parity_bounds(r->world, &x0, &y0, &z0, NULL, NULL, NULL)) {
+        gm_world_parity_configure(r->world, x0, y0, z0, rnx, rny, rnz);
+        return;
+    }
     x0 = (int)floor(x) - half_x;
     z0 = (int)floor(z) - half_z;
     y0 = 0;

@@ -286,12 +286,12 @@ static int run_units(void) {
     fprintf(stderr, "perlin(1,2)=%.17g\n", perlin);
 
     /* getFloatTemperature plains y=64: no Perlin (Biome.java:265-268). */
-    t64 = rt_live_float_temperature(1, 0, 64, 0);
+    t64 = rt_live_float_temperature(&g_w, 1, 0, 64, 0);
     expect(t64 == 0.8f, "plains y<=64 is base 0.8 (Biome.java:86 / :265)");
 
     /* y=80 at (8,16): x/8=1 z/8=2. Java dump t=0.773333 is (0,0);
      * (8,16) t=0.774901807. f=(float)(perlin*4). */
-    t80 = rt_live_float_temperature(1, 8, 80, 16);
+    t80 = rt_live_float_temperature(&g_w, 1, 8, 80, 16);
     f = (float)(perlin * 4.0);
     hand = 0.8f - (f + 80.0f - 64.0f) * 0.05f / 30.0f;
     expect(t80 == hand, "getFloatTemperature y=80 matches Biome.java:258-263");
@@ -306,7 +306,7 @@ static int run_units(void) {
 
     /* ice plains y=80 can drop below 0.15; plains 0.8 does not at y=80
      * unless Perlin is huge. */
-    expect(rt_live_float_temperature(12, 0, 64, 0) == 0.0f,
+    expect(rt_live_float_temperature(&g_w, 12, 0, 64, 0) == 0.0f,
            "ice plains base temp 0.0");
 
     /* ---- snapshot v7 load default plains; v8 round-trip ---- */

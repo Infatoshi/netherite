@@ -1602,14 +1602,14 @@ subsystems:
         - verify/fixtures/port/s10_t0_r64_portals.bsnp
         - verify/fixtures/port/s10_t0_r64_portals.bsnp.banks
         - verify/fixtures/port/s10_t0_r64_nether.bsnp
-        - blaze/rl/fixtures/portals_s10.json
+        - blaze/rl/fixtures/portals_roundtrip_s10.json
       m2:
         - blaze/env/blaze_cpu.so
         - blaze/env/blaze_cuda.so
         - verify/fixtures/port/s10_t0_r64_portals.bsnp
         - verify/fixtures/port/s10_t0_r64_portals.bsnp.banks
         - verify/fixtures/port/s10_t0_r64_nether.bsnp
-        - blaze/rl/fixtures/portals_s10.json
+        - blaze/rl/fixtures/portals_roundtrip_s10.json
     m1:
       - uv
       - run
@@ -1620,19 +1620,39 @@ subsystems:
       - blaze/env/verify_cpu.py
       - --chain
       - --expected-chain-actions
-      - "170"
+      - "346"
       - --snapshot
       - verify/fixtures/port/s10_t0_r64_portals.bsnp
       - --tape
-      - blaze/rl/fixtures/portals_s10.json
+      - blaze/rl/fixtures/portals_roundtrip_s10.json
       - --port-parity
       - --strict-capabilities
       - --features
       - player,portals,dimensions,world,random_ticks
-    m2: []
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --chain-seed
+      - "10"
+      - --expected-chain-actions
+      - "346"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_portals.bsnp
+      - --tape
+      - blaze/rl/fixtures/portals_roundtrip_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - player,portals,dimensions,world,random_ticks
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
-    block_reason: CUDA swap copy from bank not implemented
+    block_reason: CUDA round-trip validation pending on an idle leased GPU
 
   - name: nether_route
     supported: false

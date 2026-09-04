@@ -350,6 +350,22 @@ typedef struct {
     u8 x0, x1, y0, y1, z0, z1;   /* region-local, inclusive; CU_SKY_BOX only */
 } CuSkyDirty;
 
+/* Each supplied dimension has private mutable storage. Snapshot banks seed
+ * these regions once per reset; they are never the live return destination. */
+typedef struct {
+    u16 *cells;
+    u8 *light, *biome;
+    int rx0, ry0, rz0, rnx, rny, rnz;
+    int initialized;
+} CuDimensionRegion;
+
+enum {
+    CU_DIM_ERR_NONE = 0,
+    CU_DIM_ERR_MISSING_BANK = 1,
+    CU_DIM_ERR_BOUNDS = 2,
+    CU_DIM_ERR_END_UNSUPPORTED = 3
+};
+
 typedef struct {
     /* large per-env buffers (pool) */
     u16   *cells;                /* region packed states (id<<4)|meta; also
@@ -576,6 +592,8 @@ typedef struct {
     int swap_target_dim;      /* destination dimension ID */
     const void *dim_bank;     /* CuSnapshot[3]: [0]=nether, [2]=end */
     const void *dim_ow;       /* this env's own overworld snapshot */
+    CuDimensionRegion dimensions[3]; /* dimension ID + 1 */
+    int dimension_error;     /* sticky ABI failure, cleared only by reset */
 
     /* mob AI (GPU_MOB_AI.md) */
     int det_entity_rng;
@@ -5668,7 +5686,7 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
     CuEdit edits[CU_MAX_EDITS];
     int n = 0, i;
 
-    if (env->dead) return 0;                     /* r->dead || r->won gate */
+    if (env->dead || env->dimension_error) return 0;                     /* r->dead || r->won gate */
     {
     CU_PHASE_T0(env);
 
@@ -5967,6 +5985,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
  * (dead gate first, then recenter, then the body's own dead gate). */
 MC_HD static inline void blaze_runtime_tick(Blaze *env, const McSinTable *st,
                                             CuAction act, McAABB *blocks) {
+    if (env->dimension_error) return;
     if (!env->dead) cu_recenter(env);
     blaze_runtime_tick_nr(env, st, act, blocks);
     if (env->swap_pending) {
@@ -6336,6 +6355,7 @@ MC_HD static inline int blaze_decision_begin(Blaze *e, const McSinTable *st,
                                              const CRRecipe *recipes,
                                              int nrecipes) {
     (void)st;
+    if (e->dimension_error) return 0;
     e->dec_rew_pre = 0.0;
     e->dec_r_last = 0.0;
     e->dec_have_last = 0;
@@ -6344,7 +6364,7 @@ MC_HD static inline int blaze_decision_begin(Blaze *e, const McSinTable *st,
     e->dec_cam_fresh = 0;
     e->dec_have_nc = 0;
     e->dec_ry = e->dec_rp = e->dec_dist = 0.0;
-    if (e->done) return 0;           /* done envs idle until reset */
+    if (e->done || e->dimension_error) return 0;           /* done envs idle until reset */
 
     /* pre-tick protocol primitives, once per decision (rl_mode order:
      * craft, then interact, then smelt) */
@@ -6492,7 +6512,7 @@ MC_HD static inline void blaze_decision_ticks(Blaze *e, const McSinTable *st,
                                               int nrecipes) {
     int rep;
     if (!blaze_decision_begin(e, st, a, recipes, nrecipes)) return;
-    for (rep = 0; rep < repeat && !e->done; ++rep) {
+    for (rep = 0; rep < repeat && !e->done && !e->dimension_error; ++rep) {
         if (!e->dead) cu_recenter(e);
         blaze_decision_subtick(e, st, a, rep, repeat, blocks,
                                render_cam_inline, atk_gate);

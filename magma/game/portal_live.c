@@ -6,6 +6,12 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define PORTAL_WORLD GmWorld
+#define PORTAL_BLOCK(w,x,y,z) gm_world_block((w),(x),(y),(z))
+#include "portal_arrival.h"
+#undef PORTAL_BLOCK
+#undef PORTAL_WORLD
+
 int gm_portal_ignite(GmWorld *world, int fire_x, int fire_y, int fire_z) {
     if(!world)return 0;
     NpWorld local;memset(&local,0,sizeof local);
@@ -30,36 +36,23 @@ int gm_portal_ignite(GmWorld *world, int fire_x, int fire_y, int fire_z) {
 int gm_portal_find_or_make(GmWorld *world, int near_x, int near_z,
                            double *out_x, double *out_y, double *out_z) {
     if(!world||!out_x||!out_y||!out_z)return 0;
-    /* Teleporter.placeInExistingPortal scans the full +/-128-block square.
-     * The old 16-block shortcut missed valid linked portals and created a
-     * second one (seed-0 tape: existing x=8, scaled target x=25). */
-    enum { PORTAL_SEARCH_RADIUS = 128 };
-    gm_world_ensure(world,near_x>>4,near_z>>4,PORTAL_SEARCH_RADIUS/16+1);
-    for(int r=0;r<=PORTAL_SEARCH_RADIUS;++r)
-        for(int dx=-r;dx<=r;++dx)for(int dz=-r;dz<=r;++dz){
-        if(r&&abs(dx)!=r&&abs(dz)!=r)continue;
-        int x=near_x+dx,z=near_z+dz;
-        for(int y=4;y<124;++y)if(gm_world_block(world,x,y,z)==90){
-            *out_x=x+0.5;*out_y=y;*out_z=z+0.5;return 1;
+    PortalArrival p;
+    gm_world_ensure(world,near_x>>4,near_z>>4,128/16+1);
+    if (portal_plan_arrival(world, near_x, near_z, &p) != 1) return 0;
+    if (p.create) {
+        for (int x=p.bx;x<p.bx+4;++x) {
+            gm_world_set_block(world,x,p.by-1,p.bz,49);
+            gm_world_set_block(world,x,p.by+3,p.bz,49);
+        }
+        for (int y=p.by;y<p.by+3;++y) {
+            gm_world_set_block(world,p.bx,y,p.bz,49);
+            gm_world_set_block(world,p.bx+3,y,p.bz,49);
+            for (int x=p.bx+1;x<=p.bx+2;++x)
+                gm_world_set_block_meta(world,x,y,p.bz,90,1);
         }
     }
-    int bx=near_x-1,bz=near_z,by=-1;
-    for(int r=0;r<=16&&by<0;++r)for(int dx=-r;dx<=r&&by<0;++dx)
-        for(int dz=-r;dz<=r&&by<0;++dz){
-            if(r&&abs(dx)!=r&&abs(dz)!=r)continue;
-            int x=near_x+dx,z=near_z+dz;
-            for(int y=118;y>=5;--y)if(gm_world_block(world,x,y,z)==0&&
-                gm_world_block(world,x,y+1,z)==0&&gm_world_block(world,x,y-1,z)!=0&&
-                gm_world_block(world,x,y-1,z)!=10&&gm_world_block(world,x,y-1,z)!=11){
-                bx=x-1;bz=z;by=y;break;
-            }
-        }
-    if(by<0)by=70;
-    for(int x=bx;x<bx+4;++x){gm_world_set_block(world,x,by-1,bz,49);gm_world_set_block(world,x,by+3,bz,49);}
-    for(int y=by;y<by+3;++y){gm_world_set_block(world,bx,y,bz,49);gm_world_set_block(world,bx+3,y,bz,49);}
-    for(int x=bx+1;x<=bx+2;++x)for(int y=by;y<by+3;++y)
-        gm_world_set_block_meta(world,x,y,bz,90,1);
-    *out_x=bx+1.5;*out_y=by;*out_z=bz+0.5;return 1;
+    *out_x=p.x; *out_y=p.y; *out_z=p.z;
+    return 1;
 }
 
 int gm_end_portal_insert_eye(GmWorld *world, int frame_x, int frame_y, int frame_z) {

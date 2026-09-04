@@ -235,7 +235,7 @@ $(ENV_CPU_SO): $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h \
 		$(CORE_SRC)/falling_live.h $(CORE_SRC)/explosion_live.h \
-		$(CORE_SRC)/explosion.h $(CORE_SRC)/dimension_swap.h \
+		$(CORE_SRC)/explosion.h $(CORE_SRC)/dimension_swap.h $(CORE_SRC)/portal_arrival.h $(ENV_SRC)/blaze_io.h \
 		$(MOB_AI_HDRS) | $(ENV_OUT)
 	$(CC) $(ENV_CFLAGS) $(OMP_CFLAGS) -I$(ENV_SRC) -I$(CORE_SRC) -shared \
 		-o $@ $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
@@ -252,7 +252,7 @@ ENV_CUDA_HDRS := $(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_cuda_int.h $(ENV_SRC)/blaze_snapshot.h \
 		$(CORE_SRC)/entity_spine.h $(CORE_SRC)/falling_live.h \
 		$(CORE_SRC)/explosion_live.h $(CORE_SRC)/explosion.h \
-		$(CORE_SRC)/dimension_swap.h $(MOB_AI_HDRS)
+		$(CORE_SRC)/dimension_swap.h $(CORE_SRC)/portal_arrival.h $(ENV_SRC)/blaze_io.h $(MOB_AI_HDRS)
 ENV_CUDA_OBJS := $(ENV_OUT)/blaze_cuda.o $(ENV_OUT)/blaze_cuda_verify.o \
 		$(ENV_OUT)/blaze_snapshot_cu.o
 # One stamp per profile; making one removes the other, so switching

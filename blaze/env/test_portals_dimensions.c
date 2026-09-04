@@ -6,7 +6,7 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "blaze_snapshot.h"
-#include "nether_portal.h"
+#include "blaze_core.h"
 #include "mc_blocks.h"
 
 #include <stdio.h>
@@ -150,22 +150,93 @@ static int write_fixture(const char *from, const char *out_path) {
     return write_chain("blaze/rl/fixtures/portals_s10.json");
 }
 
+/* Exercise the real shared transfer on two private environments backed by
+ * the same immutable snapshots. The snapshot pose is deliberately wrong. */
+static Blaze *test_env(CuSnapshot *ow, CuSnapshot *banks) {
+    Blaze *e = calloc(1, sizeof *e);
+    if (!e) abort();
+    e->rnx = e->rnz = 32; e->rny = 128;
+    e->rx0 = e->rz0 = -16; e->rvol = 32 * 128 * 32;
+    e->cells = calloc((size_t)e->rvol, sizeof(u16));
+    e->light = calloc((size_t)e->rvol, 1);
+    e->biome = calloc(32 * 32, 1);
+    e->window = calloc(PSV_NCHUNKS, sizeof(Chunk));
+    e->dimensions[0].cells = calloc((size_t)e->rvol, sizeof(u16));
+    e->dimensions[0].light = calloc((size_t)e->rvol, 1);
+    e->dimensions[0].biome = calloc(32 * 32, 1);
+    if (!e->cells || !e->light || !e->biome || !e->window ||
+        !e->dimensions[0].cells || !e->dimensions[0].light || !e->dimensions[0].biome) abort();
+    memcpy(e->cells, ow->cells, (size_t)e->rvol * sizeof(u16));
+    e->pl.ent.posX = e->pl.ent.posZ = 4.5; e->pl.ent.posY = 65;
+    e->pl.ent.box = psv_player_box(4.5, 65, 4.5);
+    e->pl.yaw = 13; e->pl.pitch = -7;
+    e->dim_ow = ow; e->dim_bank = banks;
+    e->active_chest = e->active_furnace = -1;
+    cu_dimension_store(e);
+    return e;
+}
+static void free_test_env(Blaze *e) {
+    for (int i = 0; i < 3; ++i) {
+        free(e->dimensions[i].cells); free(e->dimensions[i].light);
+        free(e->dimensions[i].biome);
+    }
+    free(e->window); free(e);
+}
+static void transfer(Blaze *e, int dim) {
+    e->swap_target_dim = dim; e->swap_pending = 1;
+    cu_dimension_swap_apply(e);
+}
 static int run_units(void) {
-    /* Unit 1: coordinate scaling between overworld and nether */
-    double ow_x = 8.5, ow_z = 11.6;
-    int nether_x = (int)floor(ow_x * 0.125);
-    int nether_z = (int)floor(ow_z * 0.125);
-    expect(nether_x == 1 && nether_z == 1, "overworld (8.5, 11.6) -> nether (1, 1)");
-
-    double ret_ow_x = (double)nether_x * 8.0;
-    double ret_ow_z = (double)nether_z * 8.0;
-    expect(ret_ow_x == 8.0 && ret_ow_z == 8.0, "nether (1, 1) -> overworld (8.0, 8.0)");
-
-    /* Unit 2: portal dimension constants */
-    expect(BLK_OBSIDIAN == 49, "BLK_OBSIDIAN is 49");
-    expect(90 == 90, "Nether portal block id is 90");
-    expect(119 == 119, "End portal block id is 119");
-
+    CuSnapshot *snaps = calloc(4, sizeof *snaps);
+    Blaze *a, *b;
+    long marker;
+    expect(snaps != NULL, "snapshot storage allocated");
+    if (!snaps) return 1;
+    for (int i = 0; i < 2; ++i) {
+        snaps[i].head.rnx = snaps[i].head.rnz = 32; snaps[i].head.rny = 128;
+        snaps[i].head.rx0 = snaps[i].head.rz0 = -16;
+        snaps[i].head.px = snaps[i].head.py = snaps[i].head.pz = 999;
+        snaps[i].cells = calloc(32 * 128 * 32, sizeof(u16));
+        if (!snaps[i].cells) abort();
+    }
+    plant_cell(&snaps[0], 4, 65, 4, 90, 1);
+    plant_cell(&snaps[1], 0, 65, 0, 90, 1);
+    a = test_env(&snaps[0], &snaps[1]);
+    b = test_env(&snaps[0], &snaps[1]);
+    marker = ((long)(5 + 16) * 128 + 70) * 32 + 5 + 16;
+    a->cells[marker] = mc_state(57, 0);
+    a->projectiles[0].active = 1;
+    a->world_rand.seed = 123;
+    transfer(a, -1);
+    expect(!a->dimension_error && a->dimension == -1, "outbound transfer succeeds");
+    expect(a->pl.ent.posX == 0.5 && a->pl.ent.posY == 65 && a->pl.ent.posZ == 0.5,
+           "arrival computed from live portal, not snapshot pose");
+    expect(a->pl.yaw == 13 && a->pl.pitch == -7, "arrival preserves view");
+    expect(a->pl.ent.box.minX == psv_player_box(0.5,65,0.5).minX,
+           "arrival recomputes collision box");
+    expect(a->projectiles[0].active == 1 && a->world_rand.seed == 123,
+           "runtime projectiles and world random state survive transit");
+    a->cells[marker] = mc_state(41, 0);
+    transfer(a, 0);
+    expect(!a->dimension_error && a->dimension == 0, "return transfer succeeds");
+    expect(a->pl.ent.posX == 4.5 && a->pl.ent.posZ == 4.5, "return resolves overworld portal");
+    expect(a->cells[marker] == mc_state(57,0), "overworld edits survive round trip");
+    transfer(a, -1);
+    expect(a->cells[marker] == mc_state(41,0), "nether edits survive second visit");
+    transfer(b, -1);
+    expect(!b->dimension_error && b->cells[marker] == 0, "batched worlds do not share mutations");
+    expect(snaps[0].cells[marker] == 0 && snaps[1].cells[marker] == 0,
+           "source snapshots remain immutable");
+    a->pl.ent.posX = 10000;
+    transfer(a, 0);
+    expect(a->dimension_error == CU_DIM_ERR_BOUNDS && a->dimension == -1,
+           "unavailable portal search data fails without switching worlds");
+    b->dimension_error = 0; b->dimension = 0; b->dim_bank = NULL;
+    transfer(b, -1);
+    expect(b->dimension_error == CU_DIM_ERR_MISSING_BANK && b->dimension == 0,
+           "missing bank fails without changing dimension");
+    free_test_env(a); free_test_env(b);
+    free(snaps[0].cells); free(snaps[1].cells); free(snaps);
     return fails ? 1 : 0;
 }
 

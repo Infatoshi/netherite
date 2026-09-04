@@ -580,7 +580,8 @@ rung4-verify:
 # blaze_cpu.so on both (Mach-O dylib with a .so suffix still dlopens via
 # ctypes); no .dylib rename so blaze.py / verify_cpu.py stay platform-neutral.
 BLAZE_SRCS = ../blaze/env/blaze_cpu.c ../blaze/env/blaze_snapshot.c
-BLAZE_PARITY = ../blaze/core/port_parity.h
+BLAZE_PARITY = ../blaze/core/port_parity.h ../blaze/core/dimension_swap.h \
+               ../blaze/core/portal_arrival.h ../blaze/env/blaze_io.h
 BLAZE_RANDTICK = ../blaze/core/randtick_live.h
 BLAZE_FALLING = ../blaze/core/falling_live.h
 BLAZE_WEATHER = ../blaze/core/world_weather.h

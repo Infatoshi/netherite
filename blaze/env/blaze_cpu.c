@@ -67,6 +67,9 @@ typedef struct {
     int    snap_sky_under_n[BLAZE_MAX_SNAPS];
     CuSnapshot dim_snaps[3];
     int    dim_loaded[3];
+    char   dim_paths[3][1024];
+    u16   *dim_cells_pool[3];
+    u8    *dim_light_pool[3], *dim_biome_pool[3];
     /* capture may replace coal/xy_off while live envs still alias the old
      * buffer (env->ore / env->ore_xy bind by pointer at reset). Do not
      * free those until destroy. */
@@ -357,6 +360,11 @@ void blaze_destroy(void *vh) {
     }
     if (v->dim_loaded[0]) blaze_snapshot_free(&v->dim_snaps[0]);
     if (v->dim_loaded[2]) blaze_snapshot_free(&v->dim_snaps[2]);
+    for (i = 0; i < 3; ++i) {
+        free(v->dim_cells_pool[i]);
+        free(v->dim_light_pool[i]);
+        free(v->dim_biome_pool[i]);
+    }
     for (i = 0; i < v->nretired; ++i) free(v->retired[i]);
     free(v->envs); free(v->assign);
     free(v->cells_pool); free(v->light_pool); free(v->biome_pool);
@@ -372,105 +380,7 @@ void blaze_destroy(void *vh) {
     free(v);
 }
 
-static void cu_trim_inplace(char *s) {
-    char *a = s, *e;
-    if (!s) return;
-    while (*a == ' ' || *a == '\t' || *a == '\n' || *a == '\r') a++;
-    if (a != s) memmove(s, a, strlen(a) + 1);
-    e = s + strlen(s);
-    while (e > s && (e[-1] == ' ' || e[-1] == '\t' ||
-                     e[-1] == '\n' || e[-1] == '\r'))
-        *--e = 0;
-}
-
-static int cu_join_snap_dir(char *out, size_t cap, const char *snap,
-                            const char *rel) {
-    const char *slash;
-    size_t n, rl;
-    if (!out || cap == 0 || !rel || !rel[0]) return -1;
-    rl = strlen(rel);
-    if (rel[0] == '/') {
-        if (rl + 1 > cap) return -1;
-        memcpy(out, rel, rl + 1);
-        return 0;
-    }
-    slash = snap ? strrchr(snap, '/') : NULL;
-    if (!slash) {
-        if (rl + 1 > cap) return -1;
-        memcpy(out, rel, rl + 1);
-        return 0;
-    }
-    n = (size_t)(slash - snap);
-    if (n + 1 + rl + 1 > cap) return -1;
-    memcpy(out, snap, n);
-    out[n] = '/';
-    memcpy(out + n + 1, rel, rl + 1);
-    return 0;
-}
-
-/* Sidecar PATH.banks names sibling nether/end banks. Missing sidecar is
- * not an error; a named path that cannot be resolved is. */
-static int cu_read_banks_sidecar(const char *snap_path,
-                                 char *nether_out, size_t ncap,
-                                 char *end_out, size_t ecap,
-                                 char *err, int err_cap) {
-    char side[1080];
-    char line[1024];
-    FILE *f;
-    if (!snap_path || !snap_path[0]) return 0;
-    if (snprintf(side, sizeof side, "%s.banks", snap_path) >= (int)sizeof side)
-        return 0;
-    f = fopen(side, "r");
-    if (!f) return 0;
-    while (fgets(line, (int)sizeof line, f)) {
-        char *sep, *key, *val, resolved[1024];
-        cu_trim_inplace(line);
-        if (!line[0] || line[0] == '#') continue;
-        sep = strchr(line, '=');
-        if (sep) {
-            *sep = 0;
-            key = line;
-            val = sep + 1;
-        } else {
-            key = line;
-            val = line;
-            while (*val && *val != ' ' && *val != '\t') val++;
-            if (*val) *val++ = 0;
-            else val = (char *)"";
-        }
-        cu_trim_inplace(key);
-        cu_trim_inplace(val);
-        if (!val[0]) continue;
-        if (cu_join_snap_dir(resolved, sizeof resolved, snap_path, val) != 0) {
-            fclose(f);
-            if (err && err_cap > 0)
-                snprintf(err, (size_t)err_cap,
-                         "dimension bank path too long in %s", side);
-            return -1;
-        }
-        if (!strcmp(key, "nether") && nether_out && ncap && !nether_out[0]) {
-            if (strlen(resolved) + 1 > ncap) {
-                fclose(f);
-                if (err && err_cap > 0)
-                    snprintf(err, (size_t)err_cap,
-                             "nether bank path too long in %s", side);
-                return -1;
-            }
-            memcpy(nether_out, resolved, strlen(resolved) + 1);
-        } else if (!strcmp(key, "end") && end_out && ecap && !end_out[0]) {
-            if (strlen(resolved) + 1 > ecap) {
-                fclose(f);
-                if (err && err_cap > 0)
-                    snprintf(err, (size_t)err_cap,
-                             "end bank path too long in %s", side);
-                return -1;
-            }
-            memcpy(end_out, resolved, strlen(resolved) + 1);
-        }
-    }
-    fclose(f);
-    return 0;
-}
+#include "blaze_io.h"
 
 static int cu_load_named_bank(CuVec *v, int bank_idx, const char *path,
                               const char *label, char *err, int err_cap) {
@@ -493,9 +403,10 @@ static int cu_load_named_bank(CuVec *v, int bank_idx, const char *path,
         return -1;
     }
     if (v->dim_loaded[bank_idx]) {
-        blaze_snapshot_free(&v->dim_snaps[bank_idx]);
-        v->dim_loaded[bank_idx] = 0;
-        memset(&v->dim_snaps[bank_idx], 0, sizeof v->dim_snaps[bank_idx]);
+        if (!strcmp(v->dim_paths[bank_idx], path)) return 0;
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "conflicting %s dimension banks", label);
+        return -1;
     }
     if (!blaze_snapshot_load(path, &v->dim_snaps[bank_idx], err, err_cap,
                              v->no_ore_xy))
@@ -519,6 +430,34 @@ static int cu_load_named_bank(CuVec *v, int bank_idx, const char *path,
         memset(&v->dim_snaps[bank_idx], 0, sizeof v->dim_snaps[bank_idx]);
         return -1;
     }
+    if (strlen(path) >= sizeof v->dim_paths[bank_idx]) {
+        if (err && err_cap > 0) snprintf(err, (size_t)err_cap, "dimension bank path too long");
+        blaze_snapshot_free(&v->dim_snaps[bank_idx]);
+        return -1;
+    }
+    {
+        size_t nv = (size_t)v->n * (size_t)v->rvol;
+        size_t nb = (size_t)v->n * (size_t)v->rnx * (size_t)v->rnz;
+        u16 *cells = (u16 *)malloc(nv * sizeof(u16));
+        u8 *light = (u8 *)malloc(nv), *biome = (u8 *)malloc(nb);
+        if (!cells || !light || !biome) {
+            free(cells); free(light); free(biome);
+            blaze_snapshot_free(&v->dim_snaps[bank_idx]);
+            if (err && err_cap > 0) snprintf(err, (size_t)err_cap, "dimension pool allocation failed");
+            return -1;
+        }
+        v->dim_cells_pool[bank_idx] = cells;
+        v->dim_light_pool[bank_idx] = light;
+        v->dim_biome_pool[bank_idx] = biome;
+        for (int j = 0; j < v->n; ++j) {
+            CuDimensionRegion *d = &v->envs[j].dimensions[bank_idx];
+            d->cells = cells + (size_t)j * v->rvol;
+            d->light = light + (size_t)j * v->rvol;
+            d->biome = biome + (size_t)j * v->rnx * v->rnz;
+            d->initialized = 0;
+        }
+    }
+    strcpy(v->dim_paths[bank_idx], path);
     v->dim_loaded[bank_idx] = 1;
     return 0;
 }
@@ -645,6 +584,13 @@ int blaze_assign(void *vh, const int *snap_idx) {
 
 static void cu_reset_env(CuVec *v, int i) {
     const CuSnapshot *s = &v->snaps[v->assign[i]];
+    /* A previous episode may end in another dimension. Bulk reset must
+     * always write the original overworld pool, never that active region. */
+    v->envs[i].cells = v->cells_pool + (size_t)i * v->rvol;
+    v->envs[i].light = v->light_pool + (size_t)i * v->rvol;
+    v->envs[i].biome = v->biome_pool + (size_t)i * v->rnx * v->rnz;
+    for (int d = 0; d < 3; ++d) v->envs[i].dimensions[d].initialized = 0;
+    v->envs[i].dimension_error = 0;
     blaze_reset_from_snapshot(&v->envs[i], &s->head, s->items, s->cells,
                               s->light, s->coal, (int)s->ncoal, s->xy_off,
                               s->cont, s->ncont, s->mobs, s->n_mobs,
@@ -655,6 +601,7 @@ static void cu_reset_env(CuVec *v, int i) {
     v->envs[i].dim_bank = v->dim_snaps;
     v->envs[i].dim_ow = &v->snaps[v->assign[i]];
     v->envs[i].dimension = 0;
+    cu_dimension_store(&v->envs[i]);
     v->envs[i].pl.fire = s->player_fire;
     v->envs[i].pl.air = s->player_air;
     {
@@ -1022,6 +969,8 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
                                 v->atk_gate);
         if (status) blaze_fill_status(e, status + (size_t)i * CU_STATUS_K);
     }
+    for (i = 0; i < v->n; ++i)
+        if (v->envs[i].dimension_error) return -1;
     return 0;
 }
 
@@ -1558,6 +1507,7 @@ int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
             rc |= blaze_tick_raw(vh, i, a, 0, NULL);
         return rc;
     }
+    if (v->envs[env].dimension_error) return -1;
     memset(&act, 0, sizeof act);
     act.forward = (float)a[0];
     act.strafe = (float)a[1];
@@ -1583,6 +1533,7 @@ int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
         (void)blaze_do_smelt(&v->envs[env]);
     blaze_runtime_tick(&v->envs[env], &v->st, act,
                        v->blocks + (size_t)env * PSV_MAX_BLOCKS);
+    if (v->envs[env].dimension_error) return -1;
     if (out) blaze_emit_bolr(&v->envs[env], &v->st, (CuBinObs *)out, want_cam);
     return 0;
 }
@@ -1606,6 +1557,7 @@ int blaze_tick(void *vh, int env, const double a[17], int want_cam,
     }
     e = &v->envs[env];
     blocks = v->blocks + (size_t)env * PSV_MAX_BLOCKS;
+    if (e->dimension_error) return -1;
     if (!blaze_decision_begin(e, &v->st, a, v->recipes, v->nrecipes)) {
         if (out) blaze_emit_bolr(e, &v->st, (CuBinObs *)out, want_cam);
         return 0;
@@ -1614,6 +1566,7 @@ int blaze_tick(void *vh, int env, const double a[17], int want_cam,
         (void)blaze_container_click(e, (int)a[14], (int)a[15], (int)a[16]);
     if (!e->dead) cu_recenter(e);
     blaze_decision_subtick(e, &v->st, a, 0, 1, blocks, 1, v->atk_gate);
+    if (e->dimension_error) return -1;
     if (out) blaze_emit_bolr(e, &v->st, (CuBinObs *)out, want_cam);
     return 0;
 }
