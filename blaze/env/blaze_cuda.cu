@@ -1279,8 +1279,12 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                          char *err, int err_cap) {
     CuVecCu *v = (CuVecCu *)vh;
     int i;
+    char nether[1024], end[1024];
     if (!v || count < 0 || v->nsnaps + count > BLAZE_MAX_SNAPS) return -1;
     cudaSetDevice(v->device);
+    if (cu_resolve_banks(paths, count, v->nether_bank_path, v->end_bank_path,
+                         v->dim_bank_loaded_path[0], v->dim_bank_loaded_path[2],
+                         nether, end, err, err_cap)) return -1;
     for (i = 0; i < count; ++i) {
         CuSnapshot s;
         CuSnapDev *d = &v->h_snaps[v->nsnaps];
@@ -1491,13 +1495,16 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                          cudaMemcpyHostToDevice), "snap table upload"))
         return -1;
     {
-        char sc_nether[1024] = {0}, sc_end[1024] = {0};
-        if (count && cu_read_banks_sidecar(paths[0], sc_nether, sizeof sc_nether,
-                                           sc_end, sizeof sc_end, err, err_cap)) return -1;
-        const char *nether = v->nether_bank_path[0] ? v->nether_bank_path : sc_nether;
-        const char *end = v->end_bank_path[0] ? v->end_bank_path : sc_end;
         if (cu_load_named_bank(v, 0, nether, "nether", err, err_cap) ||
             cu_load_named_bank(v, 2, end, "end", err, err_cap)) return -1;
+        for (int d = 0; d < 3; d += 2)
+            if (v->h_dim_bank[d].cells)
+                for (int j = 0; j < v->nsnaps; ++j)
+                    if (v->h_snaps[j].head.seed != v->h_dim_bank[d].head.seed) {
+                        if (err && err_cap > 0)
+                            snprintf(err, (size_t)err_cap, "dimension bank seed differs from snapshot %d", j);
+                        return -1;
+                    }
     }
     return v->nsnaps;
 }

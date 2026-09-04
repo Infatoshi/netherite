@@ -466,7 +466,10 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                          char *err, int err_cap) {
     CuVec *v = (CuVec *)vh;
     int i;
+    char nether[1024], endb[1024];
     if (!v || count < 0 || v->nsnaps + count > BLAZE_MAX_SNAPS) return -1;
+    if (cu_resolve_banks(paths, count, v->nether_bank_path, v->end_bank_path,
+                         v->dim_paths[0], v->dim_paths[2], nether, endb, err, err_cap)) return -1;
     for (i = 0; i < count; ++i) {
         const RlSnapHead *h;
         if (!blaze_snapshot_load(paths[i], &v->snaps[v->nsnaps], err, err_cap,
@@ -523,24 +526,20 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         v->nsnaps++;
     }
     if (v->nsnaps > 0) {
-        char sc_nether[1024];
-        char sc_end[1024];
-        const char *nether;
-        const char *endb;
-        sc_nether[0] = 0;
-        sc_end[0] = 0;
-        if (count > 0 && paths[0] &&
-            cu_read_banks_sidecar(paths[0], sc_nether, sizeof sc_nether,
-                                  sc_end, sizeof sc_end, err, err_cap) != 0)
-            return -1;
-        nether = v->nether_bank_path[0] ? v->nether_bank_path : sc_nether;
-        endb = v->end_bank_path[0] ? v->end_bank_path : sc_end;
         if (nether[0] &&
             cu_load_named_bank(v, 0, nether, "nether", err, err_cap) != 0)
             return -1;
         if (endb[0] &&
             cu_load_named_bank(v, 2, endb, "end", err, err_cap) != 0)
             return -1;
+        for (int d = 0; d < 3; d += 2)
+            if (v->dim_loaded[d])
+                for (int j = 0; j < v->nsnaps; ++j)
+                    if (v->snaps[j].head.seed != v->dim_snaps[d].head.seed) {
+                        if (err && err_cap > 0)
+                            snprintf(err, (size_t)err_cap, "dimension bank seed differs from snapshot %d", j);
+                        return -1;
+                    }
     }
     return v->nsnaps;
 }

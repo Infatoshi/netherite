@@ -105,4 +105,40 @@ static int cu_read_banks_sidecar(const char *snap_path,
     return 0;
 }
 
+/* Resolve the complete load request before any snapshot slot is changed.
+ * One vector currently has one immutable bank per dimension. Conflicting
+ * per-snapshot banks must be rejected, including within a single batch. */
+static int cu_resolve_banks(const char *const *paths, int count,
+                            const char *nether_opt, const char *end_opt,
+                            const char *nether_loaded, const char *end_loaded,
+                            char nether[1024], char end[1024],
+                            char *err, int err_cap) {
+    const char *initial[2] = {nether_opt[0] ? nether_opt : nether_loaded,
+                             end_opt[0] ? end_opt : end_loaded};
+    char *dest[2] = {nether, end};
+    const char *opts[2] = {nether_opt, end_opt};
+    for (int j = 0; j < 2; ++j) {
+        if (strlen(initial[j]) >= 1024) return -1;
+        strcpy(dest[j], initial[j]);
+    }
+    for (int i = 0; i < count; ++i) {
+        char sn[1024] = {0}, se[1024] = {0};
+        const char *sc[2] = {sn, se};
+        if (!paths || !paths[i] ||
+            cu_read_banks_sidecar(paths[i], sn, sizeof sn, se, sizeof se,
+                                  err, err_cap)) return -1;
+        for (int j = 0; j < 2; ++j) {
+            if (opts[j][0] || !sc[j][0]) continue;
+            if (dest[j][0] && strcmp(dest[j], sc[j])) {
+                if (err && err_cap > 0)
+                    snprintf(err, (size_t)err_cap, "conflicting %s dimension banks",
+                             j ? "end" : "nether");
+                return -1;
+            }
+            strcpy(dest[j], sc[j]);
+        }
+    }
+    return 0;
+}
+
 #endif
