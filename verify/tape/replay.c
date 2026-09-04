@@ -6,6 +6,7 @@
 #include "mca.h"
 
 #include <errno.h>
+#include <ctype.h>
 #include <limits.h>
 #include <math.h>
 #include <signal.h>
@@ -101,28 +102,130 @@ static int sgn(double v)
     return 0;
 }
 
+/* Validate JSON before extracting fields. strtod alone accepts NaN, truncated
+ * numbers and numeric prefixes in otherwise malformed records. */
+static const char *skip_space(const char *p)
+{
+    while (isspace((unsigned char)*p)) p++;
+    return p;
+}
+
+static const char *json_value(const char *p, int depth)
+{
+    p = skip_space(p);
+    if (depth > 64) return NULL;
+    if (*p == '"') {
+        for (p++; *p && *p != '"'; p++) {
+            if ((unsigned char)*p < 32) return NULL;
+            if (*p == '\\') {
+                p++;
+                if (*p == 'u') {
+                    for (int i = 0; i < 4; i++)
+                        if (!isxdigit((unsigned char)*++p)) return NULL;
+                } else if (!*p || !strchr("\"\\/bfnrt", *p)) return NULL;
+            }
+        }
+        return *p == '"' ? p + 1 : NULL;
+    }
+    if (*p == '{' || *p == '[') {
+        int object = *p == '{';
+        char close = object ? '}' : ']';
+        p = skip_space(p + 1);
+        if (*p == close) return p + 1;
+        for (;;) {
+            if (object) {
+                if (*p != '"' || !(p = json_value(p, depth + 1))) return NULL;
+                p = skip_space(p);
+                if (*p++ != ':') return NULL;
+            }
+            if (!(p = json_value(p, depth + 1))) return NULL;
+            p = skip_space(p);
+            if (*p == close) return p + 1;
+            if (*p++ != ',') return NULL;
+            p = skip_space(p);
+        }
+    }
+    if (!strncmp(p, "true", 4) || !strncmp(p, "null", 4)) return p + 4;
+    if (!strncmp(p, "false", 5)) return p + 5;
+    if (*p == '-') p++;
+    if (*p == '0') p++;
+    else {
+        if (*p < '1' || *p > '9') return NULL;
+        while (isdigit((unsigned char)*p)) p++;
+    }
+    if (*p == '.') {
+        p++;
+        if (!isdigit((unsigned char)*p)) return NULL;
+        while (isdigit((unsigned char)*p)) p++;
+    }
+    if (*p == 'e' || *p == 'E') {
+        p++;
+        if (*p == '+' || *p == '-') p++;
+        if (!isdigit((unsigned char)*p)) return NULL;
+        while (isdigit((unsigned char)*p)) p++;
+    }
+    return p;
+}
+
+static int json_row(const char *p)
+{
+    const char *end;
+    return *skip_space(p) == '{' && (end = json_value(p, 0)) && !*skip_space(end);
+}
+
+/* Only top-level members count. Reject duplicate compared keys instead of
+ * silently choosing one, or finding a similarly named nested field. */
+static const char *member(const char *line, const char *key)
+{
+    const char *p = skip_space(line), *found = NULL;
+    size_t len = strlen(key) - 1; /* callers include the trailing colon */
+    if (*p++ != '{') return NULL;
+    for (;;) {
+        const char *start, *end;
+        p = skip_space(p);
+        if (*p == '}') return found;
+        start = p;
+        if (*p != '"' || !(end = json_value(p, 0))) return NULL;
+        p = skip_space(end);
+        if (*p++ != ':') return NULL;
+        p = skip_space(p);
+        if ((size_t)(end - start) == len && !strncmp(start, key, len)) {
+            if (found) return NULL;
+            found = p;
+        }
+        if (!(p = json_value(p, 0))) return NULL;
+        p = skip_space(p);
+        if (*p == '}') return found;
+        if (*p++ != ',') return NULL;
+    }
+}
+
 static int find_key(const char *line, const char *key, double *out)
 {
-    const char *p = strstr(line, key);
+    const char *p = member(line, key);
     char *end = NULL;
     if (!p)
         return 0;
-    p += strlen(key);
+    errno = 0;
     *out = strtod(p, &end);
-    return end != p;
+    while (isspace((unsigned char)*end)) end++;
+    return end != p && errno != ERANGE && isfinite(*out) &&
+           (*end == ',' || *end == '}' || *end == ']');
 }
 
 static int find_int(const char *line, const char *key, int *out)
 {
-    const char *p = strstr(line, key);
+    const char *p = member(line, key);
     char *end = NULL;
     long v;
     if (!p)
         return 0;
-    p += strlen(key);
+    errno = 0;
     v = strtol(p, &end, 10);
-    if (end == p)
+    if (end == p || errno == ERANGE || v < INT_MIN || v > INT_MAX)
         return 0;
+    while (isspace((unsigned char)*end)) end++;
+    if (*end != ',' && *end != '}' && *end != ']') return 0;
     *out = (int)v;
     return 1;
 }
@@ -311,8 +414,16 @@ static int load_tape(const char *path, Header *hdr, Tick **out, int *nout)
         return 0;
     }
     while ((n = getline(&line, &cap, fp)) > 0) {
+        if (memchr(line, 0, (size_t)n) || !json_row(line)) {
+            fprintf(stderr, "malformed tape JSON at row %d\n", ntick + have_hdr);
+            free(line);
+            free(ticks);
+            fclose(fp);
+            return 0;
+        }
         if (!have_hdr) {
-            if (strstr(line, "\"header\"") == NULL) {
+            int header = 0;
+            if (!find_int(line, "\"header\":", &header) || header != 1) {
                 fprintf(stderr, "tape missing header\n");
                 free(line);
                 fclose(fp);
@@ -348,8 +459,6 @@ static int load_tape(const char *path, Header *hdr, Tick **out, int *nout)
             have_hdr = 1;
             continue;
         }
-        if (n < 5 || strncmp(line, "{\"t\":", 5) != 0)
-            continue;
         if (ntick == atick) {
             int na = atick ? atick * 2 : 256;
             Tick *np = (Tick *)realloc(ticks, (size_t)na * sizeof(Tick));
@@ -368,8 +477,15 @@ static int load_tape(const char *path, Header *hdr, Tick **out, int *nout)
             if (!find_int(line, "\"t\":", &tk->t) ||
                 !find_key(line, "\"x\":", &tk->x) ||
                 !find_key(line, "\"y\":", &tk->y) ||
-                !find_key(line, "\"z\":", &tk->z)) {
-                fprintf(stderr, "bad tick row\n");
+                !find_key(line, "\"z\":", &tk->z) ||
+                !find_key(line, "\"vx\":", &tk->vx) ||
+                !find_key(line, "\"vy\":", &tk->vy) ||
+                !find_key(line, "\"vz\":", &tk->vz) ||
+                !find_key(line, "\"hp\":", &tk->hp) ||
+                !find_int(line, "\"og\":", &tk->og) ||
+                !find_int(line, "\"food\":", &tk->food) ||
+                !find_int(line, "\"dim\":", &tk->dim) || tk->t != ntick) {
+                fprintf(stderr, "bad tick row %d: required finite fields and contiguous ticks from 0\n", ntick);
                 free(line);
                 free(ticks);
                 fclose(fp);
@@ -377,13 +493,6 @@ static int load_tape(const char *path, Header *hdr, Tick **out, int *nout)
             }
             find_key(line, "\"yaw\":", &tk->yaw);
             find_key(line, "\"pitch\":", &tk->pitch);
-            find_key(line, "\"vx\":", &tk->vx);
-            find_key(line, "\"vy\":", &tk->vy);
-            find_key(line, "\"vz\":", &tk->vz);
-            find_key(line, "\"hp\":", &tk->hp);
-            find_int(line, "\"og\":", &tk->og);
-            find_int(line, "\"food\":", &tk->food);
-            find_int(line, "\"dim\":", &tk->dim);
             if (find_key(line, "\"ry\":", &tk->ry) &&
                 find_key(line, "\"rp\":", &tk->rp))
                 tk->have_ry = 1;
@@ -395,6 +504,13 @@ static int load_tape(const char *path, Header *hdr, Tick **out, int *nout)
                 tk->have_inv = 1;
             ntick++;
         }
+    }
+    if (ferror(fp)) {
+        fprintf(stderr, "error reading tape %s\n", path);
+        free(line);
+        free(ticks);
+        fclose(fp);
+        return 0;
     }
     free(line);
     fclose(fp);
@@ -763,23 +879,35 @@ static int load_state(const char *path, State **out, int *nout)
         }
         s = &rows[nr];
         memset(s, 0, sizeof *s);
-        if (!find_int(line, "\"tick\":", &s->tick) ||
+        if (memchr(line, 0, (size_t)n) || !json_row(line) ||
+            !find_int(line, "\"tick\":", &s->tick) ||
             !find_key(line, "\"x\":", &s->x) ||
             !find_key(line, "\"y\":", &s->y) ||
-            !find_key(line, "\"z\":", &s->z)) {
-            continue;
+            !find_key(line, "\"z\":", &s->z) ||
+            !find_key(line, "\"vx\":", &s->vx) ||
+            !find_key(line, "\"vy\":", &s->vy) ||
+            !find_key(line, "\"vz\":", &s->vz) ||
+            !find_key(line, "\"health\":", &s->health) ||
+            !find_int(line, "\"on_ground\":", &s->on_ground) ||
+            !find_int(line, "\"food\":", &s->food) ||
+            !find_int(line, "\"dim\":", &s->dim)) {
+            fprintf(stderr, "bad state row %d: missing or invalid required field\n", nr);
+            free(line);
+            free(rows);
+            fclose(fp);
+            return 0;
         }
-        find_key(line, "\"vx\":", &s->vx);
-        find_key(line, "\"vy\":", &s->vy);
-        find_key(line, "\"vz\":", &s->vz);
-        find_key(line, "\"health\":", &s->health);
-        find_int(line, "\"on_ground\":", &s->on_ground);
-        find_int(line, "\"food\":", &s->food);
-        find_int(line, "\"dim\":", &s->dim);
         if (find_hex(line, "\"nearby_hash\":", &s->nearby_hash))
             s->have_hash = 1;
         parse_anchor(line, s);
         nr++;
+    }
+    if (ferror(fp)) {
+        fprintf(stderr, "error reading state %s\n", path);
+        free(line);
+        free(rows);
+        fclose(fp);
+        return 0;
     }
     free(line);
     fclose(fp);
@@ -812,6 +940,17 @@ static int first_div(const Tick *ticks, int nt, const State *rows, int nr,
     for (i = 0; i < n; i++) {
         const Tick *j = &ticks[i];
         size_t fi;
+        /* script.c writes state after gm_runtime_tick increments r->tick.
+         * Tape t is the zero-based action index; state tick counts completed
+         * ticks. Check that fixed mapping, never infer it from child output. */
+        if (rows[i].tick != j->t + 1) {
+            *ot = j->t;
+            *ofield = "tick";
+            *otape = j->t + 1;
+            *omagma = rows[i].tick;
+            *od = absd((double)j->t + 1 - rows[i].tick);
+            return 1;
+        }
         for (fi = 0; fi < sizeof fields / sizeof fields[0]; fi++) {
             double jv = 0, best, d;
             double cands[3];
@@ -836,6 +975,9 @@ static int first_div(const Tick *ticks, int nt, const State *rows, int nr,
                 jv = j->food, cands[0] = rows[i].food;
             else
                 jv = j->dim, cands[0] = rows[i].dim;
+            /* Recorder hp/food packets can arrive on either side of the
+             * local regen/exhaustion update. Keep that adjacent-row contract;
+             * movement and dimension must agree on the exact tick. */
             if (fields[fi].lagged && i > 0) {
                 if (strcmp(fields[fi].name, "hp") == 0)
                     cands[nc++] = rows[i - 1].health;
@@ -898,7 +1040,7 @@ int main(int argc, char **argv)
     Tick *ticks = NULL;
     State *states = NULL;
     McaStore store;
-    int magma_rc = 0;
+    int magma_rc = 0, failed = 0;
 
     memset(&store, 0, sizeof store);
     for (i = 1; i < argc; i++) {
@@ -1042,21 +1184,30 @@ int main(int argc, char **argv)
         }
     }
     printf("magma_rc %d\n", magma_rc);
+    if (magma_rc != 0) {
+        fprintf(stderr, "magma failed with status %d\n", magma_rc);
+        failed = 1;
+    }
     if (!load_state(statep, &states, &nstate)) {
         fprintf(stderr, "magma produced no state rows\n");
         free(ticks);
         return 1;
     }
     printf("state_rows %d\n", nstate);
+    if (nstate != nuse) {
+        fprintf(stderr, "state row count mismatch: expected %d, got %d\n", nuse, nstate);
+        failed = 1;
+    }
     {
         int dt = 0;
         const char *field = NULL;
         double tv = 0, mv = 0, d = 0;
-        if (first_div(ticks, nuse, states, nstate, &dt, &field, &tv, &mv, &d))
+        if (first_div(ticks, nuse, states, nstate, &dt, &field, &tv, &mv, &d)) {
             printf("first_div tick %d field %s tape=%.17g magma=%.17g |d|=%.3g\n",
                    dt, field, tv, mv, d);
-        else
-            printf("first_div none\n");
+            failed = 1;
+        } else
+            printf("first_div none (%d compared rows)\n", nstate < nuse ? nstate : nuse);
     }
     if (world && access(world, F_OK) == 0) {
         McaPose *poses = (McaPose *)calloc((size_t)nuse, sizeof(McaPose));
@@ -1098,5 +1249,5 @@ int main(int argc, char **argv)
     }
     free(states);
     free(ticks);
-    return 0;
+    return failed ? 1 : 0;
 }

@@ -7,7 +7,7 @@ CANON   := $(ROOT)/verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77
 
 .PHONY: all env_knob_gate env_knob_gate-selftest env_knob_gate-check \
 	public_export public-export public-export-selftest tape-info \
-	replay test-replay clean
+	replay test-replay test-replay-contract clean
 
 all: env_knob_gate public_export tape-info replay
 
@@ -59,6 +59,12 @@ $(OUT)/replay: tape/replay.c tape/mca.c tape/mca.h | $(OUT)
 
 replay: $(OUT)/replay
 
+$(OUT)/test_replay: tape/test_replay.c | $(OUT)
+	$(CC) $(CFLAGS) -O2 -o $@ $<
+
+test-replay-contract: $(OUT)/replay $(OUT)/test_replay
+	$(OUT)/test_replay $(OUT)/replay
+
 # MAGMA is the magma_game binary. Default: this worktree, then fail.
 MAGMA ?= $(ROOT)/magma/magma_game
 
@@ -73,4 +79,4 @@ test-replay: $(OUT)/replay $(OUT)/tape_info
 
 clean:
 	rm -f $(OUT)/env_knob_gate $(OUT)/public_export $(OUT)/tape_info \
-		$(OUT)/replay
+		$(OUT)/replay $(OUT)/test_replay
