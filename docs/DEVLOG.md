@@ -1,3 +1,41 @@
+## 2026-09-04 runtime ownership, replay failure contract, persistent dimensions
+
+Architecture review base: `4ccbf35` on the existing `wip/nn-fable` line. Work is
+isolated on `lane/runtime-architecture`; Anvil main and unrelated GPU jobs were
+not reset or stopped.
+
+Native replay previously returned success after child failure, trace truncation,
+or a measured difference. Its CLI now enforces process status, count/alignment,
+required finite fields and differences. The regression executable reproduces
+27 failures in 32 cases on the original implementation and passes all 32 after
+repair, including sanitizer validation. Real canonical replay of eight actions
+returns zero with eight complete rows and no first difference.
+
+All 41 mutable variables in `player_ctl.c` moved into `GmRuntime.ctl`, passed
+explicitly through every stateful controller API. `PlayerControlState` is shared
+with Blaze; rendering/audio events remain Magma-owned. Wire snapshot structs are
+unchanged. Interleaved controller/runtime tests and mid-eat continuation pass.
+
+Dimension travel now preserves private per-environment world regions, computes
+arrival through shared Magma portal lookup, preserves runtime projectiles/fluid
+scheduler, resets complete mob AI state, and rejects missing banks or unknown
+search coverage. Public snapshot APIs reject visited dimensions because the
+current wire format cannot preserve them. Bank resolution checks every sidecar
+in a batch. Native ABI tests pass 10,841 checks; negative coordinates, creation
+planning, fluid scheduler retention and Nether lava cadence have native tests.
+
+Independent Anvil audit at `9959957`: root make test passes, 29 configured M1
+rows pass, and mining_slice's old v1 fixture passes direct comparison but blocks
+resume for missing light. The complete v2 seed-10 replacement passes the same
+1,000-tick comparison and Magma/Blaze resume at N=968/M=32; the matrix now selects
+that fixture and keeps the original input. Updated dimension code passes the
+strict 346-action round trip for player/portals/dimensions/world/random_ticks.
+The tape has zero fluid evidence, so no cross-portal active-flow claim is made.
+
+CUDA source compiles with scalar and warp paths. Integrated GPU validation is
+still pending a free leased Anvil GPU. Root tests and final artifact hashes are
+tracked in `GOAL.md`; do not promote compilation to an M2 result.
+
 ## 2026-09-04 the 5x wall was one straggler: nsys on the wood probe, merged tree back to 08-21 speed
 
 Review addendum (Opus review of the sky-first diff f20c2a3..ef16b13, fix 4db5139). The seeded full path missed one cell class the gates could not see: an opacity drop under cover (cliff face, overhang, cave wall) moves no generateSkylightMap column value and was not raisable at load, so nothing was pushed and the cell stayed dark where the 46x46 scan lit it. Reproduced by an A/B of the same binary with sky_under unset versus set, exhaustive over every dark solid cell with a lit neighbour, broken as its chunk's first edit:

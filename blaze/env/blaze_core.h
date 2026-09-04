@@ -26,7 +26,8 @@
  * set; the snapshot baker flags offenders): dragon,
  * (loaded snapshot living slots tick Entity.move; --mobs on adds the
  * generic hostile AI/combat/drops subset in blaze/core/hostile_live.h),
- * portals, eye-of-ender (need held item 381 - not craftable in-chain).
+ * End transit and eye-of-ender (item 381 is not craftable in-chain).
+ * Overworld/Nether travel uses private dimension regions and live portal lookup.
  * Bow arrows tick magma runtime.c via blaze/core/projectile_live.h and
  * hash as BP_PROJECTILES. Ignited creeper fuse + Explosion.doExplosionA
  * tick via blaze/core/explosion_live.h and hash as BP_EXPLOSIONS. World
@@ -38,9 +39,9 @@
  * as BP_BOATS. Elytra START_FALL_FLYING + updateElytra live in
  * blaze/core/elytra_live.h and hash as BP_ELYTRA.
  * Furnaces ARE simulated since the iron extension (game/furnace_live.c +
- * runtime.c furnace slots ported below; "smelt":1 primitive) - but furnace
- * state is NOT in .bsnp, so snapshots must be baked with no active furnace
- * (same quiescence contract as eat_ticks).
+ * runtime.c furnace slots ported below; "smelt":1 primitive). Legacy
+ * snapshot headers omit furnace/eating state; current resume trailers
+ * carry it through the explicit snapshot import/export mapping.
  *
  * Coordinate discipline: the env runs in the SAME window-local frame the
  * .bsnp stored (local pose + ox/oz origin), and replicates runtime.c's
@@ -5885,7 +5886,7 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
          * in rl_crafts, so still unobtainable. The nether water-vaporize branch
          * (dimension == -1) and the fire -> portal ignite follower
          * (runtime.c:373, needs flint&steel + the portal machinery) are NOT
-         * ported: dimension is always 0 here and id 51 edits are unreachable. */
+         * ported beyond the shared portal transfer path. */
         if (edits[i].id == 8 || edits[i].id == 10) {
             static const int adx[6] = {1, -1, 0, 0, 0, 0};
             static const int ady[6] = {0, 0, 1, -1, 0, 0};

@@ -101,6 +101,13 @@ oracle state, entity state, and frame references. Committed tapes stay in
 The replay program runs Magma or Blaze from the same config and action stream.
 It reports the first state difference. It then compares captured frames.
 
+The current native replay command checks child exit status, complete row counts,
+tick alignment, finite required values, and pose/vitals/dimension differences.
+Any failure exits nonzero. State tick counts completed actions, so it is tape
+action index plus one. Optional MCA hash diagnostics are not a pixel or full
+world-state gate. Python trace tools still own full-frame comparison during
+migration; `make -C verify test-replay-contract` tests the native CLI boundary.
+
 Committed tapes are still JSONL. The C replay driver reads that legacy format
 and emits magma's event script. The hot path must not stay on JSONL: a
 versioned binary tape replaces it when Java writes that format.
@@ -111,6 +118,12 @@ uses one pinned native PNG implementation.
 ## Magma
 
 Magma owns the playable tick, world, input, audio, UI, and raster path.
+
+Every runtime owns its player controller as `GmRuntime.ctl`. Stateful controller
+APIs receive that object explicitly. `PlayerControlState` in
+`blaze/core/player_control_state.h` declares the simulation fields shared with
+Blaze; Magma keeps rendering/audio transients in its enclosing `GmPlayerCtl`.
+Snapshot readers and writers map fields explicitly without changing wire layout.
 
 The CPU backend is the reference. The CUDA and Metal raster backends consume
 the same scene and return the same framebuffer contract. All backends use the
@@ -128,6 +141,21 @@ The CPU tick is the reference. CUDA runs the batched tick. Apple GPUs do not
 support the FP64 tick contract. The Metal backend therefore runs the exact CPU
 tick and moves observation and policy work to Metal. This is one supported
 backend. It is not a second simulation.
+
+Blaze dimension travel uses private mutable regions seeded from immutable named
+snapshot banks. Returning to a dimension preserves its edited cells, light and
+biomes. Arrival search and placement use the same ring-order routine as Magma,
+including coordinate scaling; snapshot player poses are not arrival answers.
+Unavailable portal-search coverage and missing banks fail execution. The finite
+snapshot region remains the supported world boundary. Banks in one vector must
+have compatible dimensions and seeds; conflicting bank paths are rejected.
+
+The current snapshot wire format represents one region. Capture and dump reject
+environments that visited another dimension, or have a failed transfer, until a
+multi-dimension format exists. Reset discards episode edits and restores original
+banks. End travel and vanilla nearest-distance portal selection remain outside
+this implemented transfer contract. `make -C verify test-dimensions` checks the
+selected CPU or CUDA library through its public ABI.
 
 Runtime random values use a counter-based or hash-based protocol. The result
 does not depend on thread order or backend scheduling.

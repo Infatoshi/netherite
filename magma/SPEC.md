@@ -14,7 +14,9 @@ step is our own C and CUDA code, NOT OpenGL. OpenGL/GL is banned in the render p
 SDL2 (or raw X11) is allowed ONLY to open a window and blit a finished RGBA buffer, and
 to read keyboard/mouse. No GL, no GPU rasterization API - we write the z-buffer loop.
 
-Two backends that must agree: a C reference (`cpu/`) and a CUDA port (`cuda/`).
+Three backends must agree: a C reference (`cpu/`), CUDA (`cuda/`), and
+Metal (`metal/`). CUDA and Metal source pairs are tracked by
+`verify/kernels/parity_manifest.json` and checked numerically on their hosts.
 Philosophy inherited from blaze/render-opt: CPU == CUDA, verified. For the color
 buffer, match bit-exact where feasible (compile with `-ffp-contract=off`, identical op
 order in C and CUDA); otherwise tolerance <= 1 LSB per channel on <0.1% of pixels.

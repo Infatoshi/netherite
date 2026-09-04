@@ -1,10 +1,20 @@
 # blaze: Minecraft 1.11.2 simulation -> C/CUDA for batched RL
 
-Goal: port as much of MC 1.11.2's *simulation* (world, blocks, fluids, light, entities, mobs,
-crafting, win condition) into data-oriented C that compiles BOTH ways - single-instance CPU
-(the reference oracle) and a batched CUDA megakernel (N parallel envs) - from one
-`__host__ __device__` source. Rendering is NOT re-implemented here: render-opt
-(`ref/render-opt`, 40 kernels bit-verified vs real MC) + MC's GL own the visuals.
+Blaze is the batched simulation and policy trainer. Its CPU and CUDA drivers
+compile one shared simulation core. Magma is the playable reference used by the
+CPU comparison gate; the real Java game remains the upstream behavioral oracle.
+Magma owns the native rasterizer. Blaze builds observations from its world state
+with a shared CPU/CUDA camera and a checked Metal implementation. On Apple GPUs,
+the exact simulation tick stays on CPU while observation and policy work use Metal.
+
+Controller simulation fields have one declaration in `core/player_control_state.h`,
+embedded by both Magma's runtime controller and Blaze. Dimension regions have
+private mutable storage per environment and dimension. Immutable named snapshots
+seed them at reset; return travel preserves edits and computes portal arrivals
+from live blocks. `core/portal_arrival.h` preserves Magma's ring-order lookup,
+which is not yet vanilla's nearest-distance choice. Missing region coverage is
+an execution error. End travel and multi-dimension snapshot serialization remain
+unsupported; capture/dump reject state the current wire format cannot preserve.
 
 This is the sim layer. It is the bigger, more important target than rendering.
 

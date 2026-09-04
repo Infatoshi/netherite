@@ -180,6 +180,7 @@ static void free_test_env(Blaze *e) {
         free(e->dimensions[i].cells); free(e->dimensions[i].light);
         free(e->dimensions[i].biome);
     }
+    free(e->fluid_cur); free(e->fluid_tmp);
     free(e->window); free(e);
 }
 static void transfer(Blaze *e, int dim) {
@@ -244,6 +245,21 @@ static int run_units(void) {
                "dimension-tagged runtime fluid scheduler survives transit");
         expect(c->mob_watch_time[0] == 0 && c->mob_task_tick[0] == 0,
                "new dimension clears mob AI side state");
+        c->fluid_cur = calloc(CU_FLUID_VOL, sizeof(u16));
+        c->fluid_tmp = calloc(CU_FLUID_VOL, sizeof(u16));
+        if (!c->fluid_cur || !c->fluid_tmp) abort();
+        c->cells[((long)(2+16)*128+65)*32+2+16] = mc_state(10,0);
+        c->fluid_reg[0].x0 = c->fluid_reg[0].x1 = 2;
+        c->fluid_reg[0].y0 = c->fluid_reg[0].y1 = 65;
+        c->fluid_reg[0].z0 = c->fluid_reg[0].z1 = 2;
+        c->fluid_reg[0].quiet_steps = 0;
+        expect(cu_fluid_tick(c, -1, 10) == 0,
+               "other-dimension fluid work remains paused");
+        expect(cu_fluid_tick(c, 0, 10) == 0,
+               "overworld lava waits for its 30-tick cadence");
+        c->fluid_dim = -1;
+        expect(cu_fluid_tick(c, -1, 10) > 0,
+               "nether lava evolves on its 10-tick cadence");
         free_test_env(c);
     }
     a->pl.ent.posX = 10000;
