@@ -1093,6 +1093,24 @@ int blaze_capture(void *vh, int env, int slot) {
         if (!s->cells) return -1;
     }
     memcpy(s->cells, e->cells, (size_t)v->rvol * sizeof *s->cells);
+    {   /* the raisable list is a function of cells+light: rebuild it, or
+         * drop it (46x46 scan path) when this slot carries no light */
+        int un = 0, *ub = NULL;
+        cpu_retire(v, v->snap_sky_under[slot]);   /* live envs may alias it */
+        if (s->light) {
+            Blaze t;
+            memset(&t, 0, sizeof t);
+            t.cells = s->cells; t.light = s->light;
+            t.rx0 = e->rx0; t.ry0 = e->ry0; t.rz0 = e->rz0;
+            t.rnx = e->rnx; t.rny = e->rny; t.rnz = e->rnz;
+            un = cu_sky_under_collect(&t, NULL, 0);
+            ub = (int *)malloc(un > 0 ? (size_t)un * sizeof(int) : sizeof(int));
+            if (!ub) return -1;
+            if (un > 0) cu_sky_under_collect(&t, ub, un);
+        }
+        v->snap_sky_under[slot] = ub;
+        v->snap_sky_under_n[slot] = un;
+    }
     {
         size_t bvol = (size_t)v->rnx * (size_t)v->rnz;
         if (e->biome && bvol) {

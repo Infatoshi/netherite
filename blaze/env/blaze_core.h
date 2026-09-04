@@ -1279,9 +1279,14 @@ MC_HD static inline void cu_skylight_drain(Blaze *e, CuSkyQ *sq,
  * cells that moved plus those load-time raisable cells in the box. Same
  * least fixed point: every cell that the scan could raise is either a
  * lowered column cell, a neighbour of a raised column cell, already
- * raisable at load, or in the cascade of those. */
-MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx,
-                                                     int wz, CuSkyMoves *mv) {
+ * raisable at load, or in the cascade of those, or the edited cell itself
+ * (an opacity drop under cover moves no column value and is not raisable
+ * at load, so it is pushed explicitly). box_scan forces the 46x46 scan:
+ * the incremental overflow fallback relies on the scan relaxing every cell
+ * of the box, which the seeded closure does not. */
+MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx, int wy,
+                                                     int wz, int box_scan,
+                                                     CuSkyMoves *mv) {
     int cx, cz, x0, x1, z0, z1, rx1, ry1, rz1;
     CuSkyQ sq;
     if (!e->light_valid) return;
@@ -1304,8 +1309,8 @@ MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx,
     sq.x0 = x0; sq.x1 = x1;
     sq.y0 = e->ry0; sq.y1 = ry1;
     sq.z0 = z0; sq.z1 = z1;
-    if (e->sky_under && sq.q && CU_SKY_Q >= 4096 && e->rnx <= 1024 &&
-        e->rny <= 1024 && e->rnz <= 1024) {
+    if (!box_scan && e->sky_under && sq.q && CU_SKY_Q >= 4096 &&
+        e->rnx <= 1024 && e->rny <= 1024 && e->rnz <= 1024) {
         int i;
         {
             CU_PHASE_T0(e);
@@ -1322,6 +1327,7 @@ MC_HD static inline void cu_light_after_opacity_full(Blaze *e, int wx,
                 cu_sky_q_push_world(&sq, e, e->rx0 + ix, e->ry0 + iy,
                                     e->rz0 + iz);
             }
+            if (!sq.ovf) cu_sky_q_push_world(&sq, e, wx, wy, wz);
             CU_PHASE_END(e, CU_PHASE_SKYSEED);
         }
         if (!sq.ovf) {
@@ -1456,6 +1462,11 @@ MC_HD static inline void cu_sky_settle(Blaze *e, int ci,
     if (m->spill) {
         CU_OP(e, CU_OP_SKY_SPILL);
         cu_sky_all_unknown(e);
+        /* The spilled cell is raisable now and was not at load, so the
+         * load-time list no longer covers the region: 46x46 scans until
+         * the next reset re-points the list. */
+        e->sky_under = NULL;
+        e->sky_under_n = 0;
         return;
     }
     if (m->lx0 <= m->lx1) {
@@ -1513,7 +1524,7 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
     if (!q || i0 < 0 || ci < 0 || e->rny > CU_SKY_MAX_NY || e->rnx > 256 ||
         e->rny > 256 || e->rnz > 256 ||
         e->sky_dirty[ci].state == CU_SKY_ALL) {
-        cu_light_after_opacity_full(e, wx, wz, &mv);
+        cu_light_after_opacity_full(e, wx, wy, wz, 0, &mv);
         if (ci < 0 || e->rnx > 256 || e->rny > 256 || e->rnz > 256)
             cu_sky_all_unknown(e);   /* cannot record boxes for this region */
         else
@@ -1660,7 +1671,7 @@ MC_HD static inline void cu_light_after_opacity(Blaze *e, int wx, int wy,
      * from any such state has the same least fixed point. */
     if (ovf) {                     /* exact, just the slow way */
         CU_OP(e, CU_OP_SKY_OVF);
-        cu_light_after_opacity_full(e, wx, wz, &mv);
+        cu_light_after_opacity_full(e, wx, wy, wz, 1, &mv);
     }
     cu_sky_settle(e, ci, &mv);
     CU_PHASE_END(e, CU_PHASE_LIGHT);

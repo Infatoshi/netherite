@@ -1204,21 +1204,33 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
             e.light = s.light;
             e.rx0 = s.head.rx0; e.ry0 = s.head.ry0; e.rz0 = s.head.rz0;
             e.rnx = s.head.rnx; e.rny = s.head.rny; e.rnz = s.head.rnz;
+            size_t nb;
             un = cu_sky_under_collect(&e, NULL, 0);
-            ub = (int *)malloc(un > 0 ? (size_t)un * sizeof(int) : sizeof(int));
-            if (ub) {
-                size_t nb = (un > 0 ? (size_t)un : 1) * sizeof(int);
-                if (un > 0) cu_sky_under_collect(&e, ub, un);
-                if (cudaMalloc(&d_under, nb) == cudaSuccess &&
-                    cudaMemcpy(d_under, ub, nb, cudaMemcpyHostToDevice) ==
-                        cudaSuccess) {
-                    d->sky_under = d_under;
-                    d->sky_under_n = un;
-                } else {
-                    cudaFree(d_under);
-                }
+            nb = (un > 0 ? (size_t)un : 1) * sizeof(int);
+            ub = (int *)malloc(nb);
+            if (un > 0 && ub) cu_sky_under_collect(&e, ub, un);
+            /* Same algorithm on both backends: a failed list is a failed
+             * load, not a silent fall back to the 46x46 scan. */
+            if (!ub || cudaMalloc(&d_under, nb) != cudaSuccess ||
+                cudaMemcpy(d_under, ub, nb, cudaMemcpyHostToDevice) !=
+                    cudaSuccess) {
+                if (err)
+                    snprintf(err, (size_t)err_cap, "sky_under upload failed: %s",
+                             paths[i]);
                 free(ub);
+                cudaFree(d_under);
+                cudaFree(d_cells);
+                cudaFree(d_light);
+                cudaFree(d_biome);
+                cudaFree(d_coal);
+                cudaFree(d_xy);
+                cudaFree(d_cn);
+                blaze_snapshot_free(&s);
+                return -1;
             }
+            free(ub);
+            d->sky_under = d_under;
+            d->sky_under_n = un;
         }
         d->biome = d_biome;
         d->coal = d_coal;
@@ -1643,6 +1655,43 @@ int blaze_capture(void *vh, int env, int slot) {
                          (size_t)v->rvol * sizeof(u16),
                          cudaMemcpyDeviceToDevice), "capture cells copy"))
         return -1;
+    {   /* the raisable list is a function of cells+light: rebuild it from
+         * the captured cells, or drop it when this slot carries no light.
+         * The old list is retired, never freed: live envs may alias it. */
+        int *d_under = NULL, un = 0;
+        if (d->light) {
+            Blaze t;
+            u16 *hc = (u16 *)malloc((size_t)v->rvol * sizeof(u16));
+            u8 *hl = (u8 *)malloc((size_t)v->rvol);
+            int *ub = NULL;
+            size_t nb;
+            if (!hc || !hl) { free(hc); free(hl); return -1; }
+            if (cu_ck(cudaMemcpy(hc, d->cells, (size_t)v->rvol * sizeof(u16),
+                                 cudaMemcpyDeviceToHost), "capture cells D2H") ||
+                cu_ck(cudaMemcpy(hl, d->light, (size_t)v->rvol,
+                                 cudaMemcpyDeviceToHost), "capture light D2H")) {
+                free(hc); free(hl); return -1;
+            }
+            memset(&t, 0, sizeof t);
+            t.cells = hc; t.light = hl;
+            t.rx0 = d->head.rx0; t.ry0 = d->head.ry0; t.rz0 = d->head.rz0;
+            t.rnx = d->head.rnx; t.rny = d->head.rny; t.rnz = d->head.rnz;
+            un = cu_sky_under_collect(&t, NULL, 0);
+            nb = (un > 0 ? (size_t)un : 1) * sizeof(int);
+            ub = (int *)malloc(nb);
+            if (un > 0 && ub) cu_sky_under_collect(&t, ub, un);
+            free(hc); free(hl);
+            if (!ub || cu_ck(cudaMalloc(&d_under, nb), "capture sky_under alloc") ||
+                cu_ck(cudaMemcpy(d_under, ub, nb, cudaMemcpyHostToDevice),
+                      "capture sky_under upload")) {
+                free(ub); cudaFree(d_under); return -1;
+            }
+            free(ub);
+        }
+        cu_retire(v, d->sky_under);
+        d->sky_under = d_under;
+        d->sky_under_n = un;
+    }
     {
         size_t bvol = (size_t)v->rnx * (size_t)v->rnz;
         if (bvol && he.biome) {
