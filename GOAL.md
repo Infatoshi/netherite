@@ -21,6 +21,47 @@ Chunk streaming is future work, explicitly separate from this finite recipe.
 CPU/Metal builds, actual native training, crop and bank lifecycle tests, and
 boundary/reward/bootstrap checks are required before reporting this implemented.
 
+Implemented and validated at `600dfbb` on `lane/world-recipe`. The default
+produces 64x128x64 (524,288 cells) from the shipped 128x128x128 input, reducing
+cell count by 75 percent. This is not a measurement of total environment memory
+or training throughput. Metal observation capacity follows the actual prepared
+world size, bounded by its configured ceiling.
+
+Independent Anvil CPU audit passed root `make test`, native dimension lifecycle,
+all 30 configured Magma/Blaze comparison rows and all 27 resume gates, totaling
+57 comparison gates. Parent independently checked every report's status and
+return code. Evidence, source revision, empty source diff and binary hashes are
+in `out/verify/world-recipe-integrated-cpu/`. Mac root `make test` also passed;
+its log and zero return code are `out/verify/world-recipe-mac-root.*`.
+
+Actual native PPO training passed 32 ticks with four episode endings on Linux
+CPU and Mac Metal using `--set ep_dec=1`. Linux also passed with `world_size=0`
+to preserve the original fixture. These are execution/reset/update checks,
+not learning-quality or throughput claims. Commands use
+`out/blaze/rl/ppo --conf blaze/rl/ppo.conf --set backend=cpu|metal`
+with distinct checkpoints under `out/blaze/rl/`. Logs and return codes are
+`out/verify/world-recipe-linux-ppo.*`, `world-recipe-linux-inherit.*`, and
+`world-recipe-mac-metal.*`.
+
+The actual Mac prepared input is
+`out/blaze/rl/worlds/run-J9dHAQ/snapshot_000.bsnp`, beside its `manifest.tsv`
+and effective `recipe.conf`. It contains 415 log blocks and 2,903 coal blocks;
+the original input has 1,971 log blocks. The Linux independently prepared input
+at `anvil:~/nlanes/world-recipe/out/blaze/rl/worlds/run-J7XkSY/snapshot_000.bsnp`
+has the same SHA256:
+`6de931c790deb6fd36672fcd2edf2fc72ce5c7e50a803c90acc2f1614ffffb49`.
+The Mac Metal checkpoint SHA256 is
+`7291848dcc717f6572708f55c715eae07be0805355d15d5304703b67a6956867`.
+The Linux CPU checkpoint SHA256 is
+`4d8eda22f73f3bca1845defbbb59bd3535f2355174e95e6fed0cbf7c2cccd3dd`.
+
+Linux native PPO and CUDA libraries compile successfully for `sm_120`, including
+scalar and warp simulation, using the dev build profile. This is compilation
+evidence only. CUDA execution for this follow-up remains pending: both Anvil
+GPUs are occupied by unrelated training. The older architecture watcher does
+not validate this new revision. Keep the branches isolated until outstanding
+GPU results are reviewed; no master promotion is implied.
+
 ## Required result
 
 - Native replay rejects child failures, incomplete or malformed traces, and

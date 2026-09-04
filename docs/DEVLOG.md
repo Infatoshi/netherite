@@ -1,3 +1,41 @@
+## 2026-09-04 configurable finite training worlds and boundary truncation
+
+`lane/world-recipe` at `600dfbb` adds native `world_size` recipe configuration,
+defaulting to 64 horizontal blocks with inherited snapshot height. Zero keeps
+the input extent; positive values are multiples of 16 in 32..256, and expansion
+is rejected. Prepared snapshots and dimension-bank sidecars are written to a
+fresh `out/blaze/rl/worlds/run-*` directory with source/prepared checksums,
+bounds, resource counts and the effective recipe. Source fixtures stay intact.
+Environment loading and curriculum resource lookup use the same prepared data.
+
+The shipped input crops from 2,097,152 cells to 524,288 cells, retaining 128
+vertical blocks. Its 1,971 log blocks become 415. Metal observation allocation
+uses the actual prepared capacity. Neither the cell-count reduction nor the
+smoke runs establish total memory savings, throughput gains or learning quality.
+
+Crossing the finite horizontal boundary now returns done code 3. It is a
+truncation without death penalty, and the trainer bootstraps from the final
+observation before reset. This also fixes time-limit bootstrap previously
+reading the reset observation. Ended episodes cannot create curriculum captures.
+Native tests cover cropped fields, dimension-bank staging, original-input
+integrity, production CPU load/reset/step, reward targets, and real rollout
+termination/truncation handling. Cropping and rollout checks also passed their
+isolated sanitizer runs.
+
+Independent Linux CPU audit passed root tests, native dimension lifecycle, all
+30 comparison rows and 27 resume gates (57 gates total). Mac root tests passed.
+Actual CPU and Metal PPO updates passed 32 ticks/four endings using the 64-block
+world; Linux CPU also passed the unchanged-extent setting. The prepared CPU and
+Metal snapshots have identical SHA256 hashes. `GOAL.md` records artifact paths,
+hashes and commands. CUDA compiles for sm_120; execution remains pending occupied
+Anvil GPUs, so this is not a CUDA parity result.
+
+This setting selects a finite world, not a moving chunk cache. Rays can see its
+empty edge, and distance rewards know only resident targets. Inventory/crafting
+milestones remain usable. Future streaming must load deterministic chunks,
+retain edits by dimension/chunk and keep progress/goal metadata independent of
+the resident block storage; the contract is in `SPEC.md`.
+
 ## 2026-09-04 runtime ownership, replay failure contract, persistent dimensions
 
 Architecture review base: `4ccbf35` on the existing `wip/nn-fable` line. Work is
