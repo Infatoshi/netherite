@@ -1789,6 +1789,9 @@ int blaze_capture(void *vh, int env, int slot) {
     if (cu_ck(cudaMemcpy(&he, v->d_envs + env, sizeof he,
                          cudaMemcpyDeviceToHost), "capture env readback"))
         return -1;
+    /* The current snapshot cannot serialize visited live dimensions. */
+    if (he.dimension_error || he.dimension != 0 ||
+        he.dimensions[0].initialized || he.dimensions[2].initialized) return -1;
     d = &v->h_snaps[slot];
     if (slot == v->nsnaps) {
         memset(d, 0, sizeof *d);

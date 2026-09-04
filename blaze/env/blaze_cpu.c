@@ -995,6 +995,10 @@ int blaze_capture(void *vh, int env, int slot) {
         return -1;
     if (v->assign[env] < 0) return -1;
     e = &v->envs[env];
+    /* The snapshot wire format stores one overworld region, not a set of
+     * visited dimensions. Reject before touching the destination slot. */
+    if (e->dimension_error || e->dimension != 0 ||
+        e->dimensions[0].initialized || e->dimensions[2].initialized) return -1;
     s = &v->snaps[slot];
     if (slot == v->nsnaps) {
         memset(s, 0, sizeof *s);
