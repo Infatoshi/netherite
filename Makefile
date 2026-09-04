@@ -33,6 +33,7 @@ endif
 	$(MAKE) -C blaze/rl test-capture
 	$(MAKE) -C verify env_knob_gate-selftest
 	$(MAKE) -C verify public-export-selftest
+	$(MAKE) -C verify test-replay-contract
 	$(MAKE) -C verify tape-info TAPE=$(CANON_TAPE)
 
 play:
