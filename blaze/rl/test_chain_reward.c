@@ -1,6 +1,7 @@
 /* Unit tests for chain_reward + chain_curr. No Python. */
 #include "chain_curr.h"
 #include "chain_reward.h"
+#include "blaze_abi.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -38,6 +39,7 @@ static void test_gae(void) {
   unsigned char cut[2] = {0, 1};
   float val[2] = {0.5f, 0.4f};
   float next_val[1] = {0.3f};
+  float cut_val[2] = {0.f, 0.3f};
   float adv[2], ret[2];
   float gamma = 0.99f, lam = 0.95f;
   float delta1 = 1.f + gamma * 0.3f * 1.f - 0.4f;
@@ -45,7 +47,7 @@ static void test_gae(void) {
   float delta0 = 1.f + gamma * 0.4f * 1.f - 0.5f;
   float gae0 = delta0 + gamma * lam * 1.f * gae1;
 
-  cr_gae(rew, term, cut, val, next_val, gamma, lam, T, N, adv, ret);
+  cr_gae(rew, term, cut, val, next_val, cut_val, gamma, lam, T, N, adv, ret);
   expect_near(adv[1], gae1, 1e-6f, "gae t=1 cut");
   expect_near(adv[0], gae0, 1e-6f, "gae t=0");
   expect_near(ret[1], gae1 + 0.4f, 1e-6f, "ret t=1");
@@ -54,9 +56,20 @@ static void test_gae(void) {
   /* True terminal zeros the bootstrap value. */
   term[1] = 1;
   cut[1] = 1;
-  cr_gae(rew, term, cut, val, next_val, 1.f, 1.f, T, N, adv, ret);
+  cr_gae(rew, term, cut, val, next_val, cut_val, 1.f, 1.f, T, N, adv, ret);
   expect_near(adv[1], 1.f - 0.4f, 1e-6f, "gae terminal ignores next_val");
   expect_near(ret[1], 1.f, 1e-6f, "ret terminal = rew (val cancels)");
+
+  /* Boundary in the middle of a rollout. The reset episode's value and
+   * rewards are deliberately enormous: neither may leak across the cut. */
+  term[0] = 0; cut[0] = 1; cut_val[0] = 4.f;
+  val[1] = 999.f; rew[1] = 10000.f;
+  cr_gae(rew, term, cut, val, next_val, cut_val, 0.5f, 1.f, T, N, adv, ret);
+  expect_near(ret[0], 3.f, 1e-6f, "boundary bootstraps final value, not reset value");
+  expect_near(adv[0], 2.5f, 1e-6f, "boundary cuts following episode advantage");
+  term[0] = 1;
+  cr_gae(rew, term, cut, val, next_val, cut_val, 0.5f, 1.f, T, N, adv, ret);
+  expect_near(ret[0], 1.f, 1e-6f, "death does not bootstrap boundary value");
 }
 
 static void zero_status(int *st) { memset(st, 0, 17 * sizeof(int)); }
@@ -113,6 +126,11 @@ static void test_reward_milestones(void) {
   cr_step(&st, status, cam, acts, pose, scal, &done, &lane_seed, logs, 1, 1,
           &r);
   expect_near(r, -0.01f - 5.0f, 1e-5f, "death");
+
+  cr_reset_lane(&st, 0);
+  done = BLAZE_DONE_BOUNDARY;
+  cr_step(&st, status, cam, acts, pose, scal, &done, &lane_seed, logs, 1, 1, &r);
+  expect_near(r, -0.01f, 1e-6f, "boundary has neither death penalty nor success bonus");
 
   cr_reset_lane(&st, 0);
   zero_status(status);

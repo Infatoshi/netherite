@@ -59,6 +59,7 @@
 #include <math.h>
 #include <limits.h>
 #include <string.h>
+#include "blaze_abi.h"
 
 #include "player_survival.h"    /* Chunk, McSinTable, PsvPlayer, psv_* verbatim */
 #include "player_control_state.h" /* same controller simulation state as Magma */
@@ -553,7 +554,7 @@ typedef struct {
     int    base_success;         /* inv count of success_item at reset */
     double prev_dist;
     int    have_prev_dist;
-    int    done;                 /* 0 live, 1 coal mined, 2 out/dead */
+    int    done;                 /* BlazeDone: live/success/death/boundary */
 
     /* per-decision scratch (blaze_decision_ticks -> blaze_decision_finalize;
      * split so the CUDA driver can run the per-pixel camera kernel between
@@ -6479,17 +6480,21 @@ MC_HD static inline void blaze_subtick_post(Blaze *e, int rep, int repeat,
         if (e->success_item > 0 &&
             blaze_inv_count(e, e->success_item) > e->base_success) {
             plus10 = 1;
-            e->done = 1;
+            e->done = BLAZE_DONE_SUCCESS;
         }
-        if (e->dead) e->done = 2;
+        if (e->dead) e->done = BLAZE_DONE_DEATH;
         {   /* region-envelope guard: outside the snapshot region the world
              * reads air - end the episode before fidelity can degrade
              * (DESIGN Part 4). */
             double wx = e->pl.ent.posX + (double)e->ox;
             double wz = e->pl.ent.posZ + (double)e->oz;
-            if (wx < e->rx0 + 2 || wx > e->rx0 + e->rnx - 2 ||
-                wz < e->rz0 + 2 || wz > e->rz0 + e->rnz - 2)
-                e->done = 2;
+            if (!e->done && (wx < e->rx0 + 2 || wx > e->rx0 + e->rnx - 2 ||
+                wz < e->rz0 + 2 || wz > e->rz0 + e->rnz - 2)) {
+                e->done = BLAZE_DONE_BOUNDARY;
+                /* k_obs must render the final boundary observation even
+                 * when this decision ended before action_repeat ticks. */
+                e->dec_cam_fresh = 1;
+            }
         }
 
         is_last = (rep == repeat - 1) || e->done;
@@ -6530,6 +6535,8 @@ MC_HD static inline void blaze_decision_subtick(Blaze *e, const McSinTable *st,
                                  (double)e->pl.yaw, (double)e->pl.pitch,
                                  &ry, &rp, &dist);
     blaze_subtick_post(e, rep, repeat, atk_gate, have_nc, ry, rp, dist);
+    if (render_cam_inline && e->done == BLAZE_DONE_BOUNDARY && rep != repeat - 1)
+        blaze_render_cam(e, st);
 }
 
 /* Whole decision, serial reference (CPU driver): begin + recenter + sub-tick

@@ -21,6 +21,8 @@ Buffers:
 Shapes: cam int16 [N,36,64] (u16 block ids reinterpreted; ids < 4096 so the
 sign bit never sets), depth/edge uint8 [N,36,64], scal float32 [N,6],
 rew float32 [N], done uint8 [N], pose float32 [N,5] (x,y,z,yaw,pitch).
+done: 0 running, 1 success, 2 death, 3 finite-world boundary truncation.
+All nonzero codes need reset; code 3 needs final-observation value bootstrap.
 Chain extras (blaze_step_full / capture / success-item, 2026-07-15):
   env.status int32 [N,17] = {9 rl_inv_ids counts (log, planks, stick,
     cobble, table, w.pick, s.pick, coal, torch), hotbar_sel, held item id,
