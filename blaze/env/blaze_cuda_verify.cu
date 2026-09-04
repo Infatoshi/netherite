@@ -94,6 +94,7 @@ __global__ void k_tick_raw(Blaze *envs, int env, int n, const McSinTable *st,
     } else if (i >= n) {
         return;
     }
+    if (envs[i].dimension_error) return;
     CuAction act;
     memset(&act, 0, sizeof act);
     act.forward = (float)ra.a[0];

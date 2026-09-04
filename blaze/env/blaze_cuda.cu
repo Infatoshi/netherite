@@ -444,7 +444,7 @@ __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
     int want_clk = valid && e->phase != NULL;
     (void)stage_cycles;
     if (want_clk) t0 = cu_clk64();
-    if (valid)
+    if (valid && !e->dimension_error)
         exec = blaze_decision_begin(e, st,
                                     actions + (size_t)i * BLAZE_ACT_HEADS,
                                     recipes, nrecipes);
@@ -489,7 +489,7 @@ __global__ void k_tick(Blaze *envs, int n, const McSinTable *st,
                                    rep, repeat,
                                    aabb_pool + (size_t)i * PSV_MAX_BLOCKS,
                                    0, atk_gate);
-            if (e->done) exec = 0;
+            if (e->done || e->dimension_error) exec = 0;
         }
         if (want_clk) t0 = cu_clk64();
     }
@@ -667,7 +667,7 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
     int want_clk = (lane == 0) && (e->phase != NULL);
     (void)stage_cycles;
     if (want_clk) t0 = cu_clk64();
-    if (lane == 0)
+    if (lane == 0 && !e->dimension_error)
         exec = blaze_decision_begin(e, st, a, recipes, nrecipes);
     exec = __shfl_sync(FULL, exec, 0);
     if (lane == 0 && exec)
@@ -718,7 +718,7 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
             if (lane == 0) {
                 blaze_subtick_post(e, rep, repeat, atk_gate, have_nc,
                                    ry, rp, dist);
-                if (e->done) exec = 0;
+                if (e->done || e->dimension_error) exec = 0;
             }
             if (want_clk)
                 e->phase[CU_PHASE_POST] += cu_clk64() - t0;
