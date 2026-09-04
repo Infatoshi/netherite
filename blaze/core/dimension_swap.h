@@ -112,7 +112,7 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
     env->sky_under = NULL; env->sky_under_n = 0;
     cu_grass_census_rebuild(env);
     cu_sky_all_unknown(env);
-    cu_fluid_init(env); env->fluid_dim = target_dim;
+    /* The runtime fluid scheduler keeps its dimension tag across transit. */
     if (arrival.create) {
         for (int x = arrival.bx; x < arrival.bx + 4; ++x) {
             cu_world_set_state(env, x, arrival.by - 1, arrival.bz, 49, 0);
@@ -169,7 +169,7 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
     cu_recenter_fill(env, env->ccx, env->ccz, 999, 999, 0, 1);
     env->parity_world_valid = env->parity_fluid_cells_valid = 0;
     env->parity_rt_cells_valid = env->parity_fall_cells_valid = 0;
-    env->parity_world_mutations = env->parity_fluid_mutations = 0;
+    env->parity_world_mutations = 0;
     env->parity_rt_mutations = env->parity_fall_mutations = 0;
     env->portal_time = 0; env->portal_cooldown = 100;
     env->swap_pending = 0;

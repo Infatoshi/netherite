@@ -1128,6 +1128,12 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
     if (!v || env < 0 || env >= v->n || !path)
         return -1;
     e = &v->envs[env];
+    if (e->dimension_error || e->dimension != 0 ||
+        e->dimensions[0].initialized || e->dimensions[2].initialized) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "snapshot cannot represent visited dimensions or a failed transfer");
+        return -1;
+    }
     memset(&s, 0, sizeof s);
     (void)blaze_capture_head(e, &s.head, s.items);
     s.head.version = BLAZE_SNAP_VERSION;

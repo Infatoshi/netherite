@@ -2427,12 +2427,12 @@ MC_HD static inline int cu_spawn_tnt_primed(Blaze *e, double x, double y,
 #define exl_set_air(w, x, y, z) do { \
     cu_world_set_state((w), (x), (y), (z), 0, 0); \
     fl_block_changed((w), (w), (x), (y), (z)); \
-    cu_fluid_mark((w), 0, (x), (y), (z)); \
+    cu_fluid_mark((w), (w)->dimension, (x), (y), (z)); \
 } while (0)
 #define exl_set_block(w, x, y, z, id, meta) do { \
     cu_world_set_state((w), (x), (y), (z), (id), (meta)); \
     fl_block_changed((w), (w), (x), (y), (z)); \
-    cu_fluid_mark((w), 0, (x), (y), (z)); \
+    cu_fluid_mark((w), (w)->dimension, (x), (y), (z)); \
 } while (0)
 #define exl_spawn_tnt(w, x, y, z, fuse) \
     cu_spawn_tnt_primed((w), (double)(x) + 0.5, (double)(y), \
@@ -5878,7 +5878,7 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
         cu_world_set_state(env, edits[i].wx, edits[i].wy, edits[i].wz,
                            edits[i].id, edits[i].meta);
         fl_block_changed(env, env, edits[i].wx, edits[i].wy, edits[i].wz);
-        cu_fluid_mark(env, 0, edits[i].wx, edits[i].wy, edits[i].wz);
+        cu_fluid_mark(env, env->dimension, edits[i].wx, edits[i].wy, edits[i].wz);
         cu_break_unsupported_plants(env, edits[i].wx, edits[i].wy, edits[i].wz);
         /* water/lava placement interactions (runtime.c:361-372), ported for
          * completeness - edit ids 8/10 need a filled bucket; buckets are not
@@ -5919,7 +5919,7 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
     }
     {
         CU_PHASE_T0(env);
-        cu_fluid_tick(env, 0, env->tick);
+        cu_fluid_tick(env, env->dimension, env->tick);
         CU_PHASE_END(env, CU_PHASE_FLUID);
     }
     return 1;

@@ -1988,6 +1988,12 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
     if (cu_ck(cudaMemcpy(&he, v->d_envs + env, sizeof he,
                          cudaMemcpyDeviceToHost), "dump env readback"))
         return -1;
+    if (he.dimension_error || he.dimension != 0 ||
+        he.dimensions[0].initialized || he.dimensions[2].initialized) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "snapshot cannot represent visited dimensions or a failed transfer");
+        return -1;
+    }
     memset(&s, 0, sizeof s);
     (void)blaze_capture_head(&he, &s.head, s.items);
     s.head.version = BLAZE_SNAP_VERSION;

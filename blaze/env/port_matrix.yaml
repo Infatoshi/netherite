@@ -1594,7 +1594,7 @@ subsystems:
       shared: [blaze/core/nether_portal.h, blaze/core/end_portal.h, blaze/core/dimension_swap.h]
       blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
     dependencies: [world_dynamics]
-    required_features: [player, portals, dimensions, world, random_ticks]
+    required_features: [player, portals, dimensions, world, random_ticks, fluids]
     required_artifacts:
       m1:
         - magma/magma_game
@@ -1628,7 +1628,7 @@ subsystems:
       - --port-parity
       - --strict-capabilities
       - --features
-      - player,portals,dimensions,world,random_ticks
+      - player,portals,dimensions,world,random_ticks,fluids
     m2:
       - uv
       - run
@@ -1649,7 +1649,7 @@ subsystems:
       - --port-parity
       - --strict-capabilities
       - --features
-      - player,portals,dimensions,world,random_ticks
+      - player,portals,dimensions,world,random_ticks,fluids
     m2_kernels: [raw, warp, scalar]
     timeout: 1500
     block_reason: CUDA round-trip validation pending on an idle leased GPU
