@@ -62,6 +62,20 @@ GPUs are occupied by unrelated training. The older architecture watcher does
 not validate this new revision. Keep the branches isolated until outstanding
 GPU results are reviewed; no master promotion is implied.
 
+The follow-up watcher is Anvil tmux `world-recipe-gpu`, pinned to `600dfbb` in
+`~/nlanes/world-recipe`. Its generated script is
+`out/verify/world-recipe-gpu-validation.sh`; logs, heartbeat, artifact hashes,
+per-gate `results.tsv` and final `exit-code` are under
+`out/verify/world-recipe-gpu/`. It waits for the older architecture watcher,
+then requires an idle GPU1 and the `gpu1` coordinator lease. The absolute
+deadline is 2026-09-05 20:58:39 UTC, covering waiting and execution. It runs a
+native CUDA PPO update with the 64-block region, the public dimension lifecycle
+test, and all 30 matrix rows. The existing CPU-only `mobs_det` row remains an
+explicit rc=3 blocked result; it cannot turn the full matrix green. Initial
+PID 198395 was live and the waiting heartbeat was checked. A live waiter is
+not CUDA validation. Keep this worktree and its artifacts until results are
+reviewed, then remove the completed watcher and temporary validation lanes.
+
 ## Required result
 
 - Native replay rejects child failures, incomplete or malformed traces, and
