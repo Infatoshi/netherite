@@ -59,10 +59,15 @@ OP_NAMES = (                     # blaze_core.h CU_OP_* order (op_trace cols)
     "smelt", "furnace_tick", "phys_tick", "coal_call", "coal_rebuild",
     "coal_sweep", "inv_scan", "subtick",
     "sky_full", "sky_incr", "sky_spill", "sky_ovf", "sky_q", "sky_col",
-    "sky_dirty", "sky_moves", "item_live", "fluid_reg", "light_q")
+    "sky_dirty", "sky_moves", "item_live", "fluid_reg", "light_q",
+    "rt_chunk", "rt_precip", "rt_sec_check", "rt_sec_need", "rt_lcg",
+    "rt_lookup", "rt_h_grass", "rt_h_leaves", "rt_h_fire", "rt_h_crop",
+    "rt_h_sapling", "rt_h_farmland", "rt_h_ice", "rt_h_snow",
+    "rt_h_mycelium", "rt_h_none")
 PHASE_NAMES = (                  # blaze_core.h CU_PHASE_* order
     "begin", "recenter", "phys", "light", "blk", "fluid",
-    "randtick", "items", "mobs", "coal", "post", "rest")
+    "randtick", "items", "mobs", "coal", "post", "rest",
+    "rt_prefix", "rt_sec", "rt_pick", "rt_handler")
 
 
 class BlazeCreateOpts(ctypes.Structure):

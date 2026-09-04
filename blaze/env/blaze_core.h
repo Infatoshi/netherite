@@ -75,6 +75,7 @@
 #include "tile_entity_chest.h"  /* TeChest 27-slot TE (TileEntityChest) */
 #include "container_click.h"    /* cc_* slotClick stack helpers */
 #include "blaze_snapshot.h"     /* RlSnapHead/RlSnapItem (.bsnp format) */
+#include "chunk_provider.h"     /* CpPerlin (Blaze.tn) */
 #include "entity_spine.h"       /* living Entity.move spine (zero AI) */
 #include "world_weather.h"      /* WorldInfo rain/thunder + worldTime */
 #include "projectile_live.h"    /* bow/skeleton arrow live tick */
@@ -163,6 +164,22 @@ enum {
     CU_OP_ITEM_LIVE,       /* n_items sampled each live-item tick */
     CU_OP_FLUID_REG,       /* active fluid regions per fluid tick */
     CU_OP_LIGHT_Q,         /* block-light queue entries drained */
+    CU_OP_RT_CHUNK,        /* randtick chunks visited (view-distance square) */
+    CU_OP_RT_PRECIP,       /* ice/snow prefix: World.rand nextInt(16)==0 */
+    CU_OP_RT_SEC_CHECK,    /* RT_SECTION_NEEDS evaluations */
+    CU_OP_RT_SEC_NEED,     /* sections whose census is nonzero */
+    CU_OP_RT_LCG,          /* updateLCG draws in the per-section pick loop */
+    CU_OP_RT_LOOKUP,       /* block-id reads of the picked cell */
+    CU_OP_RT_H_GRASS,      /* tick_block dispatch by id */
+    CU_OP_RT_H_LEAVES,
+    CU_OP_RT_H_FIRE,
+    CU_OP_RT_H_CROP,
+    CU_OP_RT_H_SAPLING,
+    CU_OP_RT_H_FARMLAND,
+    CU_OP_RT_H_ICE,
+    CU_OP_RT_H_SNOW,
+    CU_OP_RT_H_MYCELIUM,
+    CU_OP_RT_H_NONE,       /* pick landed on a non-tickable id */
     CU_OP_N
 };
 #define CU_OP(e, k) do { if ((e)->ops) (e)->ops[k]++; } while (0)
@@ -185,6 +202,10 @@ enum {
     CU_PHASE_COAL,
     CU_PHASE_POST,
     CU_PHASE_REST,
+    CU_PHASE_RT_PREFIX,    /* chunk loop + thunder/ice/snow prefix (subset of RANDTICK) */
+    CU_PHASE_RT_SEC,       /* RT_SECTION_NEEDS census checks */
+    CU_PHASE_RT_PICK,      /* updateLCG position draws */
+    CU_PHASE_RT_HANDLER,   /* picked-cell lookup + Block.randomTick bodies */
     CU_PHASE_K
 };
 
@@ -535,6 +556,10 @@ typedef struct {
      * Set once at create like the other pool pointers; reset does NOT touch
      * it (counters are cumulative). Not sim state - never verified. */
     unsigned long long *ops;
+    /* Biome.TEMPERATURE_NOISE (NoiseGeneratorPerlin seed 1234, 1 octave).
+     * One read-only copy per vec, built on the host at create and shared by
+     * every env; reset does not touch it. Not sim state. */
+    const CpPerlin *tn;
 
     /* dimensions (GPU_DIMENSIONS.md) */
     int dimension;            /* 0 overworld, -1 nether, 1 the_end */
@@ -1732,6 +1757,23 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
     return e->grass_sec[g] != 0;
 }
 
+MC_HD static inline int cu_rt_chunk_may_need(const Blaze *e, int cx, int cz) {
+    if (!e->grass_sec) return 1;
+    if (cx < e->gsx0 || cx >= e->gsx0 + e->gsnx) return 0;
+    if (cz < e->gsz0 || cz >= e->gsz0 + e->gsnz) return 0;
+    return 1;
+}
+
+MC_HD static inline int cu_rt_column_present(const Blaze *e, int x, int z) {
+    return x >= e->rx0 && x < e->rx0 + e->rnx &&
+           z >= e->rz0 && z < e->rz0 + e->rnz;
+}
+
+MC_HD static inline int cu_rt_precip_y_top(const Blaze *e) {
+    int y = e->ry0 + e->rny - 1;
+    return y < 255 ? y : 255;
+}
+
 #define RT_W Blaze
 #define rt_live_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
 #define rt_live_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
@@ -1742,7 +1784,63 @@ MC_HD static inline int cu_rt_section_needs(Blaze *e, int cx, int sec, int cz) {
 #define rt_live_biome(w, x, z) cu_biome_at((w), (x), (z))
 #define RT_SECTION_NEEDS(w, cx, sec, cz) \
     cu_rt_section_needs((w), (cx), (sec), (cz))
+#define RT_COLUMN_PRESENT(w, x, z) cu_rt_column_present((w), (x), (z))
+#define RT_PRECIP_Y_TOP(w) cu_rt_precip_y_top((w))
+#define RT_CHUNK_MAY_NEED(w, cx, cz) cu_rt_chunk_may_need((w), (cx), (cz))
+#define RT_COUNT(w, k) CU_OP((w), (k))
+#define RT_TEMP_NOISE(w) ((w)->tn)
+#define RT_ST_CHUNK CU_OP_RT_CHUNK
+#define RT_ST_PRECIP CU_OP_RT_PRECIP
+#define RT_ST_SEC_CHECK CU_OP_RT_SEC_CHECK
+#define RT_ST_SEC_NEED CU_OP_RT_SEC_NEED
+#define RT_ST_LCG CU_OP_RT_LCG
+#define RT_ST_LOOKUP CU_OP_RT_LOOKUP
+#define RT_ST_H_GRASS CU_OP_RT_H_GRASS
+#define RT_ST_H_LEAVES CU_OP_RT_H_LEAVES
+#define RT_ST_H_FIRE CU_OP_RT_H_FIRE
+#define RT_ST_H_CROP CU_OP_RT_H_CROP
+#define RT_ST_H_SAPLING CU_OP_RT_H_SAPLING
+#define RT_ST_H_FARMLAND CU_OP_RT_H_FARMLAND
+#define RT_ST_H_ICE CU_OP_RT_H_ICE
+#define RT_ST_H_SNOW CU_OP_RT_H_SNOW
+#define RT_ST_H_MYCELIUM CU_OP_RT_H_MYCELIUM
+#define RT_ST_H_NONE CU_OP_RT_H_NONE
+#define RT_PH_PREFIX CU_PHASE_RT_PREFIX
+#define RT_PH_SEC CU_PHASE_RT_SEC
+#define RT_PH_PICK CU_PHASE_RT_PICK
+#define RT_PH_HANDLER CU_PHASE_RT_HANDLER
+#if defined(__CUDA_ARCH__)
+#define RT_CLK_T0() unsigned long long _rt_t0 = ((w)->phase ? cu_clk64() : 0ULL)
+#define RT_CLK_END(k) do { if ((w)->phase) (w)->phase[k] += cu_clk64() - _rt_t0; } while (0)
+#endif
 #include "randtick_live.h"
+#undef RT_COUNT
+#undef RT_TEMP_NOISE
+#undef RT_CLK_T0
+#undef RT_CLK_END
+#undef RT_COLUMN_PRESENT
+#undef RT_PRECIP_Y_TOP
+#undef RT_CHUNK_MAY_NEED
+#undef RT_ST_CHUNK
+#undef RT_ST_PRECIP
+#undef RT_ST_SEC_CHECK
+#undef RT_ST_SEC_NEED
+#undef RT_ST_LCG
+#undef RT_ST_LOOKUP
+#undef RT_ST_H_GRASS
+#undef RT_ST_H_LEAVES
+#undef RT_ST_H_FIRE
+#undef RT_ST_H_CROP
+#undef RT_ST_H_SAPLING
+#undef RT_ST_H_FARMLAND
+#undef RT_ST_H_ICE
+#undef RT_ST_H_SNOW
+#undef RT_ST_H_MYCELIUM
+#undef RT_ST_H_NONE
+#undef RT_PH_PREFIX
+#undef RT_PH_SEC
+#undef RT_PH_PICK
+#undef RT_PH_HANDLER
 
 #define FL_W Blaze
 #define fl_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
@@ -2864,6 +2962,7 @@ MC_HD MC_NOINLINE static inline void cu_randtick_pass(Blaze *e) {
     rt_live_pass(e, &e->world_rand, &e->update_lcg, raining, thundering,
                  e->ccx, e->ccz, 8, &gr, e->rt_leaf);
 }
+
 
 /* The PSV 3x3-chunk physics window layout is exactly what
  * gm_world_fill_window produces (chunk (dz+1)*3+(dx+1) holds world chunk
@@ -5373,12 +5472,12 @@ MC_HD static inline int cu_attack_hits_falling_block(const Blaze *env,
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
  * blaze_runtime_tick below, or warp-cooperatively in the CUDA k_tick). */
-MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
-                                               CuAction act, McAABB *blocks) {
+MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *st,
+                                                  CuAction act, McAABB *blocks) {
     CuEdit edits[CU_MAX_EDITS];
     int n = 0, i;
 
-    if (env->dead) return;                       /* r->dead || r->won gate */
+    if (env->dead) return 0;                     /* r->dead || r->won gate */
     {
     CU_PHASE_T0(env);
 
@@ -5582,11 +5681,12 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
         cu_fluid_tick(env, 0, env->tick);
         CU_PHASE_END(env, CU_PHASE_FLUID);
     }
-    {
-        CU_PHASE_T0(env);
-        cu_randtick_pass(env);
-        CU_PHASE_END(env, CU_PHASE_RANDTICK);
-    }
+    return 1;
+}
+
+MC_HD static inline void blaze_runtime_tick_post_rt(Blaze *env,
+                                                    const McSinTable *st) {
+    int i;
     {
         CU_PHASE_T0(env);
         if (env->mobs_enabled) cu_mob_ai_tick(env, st);
@@ -5658,6 +5758,17 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     cu_portal_tick(env);
 
     env->tick++;
+}
+
+MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
+                                               CuAction act, McAABB *blocks) {
+    if (!blaze_runtime_tick_pre_rt(env, st, act, blocks)) return;
+    {
+        CU_PHASE_T0(env);
+        cu_randtick_pass(env);
+        CU_PHASE_END(env, CU_PHASE_RANDTICK);
+    }
+    blaze_runtime_tick_post_rt(env, st);
 }
 
 /* one whole game tick, serial reference (CPU driver, verify kernels):
@@ -6072,6 +6183,21 @@ MC_HD static inline int blaze_decision_begin(Blaze *e, const McSinTable *st,
  * half so the CUDA warp path can run the coal sweep warp-cooperatively
  * between the two; blaze_decision_subtick composes them statement-for-
  * statement identically to the pre-split function. */
+MC_HD static inline void blaze_act_from_row(CuAction *act, const double *a,
+                                            int rep) {
+    memset(act, 0, sizeof *act);
+    act->forward = (float)a[0];
+    act->strafe = (float)a[1];
+    act->dyaw = rep == 0 ? (float)a[2] : 0.0f;
+    act->dpitch = rep == 0 ? (float)a[3] : 0.0f;
+    act->jump = (int)a[4];
+    act->sneak = (int)a[5];
+    act->sprint = (int)a[6];
+    act->attack = (int)a[7];
+    act->use = (int)a[8];
+    act->hotbar_sel = (int)a[9];
+}
+
 MC_HD static inline void blaze_subtick_phys(Blaze *e, const McSinTable *st,
                                             const double *a, int rep,
                                             int repeat, McAABB *blocks,
@@ -6080,17 +6206,7 @@ MC_HD static inline void blaze_subtick_phys(Blaze *e, const McSinTable *st,
                                             double *fz) {
     CuAction act;
     CU_OP(e, CU_OP_SUBTICK);
-    memset(&act, 0, sizeof act);
-    act.forward = (float)a[0];
-    act.strafe = (float)a[1];
-    act.dyaw = rep == 0 ? (float)a[2] : 0.0f;
-    act.dpitch = rep == 0 ? (float)a[3] : 0.0f;
-    act.jump = (int)a[4];
-    act.sneak = (int)a[5];
-    act.sprint = (int)a[6];
-    act.attack = (int)a[7];
-    act.use = (int)a[8];
-    act.hotbar_sel = (int)a[9];
+    blaze_act_from_row(&act, a, rep);
     blaze_runtime_tick_nr(e, st, act, blocks);
     if (e->swap_pending) {
         cu_dimension_swap_apply(e);
