@@ -153,11 +153,7 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
     memset(env->fall_updates, 0, sizeof env->fall_updates);
     memset(env->fall_landings, 0, sizeof env->fall_landings);
     env->live_ticks = 0;
-    memset(env->mobs, 0, sizeof env->mobs); env->n_mobs = 0;
-    env->mob_tick = 0; env->look_have = 0;
-    env->look_px = env->look_py = env->look_pz = 0;
-    env->player_hurt_resistant = 0; env->player_last_damage = 0;
-    env->player_attack_cooldown = 0;
+    cu_clear_mob_state(env);
     env->next_orb_id = 1000; env->boat_ride = -1;
     env->parity_xp_pickups = 0;
     memset(env->boat_delta_rot, 0, sizeof env->boat_delta_rot);

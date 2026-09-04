@@ -2366,7 +2366,7 @@ MC_HD static inline void cu_hs_run(Blaze *e) {
     st.world_rand.seed = e->spawn_world_seed48;
     st.math_rand.seed = e->spawn_math_seed48;
     st.shuffle_rand.seed = e->spawn_shuffle_seed48;
-    st.seed = e->seed;
+    st.seed = e->seed ^ (i64)e->dimension;
     st.world_time = e->ww.worldTime;
     st.difficulty = 2;
     st.thundering = 0;
@@ -2757,7 +2757,7 @@ MC_HD static inline void cu_spawn_xp(Blaze *e, double x, double y, double z, int
     while (value > 0) {
         int amount = xl_xp_split(value);
         int eid = e->next_orb_id;
-        u64 h = mc_hash64((u64)e->seed ^ (u64)eid);
+        u64 h = mc_hash64((u64)(e->seed ^ (i64)e->dimension) ^ (u64)eid);
         double angle = (double)(h & 0xffffu) * (2.0 * MC_PI / 65536.0);
         double speed = (double)((h >> 16) & 0xffffu) * (0.2 / 65535.0);
         double mx = -sin(angle) * speed;
@@ -3116,7 +3116,7 @@ MC_HD MC_NOINLINE static void cu_mob_ai_tick(Blaze *e, const McSinTable *st) {
             ectx.player_health = e->pl.health;
             ectx.pmx = e->pl.ent.motionX;
             ectx.pmz = e->pl.ent.motionZ;
-            ml_hostile_ai(&mm, e, px, py, pz, day, e->seed, e->mob_tick,
+            ml_hostile_ai(&mm, e, px, py, pz, day, e->seed ^ (i64)e->dimension, e->mob_tick,
                           &ectx, &o);
         }
         if (mm.exploded) {
@@ -5668,6 +5668,45 @@ MC_HD static inline int cu_attack_hits_falling_block(const Blaze *env,
     return hit;
 }
 
+MC_HD static inline void cu_clear_mob_state(Blaze *env) {
+    env->n_mobs = 0;
+    memset(env->mobs, 0, sizeof env->mobs);
+    memset(env->mob_repath, 0, sizeof env->mob_repath);
+    memset(env->mob_despawn, 0, sizeof env->mob_despawn);
+    memset(env->mob_fire, 0, sizeof env->mob_fire);
+    env->look_px = 0.0;
+    env->look_py = 0.0;
+    env->look_pz = 0.0;
+    env->look_have = 0;
+    memset(env->mob_living_sound, 0, sizeof env->mob_living_sound);
+    memset(env->mob_entity_age, 0, sizeof env->mob_entity_age);
+    memset(env->mob_task_tick, 0, sizeof env->mob_task_tick);
+    memset(env->mob_target_tick, 0, sizeof env->mob_target_tick);
+    memset(env->mob_watch_time, 0, sizeof env->mob_watch_time);
+    memset(env->mob_idle_time, 0, sizeof env->mob_idle_time);
+    memset(env->mob_eat_time, 0, sizeof env->mob_eat_time);
+    memset(env->mob_chicken_egg, 0, sizeof env->mob_chicken_egg);
+    memset(env->mob_body_ticks, 0, sizeof env->mob_body_ticks);
+    memset(env->mob_head_yaw, 0, sizeof env->mob_head_yaw);
+    memset(env->mob_prev_head_yaw, 0, sizeof env->mob_prev_head_yaw);
+    memset(env->mob_melee_tx, 0, sizeof env->mob_melee_tx);
+    memset(env->mob_melee_ty, 0, sizeof env->mob_melee_ty);
+    memset(env->mob_melee_tz, 0, sizeof env->mob_melee_tz);
+    memset(env->mob_raise_arm, 0, sizeof env->mob_raise_arm);
+    memset(env->mob_strafe_cw, 0, sizeof env->mob_strafe_cw);
+    memset(env->mob_strafe_back, 0, sizeof env->mob_strafe_back);
+    memset(env->mob_cstate, 0, sizeof env->mob_cstate);
+    memset(env->mob_blaze_hot, 0, sizeof env->mob_blaze_hot);
+    memset(env->mob_blaze_hof, 0, sizeof env->mob_blaze_hof);
+    memset(env->mob_nav_speed, 0, sizeof env->mob_nav_speed);
+    memset(env->mob_follow, 0, sizeof env->mob_follow);
+    memset(env->mob_skel_melee, 0, sizeof env->mob_skel_melee);
+    env->player_hurt_resistant = 0;
+    env->player_last_damage = 0.0f;
+    env->player_attack_cooldown = 0;
+    env->mob_tick = 0;
+}
+
 #include "dimension_swap.h"
 
 /* =================== one whole game tick (gm_runtime_tick slice) ========== */
@@ -7511,42 +7550,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         env->n_items++;
     }
 
-    env->n_mobs = 0;
-    memset(env->mobs, 0, sizeof env->mobs);
-    memset(env->mob_repath, 0, sizeof env->mob_repath);
-    memset(env->mob_despawn, 0, sizeof env->mob_despawn);
-    memset(env->mob_fire, 0, sizeof env->mob_fire);
-    env->look_px = 0.0;
-    env->look_py = 0.0;
-    env->look_pz = 0.0;
-    env->look_have = 0;
-    memset(env->mob_living_sound, 0, sizeof env->mob_living_sound);
-    memset(env->mob_entity_age, 0, sizeof env->mob_entity_age);
-    memset(env->mob_task_tick, 0, sizeof env->mob_task_tick);
-    memset(env->mob_target_tick, 0, sizeof env->mob_target_tick);
-    memset(env->mob_watch_time, 0, sizeof env->mob_watch_time);
-    memset(env->mob_idle_time, 0, sizeof env->mob_idle_time);
-    memset(env->mob_eat_time, 0, sizeof env->mob_eat_time);
-    memset(env->mob_chicken_egg, 0, sizeof env->mob_chicken_egg);
-    memset(env->mob_body_ticks, 0, sizeof env->mob_body_ticks);
-    memset(env->mob_head_yaw, 0, sizeof env->mob_head_yaw);
-    memset(env->mob_prev_head_yaw, 0, sizeof env->mob_prev_head_yaw);
-    memset(env->mob_melee_tx, 0, sizeof env->mob_melee_tx);
-    memset(env->mob_melee_ty, 0, sizeof env->mob_melee_ty);
-    memset(env->mob_melee_tz, 0, sizeof env->mob_melee_tz);
-    memset(env->mob_raise_arm, 0, sizeof env->mob_raise_arm);
-    memset(env->mob_strafe_cw, 0, sizeof env->mob_strafe_cw);
-    memset(env->mob_strafe_back, 0, sizeof env->mob_strafe_back);
-    memset(env->mob_cstate, 0, sizeof env->mob_cstate);
-    memset(env->mob_blaze_hot, 0, sizeof env->mob_blaze_hot);
-    memset(env->mob_blaze_hof, 0, sizeof env->mob_blaze_hof);
-    memset(env->mob_nav_speed, 0, sizeof env->mob_nav_speed);
-    memset(env->mob_follow, 0, sizeof env->mob_follow);
-    memset(env->mob_skel_melee, 0, sizeof env->mob_skel_melee);
-    env->player_hurt_resistant = 0;
-    env->player_last_damage = 0.0f;
-    env->player_attack_cooldown = 0;
-    env->mob_tick = 0;
+    cu_clear_mob_state(env);
     if (mobs && n_mobs) {
         unsigned nm = n_mobs;
         if (nm > BLAZE_SNAP_MAX_MOBS) nm = BLAZE_SNAP_MAX_MOBS;
