@@ -72,6 +72,21 @@ BACKEND_DEFS := -DNN_HAVE_CUDA=1 -DBLAZE_RL_HAVE_CUDA=1 -DBLAZE_RL_HAVE_METAL=0
 CPPFLAGS := $(CPPFLAGS_COMMON) -I$(CUDA_HOME)/include $(BACKEND_DEFS)
 NVCCFLAGS := -O2 -arch=$(BLAZE_SM) --fmad=false \
 	-I$(CORE_SRC) -I$(ENV_SRC) -Xcompiler -fPIC,-ffp-contract=off
+# Build profile. gate (default) is the flag set every quoted number and every
+# gate runs under. dev keeps the exactness contract (same source, fmad off,
+# fp-contract off, integer sim) and only lowers ptxas to -O1, which is the
+# pass that eats the wall on the one-kernel sim: use it for port, verify and
+# divergence work, never for a wall or ticks/s. A profile switch retouches the
+# stamp below, so the objects rebuild. NVCC_WRAP=ccache reuses objects across
+# worktrees (same preprocessed source + flags = same .o).
+BLAZE_BUILD ?= gate
+ifeq ($(BLAZE_BUILD),dev)
+NVCCFLAGS += -Xptxas -O1
+else ifneq ($(BLAZE_BUILD),gate)
+$(error BLAZE_BUILD must be gate or dev, got '$(BLAZE_BUILD)')
+endif
+NVCC_WRAP ?=
+NVCC := $(strip $(NVCC_WRAP) $(NVCC))
 # Opt-in scalar k_tick (create opts warp_tick=0). Off by default: it is one
 # more full inline of the sim for a kernel only the M2 scalar gate row runs.
 # Without it blaze_create refuses warp_tick=0. See blaze_cuda_int.h.
@@ -240,12 +255,19 @@ ENV_CUDA_HDRS := $(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
 		$(CORE_SRC)/dimension_swap.h $(MOB_AI_HDRS)
 ENV_CUDA_OBJS := $(ENV_OUT)/blaze_cuda.o $(ENV_OUT)/blaze_cuda_verify.o \
 		$(ENV_OUT)/blaze_snapshot_cu.o
+# One stamp per profile; making one removes the other, so switching
+# BLAZE_BUILD invalidates the sim objects without a clean.
+ENV_CUDA_STAMP := $(ENV_OUT)/build_profile.$(BLAZE_BUILD)
+$(ENV_CUDA_STAMP): | $(ENV_OUT)
+	rm -f $(ENV_OUT)/build_profile.*
+	touch $@
 
-$(ENV_OUT)/blaze_cuda.o: $(ENV_SRC)/blaze_cuda.cu $(ENV_CUDA_HDRS) | $(ENV_OUT)
+$(ENV_OUT)/blaze_cuda.o: $(ENV_SRC)/blaze_cuda.cu $(ENV_CUDA_HDRS) \
+		$(ENV_CUDA_STAMP) | $(ENV_OUT)
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $(ENV_SRC)/blaze_cuda.cu
 
 $(ENV_OUT)/blaze_cuda_verify.o: $(ENV_SRC)/blaze_cuda_verify.cu \
-		$(ENV_CUDA_HDRS) | $(ENV_OUT)
+		$(ENV_CUDA_HDRS) $(ENV_CUDA_STAMP) | $(ENV_OUT)
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $(ENV_SRC)/blaze_cuda_verify.cu
 
 $(ENV_OUT)/blaze_snapshot_cu.o: $(ENV_SRC)/blaze_snapshot.c \

@@ -123,6 +123,10 @@ make -C blaze/nn test-cuda BLAZE_SM=sm_120
 make -C blaze/rl test
 make -C blaze/rl smoke-metal
 make -C blaze/rl smoke-cuda BLAZE_SM=sm_120
+# CUDA sim build profile: gate (default, every quoted number) or dev
+# (port/verify loops: ptxas -O1, same exactness). NVCC_WRAP=ccache shares
+# objects across worktrees. Never quote a wall from a dev build.
+make -C magma blaze_cuda_so BLAZE_BUILD=dev NVCC_WRAP=ccache
 make -C verify tape-info TAPE=verify/tapes/<tape>.jsonl
 make -C verify replay
 out/verify/replay --tape verify/tapes/<tape>.jsonl --ticks 32

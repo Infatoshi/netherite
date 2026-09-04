@@ -102,6 +102,13 @@ bitwise. `port_matrix.py` does not build. Root `make` does not rebuild
 `blaze/env/blaze_cpu.so` or `blaze_cuda.so`; after every fetch/reset run
 `rm -f blaze/env/blaze_cpu.so blaze/env/blaze_cuda.so && make -C magma blaze_so blaze_cuda_so`
 (CUDA needs `PATH=/usr/local/cuda/bin:$PATH CUDA_HOME=/usr/local/cuda`).
+Pick the CUDA build profile by the kind of work. Port, verify, and
+divergence lanes build with `BLAZE_BUILD=dev NVCC_WRAP=ccache` (ptxas at
+-O1, same exactness contract, objects shared across worktrees), so the
+M1/M2 loop is not compile-bound. Any lane that quotes a wall, ticks/s, or
+a probe time builds with the default `BLAZE_BUILD=gate`; a dev-build number
+is not a number. The profile is a make variable on `blaze_cuda_so`,
+`env-cuda`, and `smoke-cuda`; switching it rebuilds the sim objects.
 A stale library from another branch gives a clean FAIL or a false PASS. A new row needs fixtures under `verify/fixtures/port` and
 `blaze/rl/fixtures`, an `m1`/`m2` command in `port_matrix.yaml`, and
 `supported: true` only after both tiers pass. Rows already VERIFIED must

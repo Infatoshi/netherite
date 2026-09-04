@@ -684,6 +684,20 @@ BLAZE_SCALAR_TICK ?= 0
 BLAZE_CUDA_CFLAGS := -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
                         -Xcompiler -fPIC \
                         $(if $(filter-out 0,$(BLAZE_SCALAR_TICK)),-DBLAZE_SCALAR_TICK=1,)
+# Build profile, same contract as blaze/rl/Makefile: gate (default) is the
+# flag set every gate and every quoted number runs under; dev keeps the
+# exactness contract and lowers only ptxas to -O1 for port/verify loops.
+# Never quote a wall or ticks/s from a dev build. The stamp forces a rebuild
+# on a profile switch. NVCC_WRAP=ccache shares objects across worktrees.
+BLAZE_BUILD ?= gate
+ifeq ($(BLAZE_BUILD),dev)
+BLAZE_CUDA_CFLAGS += -Xptxas -O1
+else ifneq ($(BLAZE_BUILD),gate)
+$(error BLAZE_BUILD must be gate or dev, got '$(BLAZE_BUILD)')
+endif
+NVCC_WRAP ?=
+BLAZE_NVCC := $(strip $(NVCC_WRAP) $(NVCC))
+BLAZE_CUDA_STAMP := obj/blaze/build_profile.$(BLAZE_BUILD)
 BLAZE_CUDA_OBJS := obj/blaze/blaze_cuda.o obj/blaze/blaze_cuda_verify.o \
                         obj/blaze/blaze_snapshot.o
 .PHONY: blaze_cuda_so
@@ -692,15 +706,19 @@ blaze_cuda_so: ../blaze/env/blaze_cuda.so
 obj/blaze:
 	mkdir -p $@
 
-obj/blaze/blaze_cuda.o: ../blaze/env/blaze_cuda.cu $(BLAZE_CUDA_HDRS) | obj/blaze
-	$(NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_cuda.cu -o $@
+$(BLAZE_CUDA_STAMP): | obj/blaze
+	rm -f obj/blaze/build_profile.*
+	touch $@
 
-obj/blaze/blaze_cuda_verify.o: ../blaze/env/blaze_cuda_verify.cu $(BLAZE_CUDA_HDRS) | obj/blaze
-	$(NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_cuda_verify.cu -o $@
+obj/blaze/blaze_cuda.o: ../blaze/env/blaze_cuda.cu $(BLAZE_CUDA_HDRS) $(BLAZE_CUDA_STAMP) | obj/blaze
+	$(BLAZE_NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_cuda.cu -o $@
+
+obj/blaze/blaze_cuda_verify.o: ../blaze/env/blaze_cuda_verify.cu $(BLAZE_CUDA_HDRS) $(BLAZE_CUDA_STAMP) | obj/blaze
+	$(BLAZE_NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_cuda_verify.cu -o $@
 
 obj/blaze/blaze_snapshot.o: ../blaze/env/blaze_snapshot.c ../blaze/env/blaze_snapshot.h \
                         ../blaze/env/blaze_core.h | obj/blaze
-	$(NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_snapshot.c -o $@
+	$(BLAZE_NVCC) $(BLAZE_CUDA_CFLAGS) -c ../blaze/env/blaze_snapshot.c -o $@
 
 ../blaze/env/blaze_cuda.so: $(BLAZE_CUDA_OBJS)
 	$(NVCC) $(BLAZE_CUDA_CFLAGS) --shared $(BLAZE_CUDA_OBJS) -o $@
