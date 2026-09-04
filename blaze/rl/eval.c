@@ -17,6 +17,11 @@
 #include "chain_curr.h"
 #include "chain_reward.h"
 #include "eval_magma.h"
+#include "eval_config.h"
+#include "world_recipe.h"
+#include "blaze_snapshot.h"
+#include <math.h>
+#include <sys/stat.h>
 #include "model.h"
 #include "nn.h"
 #include "obs_pack.h"
@@ -52,21 +57,6 @@ _Static_assert((int)ENV_NPIX == (int)EM_NPIX, "pix count");
 #define BLAZE_RL_HAVE_METAL 0
 #endif
 
-enum {
-  EVAL_STR_MAX = 1024,
-  EVAL_BACKEND_MAX = 16,
-  EVAL_MAX_SEEDS = 32,
-  EVAL_MAX_TRIES = 16,
-  EVAL_TORCH_ITEM = 50,
-  EVAL_STAGE_ALL = -1,
-  EVAL_STAGE_MAX = 4,
-  EVAL_XFER_CLOSED = 0,
-  EVAL_XFER_REPLAY = 1
-};
-
-static const int kCanonSeeds[] = {2,  3,  10, 11, 14, 16, 20,
-                                  27, 29, 32, 33, 44, 46};
-static const int kCanonNSeeds = (int)(sizeof(kCanonSeeds) / sizeof(kCanonSeeds[0]));
 static const int kHeldOut[] = {11, 33};
 static const char *const kMileNames[] = {"t0", "logs3", "pick", "cobble3",
                                          "coal"};
@@ -104,32 +94,6 @@ typedef struct BlazeFns {
   int (*emit)(void *h, int env, int want_cam, void *out);
 } BlazeFns;
 
-typedef struct EvalCfg {
-  char backend[EVAL_BACKEND_MAX];
-  int device;
-  char checkpoint[EVAL_STR_MAX];
-  char snaps_dir[EVAL_STR_MAX];
-  int seeds[EVAL_MAX_SEEDS];
-  int nseeds;
-  int tries;
-  int ep_ticks;
-  int action_repeat;
-  int success_item;
-  uint64_t seed;
-  int metal_max_cells;
-  char metallib[EVAL_STR_MAX];
-  int ktime;
-  int stage_time;
-  int legacy_recenter;
-  int warp_tick;
-  int op_trace;
-  int no_ore_xy;
-  int stack_kib; /* CUDA per-thread stack limit, KiB (default 128) */
-  int stage; /* 0..4, or EVAL_STAGE_ALL */
-  int transfer; /* EVAL_XFER_CLOSED | EVAL_XFER_REPLAY */
-  char magma_bin[EVAL_STR_MAX];
-} EvalCfg;
-
 typedef struct StageSeedResult {
   int skip;
   int base;
@@ -159,6 +123,128 @@ static void dief(const char *fmt, const char *a) {
   fprintf(stderr, fmt, a);
   fputc('\n', stderr);
   exit(1);
+}
+
+typedef struct {
+  int stage, seed, attempt, decisions, success, end;
+  double reward;
+} EvalEpisode;
+static struct {
+  EvalCfg cfg;
+  EvalEpisode episodes[EVAL_MAX_SEEDS * EVAL_MAX_TRIES * 5];
+  int active, count;
+} report_state;
+
+static void json_string(FILE *f, const char *s) {
+  fputc('"', f);
+  for (; *s; ++s) {
+    unsigned char c = (unsigned char)*s;
+    if (c == '"' || c == '\\') { fputc('\\', f); fputc(c, f); }
+    else if (c < 32) fprintf(f, "\\u%04x", c);
+    else fputc(c, f);
+  }
+  fputc('"', f);
+}
+
+static int report_parents(const char *path) {
+  char dir[EVAL_STR_MAX];
+  if (strlen(path) >= sizeof dir) return -1;
+  strcpy(dir, path);
+  for (char *p = dir + 1; *p; ++p) if (*p == '/') {
+    *p = 0;
+    int rc = mkdir(dir, 0755);
+    *p = '/';
+    if (rc && errno != EEXIST) return -1;
+  }
+  return 0;
+}
+
+static void report_episode(int stage, int seed, int attempt, int decisions,
+                           double reward, int success, int end) {
+  if (report_state.count >= EVAL_MAX_SEEDS * EVAL_MAX_TRIES * 5)
+    die("episode report capacity exceeded");
+  EvalEpisode *e = &report_state.episodes[report_state.count++];
+  *e = (EvalEpisode){stage, seed, attempt, decisions, success, end, reward};
+}
+
+static int report_finish(int rc) {
+  if (!report_state.active) return rc;
+  report_state.active = 0;
+  const EvalCfg *cfg = &report_state.cfg;
+  int requested = cfg->nseeds * cfg->tries * (cfg->stage == EVAL_STAGE_ALL ? 5 : 1);
+  int count = report_state.count, successes = 0, boundaries = 0, deaths = 0, limits = 0;
+  int returns = strcmp(cfg->backend, "magma") != 0;
+  double total = 0;
+  for (int i = 0; i < count; ++i) {
+    const EvalEpisode *e = &report_state.episodes[i];
+    successes += e->success;
+    boundaries += !e->success && e->end == 3;
+    deaths += !e->success && e->end == 2;
+    limits += !e->success && e->end == 0;
+    total += e->reward;
+  }
+  if (!count || !isfinite(total) || (!cfg->allow_missing && requested != count)) rc = 1;
+  char recipe[EVAL_STR_MAX + 16], temporary[EVAL_STR_MAX + 16], score[EVAL_STR_MAX + 16];
+  snprintf(recipe, sizeof recipe, "%s.conf", cfg->report);
+  snprintf(temporary, sizeof temporary, "%s.tmp", cfg->report);
+  snprintf(score, sizeof score, "%s.score", cfg->report);
+  FILE *f = fopen(recipe, "w");
+  if (!f) return 1;
+  eval_cfg_dump(cfg, f);
+  int bad = ferror(f);
+  if (fclose(f)) bad = 1;
+  if (bad) return 1;
+  f = fopen(temporary, "w");
+  if (!f) return 1;
+  fprintf(f, "{\n  \"schema_version\": 1,\n  \"status\": \"%s\",\n  \"checkpoint\": ",
+          rc ? "failed" : requested == count ? "complete" : "partial");
+  json_string(f, cfg->checkpoint);
+  fprintf(f, ",\n  \"recipe\": "); json_string(f, recipe);
+  fprintf(f, ",\n  \"backend\": "); json_string(f, cfg->backend);
+  fprintf(f, ",\n  \"requested_seeds\": %d,\n  \"requested_episodes\": %d,\n  \"evaluated_episodes\": %d,\n  \"missing_episodes\": %d,\n  \"success_count\": %d,\n  \"success_rate\": %.17g,\n  \"boundary_count\": %d,\n  \"death_count\": %d,\n  \"time_limit_count\": %d,\n  \"burn_in_ticks_per_episode\": %d,\n  \"return_source\": \"%s\",\n  \"mean_return\": ",
+          cfg->nseeds, requested, count, requested - count, successes,
+          count ? (double)successes / count : 0, boundaries, deaths, limits,
+          cfg->action_repeat, returns ? "environment_post_burn_in" : "unavailable");
+  if (returns && count && isfinite(total)) fprintf(f, "%.17g", total / count);
+  else fputs("null", f);
+  fprintf(f, ",\n  \"episodes\": [");
+  for (int i = 0; i < count; ++i) {
+    const EvalEpisode *e = &report_state.episodes[i];
+    fprintf(f, "%s\n    {\"stage\":%d,\"seed\":%d,\"attempt\":%d,\"decisions\":%d,\"success\":%s,\"end_code\":%d,\"return\":",
+            i ? "," : "", e->stage, e->seed, e->attempt, e->decisions,
+            e->success ? "true" : "false", e->end);
+    if (returns) fprintf(f, "%.17g", e->reward); else fputs("null", f);
+    fputc('}', f);
+  }
+  fputs("\n  ]\n}\n", f);
+  bad = ferror(f);
+  if (fclose(f)) bad = 1;
+  if (bad || rename(temporary, cfg->report)) return 1;
+  if (!rc && requested == count && count && returns) {
+    snprintf(temporary, sizeof temporary, "%s.score.tmp", cfg->report);
+    f = fopen(temporary, "w");
+    if (!f) return 1;
+    fprintf(f, "%d %d %d %.17g\n", requested, count, successes, total / count);
+    bad = ferror(f);
+    if (fclose(f)) bad = 1;
+    if (bad || rename(temporary, score)) return 1;
+  }
+  printf("eval: report=%s requested=%d evaluated=%d success=%d boundaries=%d rc=%d\n",
+         cfg->report, requested, count, successes, boundaries, rc);
+  return rc;
+}
+
+static void report_aborted(void) { if (report_state.active) (void)report_finish(1); }
+
+static int report_begin(const EvalCfg *cfg) {
+  char score[EVAL_STR_MAX + 16];
+  if (report_parents(cfg->report)) return -1;
+  snprintf(score, sizeof score, "%s.score", cfg->report);
+  if (unlink(score) && errno != ENOENT) return -1;
+  memset(&report_state, 0, sizeof report_state);
+  report_state.cfg = *cfg;
+  report_state.active = 1;
+  return atexit(report_aborted);
 }
 
 static int str_copy_fit(char *dst, size_t cap, const char *src) {
@@ -258,59 +344,6 @@ static int env_step(struct EnvStepCtx *ctx, void *env, const double *act,
   }
 #endif
   return 0;
-}
-
-static int parse_int(const char *v, int *out, int lo, int hi) {
-  char *end = NULL;
-  long x;
-  errno = 0;
-  x = strtol(v, &end, 10);
-  if (errno || !end || end == v || *end)
-    return 0;
-  if (x < (long)lo || x > (long)hi)
-    return 0;
-  *out = (int)x;
-  return 1;
-}
-
-static int parse_u64(const char *v, uint64_t *out) {
-  char *end = NULL;
-  unsigned long long x;
-  if (!v || !v[0] || v[0] == '-' || v[0] == '+')
-    return 0;
-  errno = 0;
-  x = strtoull(v, &end, 10);
-  if (errno || !end || end == v || *end)
-    return 0;
-  *out = (uint64_t)x;
-  return 1;
-}
-
-static int parse_seed_list(const char *s, int *out, int cap) {
-  const char *p;
-  int n = 0;
-  if (!s || !s[0])
-    return -1;
-  p = s;
-  while (*p) {
-    char *end = NULL;
-    long v;
-    while (*p == ',' || *p == ' ' || *p == '\t')
-      ++p;
-    if (!*p)
-      break;
-    errno = 0;
-    v = strtol(p, &end, 10);
-    if (errno || end == p || v < 0 || v > 2147483647L)
-      return -1;
-    if (n >= cap)
-      return -1;
-    out[n++] = (int)v;
-    p = end;
-    if (*p && *p != ',' && *p != ' ' && *p != '\t')
-      return -1;
-  }
-  return n;
 }
 
 static int seed_is_held_out(int seed) {
@@ -460,245 +493,6 @@ static void print_ladder(const EvalCfg *cfg, StageSeedResult rows[5][EVAL_MAX_SE
   fflush(stdout);
 }
 
-static void cfg_defaults(EvalCfg *c) {
-  int i;
-  memset(c, 0, sizeof(*c));
-  (void)str_copy_fit(c->backend, sizeof(c->backend), "cpu");
-  c->device = 0;
-  (void)str_copy_fit(c->snaps_dir, sizeof(c->snaps_dir), "blaze/rl/out/snaps");
-  c->nseeds = kCanonNSeeds;
-  for (i = 0; i < kCanonNSeeds; ++i)
-    c->seeds[i] = kCanonSeeds[i];
-  c->tries = 5;
-  c->ep_ticks = 6000;
-  c->action_repeat = 4;
-  c->success_item = EVAL_TORCH_ITEM;
-  c->seed = 0;
-  c->metal_max_cells = 2097152;
-  (void)str_copy_fit(c->metallib, sizeof(c->metallib), "auto");
-  c->warp_tick = 1;
-  c->stack_kib = 128;
-  c->stage = 0;
-  c->transfer = EVAL_XFER_CLOSED;
-  (void)str_copy_fit(c->magma_bin, sizeof(c->magma_bin), "magma/magma_game");
-}
-
-static int cfg_set(EvalCfg *c, const char *key, const char *val) {
-  if (!c || !key || !val)
-    return -1;
-  if (!strcmp(key, "backend")) {
-    if (strcmp(val, "cpu") && strcmp(val, "cuda") && strcmp(val, "metal") &&
-        strcmp(val, "magma"))
-      return -2;
-    if (!str_copy_fit(c->backend, sizeof(c->backend), val))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "device")) {
-    if (!parse_int(val, &c->device, 0, 64))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "checkpoint")) {
-    if (!str_copy_fit(c->checkpoint, sizeof(c->checkpoint), val))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "snaps_dir")) {
-    if (!str_copy_fit(c->snaps_dir, sizeof(c->snaps_dir), val))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "seeds")) {
-    int n = parse_seed_list(val, c->seeds, EVAL_MAX_SEEDS);
-    if (n <= 0)
-      return -2;
-    c->nseeds = n;
-    return 0;
-  }
-  if (!strcmp(key, "tries")) {
-    if (!parse_int(val, &c->tries, 1, EVAL_MAX_TRIES))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "ep_ticks")) {
-    if (!parse_int(val, &c->ep_ticks, 1, 1000000))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "action_repeat") || !strcmp(key, "repeat")) {
-    if (!parse_int(val, &c->action_repeat, 1, 64))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "success_item")) {
-    if (!parse_int(val, &c->success_item, 0, 512))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "seed")) {
-    if (!parse_u64(val, &c->seed))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "metal_max_cells")) {
-    if (!parse_int(val, &c->metal_max_cells, 1, 1 << 30))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "metallib")) {
-    if (!str_copy_fit(c->metallib, sizeof(c->metallib), val))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "stage")) {
-    if (!strcmp(val, "all")) {
-      c->stage = EVAL_STAGE_ALL;
-      return 0;
-    }
-    if (!parse_int(val, &c->stage, 0, EVAL_STAGE_MAX))
-      return -2;
-    return 0;
-  }
-  if (!strcmp(key, "transfer")) {
-    if (!strcmp(val, "closed")) {
-      c->transfer = EVAL_XFER_CLOSED;
-      return 0;
-    }
-    if (!strcmp(val, "replay")) {
-      c->transfer = EVAL_XFER_REPLAY;
-      return 0;
-    }
-    return -2;
-  }
-  if (!strcmp(key, "magma_bin")) {
-    if (!str_copy_fit(c->magma_bin, sizeof(c->magma_bin), val))
-      return -2;
-    return 0;
-  }
-  return -1;
-}
-
-static void cfg_dump(const EvalCfg *c, FILE *out) {
-  int i;
-  fprintf(out, "  %-16s = %s\n", "backend", c->backend);
-  fprintf(out, "  %-16s = %d\n", "device", c->device);
-  fprintf(out, "  %-16s = %s\n", "checkpoint", c->checkpoint);
-  fprintf(out, "  %-16s = %s\n", "snaps_dir", c->snaps_dir);
-  fprintf(out, "  %-16s = ", "seeds");
-  for (i = 0; i < c->nseeds; ++i) {
-    if (i)
-      fputc(',', out);
-    fprintf(out, "%d", c->seeds[i]);
-  }
-  fputc('\n', out);
-  fprintf(out, "  %-16s = %d\n", "tries", c->tries);
-  fprintf(out, "  %-16s = %d\n", "ep_ticks", c->ep_ticks);
-  fprintf(out, "  %-16s = %d\n", "action_repeat", c->action_repeat);
-  fprintf(out, "  %-16s = %d\n", "success_item", c->success_item);
-  fprintf(out, "  %-16s = %llu\n", "seed", (unsigned long long)c->seed);
-  fprintf(out, "  %-16s = %d\n", "metal_max_cells", c->metal_max_cells);
-  fprintf(out, "  %-16s = %s\n", "metallib", c->metallib);
-  if (c->stage == EVAL_STAGE_ALL)
-    fprintf(out, "  %-16s = all\n", "stage");
-  else
-    fprintf(out, "  %-16s = %d\n", "stage", c->stage);
-  fprintf(out, "  %-16s = %s\n", "transfer",
-          c->transfer == EVAL_XFER_REPLAY ? "replay" : "closed");
-  fprintf(out, "  %-16s = %s\n", "magma_bin", c->magma_bin);
-}
-
-static void usage(void) {
-  fprintf(stderr,
-          "usage: eval --checkpoint PATH [options]\n"
-          "  --snaps-dir DIR     t0 snapshots (default blaze/rl/out/snaps)\n"
-          "  --seeds LIST        comma ids (default 13-seed canonical set)\n"
-          "  --tries N           best-of-N (default 5)\n"
-          "  --ep-ticks N        ticks per episode (default 6000)\n"
-          "  --repeat N          action repeat (default 4)\n"
-          "  --backend cpu|cuda|metal|magma\n"
-          "  --transfer closed|replay  magma only (default closed)\n"
-          "  --magma-bin PATH    magma_game (default magma/magma_game)\n"
-          "  --device N\n"
-          "  --seed N            Gumbel base seed (default 0)\n"
-          "  --stage 0|1|2|3|4|all  snap ladder (default 0 = t0)\n"
-          "  --set key=value     same keys as dump-config\n"
-          "  --dump-config\n"
-          "Run from repo root. Loads schema-1 weights via nn_load.\n"
-          "stage 0 loads s{seed}_t0.bsnp (missing file is fatal).\n"
-          "stage K loads s{seed}_stg{K}.bsnp; missing prints SKIP, exit 0.\n"
-          "stage all runs 0..4 then a ladder table of new milestones.\n"
-          "magma closed: net reads Magma --rl-bin BOLR (64x36 oc_pixel).\n"
-          "magma replay: net reads blaze_cpu; actions replay on Magma.\n");
-}
-
-static int parse_argv(EvalCfg *c, int argc, char **argv, int *dump) {
-  int i;
-  cfg_defaults(c);
-  *dump = 0;
-  for (i = 1; i < argc; ++i) {
-    const char *a = argv[i];
-    const char *key = NULL;
-    const char *val = NULL;
-    char tmpkey[32];
-    if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
-      usage();
-      return 1;
-    }
-    if (!strcmp(a, "--dump-config")) {
-      *dump = 1;
-      continue;
-    }
-    if (!strcmp(a, "--set")) {
-      char *eq;
-      if (i + 1 >= argc)
-        return -1;
-      eq = strchr(argv[++i], '=');
-      if (!eq || eq == argv[i] || !eq[1])
-        return -1;
-      {
-        size_t kn = (size_t)(eq - argv[i]);
-        if (kn >= sizeof(tmpkey))
-          return -1;
-        memcpy(tmpkey, argv[i], kn);
-        tmpkey[kn] = 0;
-        key = tmpkey;
-        val = eq + 1;
-      }
-    } else if (!strncmp(a, "--", 2)) {
-      key = a + 2;
-      if (i + 1 >= argc)
-        return -1;
-      val = argv[++i];
-      if (!strcmp(key, "snaps-dir"))
-        key = "snaps_dir";
-      if (!strcmp(key, "ep-ticks"))
-        key = "ep_ticks";
-      if (!strcmp(key, "success-item"))
-        key = "success_item";
-      if (!strcmp(key, "metal-max-cells"))
-        key = "metal_max_cells";
-      if (!strcmp(key, "magma-bin"))
-        key = "magma_bin";
-    } else {
-      fprintf(stderr, "eval: unexpected argument '%s'\n", a);
-      return -1;
-    }
-    {
-      int rc = cfg_set(c, key, val);
-      if (rc == -1) {
-        fprintf(stderr, "eval: unknown key '%s'\n", key);
-        return -1;
-      }
-      if (rc == -2) {
-        fprintf(stderr, "eval: bad value for '%s'\n", key);
-        return -2;
-      }
-    }
-  }
-  return 0;
-}
-
 #if BLAZE_RL_HAVE_METAL
 static const char *resolve_metallib(const EvalCfg *cfg) {
   if (!cfg || !cfg->metallib[0])
@@ -721,11 +515,11 @@ static void print_stage_report(const EvalCfg *cfg, int stage_k, uint64_t rng_see
   int hist_vals[EVAL_MAX_SEEDS];
   int hist_count[EVAL_MAX_SEEDS];
 
-  printf("net %s, sampled, %d tries x %d ticks\n", ckpt_basename(cfg->checkpoint),
-         cfg->tries, cfg->ep_ticks);
-  printf("backend %s  rng_protocol nn_sample Gumbel rng_seed=%llu "
+  printf("net %s, %s, %d tries x %d ticks\n", ckpt_basename(cfg->checkpoint),
+         cfg->deterministic ? "greedy" : "sampled", cfg->tries, cfg->ep_ticks);
+  printf("backend %s  rng_protocol nn_sample %s rng_seed=%llu "
          "sample_step=decision ni=seed_index*%d+attempt\n",
-         cfg->backend, (unsigned long long)rng_seed, cfg->tries);
+         cfg->backend, cfg->deterministic ? "greedy" : "Gumbel", (unsigned long long)rng_seed, cfg->tries);
   if (strcmp(cfg->backend, "magma") == 0)
     printf("transfer %s magma_bin %s camera %dx%d (oc_pixel, not window)\n",
            cfg->transfer == EVAL_XFER_REPLAY ? "replay" : "closed",
@@ -817,20 +611,25 @@ int main(int argc, char **argv) {
   int prc;
   int ep_lim;
 
-  prc = parse_argv(&cfg, argc, argv, &dump);
+  prc = eval_cfg_parse_argv(&cfg, argc, argv, &dump);
   if (prc == 1)
     return 0;
   if (prc != 0) {
-    usage();
+    eval_usage();
     return 2;
   }
+  char config_error[2048];
+  if (eval_cfg_validate(&cfg, config_error, sizeof config_error)) {
+    fprintf(stderr, "eval: %s\n", config_error); return 2;
+  }
   if (dump) {
-    cfg_dump(&cfg, stdout);
+    eval_cfg_dump(&cfg, stdout);
     return 0;
   }
+  if (report_begin(&cfg)) { fprintf(stderr, "eval: cannot initialize report\n"); return 1; }
   if (!cfg.checkpoint[0]) {
     fprintf(stderr, "eval: --checkpoint PATH is required\n");
-    usage();
+    eval_usage();
     return 2;
   }
   if (cfg.ep_ticks % cfg.action_repeat != 0)
@@ -856,13 +655,12 @@ int main(int argc, char **argv) {
       printf("--- stage %d ---\n", stage_k);
       fflush(stdout);
       rc = eval_run_stage(&cfg, stage_k, ladder[stage_k]);
-      if (rc != 0)
-        return rc;
+      if (rc != 0) return report_finish(rc);
     }
     print_ladder(&cfg, ladder);
-    return 0;
+    return report_finish(0);
   }
-  return eval_run_stage(&cfg, cfg.stage, NULL);
+  return report_finish(eval_run_stage(&cfg, cfg.stage, NULL));
 }
 
 static void magma_close_n(EvalMagma **mag, int n) {
@@ -941,6 +739,8 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   char (*div_why)[128] = NULL;
   int rc_out = 1;
   uint64_t rng_seed;
+  double episode_return[EVAL_MAX_SEEDS * EVAL_MAX_TRIES] = {0};
+  int episode_end[EVAL_MAX_SEEDS * EVAL_MAX_TRIES] = {0};
 
   memset(&fns, 0, sizeof(fns));
   memset(skip, 0, sizeof(skip));
@@ -954,14 +754,22 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
 
   nsnaps = 0;
   for (i = 0; i < cfg->nseeds; ++i) {
-    if (snap_path(path_store[i], EVAL_STR_MAX, cfg->snaps_dir, cfg->seeds[i],
-                  stage_k) != 0)
-      die("snaps path too long");
+    if (cfg->fixture[0]) {
+      if (!str_copy_fit(path_store[i], EVAL_STR_MAX, cfg->fixture)) die("fixture path too long");
+    } else if (snap_path(path_store[i], EVAL_STR_MAX, cfg->snaps_dir, cfg->seeds[i],
+                         stage_k) != 0) die("snaps path too long");
     if (access(path_store[i], R_OK) != 0) {
       skip[i] = 1;
-      if (stage_k == 0)
-        dief("missing t0 snapshot: %s", path_store[i]);
+      if (!cfg->allow_missing) dief("missing requested snapshot: %s", path_store[i]);
       continue;
+    }
+    {
+      RlSnapHead h;
+      FILE *input = fopen(path_store[i], "rb");
+      int ok = input && fread(&h, sizeof h, 1, input) == 1;
+      if (input) fclose(input);
+      if (!ok || memcmp(h.magic, "BSNP", 4) || h.seed != cfg->seeds[i])
+        dief("snapshot does not match requested seed: %s", path_store[i]);
     }
     paths[nsnaps] = path_store[i];
     loaded_si[nsnaps] = i;
@@ -978,9 +786,14 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
       }
     }
     print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
-    return 0;
+    fprintf(stderr, "eval: no episodes available for requested stage %d\n", stage_k);
+    return 1;
   }
 
+  WorldRecipe prepared;
+  if (world_recipe_prepare(&prepared, paths, nsnaps, cfg->world_size, err, sizeof err))
+    dief("world preparation: %s", err);
+  for (i = 0; i < nsnaps; ++i) paths[i] = prepared.paths[i];
   n = nsnaps * cfg->tries;
   if (n <= 0)
     die("nseeds and tries must be positive");
@@ -1090,8 +903,8 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   nn = nn_create(&nd);
   if (!nn)
     dief("nn_create: %s", nn_last_error());
-  if (rl_ckpt_load(nn, cfg->checkpoint) != 0)
-    dief("nn_load: %s", nn_last_error());
+  if (rl_ckpt_load_config(nn, cfg->checkpoint, &cfg->policy, err, sizeof err) != 0)
+    dief("checkpoint: %s", err);
 
   for (i = 0; i < n; ++i) {
     int32_t *a = acts + (size_t)i * POL_HEADS;
@@ -1100,7 +913,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     a[1] = 1;
     a[2] = 1;
   }
-  acts_to_rows(acts, n, act_rows);
+  acts_to_rows_config(&cfg->policy, acts, n, act_rows);
   if (replay) {
     if (fns.step_full(env, act_rows, cfg->action_repeat, cam, depth, edge,
                       scal6, rew, done_buf, pose, status) != 0)
@@ -1147,13 +960,13 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   }
 
   for (dec = 0; dec < ep_lim; ++dec) {
-    pack_obs(cam, depth, edge, scal6, pose, status, ep_dec, ep_lim, have_prior,
+    pack_obs_config(&cfg->policy, cam, depth, edge, scal6, pose, status, ep_dec, ep_lim, have_prior,
              prior_frame, n, planes, scalars, frame_scratch);
     if (nn_forward(nn, planes, scalars, n, logits, values) != 0)
       dief("nn_forward: %s", nn_last_error());
-    if (nn_sample(nn, logits, n, NN_SAMPLE_GUMBEL, acts, logp, NULL) != 0)
+    if (nn_sample(nn, logits, n, cfg->deterministic ? NN_SAMPLE_GREEDY : NN_SAMPLE_GUMBEL, acts, logp, NULL) != 0)
       dief("nn_sample: %s", nn_last_error());
-    acts_to_rows(acts, n, act_rows);
+    acts_to_rows_config(&cfg->policy, acts, n, act_rows);
     if (replay) {
       if (fns.step_full(env, act_rows, cfg->action_repeat, cam, depth, edge,
                         scal6, rew, done_buf, pose, status) != 0)
@@ -1195,8 +1008,10 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
       uint8_t *frame;
       uint8_t *prior;
       int stg;
-      if (finished[i])
-        continue;
+      if (finished[i]) continue;
+      if (strcmp(cfg->backend, "magma") && !isfinite(rew[i])) die("nonfinite episode reward");
+      if (strcmp(cfg->backend, "magma")) episode_return[i] += rew[i];
+      episode_end[i] = done_buf[i];
       for (k = 0; k < 9; ++k) {
         int v = status[(size_t)i * ENV_STATUS + k];
         if (v > best9[(size_t)i * 9 + (size_t)k])
@@ -1280,6 +1095,9 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     }
   }
   print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
+  for (i = 0; i < n; ++i)
+    report_episode(stage_k, cfg->seeds[loaded_si[i / cfg->tries]], i % cfg->tries,
+                   ep_dec[i], episode_return[i], reached[i] >= CR_N_STAGES, episode_end[i]);
   rc_out = 0;
 
 fail:
@@ -1366,6 +1184,8 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
   int *base_stg = NULL;
   int rc_out = 1;
   uint64_t rng_seed;
+  double episode_return[EVAL_MAX_SEEDS * EVAL_MAX_TRIES] = {0};
+  int episode_end[EVAL_MAX_SEEDS * EVAL_MAX_TRIES] = {0};
 
 #if BLAZE_RL_HAVE_CUDA
   EnvCudaStage stage;
@@ -1429,14 +1249,22 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
 
   nsnaps = 0;
   for (i = 0; i < cfg->nseeds; ++i) {
-    if (snap_path(path_store[i], EVAL_STR_MAX, cfg->snaps_dir, cfg->seeds[i],
-                  stage_k) != 0)
-      die("snaps path too long");
+    if (cfg->fixture[0]) {
+      if (!str_copy_fit(path_store[i], EVAL_STR_MAX, cfg->fixture)) die("fixture path too long");
+    } else if (snap_path(path_store[i], EVAL_STR_MAX, cfg->snaps_dir, cfg->seeds[i],
+                         stage_k) != 0) die("snaps path too long");
     if (access(path_store[i], R_OK) != 0) {
       skip[i] = 1;
-      if (stage_k == 0)
-        dief("missing t0 snapshot: %s", path_store[i]);
+      if (!cfg->allow_missing) dief("missing requested snapshot: %s", path_store[i]);
       continue;
+    }
+    {
+      RlSnapHead h;
+      FILE *input = fopen(path_store[i], "rb");
+      int ok = input && fread(&h, sizeof h, 1, input) == 1;
+      if (input) fclose(input);
+      if (!ok || memcmp(h.magic, "BSNP", 4) || h.seed != cfg->seeds[i])
+        dief("snapshot does not match requested seed: %s", path_store[i]);
     }
     paths[nsnaps] = path_store[i];
     loaded_si[nsnaps] = i;
@@ -1453,9 +1281,14 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
       }
     }
     print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
-    return 0;
+    fprintf(stderr, "eval: no episodes available for requested stage %d\n", stage_k);
+    return 1;
   }
 
+  WorldRecipe prepared;
+  if (world_recipe_prepare(&prepared, paths, nsnaps, cfg->world_size, err, sizeof err))
+    dief("world preparation: %s", err);
+  for (i = 0; i < nsnaps; ++i) paths[i] = prepared.paths[i];
   n = nsnaps * cfg->tries;
   if (n <= 0)
     die("nseeds and tries must be positive");
@@ -1570,8 +1403,8 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
   nn = nn_create(&nd);
   if (!nn)
     dief("nn_create: %s", nn_last_error());
-  if (rl_ckpt_load(nn, cfg->checkpoint) != 0)
-    dief("nn_load: %s", nn_last_error());
+  if (rl_ckpt_load_config(nn, cfg->checkpoint, &cfg->policy, err, sizeof err) != 0)
+    dief("checkpoint: %s", err);
 
   /* Burn-in noop (trainer first stored step): populate cam/scal/status.
    * First policy obs is the post-noop frame duplicated (have_prior=0). */
@@ -1582,7 +1415,7 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
     a[1] = 1;
     a[2] = 1;
   }
-  acts_to_rows(acts, n, act_rows);
+  acts_to_rows_config(&cfg->policy, acts, n, act_rows);
   if (env_step(&estep, env, act_rows, cfg->action_repeat, cam, depth, edge,
                scal6, rew, done_buf, pose, status) != 0)
     die("burn-in step failed");
@@ -1600,13 +1433,13 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
   }
 
   for (dec = 0; dec < ep_lim; ++dec) {
-    pack_obs(cam, depth, edge, scal6, pose, status, ep_dec, ep_lim, have_prior,
+    pack_obs_config(&cfg->policy, cam, depth, edge, scal6, pose, status, ep_dec, ep_lim, have_prior,
              prior_frame, n, planes, scalars, frame_scratch);
     if (nn_forward(nn, planes, scalars, n, logits, values) != 0)
       dief("nn_forward: %s", nn_last_error());
-    if (nn_sample(nn, logits, n, NN_SAMPLE_GUMBEL, acts, logp, NULL) != 0)
+    if (nn_sample(nn, logits, n, cfg->deterministic ? NN_SAMPLE_GREEDY : NN_SAMPLE_GUMBEL, acts, logp, NULL) != 0)
       dief("nn_sample: %s", nn_last_error());
-    acts_to_rows(acts, n, act_rows);
+    acts_to_rows_config(&cfg->policy, acts, n, act_rows);
     if (env_step(&estep, env, act_rows, cfg->action_repeat, cam, depth, edge,
                  scal6, rew, done_buf, pose, status) != 0)
       die("blaze_step_full failed");
@@ -1617,8 +1450,10 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
       uint8_t *frame;
       uint8_t *prior;
       int stg;
-      if (finished[i])
-        continue;
+      if (finished[i]) continue;
+      if (strcmp(cfg->backend, "magma") && !isfinite(rew[i])) die("nonfinite episode reward");
+      if (strcmp(cfg->backend, "magma")) episode_return[i] += rew[i];
+      episode_end[i] = done_buf[i];
       for (k = 0; k < 9; ++k) {
         int v = status[(size_t)i * ENV_STATUS + k];
         if (v > best9[(size_t)i * 9 + (size_t)k])
@@ -1680,6 +1515,9 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
     }
   }
   print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
+  for (i = 0; i < n; ++i)
+    report_episode(stage_k, cfg->seeds[loaded_si[i / cfg->tries]], i % cfg->tries,
+                   ep_dec[i], episode_return[i], reached[i] >= CR_N_STAGES, episode_end[i]);
   rc_out = 0;
 
 fail:
