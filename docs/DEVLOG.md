@@ -1,3 +1,47 @@
+## 2026-09-04 the 5x wall was one straggler: nsys on the wood probe, merged tree back to 08-21 speed
+
+Review addendum (Opus review of the sky-first diff f20c2a3..ef16b13, fix 4db5139). The seeded full path missed one cell class the gates could not see: an opacity drop under cover (cliff face, overhang, cave wall) moves no generateSkylightMap column value and was not raisable at load, so nothing was pushed and the cell stayed dark where the 46x46 scan lit it. Reproduced by an A/B of the same binary with sky_under unset versus set, exhaustive over every dark solid cell with a lit neighbour, broken as its chunk's first edit:
+
+| fixture | first-edit cells tried | diverged before fix | after fix |
+|---|---|---|---|
+| s10_t0_r64_no_liquid | 20383 | 654 | 0 |
+| s10_t0_r64_hazards | 20380 | (same class) | 0 |
+| s10_t0_r64_chests | 20394 | (same class) | 0 |
+| random first edits, 13 block ids, both opacity directions, no_liquid | 1315 (1975 before) | 1 | 0 |
+
+The 4108-edit oracle passed because only about 560 of its edits are first edits and the miss rate is about 1 in 2000. Fix: push the edited cell after the load-time seeds. Three more holes closed in the same commit: the incremental overflow fallback forces the box scan again (its proof needs every cell of the box relaxed, and test-skylight-ovf builds with CU_SKY_Q=12, below the 4096 floor, so that test only ever ran the old path); a spill drops the env's load-time list (the spilled cell is raisable now and was not at load, so the list no longer covers the region); blaze_capture rebuilds the slot's list from the captured cells on both backends, retired rather than freed because live envs alias it. CUDA load now fails like the CPU driver when the list cannot be uploaded instead of silently running the 46x46 path on one backend only. Left open from the review: the dimension swap now marks every chunk unknown (a latent fix that changes light output on tapes crossing a portal, no gate covers it); the load-time list is unbounded and seeded serially on lane 0, exercised so far only with 0 to 3 entries; the sky_seed counter mixes box volume and seeds pushed; the light phase bucket now covers the incremental path only.
+
+Gates on 4db5139. Mac: magma test rc=0, four M1 rows VERIFIED (world_dynamics, spawn_to_torch, fluids, mobs, --no-deps), test-skylight-incr 4108 opacity edits identical (3548 on the incremental path, walking-player 1712 edits, 1710 incremental), test-skylight-ovf rc=0. Anvil gpu1 (sm_120, ccache builds 185 s and 188 s): verify_cuda default, chain, and mixed all PASS, mixed sha bed161ee9e41068b; nsys per-launch k_tick over 96 launches min 5.0 med 17.3 p90 22.0 max 22.5 ms, no straggler; wood probe seed 0 best t0 0.525 in 64.0 s, env 491 to 463 ms per chunk.
+
+Question. HEAD ran the wood probe 5 to 6.5x slower per chunk than the 08-21 tree, all of it env phase. The randtick lane halved randtick cycles, the counter that said randtick was 65 percent of the tick, and the wall moved 2 percent. So the in-kernel clocks do not predict wall. What does the wall consist of?
+
+Method. `nsys profile -t cuda,osrt --sample=none` around two chunks of the wood recipe (N=1024, T=32, mb=8192, 270k ticks) on anvil gpu1, on the 08-21 tree 0943ce1 (`~/nlanes/wood-0943ce1`) and on 06e47aa (`~/nlanes/nn-fable-fp16`). `nsys stats -r cuda_gpu_kern_sum,cuda_api_sum,cuda_gpu_trace`. Reports under ~/nlanes/ladder/nsys/.
+
+| tree | k_tick launches | k_tick avg per launch | k_tick share of GPU time | wall per chunk |
+|---|---|---|---|---|
+| 0943ce1 (08-21) | 96 | 8.3 ms | 46 percent (rest is the cuBLAS/cuDNN update) | 1.3 s |
+| 06e47aa | 96 | 225 ms | 87 percent | 8 to 9 s |
+
+Per-launch durations on 06e47aa, sorted: 5 to 9 ms for 31 of 96 launches, 335 to 342 ms for the other 65, nothing in between. 340 ms at the SM clock is one first-edit skylight rebuild, the 0.95e9-cycle sky_full the age-growth entry measured on lane 0 of one env. A launch ends when its slowest env ends, so any launch in which one of the 1024 envs makes its first edit in a chunk costs 340 ms for all of them. The launches without a first edit run at the 08-21 speed. The clocks sum lane-0 cycles across envs; wall is the maximum over envs, which is why cutting randtick, a cost every env pays evenly, did nothing.
+
+Note on the baseline: 0943ce1 had no random ticks, no falling blocks, no hostile mobs, no mob AI tasks and no dimensions (all added 08-22 or later). The launches without a straggler show those subsystems cost about nothing at the wall on this recipe.
+
+Fix. The sky-first lane (wip/sky-first, entry above) seeds the first-edit rebuild from the columns whose height moved plus a load-time raisable list; cycles per sky_full 0.95e9 to 0.038e9. Merged with randtick and the build profiles as f4c9bed.
+
+Merged tree f4c9bed, anvil, gate profile. verify_cuda default PASS 8 s, chain PASS 8 s, mixed `--cpu-workers 16` PASS 18 s (was 105 s), sha256 bed161ee9e41068bac5f60d3983ee9e635f4584a000554124bfec4563413c95d unchanged. Mac: `make -C magma test` rc=0, M1 rows world_dynamics, spawn_to_torch, fluids, mobs VERIFIED (`--no-deps`), test-skylight-incr 4108 edits identical (3548 incremental), test-skylight-ovf same counts. nsys on the same two chunks: k_tick per launch min 5.0, median 17.3, p90 21.9, max 22.5 ms; the 340 ms mode is gone. Trainer phases per chunk: env 533 to 535 ms (was 7252 to 7898), nn 117 ms, pack 195 ms, host 200 ms, upd 277 ms.
+
+Wood probe, 6M ticks, mb=8192, tail_mb=overlap, three seeds, gpu0 and gpu1:
+
+| tree | seed 0 best t0 / wall | seed 1 | seed 2 |
+|---|---|---|---|
+| 0943ce1 (08-21, 2026-09-03 runs) | 0.655 / 64-70 s | 0.595 | 0.645 |
+| f20c2a3 (before) | 0.525 / 417 s | 0.615 / 348 s | 0.560 / 434 s |
+| f4c9bed (merged) | 0.525 / 71.1 s | 0.615 / 65.4 s | 0.560 / 61.1 s |
+
+Best t0 per seed is identical to f20c2a3, so the merged sim is learning-identical and the wall is back at the 08-21 band. Env phase per chunk 496 to 548 ms at chunk 0, 451 to 484 ms at the last chunk. The probe iteration is about a minute again.
+
+What this settles. The wall regression was not occupancy, divergence, or the megakernel, and the Blaze V2 split (entry 2026-09-03, 2.5x slower on the 3090) stays parked. Straggler cost is the thing to watch from now on: any per-env job that is rare and long sets the launch time for all envs, and the phase clocks will not show it. Per-launch duration from nsys, or a max-over-envs clock, is the measurement that does.
+
 # DEVLOG (compressed)
 
 ## 2026-09-04 first-edit skylight skips the 46x46 scan
