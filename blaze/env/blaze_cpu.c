@@ -58,6 +58,7 @@ void blaze_destroy(void *vh);
 typedef struct {
     int n;
     McSinTable st;
+    CpPerlin tn;                     /* Biome.TEMPERATURE_NOISE, built at create */
     Blaze *envs;
     int   *assign;
     CuSnapshot snaps[BLAZE_MAX_SNAPS];
@@ -230,6 +231,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     if (o.end_bank && o.end_bank[0])
         snprintf(v->end_bank_path, sizeof v->end_bank_path, "%s", o.end_bank);
     mc_sin_table_init(&v->st);
+    rt_live_temperature_noise_init(&v->tn);
     v->nrecipes = crf_build(v->recipes);
     v->envs = (Blaze *)calloc((size_t)n, sizeof *v->envs);
     v->assign = (int *)calloc((size_t)n, sizeof *v->assign);
@@ -281,6 +283,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->rt_leaf = v->rt_leaf_pool + (size_t)i * RT_LIVE_SURR;
         e->light_q = v->light_q_pool + (size_t)i * CU_LIGHT_Q;
         e->ops = v->ops_pool ? v->ops_pool + (size_t)i * CU_OP_N : NULL;
+        e->tn = &v->tn;
         v->assign[i] = -1;
     }
     return v;

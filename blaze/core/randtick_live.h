@@ -10,7 +10,7 @@
  *   RT_SECTION_NEEDS(w,cx,sec,cz)  non-zero iff the 16^3 has a ticker
  *                                  (ExtendedBlockStorage.getNeedsRandomTick
  *                                  :86). Default scans with bp_is_randtick_id.
- *   RT_COUNT(w,k) / RT_COUNT_ADD   op-trace (blaze create opts.op_trace).
+ *   RT_COUNT(w,k)   op-trace (blaze create opts.op_trace).
  *   RT_CLK_T0() / RT_CLK_END(k)    stage_time subset clocks (CUDA only).
  *
  * Java World.rand (World.java:108) and World.updateLCG (World.java:95-97)
@@ -118,7 +118,6 @@ MC_HD static inline int rt_leaf_idx(int dx, int dy, int dz) {
 #endif
 #ifndef RT_COUNT
 #define RT_COUNT(w, k) ((void)0)
-#define RT_COUNT_ADD(w, k, n) ((void)0)
 #endif
 #ifndef RT_CLK_T0
 #define RT_CLK_T0() ((void)0)
@@ -184,18 +183,6 @@ MC_HD static inline i32 rt_live_step_lcg(i32 *lcg) {
     u = u * 3u + RT_DIST_HASH_MAGIC;
     *lcg = (i32)u;
     return (*lcg) >> 2;
-}
-
-/* Affine skip of n updateLCG steps, bit-exact with n calls of step_lcg. */
-MC_HD static inline u32 rt_live_lcg_skip(u32 x, u32 n) {
-    u32 a = 3u, c = RT_DIST_HASH_MAGIC;
-    while (n) {
-        if (n & 1u) x = a * x + c;
-        c = a * c + c;
-        a = a * a;
-        n >>= 1;
-    }
-    return x;
 }
 
 /* BlockFire.init setFireInfo tables, magma/game/randtick.c:50-88. */
@@ -538,20 +525,12 @@ MC_HD static inline void rt_live_temperature_noise_init(CpPerlin *tn) {
     cp_simplex_init(&tn->levels[0], &r);
 }
 
-#if defined(__CUDACC__)
-static __device__ CpPerlin rt_tn_dev;
-static __device__ int rt_tn_dev_ready;
-#endif
-
-/* Java's table is a static; rebuild-on-every-call was a blaze/magma extra. */
+/* Java's table is a static; rebuild-on-every-call was a blaze/magma extra.
+ * This lazy static is the magma (single-threaded) default. Blaze maps
+ * RT_TEMP_NOISE(w) to a per-vec table built at create, because its envs
+ * tick under OpenMP on the CPU and as parallel warps on CUDA, where a lazy
+ * shared init is a race. */
 MC_HD static inline const CpPerlin *rt_live_temperature_noise(void) {
-#if defined(__CUDA_ARCH__)
-    if (!rt_tn_dev_ready) {
-        rt_live_temperature_noise_init(&rt_tn_dev);
-        rt_tn_dev_ready = 1;
-    }
-    return &rt_tn_dev;
-#else
     static CpPerlin tbl;
     static int ready = 0;
     if (!ready) {
@@ -559,16 +538,18 @@ MC_HD static inline const CpPerlin *rt_live_temperature_noise(void) {
         ready = 1;
     }
     return &tbl;
-#endif
 }
+#ifndef RT_TEMP_NOISE
+#define RT_TEMP_NOISE(w) rt_live_temperature_noise()
+#endif
 
 /* Biome.getFloatTemperature :258-268.
  * JVM: (float)x/8.0F promoted to double for Perlin; *4.0D cast to float. */
-MC_HD static inline float rt_live_float_temperature(int biome, int wx, int wy,
-                                                    int wz) {
+MC_HD static inline float rt_live_float_temperature(RT_W *w, int biome, int wx,
+                                                    int wy, int wz) {
     float temp = mc_bpf_temperature(biome);
     if (wy > 64) {
-        float f = (float)(cp_perlin_getValue(rt_live_temperature_noise(),
+        float f = (float)(cp_perlin_getValue(RT_TEMP_NOISE(w),
                       (double)((float)wx / 8.0f),
                       (double)((float)wz / 8.0f)) * 4.0);
         return temp - (f + (float)wy - 64.0f) * 0.05f / 30.0f;
@@ -632,7 +613,7 @@ MC_HD static inline int rt_live_snow_can_place(RT_W *w, int x, int y, int z) {
 MC_HD static inline int rt_live_can_block_freeze_no_water(RT_W *w, int x, int y,
                                                          int z) {
     int id, m;
-    if (rt_live_float_temperature(rt_live_biome(w, x, z), x, y, z) >= 0.15f)
+    if (rt_live_float_temperature(w, rt_live_biome(w, x, z), x, y, z) >= 0.15f)
         return 0;
     if (y < 0 || y >= 256) return 0;
     if (rt_live_block_light(w, x, y, z) >= 10) return 0;
@@ -650,7 +631,7 @@ MC_HD static inline int rt_live_can_block_freeze_no_water(RT_W *w, int x, int y,
 /* World.canSnowAtBody :2922-2948. */
 MC_HD static inline int rt_live_can_snow_at(RT_W *w, int x, int y, int z,
                                            int check_light) {
-    if (rt_live_float_temperature(rt_live_biome(w, x, z), x, y, z) >= 0.15f)
+    if (rt_live_float_temperature(w, rt_live_biome(w, x, z), x, y, z) >= 0.15f)
         return 0;
     if (!check_light) return 1;
     if (y < 0 || y >= 256) return 0;
@@ -882,8 +863,8 @@ MC_HD static inline void rt_live_chunk_worldrand_prefix(RT_W *w, JavaRandom *rng
     if (jrand_int_bound(rng, 16) == 0) {
         i32 j2 = rt_live_step_lcg(lcg);
         int wx, wz, py, fy;
-        RT_COUNT(w, RT_ST_PRECIP);
         if (!w) return;
+        RT_COUNT(w, RT_ST_PRECIP);
         wx = j + (j2 & 15);
         wz = k + ((j2 >> 8) & 15);
         /* All-air column: precip height is 0, fy=-1, freeze/snow no-op.

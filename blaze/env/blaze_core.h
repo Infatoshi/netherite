@@ -75,6 +75,7 @@
 #include "tile_entity_chest.h"  /* TeChest 27-slot TE (TileEntityChest) */
 #include "container_click.h"    /* cc_* slotClick stack helpers */
 #include "blaze_snapshot.h"     /* RlSnapHead/RlSnapItem (.bsnp format) */
+#include "chunk_provider.h"     /* CpPerlin (Blaze.tn) */
 #include "entity_spine.h"       /* living Entity.move spine (zero AI) */
 #include "world_weather.h"      /* WorldInfo rain/thunder + worldTime */
 #include "projectile_live.h"    /* bow/skeleton arrow live tick */
@@ -555,6 +556,10 @@ typedef struct {
      * Set once at create like the other pool pointers; reset does NOT touch
      * it (counters are cumulative). Not sim state - never verified. */
     unsigned long long *ops;
+    /* Biome.TEMPERATURE_NOISE (NoiseGeneratorPerlin seed 1234, 1 octave).
+     * One read-only copy per vec, built on the host at create and shared by
+     * every env; reset does not touch it. Not sim state. */
+    const CpPerlin *tn;
 
     /* dimensions (GPU_DIMENSIONS.md) */
     int dimension;            /* 0 overworld, -1 nether, 1 the_end */
@@ -1783,7 +1788,7 @@ MC_HD static inline int cu_rt_precip_y_top(const Blaze *e) {
 #define RT_PRECIP_Y_TOP(w) cu_rt_precip_y_top((w))
 #define RT_CHUNK_MAY_NEED(w, cx, cz) cu_rt_chunk_may_need((w), (cx), (cz))
 #define RT_COUNT(w, k) CU_OP((w), (k))
-#define RT_COUNT_ADD(w, k, n) CU_OP_ADD((w), (k), (n))
+#define RT_TEMP_NOISE(w) ((w)->tn)
 #define RT_ST_CHUNK CU_OP_RT_CHUNK
 #define RT_ST_PRECIP CU_OP_RT_PRECIP
 #define RT_ST_SEC_CHECK CU_OP_RT_SEC_CHECK
@@ -1810,7 +1815,7 @@ MC_HD static inline int cu_rt_precip_y_top(const Blaze *e) {
 #endif
 #include "randtick_live.h"
 #undef RT_COUNT
-#undef RT_COUNT_ADD
+#undef RT_TEMP_NOISE
 #undef RT_CLK_T0
 #undef RT_CLK_END
 #undef RT_COLUMN_PRESENT

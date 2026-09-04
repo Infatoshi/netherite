@@ -118,6 +118,7 @@ typedef struct {
     Blaze *d_envs;
     Blaze *h_envs;               /* host staging mirror (pool pointers) */
     McSinTable *d_st;
+    CpPerlin *d_tn;                  /* Biome.TEMPERATURE_NOISE, uploaded at create */
     int *d_assign;
     int *h_assign;
     int *d_active;               /* compacted resetting-env index list */

@@ -826,6 +826,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     if (cudaStreamCreate(&v->stream) != cudaSuccess ||
         cudaMalloc(&v->d_envs, (size_t)n * sizeof(Blaze)) != cudaSuccess ||
         cudaMalloc(&v->d_st, sizeof(McSinTable)) != cudaSuccess ||
+        cudaMalloc(&v->d_tn, sizeof(CpPerlin)) != cudaSuccess ||
         cudaMalloc(&v->d_assign, (size_t)n * sizeof(int)) != cudaSuccess ||
         cudaMalloc(&v->d_active, (size_t)n * sizeof(int)) != cudaSuccess ||
         cudaMalloc(&v->d_cam,
@@ -870,23 +871,27 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
 
     {   /* upload the LUT sin table + the crf recipe table (built once) */
         McSinTable *h_st = (McSinTable *)malloc(sizeof *h_st);
+        CpPerlin *h_tn = (CpPerlin *)malloc(sizeof *h_tn);
         CRRecipe *h_rec =
             (CRRecipe *)malloc((size_t)CRF_NRECIPES * sizeof *h_rec);
-        if (!h_st || !h_rec) {
-            free(h_st); free(h_rec); blaze_destroy(v);
+        if (!h_st || !h_tn || !h_rec) {
+            free(h_st); free(h_tn); free(h_rec); blaze_destroy(v);
             return NULL;
         }
         mc_sin_table_init(h_st);
+        rt_live_temperature_noise_init(h_tn);
         v->nrecipes = crf_build(h_rec);
         if (cu_ck(cudaMemcpy(v->d_st, h_st, sizeof *h_st,
                              cudaMemcpyHostToDevice), "st upload") ||
+            cu_ck(cudaMemcpy(v->d_tn, h_tn, sizeof *h_tn,
+                             cudaMemcpyHostToDevice), "tn upload") ||
             cu_ck(cudaMemcpy(v->d_recipes, h_rec,
                              (size_t)v->nrecipes * sizeof *h_rec,
                              cudaMemcpyHostToDevice), "recipes upload")) {
-            free(h_st); free(h_rec); blaze_destroy(v);
+            free(h_st); free(h_tn); free(h_rec); blaze_destroy(v);
             return NULL;
         }
-        free(h_st);
+        free(h_st); free(h_tn);
         free(h_rec);
     }
 
@@ -916,6 +921,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->rt_leaf = v->d_rt_leaf + (size_t)i * RT_LIVE_SURR;
         e->light_q = v->d_light_q + (size_t)i * CU_LIGHT_Q;
         e->ops = v->d_ops ? v->d_ops + (size_t)i * CU_OP_N : NULL;
+        e->tn = v->d_tn;
         e->phase = NULL;
     }
     if (cu_ck(cudaMemcpy(v->d_envs, v->h_envs, (size_t)n * sizeof(Blaze),
@@ -1032,6 +1038,7 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_active);
     cudaFree(v->d_assign);
     cudaFree(v->d_st);
+    cudaFree(v->d_tn);
     cudaFree(v->d_envs);
     if (v->stream) cudaStreamDestroy(v->stream);
     free(v->h_envs);
