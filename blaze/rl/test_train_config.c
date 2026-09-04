@@ -310,7 +310,7 @@ static void test_conf_then_set(void) {
 /* Every key accepted by tr_cfg_set must appear in the committed conf. */
 static const char *const k_accepted_keys[] = {
     "backend",         "device",          "n_envs",
-    "fixture",         "rollout_steps",   "action_repeat",
+    "fixture",         "world_size",      "rollout_steps",   "action_repeat",
     "lr",              "ppo_clip",        "value_coef",
     "entropy_coef",    "grad_limit",      "gamma",
     "lam",             "epochs",          "mb",
@@ -349,6 +349,13 @@ static void test_committed_conf(void) {
   expect_true(c.checkpoint[0] != '\0', "committed checkpoint set");
   expect_eq_s(c.init_from, "", "committed init_from off");
   expect_eq_i(c.stage_snaps, 0, "committed stage_snaps");
+  expect_eq_i(c.world_size, 64, "committed world_size");
+  expect_eq_i(tr_cfg_set(&c, "world_size", "0"), 0, "original world extent");
+  expect_eq_i(tr_cfg_set(&c, "world_size", "32"), 0, "small world accepted");
+  expect_eq_i(tr_cfg_set(&c, "world_size", "128"), 0, "large world accepted");
+  expect_eq_i(tr_cfg_set(&c, "world_size", "65"), -2, "unaligned world rejected");
+  expect_eq_i(tr_cfg_set(&c, "world_size", "-1"), -2, "negative world rejected");
+  expect_eq_i(tr_cfg_set(&c, "world_size", "512"), -2, "oversize world rejected");
   expect_eq_i(c.metal_max_cells, 2097152, "committed metal_max_cells");
   expect_eq_s(c.metallib, "auto", "committed metallib");
   expect_eq_s(c.nn_prec, "fast", "committed nn_prec");

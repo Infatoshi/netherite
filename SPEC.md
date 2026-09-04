@@ -157,6 +157,30 @@ banks. End travel and vanilla nearest-distance portal selection remain outside
 this implemented transfer contract. `make -C verify test-dimensions` checks the
 selected CPU or CUDA library through its public ABI.
 
+The native trainer's `world_size` setting selects the finite horizontal side
+length in blocks. The recipe default is 64; height is inherited from the input
+snapshot (128 in the shipped training fixtures). Zero preserves the original
+extent. Positive sizes must be multiples of 16 in 32..256 and cannot expand
+beyond available source data. Startup writes cropped copies under
+`out/blaze/rl/worlds/`, including named dimension banks, source/prepared
+checksums, measured bounds/resource counts, and the effective recipe. Source
+fixtures are unchanged. Environment loading and reward-target extraction use
+the same prepared inputs. Camera rays outside the finite region see its current
+empty boundary; this mode does not claim full-world observation equivalence.
+
+Leaving the horizontal region is an episode truncation, not player death. It
+has no death penalty and uses the final observation's value before resetting.
+Inventory and crafting milestones remain the curriculum's progress signal;
+distance shaping can only describe targets known inside the stored region.
+An absent target is unknown beyond that boundary, not evidence that the goal
+does not exist elsewhere in the seed's world.
+
+The intended larger-world design separates the active block cache from the
+world's extent. Generate/load deterministic chunks as the player moves, retain
+edits by dimension and chunk when evicting them, and preserve progress and goal
+metadata independently of resident blocks. That moving cache is not implemented
+by the current `world_size` setting. Increasing a fixed cube is not its substitute.
+
 Runtime random values use a counter-based or hash-based protocol. The result
 does not depend on thread order or backend scheduling.
 

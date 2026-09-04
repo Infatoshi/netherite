@@ -2,6 +2,7 @@
 #   Darwin: cpu | metal  (CPU tick + Metal obs + Metal policy)
 #   Linux:  cpu | cuda
 # Generated output under root out/blaze/rl/ and out/blaze/env/.
+.DEFAULT_GOAL := all
 CC ?= cc
 METAL_CC ?= clang
 REPO := ../..
@@ -157,6 +158,19 @@ ENV_CPU_SO := $(ENV_OUT)/blaze_cpu.so
 
 TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
+WORLD_OBJS := $(OUT)/world_recipe.o $(OUT)/world_snapshot.o
+SAN_WORLD_OBJS := $(SAN_OUT)/world_recipe.o $(SAN_OUT)/world_snapshot.o
+
+.PHONY: test-world
+$(OUT)/test_world_crop: test_world_crop.c $(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_world_crop.c $(ENV_SRC)/blaze_snapshot.c -lm
+
+$(OUT)/test_world_recipe: test_world_recipe.c world_recipe.h $(WORLD_OBJS) $(OUT)/chain_reward.o $(ENV_CPU_SO) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_world_recipe.c $(WORLD_OBJS) $(OUT)/chain_reward.o $(LDLIBS)
+
+test-world: $(OUT)/test_world_crop $(OUT)/test_world_recipe
+	cd $(REPO) && ./out/blaze/rl/test_world_crop
+	cd $(REPO) && ./out/blaze/rl/test_world_recipe
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
 	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-mobs-det test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight test-skylight-incr test-skylight-ovf smoke smoke-cpu smoke-cuda \
@@ -184,6 +198,18 @@ endif
 
 $(OUT)/train_config.o: train_config.c train_config.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ train_config.c
+
+$(OUT)/world_recipe.o: world_recipe.c world_recipe.h $(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_io.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ world_recipe.c
+
+$(OUT)/world_snapshot.o: $(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -c -o $@ $(ENV_SRC)/blaze_snapshot.c
+
+$(SAN_OUT)/world_recipe.o: world_recipe.c world_recipe.h $(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_io.h | $(SAN_OUT)
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ world_recipe.c
+
+$(SAN_OUT)/world_snapshot.o: $(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h | $(SAN_OUT)
+	$(CC) $(filter-out -Werror,$(SAN_CFLAGS)) $(CPPFLAGS) -c -o $@ $(ENV_SRC)/blaze_snapshot.c
 
 $(OUT)/chain_reward.o: chain_reward.c chain_reward.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ chain_reward.c
@@ -494,10 +520,10 @@ $(TEST_BLK_BIN): $(ENV_SRC)/test_blocklight.c \
 	    $(OUT)/test_blocklight_magma_oracle.o $(SKY_MAGMA_OBJS) -lm
 
 ifeq ($(UNAME_S),Darwin)
-$(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
+$(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h world_recipe.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) $(WORLD_OBJS) \
 		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
 		$(METAL_LIB) | $(OUT)
-	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) \
+	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(WORLD_OBJS) \
 		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
 		$(LINK_LIBS) $(LDLIBS)
 
@@ -508,9 +534,9 @@ $(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
 		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
 		$(LINK_LIBS) $(LDLIBS)
 else
-$(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
+$(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h world_recipe.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) $(WORLD_OBJS) \
 		$(STAGE_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(WORLD_OBJS) $(CHAIN_OBJS) \
 		$(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
 
 $(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
@@ -737,10 +763,10 @@ $(SAN_CHAIN_BIN): test_chain_reward.c $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
 		-fsanitize=address,undefined
 
-$(SAN_SMOKE_BIN): ppo.c $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
+$(SAN_SMOKE_BIN): ppo.c world_recipe.h $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_metal_obs.o \
 		$(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(METAL_LIB) | $(SAN_OUT)
-	$(METAL_CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c \
+	$(METAL_CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(SAN_WORLD_OBJS) \
 		$(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_metal_obs.o \
 		$(METAL_HOST_OBJ) $(NN_OBJS) $(LINK_LIBS) $(LDLIBS) \
@@ -759,10 +785,10 @@ $(SAN_CHAIN_BIN): test_chain_reward.c $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
 		-fsanitize=address,undefined
 
-$(SAN_SMOKE_BIN): ppo.c $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
+$(SAN_SMOKE_BIN): ppo.c world_recipe.h $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_cuda_stage.o \
 		$(NN_OBJS) $(ENV_CPU_SO) | $(SAN_OUT)
-	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(SAN_OUT)/train_config.o \
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o \
 		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
 		$(SAN_OUT)/env_cuda_stage.o $(NN_OBJS) $(LINK_LIBS) \
 		-fsanitize=address,undefined

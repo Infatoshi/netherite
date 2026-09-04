@@ -20,6 +20,7 @@ typedef struct TrainConfig {
   int device;
   int n_envs;
   char fixture[TR_CFG_STR_MAX];
+  int world_size; /* horizontal side in blocks; 0 keeps snapshot extent */
   int rollout_steps;
   int action_repeat;
   float lr;

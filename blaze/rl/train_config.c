@@ -88,6 +88,7 @@ void tr_cfg_defaults(TrainConfig *c) {
   c->n_envs = 2;
   (void)str_copy_fit(c->fixture, sizeof(c->fixture),
                      "verify/fixtures/port/s10_t0_r64_no_liquid.bsnp");
+  c->world_size = 64;
   c->rollout_steps = 4;
   c->action_repeat = 4;
   c->lr = 3e-4f;
@@ -159,6 +160,13 @@ int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
       return -2;
     if (!str_copy_fit(c->fixture, sizeof(c->fixture), val))
       return -2;
+    return 0;
+  }
+  if (!strcmp(key, "world_size")) {
+    int t;
+    if (!p_int(val, &t) || (t != 0 && (t < 32 || t > 256 || t % 16)))
+      return -2;
+    c->world_size = t;
     return 0;
   }
   if (!strcmp(key, "rollout_steps")) {
@@ -504,6 +512,7 @@ void tr_cfg_dump(const TrainConfig *c, FILE *out) {
   fprintf(out, "  %-16s = %d\n", "device", c->device);
   fprintf(out, "  %-16s = %d\n", "n_envs", c->n_envs);
   fprintf(out, "  %-16s = %s\n", "fixture", c->fixture);
+  fprintf(out, "  %-16s = %d\n", "world_size", c->world_size);
   fprintf(out, "  %-16s = %d\n", "rollout_steps", c->rollout_steps);
   fprintf(out, "  %-16s = %d\n", "action_repeat", c->action_repeat);
   fprintf(out, "  %-16s = %.9g\n", "lr", (double)c->lr);

@@ -12,6 +12,7 @@
  */
 #define _DEFAULT_SOURCE
 #include "train_config.h"
+#include "world_recipe.h"
 
 #include "blaze_abi.h"
 #include "chain_curr.h"
@@ -932,6 +933,7 @@ int main(int argc, char **argv) {
   const char *so_path = NULL;
   char path_store[MAX_SNAPS][TR_CFG_STR_MAX];
   const char *paths[MAX_SNAPS];
+  WorldRecipe world_recipe;
   int seed_ids[MAX_SEEDS];
   float log_tmp[LOG_CAP * 3];
   struct RolloutBuf b;
@@ -1077,6 +1079,27 @@ int main(int argc, char **argv) {
         }
       }
     }
+  }
+
+  /* Resolve the recipe before policy/GPU allocation. Both the environment
+   * and the curriculum's log-target scan consume these exact same inputs. */
+  if (world_recipe_prepare(&world_recipe, paths, nsnaps, cfg.world_size,
+                           err, sizeof err) != 0) {
+    fprintf(stderr, "ppo: world preparation failed: %s\n", err);
+    return 1;
+  }
+  for (i = 0; i < nsnaps; ++i) paths[i] = world_recipe.paths[i];
+  if (world_recipe.directory[0]) {
+    char recipe_path[WORLD_RECIPE_PATH];
+    int nw = snprintf(recipe_path, sizeof recipe_path, "%s/recipe.conf",
+                      world_recipe.directory);
+    if (nw < 0 || nw >= (int)sizeof recipe_path) die("world recipe path too long");
+    FILE *recipe_file = fopen(recipe_path, "w");
+    if (!recipe_file) dief("cannot write effective recipe: %s", recipe_path);
+    tr_cfg_dump(&cfg, recipe_file);
+    int bad = ferror(recipe_file);
+    if (fclose(recipe_file) != 0) bad = 1;
+    if (bad) dief("effective recipe write failed: %s", recipe_path);
   }
 
   /* Build the policy BEFORE the env. blaze_create raises the thread stack

@@ -2,6 +2,25 @@
 
 Authorized 2026-09-04 after the architecture review at `4ccbf35`.
 
+## Follow-up: finite world size in the training recipe
+
+User authorized a smaller configurable current world region after clarifying
+that future exploration should use dynamic chunk generation. Work is isolated
+on `lane/world-recipe` from `1ac24e6`; the prior Anvil GPU watcher remains pinned
+to its already validated source and is not reset for this follow-up.
+
+Required result: native `ppo.conf` / `--set world_size=N` / `--dump-config`,
+default64 horizontal blocks with inherited height (128 on shipped fixtures),
+0 to preserve source extent, no silent expansion. Prepare exact cropped native
+snapshots and compatible bank sidecars; read curriculum targets from those
+same inputs; leave originals untouched and save measured bounds/checksums and
+effective recipe. World-boundary endings must be truncations with correct
+final-observation bootstrap, not deaths or false curriculum captures.
+
+Chunk streaming is future work, explicitly separate from this finite recipe.
+CPU/Metal builds, actual native training, crop and bank lifecycle tests, and
+boundary/reward/bootstrap checks are required before reporting this implemented.
+
 ## Required result
 
 - Native replay rejects child failures, incomplete or malformed traces, and
