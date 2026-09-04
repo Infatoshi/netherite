@@ -184,7 +184,7 @@ static void check_cpu(const char *so, const WorldRecipe *r, const CuSnapshot *cr
     if (env) {
         char err[1024] = {0};
         const char *paths[] = {r->paths[0]};
-        int index = 0, x0, y0, z0, nx = 0, ny = 0, nz = 0;
+        int index = 0, x0 = 0, y0 = 0, z0 = 0, nx = 0, ny = 0, nz = 0;
         const unsigned short *cells = NULL;
         int rc = load(env, paths, 1, err, sizeof err);
         if (rc != 1) fprintf(stderr, "CPU load: %s\n", err);
@@ -261,10 +261,12 @@ int main(int argc, char **argv) {
     CHECK(world_recipe_prepare(p, portals, 2, 64, err, sizeof err) == 0,
           "prepare real portal fixtures and shared nether bank");
     char banks[2][1024] = {{0}}, ends[2][1024] = {{0}};
-    for (int i = 0; i < 2; ++i)
-        CHECK(cu_read_banks_sidecar(p->paths[i], banks[i], sizeof banks[i],
-                                    ends[i], sizeof ends[i], err, sizeof err) == 0 && banks[i][0],
+    for (int i = 0; i < 2; ++i) {
+        const char *prepared[] = {p->paths[i]};
+        CHECK(cu_resolve_banks(prepared, 1, "", "", "", "", banks[i], ends[i],
+                               err, sizeof err) == 0 && banks[i][0],
               "prepared portal sidecar resolves a bank");
+    }
     CHECK(strcmp(p->paths[0], p->paths[1]) && !strcmp(banks[0], banks[1]) && strcmp(banks[0], nether),
           "distinct prepared snapshots share the same prepared bank path");
     CuSnapshot *bank = load_snapshot(banks[0]), *original_bank = load_snapshot(nether);
