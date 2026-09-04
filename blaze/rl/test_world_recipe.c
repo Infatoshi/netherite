@@ -111,6 +111,9 @@ static void check_pose_inventory(const CuSnapshot *a, const CuSnapshot *b) {
     CHECK(!memcmp(a->head.inv, b->head.inv, sizeof a->head.inv) &&
           a->head.hotbar_sel == b->head.hotbar_sel,
           "crop preserves inventory items and selection");
+    CHECK(a->head.n_items == b->head.n_items &&
+          !memcmp(a->items, b->items, (size_t)a->head.n_items * sizeof a->items[0]),
+          "crop preserves runtime item records");
     CHECK(a->head.seed == b->head.seed && a->head.tick == b->head.tick,
           "crop preserves seed and runtime tick");
 }
