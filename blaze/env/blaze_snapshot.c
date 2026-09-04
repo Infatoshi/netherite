@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <math.h>
 
 #include "blaze_snapshot.h"
 
@@ -641,6 +643,146 @@ int blaze_snapshot_write(const char *path, const CuSnapshot *s,
     if (!ok && err && err_cap > 0)
         snprintf(err, (size_t)err_cap, "write failed: %s", path);
     return ok;
+}
+
+int blaze_snapshot_crop(CuSnapshot *s, int world_size,
+                        char *err, int err_cap, int no_ore_xy) {
+    unsigned short *cells = NULL;
+    unsigned char *light = NULL, *biome = NULL;
+    int *coal = NULL, *xy_off = NULL, *cont = NULL;
+    unsigned ncoal = 0, ore = 0;
+    int ncont, has_liquid = 0, nx0, nz0, dx, dz;
+    int x, y, z;
+    size_t vol, src_vol;
+    int64_t xmax, ymax, zmax, cx, cz;
+    double px, pz;
+    const char *failure = "world crop allocation failed";
+
+    if (!s) return snap_fail(err, err_cap, "null snapshot", "world crop");
+    if (world_size == 0) return 1;
+    if (world_size < 32 || world_size > 256 || world_size % 16 != 0)
+        return snap_fail(err, err_cap,
+                         "world_size must be 0 or a multiple of 16 in [32,256]",
+                         "world crop");
+    if (!s->cells || memcmp(s->head.magic, "BSNP", 4) != 0 ||
+        s->head.version < 1 || s->head.version > BLAZE_SNAP_VERSION ||
+        s->head.rnx <= 0 || s->head.rnz <= 0 ||
+        s->head.rny <= 0 || s->head.rny > 128)
+        return snap_fail(err, err_cap, "invalid snapshot geometry or header",
+                         "world crop");
+    /* Use the loader's volume limit without multiplying unchecked dimensions. */
+    if ((size_t)s->head.rnx > ((size_t)1 << 24) / (size_t)s->head.rny)
+        return snap_fail(err, err_cap, "source region is too large", "world crop");
+    src_vol = (size_t)s->head.rnx * (size_t)s->head.rny;
+    if ((size_t)s->head.rnz > ((size_t)1 << 24) / src_vol)
+        return snap_fail(err, err_cap, "source region is too large", "world crop");
+    if (world_size > s->head.rnx || world_size > s->head.rnz)
+        return snap_fail(err, err_cap, "world_size would expand source coverage",
+                         "world crop");
+    if (s->head.version >= BLAZE_SNAP_VERSION_LIGHT && !s->light)
+        return snap_fail(err, err_cap, "missing required light plane", "world crop");
+    xmax = (int64_t)s->head.rx0 + s->head.rnx;
+    ymax = (int64_t)s->head.ry0 + s->head.rny;
+    zmax = (int64_t)s->head.rz0 + s->head.rnz;
+    if (xmax > (int64_t)INT_MAX + 1 || ymax > (int64_t)INT_MAX + 1 ||
+        zmax > (int64_t)INT_MAX + 1)
+        return snap_fail(err, err_cap, "source world coordinates overflow",
+                         "world crop");
+    px = s->head.px + (double)s->head.ox;
+    pz = s->head.pz + (double)s->head.oz;
+    if (!isfinite(s->head.px) || !isfinite(s->head.py) ||
+        !isfinite(s->head.pz) || !isfinite(px) || !isfinite(pz) ||
+        !isfinite(s->head.yaw) || !isfinite(s->head.pitch))
+        return snap_fail(err, err_cap, "nonfinite player pose", "world crop");
+    for (x = 0; x < 6; ++x)
+        if (!isfinite(s->head.box[x]))
+            return snap_fail(err, err_cap, "nonfinite player box", "world crop");
+    if (px < (double)s->head.rx0 || px >= (double)xmax ||
+        s->head.py < (double)s->head.ry0 || s->head.py >= (double)ymax ||
+        pz < (double)s->head.rz0 || pz >= (double)zmax)
+        return snap_fail(err, err_cap, "player is outside source coverage",
+                         "world crop");
+    /* Range checks above make these conversions defined, including negative
+     * origins. Keep all origin arithmetic wide until the contained result. */
+    cx = (int64_t)floor(px) - world_size / 2;
+    cz = (int64_t)floor(pz) - world_size / 2;
+    if (cx < s->head.rx0) cx = s->head.rx0;
+    if (cz < s->head.rz0) cz = s->head.rz0;
+    if (cx > xmax - world_size) cx = xmax - world_size;
+    if (cz > zmax - world_size) cz = zmax - world_size;
+    nx0 = (int)cx; nz0 = (int)cz;
+    dx = (int)(cx - s->head.rx0); dz = (int)(cz - s->head.rz0);
+    vol = (size_t)world_size * (size_t)s->head.rny * (size_t)world_size;
+    cells = (unsigned short *)malloc(vol * sizeof *cells);
+    if (s->light) light = (unsigned char *)malloc(vol);
+    biome = (unsigned char *)malloc((size_t)world_size * (size_t)world_size);
+    if (!cells || (s->light && !light) || !biome) goto fail;
+    for (x = 0; x < world_size; ++x) {
+        size_t bi = (size_t)x * (size_t)world_size;
+        size_t src_bi = (size_t)(x + dx) * (size_t)s->head.rnz + (size_t)dz;
+        if (s->biome) memcpy(biome + bi, s->biome + src_bi, (size_t)world_size);
+        else memset(biome + bi, BLAZE_SNAP_BIOME_PLAINS, (size_t)world_size);
+        for (y = 0; y < s->head.rny; ++y) {
+            size_t dst = ((size_t)x * (size_t)s->head.rny + (size_t)y) *
+                         (size_t)world_size;
+            size_t src = ((size_t)(x + dx) * (size_t)s->head.rny + (size_t)y) *
+                         (size_t)s->head.rnz + (size_t)dz;
+            memcpy(cells + dst, s->cells + src, (size_t)world_size * sizeof *cells);
+            if (light) memcpy(light + dst, s->light + src, (size_t)world_size);
+            for (z = 0; z < world_size; ++z) {
+                int id = cells[dst + (size_t)z] >> 4;
+                /* Same coal criterion and x/y/z ordering as rl_snapshot_write. */
+                if (id == 16) ++ncoal;
+                if (id >= 8 && id <= 11) has_liquid = 1;
+            }
+        }
+    }
+    if (ncoal) {
+        coal = (int *)malloc((size_t)ncoal * 3 * sizeof *coal);
+        if (!coal) goto fail;
+        for (x = 0; x < world_size; ++x)
+            for (y = 0; y < s->head.rny; ++y)
+                for (z = 0; z < world_size; ++z) {
+                    size_t i = ((size_t)x * (size_t)s->head.rny + (size_t)y) *
+                               (size_t)world_size + (size_t)z;
+                    if ((cells[i] >> 4) != 16) continue;
+                    coal[ore * 3] = nx0 + x;
+                    coal[ore * 3 + 1] = s->head.ry0 + y;
+                    coal[ore * 3 + 2] = nz0 + z;
+                    ++ore;
+                }
+        if (!no_ore_xy) {
+            size_t nxy = (size_t)world_size * (size_t)s->head.rny;
+            xy_off = (int *)malloc((nxy + 1) * sizeof *xy_off);
+            if (!xy_off) goto fail;
+            if (!blaze_build_ore_xy(coal, (int)ncoal, nx0, s->head.ry0, nz0,
+                                     world_size, s->head.rny, world_size, xy_off)) {
+                failure = "cropped ore index is invalid";
+                goto fail;
+            }
+        }
+    }
+    cont = (int *)malloc((size_t)BLAZE_SNAP_MAX_CONT * 3 * sizeof *cont);
+    if (!cont) goto fail;
+    ncont = blaze_build_containers(cells, nx0, s->head.ry0, nz0,
+                                   world_size, s->head.rny, world_size,
+                                   cont, BLAZE_SNAP_MAX_CONT);
+    if (ncont < 0) { free(cont); cont = NULL; }
+
+    /* Commit only after every required allocation/index succeeds. All inline
+     * runtime records stay untouched: fluid regions, scheduled updates, tile
+     * entities and mob navigation use world coordinates, not region indexes.
+     * Their independent runtime caches are rebuilt by environment creation. */
+    blaze_snapshot_free(s);
+    s->cells = cells; s->light = light; s->biome = biome;
+    s->coal = coal; s->ncoal = ncoal; s->xy_off = xy_off;
+    s->cont = cont; s->ncont = ncont; s->has_liquid = has_liquid;
+    s->head.rx0 = nx0; s->head.rz0 = nz0;
+    s->head.rnx = world_size; s->head.rnz = world_size;
+    return 1;
+fail:
+    free(cells); free(light); free(biome); free(coal); free(xy_off); free(cont);
+    return snap_fail(err, err_cap, failure, "world crop");
 }
 
 void blaze_snapshot_free(CuSnapshot *s) {

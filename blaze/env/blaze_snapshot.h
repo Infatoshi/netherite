@@ -392,6 +392,17 @@ int  blaze_snapshot_load(const char *path, CuSnapshot *out,
                          char *err, int err_cap, int no_ore_xy);
 int  blaze_snapshot_write(const char *path, const CuSnapshot *s,
                           char *err, int err_cap);
+/* Restrict an owned snapshot to a finite square XZ region around the player.
+ * world_size == 0 is a no-op. Otherwise it must be a multiple of 16 in
+ * [32,256], fit inside the source, and retain the existing Y extent <=128.
+ * The player must be finite and inside source coverage. The centered origin
+ * is clamped to source bounds; no cells are generated or extrapolated.
+ * Runtime state and local player origin/pose are preserved. Derived coal,
+ * ore-column and container indexes are rebuilt from the cropped cells.
+ * Returns 1 on success; 0 leaves the entire snapshot and its buffers intact.
+ * no_ore_xy has the same meaning as in blaze_snapshot_load. */
+int  blaze_snapshot_crop(CuSnapshot *s, int world_size,
+                         char *err, int err_cap, int no_ore_xy);
 void blaze_snapshot_free(CuSnapshot *s);
 
 /* Build the CSR (ix,iy)-column index over a static ore list: off[ix*rny+iy]
