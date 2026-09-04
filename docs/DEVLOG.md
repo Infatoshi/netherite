@@ -1,5 +1,56 @@
 # DEVLOG (compressed)
 
+## 2026-09-04 first-edit skylight skips the 46x46 scan
+
+Question. After incremental skylight, trainer env time still grew with world age because the first opacity edit of an untouched chunk ran generateSkylightMap on all 256 columns plus a 46x46 raise-only seed scan (snapshot light is not a fixed point). Magma pays the same per opacity-changed chunk. Cut that first-edit path without changing the Java result.
+
+Measure first, anvil gpu0, lease netherite-sky-first-0904, tree 996a39e (clocks on f20c2a3, no cut). Fixture analog: verify_cuda.py --bench --t0 --snaps .meas/s10 (only s10_t0_r64_no_liquid.bsnp) --n 1024 --decisions 32 --warmup 2 --repeat 4 --stage-time --op-trace --device 0. k_tick_warp runs blaze_subtick_phys on lane 0; 31 lanes idle at __syncwarp. sky_full is that lane-0 serial path.
+
+| phase | c0 | c1 | c2 | c3 |
+|---|---|---|---|---|
+| wall ms | 1742 | 2814 | 2900 | 2751 |
+| skycol ms | 6.5 | 19.2 | 22.8 | 25.2 |
+| skyseed ms | 179.4 | 538.9 | 634.6 | 703.4 |
+| skydrain ms | 0.8 | 2.5 | 2.8 | 3.1 |
+| skycol e9 | 0.921 | 1.876 | 2.238 | 2.786 |
+| skyseed e9 | 25.599 | 52.572 | 62.233 | 77.882 |
+| skydrain e9 | 0.118 | 0.240 | 0.275 | 0.344 |
+| sky_full | 28 | 57 | 67 | 85 |
+| sky_col | 7168 | 14832 | 17883 | 22213 |
+| sky_incr | 0 | 3 | 12 | 29 |
+
+sky_col/sky_full = 256 in c0. skycol+skyseed+skydrain per sky_full is 0.951e9 cycles (c0) to 0.953e9 (c3). skyseed is 96 percent of that: 7583744/28 = 270848 cells = 46x46x128. skycol is 3.5 percent (128526 cycles per column). skydrain is 0.4 percent. Host-side is not in the sky_full path.
+
+CPU census on the same fixture (SKY_CENSUS=1 in test_skylight_incr): raisable-at-load 0/2M cells, 60.1 percent of columns already match generateSkylightMap, 29835 cells above the column baseline, 0 below, first-edit vs snapshot 630 lower and 0 raise. Candidate (c) (precompute first-edit per snapshot chunk and copy) is not a pure function of one chunk: the 46x46 box overlaps neighbors. Candidate (a) (spread columns across 32 lanes) needs hoisting out of lane-0 phys; left for later. Candidate (b) is the cut: at snapshot load, tabulate raisable cells (sky_under); on first edit, seed the worklist from generateSkylightMap cells that moved plus that list, then drain. Same least fixed point. Fast path is off when CU_SKY_Q < 4096 so the overflow test stays on the old 46x46+jacobi path. Dimension swap nulls sky_under.
+
+After, same analog on 5bb82a3:
+
+| phase | c0 | c1 | c2 | c3 |
+|---|---|---|---|---|
+| wall ms | 152 | 195 | 192 | 193 |
+| skycol ms | 0.6 | 1.7 | 1.9 | 2.4 |
+| skyseed ms | 0.0 | 0.0 | 0.0 | 0.0 |
+| skydrain ms | 0.1 | 0.3 | 0.3 | 0.4 |
+| skycol e9 | 0.924 | 1.883 | 2.245 | 2.796 |
+| skyseed e9 | 0.000 | 0.000 | 0.000 | 0.000 |
+| skydrain e9 | 0.152 | 0.312 | 0.357 | 0.447 |
+| sky_full | 28 | 57 | 67 | 85 |
+| sky_col | 7168 | 14832 | 17883 | 22213 |
+| sky_incr | 0 | 3 | 12 | 29 |
+
+sky_seed counter is 0 because this fixture's sky_under_n is 0; the 46x46 scan is gone. Timed loop 10.21s before, 0.73s after. Cycles per sky_full 0.038e9 (c0).
+
+verify_cuda.py --bench --t0 --n 1024 (13 snaps, 250 decisions, default warmup/repeat), three runs:
+
+| | r1 | r2 | r3 |
+|---|---|---|---|
+| before s | 88.35 | 88.36 | 88.35 |
+| after s | 9.51 | 9.53 | 9.55 |
+
+Wood-break seed 0, LANE=~/nlanes/sky-first TAG=sky-first-0904 DEVICE=0 LOCK=gpu0 --set mb=8192. Before on f20c2a3 is 421 s wall, env phase 5.4 to 9.1 s of each ~10 s chunk (stated; not re-run this session). After: WOOD_START 21:40:02 MDT, WOOD_DONE rc=0 21:41:27, ppo wall=77.3s at 6029312 ticks, best t0=0.585 at 4849664 ticks. Env phase chunk 0/7/45: 656 / 758 / 531 ms. Chunk 9 spiked to 1831 ms then came back.
+
+Gates. Mac make -C magma test PASS. port_matrix M1 world_dynamics, spawn_to_torch, fluids, mobs VERIFIED. test-skylight-incr PASS 4108 edits, 3548 incremental, walking 1712/1710. test-skylight-ovf PASS same counts. Anvil M2 default PASS 8.78s, --chain PASS 9.84s, --mixed --cpu-workers 16 PASS 21.24s, mixed sha256 bed161ee9e41068bac5f60d3983ee9e635f4584a000554124bfec4563413c95d.
+
 ## 2026-09-03 wood-break probe on the merged tree: mb=0 crash fixed, t0 still 0.000
 
 The 1.92B-tick spawn-to-torch ladder run was the wrong first check: the
