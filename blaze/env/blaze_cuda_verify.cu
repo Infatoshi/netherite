@@ -194,6 +194,8 @@ int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
                                            v->d_aabb, v->d_recipes,
                                            v->nrecipes);
     if (cu_ck(cudaStreamSynchronize(v->stream), "k_tick_raw")) return -1;
+    if (cu_dimension_status(v, v->d_envs + (env < 0 ? 0 : env),
+                             env < 0 ? v->n : 1)) return -1;
     if (!out || env == -1) return 0;
     return cu_ck(cudaMemcpy(out, v->d_obs, sizeof(CuBinObs),
                             cudaMemcpyDeviceToHost), "obs readback");

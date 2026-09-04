@@ -59,12 +59,14 @@
  * compile this unit and blaze_cuda_verify.cu to objects and link them. Optional kernel timing: create opts.ktime=1;
  * per-kernel totals print to stderr at destroy. */
 #include "blaze_cuda_int.h"
+#include "blaze_io.h"
 
 /* =================== kernels =================== */
 
 /* reset phase 1: one thread per RESETTING env (host-compacted active list) */
 __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
                                const CuSnapDev *snaps, const int *assign,
+                               const CuSnapshot *dim_ow,
                                int success_item, int mobs_enabled,
                                int natural_spawn, int natural_spawn_passive,
                                long long world_time_pin,
@@ -73,6 +75,14 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     if (gi >= nactive) return;
     int i = active[gi];
     const CuSnapDev *s = &snaps[assign[i]];
+    /* A prior transfer may have changed active pointers. Restore the original
+     * pool before reset writes its overworld snapshot, including masked resets. */
+    envs[i].cells = envs[i].dimensions[1].cells;
+    envs[i].light = envs[i].dimensions[1].light;
+    envs[i].biome = envs[i].dimensions[1].biome;
+    for (int d = 0; d < 3; ++d) envs[i].dimensions[d].initialized = 0;
+    envs[i].dimension_error = 0;
+    envs[i].dim_ow = &dim_ow[assign[i]];
     blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
                        s->xy_off, s->cont, s->ncont, s->light != NULL,
                        s->mobs, s->n_mobs, s->orbs, s->n_orbs,
@@ -813,9 +823,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                  o.nether_bank);
     if (o.end_bank && o.end_bank[0])
         snprintf(v->end_bank_path, sizeof v->end_bank_path, "%s", o.end_bank);
-    /* GPU_DIMENSIONS.md: bank paths are host-side only. Device swap copy
-     * from the bank is not implemented; h_envs[i].dim_bank stays NULL so
-     * cu_dimension_swap_apply fail-closes on CUDA. */
+    /* Named dimension banks are uploaded during snapshot loading. */
     v->h_assign = (int *)calloc((size_t)n, sizeof *v->h_assign);
     v->h_active = (int *)calloc((size_t)n, sizeof *v->h_active);
     v->h_envs = (Blaze *)calloc((size_t)n, sizeof *v->h_envs);
@@ -848,6 +856,10 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                    (size_t)CRF_NRECIPES * sizeof(CRRecipe)) != cudaSuccess ||
         cudaMalloc(&v->d_snaps,
                    (size_t)BLAZE_MAX_SNAPS * sizeof(CuSnapDev)) != cudaSuccess ||
+        cudaMalloc(&v->d_dim_ow,
+                   (size_t)BLAZE_MAX_SNAPS * sizeof(CuSnapshot)) != cudaSuccess ||
+        cudaMalloc(&v->d_dim_bank, 3 * sizeof(CuSnapshot)) != cudaSuccess ||
+        cudaMalloc(&v->d_dimension_error, sizeof(int)) != cudaSuccess ||
         cudaMalloc(&v->d_obs, sizeof(CuBinObs)) != cudaSuccess ||
         cudaMalloc(&v->d_fluid_cur,
                    (size_t)n * CU_FLUID_VOL * sizeof(u16)) != cudaSuccess ||
@@ -867,6 +879,12 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                                 (double)RT_LIVE_SURR * sizeof(int) +
                                 (double)CU_LIGHT_Q * sizeof(int) +
                                 sizeof(Blaze)) / 1e9);
+        blaze_destroy(v);
+        return NULL;
+    }
+
+    if (cu_ck(cudaMemset(v->d_dim_bank, 0, 3 * sizeof(CuSnapshot)),
+              "dimension bank init")) {
         blaze_destroy(v);
         return NULL;
     }
@@ -1022,6 +1040,20 @@ void blaze_destroy(void *vh) {
     free(v->h_tick_inv);
     cudaFree(v->d_obs_all);
     cudaFree(v->d_parity_all);
+    for (i = 0; i < 3; ++i) {
+        cudaFree(v->h_dim_bank[i].cells);
+        cudaFree(v->h_dim_bank[i].light);
+        cudaFree(v->h_dim_bank[i].biome);
+        cudaFree(v->h_dim_bank[i].coal);
+        cudaFree(v->h_dim_bank[i].xy_off);
+        cudaFree(v->h_dim_bank[i].cont);
+        cudaFree(v->d_dim_cells[i]);
+        cudaFree(v->d_dim_light[i]);
+        cudaFree(v->d_dim_biome[i]);
+    }
+    cudaFree(v->d_dim_bank);
+    cudaFree(v->d_dim_ow);
+    cudaFree(v->d_dimension_error);
     cudaFree(v->d_snaps);
     cudaFree(v->d_recipes);
     cudaFree(v->d_aabb);
@@ -1088,6 +1120,10 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
         v->h_envs[i].light = v->d_light + (size_t)i * rvol;
         v->h_envs[i].biome = v->d_biome + (size_t)i * (size_t)bvol;
         v->h_envs[i].grass_sec = v->d_grass + (size_t)i * nsec;
+        v->h_envs[i].dimensions[1].cells = v->h_envs[i].cells;
+        v->h_envs[i].dimensions[1].light = v->h_envs[i].light;
+        v->h_envs[i].dimensions[1].biome = v->h_envs[i].biome;
+        v->h_envs[i].dim_bank = v->d_dim_bank;
     }
     if (cudaMemcpy(v->d_envs, v->h_envs, (size_t)v->n * sizeof(Blaze),
                    cudaMemcpyHostToDevice) != cudaSuccess) {
@@ -1096,6 +1132,146 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
         return 0;
     }
     return 1;
+}
+
+/* Only the reduction scratch is cleared here. A failed transfer stays visible
+ * on the environment until an explicit reset, across every stepping API. */
+__global__ void k_dimension_status(const Blaze *envs, int n, int *error) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n && envs[i].dimension_error)
+        atomicMax(error, envs[i].dimension_error);
+}
+
+int cu_dimension_status(CuVecCu *v, Blaze *envs, int n) {
+    int error = 0;
+    if (cu_ck(cudaMemsetAsync(v->d_dimension_error, 0, sizeof(int), v->stream),
+              "dimension status clear")) return -1;
+    k_dimension_status<<<(n + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
+        envs, n, v->d_dimension_error);
+    if (cu_ck(cudaMemcpyAsync(&error, v->d_dimension_error, sizeof error,
+                              cudaMemcpyDeviceToHost, v->stream),
+              "dimension status read") ||
+        cu_ck(cudaStreamSynchronize(v->stream), "dimension status")) return -1;
+    if (error) {
+        fprintf(stderr, "blaze_cuda: dimension transfer failed (code %d)\n", error);
+        return -1;
+    }
+    return 0;
+}
+
+__global__ void k_bind_dimension_pool(Blaze *envs, int n, int bank,
+                                      u16 *cells, u8 *light, u8 *biome,
+                                      long rvol, long bvol) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    CuDimensionRegion *r = &envs[i].dimensions[bank];
+    r->cells = cells + (size_t)i * rvol;
+    r->light = light + (size_t)i * rvol;
+    r->biome = biome + (size_t)i * bvol;
+    r->initialized = 0;
+}
+
+/* The shared transfer implementation reads CuSnapshot, not CuSnapDev. Keep
+ * its metadata in that exact layout and point into the reset cache's immutable
+ * allocations. No ownership or host pointers cross into this device table. */
+static int cu_upload_dimension_ow(CuVecCu *v, int slot) {
+    const CuSnapDev *d = &v->h_snaps[slot];
+    CuSnapshot s;
+    memset(&s, 0, sizeof s);
+    s.head = d->head;
+    s.cells = (u16 *)d->cells;
+    s.light = (u8 *)d->light;
+    s.biome = (u8 *)d->biome;
+    s.coal = (int *)d->coal;
+    s.ncoal = d->ncoal;
+    s.xy_off = (int *)d->xy_off;
+    s.cont = (int *)d->cont;
+    s.ncont = d->ncont;
+    return cu_ck(cudaMemcpy(v->d_dim_ow + slot, &s, sizeof s,
+                            cudaMemcpyHostToDevice), "dimension overworld upload");
+}
+
+static int cu_upload_bank_bytes(void **out, const void *src, size_t n) {
+    *out = NULL;
+    if (!src || !n) return 0;
+    if (cudaMalloc(out, n) != cudaSuccess) return -1;
+    if (cudaMemcpy(*out, src, n, cudaMemcpyHostToDevice) != cudaSuccess) {
+        cudaFree(*out);
+        *out = NULL;
+        return -1;
+    }
+    return 0;
+}
+
+static int cu_load_named_bank(CuVecCu *v, int bank, const char *path,
+                              const char *label, char *err, int err_cap) {
+    CuSnapshot source, uploaded;
+    const RlSnapHead *h;
+    size_t vol, bvol;
+    u16 *cells = NULL;
+    u8 *light = NULL, *biome = NULL;
+    if (!path || !path[0]) return 0;
+    if (v->h_dim_bank[bank].cells) {
+        if (!strcmp(path, v->dim_bank_loaded_path[bank])) return 0;
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "%s bank already loaded from %s; refusing %s",
+                     label, v->dim_bank_loaded_path[bank], path);
+        return -1;
+    }
+    if (strlen(path) >= sizeof v->dim_bank_loaded_path[bank]) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "%s bank path too long", label);
+        return -1;
+    }
+    memset(&uploaded, 0, sizeof uploaded);
+    if (!blaze_snapshot_load(path, &source, err, err_cap, v->no_ore_xy)) return -1;
+    h = &source.head;
+    if (!v->rvol || h->rnx != v->rnx || h->rny != v->rny || h->rnz != v->rnz) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap,
+                     "%s bank region dims %dx%dx%d != pool %dx%dx%d: %s",
+                     label, h->rnx, h->rny, h->rnz, v->rnx, v->rny, v->rnz, path);
+        blaze_snapshot_free(&source);
+        return -1;
+    }
+    vol = (size_t)v->rvol;
+    bvol = (size_t)v->rnx * v->rnz;
+    uploaded.head = source.head;
+    uploaded.ncoal = source.ncoal;
+    uploaded.ncont = source.ncont;
+    if (cu_upload_bank_bytes((void **)&uploaded.cells, source.cells, vol * sizeof(u16)) ||
+        cu_upload_bank_bytes((void **)&uploaded.light, source.light, vol) ||
+        cu_upload_bank_bytes((void **)&uploaded.biome, source.biome, bvol) ||
+        cu_upload_bank_bytes((void **)&uploaded.coal, source.coal,
+                              (size_t)source.ncoal * 3 * sizeof(int)) ||
+        cu_upload_bank_bytes((void **)&uploaded.xy_off, source.xy_off,
+                              ((size_t)v->rnx * v->rny + 1) * sizeof(int)) ||
+        cu_upload_bank_bytes((void **)&uploaded.cont, source.cont,
+                              source.ncont > 0 ? (size_t)source.ncont * 3 * sizeof(int) : 0) ||
+        cudaMalloc(&cells, (size_t)v->n * vol * sizeof(u16)) != cudaSuccess ||
+        cudaMalloc(&light, (size_t)v->n * vol) != cudaSuccess ||
+        cudaMalloc(&biome, (size_t)v->n * bvol) != cudaSuccess) {
+        if (err && err_cap > 0)
+            snprintf(err, (size_t)err_cap, "%s bank device allocation/upload failed: %s", label, path);
+        cudaFree(uploaded.cells); cudaFree(uploaded.light); cudaFree(uploaded.biome);
+        cudaFree(uploaded.coal); cudaFree(uploaded.xy_off); cudaFree(uploaded.cont);
+        cudaFree(cells); cudaFree(light); cudaFree(biome);
+        blaze_snapshot_free(&source);
+        return -1;
+    }
+    blaze_snapshot_free(&source);
+    /* Allocate and publish once: existing environments can hold aliases into
+     * these immutable sources. Later snapshot loads must not replace them. */
+    v->h_dim_bank[bank] = uploaded;
+    memcpy(v->dim_bank_loaded_path[bank], path, strlen(path) + 1);
+    v->d_dim_cells[bank] = cells;
+    v->d_dim_light[bank] = light;
+    v->d_dim_biome[bank] = biome;
+    if (cu_ck(cudaMemcpy(v->d_dim_bank + bank, &uploaded, sizeof uploaded,
+                         cudaMemcpyHostToDevice), "dimension bank upload")) return -1;
+    k_bind_dimension_pool<<<(v->n + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
+        v->d_envs, v->n, bank, cells, light, biome, (long)vol, (long)bvol);
+    return cu_ck(cudaStreamSynchronize(v->stream), "dimension pool binding");
 }
 
 int blaze_load_snapshots(void *vh, const char *const *paths, int count,
@@ -1306,12 +1482,22 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         v->has_liquid[v->nsnaps] = s.has_liquid;
         v->has_unrepresented[v->nsnaps] = s.head.container != 0;
         blaze_snapshot_free(&s);
+        if (cu_upload_dimension_ow(v, v->nsnaps)) return -1;
         v->nsnaps++;
     }
     if (cu_ck(cudaMemcpy(v->d_snaps, v->h_snaps,
                          (size_t)v->nsnaps * sizeof(CuSnapDev),
                          cudaMemcpyHostToDevice), "snap table upload"))
         return -1;
+    {
+        char sc_nether[1024] = {0}, sc_end[1024] = {0};
+        if (count && cu_read_banks_sidecar(paths[0], sc_nether, sizeof sc_nether,
+                                           sc_end, sizeof sc_end, err, err_cap)) return -1;
+        const char *nether = v->nether_bank_path[0] ? v->nether_bank_path : sc_nether;
+        const char *end = v->end_bank_path[0] ? v->end_bank_path : sc_end;
+        if (cu_load_named_bank(v, 0, nether, "nether", err, err_cap) ||
+            cu_load_named_bank(v, 2, end, "end", err, err_cap)) return -1;
+    }
     return v->nsnaps;
 }
 
@@ -1507,7 +1693,7 @@ int blaze_reset(void *vh, const unsigned char *mask) {
         return -1;
     k_reset_scalar<<<(nact + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
         v->d_envs, v->d_active, nact, v->d_snaps, v->d_assign,
-        v->success_item, v->mobs_enabled, v->natural_spawn,
+        v->d_dim_ow, v->success_item, v->mobs_enabled, v->natural_spawn,
         v->natural_spawn_passive, v->world_time_pin, v->elytra_kit);
     /* all snapshots share the pool dims, so the bulk count is uniform - the
      * grass census grid is sized off the dims alone for exactly this reason
@@ -1567,7 +1753,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
         cudaEventElapsedTime(&ms, v->ev[2], v->ev[3]); v->ms_final += ms;
         v->nsteps++;
     }
-    return 0;
+    return cu_dimension_status(v, v->d_envs, v->n);
 }
 
 int blaze_step(void *vh, const double *actions, int repeat,
@@ -1770,6 +1956,7 @@ int blaze_capture(void *vh, int env, int slot) {
     }
     v->has_liquid[slot] = v->has_liquid[v->h_assign[env]];
     v->has_unrepresented[slot] = d->head.container != 0;
+    if (cu_upload_dimension_ow(v, slot)) return -1;
     return cu_ck(cudaMemcpy(v->d_snaps + slot, d, sizeof *d,
                             cudaMemcpyHostToDevice), "capture snap upload");
 }
@@ -2148,7 +2335,8 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                               v->d_recipes, v->nrecipes, v->atk_gate,
                               NULL, inv);
 #endif  /* else unreachable: blaze_create rejects warp_tick == 0 */
-    return cu_ck(cudaStreamSynchronize(v->stream), "blaze_tick");
+    if (cu_ck(cudaStreamSynchronize(v->stream), "blaze_tick")) return -1;
+    return cu_dimension_status(v, envs, n);
 }
 
 int blaze_tick(void *vh, int env, const double a[17], int want_cam,
