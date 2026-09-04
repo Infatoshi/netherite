@@ -22,6 +22,8 @@ NnMetal *nn_metal_create(int batch_n, int device_id, const NnConfig *cfg);
 void nn_metal_destroy(NnMetal *nn);
 
 /* Replace config (lr, clip, coefs, grad limit, seed). Does not reallocate. */
+/* Read the current Adam update count; -1 for NULL. */
+int64_t nn_metal_training_steps(const NnMetal *nn);
 int nn_metal_set_config(NnMetal *nn, const NnConfig *cfg);
 
 /* Forward: planes [n,18,36,64] uint8 NCHW, scalars [n,27] float32.

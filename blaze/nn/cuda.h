@@ -33,6 +33,8 @@ int nn_cuda_prepare_n(NnCuda *nn, int n);
 int nn_cuda_seal(NnCuda *nn);
 
 /* Replace config (lr, clip, coefs, grad limit, seed). Does not reallocate. */
+/* Read the current Adam update count; -1 for NULL. */
+int64_t nn_cuda_training_steps(const NnCuda *nn);
 int nn_cuda_set_config(NnCuda *nn, const NnConfig *cfg);
 
 /* Forward: planes [n,18,36,64] uint8 NCHW, scalars [n,27] float32 (host).

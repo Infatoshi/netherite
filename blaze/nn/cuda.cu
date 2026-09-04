@@ -1302,6 +1302,10 @@ int nn_cuda_seal(NnCuda *nn) {
   return 0;
 }
 
+int64_t nn_cuda_training_steps(const NnCuda *nn) {
+  return nn ? nn->adam_t : -1;
+}
+
 int nn_cuda_set_config(NnCuda *nn, const NnConfig *cfg) {
   if (!nn || !cfg) {
     set_err("null");

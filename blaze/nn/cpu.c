@@ -689,6 +689,10 @@ void nn_cpu_destroy(NnCpu *nn) {
   free(nn);
 }
 
+int64_t nn_cpu_training_steps(const NnCpu *nn) {
+  return nn ? nn->adam_t : -1;
+}
+
 int nn_cpu_set_config(NnCpu *nn, const NnConfig *cfg) {
   if (!nn || !cfg) {
     set_err("null");

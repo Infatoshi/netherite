@@ -17,6 +17,8 @@ typedef struct NnCpu NnCpu;
 NnCpu *nn_cpu_create(int max_n, int device_id, const NnConfig *cfg);
 void nn_cpu_destroy(NnCpu *nn);
 
+/* Read the current Adam update count; -1 for NULL. */
+int64_t nn_cpu_training_steps(const NnCpu *nn);
 int nn_cpu_set_config(NnCpu *nn, const NnConfig *cfg);
 
 int nn_cpu_forward(NnCpu *nn, const uint8_t *planes, const float *scalars,

@@ -299,6 +299,7 @@ static void test_forward_sample_update(NnPrec prec) {
   {
     const int n = 4;
     std::printf("  update n=%d\n", n);
+    expect_true(nn_training_steps(gpu) == 0, "cuda initial Adam count");
     /* reload shared weights and zero adam on both */
     expect_eq_i(nn_load(cpu, path), 0, "reload cpu pre-update");
     expect_eq_i(nn_load(gpu, path), 0, "reload gpu pre-update");
@@ -400,6 +401,18 @@ static void test_forward_sample_update(NnPrec prec) {
                 NN_TENSOR_NAMES[max_t], max_i - base, max_i, p0[max_i], pc[max_i],
                 pg[max_i], pc[max_i] - p0[max_i], pg[max_i] - p0[max_i]);
     std::printf("  opposite update signs: %d / %zu\n", sign_mismatch, np);
+
+    expect_true(nn_training_steps(gpu) == 1, "cuda first Adam update counted");
+    NnConfig next_cfg = cfg;
+    next_cfg.lr *= .5f;
+    expect_eq_i(nn_set_config(gpu, &next_cfg), 0, "cuda phase config change");
+    expect_true(nn_training_steps(gpu) == 1, "cuda config retains Adam count");
+    expect_eq_i(nn_update(gpu, planes, scalars, acts, old_logp, adv, ret, n, &sg),
+                0, "cuda second update");
+    expect_true(nn_training_steps(gpu) == 2, "cuda second Adam update counted");
+    expect_eq_i(nn_load(gpu, path), 0, "cuda warm-start load");
+    expect_true(nn_training_steps(gpu) == 0, "cuda weights load resets Adam count");
+    expect_eq_i(nn_set_config(gpu, &cfg), 0, "restore cuda config");
 
     free(planes);
     free(scalars);
