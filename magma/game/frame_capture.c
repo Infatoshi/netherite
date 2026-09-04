@@ -723,7 +723,7 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
      * a held dig re-swings on EVERY damaged tick (sendClickBlockToController),
      * which is what makes the arm keep cycling instead of freezing. */
     if (((attack && !c->prev_attack) || cooldown_reset ||
-         gm_player_dig_swing()) &&
+         gm_player_dig_swing(&r->ctl)) &&
         (!c->swing_active || c->swing_progress_int >= 3 ||
          c->swing_progress_int < 0)) {
         c->swing_progress_int = -1;
@@ -1334,7 +1334,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * dig_state is window-local; add r->ox/oz like the dig-crack overlay. */
     {
         int dx,dy,dz,dface=-1;float dmg;
-        if(gm_player_dig_state_ex(&dx,&dy,&dz,&dmg,&dface)&&dmg>0.0f){
+        if(gm_player_dig_state_ex(&r->ctl, &dx,&dy,&dz,&dmg,&dface)&&dmg>0.0f){
             int stage=(int)(dmg*10.0f);if(stage<1)stage=1;if(stage>10)stage=10;
             int wx=dx+r->ox, wz=dz+r->oz;
             /* emit takes a MODEL KEY (CB_/PB_ space), not the vanilla id
@@ -1356,7 +1356,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 cr_dimension_sun_brightness(r->dimension),0.f,0.f);
             int nd=gm_block_break_particles_emit(
                 wx,dy,wz,bid,stage,dface,
-                gm_player_dig_particle_count(),
+                gm_player_dig_particle_count(&r->ctl),
                 v.yaw,v.pitch,dlm.r,dlm.g,dlm.b,dig_ov,1024);
             if(nd>0){
                 CrTexture ta=gm_world_atlas(r->world);
@@ -1387,7 +1387,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     if(!cr_cfg()->no_overlay&&!v.dead){
         static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
         int dx=0,dy=0,dz=0;float dmg=0.0f;
-        int have_dig=gm_player_dig_state(&dx,&dy,&dz,&dmg);
+        int have_dig=gm_player_dig_state(&r->ctl, &dx,&dy,&dz,&dmg);
         if(have_dig && dmg>0.0f && !cr_cfg()->no_crack){
             /* BlockRendererDispatcher.renderBlockDamage re-renders the full
              * block model with the destroy sprite, not only the raycast face. */

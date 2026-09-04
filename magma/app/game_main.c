@@ -513,13 +513,13 @@ int main(int argc, char **argv) {
     if (knobs->inv_demo) {
         isr_set_stack(&pl.inv, 0, ic_mk(1, 10, 0));
         pl.inv.current_item = 0;
-        gm_player_cursor_set(ic_empty());
+        gm_player_cursor_set(&runtime.ctl, ic_empty());
         /* PICKUP slot 0 (left) -> cursor 10 stone, slot empty */
-        gm_player_inv_click((struct PsvPlayer *)&pl, 0, 0, CC_CLICK_PICKUP);
+        gm_player_inv_click(&runtime.ctl, (struct PsvPlayer *)&pl, 0, 0, CC_CLICK_PICKUP);
         /* PICKUP slot 1 (left) -> place into slot 1 */
-        gm_player_inv_click((struct PsvPlayer *)&pl, 1, 0, CC_CLICK_PICKUP);
+        gm_player_inv_click(&runtime.ctl, (struct PsvPlayer *)&pl, 1, 0, CC_CLICK_PICKUP);
         ICStack s1 = isr_get_stack(&pl.inv, 1);
-        ICStack cur = gm_player_cursor();
+        ICStack cur = gm_player_cursor(&runtime.ctl);
         fprintf(stderr, "[inv_demo] slot1 item=%d count=%d cursor_empty=%d\n",
                 s1.item, s1.count, (cur.item == 0 || cur.count <= 0));
     }
@@ -876,7 +876,7 @@ int main(int argc, char **argv) {
                 gm_particles_live_spawn_destroy(&live_particles,
                     pwx, phy, pwz, model, plm.r, plm.g, plm.b, pbr, pbg, pbb);
             }
-            if (gm_player_dig_swing()) {
+            if (gm_player_dig_swing(&runtime.ctl)) {
                 int lx = pwx, ly = phy, lz = pwz;
                 if (pface == 0) ly--; else if (pface == 1) ly++;
                 else if (pface == 2) lz--; else if (pface == 3) lz++;

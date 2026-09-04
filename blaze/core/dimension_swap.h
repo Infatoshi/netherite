@@ -137,11 +137,11 @@ MC_HD static inline void cu_dimension_swap_apply(Blaze *env) {
     /* Match gm_runtime_set_pose and gm_mobs_init(seed ^ dimension).
      * Projectiles, inventory, world RNG, clocks, and TE stores remain owned
      * by the runtime and survive transit exactly as they do in Magma. */
-    env->dig_progress = 0; env->dig_hx = INT_MIN;
-    env->dig_hy = env->dig_hz = 0;
-    env->dig_hitting = env->dig_delay = env->atk_prev = env->left_click_counter = 0;
-    env->eat_ticks = env->eat_item = env->hurt_vel_reset = 0;
-    env->server_motion_x = env->server_motion_z = 0;
+    env->ctl.dig_progress = 0; env->ctl.dig_hx = INT_MIN;
+    env->ctl.dig_hy = env->ctl.dig_hz = 0;
+    env->ctl.dig_hitting = env->ctl.dig_delay = env->ctl.atk_prev = env->ctl.left_click_counter = 0;
+    env->ctl.eat_ticks = env->ctl.eat_item = env->ctl.hurt_vel_reset = 0;
+    env->ctl.server_motion_x = env->ctl.server_motion_z = 0;
     blaze_runtime_close_container(env);
     env->container = 0;
     env->active_chest = env->active_furnace = -1;

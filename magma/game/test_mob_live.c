@@ -1078,7 +1078,7 @@ int main(int argc, char **argv) {
         r.player.yaw=0.0f;r.player.pitch=-89.0f;
         gm_runtime_tick(&r,miss);
         {
-            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&snap);
+            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&r.ctl, &snap);
             CHECK(snap.left_click_counter==10,
                   "runtime press-miss arms leftClickCounter to 10");
         }
@@ -1092,7 +1092,7 @@ int main(int argc, char **argv) {
                   "entity attack freezes while leftClickCounter is positive");
         }
         {
-            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&snap);
+            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&r.ctl, &snap);
             CHECK(snap.left_click_counter==1,
                   "held entity aim does not clear leftClickCounter (physical bit)");
         }
@@ -1103,7 +1103,7 @@ int main(int argc, char **argv) {
         CHECK(zi>=0&&v[zi].health<20.0f,
               "entity attack lands on the tick leftClickCounter reaches 0");
         {
-            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&snap);
+            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&r.ctl, &snap);
             CHECK(snap.left_click_counter==0,
                   "counter is 0 after the gated entity hit tick");
             CHECK(snap.dig_hitting==0,
@@ -1139,7 +1139,7 @@ int main(int argc, char **argv) {
         r.player.yaw=0.0f;r.player.pitch=25.0f;
         for(int t=0;t<5;++t)gm_runtime_tick(&r,miss);
         {
-            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&snap);
+            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&r.ctl, &snap);
             CHECK(snap.left_click_counter==5,
                   "falling-block aim preserves leftClickCounter while held");
             CHECK(snap.dig_hitting==0&&snap.dig_progress==0.0f,

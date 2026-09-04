@@ -198,6 +198,7 @@ typedef struct GmRuntime {
     Chunk *window;
     McSinTable sin_table;
     PsvPlayer player;
+    GmPlayerCtl ctl;
     PvStats vitals;
     McGameRules gamerules;
     GmWorldClock clock;

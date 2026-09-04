@@ -748,13 +748,13 @@ static void cu_reset_env(CuVec *v, int i) {
                 for (si = 0; si < 9; ++si)
                     e->craft_grid[si] = ic_mk(s->craft[si][0], s->craft[si][1],
                                               s->craft[si][2]);
-                e->cursor = ic_mk(s->cursor[0], s->cursor[1], s->cursor[2]);
+                e->ctl.cursor = ic_mk(s->cursor[0], s->cursor[1], s->cursor[2]);
                 e->parity_craft_attempts = s->craft_attempts;
                 e->parity_craft_successes = s->craft_successes;
                 e->parity_container_opens = s->container_opens;
-                e->left_click_counter = s->left_click_counter;
-                e->eat_ticks = s->eat_ticks;
-                e->eat_item = s->eat_item;
+                e->ctl.left_click_counter = s->left_click_counter;
+                e->ctl.eat_ticks = s->eat_ticks;
+                e->ctl.eat_item = s->eat_item;
                 e->bow_ticks = s->bow_ticks;
                 e->bow_drawing = s->bow_drawing;
                 e->pl.experienceLevel = s->xp_level;
@@ -888,10 +888,10 @@ static void cu_reset_env(CuVec *v, int i) {
                     n = s->xtra.cursor_ench.n;
                     if (n < 0) n = 0;
                     if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
-                    e->cursor.n_enchants = n;
+                    e->ctl.cursor.n_enchants = n;
                     for (ei = 0; ei < n; ++ei) {
-                        e->cursor.enchants[ei].id = s->xtra.cursor_ench.id[ei];
-                        e->cursor.enchants[ei].level =
+                        e->ctl.cursor.enchants[ei].id = s->xtra.cursor_ench.id[ei];
+                        e->ctl.cursor.enchants[ei].level =
                             s->xtra.cursor_ench.level[ei];
                     }
                 }
@@ -1273,15 +1273,15 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
         s.craft[k][1] = e->craft_grid[k].count;
         s.craft[k][2] = e->craft_grid[k].meta;
     }
-    s.cursor[0] = e->cursor.item;
-    s.cursor[1] = e->cursor.count;
-    s.cursor[2] = e->cursor.meta;
+    s.cursor[0] = e->ctl.cursor.item;
+    s.cursor[1] = e->ctl.cursor.count;
+    s.cursor[2] = e->ctl.cursor.meta;
     s.craft_attempts = e->parity_craft_attempts;
     s.craft_successes = e->parity_craft_successes;
     s.container_opens = e->parity_container_opens;
-    s.left_click_counter = e->left_click_counter;
-    s.eat_ticks = e->eat_ticks;
-    s.eat_item = e->eat_item;
+    s.left_click_counter = e->ctl.left_click_counter;
+    s.eat_ticks = e->ctl.eat_ticks;
+    s.eat_item = e->ctl.eat_item;
     s.bow_ticks = e->bow_ticks;
     s.bow_drawing = e->bow_drawing;
     s.xp_level = e->pl.experienceLevel;
@@ -1404,13 +1404,13 @@ int blaze_dump_snapshot(void *vh, int env, const char *path,
                     e->craft_grid[si].enchants[ei].level;
             }
         }
-        n = e->cursor.n_enchants;
+        n = e->ctl.cursor.n_enchants;
         if (n < 0) n = 0;
         if (n > 8) n = 8;
         s.xtra.cursor_ench.n = n;
         for (ei = 0; ei < (unsigned)n; ++ei) {
-            s.xtra.cursor_ench.id[ei] = e->cursor.enchants[ei].id;
-            s.xtra.cursor_ench.level[ei] = e->cursor.enchants[ei].level;
+            s.xtra.cursor_ench.id[ei] = e->ctl.cursor.enchants[ei].id;
+            s.xtra.cursor_ench.level[ei] = e->ctl.cursor.enchants[ei].level;
         }
     }
     {

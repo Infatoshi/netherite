@@ -87,6 +87,9 @@ static int state_eq(const PsvPlayer *a, const PsvPlayer *b,
 
 int main(void)
 {
+    GmPlayerCtl ctl1, ctl2;
+    gm_player_ctl_init(&ctl1);
+    gm_player_ctl_init(&ctl2);
     /* ---------------- (A) timer accumulator at scripted frame rates ---------------- */
     printf("case A: Timer.java accumulator, scripted clocks\n");
     {
@@ -148,7 +151,7 @@ int main(void)
         for (int k = 0; k < NT; ++k) {
             GmAction a = tape_at(k);
             GmBlockEdit e[8]; int ne = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl1, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&p1, (struct PvStats *)&v1, a, 0, 0, 0, e, &ne, 8);
         }
 
@@ -167,7 +170,7 @@ int main(void)
                 prev_yaw = p2.yaw; prev_pitch = p2.pitch;
                 GmAction a = tape_at(k);
                 GmBlockEdit e[8]; int ne = 0;
-                gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                gm_player_tick(&ctl2, (struct Chunk *)win, (struct McSinTable *)&st,
                                (struct PsvPlayer *)&p2, (struct PvStats *)&v2, a, 0, 0, 0, e, &ne, 8);
             }
             const float pt = 0.37f;   /* arbitrary renderPartialTicks */

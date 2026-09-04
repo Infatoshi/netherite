@@ -24,91 +24,31 @@
 #include "mc_rng.h"
 #include <math.h>
 #include <limits.h>
+#include <string.h>
 
-/* Progressive dig state (single local player): mirrors vanilla PlayerControllerMP.
- * s_dig_progress = curBlockDamageMP, s_dig_h* = currentBlock, s_dig_hitting =
- * isHittingBlock, s_dig_delay = blockHitDelay (clickBlock creative writes 5
- * and onPlayerDamageBlock delay>0 decrements without breaking; damage-path
- * break also writes 5), s_atk_prev = attack key edge (press tick = clickMouse
- * -> clickBlock), s_left_click_counter = Minecraft.leftClickCounter
- * (miss-click cooldown). */
-static float s_dig_progress;
-static int   s_dig_particle_count; /* entity_pin dig_hit count; 0 = stage proxy */
-/* PlayerControllerMP.onPlayerDamageBlock plays the block's hit sound when
- * (blockHitDelay-style step counter & 3) == 0, i.e. the first damage tick and
- * every fourth after it. Audio-only: no simulation branch reads these, and the
- * RL snapshot deliberately excludes them (see gm_player_ctl_dig_import). */
-static int   s_dig_sound_tick_counter;
-static int   s_dig_sound_pending;
-static int   s_dig_sound_wx, s_dig_sound_wy, s_dig_sound_wz;
-static int   s_dig_sound_state;
+void gm_player_ctl_init(GmPlayerCtl *ctl) {
+    memset(ctl, 0, sizeof *ctl);
+    ctl->sim.dig_hx = INT_MIN;
+    ctl->dig_face = -1;
+    ctl->fov_hand = 1.0f;
+}
 
-/* EntityRenderer.fovModifierHand (client render state, not physics). */
-static float s_fov_hand = 1.0f;
-/* ticks the bow has been drawn (ItemBow active use; getItemInUseMaxCount). */
-static int   s_bow_ticks;
-static int   s_dig_hx = INT_MIN, s_dig_hy, s_dig_hz;
-static int   s_dig_face = -1; /* EnumFacing of hit face while progressive dig */
-static int   s_dig_hitting;
-static int   s_dig_delay;
-static int   s_atk_prev;
-/* Minecraft.leftClickCounter: clickMouse MISS (survival) sets 10; decremented
- * once per tick before processKeyBinds; both clickMouse and
- * sendClickBlockToController no-op while >0; sendClickBlock(false) clears it. */
-static int   s_left_click_counter;
-/* Minecraft.sendClickBlockToController: every tick onPlayerDamageBlock returns
- * true it calls EntityLivingBase.swingArm(MAIN_HAND), so a held dig keeps
- * restarting the swing. Render-only per-tick transient, consumed in the SAME
- * tick (gm_runtime_tick then gm_frame_capture_write), so deliberately NOT part
- * of GmPlayerCtlSnap. */
-static int   s_dig_swing;
-/* dig_trace: first dig_destroy this tick, world coords. Cleared at dig phase
- * entry so write_state sees the just-completed tick's break. */
-static int   s_dig_brk;
-static int   s_dig_brk_wx, s_dig_brk_wy, s_dig_brk_wz;
-/* rightClickMouse state: s_rc_delay = Minecraft.rightClickDelayTimer (set to 4
- * on every fire, decremented each tick before the fire checks), s_use_prev =
- * use key edge (press edge fires regardless of the timer; held use re-fires
- * only when the timer hits 0). */
-static int   s_rc_delay;
-static int   s_use_prev;
-/* Hurt velocity reset: any successful player damage sets velocityChanged and
- * the server self-sends SPacketEntityVelocity. The integrated-server player's
- * horizontal motion is normally zero, but a sprint jump leaves a 0.91-decayed
- * kick there while client packets move its position. Shadow that server-only
- * motion so fall damage during a sprint jump restores the packet value, not
- * zero. Mob knockback is applied directly elsewhere and stays untouched. */
-static int   s_hurt_vel_reset;
-static double s_server_motion_x, s_server_motion_z;
-static int   s_eat_ticks, s_eat_item;
-/* Active hand use for viewmodel (EAT/DRINK/BLOCK). BOW uses s_bow_ticks. */
-static int   s_use_action;      /* 0 none, 1 eat/drink, 2 block */
-static int   s_use_remaining;
-static int   s_use_max;
+void gm_player_bind_world_rand(GmPlayerCtl *ctl, JavaRandom *r) { ctl->world_rand = r; }
 
-/* Optional cursor for live inventory composition (hotbar is IsrInv slots 0..8). */
-static ICStack s_cursor;
-/* World.rand for ItemFood.onItemUseFinish draws (ItemFood.java:55,66). */
-static JavaRandom *s_world_rand;
-static ICStack s_pending_drop;
-static int s_tnt_pending, s_tnt_x, s_tnt_y, s_tnt_z, s_tnt_fuse;
-
-void gm_player_bind_world_rand(JavaRandom *r) { s_world_rand = r; }
-
-int gm_player_take_drop(ICStack *out) {
-    if (!out || isr_is_empty(&s_pending_drop)) return 0;
-    *out = s_pending_drop;
-    s_pending_drop = ic_empty();
+int gm_player_take_drop(GmPlayerCtl *ctl, ICStack *out) {
+    if (!out || isr_is_empty(&ctl->pending_drop)) return 0;
+    *out = ctl->pending_drop;
+    ctl->pending_drop = ic_empty();
     return 1;
 }
 
-int gm_player_take_tnt_ignite(int *x, int *y, int *z, int *fuse) {
-    if (!s_tnt_pending || !x || !y || !z || !fuse) return 0;
-    *x = s_tnt_x;
-    *y = s_tnt_y;
-    *z = s_tnt_z;
-    *fuse = s_tnt_fuse;
-    s_tnt_pending = 0;
+int gm_player_take_tnt_ignite(GmPlayerCtl *ctl, int *x, int *y, int *z, int *fuse) {
+    if (!ctl->tnt_pending || !x || !y || !z || !fuse) return 0;
+    *x = ctl->tnt_x;
+    *y = ctl->tnt_y;
+    *z = ctl->tnt_z;
+    *fuse = ctl->tnt_fuse;
+    ctl->tnt_pending = 0;
     return 1;
 }
 
@@ -281,7 +221,7 @@ static void harvest_drop(int block_id, int block_meta, int tool_id,int wx,int wy
 }
 
 /* onPlayerDestroyBlock slice: drops + tool wear + window clear + world edit. */
-static void dig_destroy(Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
+static void dig_destroy(GmPlayerCtl *ctl, Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
                         int bid, int bmeta, int ox, int oy, int oz,
                         GmBlockEdit *edits, int *ne, int max_edits,
                         int creative)
@@ -306,11 +246,11 @@ static void dig_destroy(Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
     }
     psv_set_state(window, hx, hy, hz, BLK_AIR, 0);
     pl->break_events++;
-    if (!s_dig_brk) {
-        s_dig_brk = 1;
-        s_dig_brk_wx = hx + ox;
-        s_dig_brk_wy = hy + oy;
-        s_dig_brk_wz = hz + oz;
+    if (!ctl->dig_brk) {
+        ctl->dig_brk = 1;
+        ctl->dig_brk_wx = hx + ox;
+        ctl->dig_brk_wy = hy + oy;
+        ctl->dig_brk_wz = hz + oz;
     }
     {
         int edit_index = *ne;
@@ -322,7 +262,7 @@ static void dig_destroy(Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
     }
 }
 
-void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
+void gm_player_tick_gr(GmPlayerCtl *ctl, struct Chunk *window_, const struct McSinTable *st_,
                        struct PsvPlayer *pl_, struct PvStats *vitals_,
                        const struct McGameRules *gamerules, GmAction act,
                        int ox, int oy, int oz,
@@ -335,7 +275,7 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
 
     McAABB blocks[PSV_MAX_BLOCKS];
     int ne = 0;
-    s_dig_sound_pending = 0;
+    ctl->dig_sound_pending = 0;
 
     /* Legacy tapes predict the metadata return one tick after the request.
      * New tapes set elytra_flag7_recorded and apply each observed metadata
@@ -408,17 +348,17 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
         {
             ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
             if (act.use && held.item == 261) {
-                float f1 = (float)s_bow_ticks / 20.0f;
+                float f1 = (float)ctl->bow_ticks / 20.0f;
                 f1 = f1 > 1.0f ? 1.0f : f1 * f1;
                 target *= 1.0f - f1 * 0.15f;
-                if (s_bow_ticks < 72000) ++s_bow_ticks;
+                if (ctl->bow_ticks < 72000) ++ctl->bow_ticks;
             } else {
-                s_bow_ticks = 0;
+                ctl->bow_ticks = 0;
             }
         }
-        s_fov_hand += (target - s_fov_hand) * 0.5f;
-        if (s_fov_hand > 1.5f) s_fov_hand = 1.5f;
-        if (s_fov_hand < 0.1f) s_fov_hand = 0.1f;
+        ctl->fov_hand += (target - ctl->fov_hand) * 0.5f;
+        if (ctl->fov_hand > 1.5f) ctl->fov_hand = 1.5f;
+        if (ctl->fov_hand < 0.1f) ctl->fov_hand = 0.1f;
     }
 
     /* vanilla sprint state machine (EntityPlayerSP.onLivingUpdate, inside
@@ -461,12 +401,12 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
      * the oracle's t712 move is accel-only (dx=0.084872) while magma kept
      * vx=0.157733; magma_dx - oracle_dx equalled the retained motion
      * exactly. */
-    if (s_hurt_vel_reset) {
+    if (ctl->sim.hurt_vel_reset) {
         /* SPacketEntityVelocity quantizes each component through
          * (int)(motion * 8000) and the client divides by 8000. */
-        pl->ent.motionX = (double)(int)(s_server_motion_x * 8000.0) / 8000.0;
-        pl->ent.motionZ = (double)(int)(s_server_motion_z * 8000.0) / 8000.0;
-        s_hurt_vel_reset = 0;
+        pl->ent.motionX = (double)(int)(ctl->sim.server_motion_x * 8000.0) / 8000.0;
+        pl->ent.motionZ = (double)(int)(ctl->sim.server_motion_z * 8000.0) / 8000.0;
+        ctl->sim.hurt_vel_reset = 0;
     }
 
     /* ---- progressive dig BEFORE the move (vanilla Minecraft.runTick: clickMouse +
@@ -491,36 +431,36 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
      * Dig reach = objectMouseOver reach = PlayerControllerMP.getBlockReachDistance
      * (survival 4.5, creative 5.0). Using PSV_REACH=5.0 for survival let magma
      * hit blocks Java treated as MISS during the jump. */
-    int use_gate_hitting = s_dig_hitting; /* isHittingBlock as rightClickMouse
+    int use_gate_hitting = ctl->sim.dig_hitting; /* isHittingBlock as rightClickMouse
         sees it: after clickMouse (attack press) but BEFORE the damage phase /
         release reset (vanilla runTick order). */
-    s_dig_swing = 0;
-    s_dig_brk = 0; /* dig_trace: break event is per-tick, arm in dig_destroy */
+    ctl->dig_swing = 0;
+    ctl->dig_brk = 0; /* dig_trace: break event is per-tick, arm in dig_destroy */
     if (!act.attack) {
         /* sendClickBlockToController(false): clears leftClickCounter and
          * resetBlockRemoving. */
-        s_left_click_counter = 0;
-        s_dig_hitting = 0;
-        s_dig_face = -1;
-        s_dig_progress = 0.0f;
+        ctl->sim.left_click_counter = 0;
+        ctl->sim.dig_hitting = 0;
+        ctl->dig_face = -1;
+        ctl->sim.dig_progress = 0.0f;
     } else {
         /* runTick: leftClickCounter-- before processKeyBinds. clickMouse and
          * sendClickBlockToController both no-op while the post-decrement value
          * is still positive (block dig freezes; entity dig-reset freezes).
          * attack_entity keeps the physical held bit; only release clears the
          * counter. */
-        if (s_left_click_counter > 0) --s_left_click_counter;
-        if (s_left_click_counter > 0) {
+        if (ctl->sim.left_click_counter > 0) --ctl->sim.left_click_counter;
+        if (ctl->sim.left_click_counter > 0) {
             /* clickMouse + sendClickBlock both no-op; dig state freezes. */
         } else if (act.attack_entity) {
             /* ENTITY hit: clickMouse may attack the entity (runtime, gated the
              * same way); sendClickBlock sees non-BLOCK and resetBlockRemoving.
              * Do not clear leftClickCounter (key still down). */
-            s_dig_hitting = 0;
-            s_dig_face = -1;
-            s_dig_progress = 0.0f;
+            ctl->sim.dig_hitting = 0;
+            ctl->dig_face = -1;
+            ctl->sim.dig_progress = 0.0f;
         } else {
-            int press = !s_atk_prev;
+            int press = !ctl->sim.atk_prev;
             int hx, hy, hz, ax, ay, az;
             double dig_reach = act.creative ? PSV_REACH : 4.5;
             int r = gm_raycast_sel_reach(window, st, pl, dig_reach,
@@ -546,13 +486,13 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                     pin.creative = act.creative;
                     float rel = pin.creative ? 1.0f : pb_relative_hardness(&pin);
                     if (press &&
-                        (!s_dig_hitting || hx != s_dig_hx || hy != s_dig_hy || hz != s_dig_hz)) {
+                        (!ctl->sim.dig_hitting || hx != ctl->sim.dig_hx || hy != ctl->sim.dig_hy || hz != ctl->sim.dig_hz)) {
                         /* clickMouse -> clickBlock */
                         if (rel >= 1.0f) {
-                            dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                            dig_destroy(ctl, window, pl, hx, hy, hz, bid, pin.block_meta,
                                         ox, oy, oz, edits, &ne, max_edits,
                                         pin.creative);
-                            s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                            ctl->sim.dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
                             /* clickBlock creative: clickBlockCreative then
                              * blockHitDelay=5 (PlayerControllerMP.java:237-242).
                              * sendClickBlockToController then sees isAirBlock
@@ -560,94 +500,94 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                              * (Minecraft.java:1500-1508), so this tick does not
                              * decrement. Survival instant hardness does not arm
                              * the delay. */
-                            if (pin.creative) s_dig_delay = 5;
+                            if (pin.creative) ctl->sim.dig_delay = 5;
                             bid = BLK_AIR;   /* sendClickBlockToController sees air, skips */
                         } else {
-                            s_dig_hitting = 1;
-                            s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
-                            s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
-                            s_dig_progress = 0.0f;
-                            s_dig_sound_tick_counter = 0;
+                            ctl->sim.dig_hitting = 1;
+                            ctl->sim.dig_hx = hx; ctl->sim.dig_hy = hy; ctl->sim.dig_hz = hz;
+                            ctl->dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
+                            ctl->sim.dig_progress = 0.0f;
+                            ctl->dig_sound_tick_counter = 0;
                             use_gate_hitting = 1;
                         }
                     }
                     /* sendClickBlockToController -> onPlayerDamageBlock */
                     if (bid != BLK_AIR) {
-                        s_dig_swing = 1;   /* onPlayerDamageBlock true -> swingArm */
-                        if (s_dig_delay > 0) {
+                        ctl->dig_swing = 1;   /* onPlayerDamageBlock true -> swingArm */
+                        if (ctl->sim.dig_delay > 0) {
                             /* PlayerControllerMP.java:301-305 */
-                            --s_dig_delay;
+                            --ctl->sim.dig_delay;
                         } else if (pin.creative) {
                             /* onPlayerDamageBlock creative: blockHitDelay=5
                              * then clickBlockCreative
                              * (PlayerControllerMP.java:306-311). */
-                            s_dig_delay = 5;
-                            dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                            ctl->sim.dig_delay = 5;
+                            dig_destroy(ctl, window, pl, hx, hy, hz, bid, pin.block_meta,
                                         ox, oy, oz, edits, &ne, max_edits,
                                         pin.creative);
-                            s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
-                            s_dig_progress = 0.0f;
-                            s_dig_sound_tick_counter = 0;
-                            s_dig_face = -1;
-                            s_dig_hitting = 0;
-                        } else if (hx == s_dig_hx && hy == s_dig_hy && hz == s_dig_hz) {
+                            ctl->sim.dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                            ctl->sim.dig_progress = 0.0f;
+                            ctl->dig_sound_tick_counter = 0;
+                            ctl->dig_face = -1;
+                            ctl->sim.dig_hitting = 0;
+                        } else if (hx == ctl->sim.dig_hx && hy == ctl->sim.dig_hy && hz == ctl->sim.dig_hz) {
                             /* isHittingPosition: accrue curBlockDamageMP */
-                            s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
-                            if ((s_dig_sound_tick_counter & 3) == 0) {
-                                s_dig_sound_pending = 1;
-                                s_dig_sound_wx = ox + hx;
-                                s_dig_sound_wy = oy + hy;
-                                s_dig_sound_wz = oz + hz;
-                                s_dig_sound_state = bid
+                            ctl->dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
+                            if ((ctl->dig_sound_tick_counter & 3) == 0) {
+                                ctl->dig_sound_pending = 1;
+                                ctl->dig_sound_wx = ox + hx;
+                                ctl->dig_sound_wy = oy + hy;
+                                ctl->dig_sound_wz = oz + hz;
+                                ctl->dig_sound_state = bid
                                     | ((pin.block_meta & 255) << 12);
                             }
-                            ++s_dig_sound_tick_counter;
-                            s_dig_progress += rel;
-                            if (s_dig_progress >= 1.0f) {
-                                s_dig_hitting = 0;
-                                dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                            ++ctl->dig_sound_tick_counter;
+                            ctl->sim.dig_progress += rel;
+                            if (ctl->sim.dig_progress >= 1.0f) {
+                                ctl->sim.dig_hitting = 0;
+                                dig_destroy(ctl, window, pl, hx, hy, hz, bid, pin.block_meta,
                                             ox, oy, oz, edits, &ne, max_edits,
                                             pin.creative);
-                                s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
-                                s_dig_progress = 0.0f;
-                                s_dig_sound_tick_counter = 0;
-                                s_dig_delay = 5;
-                                s_dig_face = -1;
+                                ctl->sim.dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                                ctl->sim.dig_progress = 0.0f;
+                                ctl->dig_sound_tick_counter = 0;
+                                ctl->sim.dig_delay = 5;
+                                ctl->dig_face = -1;
                             }
                         } else {
                             /* clickBlock: target changed mid-hold */
                             if (rel >= 1.0f) {
-                                dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                                dig_destroy(ctl, window, pl, hx, hy, hz, bid, pin.block_meta,
                                             ox, oy, oz, edits, &ne, max_edits,
                                             pin.creative);
-                                s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                                ctl->sim.dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
                                 /* Survival instant hardness (rel>=1) does not
                                  * arm blockHitDelay (PlayerControllerMP.java:263-266). */
                             } else {
-                                s_dig_hitting = 1;
-                                s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
-                                s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
-                                s_dig_progress = 0.0f;
-                                s_dig_sound_tick_counter = 0;
+                                ctl->sim.dig_hitting = 1;
+                                ctl->sim.dig_hx = hx; ctl->sim.dig_hy = hy; ctl->sim.dig_hz = hz;
+                                ctl->dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
+                                ctl->sim.dig_progress = 0.0f;
+                                ctl->dig_sound_tick_counter = 0;
                             }
                         }
                     }
                 } else {
-                    s_dig_hitting = 0;
-                    s_dig_face = -1;
-                    s_dig_progress = 0.0f;
+                    ctl->sim.dig_hitting = 0;
+                    ctl->dig_face = -1;
+                    ctl->sim.dig_progress = 0.0f;
                 }
             } else {
                 /* MISS: clickMouse on press sets leftClickCounter=10 (survival);
                  * sendClickBlock resetBlockRemoving (blockHitDelay persists). */
-                if (press && !act.creative) s_left_click_counter = 10;
-                s_dig_hitting = 0;
-                s_dig_face = -1;
-                s_dig_progress = 0.0f;
+                if (press && !act.creative) ctl->sim.left_click_counter = 10;
+                ctl->sim.dig_hitting = 0;
+                ctl->dig_face = -1;
+                ctl->sim.dig_progress = 0.0f;
             }
         }
     }
-    s_atk_prev = act.attack;
+    ctl->sim.atk_prev = act.attack;
 
     /* ---- rightClickMouse (use) BEFORE the move (vanilla runTick fires it
      * between clickMouse and sendClickBlockToController; use_gate_hitting
@@ -660,12 +600,12 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
      * pre-move player bb at y=72.75), the held t612-613 ticks must not
      * re-fire (timer=4), and the t627 press must place (bb clear at
      * y=73.25) so the player lands on the new block at t629. */
-    if (s_rc_delay > 0) --s_rc_delay;
+    if (ctl->sim.rc_delay > 0) --ctl->sim.rc_delay;
     {
-        int use_fire = act.use && (!s_use_prev || s_rc_delay == 0) &&
+        int use_fire = act.use && (!ctl->sim.use_prev || ctl->sim.rc_delay == 0) &&
                        !use_gate_hitting;
-        if (use_fire) s_rc_delay = 4;
-        s_use_prev = act.use;
+        if (use_fire) ctl->sim.rc_delay = 4;
+        ctl->sim.use_prev = act.use;
         if (use_fire) act.do_place = 1;
     }
 
@@ -684,7 +624,7 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                 if (!isr_is_empty(&add)) {
                     if (!isr_add_item_stack_to_inventory(&pl->inv, &add) ||
                         !isr_is_empty(&add))
-                        s_pending_drop = add;
+                        ctl->pending_drop = add;
                 }
                 emit_edit(edits,&ne,max_edits,ox,oy,oz,bx,by,bz,0,0,0,0,0);
                 goto use_done;
@@ -711,11 +651,11 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                 }
                 emit_edit(edits, &ne, max_edits, ox, oy, oz, hx, hy, hz,
                           BLK_AIR, 0, 0, 0, 0);
-                s_tnt_pending = 1;
-                s_tnt_x = ox + hx;
-                s_tnt_y = oy + hy;
-                s_tnt_z = oz + hz;
-                s_tnt_fuse = IBP_TNT_FUSE;
+                ctl->tnt_pending = 1;
+                ctl->tnt_x = ox + hx;
+                ctl->tnt_y = oy + hy;
+                ctl->tnt_z = oz + hz;
+                ctl->tnt_fuse = IBP_TNT_FUSE;
             } else if (ib_is_interactable(hit_id)) {
                 IbCase ic;
                 ic.block_id = hit_id;
@@ -823,8 +763,8 @@ use_done:
     int land_jump = act.jump && !was_air && !water_pre && !lava_pre;
     if (land_jump && act.sprint) {
         float fj = pl->yaw * 0.017453292f;
-        s_server_motion_x -= (double)(mc_sin(st, fj) * 0.2f);
-        s_server_motion_z += (double)(mc_cos(st, fj) * 0.2f);
+        ctl->sim.server_motion_x -= (double)(mc_sin(st, fj) * 0.2f);
+        ctl->sim.server_motion_z += (double)(mc_cos(st, fj) * 0.2f);
     }
 
     /* EntityPlayerSP.onLivingUpdate gates START_FALL_FLYING on the pre-travel
@@ -858,13 +798,13 @@ use_done:
         IcFood fi=ic_food_info(food.item, food.meta);
         int hunger=fi.hunger;float sat=fi.saturation;
         if(act.use&&hunger&&vit->foodLevel<20){
-            if(s_eat_item!=food.item){s_eat_item=food.item;s_eat_ticks=0;}
-            if(++s_eat_ticks>=32){
+            if(ctl->sim.eat_item!=food.item){ctl->sim.eat_item=food.item;ctl->sim.eat_ticks=0;}
+            if(++ctl->sim.eat_ticks>=32){
                 /* ItemFood.onItemUseFinish:55 burp nextFloat always, then
                  * onFoodEaten:66 potion nextFloat if potionId != null. */
-                if (s_world_rand) (void)jrand_float(s_world_rand);
-                if (s_world_rand && fi.potion_prob >= 0.0f)
-                    (void)jrand_float(s_world_rand);
+                if (ctl->world_rand) (void)jrand_float(ctl->world_rand);
+                if (ctl->world_rand && fi.potion_prob >= 0.0f)
+                    (void)jrand_float(ctl->world_rand);
                 (void)isr_decr_stack_size(&pl->inv,pl->inv.current_item,1);
                 vit->foodLevel+=hunger;if(vit->foodLevel>20)vit->foodLevel=20;
                 vit->saturation+=(float)hunger*sat*2.0f;
@@ -874,32 +814,32 @@ use_done:
                     ICStack bowl = ic_mk(281, 1, 0);
                     isr_set_stack(&pl->inv, pl->inv.current_item, bowl);
                 }
-                s_eat_ticks=0;s_eat_item=0;
-                s_use_action=0;s_use_remaining=0;s_use_max=0;
+                ctl->sim.eat_ticks=0;ctl->sim.eat_item=0;
+                ctl->use_action=0;ctl->use_remaining=0;ctl->use_max=0;
             }else{
-                /* getItemInUseCount counts down from max (32); elapsed = s_eat_ticks. */
-                s_use_action=1;s_use_max=32;s_use_remaining=32-s_eat_ticks;
-                if(s_use_remaining<0)s_use_remaining=0;
+                /* getItemInUseCount counts down from max (32); elapsed = ctl->sim.eat_ticks. */
+                ctl->use_action=1;ctl->use_max=32;ctl->use_remaining=32-ctl->sim.eat_ticks;
+                if(ctl->use_remaining<0)ctl->use_remaining=0;
             }
         }else if(act.use&&(food.item==PSV_ITEM_POTION||food.item==PSV_ITEM_MILK)){
             /* ItemPotion / ItemBucketMilk EnumAction.DRINK, duration 32. */
             int slot=pl->inv.current_item;
-            if(s_eat_item!=food.item){s_eat_item=food.item;s_eat_ticks=0;}
-            if(++s_eat_ticks>=PSV_USE_DRINK_TICKS){
+            if(ctl->sim.eat_item!=food.item){ctl->sim.eat_item=food.item;ctl->sim.eat_ticks=0;}
+            if(++ctl->sim.eat_ticks>=PSV_USE_DRINK_TICKS){
                 if(food.item==PSV_ITEM_POTION)
                     psv_potion_drink_finish(pl,vit,slot,act.creative);
                 else
                     psv_potion_milk_finish(pl,slot,act.creative);
-                s_eat_ticks=0;s_eat_item=0;
-                s_use_action=0;s_use_remaining=0;s_use_max=0;
+                ctl->sim.eat_ticks=0;ctl->sim.eat_item=0;
+                ctl->use_action=0;ctl->use_remaining=0;ctl->use_max=0;
                 psv_reset_active_hand(pl);
             }else{
-                s_use_action=PSV_USE_DRINK;s_use_max=PSV_USE_DRINK_TICKS;
-                s_use_remaining=PSV_USE_DRINK_TICKS-s_eat_ticks;
-                if(s_use_remaining<0)s_use_remaining=0;
+                ctl->use_action=PSV_USE_DRINK;ctl->use_max=PSV_USE_DRINK_TICKS;
+                ctl->use_remaining=PSV_USE_DRINK_TICKS-ctl->sim.eat_ticks;
+                if(ctl->use_remaining<0)ctl->use_remaining=0;
                 pl->use_action=PSV_USE_DRINK;
                 pl->use_max=PSV_USE_DRINK_TICKS;
-                pl->use_remaining=s_use_remaining;
+                pl->use_remaining=ctl->use_remaining;
                 pl->active_hand=0;
             }
         }else if(act.use&&pl->shield_cooldown<=0){
@@ -907,26 +847,26 @@ use_done:
             int kind=psv_use_item_kind(pl,&slot);
             if(kind==PSV_USE_BLOCK){
                 /* ItemShield EnumAction.BLOCK ItemShield.java:83-93. */
-                s_use_action=PSV_USE_BLOCK;s_use_max=PSV_SHIELD_USE_TICKS;
-                if(s_use_remaining<=0||s_use_remaining>PSV_SHIELD_USE_TICKS)
-                    s_use_remaining=PSV_SHIELD_USE_TICKS;
-                if(s_use_remaining>0)--s_use_remaining;
-                s_eat_ticks=0;s_eat_item=0;
+                ctl->use_action=PSV_USE_BLOCK;ctl->use_max=PSV_SHIELD_USE_TICKS;
+                if(ctl->use_remaining<=0||ctl->use_remaining>PSV_SHIELD_USE_TICKS)
+                    ctl->use_remaining=PSV_SHIELD_USE_TICKS;
+                if(ctl->use_remaining>0)--ctl->use_remaining;
+                ctl->sim.eat_ticks=0;ctl->sim.eat_item=0;
                 pl->use_action=PSV_USE_BLOCK;
                 pl->use_max=PSV_SHIELD_USE_TICKS;
-                pl->use_remaining=s_use_remaining;
+                pl->use_remaining=ctl->use_remaining;
                 pl->active_hand=(slot==ISR_OFFHAND_SLOT)?1:0;
             }else{
-                s_eat_ticks=0;s_eat_item=0;
+                ctl->sim.eat_ticks=0;ctl->sim.eat_item=0;
                 if(food.item!=261){
-                    s_use_action=0;s_use_remaining=0;s_use_max=0;
+                    ctl->use_action=0;ctl->use_remaining=0;ctl->use_max=0;
                     psv_reset_active_hand(pl);
                 }
             }
         }else{
-            s_eat_ticks=0;s_eat_item=0;
+            ctl->sim.eat_ticks=0;ctl->sim.eat_item=0;
             if(food.item!=261){
-                s_use_action=0;s_use_remaining=0;s_use_max=0;
+                ctl->use_action=0;ctl->use_remaining=0;ctl->use_max=0;
                 psv_reset_active_hand(pl);
             }
         }
@@ -944,7 +884,7 @@ use_done:
         if (vit->health < hp_before) {
             /* EntityTracker sends velocityChanged before the server's next
              * travel drag, so preserve this tick's shadow packet value. */
-            s_hurt_vel_reset = 1;
+            ctl->sim.hurt_vel_reset = 1;
         } else {
             float drag = 0.91f;
             if (pl->ent.onGround) {
@@ -952,162 +892,161 @@ use_done:
                 int bz = mc_floor(pl->ent.posZ);
                 drag *= psv_slipperiness(psv_get_block(window, bx, by, bz));
             }
-            s_server_motion_x *= (double)drag;
-            s_server_motion_z *= (double)drag;
-            if (fabs(s_server_motion_x) < 0.003) s_server_motion_x = 0.0;
-            if (fabs(s_server_motion_z) < 0.003) s_server_motion_z = 0.0;
+            ctl->sim.server_motion_x *= (double)drag;
+            ctl->sim.server_motion_z *= (double)drag;
+            if (fabs(ctl->sim.server_motion_x) < 0.003) ctl->sim.server_motion_x = 0.0;
+            if (fabs(ctl->sim.server_motion_z) < 0.003) ctl->sim.server_motion_z = 0.0;
         }
     }
 
     *nedits = ne;
 }
 
-void gm_player_tick(struct Chunk *window, const struct McSinTable *st,
+void gm_player_tick(GmPlayerCtl *ctl, struct Chunk *window, const struct McSinTable *st,
                     struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits)
 {
     McGameRules gamerules = mc_gamerules_default();
-    gm_player_tick_gr(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
+    gm_player_tick_gr(ctl, window, st, pl, vitals, &gamerules, act, ox, oy, oz,
                       edits, nedits, max_edits);
 }
 
 /* Live inventory slotClick on the player's hotbar (slots 0..8) + cursor.
  * Drives the verified container_click.h path. */
-void gm_player_inv_click(struct PsvPlayer *pl_, int slot_id, int button, int click_type)
+void gm_player_inv_click(GmPlayerCtl *ctl, struct PsvPlayer *pl_, int slot_id, int button, int click_type)
 {
     PsvPlayer *pl = (PsvPlayer *)pl_;
     CcInv inv;
     int i;
     for (i = 0; i < CC_SLOTS; ++i)
         inv.slots[i] = isr_get_stack(&pl->inv, i);
-    inv.cursor = s_cursor;
+    inv.cursor = ctl->sim.cursor;
     cc_slot_click(&inv, slot_id, button, click_type);
     for (i = 0; i < CC_SLOTS; ++i)
         isr_set_stack(&pl->inv, i, inv.slots[i]);
-    s_cursor = inv.cursor;
+    ctl->sim.cursor = inv.cursor;
 }
 
-ICStack gm_player_cursor(void) { return s_cursor; }
-void gm_player_cursor_set(ICStack s) { s_cursor = s; }
-void gm_player_dig_reset(void) {
-    s_dig_progress = 0.0f;
-    s_dig_hx = INT_MIN;
-    s_dig_face = -1;
-    s_dig_particle_count = 0;
-    s_dig_hitting = 0;
-    s_dig_delay = 0;
-    s_atk_prev = 0;
-    s_left_click_counter = 0;
-    s_dig_brk = 0;
-    s_dig_sound_tick_counter = 0;
-    s_dig_sound_pending = 0;
-    s_eat_ticks=0;s_eat_item=0;
-    s_use_action=0;s_use_remaining=0;s_use_max=0;
-    s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
+ICStack gm_player_cursor(const GmPlayerCtl *ctl) { return ctl->sim.cursor; }
+void gm_player_cursor_set(GmPlayerCtl *ctl, ICStack s) { ctl->sim.cursor = s; }
+void gm_player_dig_reset(GmPlayerCtl *ctl) {
+    ctl->sim.dig_progress = 0.0f;
+    ctl->sim.dig_hx = INT_MIN;
+    ctl->dig_face = -1;
+    ctl->dig_particle_count = 0;
+    ctl->sim.dig_hitting = 0;
+    ctl->sim.dig_delay = 0;
+    ctl->sim.atk_prev = 0;
+    ctl->sim.left_click_counter = 0;
+    ctl->dig_brk = 0;
+    ctl->dig_sound_tick_counter = 0;
+    ctl->dig_sound_pending = 0;
+    ctl->sim.eat_ticks=0;ctl->sim.eat_item=0;
+    ctl->use_action=0;ctl->use_remaining=0;ctl->use_max=0;
+    ctl->sim.hurt_vel_reset=0;ctl->sim.server_motion_x=0.0;ctl->sim.server_motion_z=0.0;
 }
 
-void gm_player_set_packet_velocity(struct PsvPlayer *opaque,
+void gm_player_set_packet_velocity(GmPlayerCtl *ctl, struct PsvPlayer *opaque,
                                    double x, double y, double z) {
     PsvPlayer *pl = (PsvPlayer *)opaque;
     if (!pl) return;
     pl->ent.motionX=x;pl->ent.motionY=y;pl->ent.motionZ=z;
-    s_server_motion_x=x;s_server_motion_z=z;
-    s_hurt_vel_reset=0;
+    ctl->sim.server_motion_x=x;ctl->sim.server_motion_z=z;
+    ctl->sim.hurt_vel_reset=0;
 }
 
-void gm_player_clear_inferred_hurt_velocity(void) {
-    s_hurt_vel_reset=0;
+void gm_player_clear_inferred_hurt_velocity(GmPlayerCtl *ctl) {
+    ctl->sim.hurt_vel_reset=0;
 }
 
-void gm_player_ctl_dig_export(GmPlayerCtlSnap *out) {
-    out->dig_progress   = s_dig_progress;
-    out->dig_hx         = s_dig_hx;
-    out->dig_hy         = s_dig_hy;
-    out->dig_hz         = s_dig_hz;
-    out->dig_face       = s_dig_face;
-    out->dig_hitting    = s_dig_hitting;
-    out->dig_delay      = s_dig_delay;
-    out->dig_particle_count = s_dig_particle_count;
-    out->atk_prev       = s_atk_prev;
-    out->left_click_counter = s_left_click_counter;
-    out->rc_delay       = s_rc_delay;
-    out->use_prev       = s_use_prev;
-    out->hurt_vel_reset = s_hurt_vel_reset;
-    out->server_motion_x = s_server_motion_x;
-    out->server_motion_z = s_server_motion_z;
-    out->eat_ticks = s_eat_ticks;
-    out->eat_item = s_eat_item;
+void gm_player_ctl_dig_export(const GmPlayerCtl *ctl, GmPlayerCtlSnap *out) {
+    out->dig_progress   = ctl->sim.dig_progress;
+    out->dig_hx         = ctl->sim.dig_hx;
+    out->dig_hy         = ctl->sim.dig_hy;
+    out->dig_hz         = ctl->sim.dig_hz;
+    out->dig_face       = ctl->dig_face;
+    out->dig_hitting    = ctl->sim.dig_hitting;
+    out->dig_delay      = ctl->sim.dig_delay;
+    out->dig_particle_count = ctl->dig_particle_count;
+    out->atk_prev       = ctl->sim.atk_prev;
+    out->left_click_counter = ctl->sim.left_click_counter;
+    out->rc_delay       = ctl->sim.rc_delay;
+    out->use_prev       = ctl->sim.use_prev;
+    out->hurt_vel_reset = ctl->sim.hurt_vel_reset;
+    out->server_motion_x = ctl->sim.server_motion_x;
+    out->server_motion_z = ctl->sim.server_motion_z;
+    out->eat_ticks = ctl->sim.eat_ticks;
+    out->eat_item = ctl->sim.eat_item;
 }
 
-int gm_player_left_click_allows(int attack_held) {
+int gm_player_left_click_allows(const GmPlayerCtl *ctl, int attack_held) {
     /* Minecraft.runTick: if (leftClickCounter > 0) --leftClickCounter; then
      * processKeyBinds may call clickMouse only when leftClickCounter <= 0.
      * Release is sendClickBlockToController(false) and is not a click. */
     int c;
     if (!attack_held) return 0;
-    c = s_left_click_counter;
+    c = ctl->sim.left_click_counter;
     if (c > 0) --c;
     return c <= 0;
 }
 
-void gm_player_set_gui_blocked(int blocked) {
-    s_left_click_counter = blocked ? 10000 : 0;
+void gm_player_set_gui_blocked(GmPlayerCtl *ctl, int blocked) {
+    ctl->sim.left_click_counter = blocked ? 10000 : 0;
 }
 
-void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
-    s_dig_progress   = in->dig_progress;
-    s_dig_hx         = in->dig_hx;
-    s_dig_hy         = in->dig_hy;
-    s_dig_hz         = in->dig_hz;
-    s_dig_face       = in->dig_face;
-    s_dig_hitting    = in->dig_hitting;
-    s_dig_delay      = in->dig_delay;
-    s_dig_particle_count = in->dig_particle_count;
+void gm_player_ctl_dig_import(GmPlayerCtl *ctl, const GmPlayerCtlSnap *in) {
+    ctl->sim.dig_progress   = in->dig_progress;
+    ctl->sim.dig_hx         = in->dig_hx;
+    ctl->sim.dig_hy         = in->dig_hy;
+    ctl->sim.dig_hz         = in->dig_hz;
+    ctl->dig_face       = in->dig_face;
+    ctl->sim.dig_hitting    = in->dig_hitting;
+    ctl->sim.dig_delay      = in->dig_delay;
+    ctl->dig_particle_count = in->dig_particle_count;
     /* The RL snapshot format explicitly excludes audio/render-only counters. */
-    s_dig_sound_tick_counter = 0;
-    s_dig_sound_pending = 0;
-    s_atk_prev       = in->atk_prev;
-    s_left_click_counter = in->left_click_counter;
-    s_rc_delay       = in->rc_delay;
-    s_use_prev       = in->use_prev;
-    s_hurt_vel_reset = in->hurt_vel_reset;
-    s_server_motion_x = in->server_motion_x;
-    s_server_motion_z = in->server_motion_z;
-    s_eat_ticks = in->eat_ticks;
-    s_eat_item = in->eat_item;
+    ctl->dig_sound_tick_counter = 0;
+    ctl->dig_sound_pending = 0;
+    ctl->sim.atk_prev       = in->atk_prev;
+    ctl->sim.left_click_counter = in->left_click_counter;
+    ctl->sim.rc_delay       = in->rc_delay;
+    ctl->sim.use_prev       = in->use_prev;
+    ctl->sim.hurt_vel_reset = in->hurt_vel_reset;
+    ctl->sim.server_motion_x = in->server_motion_x;
+    ctl->sim.server_motion_z = in->server_motion_z;
+    ctl->sim.eat_ticks = in->eat_ticks;
+    ctl->sim.eat_item = in->eat_item;
 }
 
-void gm_player_ctl_recenter(int dx, int dz) {
-    if (s_dig_hx == INT_MIN) return;
-    s_dig_hx -= dx;
-    s_dig_hz -= dz;
+void gm_player_ctl_recenter(GmPlayerCtl *ctl, int dx, int dz) {
+    if (ctl->sim.dig_hx == INT_MIN) return;
+    ctl->sim.dig_hx -= dx;
+    ctl->sim.dig_hz -= dz;
 }
 
-int gm_player_dig_particle_count(void) {
-    return s_dig_particle_count;
+int gm_player_dig_particle_count(const GmPlayerCtl *ctl) {
+    return ctl->dig_particle_count;
 }
 
-int gm_player_dig_swing(void) {
-    return s_dig_swing;
+int gm_player_dig_swing(const GmPlayerCtl *ctl) {
+    return ctl->dig_swing;
 }
 
-int gm_player_take_dig_sound(
-        int *wx, int *wy, int *wz, int *state_id) {
-    if (!s_dig_sound_pending) return 0;
-    s_dig_sound_pending = 0;
-    if (wx) *wx = s_dig_sound_wx;
-    if (wy) *wy = s_dig_sound_wy;
-    if (wz) *wz = s_dig_sound_wz;
-    if (state_id) *state_id = s_dig_sound_state;
+int gm_player_take_dig_sound(GmPlayerCtl *ctl, int *wx, int *wy, int *wz, int *state_id) {
+    if (!ctl->dig_sound_pending) return 0;
+    ctl->dig_sound_pending = 0;
+    if (wx) *wx = ctl->dig_sound_wx;
+    if (wy) *wy = ctl->dig_sound_wy;
+    if (wz) *wz = ctl->dig_sound_wz;
+    if (state_id) *state_id = ctl->dig_sound_state;
     return 1;
 }
 
-int gm_player_dig_break_event(int *wx, int *wy, int *wz) {
-    if (!s_dig_brk) return 0;
-    if (wx) *wx = s_dig_brk_wx;
-    if (wy) *wy = s_dig_brk_wy;
-    if (wz) *wz = s_dig_brk_wz;
+int gm_player_dig_break_event(const GmPlayerCtl *ctl, int *wx, int *wy, int *wz) {
+    if (!ctl->dig_brk) return 0;
+    if (wx) *wx = ctl->dig_brk_wx;
+    if (wy) *wy = ctl->dig_brk_wy;
+    if (wz) *wz = ctl->dig_brk_wz;
     return 1;
 }
 
@@ -1140,28 +1079,28 @@ float gm_player_block_rel_hardness(const struct Chunk *window_,
     return pb_relative_hardness(&pin);
 }
 
-float gm_player_dig_rel_hardness(const struct Chunk *window,
+float gm_player_dig_rel_hardness(const GmPlayerCtl *ctl, const struct Chunk *window,
                                  const struct PsvPlayer *pl, int creative) {
-    if (s_dig_hx == INT_MIN) return 0.0f;
+    if (ctl->sim.dig_hx == INT_MIN) return 0.0f;
     return gm_player_block_rel_hardness(window, pl, creative,
-                                        s_dig_hx, s_dig_hy, s_dig_hz);
+                                        ctl->sim.dig_hx, ctl->sim.dig_hy, ctl->sim.dig_hz);
 }
 
 /* Current progressive-dig target + damage 0..1 (RenderGlobal drawBlockDamageTexture
  * feed). Coords are window-LOCAL (caller adds ox/oz). Returns 0 when not digging. */
-int gm_player_dig_state_ex(int *lx, int *ly, int *lz, float *progress, int *face_out) {
-    if (s_dig_hx == INT_MIN || s_dig_progress <= 0.0f)
+int gm_player_dig_state_ex(const GmPlayerCtl *ctl, int *lx, int *ly, int *lz, float *progress, int *face_out) {
+    if (ctl->sim.dig_hx == INT_MIN || ctl->sim.dig_progress <= 0.0f)
         return 0;
-    *lx = s_dig_hx; *ly = s_dig_hy; *lz = s_dig_hz;
-    *progress = s_dig_progress > 1.0f ? 1.0f : s_dig_progress;
-    if (face_out) *face_out = s_dig_face;
+    *lx = ctl->sim.dig_hx; *ly = ctl->sim.dig_hy; *lz = ctl->sim.dig_hz;
+    *progress = ctl->sim.dig_progress > 1.0f ? 1.0f : ctl->sim.dig_progress;
+    if (face_out) *face_out = ctl->dig_face;
     return 1;
 }
-int gm_player_dig_state(int *lx, int *ly, int *lz, float *progress) {
-    return gm_player_dig_state_ex(lx, ly, lz, progress, NULL);
+int gm_player_dig_state(const GmPlayerCtl *ctl, int *lx, int *ly, int *lz, float *progress) {
+    return gm_player_dig_state_ex(ctl, lx, ly, lz, progress, NULL);
 }
 
-void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *out)
+void gm_player_view(const GmPlayerCtl *ctl, const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *out)
 {
     const PsvPlayer *pl = (const PsvPlayer *)pl_;
     out->x = (float)(pl->ent.posX + (double)ox);
@@ -1188,8 +1127,8 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
     out->portal_frame = -1;
     out->portal_phase = 0;
     out->loading = 0;
-    out->fov_mult = s_fov_hand;
-    out->bow_pull = s_bow_ticks;
+    out->fov_mult = ctl->fov_hand;
+    out->bow_pull = ctl->bow_ticks;
     out->fire = 0;
     out->creative = 0;
     out->hurt_time = 0;
@@ -1198,9 +1137,9 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
     out->hud_flash = out->hud_state_valid = 0;
     out->hud_transition_lead = 0;
     out->hud_update_counter = 0;
-    out->use_action = s_use_action;
-    out->use_remaining = s_use_remaining;
-    out->use_max = s_use_max;
+    out->use_action = ctl->use_action;
+    out->use_remaining = ctl->use_remaining;
+    out->use_max = ctl->use_max;
     /* Absorption: EntityLivingBase.getAbsorptionAmount. PvStats / PsvPlayer have
      * no absorption field (player_vitals documents it out of scope). Leave 0 —
      * do not invent gold hearts; HUD layout tests may still set pv.absorption. */

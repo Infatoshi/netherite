@@ -58,7 +58,7 @@ static ICStack slot(const GmRuntime *r, int id)
 static int expect(const GmRuntime *r, int id, int item, int count,
                   int cursor_item, int cursor_count, const char *step)
 {
-    ICStack s = slot(r, id), c = gm_player_cursor();
+    ICStack s = slot(r, id), c = gm_player_cursor(&r->ctl);
     if (s.item == item && s.count == count &&
         c.item == cursor_item && c.count == cursor_count)
         return 0;
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     }
     r.container = 0;
     r.active_furnace = -1;
-    gm_player_cursor_set(ic_empty());
+    gm_player_cursor_set(&r.ctl, ic_empty());
     gm_runtime_set_inventory(&r, 9, 1, 2, 0);
     gm_runtime_set_inventory(&r, 1, 3, 5, 0);
 
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
     failed |= render_step(outdir, "07_drop_one_hotbar0", &r, H0X, H0Y);
 
     gm_container_close(&r);
-    if (gm_player_cursor().count != 0) {
+    if (gm_player_cursor(&r.ctl).count != 0) {
         fprintf(stderr, "08_close state mismatch: cursor not empty\n");
         failed = 1;
     }

@@ -353,7 +353,7 @@ int main(void)
         gm_runtime_tick(&r, atk);
         CHECK(gm_world_block(r.world, XI, 102, ZI) == 0,
               "I press tick destroys the stone");
-        gm_player_ctl_dig_export(&snap);
+        gm_player_ctl_dig_export(&r.ctl, &snap);
         CHECK(snap.dig_delay == 5,
               "I clickBlock creative writes blockHitDelay=5");
         CHECK(gm_runtime_set_block(&r, XI, 102, ZI, BLK_STONE, 0),
@@ -362,7 +362,7 @@ int main(void)
             gm_runtime_tick(&r, atk);
             CHECK(gm_world_block(r.world, XI, 102, ZI) == BLK_STONE,
                   "I re-landed stone survives delay countdown");
-            gm_player_ctl_dig_export(&snap);
+            gm_player_ctl_dig_export(&r.ctl, &snap);
             CHECK(snap.dig_delay == 4 - t,
                   "I onPlayerDamageBlock decrements delay without breaking");
         }
@@ -370,7 +370,7 @@ int main(void)
         gm_runtime_tick(&r, atk);
         CHECK(gm_world_block(r.world, XI, 102, ZI) == 0,
               "I sixth held tick destroys after delay expires");
-        gm_player_ctl_dig_export(&snap);
+        gm_player_ctl_dig_export(&r.ctl, &snap);
         CHECK(snap.dig_delay == 5,
               "I creative onPlayerDamageBlock re-arms blockHitDelay=5");
     }

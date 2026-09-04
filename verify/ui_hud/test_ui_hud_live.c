@@ -117,7 +117,7 @@ int main(void) {
 
         CHECK(gm_runtime_set_inventory(&r, 0, 442, 1, 0), "give shield");
         r.player.inv.current_item = 0;
-        gm_player_dig_reset();
+        gm_player_dig_reset(&r.ctl);
         gm_runtime_tick(&r, use);
         gm_runtime_view(&r, &pv);
         CHECK(pv.use_action == 2, "live: right-click shield sets use_action BLOCK");

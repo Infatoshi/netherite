@@ -482,11 +482,12 @@ int gm_world_mesh_runs(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
 struct PsvPlayer;  /* from player_survival.h */
 struct PvStats;    /* from player_vitals.h */
 struct McGameRules;/* from mc_gamerules.h */
-void gm_player_tick(struct Chunk *window, const struct McSinTable *st,
+struct GmPlayerCtl;
+void gm_player_tick(struct GmPlayerCtl *ctl, struct Chunk *window, const struct McSinTable *st,
                     struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits);
-void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
+void gm_player_tick_gr(struct GmPlayerCtl *ctl, struct Chunk *window, const struct McSinTable *st,
                        struct PsvPlayer *pl, struct PvStats *vitals,
                        const struct McGameRules *gamerules, GmAction act,
                        int ox, int oy, int oz,
@@ -494,7 +495,7 @@ void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
 
 /* Fill a GmPlayerView (world coords) from a PsvPlayer whose pos is in the LOCAL frame,
  * given the block offset (ox,oz) to convert local->world. Convenience for app/main.c. */
-void gm_player_view(const struct PsvPlayer *pl, int ox, int oz, GmPlayerView *out);
+void gm_player_view(const struct GmPlayerCtl *ctl, const struct PsvPlayer *pl, int ox, int oz, GmPlayerView *out);
 
 /* ============================ game/hud.c (owner: HUD agent) ============================
  * 2D overlay composited onto the FINISHED framebuffer (hotbar, selection, hearts,

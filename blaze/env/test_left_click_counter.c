@@ -40,44 +40,44 @@ int main(void) {
     env->pl.ent.posX = 8.5; env->pl.ent.posY = 5.0; env->pl.ent.posZ = 8.5;
     env->pl.ent.box = psv_player_box(env->pl.ent.posX, env->pl.ent.posY, env->pl.ent.posZ);
     env->pl.ent.onGround = 1;
-    env->dig_hx = INT_MIN;
-    env->left_click_counter = 0;
-    env->atk_prev = 0;
+    env->ctl.dig_hx = INT_MIN;
+    env->ctl.left_click_counter = 0;
+    env->ctl.atk_prev = 0;
 
     memset(&act, 0, sizeof act);
     act.attack = 1;
     env->pl.pitch = -89.0f; /* air miss */
     nedits = 0;
     blaze_player_tick(env, &st, act, edits, &nedits, 8, blocks);
-    CHECK(env->left_click_counter == 10, "blaze press-miss arms leftClickCounter=10");
-    CHECK(env->dig_hitting == 0, "blaze press-miss does not dig");
+    CHECK(env->ctl.left_click_counter == 10, "blaze press-miss arms leftClickCounter=10");
+    CHECK(env->ctl.dig_hitting == 0, "blaze press-miss does not dig");
 
     for (int t = 0; t < 9; ++t) {
         nedits = 0;
         blaze_player_tick(env, &st, act, edits, &nedits, 8, blocks);
     }
-    CHECK(env->left_click_counter == 1, "blaze after 1 press + 9 holds counter=1");
+    CHECK(env->ctl.left_click_counter == 1, "blaze after 1 press + 9 holds counter=1");
 
     /* Look at floor while counter still positive: dig must freeze. */
     env->pl.pitch = 89.0f;
     isr_set_stack(&env->pl.inv, 0, ic_mk(257, 1, 0));
     env->pl.inv.current_item = 0;
     {
-        float prog0 = env->dig_progress;
-        int hit0 = env->dig_hitting;
+        float prog0 = env->ctl.dig_progress;
+        int hit0 = env->ctl.dig_hitting;
         nedits = 0;
         blaze_player_tick(env, &st, act, edits, &nedits, 8, blocks);
-        CHECK(env->left_click_counter == 0, "blaze 10th post-arm tick drains to 0");
+        CHECK(env->ctl.left_click_counter == 0, "blaze 10th post-arm tick drains to 0");
         /* may start dig same tick once counter hits 0 */
         (void)prog0; (void)hit0;
     }
 
     /* Release clears. */
-    env->left_click_counter = 7;
+    env->ctl.left_click_counter = 7;
     act.attack = 0;
     nedits = 0;
     blaze_player_tick(env, &st, act, edits, &nedits, 8, blocks);
-    CHECK(env->left_click_counter == 0, "blaze release clears leftClickCounter");
+    CHECK(env->ctl.left_click_counter == 0, "blaze release clears leftClickCounter");
 
     free(blocks); free(win); free(env);
     fprintf(stderr, fail ? "blaze_lcc: FAIL\n" : "blaze_lcc: PASS\n");

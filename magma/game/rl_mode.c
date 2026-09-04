@@ -396,8 +396,8 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     unsigned world_mutations;
     int i, j, any;
     bp_record_init(out, (int64_t)r->tick);
-    gm_player_ctl_dig_export(&d);
-    cursor = gm_player_cursor();
+    gm_player_ctl_dig_export(&r->ctl, &d);
+    cursor = gm_player_cursor(&r->ctl);
     out->debug_bits[BP_DBG_PLAYER_X] =
         bp_double_bits(r->player.ent.posX + (double)r->ox);
     out->debug_bits[BP_DBG_PLAYER_Y] = bp_double_bits(r->player.ent.posY);
@@ -1018,7 +1018,7 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
     h.health = r->vitals.health; h.food = r->vitals.foodLevel;
     h.saturation = r->vitals.saturation; h.exhaustion = r->vitals.exhaustion;
     h.food_timer = r->vitals.foodTimer;
-    gm_player_ctl_dig_export(&d);
+    gm_player_ctl_dig_export(&r->ctl, &d);
     h.dig_progress = d.dig_progress;
     h.dig_hx = d.dig_hx; h.dig_hy = d.dig_hy; h.dig_hz = d.dig_hz;
     h.dig_hitting = d.dig_hitting; h.dig_delay = d.dig_delay;
@@ -1356,11 +1356,11 @@ static int rl_snapshot_write(GmRuntime *r, const char *path,
                                 craft[si][1] = r->craft_grid[si].count;
                                 craft[si][2] = r->craft_grid[si].meta;
                             }
-                            cur = gm_player_cursor();
+                            cur = gm_player_cursor(&r->ctl);
                             cursor[0] = cur.item;
                             cursor[1] = cur.count;
                             cursor[2] = cur.meta;
-                            gm_player_ctl_dig_export(&ctl);
+                            gm_player_ctl_dig_export(&r->ctl, &ctl);
                             left_click = ctl.left_click_counter;
                             eat_ticks = ctl.eat_ticks;
                             eat_item = ctl.eat_item;
@@ -2020,7 +2020,7 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     d.use_prev = h.use_prev; d.hurt_vel_reset = h.hurt_vel_reset;
     d.server_motion_x = h.server_motion_x;
     d.server_motion_z = h.server_motion_z;
-    gm_player_ctl_dig_import(&d);
+    gm_player_ctl_dig_import(&r->ctl, &d);
     r->container = h.container;
     r->container_wx = h.container_wx; r->container_wy = h.container_wy;
     r->container_wz = h.container_wz;
@@ -2158,7 +2158,7 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             for (si = 0; si < 9; ++si)
                 r->craft_grid[si] = ic_mk(snap_craft[si][0], snap_craft[si][1],
                                           snap_craft[si][2]);
-            gm_player_cursor_set(ic_mk(snap_cursor[0], snap_cursor[1],
+            gm_player_cursor_set(&r->ctl, ic_mk(snap_cursor[0], snap_cursor[1],
                                        snap_cursor[2]));
             r->parity_craft_attempts = snap_craft_att;
             r->parity_craft_successes = snap_craft_ok;
@@ -2166,7 +2166,7 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
             d.left_click_counter = snap_left;
             d.eat_ticks = snap_eat_t;
             d.eat_item = snap_eat_i;
-            gm_player_ctl_dig_import(&d);
+            gm_player_ctl_dig_import(&r->ctl, &d);
             r->bow_ticks = snap_bow_t;
             r->bow_drawing = snap_bow_d;
             r->player.experienceLevel = snap_xp_lv;
@@ -2264,9 +2264,9 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
                 rl_ench_to_stack(&r->craft_grid[si],
                                  &snap_xtra.craft_ench[si]);
             {
-                ICStack cur = gm_player_cursor();
+                ICStack cur = gm_player_cursor(&r->ctl);
                 rl_ench_to_stack(&cur, &snap_xtra.cursor_ench);
-                gm_player_cursor_set(cur);
+                gm_player_cursor_set(&r->ctl, cur);
             }
             {
                 ICStack lc = ic_mk(snap_xtra.last_craft[0],

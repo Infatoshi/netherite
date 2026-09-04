@@ -74,7 +74,7 @@ static char *read_file(const char *path) {
 
 static void inject_from_meta(GmRuntime *rt, const char *state, const char *meta) {
     gm_runtime_ent_views_clear(rt);
-    gm_player_dig_reset();
+    gm_player_dig_reset(&rt->ctl);
     int is_dig = (strstr(state, "dig_") != NULL) || (strstr(meta, "\"dig\"") != NULL);
     if (is_dig) {
         const char *ds = strstr(meta, "\"dig\"");
@@ -91,7 +91,7 @@ static void inject_from_meta(GmRuntime *rt, const char *state, const char *meta)
         snap.dig_hitting = 1;
         /* entity_pin dig_hit freezes N ParticleDigging billboards (not stage). */
         snap.dig_particle_count = j_int(ds, "count", 0);
-        gm_player_ctl_dig_import(&snap);
+        gm_player_ctl_dig_import(&rt->ctl, &snap);
         return;
     }
     GmEntityView ev;

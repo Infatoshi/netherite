@@ -393,7 +393,7 @@ static void render_crack(GmWindowCompose *c, const CrCamera *cam, CrRgba fog) {
     static CrVertex verts[GM_OVERLAY_MAX_VERTS];
     int dx = 0, dy = 0, dz = 0;
     float damage = 0.0f;
-    int have = gm_player_dig_state(&dx, &dy, &dz, &damage);
+    int have = gm_player_dig_state(&c->runtime->ctl, &dx, &dy, &dz, &damage);
     if (!have || damage <= 0.0f || cr_cfg()->no_crack) return;
     int nv = gm_overlay_emit_crack(verts, GM_OVERLAY_MAX_VERTS,
                                    dx + r->ox, dy, dz + r->oz, damage, -1);
@@ -692,7 +692,7 @@ void gm_window_compose_advance(GmWindowCompose *c, GmPlayerView *view,
     c->prev_attack_cooldown = view->attack_cooldown;
     c->attack_cooldown_initialized = 1;
     int swing_arm = (attack && !c->prev_attack) || cooldown_reset ||
-                    gm_player_dig_swing();
+                    gm_player_dig_swing(&c->runtime->ctl);
     c->prev_attack = attack;
     if (swing_arm && c->swing_ticks <= 3) c->swing_ticks = 6;
     float swing = c->swing_ticks > 0

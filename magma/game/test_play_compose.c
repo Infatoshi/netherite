@@ -41,6 +41,7 @@ static void fill_flat(Chunk *win, int y_floor, int floor_id) {
 
 /* Progressive dig: iron pick on stone must harvest in finite ticks with attack held. */
 static void test_progressive_dig(void) {
+    GmPlayerCtl ctl; gm_player_ctl_init(&ctl);
     McSinTable st; mc_sin_table_init(&st);
     Chunk win[PSV_NCHUNKS];
     fill_flat(win, 64, BLK_STONE);
@@ -58,7 +59,7 @@ static void test_progressive_dig(void) {
     pl.inv.current_item = 0;
 
     PvStats vit; pv_init(&vit);
-    gm_player_dig_reset();
+    gm_player_dig_reset(&ctl);
 
     GmAction act;
     memset(&act, 0, sizeof act);
@@ -67,7 +68,7 @@ static void test_progressive_dig(void) {
     int harvested = 0;
     for (int t = 0; t < 200; ++t) {
         GmBlockEdit edits[8]; int ne = 0;
-        gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                        (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
                        0, 0, 0, edits, &ne, 8);
         for (int e = 0; e < ne; ++e) {
@@ -83,6 +84,7 @@ static void test_progressive_dig(void) {
 
 /* Place furnace with two facing orientations -> distinct meta. */
 static void test_place_meta(void) {
+    GmPlayerCtl ctl; gm_player_ctl_init(&ctl);
     McSinTable st; mc_sin_table_init(&st);
     Chunk win[PSV_NCHUNKS];
     fill_flat(win, 64, BLK_STONE);
@@ -103,7 +105,7 @@ static void test_place_meta(void) {
         GmAction act; memset(&act, 0, sizeof act);
         act.do_place = 1;
         GmBlockEdit edits[8]; int ne = 0;
-        gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                        (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
                        0, 0, 0, edits, &ne, 8);
         for (int e = 0; e < ne; ++e)
@@ -117,7 +119,7 @@ static void test_place_meta(void) {
         GmAction act; memset(&act, 0, sizeof act);
         act.do_place = 1;
         GmBlockEdit edits[8]; int ne = 0;
-        gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                        (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
                        0, 0, 0, edits, &ne, 8);
         for (int e = 0; e < ne; ++e)
@@ -135,6 +137,7 @@ static void test_place_meta(void) {
  * the recessed wall-torch AABB on its west face.  Vanilla ItemBlock uses that
  * AABB sideHit (west), not the voxel-entry face (up), for the follow-up click. */
 static void test_torch_click_uses_aabb_face(void) {
+    GmPlayerCtl ctl; gm_player_ctl_init(&ctl);
     McSinTable st; mc_sin_table_init(&st);
     Chunk win[PSV_NCHUNKS];
     fill_flat(win, 68, BLK_STONE);
@@ -152,7 +155,7 @@ static void test_torch_click_uses_aabb_face(void) {
 
     GmAction act; memset(&act, 0, sizeof act); act.do_place = 1;
     GmBlockEdit edits[8]; int ne = 0;
-    gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+    gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                    (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
                    0, 0, 0, edits, &ne, 8);
     CHECK(ne == 1 && edits[0].id == IBP_BLK_TORCH &&
@@ -168,7 +171,7 @@ static void test_torch_click_uses_aabb_face(void) {
           "wall-torch hit reports its recessed west AABB face, not voxel-entry top");
 
     ne = 0;
-    gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+    gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                    (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
                    0, 0, 0, edits, &ne, 8);
     ICStack left = isr_get_stack(&pl.inv, 0);
@@ -179,6 +182,7 @@ static void test_torch_click_uses_aabb_face(void) {
 /* Interact: wooden door at eye height; live gm_player_tick must emit open meta.
  * Door at y=66 (eye ~66.62); look slightly down so ray hits the door block. */
 static void test_interact_door(void) {
+    GmPlayerCtl ctl; gm_player_ctl_init(&ctl);
     McSinTable st; mc_sin_table_init(&st);
     Chunk win[PSV_NCHUNKS];
     fill_flat(win, 64, BLK_STONE);
@@ -199,7 +203,7 @@ static void test_interact_door(void) {
     GmAction act; memset(&act, 0, sizeof act);
     act.do_place = 1; /* use edge */
     GmBlockEdit edits[8]; int ne = 0;
-    gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+    gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                    (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
                    0, 0, 0, edits, &ne, 8);
     int opened = 0;
@@ -217,28 +221,29 @@ static void test_interact_door(void) {
 
 /* Inventory slotClick: PICKUP + QUICK_MOVE + THROW via gm_player_inv_click (live API). */
 static void test_inventory_click(void) {
+    GmPlayerCtl ctl; gm_player_ctl_init(&ctl);
     PsvPlayer pl; psv_player_init(&pl);
     isr_set_stack(&pl.inv, 0, ic_mk(1, 10, 0)); /* 10 stone */
     isr_set_stack(&pl.inv, 1, ic_empty());
     isr_set_stack(&pl.inv, 2, ic_empty());
-    gm_player_cursor_set(ic_empty());
+    gm_player_cursor_set(&ctl, ic_empty());
 
     /* PICKUP: left-click slot 0 -> all into cursor */
-    gm_player_inv_click((struct PsvPlayer *)&pl, 0, 0, CC_CLICK_PICKUP);
-    ICStack cur = gm_player_cursor();
+    gm_player_inv_click(&ctl, (struct PsvPlayer *)&pl, 0, 0, CC_CLICK_PICKUP);
+    ICStack cur = gm_player_cursor(&ctl);
     ICStack s0 = isr_get_stack(&pl.inv, 0);
     CHECK(isr_is_empty(&s0), "PICKUP empties slot 0");
     CHECK(cur.item == 1 && cur.count == 10, "PICKUP cursor holds 10 stone");
 
     /* PICKUP place into slot 1 */
-    gm_player_inv_click((struct PsvPlayer *)&pl, 1, 0, CC_CLICK_PICKUP);
+    gm_player_inv_click(&ctl, (struct PsvPlayer *)&pl, 1, 0, CC_CLICK_PICKUP);
     ICStack s1 = isr_get_stack(&pl.inv, 1);
-    cur = gm_player_cursor();
+    cur = gm_player_cursor(&ctl);
     CHECK(s1.item == 1 && s1.count == 10, "place into slot 1");
     CHECK(isr_is_empty(&cur), "cursor empty after place");
 
     /* QUICK_MOVE: shift-click slot 1 -> transfer into empty slot 0 (mergeItemStack path) */
-    gm_player_inv_click((struct PsvPlayer *)&pl, 1, 0, CC_CLICK_QUICK_MOVE);
+    gm_player_inv_click(&ctl, (struct PsvPlayer *)&pl, 1, 0, CC_CLICK_QUICK_MOVE);
     s0 = isr_get_stack(&pl.inv, 0);
     s1 = isr_get_stack(&pl.inv, 1);
     CHECK(s0.item == 1 && s0.count == 10, "QUICK_MOVE fills slot 0 from slot 1");
@@ -246,7 +251,7 @@ static void test_inventory_click(void) {
 
     /* THROW: drop one from slot 0 (cursor empty) */
     int before = s0.count;
-    gm_player_inv_click((struct PsvPlayer *)&pl, 0, 0, CC_CLICK_THROW);
+    gm_player_inv_click(&ctl, (struct PsvPlayer *)&pl, 0, 0, CC_CLICK_THROW);
     s0 = isr_get_stack(&pl.inv, 0);
     CHECK(s0.item == 1 && s0.count == before - 1, "THROW drops one from slot 0");
     CHECK(s0.count == 9, "THROW leaves 9 stone in slot 0");
@@ -297,6 +302,7 @@ static void test_live_world_edits(void) {
  * click seam is covered by game/test_container_live.c. gm_player_tick must now
  * IGNORE inv_click so the action cannot be double-applied. */
 static void test_live_inv_action(void) {
+    GmPlayerCtl ctl; gm_player_ctl_init(&ctl);
     McSinTable st; mc_sin_table_init(&st);
     Chunk win[PSV_NCHUNKS];
     fill_flat(win, 64, BLK_STONE);
@@ -305,17 +311,17 @@ static void test_live_inv_action(void) {
     pl.ent.box = psv_player_box(pl.ent.posX, pl.ent.posY, pl.ent.posZ);
     isr_set_stack(&pl.inv, 0, ic_mk(1, 5, 0));
     pl.inv.current_item = 0;
-    gm_player_cursor_set(ic_empty());
+    gm_player_cursor_set(&ctl, ic_empty());
     PvStats vit; pv_init(&vit);
     GmBlockEdit edits[4]; int ne = 0;
     GmAction act; memset(&act, 0, sizeof act);
     act.inv_click = 1; act.inv_slot = 0; act.inv_button = 0;
     act.inv_type = CC_CLICK_PICKUP;
-    gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+    gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                    (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
                    0, 0, 0, edits, &ne, 4);
     ICStack s0 = isr_get_stack(&pl.inv, 0);
-    ICStack cur = gm_player_cursor();
+    ICStack cur = gm_player_cursor(&ctl);
     CHECK(s0.item == 1 && s0.count == 5 && isr_is_empty(&cur),
           "gm_player_tick leaves inv_click to the runtime container seam");
 }
