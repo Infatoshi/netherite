@@ -9,6 +9,16 @@
 
 #include <stddef.h>
 
+/* blaze_step[_full] done byte. All nonzero values stop a lane until reset.
+ * Boundary is an episode truncation, not death or success: trainers bootstrap
+ * from its final observation and cut GAE before the reset episode. */
+enum BlazeDone {
+    BLAZE_DONE_RUNNING = 0,
+    BLAZE_DONE_SUCCESS = 1,
+    BLAZE_DONE_DEATH = 2,
+    BLAZE_DONE_BOUNDARY = 3
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif

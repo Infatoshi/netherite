@@ -102,9 +102,14 @@ void cr_step(CrState *st, const int *status, const unsigned short *cam,
 
 int cr_logs_from_bsnp(const char *path, float *xyz, int cap, int *n_out);
 
-/* GAE. rew/term/cut/val are T*N row-major (t, then env). next_val [N]. */
+/* GAE. rew/term/cut/val/cut_val are T*N row-major (t, then env).
+ * next_val[N] is the post-rollout value for continuing lanes. For each
+ * cut&&!term row, cut_val holds V(final_observation) evaluated BEFORE reset.
+ * All other cut_val entries are ignored. Cuts stop advantage propagation;
+ * only true terminals suppress the value bootstrap. */
 void cr_gae(const float *rew, const unsigned char *term,
             const unsigned char *cut, const float *val, const float *next_val,
+            const float *cut_val,
             float gamma, float lam, int T, int N, float *adv, float *ret);
 
 #ifdef __cplusplus

@@ -283,6 +283,7 @@ struct RolloutBuf {
   float *ret_roll;
   float *adv_roll;
   float *next_val;
+  float *cut_val_roll;
   uint8_t *prior_frame;
   uint8_t *have_prior;
   uint8_t *frame_scratch;
@@ -486,7 +487,7 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
 #define free(...) TR_NO_ALLOC_IN_ROLLOUT
   int t, i;
   int nseeds = b->nseeds;
-  int any_reset;
+  int any_reset, any_trunc;
   double t0, t1;
   double acc_pack = 0.0, acc_nn = 0.0, acc_env = 0.0, acc_host = 0.0;
 
@@ -565,18 +566,23 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
     memcpy(b->done_roll + off, b->done_buf, (size_t)n);
 
     any_reset = 0;
+    any_trunc = 0;
     memset(b->reset_mask, 0, (size_t)n);
     for (i = 0; i < n; ++i) {
-      unsigned char term = b->done_buf[i] > 0;
-      unsigned char success = b->done_buf[i] == 1;
+      unsigned char term = b->done_buf[i] == BLAZE_DONE_SUCCESS ||
+                           b->done_buf[i] == BLAZE_DONE_DEATH;
+      unsigned char success = b->done_buf[i] == BLAZE_DONE_SUCCESS;
       unsigned char trunc;
       unsigned char ended;
       if (!b->burnin[i])
         b->ep_dec[i] += 1;
-      trunc = (unsigned char)((!term && b->ep_dec[i] >= cfg->ep_dec) ? 1 : 0);
+      trunc = (unsigned char)(!term &&
+          (b->done_buf[i] == BLAZE_DONE_BOUNDARY || b->ep_dec[i] >= cfg->ep_dec));
       ended = (unsigned char)(term || trunc);
       b->term_roll[off + (size_t)i] = term;
       b->cut_roll[off + (size_t)i] = ended;
+      b->cut_val_roll[off + (size_t)i] = 0.f;
+      if (trunc) any_trunc = 1;
 
       /* Torch stack_roll: a burn-in step writes [s',s'] (post-step
        * duplicated). Do not promote have_prior so the next pack copies
@@ -593,7 +599,7 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
         int stg_now = cr_stage_of_best(cr->best + (size_t)i * 9);
         int si = b->lane_seed[i];
         int stg;
-        if (!term) {
+        if (!ended) {
           for (stg = 1; stg < CR_N_STAGES; ++stg) {
             if (stg_now != stg || b->lane_stage[i] >= stg)
               continue;
@@ -636,6 +642,26 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
         b->reset_mask[i] = 1;
         any_reset = 1;
       }
+    }
+
+    if (any_trunc) {
+      /* Evaluate the final pre-reset observation with its actual frame
+       * stack and episode clock. Do this for time limits and world bounds;
+       * the next rollout row is a different episode after masked reset. */
+      acc_host += wall_sec() - t0;
+      t0 = wall_sec();
+      pack_obs(b->cam, b->depth, b->edge, b->scal6, b->pose, b->status,
+               b->ep_dec, cfg->ep_dec, b->have_prior, b->prior_frame, n,
+               b->planes_cur, b->scal_cur, b->frame_scratch);
+      acc_pack += wall_sec() - t0;
+      t0 = wall_sec();
+      if (nn_forward(nn, b->planes_cur, b->scal_cur, n, b->logits, b->val_cur) != 0)
+        return -1;
+      acc_nn += wall_sec() - t0;
+      t0 = wall_sec();
+      for (i = 0; i < n; ++i)
+        if (b->cut_roll[off + (size_t)i] && !b->term_roll[off + (size_t)i])
+          b->cut_val_roll[off + (size_t)i] = b->val_cur[i];
     }
 
     if (any_reset) {
@@ -1310,6 +1336,7 @@ int main(int argc, char **argv) {
   b.logp_cur = (float *)calloc((size_t)n, sizeof(float));
   b.val_cur = (float *)calloc((size_t)n, sizeof(float));
   b.next_val = (float *)calloc((size_t)n, sizeof(float));
+  b.cut_val_roll = (float *)calloc((size_t)batch, sizeof(float));
   b.logits = (float *)calloc((size_t)n * NN_N_LOGITS, sizeof(float));
   b.planes_roll =
       (uint8_t *)malloc((size_t)batch * ENV_N_CH * ENV_NPIX * sizeof(uint8_t));
@@ -1351,7 +1378,7 @@ int main(int argc, char **argv) {
       !b.planes_roll || !b.scal_roll || !b.acts_roll || !b.logp_roll ||
       !b.val_roll || !b.rew_roll || !b.done_roll || !b.term_roll ||
       !b.cut_roll || !b.valid_roll || !b.ret_roll || !b.adv_roll ||
-      !b.next_val || !b.prior_frame || !b.have_prior || !b.frame_scratch ||
+      !b.next_val || !b.cut_val_roll || !b.prior_frame || !b.have_prior || !b.frame_scratch ||
       !b.ep_dec || !b.burnin || !b.reset_mask || !b.lane_seed ||
       !b.lane_stage || !b.lane_stage_start || !b.lane_snap || !b.perm ||
       (cfg.mb > 0 &&
@@ -1474,6 +1501,7 @@ int main(int argc, char **argv) {
         die("rollout failed");
 
       cr_gae(b.rew_roll, b.term_roll, b.cut_roll, b.val_roll, b.next_val,
+             b.cut_val_roll,
              cfg.gamma, cfg.lam, T, n, b.adv_roll, b.ret_roll);
 
       if (split_nn) {
@@ -1609,6 +1637,7 @@ int main(int argc, char **argv) {
   free(b.logp_cur);
   free(b.val_cur);
   free(b.next_val);
+  free(b.cut_val_roll);
   free(b.logits);
   free(b.planes_roll);
   free(b.scal_roll);

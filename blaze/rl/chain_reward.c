@@ -1,5 +1,6 @@
 /* Host scalar ChainReward + GAE. Port of blaze/env/reward_chain.py. */
 #include "chain_reward.h"
+#include "blaze_abi.h"
 
 #include "blaze_snapshot.h"
 
@@ -365,7 +366,7 @@ void cr_step(CrState *st, const int *status, const unsigned short *cam,
     }
     st->min_y[e] = minf(st->min_y[e], py);
 
-    if (done[e] == 2)
+    if (done[e] == BLAZE_DONE_DEATH)
       re += -s->death_penalty;
     r[e] = re;
   }
@@ -441,9 +442,10 @@ int cr_logs_from_bsnp(const char *path, float *xyz, int cap, int *n_out) {
 
 void cr_gae(const float *rew, const unsigned char *term,
             const unsigned char *cut, const float *val, const float *next_val,
+            const float *cut_val,
             float gamma, float lam, int T, int N, float *adv, float *ret) {
   int e;
-  if (!rew || !term || !cut || !val || !next_val || !adv || !ret || T <= 0 ||
+  if (!rew || !term || !cut || !val || !next_val || !cut_val || !adv || !ret || T <= 0 ||
       N <= 0)
     return;
   for (e = 0; e < N; ++e) {
@@ -454,7 +456,10 @@ void cr_gae(const float *rew, const unsigned char *term,
       size_t ix = (size_t)t * (size_t)N + (size_t)e;
       float nonterm = term[ix] ? 0.f : 1.f;
       float keep = cut[ix] ? 0.f : 1.f;
-      float delta = rew[ix] + gamma * nextv * nonterm - val[ix];
+      /* A cut ends the episode but a truncation still bootstraps from its
+       * final observation. val[t+1] may already belong to the reset episode. */
+      float bootstrap = cut[ix] && !term[ix] ? cut_val[ix] : nextv;
+      float delta = rew[ix] + gamma * bootstrap * nonterm - val[ix];
       gae = delta + gamma * lam * keep * gae;
       adv[ix] = gae;
       ret[ix] = gae + val[ix];
