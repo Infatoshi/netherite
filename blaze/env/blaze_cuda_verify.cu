@@ -94,6 +94,7 @@ __global__ void k_tick_raw(Blaze *envs, int env, int n, const McSinTable *st,
     } else if (i >= n) {
         return;
     }
+    if (envs[i].dimension_error) return;
     CuAction act;
     memset(&act, 0, sizeof act);
     act.forward = (float)ra.a[0];
@@ -118,7 +119,7 @@ __global__ void k_tick_raw(Blaze *envs, int env, int n, const McSinTable *st,
         (void)blaze_do_smelt(&envs[i]);
     blaze_runtime_tick(&envs[i], st, act,
                        aabb_pool + (size_t)i * PSV_MAX_BLOCKS);
-    if (out && env >= 0)
+    if (out && env >= 0 && !envs[i].dimension_error)
         blaze_emit_bolr(&envs[i], st, out, want_cam);
 }
 
@@ -194,6 +195,8 @@ int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
                                            v->d_aabb, v->d_recipes,
                                            v->nrecipes);
     if (cu_ck(cudaStreamSynchronize(v->stream), "k_tick_raw")) return -1;
+    if (cu_dimension_status(v, v->d_envs + (env < 0 ? 0 : env),
+                             env < 0 ? v->n : 1)) return -1;
     if (!out || env == -1) return 0;
     return cu_ck(cudaMemcpy(out, v->d_obs, sizeof(CuBinObs),
                             cudaMemcpyDeviceToHost), "obs readback");

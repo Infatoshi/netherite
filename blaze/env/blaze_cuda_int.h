@@ -148,6 +148,14 @@ typedef struct {
                                            * device pointers */
     CuSnapDev *d_snaps;
     int nsnaps;
+    /* Dimension source tables use the shared CuSnapshot layout, unlike the
+     * reset cache above. Only head/cells/light/biome are consumed by transit. */
+    CuSnapshot *d_dim_ow, *d_dim_bank;
+    CuSnapshot h_dim_bank[3];
+    char dim_bank_loaded_path[3][1024];
+    u16 *d_dim_cells[3];
+    u8 *d_dim_light[3], *d_dim_biome[3];
+    int *d_dimension_error;      /* reduction scratch, sticky errors live in env */
     /* capture may replace coal/xy_off while live envs still alias the old
      * buffer (env->ore / env->ore_xy bind by pointer at reset). Do not
      * cudaFree those until destroy. */
@@ -263,6 +271,8 @@ int blaze_phase_clear(void *vh);
 #endif
 
 /* CUDA error check + report, shared by both units. */
+int cu_dimension_status(CuVecCu *v, Blaze *envs, int n);
+
 static inline int cu_ck(cudaError_t e, const char *what) {
     if (e == cudaSuccess) return 0;
     fprintf(stderr, "blaze_cuda: %s: %s\n", what, cudaGetErrorString(e));
