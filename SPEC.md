@@ -220,6 +220,10 @@ content and seed; they do not resample on every reset or modify dimension banks.
 
 The policy tensor stays 18x36x64 plus 27 scalars. Configurable inputs include
 one/two-frame history, seven semantic channels, depth, edges and scalar groups.
+The `obs_base_scalars` group contains the existing coal direction/distance hint
+and camera pitch; disabling it removes all six values, including information
+about coal outside the visible image. Inventory, height and episode clock have
+separate switches. These are explicit training aids, not ordinary RGB pixels.
 `obs_pixel_stride` coarsens samples then expands back to the same tensor, so it
 does not claim reduced model resolution or compute. Camera angle increments and
 the nine action-head enable bits are configurable. RGB and recurrent memory

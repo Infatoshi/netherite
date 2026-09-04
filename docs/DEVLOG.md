@@ -1,3 +1,51 @@
+## 2026-09-04 native training recipes, phases and fixed evaluation
+
+`lane/training-recipe` integrates reward/curriculum, observation/control and
+evaluation configuration at source `bc68460`. The editable registry is
+`blaze/rl/ppo.conf`; `blaze/rl/recipes/curriculum.conf` is an executable small
+two-phase example, not a tuned learning recipe. `phase_files` overlays globals
+independently, changes world/reward/episode settings between phases, and retains
+the policy and Adam state. Unsupported allocation or policy-contract changes
+fail before training. Effective phase/evaluation recipes and optimizer/transition
+events are retained in a private directory under `out/blaze/rl/runs/`.
+
+All existing reward coefficients plus dense-assistance scale, curriculum success
+threshold/history/minimum episodes, stage/seed weights, supported observation
+groups/history/coarse sampling and action angles/head masks are configurable.
+Starting-world resource floors reject unsuitable inputs; deterministic angle
+jitter preserves source snapshots and dimension banks. Missing stage snapshots
+are compared by prepared path content, fixing their accidental promotion to
+available stages after world preparation. The existing coal direction/distance
+hint is explicitly identified in the observation recipe.
+
+Checkpoints carry an atomic `.policy.conf` contract; mismatched observations or
+actions fail before weights load. Exact-default legacy checkpoints remain usable
+with a warning. Primary/best outputs cannot alias the warm-start input. Native
+evaluation has a separate fixed config and per-episode JSON. Missing requested
+episodes fail by default and incomplete/nonfinite results cannot produce a
+selection score. Best weights can be selected by completed evaluation success.
+The tiny example evaluates its training fixture, so it establishes wiring, not
+held-out generalization or learning quality.
+
+Verification found and fixed a pre-existing Metal training bug: copying rollout
+weights into the update model each chunk cleared Adam. The redundant copy and
+phase-end checkpoint reload were removed. Read-only NN update counters prove
+optimizer retention on the actual path. CPU and Metal two-phase runs completed
+128 nominal training ticks each, world size 32 then 64, with Adam steps 2 then 4.
+Their fixed evaluations each completed both requested episodes. Nondefault
+history/depth/action settings and starting angles also trained and evaluated;
+incompatible checkpoints and best-output/input aliases were rejected without
+changing the input hash. A seeded stage-start run selected available stages
+2/3/4 and excluded the absent stage 1.
+
+Mac root tests passed. Independent fresh Anvil root tests at `bc68460` passed in
+208 seconds, including 146 phase tests, 113 world-options tests, 125,004 policy
+contract checks, CPU NN tests, 32 replay cases and the 3,617-tick tape inventory.
+Recipe/reward/observation checks also passed their isolated sanitizers; native
+trainer sanitizer execution passed on Mac. Default reward/sampler outputs were
+byte-identical over 10,000 comparison steps. Gamer GPU validation is pending
+compilation in its isolated worktree; no CUDA runtime result is claimed here.
+
 ## 2026-09-04 configurable finite training worlds and boundary truncation
 
 `lane/world-recipe` at `600dfbb` adds native `world_size` recipe configuration,

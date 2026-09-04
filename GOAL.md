@@ -24,6 +24,48 @@ Verification requires behavior tests plus actual CPU, Metal and available CUDA
 training/evaluation runs, including a world-size/reward phase transition,
 nondefault observation/action settings, and rejected incompatible inputs.
 
+Implemented at `bc68460`. Parent Mac root tests passed, and an independent
+fresh Anvil root audit passed in 208 seconds. Parent checked the copied
+`out/verify/training-recipe-cpu/` bundle: exact HEAD, root rc=0, all recipe/world/
+policy tests, and empty final Git status/diff. The audit's generated untracked
+`magma/tests/test_randtick_census` binary was removed after confirming the build
+created it; the pre-existing Mac binary remains untouched.
+
+Actual example execution is
+`out/blaze/rl/ppo --conf blaze/rl/recipes/curriculum.conf`, with optional
+`--set backend=metal` or `--set backend=cuda`. This is a two-phase wiring example
+using the shipped seed-10 world for both training and evaluation, not a trained
+policy or held-out quality result. CPU evidence is
+`out/verify/recipe-smoke/example_cpu.log` and
+`out/blaze/rl/runs/run-GHJS85/`; Metal evidence is
+`out/verify/recipe-smoke/example_metal.log` and
+`out/blaze/rl/runs/run-NbYOIb/`. Both completed 128 nominal training ticks,
+world size 32 then 64, and optimizer counters 2 then 4. Each phase's evaluation
+covered 2/2 requested episodes. The final checkpoint SHA256 values are:
+
+- CPU: `7877560cd3b54a39aec7c78d0350e6ec7096bc810226faede47d5ead7e99986d`
+- Metal: `18063d7c269d16916216249260faf5cf44baab8df9f5e32f01ada751717f3ae8`
+
+Additional executable checks under `out/verify/recipe-smoke/` cover nondefault
+observations/actions, starting-angle jitter, matching evaluation, rejection of
+an incompatible checkpoint, and prevention of overwriting the warm-start input
+through the derived best output. The source input hash stayed unchanged.
+`stage_starts.log` verifies loaded stages 2/3/4 while missing stage 1 remains
+unavailable. Sanitized native trainer execution passed on Mac; the independent
+phase, world-options and policy-contract tests also passed their sanitizer runs.
+
+Gamer CUDA validation is staged in `~/nlanes/training-recipe`. The original
+environment build stays pinned to `6829035` until compilation finishes. The
+owned `training-recipe-validation` tmux watcher then verifies no simulation
+source changed, switches only its isolated worktree to `bc68460`, builds the
+native trainer/evaluator for `sm_86`, and requires an idle leased GPU0. Scripts,
+heartbeat and results live under `out/verify/training-recipe-gpu-bc68460/`.
+It covers CUDA NN optimizer counters, the two-phase recipe, default/nondefault
+training, complete CUDA evaluation and contract mismatch refusal. Compilation
+and a live waiting process do not establish a CUDA runtime result; review its
+exit codes and artifacts before closing this task. No existing Anvil watcher or
+unrelated GPU process is stopped.
+
 Authorized 2026-09-04 after the architecture review at `4ccbf35`.
 
 ## Follow-up: finite world size in the training recipe
