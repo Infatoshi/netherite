@@ -1338,6 +1338,10 @@ void nn_metal_destroy(NnMetal *nn) {
   free(nn);
 }
 
+int64_t nn_metal_training_steps(const NnMetal *nn) {
+  return nn ? nn->adam_t : -1;
+}
+
 int nn_metal_set_config(NnMetal *nn, const NnConfig *cfg) {
   if (!nn || !cfg) {
     set_err("null");

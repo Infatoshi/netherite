@@ -87,6 +87,12 @@ void nn_destroy(Nn *nn);
 /* Replace config (lr, clip, coefs, grad limit, seed). Does not reallocate. */
 int nn_set_config(Nn *nn, const NnConfig *cfg);
 
+/* Current Adam update count. Starts at zero; set_config preserves it.
+ * A successful weights-only load is a warm start: moments and count reset.
+ * Read-only; returns -1 for a null handle or unavailable backend. */
+int64_t nn_training_steps(const Nn *nn);
+
+
 /* Build every backend plan for batch size n up front. n in [1, max_n].
  * CUDA: races cuDNN engines for the n bucket now and shrinks the workspace
  * arena to what the chosen plans need. create already prepares max_n, so call

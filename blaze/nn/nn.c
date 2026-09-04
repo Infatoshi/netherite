@@ -159,6 +159,25 @@ void nn_destroy(Nn *nn) {
   free(nn);
 }
 
+int64_t nn_training_steps(const Nn *nn) {
+  if (!nn || !nn->impl)
+    return -1;
+  switch (nn->backend) {
+  case NN_BACKEND_CPU:
+    return nn_cpu_training_steps((const NnCpu *)nn->impl);
+#if NN_HAVE_METAL
+  case NN_BACKEND_METAL:
+    return nn_metal_training_steps((const NnMetal *)nn->impl);
+#endif
+#if NN_HAVE_CUDA
+  case NN_BACKEND_CUDA:
+    return nn_cuda_training_steps((const NnCuda *)nn->impl);
+#endif
+  default:
+    return -1;
+  }
+}
+
 int nn_set_config(Nn *nn, const NnConfig *cfg) {
   if (!nn || !cfg) {
     set_err("null");

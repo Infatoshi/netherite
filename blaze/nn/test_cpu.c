@@ -539,6 +539,8 @@ static void test_ppo_and_adam(void) {
   Nn *nn = create_cpu(4, &cfg);
   expect_true(nn != NULL, "create");
 
+  expect_true(nn_training_steps(NULL) == -1, "null training count");
+  expect_true(nn_training_steps(nn) == 0, "initial training count");
   const int n = 4;
   uint8_t *planes =
       (uint8_t *)malloc((size_t)n * NN_N_CH * NN_CAM_H * NN_CAM_W);
@@ -571,6 +573,7 @@ static void test_ppo_and_adam(void) {
   expect_eq_i(
       nn_update(nn, planes, scalars, acts, old_logp, adv, ret, n, &st), 0,
       "ppo update");
+  expect_true(nn_training_steps(nn) == 1, "first Adam update counted");
   expect_finite(st.policy_loss, "pl");
   expect_finite(st.value_loss, "vl");
   expect_finite(st.entropy_mean, "ent");
@@ -593,10 +596,22 @@ static void test_ppo_and_adam(void) {
   }
   expect_true(delta > 0.0, "Adam changed params");
 
+  cfg.lr *= .5f;
+  expect_eq_i(nn_set_config(nn, &cfg), 0, "phase config change");
+  expect_true(nn_training_steps(nn) == 1, "config retains Adam count");
   expect_eq_i(
       nn_update(nn, planes, scalars, acts, old_logp, adv, ret, n, &st), 0,
       "adam step 2");
   expect_finite(st.total_loss, "loss2");
+  expect_true(nn_training_steps(nn) == 2, "second Adam update counted");
+  char path[256];
+  tmp_path(path, sizeof(path), "training_steps");
+  expect_eq_i(nn_save(nn, path), 0, "save warm-start weights");
+  expect_true(nn_training_steps(nn) == 2, "save retains Adam count");
+  expect_eq_i(nn_load(nn, path), 0, "load warm-start weights");
+  expect_true(nn_training_steps(nn) == 0, "weights load resets Adam count");
+  unlink(path);
+
 
   free(planes);
   free(scalars);

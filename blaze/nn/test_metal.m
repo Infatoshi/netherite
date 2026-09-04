@@ -284,6 +284,7 @@ static void test_update_and_weights(const char *ckpt) {
     nn_destroy(mtl);
     return;
   }
+  expect_true(nn_training_steps(mtl) == 0, "metal initial Adam count");
   nn_load(cpu, ckpt);
   nn_load(mtl, ckpt);
 
@@ -362,7 +363,17 @@ static void test_update_and_weights(const char *ckpt) {
     free(tm);
   }
 
+  expect_true(nn_training_steps(mtl) == 1, "metal first Adam update counted");
+  cfg.lr *= .5f;
+  expect_eq_i(nn_set_config(mtl, &cfg), 0, "metal phase config change");
+  expect_true(nn_training_steps(mtl) == 1, "metal config retains Adam count");
+  expect_eq_i(nn_update(mtl, planes, scalars, acts, old_logp, adv, ret, n, &sm),
+              0, "metal second update");
+  expect_true(nn_training_steps(mtl) == 2, "metal second Adam update counted");
+  expect_eq_i(nn_load(mtl, ckpt), 0, "metal warm-start load");
+  expect_true(nn_training_steps(mtl) == 0, "metal weights load resets Adam count");
   unlink(path_c);
+
   unlink(path_m);
   free(planes);
   free(scalars);
