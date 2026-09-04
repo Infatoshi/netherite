@@ -98,8 +98,8 @@ A tape contains the full run description, initial state, tick input, required
 oracle state, entity state, and frame references. Committed tapes stay in
 `verify/tapes/`. Scenario inputs stay in `verify/fixtures/`.
 
-The replay program runs Magma or Blaze from the same config and action stream.
-It reports the first state difference. It then compares captured frames.
+Replay tools run Magma or Blaze from the same config and action stream, report
+state differences, and compare captured frames according to the gate used.
 
 The current native replay command checks child exit status, complete row counts,
 tick alignment, finite required values, and pose/vitals/dimension differences.

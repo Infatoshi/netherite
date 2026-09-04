@@ -1,4 +1,21 @@
-# Design: Dimensions and Region Swapping in Blaze (CPU first, CUDA mirror)
+# Historical dimension swap proposal
+
+Superseded on 2026-09-04 by the runtime contract in `SPEC.md` and
+`OPEN_DIVERGENCES.md`. The proposal below is retained as design history, not
+implementation guidance. Its one-region overwrite loses episode edits, its
+recorded arrival pose fails return travel, and its projectile reset disagrees
+with Magma. Those choices have been replaced; the CUDA plumbing below exists
+but still needs integrated GPU execution.
+
+The current implementation keeps one private region per supplied dimension per
+environment, seeded on first visit and retained until reset. This deliberately
+spends memory to preserve world state. For a 128 cubed region, cells, light and
+biomes require 6,307,840 additional bytes per environment per extra dimension,
+plus one shared immutable bank and its metadata. At 1,024 environments the
+private extra regions alone require 6,459,228,160 bytes. These are allocation
+sizes calculated from the layout, not measured total device-memory use. A
+sparse edit representation could reduce this cost later without reverting the
+world when the player returns.
 
 Author: Gemini (netherite session 2026-09-03). Reviewer: Fable. Status: agreed spec for dimension identity and portal transfer on the port-matrix `portals_dimensions` and `nether_route` rows.
 
