@@ -221,7 +221,7 @@ static void check_cpu(const char *so, const WorldRecipe *r, const CuSnapshot *cr
 int main(int argc, char **argv) {
     char repo[4096], so[4096], scratch[4096];
     char source[4096], portal[4096], nether[4096], side[4096];
-    char err[1024] = {0};
+    char err[2048] = {0};
     WorldRecipe *r = calloc(1, sizeof *r), *p = calloc(1, sizeof *p), *f = calloc(1, sizeof *f);
     CHECK(r && p && f, "recipe allocations");
     if (!r || !p || !f || !getcwd(repo, sizeof repo)) return 2;
