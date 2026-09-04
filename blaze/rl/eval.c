@@ -282,7 +282,13 @@ static int blaze_fns_load(BlazeFns *f, const char *path, int want_cam_inputs,
   if (!f || !path)
     return -1;
   memset(f, 0, sizeof(*f));
-  lib = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+  int flags = RTLD_NOW | RTLD_LOCAL;
+#if defined(__linux__)
+  /* OpenMP workers can outlive an environment. Keep the driver and its runtime
+   * mapped until process exit; destroy still releases each environment's state. */
+  flags |= RTLD_NODELETE;
+#endif
+  lib = dlopen(path, flags);
   if (!lib) {
     fprintf(stderr, "eval: dlopen '%s' failed: %s\n", path, dlerror());
     return -1;
