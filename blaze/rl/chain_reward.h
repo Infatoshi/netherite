@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +32,7 @@ enum {
 };
 
 typedef struct CrSpec {
+  float shaping_scale; /* Dense shaping only; milestones and penalties stay unscaled. */
   float time_cost;
   float death_penalty;
   float w_log_per;
@@ -68,6 +70,11 @@ typedef struct CrSpec {
 } CrSpec;
 
 void cr_spec_default(CrSpec *s);
+/* Full reward.<field> keys. 0 success, -1 unknown key, -2 invalid value.
+ * Every coefficient is a finite nonnegative magnitude, at most 1e6. */
+int cr_spec_set(CrSpec *s, const char *key, const char *value);
+int cr_spec_validate(const CrSpec *s);
+void cr_spec_dump(FILE *f, const CrSpec *s);
 
 typedef struct CrState {
   int n;
@@ -86,6 +93,8 @@ typedef struct CrState {
 
 int cr_state_init(CrState *st, int n, const CrSpec *spec);
 void cr_state_free(CrState *st);
+/* Update weights without resetting inventory high-water marks. */
+int cr_state_set_spec(CrState *st, const CrSpec *spec);
 void cr_reset_lane(CrState *st, int i);
 void cr_reset_mask(CrState *st, const uint8_t *mask, int n);
 /* Copy inventory/flags from a 17-int status row so the next cr_step does
