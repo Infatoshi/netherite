@@ -162,15 +162,28 @@ WORLD_OBJS := $(OUT)/world_recipe.o $(OUT)/world_snapshot.o
 SAN_WORLD_OBJS := $(SAN_OUT)/world_recipe.o $(SAN_OUT)/world_snapshot.o
 
 .PHONY: test-world
+ifeq ($(UNAME_S),Darwin)
+WORLD_TEST_LDFLAGS := -Wl,-dead_strip
+else
+WORLD_TEST_LDFLAGS := -Wl,--gc-sections
+endif
 $(OUT)/test_world_crop: test_world_crop.c $(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_world_crop.c $(ENV_SRC)/blaze_snapshot.c -lm
 
 $(OUT)/test_world_recipe: test_world_recipe.c world_recipe.h $(WORLD_OBJS) $(OUT)/chain_reward.o $(ENV_CPU_SO) | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_world_recipe.c $(WORLD_OBJS) $(OUT)/chain_reward.o $(LDLIBS)
 
-test-world: $(OUT)/test_world_crop $(OUT)/test_world_recipe
+$(OUT)/test_world_boundary: $(ENV_SRC)/test_world_boundary.c $(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h | $(OUT)
+	$(CC) $(ENV_CFLAGS) $(CPPFLAGS_COMMON) -o $@ $(ENV_SRC)/test_world_boundary.c -lm
+
+$(OUT)/test_rollout_boundary: test_rollout_boundary.c ppo.c world_recipe.h train_config.h obs_pack.h chain_reward.c chain_reward.h chain_curr.c $(ENV_SRC)/blaze_abi.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -ffunction-sections -fdata-sections -o $@ test_rollout_boundary.c chain_reward.c chain_curr.c $(WORLD_TEST_LDFLAGS) $(LDLIBS)
+
+test-world: $(OUT)/test_world_crop $(OUT)/test_world_recipe $(OUT)/test_world_boundary $(OUT)/test_rollout_boundary
 	cd $(REPO) && ./out/blaze/rl/test_world_crop
 	cd $(REPO) && ./out/blaze/rl/test_world_recipe
+	cd $(REPO) && ./out/blaze/rl/test_world_boundary
+	cd $(REPO) && ./out/blaze/rl/test_rollout_boundary
 
 .PHONY: all test-config test-chain test-capture test-entity-spine \
 	test-falling test-weather test-chests test-furnaces test-projectiles test-explosions test-randtick test-biome-plane test-mobs test-mobs-ss test-mobs-end test-mobs-witch test-passives test-mobs-det test-hazards test-ground-items test-potions test-placement test-beds test-skylight-water test-blocklight test-skylight-incr test-skylight-ovf smoke smoke-cpu smoke-cuda \

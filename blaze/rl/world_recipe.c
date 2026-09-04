@@ -48,7 +48,7 @@ static int file_hash(const char *path, uint64_t *out) {
 }
 
 static int prepare_one(const char *src, const char *dst, int size,
-                       FILE *manifest, char *err, size_t cap) {
+                       FILE *manifest, int *max_cells, char *err, size_t cap) {
     CuSnapshot *s = calloc(1, sizeof *s);
     uint64_t before, after, prepared;
     unsigned logs = 0;
@@ -63,6 +63,7 @@ static int prepare_one(const char *src, const char *dst, int size,
     }
     if (file_hash(dst, &prepared)) { fail(err, cap, "cannot hash prepared world", dst); goto done; }
     long cells = (long)s->head.rnx * s->head.rny * s->head.rnz;
+    if (cells > *max_cells) *max_cells = (int)cells;
     for (long i = 0; i < cells; ++i) {
         int id = s->cells[i] >> 4;
         if (id == 17 || id == 162) ++logs;
@@ -108,7 +109,8 @@ int world_recipe_prepare(WorldRecipe *r, const char *const *sources, int count,
     memset(r, 0, sizeof *r);
     r->count = count;
     for (int i = 0; i < count; ++i) {
-        if (!sources[i] || strlen(sources[i]) >= WORLD_RECIPE_PATH)
+        if (!sources[i] || strlen(sources[i]) >= WORLD_RECIPE_PATH ||
+            strpbrk(sources[i], "\t\r\n"))
             return fail(err, cap, "invalid source path", "");
         if (!world_size) strcpy(r->paths[i], sources[i]);
     }
@@ -131,7 +133,7 @@ int world_recipe_prepare(WorldRecipe *r, const char *const *sources, int count,
     const char *bank_names[] = {"nether.bsnp", "end.bsnp"};
     for (int b = 0; b < 2; ++b) if (banks[b][0]) {
         if (output_path(bank_path, r->directory, bank_names[b])) goto bad_path;
-        if (prepare_one(banks[b], bank_path, world_size, manifest, err, cap)) goto failed;
+        if (prepare_one(banks[b], bank_path, world_size, manifest, &r->max_cells, err, cap)) goto failed;
     }
     for (int i = 0; i < count; ++i) {
         int duplicate = -1;
@@ -140,7 +142,7 @@ int world_recipe_prepare(WorldRecipe *r, const char *const *sources, int count,
         if (duplicate >= 0) { strcpy(r->paths[i], r->paths[duplicate]); continue; }
         snprintf(name, sizeof name, "snapshot_%03d.bsnp", i);
         if (output_path(r->paths[i], r->directory, name)) goto bad_path;
-        if (prepare_one(sources[i], r->paths[i], world_size, manifest, err, cap)) goto failed;
+        if (prepare_one(sources[i], r->paths[i], world_size, manifest, &r->max_cells, err, cap)) goto failed;
         if (nether[0] || end[0]) {
             snprintf(name, sizeof name, "snapshot_%03d.bsnp.banks", i);
             if (output_path(side, r->directory, name)) goto bad_path;

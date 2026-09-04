@@ -1259,18 +1259,22 @@ int main(int argc, char **argv) {
 #if BLAZE_RL_HAVE_METAL
   if (is_metal) {
     const char *mlib = resolve_metallib(&cfg);
+    int observation_cells = cfg.metal_max_cells;
+    if (world_recipe.max_cells > 0 && world_recipe.max_cells < observation_cells)
+      observation_cells = world_recipe.max_cells;
     if (!mlib || !mlib[0]) {
       fns.destroy(env);
       blaze_fns_close(&fns);
       die("metallib path empty");
     }
-    if (env_metal_obs_create(&metal_obs, n, cfg.metal_max_cells, mlib,
+    if (env_metal_obs_create(&metal_obs, n, observation_cells, mlib,
                              fns.obs_cam_inputs) != 0) {
       fns.destroy(env);
       blaze_fns_close(&fns);
       fprintf(stderr, "ppo: Metal observation create failed; no fallback\n");
       return 1;
     }
+    printf("world: Metal observation capacity=%d cells per environment\n", observation_cells);
   }
 #endif
 

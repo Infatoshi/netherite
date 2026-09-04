@@ -11,6 +11,7 @@ typedef struct {
     char directory[WORLD_RECIPE_PATH];
     char paths[WORLD_RECIPE_MAX][WORLD_RECIPE_PATH];
     int count;
+    int max_cells; /* measured prepared region capacity; 0 when inheriting */
 } WorldRecipe;
 /* 0 succeeds; -1 fails with err. world_size=0 preserves source paths.
  * Positive sizes crop X/Z only; source snapshot files are never overwritten.

@@ -246,6 +246,8 @@ int main(int argc, char **argv) {
     CHECK(entries("out/blaze/rl/worlds") == 0, "no output for world_size=0");
     CHECK(world_recipe_prepare(r, sources, 2, 64, err, sizeof err) == 0,
           "prepare actual s10 as a 64-block finite world");
+    CHECK(r->max_cells == 64 * 128 * 64,
+          "prepared observation capacity uses the measured smaller region");
     CHECK(r->count == 2 && !strcmp(r->paths[0], r->paths[1]),
           "duplicate sources reuse one prepared snapshot");
     CuSnapshot *a = load_snapshot(source), *b = load_snapshot(r->paths[0]);
