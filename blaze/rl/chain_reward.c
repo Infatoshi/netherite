@@ -5,6 +5,8 @@
 #include "blaze_snapshot.h"
 
 #include <math.h>
+#include <errno.h>
+#include <ctype.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -31,6 +33,7 @@ void cr_spec_default(CrSpec *s) {
   if (!s)
     return;
   memset(s, 0, sizeof(*s));
+  s->shaping_scale = 1.f;
   s->time_cost = 0.01f;
   s->death_penalty = 5.0f;
   s->w_log_per = 1.0f;
@@ -67,10 +70,93 @@ void cr_spec_default(CrSpec *s) {
   s->w_ipick_first = 0.0f;
 }
 
+/* One registry governs parsing, validation and reproducible dumps. */
+static const struct { const char *key; size_t offset; } spec_fields[] = {
+  {"reward.shaping_scale", offsetof(CrSpec, shaping_scale)},
+  {"reward.time_cost", offsetof(CrSpec, time_cost)},
+  {"reward.death_penalty", offsetof(CrSpec, death_penalty)},
+  {"reward.w_log_per", offsetof(CrSpec, w_log_per)},
+  {"reward.log_clamp", offsetof(CrSpec, log_clamp)},
+  {"reward.w_plank_first", offsetof(CrSpec, w_plank_first)},
+  {"reward.w_stick_first", offsetof(CrSpec, w_stick_first)},
+  {"reward.w_table_first", offsetof(CrSpec, w_table_first)},
+  {"reward.w_container_open", offsetof(CrSpec, w_container_open)},
+  {"reward.w_wpick_first", offsetof(CrSpec, w_wpick_first)},
+  {"reward.w_cobble_per", offsetof(CrSpec, w_cobble_per)},
+  {"reward.cobble_clamp", offsetof(CrSpec, cobble_clamp)},
+  {"reward.w_spick_first", offsetof(CrSpec, w_spick_first)},
+  {"reward.w_coal_first", offsetof(CrSpec, w_coal_first)},
+  {"reward.w_torch_first", offsetof(CrSpec, w_torch_first)},
+  {"reward.chop_dist_coef", offsetof(CrSpec, chop_dist_coef)},
+  {"reward.chop_dist_clamp", offsetof(CrSpec, chop_dist_clamp)},
+  {"reward.chop_crosshair", offsetof(CrSpec, chop_crosshair)},
+  {"reward.dig_descend_coef", offsetof(CrSpec, dig_descend_coef)},
+  {"reward.dig_stone_atk", offsetof(CrSpec, dig_stone_atk)},
+  {"reward.dig_hold_pick", offsetof(CrSpec, dig_hold_pick)},
+  {"reward.digprog_coef", offsetof(CrSpec, digprog_coef)},
+  {"reward.coal_dist_coef", offsetof(CrSpec, coal_dist_coef)},
+  {"reward.coal_dist_clamp", offsetof(CrSpec, coal_dist_clamp)},
+  {"reward.coal_crosshair", offsetof(CrSpec, coal_crosshair)},
+  {"reward.coal_crosshair_maxd", offsetof(CrSpec, coal_crosshair_maxd)},
+  {"reward.coal_hold_pick", offsetof(CrSpec, coal_hold_pick)},
+  {"reward.coal_chew", offsetof(CrSpec, coal_chew)},
+  {"reward.hunt_desc", offsetof(CrSpec, hunt_desc)},
+  {"reward.w_furnace_first", offsetof(CrSpec, w_furnace_first)},
+  {"reward.w_furnace_open", offsetof(CrSpec, w_furnace_open)},
+  {"reward.w_ironore_per", offsetof(CrSpec, w_ironore_per)},
+  {"reward.ironore_clamp", offsetof(CrSpec, ironore_clamp)},
+  {"reward.w_ingot_first", offsetof(CrSpec, w_ingot_first)},
+  {"reward.w_ipick_first", offsetof(CrSpec, w_ipick_first)},
+};
+
+int cr_spec_set(CrSpec *s, const char *key, const char *value) {
+  size_t i;
+  if (!s || !key || !value) return -2;
+  for (i = 0; i < sizeof(spec_fields) / sizeof(spec_fields[0]); ++i) {
+    if (!strcmp(key, spec_fields[i].key)) {
+      char *end;
+      float v;
+      errno = 0;
+      v = strtof(value, &end);
+      if (end == value) return -2;
+      while (isspace((unsigned char)*end)) ++end;
+      if (*end || errno || !isfinite(v) || v < 0.f || v > 1e6f) return -2;
+      *(float *)((char *)s + spec_fields[i].offset) = v;
+      return 0;
+    }
+  }
+  return -1;
+}
+
+int cr_spec_validate(const CrSpec *s) {
+  size_t i;
+  if (!s) return -2;
+  for (i = 0; i < sizeof(spec_fields) / sizeof(spec_fields[0]); ++i) {
+    float v = *(const float *)((const char *)s + spec_fields[i].offset);
+    if (!isfinite(v) || v < 0.f || v > 1e6f) return -2;
+  }
+  return 0;
+}
+
+void cr_spec_dump(FILE *f, const CrSpec *s) {
+  size_t i;
+  if (!f || !s) return;
+  for (i = 0; i < sizeof(spec_fields) / sizeof(spec_fields[0]); ++i)
+    fprintf(f, "%s = %.9g\n", spec_fields[i].key,
+            (double)*(const float *)((const char *)s + spec_fields[i].offset));
+}
+
 static int iron_on(const CrSpec *s) {
   return s->w_furnace_first != 0.f || s->w_furnace_open != 0.f ||
          s->w_ironore_per != 0.f || s->w_ingot_first != 0.f ||
          s->w_ipick_first != 0.f;
+}
+
+int cr_state_set_spec(CrState *st, const CrSpec *spec) {
+  if (!st || cr_spec_validate(spec)) return -2;
+  st->spec = *spec;
+  st->iron_on = iron_on(spec);
+  return 0;
 }
 
 int cr_state_init(CrState *st, int n, const CrSpec *spec) {
@@ -84,6 +170,10 @@ int cr_state_init(CrState *st, int n, const CrSpec *spec) {
   else {
     cr_spec_default(&def);
     st->spec = def;
+  }
+  if (cr_spec_validate(&st->spec)) {
+    memset(st, 0, sizeof(*st));
+    return -1;
   }
   st->iron_on = iron_on(&st->spec);
   st->best = (int *)calloc((size_t)n * 9, sizeof(int));
@@ -164,7 +254,8 @@ void cr_seed_lane(CrState *st, int i, const int *status) {
     st->best[(size_t)i * 9 + (size_t)k] = status[k];
   if (status[CR_ST_CONT] == 1)
     st->flag_cont[i] = 1;
-  if (st->iron_on) {
+  {
+    /* Seed iron history even when its reward weights are disabled. */
     for (k = 0; k < 4; ++k)
       st->best_iron[(size_t)i * 4 + (size_t)k] = status[13 + k];
     if (status[CR_ST_CONT] == 2)
@@ -257,7 +348,8 @@ void cr_step(CrState *st, const int *status, const unsigned short *cam,
     for (k = 0; k < 9; ++k)
       st->best[(size_t)e * 9 + (size_t)k] = newmax[k];
 
-    if (st->iron_on) {
+    {
+      /* Always track milestones so later weight changes cannot repay them. */
       int *bi = st->best_iron + (size_t)e * 4;
       int newi[4];
       float di[4];
@@ -297,11 +389,11 @@ void cr_step(CrState *st, const int *status, const unsigned short *cam,
       float ld = nearest_log(logs, nseeds, lmax, si, px, py + 1.62f, pz);
       if (st->prev_logd[e] >= 0.f) {
         float shp = s->chop_dist_coef * (st->prev_logd[e] - ld);
-        re += clampf(shp, -s->chop_dist_clamp, s->chop_dist_clamp);
+        re += s->shaping_scale * (clampf(shp, -s->chop_dist_clamp, s->chop_dist_clamp));
       }
       st->prev_logd[e] = ld;
       if (atk && center == 17)
-        re += s->chop_crosshair;
+        re += s->shaping_scale * s->chop_crosshair;
     } else {
       st->prev_logd[e] = -1.f;
     }
@@ -311,11 +403,11 @@ void cr_step(CrState *st, const int *status, const unsigned short *cam,
     on_stone = (center == 1) || (center == 4) || (center == 3) || (center == 2);
     if (digging) {
       float dy = clampf(st->prev_y[e] - py, 0.f, 2.f);
-      re += s->dig_descend_coef * dy;
+      re += s->shaping_scale * (s->dig_descend_coef * dy);
       if (atk && held_pick && on_stone)
-        re += s->dig_stone_atk;
+        re += s->shaping_scale * s->dig_stone_atk;
       if (held_pick)
-        re += s->dig_hold_pick;
+        re += s->shaping_scale * s->dig_hold_pick;
     }
     st->prev_y[e] = py;
 
@@ -324,7 +416,7 @@ void cr_step(CrState *st, const int *status, const unsigned short *cam,
     dprog = maxf(digp - st->prev_digp[e], 0.f);
     stone_px = (center == 1) || (center == 16);
     if (haspick && held_pick && stone_px)
-      re += s->digprog_coef * dprog;
+      re += s->shaping_scale * (s->digprog_coef * dprog);
     st->prev_digp[e] = digp;
 
     hunting = (newmax[CR_IX_WPICK] > 0) && (newmax[CR_IX_COBBLE] >= 3) &&
@@ -341,18 +433,18 @@ void cr_step(CrState *st, const int *status, const unsigned short *cam,
       if (have_nc) {
         if (st->prev_coald[e] >= 0.f) {
           float shp = s->coal_dist_coef * (st->prev_coald[e] - cd);
-          re += clampf(shp, -s->coal_dist_clamp, s->coal_dist_clamp);
+          re += s->shaping_scale * (clampf(shp, -s->coal_dist_clamp, s->coal_dist_clamp));
         }
         st->prev_coald[e] = cd;
       } else {
         st->prev_coald[e] = -1.f;
       }
       if (atk && center == 16 && cd <= s->coal_crosshair_maxd)
-        re += s->coal_crosshair;
+        re += s->shaping_scale * s->coal_crosshair;
       if (held_any_pick)
-        re += s->coal_hold_pick;
+        re += s->shaping_scale * s->coal_hold_pick;
       if (s->coal_chew > 0.f && center == 16 && held_any_pick)
-        re += s->coal_chew * dprog;
+        re += s->shaping_scale * (s->coal_chew * dprog);
     } else {
       st->prev_coald[e] = -1.f;
     }
@@ -362,7 +454,7 @@ void cr_step(CrState *st, const int *status, const unsigned short *cam,
       if (st->min_y[e] <= 1e8f)
         rec_gain = clampf(st->min_y[e] - py, 0.f, 2.f);
       if (hunting && no_coal_scan)
-        re += s->hunt_desc * rec_gain;
+        re += s->shaping_scale * (s->hunt_desc * rec_gain);
     }
     st->min_y[e] = minf(st->min_y[e], py);
 

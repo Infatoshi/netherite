@@ -25,7 +25,7 @@ static void expect_eq_i(int a, int b, const char *msg) {
 
 static void expect_near(float a, float b, float tol, const char *msg) {
   float d = a > b ? a - b : b - a;
-  if (d > tol) {
+  if (!isfinite(a) || !isfinite(b) || d > tol) {
     fprintf(stderr, "FAIL: %s (got %g want %g)\n", msg, (double)a, (double)b);
     g_fails++;
   }
@@ -250,7 +250,187 @@ static void test_curr(void) {
   cr_curr_free(&c);
 }
 
+static void test_recipe_parse(void) {
+  CrSpec spec, copy, before;
+  CrCurrConfig cfg, cc;
+  FILE *f;
+  char line[256], key[128], value[128];
+  int count = 0;
+  cr_spec_default(&spec);
+  expect_eq_i(cr_spec_validate(&spec), 0, "default spec valid");
+  before = spec;
+  expect_eq_i(cr_spec_set(&spec, "reward.time_cost", "-1"), -2, "negative penalty invalid");
+  expect_eq_i(cr_spec_set(&spec, "reward.w_log_per", "nan"), -2, "nan invalid");
+  expect_eq_i(cr_spec_set(&spec, "reward.w_log_per", "1e999"), -2, "overflow invalid");
+  expect_eq_i(cr_spec_set(&spec, "reward.w_log_per", "1x"), -2, "trailing garbage invalid");
+  expect_eq_i(cr_spec_set(&spec, "reward.w_log_per", ""), -2, "empty invalid");
+  expect_eq_i(cr_spec_set(&spec, "reward.w_log_per", "1000001"), -2, "bounded magnitude");
+  expect_eq_i(cr_spec_set(&spec, "reward.unknown", "1"), -1, "unknown distinct");
+  expect_true(!memcmp(&spec, &before, sizeof(spec)), "rejected spec changes atomic");
+  f = tmpfile();
+  expect_true(f != NULL, "reward dump file");
+  if (f) {
+    cr_spec_dump(f, &spec); rewind(f); memset(&copy, 0, sizeof(copy));
+    while (fgets(line, sizeof(line), f)) {
+      expect_eq_i(sscanf(line, "%127s = %127s", key, value), 2, "parse reward dump");
+      expect_eq_i(cr_spec_set(&copy, key, value), 0, "every dumped reward field accepted");
+      ++count;
+    }
+    expect_eq_i(count, (int)(sizeof(CrSpec) / sizeof(float)), "dump covers every coefficient");
+    expect_true(!memcmp(&copy, &spec, sizeof(spec)), "reward dump exact roundtrip");
+    fclose(f);
+  }
+  cr_curr_config_defaults(&cfg);
+  expect_eq_i(cr_curr_config_validate(&cfg), 0, "default curriculum valid");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.min_episodes", "80"), 0, "cross fields deferred");
+  expect_eq_i(cr_curr_config_validate(&cfg), -2, "episodes cannot exceed history");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.history_window", "100"), 0, "later history repairs config");
+  expect_eq_i(cr_curr_config_validate(&cfg), 0, "cross fields valid after parse");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.history_window", "4097"), -2, "history bounded");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.min_episodes", "1.5"), -2, "integer episodes required");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.mastery_threshold", "1.01"), -2, "mastery range");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.stage_weight.5", "1"), -2, "stage index bounded");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.seed_weight.-1", "1"), -2, "seed index unsigned");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.seed_weight.256", "1"), -2, "seed index bounded");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.seed_weight.0", "inf"), -2, "seed weight finite");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.unknown", "1"), -1, "curriculum unknown distinct");
+  expect_eq_i(cr_curr_config_set(&cfg, "curriculum.seed_weight.0", "0"), 0, "zero seed accepted by parser");
+  expect_eq_i(cr_curr_config_validate_seeds(&cfg, 1), -2, "zero active seed sum rejected");
+  expect_eq_i(cr_curr_config_validate_seeds(&cfg, 2), 0, "other active seed keeps sum positive");
+  f = tmpfile(); expect_true(f != NULL, "curriculum dump file");
+  if (f) {
+    cr_curr_config_dump(f, &cfg); rewind(f); memset(&cc, 0, sizeof(cc));
+    while (fgets(line, sizeof(line), f)) {
+      expect_eq_i(sscanf(line, "%127s = %127s", key, value), 2, "parse curriculum dump");
+      expect_eq_i(cr_curr_config_set(&cc, key, value), 0, "every dumped curriculum field accepted");
+    }
+    expect_true(!memcmp(&cc, &cfg, sizeof(cfg)), "curriculum dump exact roundtrip");
+    fclose(f);
+  }
+}
+
+static void test_reward_recipe_behavior(void) {
+  CrSpec spec;
+  CrState st;
+  int status[17] = {0};
+  unsigned short cam[CR_NPIX] = {0};
+  int32_t acts[9] = {0};
+  float pose[5] = {0}, scal[6] = {0}, r;
+  unsigned char done = 0;
+  cr_spec_default(&spec);
+  cr_spec_set(&spec, "reward.shaping_scale", "0");
+  cr_spec_set(&spec, "reward.w_log_per", "7");
+  expect_eq_i(cr_state_init(&st, 1, &spec), 0, "custom reward init");
+  cam[CR_CY * CR_CAM_W + CR_CX] = 17; acts[4] = 1;
+  status[CR_IX_LOG] = 1;
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  expect_near(r, 6.99f, 1e-6f, "shaping zero preserves changed milestone");
+  status[CR_IX_LOG] = 0;
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  status[CR_IX_LOG] = 1;
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  expect_near(r, -.01f, 1e-6f, "drop and reacquire cannot repay milestone");
+  spec.shaping_scale = 2.f;
+  cr_state_set_spec(&st, &spec);
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  expect_near(r, .05f, 1e-6f, "scale two doubles dense crosshair reward");
+  /* Track iron progress while its weights are disabled, then enable it. */
+  status[13] = 1; status[14] = 3; status[15] = 1; status[16] = 1;
+  status[CR_ST_CONT] = 2;
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  spec.w_furnace_first = 3.f; spec.w_furnace_open = 4.f;
+  spec.w_ironore_per = 5.f; spec.w_ingot_first = 6.f; spec.w_ipick_first = 7.f;
+  spec.shaping_scale = 0.f;
+  expect_eq_i(cr_state_set_spec(&st, &spec), 0, "live spec change valid");
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  expect_near(r, -.01f, 1e-6f, "enabling iron does not repay past milestones");
+  cr_reset_lane(&st, 0); cr_seed_lane(&st, 0, status);
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  expect_near(r, -.01f, 1e-6f, "seeded custom iron inventory and furnace cannot repay");
+  status[14] = 4;
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  expect_near(r, 4.99f, 1e-6f, "new ore pays custom coefficient");
+  done = BLAZE_DONE_DEATH;
+  cr_step(&st, status, cam, acts, pose, scal, &done, NULL, NULL, 0, 0, &r);
+  expect_near(r, -5.01f, 1e-6f, "shaping zero preserves death penalty");
+  spec.time_cost = NAN;
+  expect_eq_i(cr_state_set_spec(&st, &spec), -2, "live invalid spec rejected");
+  expect_true(isfinite(st.spec.time_cost), "live rejected spec preserves state");
+  cr_state_free(&st);
+}
+
+static int sample_stage_one(CrCurr *c) {
+  int seeds[4096], stages[4096], i, count = 0;
+  cr_curr_sample(c, 4096, seeds, stages);
+  for (i = 0; i < 4096; ++i) count += stages[i] == 1;
+  return count;
+}
+
+static void test_curr_recipe_behavior(void) {
+  CrCurrConfig cfg;
+  CrCurr a, b;
+  int sa[4096], sb[4096], ta[4096], tb[4096], i, count;
+  cr_curr_config_defaults(&cfg);
+  expect_eq_i(cr_curr_init(&a, 2, .1f, 123), 0, "legacy defaults init");
+  expect_eq_i(cr_curr_init_config(&b, 2, .1f, 123, &cfg), 0, "explicit defaults init");
+  memset(a.avail, 1, 2 * CR_N_STAGES); memset(b.avail, 1, 2 * CR_N_STAGES);
+  cr_curr_sample(&a, 4096, sa, ta); cr_curr_sample(&b, 4096, sb, tb);
+  expect_true(!memcmp(sa, sb, sizeof(sa)) && !memcmp(ta, tb, sizeof(ta)), "default wrapper exact deterministic sequence");
+  cr_curr_free(&a); cr_curr_free(&b);
+
+  cfg.history_window = 4; cfg.min_episodes = 4; cfg.mastery_threshold = .75f;
+  expect_eq_i(cr_curr_init_config(&a, 1, 0.f, 3, &cfg), 0, "short history init");
+  a.avail[1] = 1;
+  for (i = 0; i < 3; ++i) cr_curr_record(&a, 0, 0, 1);
+  count = sample_stage_one(&a);
+  expect_true(count > 400 && count < 850, "minimum episodes holds frontier on stage zero with rehearsal");
+  cr_curr_record(&a, 0, 0, 0);
+  count = sample_stage_one(&a);
+  expect_true(count > 3200 && count < 3750, "configured mastery threshold advances frontier at equality");
+  cfg.mastery_threshold = .9f;
+  cr_curr_init_config(&b, 1, 0.f, 3, &cfg); b.avail[1] = 1;
+  for (i = 0; i < 4; ++i) cr_curr_record(&b, 0, 0, i < 3);
+  count = sample_stage_one(&b);
+  expect_true(count > 400 && count < 850, "higher mastery threshold holds identical history back");
+  cr_curr_free(&b); cfg.mastery_threshold = .75f;
+
+  cr_curr_record(&a, 0, 0, 0);
+  expect_near(cr_curr_succ(&a, 0, 0), .5f, 1e-6f, "history evicts oldest success");
+  count = sample_stage_one(&a);
+  expect_true(count > 400 && count < 850, "history window actually returns frontier after regression");
+  cr_curr_free(&a);
+
+  cfg.stage_weights[1] = 100.f; cfg.seed_weights[0] = 0.f;
+  expect_eq_i(cr_curr_init_config(&a, 2, 0.f, 91, &cfg), 0, "weighted sampler init");
+  expect_eq_i(cr_curr_init_config(&b, 2, 0.f, 91, &cfg), 0, "weighted deterministic twin");
+  a.avail[CR_N_STAGES + 1] = b.avail[CR_N_STAGES + 1] = 1;
+  cr_curr_sample(&a, 4096, sa, ta); cr_curr_sample(&b, 4096, sb, tb);
+  count = 0;
+  for (i = 0; i < 4096; ++i) {
+    expect_eq_i(sa[i], 1, "zero-weight seed never sampled"); count += ta[i] == 1;
+  }
+  expect_true(count > 3700 && count < 4000, "stage weights change actual frontier distribution and retain rehearsal");
+  expect_true(!memcmp(sa, sb, sizeof(sa)) && !memcmp(ta, tb, sizeof(ta)), "weighted draws deterministic");
+  cr_curr_free(&a); cr_curr_free(&b);
+  cfg.stage_weights[1] = 0.f; cfg.seed_weights[0] = 1.f; cfg.seed_weights[1] = 3.f;
+  cr_curr_init_config(&a, 2, 0.f, 10, &cfg);
+  memset(a.avail, 1, 2 * CR_N_STAGES);
+  cr_curr_sample(&a, 4096, sa, ta); count = 0;
+  for (i = 0; i < 4096; ++i) {
+    expect_true(ta[i] != 1, "zero-weight available stage never sampled"); count += sa[i] == 1;
+  }
+  expect_true(count > 2900 && count < 3250, "seed weights change actual sample frequency");
+  cr_curr_free(&a);
+  cr_curr_init_config(&a, 2, 1.f, 10, &cfg);
+  cr_curr_sample(&a, 4096, sa, ta);
+  for (i = 0; i < 4096; ++i) expect_eq_i(ta[i], 0, "t0 share overrides stage mixture");
+  cr_curr_free(&a);
+}
+
 int main(void) {
+  test_recipe_parse();
+  test_reward_recipe_behavior();
+  test_curr_recipe_behavior();
   test_gae();
   test_reward_milestones();
   test_reset_nonzero_inventory_no_first_bonus();
