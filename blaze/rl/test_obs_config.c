@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#define _DARWIN_C_SOURCE
 #include "obs_pack.h"
 #include "rl_ckpt.h"
 #include <dirent.h>

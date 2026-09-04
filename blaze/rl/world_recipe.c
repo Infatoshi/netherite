@@ -6,6 +6,7 @@
 #include "blaze_snapshot.h"
 #include "blaze_io.h"
 #include <errno.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,7 +49,8 @@ static int file_hash(const char *path, uint64_t *out) {
 }
 
 static int prepare_one(const char *src, const char *dst, int size,
-                       FILE *manifest, int *max_cells, char *err, size_t cap) {
+                       FILE *manifest, int *max_cells, const WorldRecipeOptions *o,
+                       char *err, size_t cap) {
     CuSnapshot *s = calloc(1, sizeof *s);
     uint64_t before, after, prepared;
     unsigned logs = 0;
@@ -57,17 +59,32 @@ static int prepare_one(const char *src, const char *dst, int size,
     if (file_hash(src, &before)) { fail(err, cap, "cannot hash source", src); goto done; }
     if (!blaze_snapshot_load(src, s, err, (int)cap, 0) ||
         !blaze_snapshot_crop(s, size, err, (int)cap, 0)) goto done;
+    long cells = (long)s->head.rnx * s->head.rny * s->head.rnz;
+    for (long i = 0; i < cells; ++i) {
+        int id = s->cells[i] >> 4;
+        if (id == 17 || id == 162) ++logs;
+    }
+    if (o) {
+        if (logs < (unsigned)o->min_logs || s->ncoal < (unsigned)o->min_coal) {
+            fail(err, cap, "prepared world lacks required logs or coal", src); goto done;
+        }
+        uint64_t random = before ^ o->seed;
+        random = (random ^ (random >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+        random = (random ^ (random >> 27)) * UINT64_C(0x94d049bb133111eb);
+        random ^= random >> 31;
+        if (o->yaw_jitter > 0) s->head.yaw += (float)((double)(random & 0xffffffffu) / 4294967295.0 * 2 - 1) * o->yaw_jitter;
+        if (o->pitch_jitter > 0) {
+            s->head.pitch += (float)((double)(random >> 32) / 4294967295.0 * 2 - 1) * o->pitch_jitter;
+            if (s->head.pitch < -90) s->head.pitch = -90;
+            if (s->head.pitch > 90) s->head.pitch = 90;
+        }
+    }
     if (!blaze_snapshot_write(dst, s, err, (int)cap)) goto done;
     if (file_hash(src, &after) || before != after) {
         fail(err, cap, "source changed during world preparation", src); goto done;
     }
     if (file_hash(dst, &prepared)) { fail(err, cap, "cannot hash prepared world", dst); goto done; }
-    long cells = (long)s->head.rnx * s->head.rny * s->head.rnz;
     if (cells > *max_cells) *max_cells = (int)cells;
-    for (long i = 0; i < cells; ++i) {
-        int id = s->cells[i] >> 4;
-        if (id == 17 || id == 162) ++logs;
-    }
     fprintf(manifest, "%s\t%016llx\t%s\t%016llx\t%d\t%d\t%d\t%d\t%d\t%d\t%u\t%u\n",
             src, (unsigned long long)before, dst, (unsigned long long)prepared,
             s->head.rx0, s->head.ry0, s->head.rz0,
@@ -100,10 +117,24 @@ static void discard(WorldRecipe *r) {
 
 int world_recipe_prepare(WorldRecipe *r, const char *const *sources, int count,
                          int world_size, char *err, size_t cap) {
+    WorldRecipeOptions o = {0};
+    o.world_size = world_size;
+    return world_recipe_prepare_options(r, sources, count, &o, err, cap);
+}
+
+int world_recipe_prepare_options(WorldRecipe *r, const char *const *sources,
+                                 int count, const WorldRecipeOptions *o,
+                                 char *err, size_t cap) {
     char nether[1024], end[1024], manifest_path[WORLD_RECIPE_PATH];
     char bank_path[WORLD_RECIPE_PATH], side[WORLD_RECIPE_PATH], name[64];
     FILE *manifest = NULL;
+    if (!o) return fail(err, cap, "missing world options", "");
+    int world_size = o->world_size;
+    int unchanged = !world_size && !o->min_logs && !o->min_coal && !o->yaw_jitter && !o->pitch_jitter;
     if (!r || !sources || count < 1 || count > WORLD_RECIPE_MAX ||
+        o->min_logs < 0 || o->min_coal < 0 || !isfinite(o->yaw_jitter) ||
+        !isfinite(o->pitch_jitter) || o->yaw_jitter < 0 || o->yaw_jitter > 180 ||
+        o->pitch_jitter < 0 || o->pitch_jitter > 90 ||
         (world_size != 0 && (world_size < 32 || world_size > 256 || world_size % 16)))
         return fail(err, cap, "invalid world recipe", "");
     memset(r, 0, sizeof *r);
@@ -112,9 +143,9 @@ int world_recipe_prepare(WorldRecipe *r, const char *const *sources, int count,
         if (!sources[i] || strlen(sources[i]) >= WORLD_RECIPE_PATH ||
             strpbrk(sources[i], "\t\r\n"))
             return fail(err, cap, "invalid source path", "");
-        if (!world_size) strcpy(r->paths[i], sources[i]);
+        if (unchanged) strcpy(r->paths[i], sources[i]);
     }
-    if (!world_size) return 0;
+    if (unchanged) return 0;
     if (cu_resolve_banks(sources, count, "", "", "", "", nether, end, err, (int)cap))
         return -1;
     if (make_dir("out") || make_dir("out/blaze") || make_dir("out/blaze/rl") ||
@@ -133,7 +164,7 @@ int world_recipe_prepare(WorldRecipe *r, const char *const *sources, int count,
     const char *bank_names[] = {"nether.bsnp", "end.bsnp"};
     for (int b = 0; b < 2; ++b) if (banks[b][0]) {
         if (output_path(bank_path, r->directory, bank_names[b])) goto bad_path;
-        if (prepare_one(banks[b], bank_path, world_size, manifest, &r->max_cells, err, cap)) goto failed;
+        if (prepare_one(banks[b], bank_path, world_size, manifest, &r->max_cells, NULL, err, cap)) goto failed;
     }
     for (int i = 0; i < count; ++i) {
         int duplicate = -1;
@@ -142,7 +173,7 @@ int world_recipe_prepare(WorldRecipe *r, const char *const *sources, int count,
         if (duplicate >= 0) { strcpy(r->paths[i], r->paths[duplicate]); continue; }
         snprintf(name, sizeof name, "snapshot_%03d.bsnp", i);
         if (output_path(r->paths[i], r->directory, name)) goto bad_path;
-        if (prepare_one(sources[i], r->paths[i], world_size, manifest, &r->max_cells, err, cap)) goto failed;
+        if (prepare_one(sources[i], r->paths[i], world_size, manifest, &r->max_cells, o, err, cap)) goto failed;
         if (nether[0] || end[0]) {
             snprintf(name, sizeof name, "snapshot_%03d.bsnp.banks", i);
             if (output_path(side, r->directory, name)) goto bad_path;

@@ -1,5 +1,29 @@
 # Runtime architecture repair
 
+## 2026-09-04 follow-up: configurable training recipes
+
+User authorized implementation of training recipe controls and explicitly
+allowed isolated Gamer validation. Work starts at `6829035` on
+`lane/training-recipe`; existing main clones, untracked files and older GPU
+watchers remain untouched. Gamer's main clone has unrelated edits, so GPU
+validation must use a separate worktree fetched from this branch.
+
+Required: expose reward coefficients and curriculum advancement/sampling,
+supported observation/history and action controls, starting-world constraints,
+ordered training phases, and fixed evaluation recipes with explicit coverage
+and checkpoint selection. Defaults preserve existing behavior. Unsupported RGB
+or recurrent-model modes must not masquerade as working switches. Checkpoints
+carry the policy observation/action contract and reject incompatible loads.
+
+Phases inherit global settings, override explicitly listed values, and retain
+the in-memory policy and optimizer while rebuilding episode state between
+phases. Allocation/model-contract changes that cannot preserve training state
+must fail before training starts. Phase budgets and transitions, effective
+configurations, source worlds and evaluation results must be saved under out/.
+Verification requires behavior tests plus actual CPU, Metal and available CUDA
+training/evaluation runs, including a world-size/reward phase transition,
+nondefault observation/action settings, and rejected incompatible inputs.
+
 Authorized 2026-09-04 after the architecture review at `4ccbf35`.
 
 ## Follow-up: finite world size in the training recipe

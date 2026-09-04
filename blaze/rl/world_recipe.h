@@ -5,6 +5,7 @@
 #ifndef BLAZE_WORLD_RECIPE_H
 #define BLAZE_WORLD_RECIPE_H
 #include <stddef.h>
+#include <stdint.h>
 #define WORLD_RECIPE_MAX 128
 #define WORLD_RECIPE_PATH 1024
 typedef struct {
@@ -18,4 +19,15 @@ typedef struct {
  * Do not reuse a successful output directory as an input cache. */
 int world_recipe_prepare(WorldRecipe *r, const char *const *sources, int count,
                          int world_size, char *err, size_t err_cap);
+typedef struct WorldRecipeOptions {
+    int world_size;
+    int min_logs, min_coal;
+    float yaw_jitter, pitch_jitter;
+    uint64_t seed;
+} WorldRecipeOptions;
+/* Constraints apply to starting snapshots, not dimension banks. Jitter is
+ * deterministic per source content/seed and recorded in the prepared input. */
+int world_recipe_prepare_options(WorldRecipe *r, const char *const *sources,
+                                 int count, const WorldRecipeOptions *options,
+                                 char *err, size_t cap);
 #endif

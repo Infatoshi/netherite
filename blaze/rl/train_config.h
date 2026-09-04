@@ -7,6 +7,9 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "chain_reward.h"
+#include "chain_curr.h"
+#include "obs_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,6 +64,17 @@ typedef struct TrainConfig {
   int stack_kib; /* CUDA per-thread stack limit, KiB (default 128) */
   char nn_prec[16]; /* "fast" (default) or "f32" */
   char tail_mb[16]; /* mb>0 tail rows (n_tr mod mb): "overlap" (default: one more update on the last mb rows, sealed), "drop" (never trained, sealed), "partial" (own update at its size, CUDA unsealed) */
+  CrSpec reward;
+  CrCurrConfig curriculum;
+  PolicyIoConfig policy_io;
+  char phase_files[TR_CFG_STR_MAX]; /* comma-separated global-overlay configs */
+  char run_dir[TR_CFG_STR_MAX]; /* parent for fresh per-run evidence directory */
+  char eval_conf[TR_CFG_STR_MAX]; /* fixed evaluation recipe, empty disables */
+  char eval_executable[TR_CFG_STR_MAX];
+  int eval_every_chunks;
+  char checkpoint_metric[24]; /* train_success or eval_success */
+  int world_min_logs, world_min_coal;
+  float spawn_yaw_jitter, spawn_pitch_jitter;
 } TrainConfig;
 
 /* Compiled defaults. */
@@ -84,6 +98,8 @@ int tr_cfg_parse_argv(TrainConfig *c, int argc, char **argv);
 
 /* Print every key and its effective value. */
 void tr_cfg_dump(const TrainConfig *c, FILE *out);
+/* Validate relationships after all overlays have been applied. */
+int tr_cfg_validate(const TrainConfig *c, char *err, size_t cap);
 
 #ifdef __cplusplus
 }

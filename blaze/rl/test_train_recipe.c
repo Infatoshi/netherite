@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 700
+#define _DARWIN_C_SOURCE
 #include <train_recipe.h>
 #include <errno.h>
 #include <stdlib.h>

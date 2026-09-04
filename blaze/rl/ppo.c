@@ -11,7 +11,10 @@
  * run_rollout has a compile-time gate against malloc/calloc/realloc/free.
  */
 #define _DEFAULT_SOURCE
+#define _DARWIN_C_SOURCE
 #include "train_config.h"
+#include "train_recipe.h"
+#include "eval_config.h"
 #include "world_recipe.h"
 
 #include "blaze_abi.h"
@@ -39,6 +42,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #ifndef BLAZE_RL_HAVE_CUDA
 #define BLAZE_RL_HAVE_CUDA 0
@@ -228,22 +233,28 @@ static float t0_from_trail(const uint8_t *trail, int n) {
 
 /* Schema-1 weights plus a ticks/t0 sidecar. Last checkpoint is untouched. */
 static int save_best_ckpt(Nn *nn, const char *ckpt, int64_t ticks, float t0,
+                          const char *metric, const PolicyIoConfig *io,
                           char *bin_out, size_t bin_cap) {
   char bin[TR_CFG_STR_MAX + 16];
   char side[TR_CFG_STR_MAX + 16];
   FILE *f;
   size_t n;
+  char err[256];
 
   if (best_ckpt_paths(ckpt, bin, sizeof(bin), side, sizeof(side)) != 0)
     return -1;
   if (mkdir_parents_for_file(bin) != 0)
     return -1;
-  if (nn_save(nn, bin) != 0)
+  if (policy_io_checkpoint_can_save(bin, io, err, sizeof err) != 0) {
+    fprintf(stderr, "ppo: %s\n", err);
+    return -1;
+  }
+  if (nn_save(nn, bin) != 0 || policy_io_checkpoint_write(bin, io, err, sizeof err) != 0)
     return -1;
   f = fopen(side, "w");
   if (!f)
     return -2;
-  fprintf(f, "{\"ticks\": %lld, \"t0\": %.9g}\n", (long long)ticks, (double)t0);
+  fprintf(f, "{\"ticks\": %lld, \"metric\": \"%s\", \"score\": %.9g}\n", (long long)ticks, metric, (double)t0);
   if (fclose(f) != 0)
     return -2;
   if (bin_out && bin_cap) {
@@ -504,7 +515,7 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
     size_t off = (size_t)t * (size_t)n;
 
     t0 = wall_sec();
-    pack_obs(b->cam, b->depth, b->edge, b->scal6, b->pose, b->status,
+    pack_obs_config(&cfg->policy_io, b->cam, b->depth, b->edge, b->scal6, b->pose, b->status,
              b->ep_dec, cfg->ep_dec, b->have_prior, b->prior_frame, n,
              b->planes_cur, b->scal_cur, b->frame_scratch);
     t1 = wall_sec();
@@ -543,7 +554,7 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
     acc_host += wall_sec() - t0;
 
     t0 = wall_sec();
-    acts_to_rows(b->acts_cur, n, b->act_rows);
+    acts_to_rows_config(&cfg->policy_io, b->acts_cur, n, b->act_rows);
     if (env_step(estep, env, b->act_rows, cfg->action_repeat, b->cam, b->depth,
                  b->edge, b->scal6, b->rew, b->done_buf, b->pose,
                  b->status) != 0)
@@ -650,7 +661,7 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
        * the next rollout row is a different episode after masked reset. */
       acc_host += wall_sec() - t0;
       t0 = wall_sec();
-      pack_obs(b->cam, b->depth, b->edge, b->scal6, b->pose, b->status,
+      pack_obs_config(&cfg->policy_io, b->cam, b->depth, b->edge, b->scal6, b->pose, b->status,
                b->ep_dec, cfg->ep_dec, b->have_prior, b->prior_frame, n,
                b->planes_cur, b->scal_cur, b->frame_scratch);
       acc_pack += wall_sec() - t0;
@@ -728,7 +739,7 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
 
   /* Bootstrap value at the post-chunk observation. */
   t0 = wall_sec();
-  pack_obs(b->cam, b->depth, b->edge, b->scal6, b->pose, b->status, b->ep_dec,
+  pack_obs_config(&cfg->policy_io, b->cam, b->depth, b->edge, b->scal6, b->pose, b->status, b->ep_dec,
            cfg->ep_dec, b->have_prior, b->prior_frame, n, b->planes_cur,
            b->scal_cur, b->frame_scratch);
   acc_pack += wall_sec() - t0;
@@ -935,12 +946,54 @@ done:
 #undef TR_ACCUM_UPD_STATS
 }
 
-int main(int argc, char **argv) {
-  TrainConfig cfg;
-  int prc = tr_cfg_parse_argv(&cfg, argc, argv);
+typedef struct TrainCarry {
+  Nn *roll, *update;
+  int split;
+  uint64_t sample_rng;
+  int64_t total_ticks;
+  float best_score;
+  int64_t best_ticks;
+  char best_bin[TR_CFG_STR_MAX + 16];
+} TrainCarry;
+
+static int evaluate_checkpoint(const TrainConfig *cfg, const char *run_path,
+                               int phase, int chunk, float *score) {
+  char checkpoint_arg[TR_CFG_STR_MAX + 32], report_arg[TR_CFG_STR_MAX + 64];
+  char report[TR_CFG_STR_MAX + 32], score_path[TR_CFG_STR_MAX + 40];
+  int status;
+  if (snprintf(report, sizeof report, "%s/eval_%03d_%06d.json", run_path, phase, chunk) >= (int)sizeof report ||
+      snprintf(checkpoint_arg, sizeof checkpoint_arg, "checkpoint=%s", cfg->checkpoint) >= (int)sizeof checkpoint_arg ||
+      snprintf(report_arg, sizeof report_arg, "report=%s", report) >= (int)sizeof report_arg ||
+      snprintf(score_path, sizeof score_path, "%s.score", report) >= (int)sizeof score_path) return -1;
+  pid_t child = fork();
+  if (child < 0) return -1;
+  if (!child) {
+    execl(cfg->eval_executable, cfg->eval_executable, "--conf", cfg->eval_conf,
+          "--set", checkpoint_arg, "--set", report_arg, (char *)NULL);
+    _exit(127);
+  }
+  while (waitpid(child, &status, 0) < 0) if (errno != EINTR) return -1;
+  if (!WIFEXITED(status) || WEXITSTATUS(status)) return -1;
+  FILE *f = fopen(score_path, "r");
+  if (!f) return -1;
+  long long requested = 0, evaluated = 0, successes = 0;
+  double mean_return;
+  char extra;
+  int fields = fscanf(f, "%lld %lld %lld %lf %c", &requested, &evaluated, &successes, &mean_return, &extra);
+  fclose(f);
+  if (fields != 4 || requested <= 0 || evaluated != requested || successes < 0 || successes > evaluated || !isfinite(mean_return)) return -1;
+  *score = (float)((double)successes / (double)evaluated);
+  printf("ppo: evaluation phase=%d chunk=%d episodes=%lld successes=%lld score=%.9g report=%s\n",
+          phase, chunk, evaluated, successes, (double)*score, report);
+  return 0;
+}
+
+static int train_phase(const TrainConfig *selected, TrainCarry *carry,
+                       int phase_index, const char *run_path, FILE *events) {
+  TrainConfig cfg = *selected;
   void *env = NULL;
-  Nn *nn_roll = NULL;
-  Nn *nn_upd = NULL;
+  Nn *nn_roll = carry->roll;
+  Nn *nn_upd = carry->update;
   NnCreate nd;
   NnConfig nc;
   NnUpdateStats stats;
@@ -972,6 +1025,7 @@ int main(int argc, char **argv) {
   int nsnaps = 0;
   int lmax = 1;
   int chunk;
+  int completed_chunks = 0;
   int64_t ticks = 0;
   int64_t next_ckpt;
   int n_eps = 0;
@@ -980,12 +1034,12 @@ int main(int argc, char **argv) {
   int64_t cap_last[MAX_SEEDS * CR_N_STAGES];
   uint64_t rng;
   double t0_wall;
-  int split_nn = 0;
+  int split_nn = carry->split;
   int drop_tail = 0;
   int n_upd_skip = 0;
   int upd_n;
-  float best_t0 = -1.f;
-  int64_t best_ticks = 0;
+  float best_t0 = carry->best_score;
+  int64_t best_ticks = carry->best_ticks;
   char best_bin[TR_CFG_STR_MAX + 16];
 
   memset(&b, 0, sizeof(b));
@@ -995,7 +1049,7 @@ int main(int argc, char **argv) {
   memset(&curr, 0, sizeof(curr));
   memset(t0_trail, 0, sizeof(t0_trail));
   memset(cap_last, 0, sizeof(cap_last));
-  best_bin[0] = '\0';
+  memcpy(best_bin, carry->best_bin, sizeof best_bin);
   for (i = 0; i < MAX_SEEDS * CR_N_STAGES; ++i)
     cap_last[i] = (int64_t)-1000000000;
 #if BLAZE_RL_HAVE_CUDA
@@ -1004,11 +1058,6 @@ int main(int argc, char **argv) {
 #if BLAZE_RL_HAVE_METAL
   memset(&metal_obs, 0, sizeof(metal_obs));
 #endif
-
-  if (prc == 1)
-    return 0;
-  if (prc != 0)
-    return 2;
 
   if (strcmp(cfg.backend, "cpu") == 0) {
     is_cuda = 0;
@@ -1055,7 +1104,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   batch = n * T;
-  rng = cfg.seed ? cfg.seed : 1;
+  rng = carry->sample_rng;
   next_ckpt = cfg.ckpt_ticks;
   if (cfg.max_ticks > 0 &&
       (int64_t)cfg.max_chunks * (int64_t)n * (int64_t)T *
@@ -1109,7 +1158,9 @@ int main(int argc, char **argv) {
 
   /* Resolve the recipe before policy/GPU allocation. Both the environment
    * and the curriculum's log-target scan consume these exact same inputs. */
-  if (world_recipe_prepare(&world_recipe, paths, nsnaps, cfg.world_size,
+  WorldRecipeOptions world_options = {cfg.world_size, cfg.world_min_logs, cfg.world_min_coal,
+                                     cfg.spawn_yaw_jitter, cfg.spawn_pitch_jitter, cfg.seed};
+  if (world_recipe_prepare_options(&world_recipe, paths, nsnaps, &world_options,
                            err, sizeof err) != 0) {
     fprintf(stderr, "ppo: world preparation failed: %s\n", err);
     return 1;
@@ -1148,6 +1199,9 @@ int main(int argc, char **argv) {
   nd.device = cfg.device;
   nd.config = nc;
   nd.prec = (!strcmp(cfg.nn_prec, "f32")) ? NN_PREC_F32 : NN_PREC_FAST;
+  drop_tail = is_cuda && cfg.mb > 0 && cfg.mb <= batch - n &&
+              strcmp(cfg.tail_mb, "partial") != 0;
+  if (!nn_roll) {
   if (is_metal) {
     nd.max_n = n;
     nn_roll = nn_create(&nd);
@@ -1208,7 +1262,11 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
 
-  if (cfg.init_from[0]) {
+  carry->roll = nn_roll;
+  carry->update = nn_upd;
+  carry->split = split_nn;
+  }
+  if (cfg.init_from[0] && phase_index == 0) {
     if (rl_ckpt_load(nn_roll, cfg.init_from) != 0) {
       fprintf(stderr, "ppo: init_from load failed: %s (%s)\n", cfg.init_from,
               nn_last_error());
@@ -1221,6 +1279,11 @@ int main(int argc, char **argv) {
     }
     printf("ppo: init_from=%s\n", cfg.init_from);
     fflush(stdout);
+  }
+  if (mkdir_parents_for_file(cfg.checkpoint) ||
+      policy_io_checkpoint_write(cfg.checkpoint, &cfg.policy_io, err, sizeof err) != 0) {
+    fprintf(stderr, "ppo: checkpoint contract: %s\n", err);
+    return 1;
   }
 
   if (blaze_fns_load(&fns, so_path, want_cam) != 0) {
@@ -1390,10 +1453,10 @@ int main(int argc, char **argv) {
         !b.ret_mb)))
     die("alloc failed");
 
-  if (cr_state_init(&cr, n, NULL) != 0)
+  if (cr_state_init(&cr, n, &cfg.reward) != 0)
     die("cr_state_init failed");
   if (use_curr) {
-    if (cr_curr_init(&curr, nseeds, cfg.t0_share, cfg.seed) != 0)
+    if (cr_curr_init_config(&curr, nseeds, cfg.t0_share, cfg.seed, &cfg.curriculum) != 0)
       die("cr_curr_init failed");
     if (cfg.stage_snaps) {
       int si, stg;
@@ -1405,7 +1468,7 @@ int main(int argc, char **argv) {
         pbuf[0] = '\0';
         abuf[0] = '\0';
         for (stg = 1; stg < CR_N_STAGES; ++stg) {
-          if (paths[cap_slot(nseeds, si, stg)] == paths[si])
+          if (!strcmp(paths[cap_slot(nseeds, si, stg)], paths[si]))
             continue;
           curr.avail[si * CR_N_STAGES + stg] = 1;
           poff += snprintf(pbuf + poff, sizeof(pbuf) - (size_t)poff, "%s%d",
@@ -1428,6 +1491,10 @@ int main(int argc, char **argv) {
   /* Assign t0 snaps and, for curriculum, pre-seed capture slots. */
   for (i = 0; i < n; ++i) {
     b.lane_seed[i] = i % nseeds;
+    if (use_curr) {
+      while (cfg.curriculum.seed_weights[b.lane_seed[i]] == 0.f)
+        b.lane_seed[i] = (b.lane_seed[i] + 1) % nseeds;
+    }
     b.lane_snap[i] = b.lane_seed[i];
     b.lane_stage[i] = 0;
     b.lane_stage_start[i] = 0;
@@ -1508,10 +1575,8 @@ int main(int argc, char **argv) {
              b.cut_val_roll,
              cfg.gamma, cfg.lam, T, n, b.adv_roll, b.ret_roll);
 
-      if (split_nn) {
-        if (nn_copy_weights(nn_roll, nn_upd, cfg.checkpoint) != 0)
-          dief("weight sync roll->upd: %s", nn_last_error());
-      }
+      /* The update model already owns the latest weights and Adam state.
+       * Reloading rollout weights here would erase Adam every chunk. */
 
       t_upd0 = wall_sec();
       rc = ppo_updates(nn_upd, &b, &cfg, n, T, batch, is_metal, drop_tail,
@@ -1532,6 +1597,7 @@ int main(int argc, char **argv) {
       fflush(stdout);
     }
 
+    completed_chunks++;
     ticks += (int64_t)n * (int64_t)T * (int64_t)cfg.action_repeat;
     elapsed = wall_sec() - t0_wall;
 
@@ -1541,6 +1607,8 @@ int main(int argc, char **argv) {
       float t0s = t0_from_trail(t0_trail, t0_n);
       float rsum = 0.f;
       Nn *nn_w = split_nn ? nn_upd : nn_roll;
+      float selection_score = t0s;
+      int have_selection = strcmp(cfg.checkpoint_metric, "eval_success") != 0;
       for (k = 0; k < batch; ++k)
         rsum += b.rew_roll[k];
       printf("ppo: chunk=%d ticks=%lld t0=%.3f rew_mean=%.4f grad=%.4g "
@@ -1553,18 +1621,38 @@ int main(int argc, char **argv) {
              (double)stats.value_loss, (double)lr_now, elapsed, n_eps);
       fflush(stdout);
 
+      if (cfg.eval_every_chunks > 0 &&
+          ((chunk + 1) % cfg.eval_every_chunks == 0 || chunk + 1 == cfg.max_chunks ||
+           (cfg.max_ticks > 0 && ticks >= cfg.max_ticks) ||
+           (cfg.max_wall > 0 && elapsed >= cfg.max_wall))) {
+        float eval_score;
+        if (mkdir_parents_for_file(cfg.checkpoint) || rl_ckpt_save(nn_w, cfg.checkpoint))
+          die("cannot save evaluation checkpoint");
+        if (evaluate_checkpoint(&cfg, run_path, phase_index, chunk, &eval_score))
+          die("evaluation failed or did not cover every requested episode");
+        fprintf(events, "evaluation\t%d\t%lld\t%d\t%.9g\t%s\n", phase_index,
+                (long long)(carry->total_ticks + ticks), cfg.world_size,
+                (double)eval_score, cfg.eval_conf);
+        fflush(events);
+        if (!strcmp(cfg.checkpoint_metric, "eval_success")) {
+          selection_score = eval_score;
+          have_selection = 1;
+        }
+      }
+
       /* Probe t0 is the trailing full-chain rate from t0 starts (same
        * quantity as chain_probe.py's chain success). _best never regresses. */
-      if (t0s > best_t0) {
-        brc = save_best_ckpt(nn_w, cfg.checkpoint, ticks, t0s, best_bin,
+      if (have_selection && selection_score > best_t0) {
+        brc = save_best_ckpt(nn_w, cfg.checkpoint, carry->total_ticks + ticks, selection_score,
+                             cfg.checkpoint_metric, &cfg.policy_io, best_bin,
                              sizeof(best_bin));
         if (brc == -2)
           dief("best sidecar write failed: %s", cfg.checkpoint);
         if (brc != 0)
           dief("nn_save (best): %s", nn_last_error());
-        best_t0 = t0s;
-        best_ticks = ticks;
-        printf("ppo: best t0=%.3f ticks=%lld ckpt=%s\n", (double)best_t0,
+        best_t0 = selection_score;
+        best_ticks = carry->total_ticks + ticks;
+        printf("ppo: best metric=%s score=%.3f ticks=%lld ckpt=%s\n", cfg.checkpoint_metric, (double)best_t0,
                (long long)best_ticks, best_bin);
         fflush(stdout);
       }
@@ -1583,8 +1671,9 @@ int main(int argc, char **argv) {
       break;
   }
 
-  if (!isfinite(stats.grad_norm) || !(stats.grad_norm > 0.f)) {
-    fprintf(stderr, "ppo: grad_norm not finite/nonzero (got %g)\n",
+  if (!isfinite(stats.grad_norm) || !isfinite(stats.policy_loss) ||
+      !isfinite(stats.value_loss) || !isfinite(stats.total_loss)) {
+    fprintf(stderr, "ppo: nonfinite update statistics (gradient %g)\n",
             (double)stats.grad_norm);
     return 1;
   }
@@ -1593,24 +1682,31 @@ int main(int argc, char **argv) {
     dief("mkdir parents for checkpoint failed: %s", cfg.checkpoint);
   if (rl_ckpt_save(split_nn ? nn_upd : nn_roll, cfg.checkpoint) != 0)
     dief("nn_save: %s", nn_last_error());
-  if (rl_ckpt_load(split_nn ? nn_upd : nn_roll, cfg.checkpoint) != 0)
-    dief("nn_load: %s", nn_last_error());
+  /* Do not reload: schema-1 weights reset Adam, which must survive phases. */
 
   if (n_upd_skip > 0)
-    printf("ppo: update skips=%d chunks=%d\n", n_upd_skip, chunk);
+    printf("ppo: update skips=%d chunks=%d\n", n_upd_skip, completed_chunks);
 
   printf("ppo: PASS backend=%s device=%d n_envs=%d rollout_steps=%d batch=%d "
          "chunks=%d ticks=%lld grad_norm=%.6g policy_loss=%.6g "
          "value_loss=%.6g total_loss=%.6g ckpt=%s best=%s best_t0=%.3f "
          "best_ticks=%lld\n",
-         cfg.backend, cfg.device, n, T, batch, chunk, (long long)ticks,
+         cfg.backend, cfg.device, n, T, batch, completed_chunks, (long long)ticks,
          (double)stats.grad_norm, (double)stats.policy_loss,
          (double)stats.value_loss, (double)stats.total_loss, cfg.checkpoint,
          best_bin[0] ? best_bin : "-", (double)best_t0, (long long)best_ticks);
 
-  if (split_nn)
-    nn_destroy(nn_upd);
-  nn_destroy(nn_roll);
+  carry->sample_rng = rng;
+  carry->total_ticks += ticks;
+  carry->best_score = best_t0;
+  carry->best_ticks = best_ticks;
+  memcpy(carry->best_bin, best_bin, sizeof best_bin);
+  fprintf(events, "optimizer_steps\t%d\t%lld\t%d\t%lld\t%s\n", phase_index,
+          (long long)carry->total_ticks, cfg.world_size,
+          (long long)nn_training_steps(nn_upd), cfg.checkpoint);
+  fprintf(events, "phase_end\t%d\t%lld\t%d\t%d\t%s\n", phase_index,
+          (long long)carry->total_ticks, cfg.world_size, n_eps, cfg.checkpoint);
+  fflush(events);
 #if BLAZE_RL_HAVE_CUDA
   if (is_cuda)
     env_cuda_stage_destroy(&stage);
@@ -1686,4 +1782,139 @@ fail_env:
   fns.destroy(env);
   blaze_fns_close(&fns);
   return 1;
+}
+
+int main(int argc, char **argv) {
+  TrainConfig base;
+  TrainRecipe *recipe;
+  TrainCarry carry = {0};
+  EvalCfg fixed_eval;
+  int have_eval = 0;
+  char err[512], run_path[TR_CFG_STR_MAX + 32], path[TR_CFG_STR_MAX + 64];
+  int result = tr_cfg_parse_argv(&base, argc, argv);
+  if (result < 0) return 2;
+  recipe = calloc(1, sizeof *recipe);
+  if (!recipe) return 1;
+  if (tr_recipe_load(&base, recipe, err, sizeof err)) {
+    fprintf(stderr, "ppo: recipe rejected: %s\n", err);
+    free(recipe);
+    return 2;
+  }
+  if (result == 1) { free(recipe); return 0; }
+  for (int i = 0; i < recipe->count; ++i) {
+    TrainConfig *c = &recipe->phase[i];
+    struct stat initial_stat, checkpoint_stat;
+    char best_output[TR_CFG_STR_MAX + 16], best_sidecar[TR_CFG_STR_MAX + 16];
+    if (best_ckpt_paths(c->checkpoint, best_output, sizeof best_output, best_sidecar, sizeof best_sidecar)) {
+      fprintf(stderr, "ppo: checkpoint path too long\n"); free(recipe); return 2;
+    }
+    const char *outputs[] = {c->checkpoint, best_output};
+    for (int output = 0; output < 2; ++output) {
+      if (c->init_from[0] && (!strcmp(c->init_from, outputs[output]) ||
+          (!stat(c->init_from, &initial_stat) && !stat(outputs[output], &checkpoint_stat) &&
+           initial_stat.st_dev == checkpoint_stat.st_dev && initial_stat.st_ino == checkpoint_stat.st_ino))) {
+        fprintf(stderr, "ppo: checkpoint and best output must differ from init_from input\n");
+        free(recipe); return 2;
+      }
+    }
+    if (policy_io_checkpoint_can_save(c->checkpoint, &c->policy_io, err, sizeof err)) {
+      fprintf(stderr, "ppo: checkpoint rejected: %s\n", err);
+      free(recipe); return 2;
+    }
+    if (policy_io_checkpoint_can_save(best_output, &c->policy_io, err, sizeof err)) {
+      fprintf(stderr, "ppo: best checkpoint rejected: %s\n", err);
+      free(recipe); return 2;
+    }
+    if (c->init_from[0]) {
+      int compatible = policy_io_checkpoint_check(c->init_from, &c->policy_io, err, sizeof err);
+      if (compatible < 0) {
+        fprintf(stderr, "ppo: init_from rejected: %s\n", err);
+        free(recipe); return 2;
+      }
+      if (compatible == 1 && !i)
+        fprintf(stderr, "ppo: legacy checkpoint has no policy contract; using exact default inputs/actions\n");
+    }
+    if (c->eval_every_chunks && access(c->eval_executable, X_OK)) {
+      fprintf(stderr, "ppo: evaluation executable unavailable: %s\n", c->eval_executable);
+      free(recipe); return 2;
+    }
+    if (c->eval_every_chunks && !have_eval) {
+      eval_cfg_defaults(&fixed_eval);
+      if (eval_cfg_load(&fixed_eval, c->eval_conf, err, sizeof err) ||
+          eval_cfg_set(&fixed_eval, "checkpoint", c->checkpoint) ||
+          eval_cfg_validate(&fixed_eval, err, sizeof err) ||
+          !strcmp(fixed_eval.backend, "magma") ||
+          policy_io_fingerprint(&fixed_eval.policy) != policy_io_fingerprint(&c->policy_io)) {
+        fprintf(stderr, "ppo: evaluation recipe invalid or policy contract differs\n");
+        free(recipe); return 2;
+      }
+      have_eval = 1;
+    }
+  }
+  if (snprintf(run_path, sizeof run_path, "%s/run-XXXXXX", base.run_dir) >= (int)sizeof run_path ||
+      mkdir_parents_for_file(run_path) || !mkdtemp(run_path)) {
+    fprintf(stderr, "ppo: cannot create private recipe directory\n");
+    free(recipe); return 1;
+  }
+  snprintf(path, sizeof path, "%s/recipe.conf", run_path);
+  FILE *f = fopen(path, "w");
+  if (!f) { free(recipe); return 1; }
+  tr_cfg_dump(&base, f);
+  int bad = ferror(f);
+  if (fclose(f)) bad = 1;
+  if (bad) { free(recipe); return 1; }
+  if (have_eval) {
+    snprintf(path, sizeof path, "%s/eval.conf", run_path);
+    f = fopen(path, "w");
+    if (!f) { free(recipe); return 1; }
+    eval_cfg_dump(&fixed_eval, f);
+    bad = ferror(f);
+    if (fclose(f)) bad = 1;
+    if (bad || strlen(path) >= TR_CFG_STR_MAX) { free(recipe); return 1; }
+    for (int i = 0; i < recipe->count; ++i)
+      if (recipe->phase[i].eval_every_chunks) strcpy(recipe->phase[i].eval_conf, path);
+  }
+  snprintf(path, sizeof path, "%s/events.tsv", run_path);
+  FILE *events = fopen(path, "w");
+  if (!events) { free(recipe); return 1; }
+  fprintf(events, "event\tphase\ttotal_ticks\tworld_size\tvalue\tartifact\n");
+  carry.sample_rng = base.seed ? base.seed : 1;
+  carry.best_score = -1;
+  printf("ppo: recipe phases=%d directory=%s\n", recipe->count, run_path);
+  result = 0;
+  for (int i = 0; i < recipe->count; ++i) {
+    snprintf(path, sizeof path, "%s/phase_%03d.conf", run_path, i);
+    f = fopen(path, "w");
+    if (!f) { result = 1; break; }
+    tr_cfg_dump(&recipe->phase[i], f);
+    bad = ferror(f);
+    if (fclose(f)) bad = 1;
+    if (bad) { result = 1; break; }
+    fprintf(events, "phase_start\t%d\t%lld\t%d\t%d\t%s\n", i,
+            (long long)carry.total_ticks, recipe->phase[i].world_size,
+            carry.roll != NULL, path);
+    fflush(events);
+    int64_t previous_steps = carry.update ? nn_training_steps(carry.update) : 0;
+    printf("ppo: phase=%d world_size=%d policy=%s optimizer_steps=%lld config=%s\n", i,
+           recipe->phase[i].world_size, carry.roll ? "retained" : "new",
+           (long long)previous_steps, path);
+    fflush(stdout);
+    result = train_phase(&recipe->phase[i], &carry, i, run_path, events);
+    if (!result && nn_training_steps(carry.update) <= previous_steps) {
+      fprintf(stderr, "ppo: phase did not advance retained optimizer state\n");
+      result = 1;
+    }
+    if (result) break;
+  }
+  if (carry.split) nn_destroy(carry.update);
+  nn_destroy(carry.roll);
+  fprintf(events, "complete\t%d\t%lld\t0\t%d\t%s\n", recipe->count,
+          (long long)carry.total_ticks, result, run_path);
+  bad = ferror(events);
+  if (fclose(events)) bad = 1;
+  if (bad) result = 1;
+  printf("ppo: recipe %s phases=%d total_ticks=%lld directory=%s\n",
+         result ? "FAIL" : "PASS", recipe->count, (long long)carry.total_ticks, run_path);
+  free(recipe);
+  return result;
 }

@@ -2,6 +2,7 @@
 #include "train_config.h"
 
 #include <errno.h>
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -128,11 +129,54 @@ void tr_cfg_defaults(TrainConfig *c) {
   c->stack_kib = 128;
   (void)str_copy_fit(c->nn_prec, sizeof(c->nn_prec), "fast");
   (void)str_copy_fit(c->tail_mb, sizeof(c->tail_mb), "overlap");
+  cr_spec_default(&c->reward);
+  cr_curr_config_defaults(&c->curriculum);
+  policy_io_default(&c->policy_io);
+  (void)str_copy_fit(c->run_dir, sizeof(c->run_dir), "out/blaze/rl/runs");
+  (void)str_copy_fit(c->eval_executable, sizeof(c->eval_executable), "out/blaze/rl/eval");
+  (void)str_copy_fit(c->checkpoint_metric, sizeof(c->checkpoint_metric), "train_success");
 }
 
 int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
   if (!c || !key || !val)
     return -1;
+
+  if (!strncmp(key, "reward.", 7)) return cr_spec_set(&c->reward, key, val);
+  if (!strncmp(key, "curriculum.", 11)) return cr_curr_config_set(&c->curriculum, key, val);
+  if (!strncmp(key, "obs_", 4) || !strncmp(key, "action_", 7)) {
+    if (strcmp(key, "action_repeat")) {
+      int result = policy_io_set(&c->policy_io, key, val, NULL, 0);
+      return result == 0 ? 0 : result == 1 ? -1 : -2;
+    }
+  }
+  if (!strcmp(key, "phase_files"))
+    return str_copy_fit(c->phase_files, sizeof(c->phase_files), val) ? 0 : -2;
+  if (!strcmp(key, "run_dir"))
+    return val[0] && str_copy_fit(c->run_dir, sizeof(c->run_dir), val) ? 0 : -2;
+  if (!strcmp(key, "eval_conf"))
+    return str_copy_fit(c->eval_conf, sizeof(c->eval_conf), val) ? 0 : -2;
+  if (!strcmp(key, "eval_executable"))
+    return val[0] && str_copy_fit(c->eval_executable, sizeof(c->eval_executable), val) ? 0 : -2;
+  if (!strcmp(key, "checkpoint_metric")) {
+    if (strcmp(val, "train_success") && strcmp(val, "eval_success")) return -2;
+    return str_copy_fit(c->checkpoint_metric, sizeof(c->checkpoint_metric), val) ? 0 : -2;
+  }
+  if (!strcmp(key, "eval_every_chunks") || !strcmp(key, "world_min_logs") ||
+      !strcmp(key, "world_min_coal")) {
+    int value;
+    if (!p_int(val, &value) || value < 0) return -2;
+    if (!strcmp(key, "eval_every_chunks")) c->eval_every_chunks = value;
+    else if (!strcmp(key, "world_min_logs")) c->world_min_logs = value;
+    else c->world_min_coal = value;
+    return 0;
+  }
+  if (!strcmp(key, "spawn_yaw_jitter") || !strcmp(key, "spawn_pitch_jitter")) {
+    float value;
+    if (!p_f32(val, &value) || value < 0 || value > (!strcmp(key, "spawn_yaw_jitter") ? 180 : 90)) return -2;
+    if (!strcmp(key, "spawn_yaw_jitter")) c->spawn_yaw_jitter = value;
+    else c->spawn_pitch_jitter = value;
+    return 0;
+  }
 
   if (!strcmp(key, "backend")) {
     if (strcmp(val, "cpu") && strcmp(val, "cuda") && strcmp(val, "metal"))
@@ -458,47 +502,43 @@ int tr_cfg_load_file(TrainConfig *c, const char *path) {
   }
 
   while (fgets(line, (int)sizeof(line), f)) {
-    char *hash;
-    char key[64], val[TR_CFG_STR_MAX];
-    int got;
+    char *key, *value, *end, *hash, *eq;
     int rc;
-
     lineno++;
+    if (!strchr(line, '\n') && !feof(f)) {
+      fprintf(stderr, "config: %s:%d: line too long\n", path, lineno);
+      fclose(f); return -2;
+    }
     hash = strchr(line, '#');
-    if (hash)
-      *hash = '\0';
-    {
-      int has_eq = strchr(line, '=') != NULL;
-      for (char *q = line; *q; ++q) {
-        if (*q == '=')
-          *q = ' ';
-      }
-      got = sscanf(line, "%63s %1023s", key, val);
-      if (got <= 0)
-        continue;
-      if (got == 1) {
-        if (!has_eq) {
-          fprintf(stderr, "config: %s:%d: key '%s' has no value\n", path, lineno,
-                  key);
-          fclose(f);
-          return -2;
-        }
-        val[0] = '\0';
-      }
+    if (hash) *hash = 0;
+    key = line;
+    while (isspace((unsigned char)*key)) key++;
+    if (!*key) continue;
+    eq = strchr(key, '=');
+    if (!eq) {
+      fprintf(stderr, "config: %s:%d: expected key=value\n", path, lineno);
+      fclose(f); return -2;
     }
-    rc = tr_cfg_set(c, key, val);
-    if (rc == -1) {
-      fprintf(stderr, "config: %s:%d: unknown key '%s'\n", path, lineno, key);
-      fclose(f);
-      return -1;
-    }
-    if (rc == -2) {
-      fprintf(stderr, "config: %s:%d: bad value for '%s': '%s'\n", path, lineno,
-              key, val);
-      fclose(f);
-      return -2;
+    *eq = 0;
+    end = eq;
+    while (end > key && isspace((unsigned char)end[-1])) *--end = 0;
+    if (!key[0] || strlen(key) >= 64) { fclose(f); return -2; }
+    for (char *q = key; *q; ++q)
+      if (isspace((unsigned char)*q)) { fclose(f); return -2; }
+    value = eq + 1;
+    while (isspace((unsigned char)*value)) value++;
+    end = value + strlen(value);
+    while (end > value && isspace((unsigned char)end[-1])) *--end = 0;
+    if (strlen(value) >= TR_CFG_STR_MAX) { fclose(f); return -2; }
+    rc = tr_cfg_set(c, key, value);
+    if (rc) {
+      fprintf(stderr, "config: %s:%d: %s key/value '%s'\n", path, lineno,
+              rc == -1 ? "unknown" : "invalid", key);
+      fclose(f); return rc;
     }
   }
+  if (ferror(f)) { fclose(f); return -3; }
+
   fclose(f);
   return 0;
 }
@@ -552,6 +592,26 @@ void tr_cfg_dump(const TrainConfig *c, FILE *out) {
   fprintf(out, "  %-16s = %d\n", "stack_kib", c->stack_kib);
   fprintf(out, "  %-16s = %s\n", "nn_prec", c->nn_prec);
   fprintf(out, "  %-16s = %s\n", "tail_mb", c->tail_mb);
+  fprintf(out, "phase_files = %s\nrun_dir = %s\neval_conf = %s\neval_executable = %s\n",
+          c->phase_files, c->run_dir, c->eval_conf, c->eval_executable);
+  fprintf(out, "eval_every_chunks = %d\ncheckpoint_metric = %s\n", c->eval_every_chunks, c->checkpoint_metric);
+  fprintf(out, "world_min_logs = %d\nworld_min_coal = %d\nspawn_yaw_jitter = %.9g\nspawn_pitch_jitter = %.9g\n",
+          c->world_min_logs, c->world_min_coal, (double)c->spawn_yaw_jitter, (double)c->spawn_pitch_jitter);
+  cr_spec_dump(out, &c->reward);
+  cr_curr_config_dump(out, &c->curriculum);
+  policy_io_dump(&c->policy_io, out);
+}
+
+int tr_cfg_validate(const TrainConfig *c, char *err, size_t cap) {
+  const char *why = NULL;
+  if (cr_spec_validate(&c->reward) != 0) why = "invalid reward specification";
+  else if (cr_curr_config_validate(&c->curriculum) != 0) why = "invalid curriculum specification";
+  else if (policy_io_validate(&c->policy_io, err, cap) != 0) return -2;
+  else if (c->eval_every_chunks && !c->eval_conf[0]) why = "eval_every_chunks requires eval_conf";
+  else if (!strcmp(c->checkpoint_metric, "eval_success") && (!c->eval_conf[0] || c->eval_every_chunks < 1))
+    why = "eval_success requires eval_conf and positive eval_every_chunks";
+  if (why) { if (err && cap) snprintf(err, cap, "%s", why); return -2; }
+  return 0;
 }
 
 /* True if token looks like a CLI option, not a conf path. */
@@ -658,6 +718,13 @@ int tr_cfg_parse_argv(TrainConfig *c, int argc, char **argv) {
     return -1;
   }
 
+  {
+    char err[256];
+    if (tr_cfg_validate(c, err, sizeof err)) {
+      fprintf(stderr, "config: %s\n", err);
+      return -2;
+    }
+  }
   if (dump) {
     tr_cfg_dump(c, stdout);
     return 1;

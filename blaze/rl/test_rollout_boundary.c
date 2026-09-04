@@ -78,6 +78,7 @@ static void run_case(int code) {
   int64_t cap_last[CR_N_STAGES];
   int eps = 0;
   memset(&b, 0, sizeof b); memset(&cfg, 0, sizeof cfg);
+  policy_io_default(&cfg.policy_io);
   memset(&fns, 0, sizeof fns); memset(&ctx, 0, sizeof ctx);
   memset(&mock, 0, sizeof mock); mock.code = code;
   cfg.ep_dec = code == 0 ? 1 : 10;

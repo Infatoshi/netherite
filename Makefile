@@ -29,7 +29,7 @@ test:
 ifeq ($(UNAME_S),Darwin)
 	$(MAKE) -C blaze/nn test-metal
 endif
-	$(MAKE) -C blaze/rl test-config
+	$(MAKE) -C blaze/rl test-recipe
 	$(MAKE) -C blaze/rl test-world
 	$(MAKE) -C blaze/rl test-capture
 	$(MAKE) -C verify env_knob_gate-selftest

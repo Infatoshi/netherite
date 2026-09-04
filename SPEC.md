@@ -181,6 +181,75 @@ edits by dimension and chunk when evicting them, and preserve progress and goal
 metadata independently of resident blocks. That moving cache is not implemented
 by the current `world_size` setting. Increasing a fixed cube is not its substitute.
 
+### Training recipes
+
+`blaze/rl/ppo.conf` is the editable native training recipe. Compiled defaults,
+then `--conf FILE`, then repeatable `--set key=value` determine its values.
+Unknown keys, malformed values, invalid cross-field constraints and unsupported
+policy modes fail. `--dump-config` prints all effective values, including reward
+coefficients, curriculum weights and observation/action settings.
+
+`phase_files` is an ordered comma-separated list of overlay configs. Every
+phase inherits the global recipe independently; omitted settings do not leak
+from a previous phase. Each phase has its own `max_chunks`, `max_ticks` and
+`max_wall` limits and learning-rate schedule. Limits are checked at completed
+update boundaries. Worlds, starting snapshots, reward assistance, episode/action
+duration and curriculum controls may change by phase. Policy and Adam optimizer
+objects stay alive; the optimizer update counter must advance through every
+phase. Episode/reward/curriculum state and captured starts are rebuilt for the
+new phase. The existing bootstrap at the end of a rollout remains valid before
+the phase reset. This is a scheduled phase transition, not chunk streaming.
+
+Backend/device, environment count, rollout length, minibatch layout, precision,
+random seed, observation/action contract, warm-start input, checkpoint path and
+evaluation contract must agree across phases. Those changes require a separate
+run. `init_from` loads weights only and resets Adam; it is not an exact training
+resume. Primary and derived best checkpoint outputs cannot alias that input.
+
+All `reward.*` coefficients and `reward.shaping_scale` are configurable; the
+scale affects dense assistance, leaving milestone rewards and penalties intact.
+`curriculum.*` controls mastery threshold, history window, minimum episodes,
+stage weights and seed weights. Seed weights index `train_seeds` order, and
+zero excludes a seed from sampling. Stage zero retains positive weight as the
+available fallback. Starting inventory, terrain and hazards come from the
+selected fixture or stage snapshots, preserving their actual game state.
+`world_min_logs` and `world_min_coal` reject unsuitable prepared starts instead
+of silently removing them from the recipe. `spawn_yaw_jitter` and
+`spawn_pitch_jitter` deterministically vary prepared starting angles by source
+content and seed; they do not resample on every reset or modify dimension banks.
+
+The policy tensor stays 18x36x64 plus 27 scalars. Configurable inputs include
+one/two-frame history, seven semantic channels, depth, edges and scalar groups.
+`obs_pixel_stride` coarsens samples then expands back to the same tensor, so it
+does not claim reduced model resolution or compute. Camera angle increments and
+the nine action-head enable bits are configurable. RGB and recurrent memory
+require model changes and are not supported settings. Checkpoint
+`.policy.conf` sidecars identify this exact contract; mismatches fail before
+weight loading. Legacy weights without metadata are accepted only with the
+exact default observation/action contract and an explicit warning.
+
+`blaze/rl/eval.conf` independently fixes seeds, starting stage, world size,
+episode budget, repeat count and deterministic/sampled actions. It can run as
+`out/blaze/rl/eval --conf FILE --set checkpoint=PATH`. Evaluation emits per-episode
+JSON and the effective recipe; a `.score` file exists only for complete, finite
+Blaze evaluations. Missing requested inputs fail by default, and explicit partial
+diagnostic evaluation cannot select a checkpoint. Magma evaluation reports no
+return because its interface has no reward output, and it does not emit a score.
+Training enables periodic evaluation with `eval_conf` and `eval_every_chunks`;
+`checkpoint_metric=eval_success` selects best weights using completed evaluation
+episodes rather than training reward. The effective evaluation recipe is copied
+once into the run directory. Users must choose evaluation seeds distinct from
+training seeds when measuring transfer; the historical default seed list alone
+does not guarantee that separation.
+
+Every invocation creates a private directory beneath `run_dir` containing the
+global recipe, effective phase recipes, fixed evaluation recipe when enabled,
+transition/optimizer events and evaluation results. World manifests remain next
+to prepared snapshots under `out/blaze/rl/worlds/`. `make -C blaze/rl test-recipe`
+checks the parsers, reward/curriculum behavior, policy contracts, phase constraints
+and world preparation. Executable CPU/Metal/CUDA runs are still required to
+validate a changed trainer path; a parsed knob alone is not evidence it works.
+
 Runtime random values use a counter-based or hash-based protocol. The result
 does not depend on thread order or backend scheduling.
 

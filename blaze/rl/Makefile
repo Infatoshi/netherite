@@ -156,10 +156,11 @@ SAN_SMOKE_BIN := $(SAN_OUT)/ppo
 
 ENV_CPU_SO := $(ENV_OUT)/blaze_cpu.so
 
-TRAIN_CFG_OBJ := $(OUT)/train_config.o
+TRAIN_CFG_OBJ := $(OUT)/train_config.o $(OUT)/train_recipe.o $(OUT)/obs_config.o $(OUT)/eval_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 WORLD_OBJS := $(OUT)/world_recipe.o $(OUT)/world_snapshot.o
 SAN_WORLD_OBJS := $(SAN_OUT)/world_recipe.o $(SAN_OUT)/world_snapshot.o
+SAN_RECIPE_OBJS := $(SAN_OUT)/train_recipe.o $(SAN_OUT)/obs_config.o $(SAN_OUT)/eval_config.o
 
 .PHONY: test-world
 ifeq ($(UNAME_S),Darwin)
@@ -176,8 +177,8 @@ $(OUT)/test_world_recipe: test_world_recipe.c world_recipe.h $(WORLD_OBJS) $(OUT
 $(OUT)/test_world_boundary: $(ENV_SRC)/test_world_boundary.c $(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS_COMMON) -o $@ $(ENV_SRC)/test_world_boundary.c -lm
 
-$(OUT)/test_rollout_boundary: test_rollout_boundary.c ppo.c world_recipe.h train_config.h obs_pack.h chain_reward.c chain_reward.h chain_curr.c $(ENV_SRC)/blaze_abi.h | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -ffunction-sections -fdata-sections -o $@ test_rollout_boundary.c chain_reward.c chain_curr.c $(WORLD_TEST_LDFLAGS) $(LDLIBS)
+$(OUT)/test_rollout_boundary: obs_config.c obs_config.h test_rollout_boundary.c ppo.c world_recipe.h train_config.h obs_pack.h chain_reward.c chain_reward.h chain_curr.c $(ENV_SRC)/blaze_abi.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -ffunction-sections -fdata-sections -o $@ test_rollout_boundary.c chain_reward.c chain_curr.c obs_config.c $(WORLD_TEST_LDFLAGS) $(LDLIBS)
 
 test-world: $(OUT)/test_world_crop $(OUT)/test_world_recipe $(OUT)/test_world_boundary $(OUT)/test_rollout_boundary
 	cd $(REPO) && ./out/blaze/rl/test_world_crop
@@ -209,7 +210,7 @@ $(NN_OUT)/cuda_lt_gemm.o $(NN_OUT)/cuda_layout.o: $(NN_DEPS)
 	@touch $(NN_OBJS)
 endif
 
-$(OUT)/train_config.o: train_config.c train_config.h | $(OUT)
+$(OUT)/train_config.o: train_config.c train_config.h chain_reward.h chain_curr.h obs_config.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ train_config.c
 
 $(OUT)/world_recipe.o: world_recipe.c world_recipe.h $(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_io.h | $(OUT)
@@ -329,8 +330,8 @@ test-entity-spine-fp:
 	@echo "test-entity-spine-fp: CUDA is Linux-only" >&2; exit 1
 endif
 
-$(TEST_BIN): test_train_config.c $(TRAIN_CFG_OBJ) | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_train_config.c $(TRAIN_CFG_OBJ)
+$(TEST_BIN): test_train_config.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_train_config.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) -lm
 
 $(TEST_CHAIN_BIN): test_chain_reward.c $(CHAIN_OBJS) | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_chain_reward.c $(CHAIN_OBJS)
@@ -540,10 +541,10 @@ $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h world_recipe.h $(TRAIN_CFG_OBJ) $(CHAIN
 		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
 		$(LINK_LIBS) $(LDLIBS)
 
-$(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
+$(EVAL_BIN): eval.c eval_config.h obs_pack.h rl_ckpt.h $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
 		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
 		$(METAL_LIB) | $(OUT)
-	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(EVAL_MAGMA_OBJ) \
+	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(EVAL_MAGMA_OBJ) \
 		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
 		$(LINK_LIBS) $(LDLIBS)
 else
@@ -552,9 +553,9 @@ $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h world_recipe.h $(TRAIN_CFG_OBJ) $(CHAIN
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(WORLD_OBJS) $(CHAIN_OBJS) \
 		$(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
 
-$(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
+$(EVAL_BIN): eval.c eval_config.h obs_pack.h rl_ckpt.h $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
 		$(STAGE_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(EVAL_MAGMA_OBJ) \
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(EVAL_MAGMA_OBJ) \
 		$(CHAIN_OBJS) $(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
 endif
 
@@ -751,7 +752,7 @@ eval-magma: $(EVAL_BIN) $(ENV_CPU_SO)
 test: test-config test-chain test-capture smoke
 
 # Sanitizer build of owned sources; env via dlopen of the same .so files.
-$(SAN_OUT)/train_config.o: train_config.c train_config.h | $(SAN_OUT)
+$(SAN_OUT)/train_config.o: train_config.c train_config.h chain_reward.h chain_curr.h obs_config.h | $(SAN_OUT)
 	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ train_config.c
 
 $(SAN_OUT)/chain_reward.o: chain_reward.c chain_reward.h | $(SAN_OUT)
@@ -766,9 +767,9 @@ $(SAN_OUT)/env_metal_obs.o: env_metal_obs.m env_metal_obs.h | $(SAN_OUT)
 		-fsanitize=address,undefined -fno-omit-frame-pointer \
 		$(CPPFLAGS) -c -o $@ env_metal_obs.m
 
-$(SAN_TEST_BIN): test_train_config.c $(SAN_OUT)/train_config.o | $(SAN_OUT)
+$(SAN_TEST_BIN): test_train_config.c $(SAN_OUT)/train_config.o $(SAN_RECIPE_OBJS) $(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o | $(SAN_OUT)
 	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ test_train_config.c \
-		$(SAN_OUT)/train_config.o -fsanitize=address,undefined
+		$(SAN_OUT)/train_config.o $(SAN_RECIPE_OBJS) $(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o -lm -fsanitize=address,undefined
 
 $(SAN_CHAIN_BIN): test_chain_reward.c $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_curr.o | $(SAN_OUT)
@@ -776,10 +777,10 @@ $(SAN_CHAIN_BIN): test_chain_reward.c $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
 		-fsanitize=address,undefined
 
-$(SAN_SMOKE_BIN): ppo.c world_recipe.h $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
+$(SAN_SMOKE_BIN): ppo.c world_recipe.h $(SAN_RECIPE_OBJS) $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_metal_obs.o \
 		$(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(METAL_LIB) | $(SAN_OUT)
-	$(METAL_CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(SAN_WORLD_OBJS) \
+	$(METAL_CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(SAN_RECIPE_OBJS) $(SAN_WORLD_OBJS) \
 		$(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_metal_obs.o \
 		$(METAL_HOST_OBJ) $(NN_OBJS) $(LINK_LIBS) $(LDLIBS) \
@@ -788,9 +789,9 @@ else
 $(SAN_OUT)/env_cuda_stage.o: env_cuda_stage.c env_cuda_stage.h | $(SAN_OUT)
 	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ env_cuda_stage.c
 
-$(SAN_TEST_BIN): test_train_config.c $(SAN_OUT)/train_config.o | $(SAN_OUT)
+$(SAN_TEST_BIN): test_train_config.c $(SAN_OUT)/train_config.o $(SAN_RECIPE_OBJS) $(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o | $(SAN_OUT)
 	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ test_train_config.c \
-		$(SAN_OUT)/train_config.o -fsanitize=address,undefined
+		$(SAN_OUT)/train_config.o $(SAN_RECIPE_OBJS) $(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o -lm -fsanitize=address,undefined
 
 $(SAN_CHAIN_BIN): test_chain_reward.c $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_curr.o | $(SAN_OUT)
@@ -798,10 +799,10 @@ $(SAN_CHAIN_BIN): test_chain_reward.c $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
 		-fsanitize=address,undefined
 
-$(SAN_SMOKE_BIN): ppo.c world_recipe.h $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
+$(SAN_SMOKE_BIN): ppo.c world_recipe.h $(SAN_RECIPE_OBJS) $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
 		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_cuda_stage.o \
 		$(NN_OBJS) $(ENV_CPU_SO) | $(SAN_OUT)
-	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o \
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(SAN_RECIPE_OBJS) $(SAN_WORLD_OBJS) $(SAN_OUT)/train_config.o \
 		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
 		$(SAN_OUT)/env_cuda_stage.o $(NN_OBJS) $(LINK_LIBS) \
 		-fsanitize=address,undefined
@@ -825,3 +826,46 @@ ifeq ($(UNAME_S),Darwin)
 	rm -f $(ENV_OUT)/blaze_metal_obs.so
 endif
 	rmdir $(ENV_OUT) 2>/dev/null || true
+
+$(OUT)/train_recipe.o: train_recipe.c train_recipe.h train_config.h chain_reward.h chain_curr.h obs_config.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ train_recipe.c
+
+$(OUT)/obs_config.o: obs_config.c obs_config.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ obs_config.c
+
+$(OUT)/test_obs_config: test_obs_config.c obs_config.c obs_config.h obs_pack.h rl_ckpt.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -o $@ test_obs_config.c obs_config.c -lm
+
+.PHONY: test-recipe
+test-recipe: test-config test-chain $(OUT)/test_obs_config
+
+$(OUT)/eval_config.o: eval_config.c eval_config.h obs_config.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ eval_config.c
+
+$(OUT)/test_eval_config: test_eval_config.c eval_config.c eval_config.h obs_config.c obs_config.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -o $@ test_eval_config.c eval_config.c obs_config.c -lm
+
+test-recipe: $(OUT)/test_eval_config
+	cd $(REPO) && ./out/blaze/rl/test_obs_config
+	cd $(REPO) && ./out/blaze/rl/test_eval_config
+
+$(OUT)/test_train_recipe: test_train_recipe.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -o $@ test_train_recipe.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) -lm
+
+$(OUT)/test_world_options: test_world_options.c $(WORLD_OBJS) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -o $@ test_world_options.c $(WORLD_OBJS) -lm
+
+test-recipe: test-recipe-behavior
+.PHONY: test-recipe-behavior
+test-recipe-behavior: $(OUT)/test_train_recipe $(OUT)/test_world_options
+	cd $(REPO) && ./out/blaze/rl/test_train_recipe
+	cd $(REPO) && ./out/blaze/rl/test_world_options verify/fixtures/port
+
+$(SAN_OUT)/train_recipe.o: train_recipe.c train_recipe.h train_config.h chain_reward.h chain_curr.h obs_config.h | $(SAN_OUT)
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ train_recipe.c
+
+$(SAN_OUT)/obs_config.o: obs_config.c obs_config.h | $(SAN_OUT)
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ obs_config.c
+
+$(SAN_OUT)/eval_config.o: eval_config.c eval_config.h obs_config.h | $(SAN_OUT)
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ eval_config.c
