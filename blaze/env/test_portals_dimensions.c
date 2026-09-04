@@ -227,6 +227,25 @@ static int run_units(void) {
     expect(!b->dimension_error && b->cells[marker] == 0, "batched worlds do not share mutations");
     expect(snaps[0].cells[marker] == 0 && snaps[1].cells[marker] == 0,
            "source snapshots remain immutable");
+    /* Java/Magma use floor before coordinate scaling, including negatives. */
+    {
+        Blaze *c;
+        plant_cell(&snaps[1], -1, 65, -1, 90, 1);
+        c = test_env(&snaps[0], &snaps[1]);
+        c->pl.ent.posX = c->pl.ent.posZ = -4.5;
+        c->fluid_dim = 0; c->fluid_reg[0].active = 1;
+        c->fluid_reg[0].quiet_steps = 1; c->parity_fluid_mutations = 7;
+        c->mob_watch_time[0] = 23; c->mob_task_tick[0] = 17;
+        transfer(c, -1);
+        expect(!c->dimension_error && c->pl.ent.posX + c->ox == -0.5 &&
+               c->pl.ent.posZ + c->oz == -0.5, "negative coordinate scaling floors correctly");
+        expect(c->fluid_dim == 0 && c->fluid_reg[0].active &&
+               c->fluid_reg[0].quiet_steps == 1 && c->parity_fluid_mutations == 7,
+               "dimension-tagged runtime fluid scheduler survives transit");
+        expect(c->mob_watch_time[0] == 0 && c->mob_task_tick[0] == 0,
+               "new dimension clears mob AI side state");
+        free_test_env(c);
+    }
     a->pl.ent.posX = 10000;
     transfer(a, 0);
     expect(a->dimension_error == CU_DIM_ERR_BOUNDS && a->dimension == -1,
@@ -235,6 +254,24 @@ static int run_units(void) {
     transfer(b, -1);
     expect(b->dimension_error == CU_DIM_ERR_MISSING_BANK && b->dimension == 0,
            "missing bank fails without changing dimension");
+    /* Full +/-128 coverage is required before creating a missing portal. */
+    {
+        CuDimensionRegion d = {0};
+        PortalArrival p;
+        d.rx0 = d.rz0 = -129; d.rnx = d.rnz = 259; d.rny = 128;
+        d.cells = calloc((size_t)259 * 128 * 259, sizeof(u16));
+        if (!d.cells) abort();
+        expect(portal_plan_arrival(&d, 0, 0, &p) == 1 && p.create &&
+               p.by == 70 && p.x == 0.5 && p.z == 0.5,
+               "complete empty destination plans fallback portal at y70");
+        d.cells[((long)129 * 128 + 64) * 259 + 129] = mc_state(1,0);
+        expect(portal_plan_arrival(&d, 0, 0, &p) == 1 && p.create && p.by == 65,
+               "portal creation prefers a supported air site");
+        d.rnx = 128;
+        expect(portal_plan_arrival(&d, 0, 0, &p) == -1,
+               "incomplete destination cannot silently create a portal");
+        free(d.cells);
+    }
     free_test_env(a); free_test_env(b);
     free(snaps[0].cells); free(snaps[1].cells); free(snaps);
     return fails ? 1 : 0;

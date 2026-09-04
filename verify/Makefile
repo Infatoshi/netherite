@@ -7,7 +7,7 @@ CANON   := $(ROOT)/verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77
 
 .PHONY: all env_knob_gate env_knob_gate-selftest env_knob_gate-check \
 	public_export public-export public-export-selftest tape-info \
-	replay test-replay test-replay-contract clean
+	replay test-replay test-replay-contract test-dimensions clean
 
 all: env_knob_gate public_export tape-info replay
 
@@ -77,6 +77,18 @@ test-replay: $(OUT)/replay $(OUT)/tape_info
 	$(OUT)/replay --tape '$(CANON)' --ticks 8 --out '$(OUT)/replay_test' \
 		--magma '$(MAGMA)'
 
+DIMENSION_SO ?= $(ROOT)/blaze/env/blaze_cpu.so
+DIMENSION_SNAPSHOT ?= $(ROOT)/verify/fixtures/port/s10_t0_r64_portals.bsnp
+DL_LIB := $(if $(filter Darwin,$(shell uname -s)),,-ldl)
+
+$(OUT)/test_dimension_lifecycle: $(ROOT)/blaze/env/test_dimension_lifecycle.c \
+        $(ROOT)/blaze/env/blaze_abi.h $(ROOT)/blaze/core/port_parity.h | $(OUT)
+	$(CC) $(CFLAGS) -O2 -I$(ROOT)/blaze/env -I$(ROOT)/blaze/core -o $@ $< $(DL_LIB)
+
+# The selected library is explicit so this same ABI test runs on CPU/CUDA.
+test-dimensions: $(OUT)/test_dimension_lifecycle
+	$(OUT)/test_dimension_lifecycle '$(DIMENSION_SO)' '$(DIMENSION_SNAPSHOT)'
+
 clean:
 	rm -f $(OUT)/env_knob_gate $(OUT)/public_export $(OUT)/tape_info \
-		$(OUT)/replay $(OUT)/test_replay
+		$(OUT)/replay $(OUT)/test_replay $(OUT)/test_dimension_lifecycle
