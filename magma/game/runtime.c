@@ -310,7 +310,7 @@ static void recenter(GmRuntime *r) {
     r->player.ent.posX -= dx; r->player.ent.posZ -= dz;
     r->player.ent.box.minX -= dx; r->player.ent.box.maxX -= dx;
     r->player.ent.box.minZ -= dz; r->player.ent.box.maxZ -= dz;
-    gm_player_ctl_recenter((int)dx, (int)dz);
+    gm_player_ctl_recenter(&r->ctl, (int)dx, (int)dz);
 }
 
 static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float size,
@@ -974,6 +974,7 @@ void gm_runtime_sound_events_clear(GmRuntime *r) {
 int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     if (!r || !cfg) { set_error(err, err_cap, "invalid runtime arguments"); return 0; }
     memset(r, 0, sizeof *r);
+    gm_player_ctl_init(&r->ctl);
     r->tape_armor_points = -1;   /* no recorded armor total until a tape sets it */
     r->world = gm_world_create_type(cfg->seed, (int)cfg->world);
     if (!r->world) { set_error(err, err_cap, "gm_world_create failed"); return 0; }
@@ -989,7 +990,7 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     psv_player_init(&r->player);
     isr_init(&r->player.inv);
     r->player.inv.current_item = 0;
-    gm_player_cursor_set(ic_empty());
+    gm_player_cursor_set(&r->ctl, ic_empty());
     if (cfg->world == GM_WORLD_SUPERFLAT) {
         int surface = gm_world_surface_y(r->world, 8, 8);
         r->player.ent.posX = 8.5;
@@ -1275,7 +1276,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
      * dig sees a held key (and only release clears the counter); mark
      * attack_entity so the dig machine takes the non-BLOCK reset path. */
     {
-        int can_click = gm_player_left_click_allows(action.attack);
+        int can_click = gm_player_left_click_allows(&r->ctl, action.attack);
         if (can_click && r->dimension == 1 &&
             gm_dragon_player_attack(&r->dragon,
                 (const struct PsvPlayer *)&r->player, r->ox, r->oz))
@@ -1295,8 +1296,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
      * t is still consumed during row t, matching the recorder's post-tick
      * semantics. This is mode propagation, not a block-specific shortcut. */
     action.creative = r->tape_creative;
-    gm_player_bind_world_rand(&r->world_rand);
-    gm_player_tick_gr((struct Chunk *)r->window,
+    gm_player_bind_world_rand(&r->ctl, &r->world_rand);
+    gm_player_tick_gr(&r->ctl, (struct Chunk *)r->window,
                       (const struct McSinTable *)&r->sin_table,
                       (struct PsvPlayer *)&r->player,
                       (struct PvStats *)&r->vitals, &r->gamerules, action,
@@ -1337,10 +1338,10 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     /* Minecraft pins this sentinel every runTick while a block GUI is open,
      * after attack-release handling would otherwise clear it. */
     if (r->container >= 1 && r->container <= 3)
-        gm_player_set_gui_blocked(1);
+        gm_player_set_gui_blocked(&r->ctl, 1);
     {
         ICStack dropped;
-        if (gm_player_take_drop(&dropped))
+        if (gm_player_take_drop(&r->ctl, &dropped))
             gm_live_spawn_stack(&r->entities,
                                 r->player.ent.posX + (double)r->ox,
                                 r->player.ent.posY + 1.3,
@@ -1349,7 +1350,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     }
     {
         int tx, ty, tz, fuse;
-        if (gm_player_take_tnt_ignite(&tx, &ty, &tz, &fuse)) {
+        if (gm_player_take_tnt_ignite(&r->ctl, &tx, &ty, &tz, &fuse)) {
             /* BlockTNT.java:91 (float)x+0.5F; fuse 80, no world.rand. */
             gm_mobs_spawn_tnt_primed(&r->mobs,
                                      (double)((float)tx + 0.5f), (double)ty,
@@ -1361,7 +1362,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
      * it is render/audio-only state and the RL snapshot excludes it. */
     {
         int hx, hy, hz, hstate;
-        if (gm_player_take_dig_sound(&hx, &hy, &hz, &hstate))
+        if (gm_player_take_dig_sound(&r->ctl, &hx, &hy, &hz, &hstate))
             runtime_block_hit_audio_append(r, hx, hy, hz, hstate);
     }
     /* Ghost pushers (tape replay): EntityLivingBase.collideWithNearbyEntities
@@ -1664,7 +1665,7 @@ void gm_runtime_tick_entry_feet(const GmRuntime *r,
 }
 
 void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
-    gm_player_view((const struct PsvPlayer *)&r->player, r->ox, r->oz, out);
+    gm_player_view(&r->ctl, (const struct PsvPlayer *)&r->player, r->ox, r->oz, out);
     out->dead = r->dead;
     out->deaths = r->deaths;
     out->score = r->score;
@@ -1733,7 +1734,7 @@ void gm_runtime_set_pose(GmRuntime *r, double x, double y, double z,
         chest_live_close(&r->chests[r->active_chest].state);
     gm_container_close(r);
     r->container=0; r->active_furnace=-1; r->active_chest=-1;
-    gm_player_dig_reset();
+    gm_player_dig_reset(&r->ctl);
 }
 
 void gm_runtime_set_velocity(GmRuntime *r, double x, double y, double z) {
@@ -1753,7 +1754,7 @@ void gm_runtime_set_pose_state(GmRuntime *r, double x, double y, double z,
 
 void gm_runtime_set_packet_velocity(GmRuntime *r, double x, double y, double z) {
     if (!r) return;
-    gm_player_set_packet_velocity((struct PsvPlayer *)&r->player,x,y,z);
+    gm_player_set_packet_velocity(&r->ctl, (struct PsvPlayer *)&r->player,x,y,z);
 }
 
 void gm_runtime_add_velocity(GmRuntime *r, double x, double y, double z) {
@@ -2536,7 +2537,7 @@ static void runtime_close_container(GmRuntime *r)
     if (r->container == 3 && r->active_chest >= 0)
         chest_live_close(&r->chests[r->active_chest].state);
     gm_container_close(r);
-    gm_player_set_gui_blocked(0);
+    gm_player_set_gui_blocked(&r->ctl, 0);
     r->active_furnace = -1;
     r->active_chest = -1;
 }
@@ -2649,7 +2650,7 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
     if (id == 58) {
         runtime_close_container(r); /* return any live grid/cursor before switching */
         r->container=1; r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
-        gm_player_set_gui_blocked(1);
+        gm_player_set_gui_blocked(&r->ctl, 1);
         r->parity_container_opens++;
         return 1;
     }
@@ -2661,7 +2662,7 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
             if (f->active && f->wx==wx && f->wy==wy && f->wz==wz) {
                 r->container=2; r->active_furnace=i;
                 r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
-                gm_player_set_gui_blocked(1);
+                gm_player_set_gui_blocked(&r->ctl, 1);
                 r->parity_container_opens++;
                 return 1;
             }
@@ -2672,7 +2673,7 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
         f->active=1; f->wx=wx; f->wy=wy; f->wz=wz; furnace_live_init(&f->state);
         r->container=2; r->active_furnace=free_slot;
         r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
-        gm_player_set_gui_blocked(1);
+        gm_player_set_gui_blocked(&r->ctl, 1);
         r->parity_container_opens++;
         return 1;
     }
@@ -2685,7 +2686,7 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
                 chest_live_open(&c->state);
                 r->container=3; r->active_chest=i;
                 r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
-                gm_player_set_gui_blocked(1);
+                gm_player_set_gui_blocked(&r->ctl, 1);
                 r->parity_container_opens++;
                 return 1;
             }
@@ -2703,7 +2704,7 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
         chest_live_open(&c->state);
         r->container=3; r->active_chest=free_slot;
         r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
-        gm_player_set_gui_blocked(1);
+        gm_player_set_gui_blocked(&r->ctl, 1);
         r->parity_container_opens++;
         return 1;
     }
@@ -2825,10 +2826,10 @@ int gm_runtime_container_seed_slot(GmRuntime *r, int gmc_slot,
 void gm_runtime_container_seed_cursor(GmRuntime *r, int item, int count, int meta) {
     if (!r) return;
     if (count <= 0 || item <= 0) {
-        gm_player_cursor_set(ic_empty());
+        gm_player_cursor_set(&r->ctl, ic_empty());
         return;
     }
-    gm_player_cursor_set(ic_mk((i32)item, (i32)count, (i32)meta));
+    gm_player_cursor_set(&r->ctl, ic_mk((i32)item, (i32)count, (i32)meta));
 }
 
 int gm_runtime_container_seed_furnace_prop(GmRuntime *r, int burn,

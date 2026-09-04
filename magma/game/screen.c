@@ -505,7 +505,7 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
 
     /* cursor stack rides the mouse, drawn last */
     ICStack cur;
-    if (!gm_runtime_tape_gui_cursor_get(r, &cur)) cur = gm_player_cursor();
+    if (!gm_runtime_tape_gui_cursor_get(r, &cur)) cur = gm_player_cursor(&r->ctl);
     if (cur.item > 0 && cur.count > 0)
         draw_stack(fb, cur, mx - 8 * s, my - 8 * s, s);
     else if (hover >= 0)

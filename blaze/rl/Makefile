@@ -232,7 +232,7 @@ env-metal:
 endif
 
 $(ENV_CPU_SO): $(ENV_SRC)/blaze_cpu.c $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
+		$(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/entity_spine.h \
 		$(CORE_SRC)/falling_live.h $(CORE_SRC)/explosion_live.h \
 		$(CORE_SRC)/explosion.h $(CORE_SRC)/dimension_swap.h \
@@ -248,7 +248,7 @@ ifneq ($(UNAME_S),Darwin)
 # win: make -j runs the two cicc/ptxas passes at the same time, and an edit to
 # one unit does not recompile the other. Flags are unchanged, and no device
 # call crosses a unit, so no -rdc and the same SASS per kernel.
-ENV_CUDA_HDRS := $(ENV_SRC)/blaze_core.h $(ENV_SRC)/blaze_abi.h \
+ENV_CUDA_HDRS := $(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_cuda_int.h $(ENV_SRC)/blaze_snapshot.h \
 		$(CORE_SRC)/entity_spine.h $(CORE_SRC)/falling_live.h \
 		$(CORE_SRC)/explosion_live.h $(CORE_SRC)/explosion.h \
@@ -271,7 +271,7 @@ $(ENV_OUT)/blaze_cuda_verify.o: $(ENV_SRC)/blaze_cuda_verify.cu \
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $(ENV_SRC)/blaze_cuda_verify.cu
 
 $(ENV_OUT)/blaze_snapshot_cu.o: $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h | $(ENV_OUT)
+		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h | $(ENV_OUT)
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $(ENV_SRC)/blaze_snapshot.c
 
 $(ENV_CUDA_SO): $(ENV_CUDA_OBJS) | $(ENV_OUT)
@@ -319,7 +319,7 @@ $(TEST_FALL_BIN): $(ENV_SRC)/test_falling.c $(ENV_SRC)/blaze_snapshot.c \
 $(TEST_WEATHER_BIN): $(ENV_SRC)/test_weather.c $(CORE_SRC)/world_weather.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_weather.c -lm
 $(TEST_CHEST_BIN): $(ENV_SRC)/test_chests.c $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h \
+		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h \
 		$(CORE_SRC)/tile_entity_chest.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_chests.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
@@ -387,7 +387,7 @@ $(TEST_PASSIVES_BIN): $(ENV_SRC)/test_passives.c $(ENV_SRC)/blaze_snapshot.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_MOBS_DET_BIN): $(ENV_SRC)/test_mobs_det.c $(ENV_SRC)/blaze_snapshot.c \
-		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h \
+		$(ENV_SRC)/blaze_snapshot.h $(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h \
 		$(CORE_SRC)/passive_live.h $(MOB_AI_HDRS) | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_mobs_det.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
@@ -449,7 +449,7 @@ SKY_MAGMA_OBJS := $(MAGMA)/world/mesh_mc.o $(MAGMA)/world/light.o \
 	$(MAGMA)/game/caps.o
 $(TEST_SKY_BIN): $(ENV_SRC)/test_skylight_water.c \
 		$(ENV_SRC)/test_skylight_magma_oracle.c \
-		$(ENV_SRC)/blaze_core.h | $(OUT)
+		$(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h | $(OUT)
 	$(MAKE) -C $(MAGMA) world/light.o world/mesh_mc.o world/populate_mc.o \
 	    world/gen_prefetch.o assets/blockmodels.o \
 	    renderkernels/rk_31_facebakery_make_quad.o \
@@ -466,7 +466,7 @@ $(TEST_SKY_BIN): $(ENV_SRC)/test_skylight_water.c \
 # is copied into the test, so this needs no magma objects.
 $(TEST_SKYINC_BIN): $(ENV_SRC)/test_skylight_incr.c \
 		$(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h \
-		$(ENV_SRC)/blaze_core.h | $(OUT)
+		$(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -o $@ $(ENV_SRC)/test_skylight_incr.c \
 		$(ENV_SRC)/blaze_snapshot.c -lm
 
@@ -474,13 +474,13 @@ $(TEST_SKYINC_BIN): $(ENV_SRC)/test_skylight_incr.c \
 # whole-chunk fallback in cu_light_after_opacity is the path under test.
 $(TEST_SKYOVF_BIN): $(ENV_SRC)/test_skylight_incr.c \
 		$(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h \
-		$(ENV_SRC)/blaze_core.h | $(OUT)
+		$(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h | $(OUT)
 	$(CC) $(ENV_CFLAGS) $(CPPFLAGS) -DCU_SKY_Q=12 -o $@ \
 		$(ENV_SRC)/test_skylight_incr.c $(ENV_SRC)/blaze_snapshot.c -lm
 
 $(TEST_BLK_BIN): $(ENV_SRC)/test_blocklight.c \
 		$(ENV_SRC)/test_blocklight_magma_oracle.c \
-		$(ENV_SRC)/blaze_core.h | $(OUT)
+		$(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h | $(OUT)
 	$(MAKE) -C $(MAGMA) world/light.o world/mesh_mc.o world/populate_mc.o \
 	    world/gen_prefetch.o assets/blockmodels.o \
 	    renderkernels/rk_31_facebakery_make_quad.o \

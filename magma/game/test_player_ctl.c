@@ -79,8 +79,97 @@ static void spawn_at(PsvPlayer *pl, double x, double y, double z)
     pl->ent.collidedHorizontally = pl->ent.collidedVertically = pl->ent.isCollided = 0;
 }
 
+/* Exercise two live controllers, then resume one from its exported mid-use
+ * state. Initializing, ticking and resetting B must not alter A or its RNG. */
+static void test_controller_isolation(void)
+{
+    printf("case isolation: interleaved controllers and mid-eat snapshot resume\n");
+    GmPlayerCtl a, b, resumed;
+    PsvPlayer pa, pb, pr;
+    PvStats va, vb, vr;
+    McSinTable st;
+    JavaRandom ra, rb, rr, expected;
+    GmPlayerCtlSnap saved = {0}, got = {0}, want = {0};
+    GmAction eat = {0}, miss = {0};
+    GmBlockEdit edits[8];
+    int ne;
+    Chunk *win = malloc(sizeof(Chunk) * PSV_NCHUNKS);
+    CHECK(win != NULL, "isolation fixture allocates");
+    if (!win) return;
+    fill_flat(win);
+    mc_sin_table_init(&st);
+    spawn_at(&pa, 24.0, 65.0, 24.0);
+    spawn_at(&pb, 24.0, 65.0, 24.0);
+    pv_init(&va); pv_init(&vb);
+    va.foodLevel = 10;
+    isr_set_stack(&pa.inv, 0, ic_mk(297, 2, 0)); /* bread */
+    gm_player_ctl_init(&a);
+    jrand_set(&ra, 11); jrand_set(&rb, 23);
+    expected = ra; (void)jrand_float(&expected);
+    gm_player_bind_world_rand(&a, &ra);
+    gm_player_cursor_set(&a, ic_mk(1, 7, 0));
+    eat.use = 1; eat.hotbar_sel = -1;
+    miss.attack = 1; miss.hotbar_sel = -1;
+    pb.pitch = -89.0f;
+    for (int t = 0; t < 32; ++t) {
+        gm_player_tick(&a, (struct Chunk *)win, (const struct McSinTable *)&st, &pa, (struct PvStats *)&va, eat, 0, 0, 0, edits, &ne, 8);
+        if (t == 4) {
+            gm_player_ctl_init(&b);
+            gm_player_bind_world_rand(&b, &rb);
+            gm_player_cursor_set(&b, ic_mk(4, 3, 0));
+        }
+        if (t >= 4)
+            gm_player_tick(&b, (struct Chunk *)win, (const struct McSinTable *)&st, &pb, (struct PvStats *)&vb, miss, 0, 0, 0, edits, &ne, 8);
+        if (t == 11) {
+            gm_player_dig_reset(&b);
+            gm_player_set_gui_blocked(&b, 1);
+            CHECK(gm_player_left_click_allows(&a, 1),
+                  "B GUI cooldown does not block A clicks");
+        }
+        if (t == 15) {
+            gm_player_ctl_dig_export(&a, &saved);
+            CHECK(saved.eat_ticks == 16 && saved.eat_item == 297,
+                  "B initialization and reset preserve A mid-eat timer");
+            pr = pa; vr = va; rr = ra;
+            gm_player_ctl_init(&resumed);
+            gm_player_ctl_dig_import(&resumed, &saved);
+            gm_player_bind_world_rand(&resumed, &rr);
+            gm_player_cursor_set(&resumed, gm_player_cursor(&a));
+            gm_player_ctl_dig_export(&resumed, &got);
+            CHECK(memcmp(&saved, &got, sizeof saved) == 0,
+                  "controller snapshot round trip preserves every exported field");
+        } else if (t > 15) {
+            gm_player_tick(&resumed, (struct Chunk *)win, (const struct McSinTable *)&st, &pr, (struct PvStats *)&vr, eat,
+                           0, 0, 0, edits, &ne, 8);
+        }
+    }
+    CHECK(isr_get_stack(&pa.inv, 0).count == 1 && va.foodLevel == 15,
+          "interleaved A finishes food at exactly 32 ticks");
+    CHECK(ra.seed == expected.seed && rr.seed == ra.seed,
+          "food RNG belongs to A and snapshot resume consumes the same draw");
+    jrand_set(&expected, 23);
+    CHECK(rb.seed == expected.seed, "A food consumption leaves B world RNG alone");
+    CHECK(gm_player_cursor(&a).item == 1 && gm_player_cursor(&a).count == 7 &&
+          gm_player_cursor(&b).item == 4 && gm_player_cursor(&b).count == 3,
+          "interleaved controllers preserve separate inventory cursors");
+    gm_player_ctl_dig_export(&a, &want);
+    gm_player_ctl_dig_export(&resumed, &got);
+    CHECK(memcmp(&want, &got, sizeof want) == 0 &&
+          isr_get_stack(&pr.inv, 0).count == 1 && vr.foodLevel == va.foodLevel &&
+          double_bits(pr.ent.posY) == double_bits(pa.ent.posY),
+          "resumed mid-eat snapshot matches uninterrupted controller and player");
+    gm_player_set_packet_velocity(&a, &pa, 0.25, 0.5, -0.75);
+    gm_player_dig_reset(&b);
+    gm_player_ctl_dig_export(&a, &got);
+    CHECK(got.server_motion_x == 0.25 && got.server_motion_z == -0.75,
+          "B reset preserves A authoritative velocity shadow");
+    free(win);
+}
+
 int main(void)
 {
+    test_controller_isolation();
+    GmPlayerCtl ctl; gm_player_ctl_init(&ctl);
     McSinTable st;
     mc_sin_table_init(&st);
 
@@ -105,7 +194,7 @@ int main(void)
     for (int t = 0; t < 120; ++t) {
         GmBlockEdit edits[8];
         int nedits = -1;
-        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&pl, (struct PvStats *)&tv, neutral, 0, 0, 0, edits, &nedits, 8);
+        gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&pl, (struct PvStats *)&tv, neutral, 0, 0, 0, edits, &nedits, 8);
         CHECK(nedits == 0, "neutral action emitted no edits");
 
         /* raw verified physics reference over the same window + zeroed action */
@@ -132,7 +221,7 @@ int main(void)
     for (int t = 0; t < 120; ++t) {
         GmBlockEdit edits[8];
         int nedits = -1;
-        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&plb, (struct PvStats *)&tvb, neutral, ox, oy, oz, edits, &nedits, 8);
+        gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&plb, (struct PvStats *)&tvb, neutral, ox, oy, oz, edits, &nedits, 8);
         CHECK(nedits == 0, "neutral action emitted no edits (offset frame)");
     }
     printf("  landed LOCAL feet y = %.10f (case A = %.10f)\n", plb.ent.posY, landed_local_y);
@@ -147,7 +236,7 @@ int main(void)
     u32   before_break = plb.break_events;
     int   lxi = (int)floor(plb.ent.posX);
     int   lzi = (int)floor(plb.ent.posZ);
-    gm_player_dig_reset();
+    gm_player_dig_reset(&ctl);
 
     GmAction look_break;
     memset(&look_break, 0, sizeof look_break);
@@ -160,7 +249,7 @@ int main(void)
         GmBlockEdit edits[8];
         int nedits = 0;
         if (t > 0) look_break.dpitch = 0.0f; /* already looking down */
-        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&plb,
+        gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&plb,
                        (struct PvStats *)&tvb, look_break, ox, oy, oz, edits, &nedits, 8);
         last_nedits = nedits;
         if (nedits == 1 && edits[0].id == 0) {
@@ -201,14 +290,14 @@ int main(void)
         int eyi = (int)floor(plb.ent.posY + PSV_EYE_HEIGHT);
         psv_set_block(win, exi, eyi, ezi, 9);
         psv_set_block(win, exi, eyi + 1, ezi, 9);
-        gm_player_dig_reset();
+        gm_player_dig_reset(&ctl);
         GmAction wet = look_break;   /* pitch already at +89, attack held */
         wet.dpitch = 0.0f;
         int break_tick = -1;
         for (int t = 0; t < 400 && break_tick < 0; ++t) {
             GmBlockEdit edits[8];
             int nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&plb,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&plb,
                            (struct PvStats *)&tvb, wet, ox, oy, oz, edits, &nedits, 8);
             for (int i = 0; i < nedits; ++i)
                 if (edits[i].id == 0 && edits[i].wy == oy + 64) break_tick = t;
@@ -235,7 +324,7 @@ int main(void)
         double y0 = sw.ent.posY;
         for (int t = 0; t < 40; ++t) {
             GmBlockEdit ed[4]; int ne = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&sw,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&sw,
                            (struct PvStats *)&sv, swim, 0, 0, 0, ed, &ne, 4);
         }
         printf("  swim-up: y %.3f -> %.3f\n", y0, sw.ent.posY);
@@ -245,7 +334,7 @@ int main(void)
         GmAction idle2; memset(&idle2, 0, sizeof idle2);
         for (int t = 0; t < 40; ++t) {
             GmBlockEdit ed[4]; int ne = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&sw,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&sw,
                            (struct PvStats *)&sv, idle2, 0, 0, 0, ed, &ne, 4);
             double d = prev - sw.ent.posY; if (d > max_fall) max_fall = d;
             prev = sw.ent.posY;
@@ -268,7 +357,7 @@ int main(void)
         PvStats ev; pv_init(&ev);
         GmAction idle3; memset(&idle3, 0, sizeof idle3);
         GmBlockEdit ed[4]; int ne = 0;
-        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                        (struct PsvPlayer *)&entry, (struct PvStats *)&ev,
                        idle3, 0, 0, 0, ed, &ne, 4);
         CHECK(entry.ent.motionX > 0.01,
@@ -290,7 +379,7 @@ int main(void)
         PvStats vv; pv_init(&vv);
         for (int t = 0; t < 60; ++t) {
             GmBlockEdit ed[4]; int ne = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&sp,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&sp,
                            (struct PvStats *)&vv, walk_sneak, 0, 0, 0, ed, &ne, 4);
         }
         printf("  sneak walk-forward: y=%.3f z=%.3f on_ground=%d\n",
@@ -300,7 +389,7 @@ int main(void)
         PsvPlayer np; spawn_at(&np, 24.5, 66.0, 24.5); np.yaw = 0.0f;
         for (int t = 0; t < 60; ++t) {
             GmBlockEdit ed[4]; int ne = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&np,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&np,
                            (struct PvStats *)&vv, walk, 0, 0, 0, ed, &ne, 4);
         }
         printf("  plain walk-forward: y=%.3f z=%.3f\n", np.ent.posY, np.ent.posZ);
@@ -684,7 +773,7 @@ int main(void)
         jump_act.jump = 1;
         GmBlockEdit edits[4];
         int nedits = -1;
-        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                        (struct PsvPlayer *)&deploy, (struct PvStats *)&dv,
                        jump_act, 0, 0, 0, edits, &nedits, 4);
         CHECK(deploy.elytra_flying_pending == 1,
@@ -700,7 +789,7 @@ int main(void)
         CHECK(double_bits(deploy.ent.motionY) == 0xbfe6f24694d36338ULL,
               "arming tick freefall motionY matches oracle t55");
         nedits = -1;
-        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                        (struct PsvPlayer *)&deploy, (struct PvStats *)&dv,
                        jump_act, 0, 0, 0, edits, &nedits, 4);
         CHECK(deploy.elytra_flying == 1, "elytra stays armed while airborne");
@@ -724,7 +813,7 @@ int main(void)
         GmAction rise_jump; memset(&rise_jump, 0, sizeof rise_jump);
         rise_jump.jump = 1;
         nedits = -1;
-        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                        (struct PsvPlayer *)&rise, (struct PvStats *)&dv,
                        rise_jump, 0, 0, 0, edits, &nedits, 4);
         CHECK(!rise.elytra_flying && !rise.elytra_flying_pending,
@@ -747,28 +836,28 @@ int main(void)
         int sword_ids[] = {267, 268, 272, 276, 283}; /* iron/wood/stone/diamond/gold */
 
         for (int si = 0; si < (int)(sizeof sword_ids / sizeof sword_ids[0]); ++si) {
-            gm_player_dig_reset();
+            gm_player_dig_reset(&ctl);
             isr_set_stack(&pu.inv, 0, ic_mk(sword_ids[si], 1, 0));
             pu.inv.current_item = 0;
             nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pu, (struct PvStats *)&vu,
                            use_act, 0, 0, 0, edits, &nedits, 4);
             memset(&v, 0, sizeof v);
-            gm_player_view((const struct PsvPlayer *)&pu, 0, 0, &v);
+            gm_player_view(&ctl, (const struct PsvPlayer *)&pu, 0, 0, &v);
             CHECK(v.use_action == 0,
                   "right-click sword does not set use_action (EnumAction.NONE)");
         }
 
-        gm_player_dig_reset();
+        gm_player_dig_reset(&ctl);
         isr_set_stack(&pu.inv, 0, ic_mk(442, 1, 0)); /* shield */
         pu.inv.current_item = 0;
         nedits = 0;
-        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                        (struct PsvPlayer *)&pu, (struct PvStats *)&vu,
                        use_act, 0, 0, 0, edits, &nedits, 4);
         memset(&v, 0, sizeof v);
-        gm_player_view((const struct PsvPlayer *)&pu, 0, 0, &v);
+        gm_player_view(&ctl, (const struct PsvPlayer *)&pu, 0, 0, &v);
         CHECK(v.use_action == 2, "right-click shield sets use_action BLOCK");
         CHECK(v.use_max == 72000, "shield getMaxItemUseDuration is 72000");
         CHECK(v.use_remaining > 0 && v.use_remaining <= 72000,
@@ -789,7 +878,7 @@ int main(void)
         pv_init(&vit);
         pl.yaw = 0.0f;
         pl.pitch = -89.0f; /* look straight up into air -> ray miss */
-        gm_player_dig_reset();
+        gm_player_dig_reset(&ctl);
 
         GmAction miss_press;
         memset(&miss_press, 0, sizeof miss_press);
@@ -797,11 +886,11 @@ int main(void)
         {
             GmBlockEdit edits[4];
             int nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            miss_press, 0, 0, 0, edits, &nedits, 4);
             GmPlayerCtlSnap snap;
-            gm_player_ctl_dig_export(&snap);
+            gm_player_ctl_dig_export(&ctl, &snap);
             CHECK(snap.left_click_counter == 10,
                   "press-miss arms leftClickCounter to 10");
             CHECK(snap.dig_hitting == 0, "press-miss does not start dig");
@@ -812,13 +901,13 @@ int main(void)
         for (int t = 0; t < 9; ++t) {
             GmBlockEdit edits[4];
             int nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            miss_press, 0, 0, 0, edits, &nedits, 4);
         }
         {
             GmPlayerCtlSnap snap;
-            gm_player_ctl_dig_export(&snap);
+            gm_player_ctl_dig_export(&ctl, &snap);
             CHECK(snap.left_click_counter == 1,
                   "after 1 press + 9 holds, counter is 1");
         }
@@ -832,11 +921,11 @@ int main(void)
             int nedits = 0;
             float prog0 = 0.0f;
             int hx, hy, hz;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            miss_press, 0, 0, 0, edits, &nedits, 4);
             GmPlayerCtlSnap snap;
-            gm_player_ctl_dig_export(&snap);
+            gm_player_ctl_dig_export(&ctl, &snap);
             CHECK(snap.left_click_counter == 0,
                   "10th post-arm tick decrements counter to 0");
             /* Counter hit 0 this tick, so dig may start same tick (vanilla). */
@@ -844,39 +933,39 @@ int main(void)
         }
 
         /* Fresh miss then release must clear the counter. */
-        gm_player_dig_reset();
+        gm_player_dig_reset(&ctl);
         pl.pitch = -89.0f;
         {
             GmBlockEdit edits[4];
             int nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            miss_press, 0, 0, 0, edits, &nedits, 4);
             GmAction release;
             memset(&release, 0, sizeof release);
             nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            release, 0, 0, 0, edits, &nedits, 4);
             GmPlayerCtlSnap snap;
-            gm_player_ctl_dig_export(&snap);
+            gm_player_ctl_dig_export(&ctl, &snap);
             CHECK(snap.left_click_counter == 0,
                   "attack release clears leftClickCounter");
         }
 
         /* Direct hit (no miss) must not arm the counter. */
-        gm_player_dig_reset();
+        gm_player_dig_reset(&ctl);
         pl.pitch = 89.0f;
         isr_set_stack(&pl.inv, 0, ic_mk(257, 1, 0));
         pl.inv.current_item = 0;
         {
             GmBlockEdit edits[4];
             int nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            miss_press, 0, 0, 0, edits, &nedits, 4);
             GmPlayerCtlSnap snap;
-            gm_player_ctl_dig_export(&snap);
+            gm_player_ctl_dig_export(&ctl, &snap);
             CHECK(snap.left_click_counter == 0,
                   "press on block does not arm leftClickCounter");
             CHECK(snap.dig_hitting == 1 || snap.dig_progress > 0.0f ||
@@ -886,14 +975,14 @@ int main(void)
                 int hx = snap.dig_hx, hz = snap.dig_hz;
                 GmAction release;
                 memset(&release, 0, sizeof release);
-                gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                                (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                                release, 0, 0, 0, edits, &nedits, 4);
-                gm_player_ctl_dig_export(&snap);
+                gm_player_ctl_dig_export(&ctl, &snap);
                 CHECK(snap.dig_hx == hx && snap.dig_hz == hz,
                       "resetBlockRemoving preserves vanilla currentBlock");
-                gm_player_ctl_recenter(16, -16);
-                gm_player_ctl_dig_export(&snap);
+                gm_player_ctl_recenter(&ctl, 16, -16);
+                gm_player_ctl_dig_export(&ctl, &snap);
                 CHECK(snap.dig_hx == hx - 16 && snap.dig_hz == hz + 16,
                       "floating-origin recenter preserves currentBlock world coords");
             }
@@ -903,17 +992,17 @@ int main(void)
          * clear leftClickCounter the way a release would, and while the counter
          * is positive dig freezes even if attack_entity is set. */
         printf("case M: leftClickCounter + attack_entity freeze\n");
-        gm_player_dig_reset();
+        gm_player_dig_reset(&ctl);
         pl.pitch = -89.0f;
         {
             GmBlockEdit edits[4];
             int nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            miss_press, 0, 0, 0, edits, &nedits, 4);
-            CHECK(gm_player_left_click_allows(1) == 0,
+            CHECK(gm_player_left_click_allows(&ctl, 1) == 0,
                   "post-miss left_click_allows is false while counter is 10");
-            CHECK(gm_player_left_click_allows(0) == 0,
+            CHECK(gm_player_left_click_allows(&ctl, 0) == 0,
                   "release is never a clickMouse");
         }
         {
@@ -924,17 +1013,17 @@ int main(void)
             for (int t = 0; t < 5; ++t) {
                 GmBlockEdit edits[4];
                 int nedits = 0;
-                gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                                (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                                ent_hold, 0, 0, 0, edits, &nedits, 4);
             }
             GmPlayerCtlSnap snap;
-            gm_player_ctl_dig_export(&snap);
+            gm_player_ctl_dig_export(&ctl, &snap);
             CHECK(snap.left_click_counter == 5,
                   "held attack_entity does not clear leftClickCounter");
             CHECK(snap.dig_hitting == 0 && snap.dig_progress == 0.0f,
                   "attack_entity freezes dig while counter is active");
-            CHECK(gm_player_left_click_allows(1) == 0,
+            CHECK(gm_player_left_click_allows(&ctl, 1) == 0,
                   "left_click_allows stays false mid-cooldown");
         }
         /* Drain to 0 under attack_entity: dig still must not start (entity). */
@@ -946,17 +1035,17 @@ int main(void)
             for (int t = 0; t < 5; ++t) {
                 GmBlockEdit edits[4];
                 int nedits = 0;
-                gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                                (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                                ent_hold, 0, 0, 0, edits, &nedits, 4);
             }
             GmPlayerCtlSnap snap;
-            gm_player_ctl_dig_export(&snap);
+            gm_player_ctl_dig_export(&ctl, &snap);
             CHECK(snap.left_click_counter == 0,
                   "counter drains to 0 under held attack_entity");
             CHECK(snap.dig_hitting == 0,
                   "attack_entity with counter 0 still resetBlockRemoving");
-            CHECK(gm_player_left_click_allows(1) == 1,
+            CHECK(gm_player_left_click_allows(&ctl, 1) == 1,
                   "left_click_allows is true once counter is 0");
         }
     }
@@ -972,7 +1061,7 @@ int main(void)
         pl.pitch = 89.0f;
         isr_set_stack(&pl.inv, 0, ic_mk(257 /* iron pick */, 1, 0));
         pl.inv.current_item = 0;
-        gm_player_dig_reset();
+        gm_player_dig_reset(&ctl);
         /* Dirt (id 3) is soft: iron pick should break within a few ticks. */
         int broke = 0, brx = 0, bry = 0, brz = 0;
         float rel_before = 0.0f;
@@ -982,24 +1071,22 @@ int main(void)
             hold.attack = 1;
             GmBlockEdit edits[4];
             int nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            hold, 0, 0, 0, edits, &nedits, 4);
             if (t == 0) {
                 GmPlayerCtlSnap snap;
-                gm_player_ctl_dig_export(&snap);
+                gm_player_ctl_dig_export(&ctl, &snap);
                 if (snap.dig_hitting || snap.dig_hx != INT_MIN) {
-                    rel_before = gm_player_dig_rel_hardness(
-                        (struct Chunk *)win, (struct PsvPlayer *)&pl, 0);
+                    rel_before = gm_player_dig_rel_hardness(&ctl, (struct Chunk *)win, (struct PsvPlayer *)&pl, 0);
                     /* Second call must match (read-only, no mutation). */
-                    float rel2 = gm_player_dig_rel_hardness(
-                        (struct Chunk *)win, (struct PsvPlayer *)&pl, 0);
+                    float rel2 = gm_player_dig_rel_hardness(&ctl, (struct Chunk *)win, (struct PsvPlayer *)&pl, 0);
                     CHECK(rel_before == rel2,
                           "rel hardness is stable without dig mutation");
                     CHECK(rel_before > 0.0f, "rel hardness positive for dirt");
                 }
             }
-            if (gm_player_dig_break_event(&brx, &bry, &brz)) {
+            if (gm_player_dig_break_event(&ctl, &brx, &bry, &brz)) {
                 broke = 1;
                 break;
             }
@@ -1012,10 +1099,10 @@ int main(void)
             memset(&release, 0, sizeof release);
             GmBlockEdit edits[4];
             int nedits = 0;
-            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
                            release, 0, 0, 0, edits, &nedits, 4);
-            CHECK(!gm_player_dig_break_event(NULL, NULL, NULL),
+            CHECK(!gm_player_dig_break_event(&ctl, NULL, NULL, NULL),
                   "break event clears on next tick dig phase");
         }
         set_block_meta(win, 20, 65, 20, 61, 0); /* furnace: Material.ROCK */

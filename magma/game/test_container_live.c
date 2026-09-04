@@ -45,21 +45,21 @@ int main(void) {
     /* ---- PICKUP across hotbar and main inventory ---- */
     CHECK(gm_runtime_set_inventory(&r, 0, 1, 10, 0), "seed stone in hotbar 0");
     click(&r, 0, 0, CC_CLICK_PICKUP);
-    { ICStack c = gm_player_cursor(), s0 = slot(&r, 0);
+    { ICStack c = gm_player_cursor(&r.ctl), s0 = slot(&r, 0);
       CHECK(c.item == 1 && c.count == 10 && isr_is_empty(&s0),
             "PICKUP lifts the full hotbar stack onto the cursor"); }
     click(&r, 20, 0, CC_CLICK_PICKUP);
-    { ICStack s20 = slot(&r, 20), c = gm_player_cursor();
+    { ICStack s20 = slot(&r, 20), c = gm_player_cursor(&r.ctl);
       CHECK(s20.item == 1 && s20.count == 10 && isr_is_empty(&c),
             "PICKUP places the cursor into a MAIN inventory slot (20)"); }
     click(&r, 20, 1, CC_CLICK_PICKUP);
-    { ICStack c = gm_player_cursor(), s20 = slot(&r, 20);
+    { ICStack c = gm_player_cursor(&r.ctl), s20 = slot(&r, 20);
       CHECK(c.count == 5 && s20.count == 5, "right PICKUP takes the rounded-up half"); }
     click(&r, 21, 1, CC_CLICK_PICKUP);
-    { ICStack s21 = slot(&r, 21), c = gm_player_cursor();
+    { ICStack s21 = slot(&r, 21), c = gm_player_cursor(&r.ctl);
       CHECK(s21.count == 1 && c.count == 4, "right PICKUP places exactly one"); }
     click(&r, 20, 0, CC_CLICK_PICKUP);
-    { ICStack s20 = slot(&r, 20), c = gm_player_cursor();
+    { ICStack s20 = slot(&r, 20), c = gm_player_cursor(&r.ctl);
       CHECK(s20.count == 9 && isr_is_empty(&c), "left PICKUP merges the cursor remainder"); }
 
     /* ---- QUICK_MOVE vanilla ordering: hotbar -> first main slot, and back ---- */
@@ -97,7 +97,7 @@ int main(void) {
       CHECK(res.item == 5 && res.count == 4, "one log in the 2x2 grid previews 4 planks"); }
     click(&r, GMC_OUTSIDE, 0, CC_CLICK_PICKUP);       /* drop the spare log */
     click(&r, GMC_RESULT, 0, CC_CLICK_PICKUP);
-    { ICStack c = gm_player_cursor();
+    { ICStack c = gm_player_cursor(&r.ctl);
       CHECK(c.item == 5 && c.count == 4, "taking the result yields 4 planks on the cursor");
       CHECK(cc_is_empty(&r.craft_grid[0]) || r.craft_grid[0].count == 0,
             "taking the result consumed the grid log"); }
@@ -119,7 +119,7 @@ int main(void) {
       CHECK(gm_runtime_set_block(&r, bx, by + 1, bz, 58, 0), "place a crafting table");
       CHECK(gm_runtime_use_block(&r, bx, by + 1, bz), "open the crafting table");
       CHECK(r.container == 1, "container is the table");
-      { GmPlayerCtlSnap d; gm_player_ctl_dig_export(&d);
+      { GmPlayerCtlSnap d; gm_player_ctl_dig_export(&r.ctl, &d);
         CHECK(d.left_click_counter == 10000,
               "block GUI pins vanilla leftClickCounter sentinel"); }
       CHECK(gm_container_click(&r, GMC_GRID0 + 2, 0, CC_CLICK_PICKUP),
@@ -131,7 +131,7 @@ int main(void) {
     { GmPlayerView v; gm_runtime_view(&r, &v);
       gm_runtime_set_pose(&r, v.x + 20.0, v.y, v.z, 0.0f, 0.0f); /* force-close */
       CHECK(r.container == 0, "walking away closes the container");
-      { GmPlayerCtlSnap d; gm_player_ctl_dig_export(&d);
+      { GmPlayerCtlSnap d; gm_player_ctl_dig_export(&r.ctl, &d);
         CHECK(d.left_click_counter == 0,
               "container close clears leftClickCounter sentinel"); }
       int planks = 0;
@@ -170,7 +170,7 @@ int main(void) {
     { const FurnaceLive *f = &r.furnaces[r.active_furnace].state;
       CHECK(f->output.item == 265 && f->output.count == 2, "both ore smelted to iron ingots"); }
     click(&r, GMC_FURNACE0 + 2, 0, CC_CLICK_PICKUP);
-    { ICStack c = gm_player_cursor();
+    { ICStack c = gm_player_cursor(&r.ctl);
       CHECK(c.item == 265 && c.count == 2, "PICKUP takes the smelted ingots onto the cursor"); }
     click(&r, 5, 0, CC_CLICK_PICKUP);
     { ICStack s5 = slot(&r, 5);
@@ -178,7 +178,7 @@ int main(void) {
     /* fuel slot validity: iron ingots are NOT fuel */
     click(&r, 5, 0, CC_CLICK_PICKUP);                 /* cursor: 2 ingots */
     click(&r, GMC_FURNACE0 + 1, 0, CC_CLICK_PICKUP);
-    { ICStack c = gm_player_cursor();
+    { ICStack c = gm_player_cursor(&r.ctl);
       const FurnaceLive *f = &r.furnaces[r.active_furnace].state;
       CHECK(c.item == 265 && c.count == 2 && f->fuel.item == 263,
             "non-fuel is rejected by the fuel slot (cursor unchanged)"); }
@@ -189,19 +189,19 @@ int main(void) {
     CHECK(gm_runtime_set_inventory(&r, 0, 306, 1, 0), "seed iron helmet");
     click(&r, 0, 0, CC_CLICK_PICKUP);
     click(&r, GMC_ARMOR0 + 0, 0, CC_CLICK_PICKUP); /* feet rejects helmet */
-    { ICStack c = gm_player_cursor();
+    { ICStack c = gm_player_cursor(&r.ctl);
       ICStack feet = isr_get_stack(&r.player.inv, ISR_ARMOR_FEET);
       CHECK(c.item == 306 && isr_is_empty(&feet),
             "armor slot rejects wrong-slot armor (helmet into feet)"); }
     click(&r, GMC_ARMOR0 + 3, 0, CC_CLICK_PICKUP); /* head accepts helmet */
     { ICStack head = isr_get_stack(&r.player.inv, ISR_ARMOR_HEAD);
-      ICStack c = gm_player_cursor();
+      ICStack c = gm_player_cursor(&r.ctl);
       CHECK(head.item == 306 && head.count == 1 && isr_is_empty(&c),
             "PICKUP equips iron helmet into head (GMC_ARMOR0+3 / isr 39)"); }
     CHECK(gm_runtime_set_inventory(&r, 1, 1, 16, 0), "seed stone stack");
     click(&r, 1, 0, CC_CLICK_PICKUP);
     click(&r, GMC_ARMOR0 + 1, 0, CC_CLICK_PICKUP);
-    { ICStack c = gm_player_cursor();
+    { ICStack c = gm_player_cursor(&r.ctl);
       ICStack legs = isr_get_stack(&r.player.inv, ISR_ARMOR_LEGS);
       CHECK(c.item == 1 && c.count == 16 && isr_is_empty(&legs),
             "armor slot rejects non-armor (stone into legs)"); }
@@ -237,7 +237,7 @@ int main(void) {
       /* clear inv so transfers have room and no leftover cursor */
       for (int s = 0; s < GMC_INV_SLOTS; ++s)
           (void)gm_runtime_set_inventory(&r, s, 0, 0, 0);
-      gm_player_cursor_set(ic_empty());
+      gm_player_cursor_set(&r.ctl, ic_empty());
       int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
       int ground = gm_world_surface_y(r.world, bx, bz);
       if (ground < 1) ground = by;
@@ -252,7 +252,7 @@ int main(void) {
       CHECK(gm_runtime_set_inventory(&r, 0, 4, 16, 0), "seed cobble for chest");
       click(&r, 0, 0, CC_CLICK_PICKUP);
       click(&r, GMC_CHEST0 + 3, 0, CC_CLICK_PICKUP);
-      { ICStack c = gm_player_cursor();
+      { ICStack c = gm_player_cursor(&r.ctl);
         CHECK(isr_is_empty(&c), "cobble placed into chest slot 3");
         ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 3);
         CHECK(ch.item == 4 && ch.count == 16, "chest holds 16 cobble"); }
@@ -266,7 +266,7 @@ int main(void) {
         CHECK(isr_is_empty(&ch), "chest slot emptied by QUICK_MOVE"); }
       /* put one back and close by walking away */
       {
-          ICStack cur = gm_player_cursor();
+          ICStack cur = gm_player_cursor(&r.ctl);
           if (isr_is_empty(&cur)) {
               for (int s = 0; s < GMC_INV_SLOTS; ++s) {
                   ICStack t = slot(&r, s);
@@ -302,7 +302,7 @@ int main(void) {
         /* Clear inv/cursor so round-trips are unambiguous. */
         for (int s = 0; s < GMC_INV_SLOTS; ++s)
             (void)gm_runtime_set_inventory(&r, s, 0, 0, 0);
-        gm_player_cursor_set(ic_empty());
+        gm_player_cursor_set(&r.ctl, ic_empty());
 
         GmPlayerView v; gm_runtime_view(&r, &v);
         int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
@@ -318,7 +318,7 @@ int main(void) {
         /* TAKE: PICKUP from chest -> cursor keeps StoredEnchantments. */
         click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);
         {
-            ICStack c = gm_player_cursor();
+            ICStack c = gm_player_cursor(&r.ctl);
             CHECK(c.item == 403 && c.count == 1 && c.n_enchants == 2 &&
                   c.enchants[0].id == 16 && c.enchants[0].level == 3 &&
                   c.enchants[1].id == 34 && c.enchants[1].level == 1,
@@ -330,7 +330,7 @@ int main(void) {
         /* DEPOSIT: place into chest slot 2, payload intact. */
         click(&r, GMC_CHEST0 + 2, 0, CC_CLICK_PICKUP);
         {
-            ICStack c = gm_player_cursor();
+            ICStack c = gm_player_cursor(&r.ctl);
             ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 2);
             CHECK(isr_is_empty(&c), "cursor empty after deposit");
             CHECK(ch.item == 403 && ch.n_enchants == 2 &&
@@ -385,7 +385,7 @@ int main(void) {
             click(&r, GMC_CHEST0 + 4, 0, CC_CLICK_PICKUP); /* twin on cursor */
             click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);     /* try merge onto matching multi */
             {
-                ICStack c = gm_player_cursor();
+                ICStack c = gm_player_cursor(&r.ctl);
                 ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 0);
                 /* Max stack 1: no merge; vanilla swaps equal unstackables. */
                 CHECK(c.item == 403 && c.count == 1 && c.n_enchants == 2 &&
@@ -397,14 +397,14 @@ int main(void) {
             chest_live_set(&r.chests[r.active_chest].state, 5, book_b);
             click(&r, GMC_CHEST0 + 5, 0, CC_CLICK_PICKUP); /* Sharpness V on cursor */
             {
-                ICStack c = gm_player_cursor();
+                ICStack c = gm_player_cursor(&r.ctl);
                 CHECK(c.item == 403 && c.n_enchants == 1 && c.enchants[0].level == 5,
                       "Sharpness V book on cursor before mismatch click");
             }
             /* Slot 0 has multi; click -> swap with V. */
             click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);
             {
-                ICStack c = gm_player_cursor();
+                ICStack c = gm_player_cursor(&r.ctl);
                 ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 0);
                 CHECK(c.item == 403 && c.n_enchants == 2,
                       "mismatched enchants swap (cursor gets multi)");
@@ -422,7 +422,7 @@ int main(void) {
                     before_ents++;
             click(&r, GMC_OUTSIDE, 0, CC_CLICK_PICKUP);
             {
-                ICStack c = gm_player_cursor();
+                ICStack c = gm_player_cursor(&r.ctl);
                 CHECK(isr_is_empty(&c), "cursor cleared after outside drop");
             }
             int found_drop = 0;
@@ -503,7 +503,7 @@ int main(void) {
           gm_runtime_tick(&r, idle); }
         for (int s = 0; s < GMC_INV_SLOTS; ++s)
             (void)gm_runtime_set_inventory(&r, s, 0, 0, 0);
-        gm_player_cursor_set(ic_empty());
+        gm_player_cursor_set(&r.ctl, ic_empty());
         gm_runtime_view(&r, &v);
         int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
         CHECK(gm_runtime_set_block(&r, bx, by + 1, bz, 58, 0), "place table for boat");
@@ -519,7 +519,7 @@ int main(void) {
         { ICStack res = gm_container_result(&r);
           CHECK(res.item == 333 && res.count == 1, "oak boat recipe matches"); }
         click(&r, GMC_RESULT, 0, CC_CLICK_PICKUP);
-        { ICStack c = gm_player_cursor();
+        { ICStack c = gm_player_cursor(&r.ctl);
           CHECK(c.item == 333 && c.count == 1, "taking the result yields a boat"); }
         click(&r, 1, 0, CC_CLICK_PICKUP);
 
@@ -544,7 +544,7 @@ int main(void) {
         { ICStack res = gm_container_result(&r);
           CHECK(res.item == 354 && res.count == 1, "cake recipe matches"); }
         click(&r, GMC_RESULT, 0, CC_CLICK_PICKUP);
-        { ICStack c = gm_player_cursor();
+        { ICStack c = gm_player_cursor(&r.ctl);
           CHECK(c.item == 354 && c.count == 1, "taking cake yields cake");
           CHECK(r.craft_grid[0].item == 325 && r.craft_grid[0].count == 1 &&
                 r.craft_grid[1].item == 325 && r.craft_grid[2].item == 325,

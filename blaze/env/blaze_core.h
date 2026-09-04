@@ -60,6 +60,7 @@
 #include <string.h>
 
 #include "player_survival.h"    /* Chunk, McSinTable, PsvPlayer, psv_* verbatim */
+#include "player_control_state.h" /* same controller simulation state as Magma */
 #include "player_vitals.h"      /* PvStats, pv_* verbatim */
 #include "player_break.h"       /* PbInput, pb_* verbatim */
 #include "items_tools_armor.h"  /* ita_* verbatim */
@@ -435,18 +436,10 @@ typedef struct {
     WwState ww;                  /* magma GmWorldClock + isolated JavaRandom */
     float rain_strength, thunder_strength;  /* live stays 0; tape inject only */
 
-    /* player_ctl.c statics, per-env-ified */
-    float  dig_progress;
-    int    dig_hx, dig_hy, dig_hz;   /* window-local; INT_MIN = none */
-    int    dig_hitting, dig_delay, atk_prev, left_click_counter;
-    int    rc_delay, use_prev;
-    int    eat_ticks, eat_item;      /* s_eat_* (NOT in .bsnp: snapshots are
-                                      * taken at quiescent points, both 0) */
-    int    hurt_vel_reset;
-    double server_motion_x, server_motion_z;
+    PlayerControlState ctl;
 
     int container, container_wx, container_wy, container_wz;
-    ICStack craft_grid[9], cursor;
+    ICStack craft_grid[9];
     unsigned int parity_craft_attempts, parity_craft_successes;
     unsigned int parity_container_opens;
     ICStack parity_last_craft;
@@ -3211,9 +3204,9 @@ MC_HD static inline int cu_recenter_pose(Blaze *e, int *odcx, int *odcz) {
     e->pl.ent.posX -= dx; e->pl.ent.posZ -= dz;
     e->pl.ent.box.minX -= dx; e->pl.ent.box.maxX -= dx;
     e->pl.ent.box.minZ -= dz; e->pl.ent.box.maxZ -= dz;
-    if (e->dig_hx != INT_MIN) {
-        e->dig_hx -= dcx * 16;
-        e->dig_hz -= dcz * 16;
+    if (e->ctl.dig_hx != INT_MIN) {
+        e->ctl.dig_hx -= dcx * 16;
+        e->ctl.dig_hz -= dcz * 16;
     }
     *odcx = dcx;
     *odcz = dcz;
@@ -3871,10 +3864,10 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
     pre_z      =  pl->ent.posZ;
 
     /* hurt-velocity server-motion shadow (player_ctl.c:356) */
-    if (env->hurt_vel_reset) {
-        pl->ent.motionX = (double)(int)(env->server_motion_x * 8000.0) / 8000.0;
-        pl->ent.motionZ = (double)(int)(env->server_motion_z * 8000.0) / 8000.0;
-        env->hurt_vel_reset = 0;
+    if (env->ctl.hurt_vel_reset) {
+        pl->ent.motionX = (double)(int)(env->ctl.server_motion_x * 8000.0) / 8000.0;
+        pl->ent.motionZ = (double)(int)(env->ctl.server_motion_z * 8000.0) / 8000.0;
+        env->ctl.hurt_vel_reset = 0;
     }
 
     /* progressive dig BEFORE the move. Mirrors magma player_ctl / Minecraft:
@@ -3882,20 +3875,20 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
      * 10; clickMouse + sendClickBlock freeze while post-decrement > 0; release
      * clears the counter. Blaze is survival dig-only (no entity attack path),
      * but the counter state machine must stay bit-aligned with magma. */
-    use_gate_hitting = env->dig_hitting;
+    use_gate_hitting = env->ctl.dig_hitting;
     if (!act.attack) {
-        env->left_click_counter = 0;
-        env->dig_hitting = 0;
-        env->dig_progress = 0.0f;
+        env->ctl.left_click_counter = 0;
+        env->ctl.dig_hitting = 0;
+        env->ctl.dig_progress = 0.0f;
     } else {
-        if (env->left_click_counter > 0) --env->left_click_counter;
-        if (env->left_click_counter > 0) {
+        if (env->ctl.left_click_counter > 0) --env->ctl.left_click_counter;
+        if (env->ctl.left_click_counter > 0) {
             /* clickMouse + sendClickBlock both no-op; dig state freezes. */
         } else if (act.attack_entity) {
-            env->dig_hitting = 0;
-            env->dig_progress = 0.0f;
+            env->ctl.dig_hitting = 0;
+            env->ctl.dig_progress = 0.0f;
         } else {
-            int press = !env->atk_prev;
+            int press = !env->ctl.atk_prev;
             int hx, hy, hz, ax, ay, az;
             int r = cu_raycast_sel_reach(window, st, pl, 4.5,
                                      &hx, &hy, &hz, &ax, &ay, &az, env->ops);
@@ -3919,72 +3912,72 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
                     pin.creative = 0;
                     rel = pb_relative_hardness(&pin);
                     if (press &&
-                        (!env->dig_hitting || hx != env->dig_hx || hy != env->dig_hy ||
-                         hz != env->dig_hz)) {
+                        (!env->ctl.dig_hitting || hx != env->ctl.dig_hx || hy != env->ctl.dig_hy ||
+                         hz != env->ctl.dig_hz)) {
                         if (rel >= 1.0f) {
                             CU_OP(env, CU_OP_DIG_BREAK);
                             cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
                                            ox, oy, oz, edits, &ne, max_edits);
-                            env->dig_hx = INT_MIN;
+                            env->ctl.dig_hx = INT_MIN;
                             bid = BLK_AIR;
                         } else {
-                            env->dig_hitting = 1;
-                            env->dig_hx = hx; env->dig_hy = hy; env->dig_hz = hz;
-                            env->dig_progress = 0.0f;
+                            env->ctl.dig_hitting = 1;
+                            env->ctl.dig_hx = hx; env->ctl.dig_hy = hy; env->ctl.dig_hz = hz;
+                            env->ctl.dig_progress = 0.0f;
                             use_gate_hitting = 1;
                         }
                     }
                     if (bid != BLK_AIR) {
-                        if (env->dig_delay > 0) {
-                            --env->dig_delay;
-                        } else if (hx == env->dig_hx && hy == env->dig_hy &&
-                                   hz == env->dig_hz) {
-                            env->dig_progress += rel;
+                        if (env->ctl.dig_delay > 0) {
+                            --env->ctl.dig_delay;
+                        } else if (hx == env->ctl.dig_hx && hy == env->ctl.dig_hy &&
+                                   hz == env->ctl.dig_hz) {
+                            env->ctl.dig_progress += rel;
                             CU_OP(env, CU_OP_DIG_TICK);
-                            if (env->dig_progress >= 1.0f) {
-                                env->dig_hitting = 0;
+                            if (env->ctl.dig_progress >= 1.0f) {
+                                env->ctl.dig_hitting = 0;
                                 CU_OP(env, CU_OP_DIG_BREAK);
                                 cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
                                                ox, oy, oz, edits, &ne, max_edits);
-                                env->dig_hx = INT_MIN;
-                                env->dig_progress = 0.0f;
-                                env->dig_delay = 5;
+                                env->ctl.dig_hx = INT_MIN;
+                                env->ctl.dig_progress = 0.0f;
+                                env->ctl.dig_delay = 5;
                             }
                         } else {
                             if (rel >= 1.0f) {
                                 CU_OP(env, CU_OP_DIG_BREAK);
                                 cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
                                                ox, oy, oz, edits, &ne, max_edits);
-                                env->dig_hx = INT_MIN;
+                                env->ctl.dig_hx = INT_MIN;
                             } else {
-                                env->dig_hitting = 1;
-                                env->dig_hx = hx; env->dig_hy = hy; env->dig_hz = hz;
-                                env->dig_progress = 0.0f;
+                                env->ctl.dig_hitting = 1;
+                                env->ctl.dig_hx = hx; env->ctl.dig_hy = hy; env->ctl.dig_hz = hz;
+                                env->ctl.dig_progress = 0.0f;
                             }
                         }
                     }
                 } else {
-                    env->dig_hitting = 0;
-                    env->dig_progress = 0.0f;
+                    env->ctl.dig_hitting = 0;
+                    env->ctl.dig_progress = 0.0f;
                 }
             } else {
-                if (press) env->left_click_counter = 10;
-                env->dig_hitting = 0;
-                env->dig_progress = 0.0f;
+                if (press) env->ctl.left_click_counter = 10;
+                env->ctl.dig_hitting = 0;
+                env->ctl.dig_progress = 0.0f;
             }
         }
     }
-    env->atk_prev = act.attack;
+    env->ctl.atk_prev = act.attack;
 
     /* rightClickMouse timer/edge + FIRE path. Magma player_ctl.c:687 maps
      * use_fire to do_place; RL ABI a[8] is use (verify_cpu.py:383,
      * obs_pack.h:48). */
-    if (env->rc_delay > 0) --env->rc_delay;
+    if (env->ctl.rc_delay > 0) --env->ctl.rc_delay;
     {
-        int use_fire = act.use && (!env->use_prev || env->rc_delay == 0) &&
+        int use_fire = act.use && (!env->ctl.use_prev || env->ctl.rc_delay == 0) &&
                        !use_gate_hitting;
-        if (use_fire) env->rc_delay = 4;
-        env->use_prev = act.use;
+        if (use_fire) env->ctl.rc_delay = 4;
+        env->ctl.use_prev = act.use;
         if (use_fire) act.do_place = 1;
         if (act.do_place) {
             ICStack held0 = isr_get_stack(&pl->inv, pl->inv.current_item);
@@ -4160,8 +4153,8 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
     land_jump = act.jump && !was_air && !water_pre && !lava_pre;
     if (land_jump && act.sprint) {
         float fj = pl->yaw * 0.017453292f;
-        env->server_motion_x -= (double)(mc_sin(st, fj) * 0.2f);
-        env->server_motion_z += (double)(mc_cos(st, fj) * 0.2f);
+        env->ctl.server_motion_x -= (double)(mc_sin(st, fj) * 0.2f);
+        env->ctl.server_motion_z += (double)(mc_cos(st, fj) * 0.2f);
     }
 
     el_consume_pending(pl);
@@ -4184,11 +4177,11 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
         int hunger = fi.hunger;
         float sat = fi.saturation;
         if (act.use && hunger && vit->foodLevel < 20) {
-            if (env->eat_item != food.item) {
-                env->eat_item = food.item;
-                env->eat_ticks = 0;
+            if (env->ctl.eat_item != food.item) {
+                env->ctl.eat_item = food.item;
+                env->ctl.eat_ticks = 0;
             }
-            if (++env->eat_ticks >= 32) {
+            if (++env->ctl.eat_ticks >= 32) {
                 (void)jrand_float(&env->world_rand); /* ItemFood.java:55 */
                 if (fi.potion_prob >= 0.0f)
                     (void)jrand_float(&env->world_rand); /* ItemFood.java:66 */
@@ -4202,28 +4195,28 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
                 if (fi.soup)
                     isr_set_stack(&pl->inv, pl->inv.current_item,
                                   ic_mk(281, 1, 0));
-                env->eat_ticks = 0;
-                env->eat_item = 0;
+                env->ctl.eat_ticks = 0;
+                env->ctl.eat_item = 0;
             }
         } else if (act.use && (food.item == PSV_ITEM_POTION ||
                                food.item == PSV_ITEM_MILK)) {
             int slot = pl->inv.current_item;
-            if (env->eat_item != food.item) {
-                env->eat_item = food.item;
-                env->eat_ticks = 0;
+            if (env->ctl.eat_item != food.item) {
+                env->ctl.eat_item = food.item;
+                env->ctl.eat_ticks = 0;
             }
-            if (++env->eat_ticks >= PSV_USE_DRINK_TICKS) {
+            if (++env->ctl.eat_ticks >= PSV_USE_DRINK_TICKS) {
                 if (food.item == PSV_ITEM_POTION)
                     psv_potion_drink_finish(pl, vit, slot, env->tape_creative);
                 else
                     psv_potion_milk_finish(pl, slot, env->tape_creative);
-                env->eat_ticks = 0;
-                env->eat_item = 0;
+                env->ctl.eat_ticks = 0;
+                env->ctl.eat_item = 0;
                 psv_reset_active_hand(pl);
             } else {
                 pl->use_action = PSV_USE_DRINK;
                 pl->use_max = PSV_USE_DRINK_TICKS;
-                pl->use_remaining = PSV_USE_DRINK_TICKS - env->eat_ticks;
+                pl->use_remaining = PSV_USE_DRINK_TICKS - env->ctl.eat_ticks;
                 if (pl->use_remaining < 0) pl->use_remaining = 0;
                 pl->active_hand = 0;
             }
@@ -4238,16 +4231,16 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
                 pl->use_action = PSV_USE_BLOCK;
                 pl->use_max = PSV_SHIELD_USE_TICKS;
                 pl->active_hand = (slot == ISR_OFFHAND_SLOT) ? 1 : 0;
-                env->eat_ticks = 0;
-                env->eat_item = 0;
+                env->ctl.eat_ticks = 0;
+                env->ctl.eat_item = 0;
             } else {
-                env->eat_ticks = 0;
-                env->eat_item = 0;
+                env->ctl.eat_ticks = 0;
+                env->ctl.eat_item = 0;
                 if (food.item != 261) psv_reset_active_hand(pl);
             }
         } else {
-            env->eat_ticks = 0;
-            env->eat_item = 0;
+            env->ctl.eat_ticks = 0;
+            env->ctl.eat_item = 0;
             if (food.item != 261) psv_reset_active_hand(pl);
         }
     }
@@ -4261,7 +4254,7 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
         cu_vitals_apply(vit, pl, act, was_air, prev_min_y, dx, dy, dz,
                         water_pre, cu_eye_in_water(window, pl), land_jump);
         if (vit->health < hp_before) {
-            env->hurt_vel_reset = 1;
+            env->ctl.hurt_vel_reset = 1;
         } else {
             float drag = 0.91f;
             if (pl->ent.onGround) {
@@ -4269,10 +4262,10 @@ MC_HD MC_NOINLINE static inline void blaze_player_tick(Blaze *env,
                 int bz = mc_floor(pl->ent.posZ);
                 drag *= psv_slipperiness(psv_get_block(window, bx, by, bz));
             }
-            env->server_motion_x *= (double)drag;
-            env->server_motion_z *= (double)drag;
-            if (fabs(env->server_motion_x) < 0.003) env->server_motion_x = 0.0;
-            if (fabs(env->server_motion_z) < 0.003) env->server_motion_z = 0.0;
+            env->ctl.server_motion_x *= (double)drag;
+            env->ctl.server_motion_z *= (double)drag;
+            if (fabs(env->ctl.server_motion_x) < 0.003) env->ctl.server_motion_x = 0.0;
+            if (fabs(env->ctl.server_motion_z) < 0.003) env->ctl.server_motion_z = 0.0;
         }
     }
 
@@ -4596,11 +4589,11 @@ MC_HD static inline void blaze_container_close(Blaze *env) {
         (void)isr_add_item_stack_to_inventory(&env->pl.inv, &v);
         if (!cc_is_empty(&v)) blaze_ct_drop(env, v);
     }
-    if (!cc_is_empty(&env->cursor)) {
-        ICStack cur = env->cursor;
+    if (!cc_is_empty(&env->ctl.cursor)) {
+        ICStack cur = env->ctl.cursor;
         (void)isr_add_item_stack_to_inventory(&env->pl.inv, &cur);
         if (!cc_is_empty(&cur)) blaze_ct_drop(env, cur);
-        env->cursor = ic_empty();
+        env->ctl.cursor = ic_empty();
     }
 }
 
@@ -4709,7 +4702,7 @@ MC_HD static inline void blaze_click_pickup_chest(Blaze *env, int slot_id,
     ICStack cur, v;
     if (!te) return;
     cslot = slot_id - CU_GMC_CHEST0;
-    cur = env->cursor;
+    cur = env->ctl.cursor;
     v = cu_chest_get(te, cslot);
     if (cc_is_empty(&v)) {
         int amount, moved;
@@ -4737,12 +4730,12 @@ MC_HD static inline void blaze_click_pickup_chest(Blaze *env, int slot_id,
             }
         }
     }
-    env->cursor = cur;
+    env->ctl.cursor = cur;
 }
 
 MC_HD static inline void blaze_click_pickup_inv(Blaze *env, int slot_id,
                                                 int button) {
-    ICStack cur = env->cursor;
+    ICStack cur = env->ctl.cursor;
     ICStack v = isr_get_stack(&env->pl.inv, slot_id);
     i32 slot_lim = cc_slot_stack_limit();
     if (cc_is_empty(&v)) {
@@ -4777,7 +4770,7 @@ MC_HD static inline void blaze_click_pickup_inv(Blaze *env, int slot_id,
     }
     cc_normalize(&v);
     isr_set_stack(&env->pl.inv, slot_id, v);
-    env->cursor = cur;
+    env->ctl.cursor = cur;
 }
 
 MC_HD static inline ICStack blaze_ct_transfer(Blaze *env, int slot_id) {
@@ -4873,7 +4866,7 @@ MC_HD static inline void blaze_click_pickup_furnace(Blaze *env, int slot_id,
     if (env->container != 2 || env->active_furnace < 0) return;
     f = &env->furnaces[env->active_furnace];
     fslot = slot_id - CU_GMC_FURNACE0;
-    cur = env->cursor;
+    cur = env->ctl.cursor;
     {
         SRStack src = fslot == 0 ? f->input : fslot == 1 ? f->fuel : f->output;
         v = sr_isEmpty(src) ? ic_empty() : ic_mk(src.item, src.count, src.meta);
@@ -4908,7 +4901,7 @@ MC_HD static inline void blaze_click_pickup_furnace(Blaze *env, int slot_id,
             (void)cu_furnace_insert(f, fslot, got);
         }
     }
-    env->cursor = cur;
+    env->ctl.cursor = cur;
 }
 
 /* gm_container_click subset: chest + furnace + player inv, PICKUP + QUICK_MOVE. */
@@ -5128,7 +5121,7 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
             env->container = 1;
             env->container_wx = bx; env->container_wy = by;
             env->container_wz = bz;
-            env->left_click_counter = 10000;
+            env->ctl.left_click_counter = 10000;
             env->parity_container_opens++;
             return 1;
         }
@@ -5141,7 +5134,7 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
                     env->container = 2; env->active_furnace = fi;
                     env->container_wx = bx; env->container_wy = by;
                     env->container_wz = bz;
-                    env->left_click_counter = 10000;
+                    env->ctl.left_click_counter = 10000;
                     env->parity_container_opens++;
                     return 1;
                 }
@@ -5156,7 +5149,7 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
             env->container = 2; env->active_furnace = free_slot;
             env->container_wx = bx; env->container_wy = by;
             env->container_wz = bz;
-            env->left_click_counter = 10000;
+            env->ctl.left_click_counter = 10000;
             env->parity_container_opens++;
             return 1;
         }
@@ -5170,7 +5163,7 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
                     env->container = 3; env->active_chest = ci;
                     env->container_wx = bx; env->container_wy = by;
                     env->container_wz = bz;
-                    env->left_click_counter = 10000;
+                    env->ctl.left_click_counter = 10000;
                     env->parity_container_opens++;
                     return 1;
                 }
@@ -5186,7 +5179,7 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
             env->container = 3; env->active_chest = free_slot;
             env->container_wx = bx; env->container_wy = by;
             env->container_wz = bz;
-            env->left_click_counter = 10000;
+            env->ctl.left_click_counter = 10000;
             env->parity_container_opens++;
             return 1;
         }
@@ -5766,7 +5759,7 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
     {
         int can_click = 0;
         if (act.attack) {
-            int c = env->left_click_counter;
+            int c = env->ctl.left_click_counter;
             if (c > 0) --c;
             can_click = (c <= 0);
         }
@@ -5780,7 +5773,7 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
     {
         int can_click = 0;
         if (act.attack) {
-            int c = env->left_click_counter;
+            int c = env->ctl.left_click_counter;
             if (c > 0) --c;
             can_click = (c <= 0);
         }
@@ -5818,7 +5811,7 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
     }
     /* Minecraft.runTick pins this GUI sentinel after key processing. */
     if (env->container >= 1 && env->container <= 3)
-        env->left_click_counter = 10000;
+        env->ctl.left_click_counter = 10000;
     CU_PHASE_END(env, CU_PHASE_PHYS);
     }
 
@@ -6580,7 +6573,7 @@ MC_HD static inline void blaze_fill_status(const Blaze *e, int *out) {
         out[10] = isr_is_empty(&s) ? 0 : s.item;
     }
     out[11] = e->container;
-    out[12] = e->dig_hitting ? (int)(e->dig_progress * 1000.0f) : 0;
+    out[12] = e->ctl.dig_hitting ? (int)(e->ctl.dig_progress * 1000.0f) : 0;
     out[13] = blaze_inv_count(e, 61);
     out[14] = blaze_inv_count(e, 15);
     out[15] = blaze_inv_count(e, 265);
@@ -6631,14 +6624,14 @@ MC_HD static inline int blaze_capture_head(const Blaze *e, RlSnapHead *h,
     h->saturation = e->vit.saturation;
     h->exhaustion = e->vit.exhaustion;
     h->food_timer = e->vit.foodTimer;
-    h->dig_progress = e->dig_progress;
-    h->dig_hx = e->dig_hx; h->dig_hy = e->dig_hy; h->dig_hz = e->dig_hz;
-    h->dig_hitting = e->dig_hitting; h->dig_delay = e->dig_delay;
-    h->atk_prev = e->atk_prev; h->rc_delay = e->rc_delay;
-    h->use_prev = e->use_prev;
-    h->hurt_vel_reset = e->hurt_vel_reset;
-    h->server_motion_x = e->server_motion_x;
-    h->server_motion_z = e->server_motion_z;
+    h->dig_progress = e->ctl.dig_progress;
+    h->dig_hx = e->ctl.dig_hx; h->dig_hy = e->ctl.dig_hy; h->dig_hz = e->ctl.dig_hz;
+    h->dig_hitting = e->ctl.dig_hitting; h->dig_delay = e->ctl.dig_delay;
+    h->atk_prev = e->ctl.atk_prev; h->rc_delay = e->ctl.rc_delay;
+    h->use_prev = e->ctl.use_prev;
+    h->hurt_vel_reset = e->ctl.hurt_vel_reset;
+    h->server_motion_x = e->ctl.server_motion_x;
+    h->server_motion_z = e->ctl.server_motion_z;
     h->container = e->container;
     h->container_wx = e->container_wx; h->container_wy = e->container_wy;
     h->container_wz = e->container_wz;
@@ -6715,38 +6708,38 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     r->debug_bits[BP_DBG_HEALTH] = bp_float_bits(e->vit.health);
     r->debug_bits[BP_DBG_FOOD] = (uint32_t)e->vit.foodLevel;
     r->debug_bits[BP_DBG_EXHAUSTION] = bp_float_bits(e->vit.exhaustion);
-    r->debug_bits[BP_DBG_DIG_PROGRESS] = bp_float_bits(e->dig_progress);
+    r->debug_bits[BP_DBG_DIG_PROGRESS] = bp_float_bits(e->ctl.dig_progress);
     r->debug_bits[BP_DBG_DIG_HX] =
-        (uint32_t)(e->dig_hitting && e->dig_hx != INT_MIN
-                   ? e->dig_hx + e->ox : INT_MIN);
+        (uint32_t)(e->ctl.dig_hitting && e->ctl.dig_hx != INT_MIN
+                   ? e->ctl.dig_hx + e->ox : INT_MIN);
     r->debug_bits[BP_DBG_DIG_HY] =
-        (uint32_t)(e->dig_hitting ? e->dig_hy : INT_MIN);
+        (uint32_t)(e->ctl.dig_hitting ? e->ctl.dig_hy : INT_MIN);
     r->debug_bits[BP_DBG_DIG_HZ] =
-        (uint32_t)(e->dig_hitting && e->dig_hx != INT_MIN
-                   ? e->dig_hz + e->oz : INT_MIN);
-    r->debug_bits[BP_DBG_DIG_HITTING] = (uint32_t)e->dig_hitting;
-    r->debug_bits[BP_DBG_DIG_DELAY] = (uint32_t)e->dig_delay;
-    r->debug_bits[BP_DBG_ATK_PREV] = (uint32_t)e->atk_prev;
+        (uint32_t)(e->ctl.dig_hitting && e->ctl.dig_hx != INT_MIN
+                   ? e->ctl.dig_hz + e->oz : INT_MIN);
+    r->debug_bits[BP_DBG_DIG_HITTING] = (uint32_t)e->ctl.dig_hitting;
+    r->debug_bits[BP_DBG_DIG_DELAY] = (uint32_t)e->ctl.dig_delay;
+    r->debug_bits[BP_DBG_ATK_PREV] = (uint32_t)e->ctl.atk_prev;
     r->debug_bits[BP_DBG_LEFT_CLICK_COUNTER] =
-        (uint32_t)e->left_click_counter;
-    r->debug_bits[BP_DBG_RC_DELAY] = (uint32_t)e->rc_delay;
-    r->debug_bits[BP_DBG_USE_PREV] = (uint32_t)e->use_prev;
-    r->debug_bits[BP_DBG_HURT_VEL_RESET] = (uint32_t)e->hurt_vel_reset;
+        (uint32_t)e->ctl.left_click_counter;
+    r->debug_bits[BP_DBG_RC_DELAY] = (uint32_t)e->ctl.rc_delay;
+    r->debug_bits[BP_DBG_USE_PREV] = (uint32_t)e->ctl.use_prev;
+    r->debug_bits[BP_DBG_HURT_VEL_RESET] = (uint32_t)e->ctl.hurt_vel_reset;
     r->debug_bits[BP_DBG_SERVER_MOTION_X] =
-        bp_double_bits(e->server_motion_x);
+        bp_double_bits(e->ctl.server_motion_x);
     r->debug_bits[BP_DBG_SERVER_MOTION_Z] =
-        bp_double_bits(e->server_motion_z);
+        bp_double_bits(e->ctl.server_motion_z);
     r->debug_bits[BP_DBG_CONTAINER] =
         bp_debug_pair_i32(e->container, (int32_t)e->parity_container_opens);
     r->debug_bits[BP_DBG_CONTAINER_WX] =
         bp_debug_pair_i32(e->container_wx,
                           (int32_t)e->parity_craft_attempts);
     r->debug_bits[BP_DBG_CONTAINER_WY] =
-        bp_debug_pair_i32(e->container_wy, e->cursor.item);
+        bp_debug_pair_i32(e->container_wy, e->ctl.cursor.item);
     r->debug_bits[BP_DBG_CONTAINER_WZ] =
         bp_debug_pair_i32(e->container_wz,
-                          (e->cursor.count & 0xffff) |
-                          ((e->cursor.meta & 0xffff) << 16));
+                          (e->ctl.cursor.count & 0xffff) |
+                          ((e->ctl.cursor.meta & 0xffff) << 16));
 
     h = bp_hash_begin();
     h = bp_hash_u32(h, UINT32_C(0x32594C50)); /* "PLY2" + fire/air + potions */
@@ -6783,24 +6776,24 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     r->active_mask |= BP_BIT(BP_PLAYER);
 
     h = bp_hash_begin();
-    h = bp_hash_float(h, e->dig_progress);
-    h = bp_hash_i32(h, e->dig_hitting && e->dig_hx != INT_MIN
-                    ? e->dig_hx + e->ox : INT_MIN);
-    h = bp_hash_i32(h, e->dig_hitting ? e->dig_hy : INT_MIN);
-    h = bp_hash_i32(h, e->dig_hitting && e->dig_hx != INT_MIN
-                    ? e->dig_hz + e->oz : INT_MIN);
-    h = bp_hash_i32(h, e->dig_hitting);
-    h = bp_hash_i32(h, e->dig_delay);
-    h = bp_hash_i32(h, e->atk_prev);
-    h = bp_hash_i32(h, e->left_click_counter);
-    h = bp_hash_i32(h, e->rc_delay);
-    h = bp_hash_i32(h, e->use_prev);
-    h = bp_hash_i32(h, e->hurt_vel_reset);
-    h = bp_hash_double(h, e->server_motion_x);
-    h = bp_hash_double(h, e->server_motion_z);
+    h = bp_hash_float(h, e->ctl.dig_progress);
+    h = bp_hash_i32(h, e->ctl.dig_hitting && e->ctl.dig_hx != INT_MIN
+                    ? e->ctl.dig_hx + e->ox : INT_MIN);
+    h = bp_hash_i32(h, e->ctl.dig_hitting ? e->ctl.dig_hy : INT_MIN);
+    h = bp_hash_i32(h, e->ctl.dig_hitting && e->ctl.dig_hx != INT_MIN
+                    ? e->ctl.dig_hz + e->oz : INT_MIN);
+    h = bp_hash_i32(h, e->ctl.dig_hitting);
+    h = bp_hash_i32(h, e->ctl.dig_delay);
+    h = bp_hash_i32(h, e->ctl.atk_prev);
+    h = bp_hash_i32(h, e->ctl.left_click_counter);
+    h = bp_hash_i32(h, e->ctl.rc_delay);
+    h = bp_hash_i32(h, e->ctl.use_prev);
+    h = bp_hash_i32(h, e->ctl.hurt_vel_reset);
+    h = bp_hash_double(h, e->ctl.server_motion_x);
+    h = bp_hash_double(h, e->ctl.server_motion_z);
     r->digest[BP_DIG] = h;
     r->evidence[BP_DIG] = 1;
-    if (e->dig_hitting) r->active_mask |= BP_BIT(BP_DIG);
+    if (e->ctl.dig_hitting) r->active_mask |= BP_BIT(BP_DIG);
 
     if (e->cells && e->rnx > 0 && e->rny > 0 && e->rnz > 0) {
         if (!e->parity_world_valid) {
@@ -6875,10 +6868,10 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     h = bp_hash_u32(h, e->parity_container_opens);
     for (i = 0; i < 9; ++i)
         h = blaze_parity_stack(h, &e->craft_grid[i]);
-    h = blaze_parity_stack(h, &e->cursor);
+    h = blaze_parity_stack(h, &e->ctl.cursor);
     r->digest[BP_CONTAINERS] = h;
     r->evidence[BP_CONTAINERS] = e->parity_container_opens;
-    if (e->container || any || (e->cursor.item > 0 && e->cursor.count > 0))
+    if (e->container || any || (e->ctl.cursor.item > 0 && e->ctl.cursor.count > 0))
         r->active_mask |= BP_BIT(BP_CONTAINERS);
 
     h = bp_hash_begin();
@@ -6924,7 +6917,7 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
         const ICStack *st = &e->pl.inv.main[i];
         h = bp_hash_stack3(h, st->item, st->count, st->meta);
     }
-    h = bp_hash_stack3(h, e->cursor.item, e->cursor.count, e->cursor.meta);
+    h = bp_hash_stack3(h, e->ctl.cursor.item, e->ctl.cursor.count, e->ctl.cursor.meta);
     r->digest[BP_CHESTS] = h;
     r->evidence[BP_CHESTS] = (uint32_t)any;
     if (any) r->active_mask |= BP_BIT(BP_CHESTS);
@@ -7254,14 +7247,14 @@ MC_HD static inline int blaze_debug_fill(const Blaze *e, double *out) {
     out[k++] = (double)e->pl.fall_distance;
     out[k++] = (double)e->pl.sprinting;
     out[k++] = (double)e->pl.sprint_toggle_timer;
-    out[k++] = (double)e->dig_progress;
-    out[k++] = (double)e->dig_hitting;
-    out[k++] = (double)e->dig_delay;
+    out[k++] = (double)e->ctl.dig_progress;
+    out[k++] = (double)e->ctl.dig_hitting;
+    out[k++] = (double)e->ctl.dig_delay;
     out[k++] = (double)e->vit.health;
     out[k++] = (double)e->vit.foodLevel;
     out[k++] = (double)e->vit.exhaustion;
-    out[k++] = e->server_motion_x;
-    out[k++] = e->server_motion_z;
+    out[k++] = e->ctl.server_motion_x;
+    out[k++] = e->ctl.server_motion_z;
     out[k++] = (double)e->tick;
     return k;
 }
@@ -7430,21 +7423,21 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->vit.foodTimer = h->food_timer;
     env->pl.health = h->health; env->pl.food = (float)h->food;
 
-    env->dig_progress = h->dig_progress;
-    env->dig_hx = h->dig_hx; env->dig_hy = h->dig_hy; env->dig_hz = h->dig_hz;
-    env->dig_hitting = h->dig_hitting; env->dig_delay = h->dig_delay;
-    env->atk_prev = h->atk_prev; env->left_click_counter = 0;
-    env->rc_delay = h->rc_delay; env->use_prev = h->use_prev;
-    env->hurt_vel_reset = h->hurt_vel_reset;
-    env->eat_ticks = 0; env->eat_item = 0;   /* quiescent by bake contract */
-    env->server_motion_x = h->server_motion_x;
-    env->server_motion_z = h->server_motion_z;
+    env->ctl.dig_progress = h->dig_progress;
+    env->ctl.dig_hx = h->dig_hx; env->ctl.dig_hy = h->dig_hy; env->ctl.dig_hz = h->dig_hz;
+    env->ctl.dig_hitting = h->dig_hitting; env->ctl.dig_delay = h->dig_delay;
+    env->ctl.atk_prev = h->atk_prev; env->ctl.left_click_counter = 0;
+    env->ctl.rc_delay = h->rc_delay; env->ctl.use_prev = h->use_prev;
+    env->ctl.hurt_vel_reset = h->hurt_vel_reset;
+    env->ctl.eat_ticks = 0; env->ctl.eat_item = 0;   /* quiescent by bake contract */
+    env->ctl.server_motion_x = h->server_motion_x;
+    env->ctl.server_motion_z = h->server_motion_z;
 
     env->container = h->container;
     env->container_wx = h->container_wx; env->container_wy = h->container_wy;
     env->container_wz = h->container_wz;
     for (i = 0; i < 9; ++i) env->craft_grid[i] = ic_empty();
-    env->cursor = ic_empty();
+    env->ctl.cursor = ic_empty();
     env->parity_craft_attempts = 0;
     env->parity_craft_successes = 0;
     env->parity_container_opens = 0;

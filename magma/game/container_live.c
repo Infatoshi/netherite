@@ -373,7 +373,7 @@ static void click_pickup_furnace(GmRuntime *r, int slot_id, int button)
     FurnaceLive *f = ct_furnace(r);
     if (!f) return;
     int fslot = slot_id - GMC_FURNACE0;
-    ICStack cur = gm_player_cursor();
+    ICStack cur = gm_player_cursor(&r->ctl);
     ICStack v = ct_furnace_get(r, slot_id);
 
     if (cc_is_empty(&v)) {
@@ -405,7 +405,7 @@ static void click_pickup_furnace(GmRuntime *r, int slot_id, int button)
             (void)furnace_live_insert(f, fslot, got);
         }
     }
-    gm_player_cursor_set(cur);
+    gm_player_cursor_set(&r->ctl, cur);
 }
 
 static void click_pickup_result(GmRuntime *r, int button)
@@ -413,7 +413,7 @@ static void click_pickup_result(GmRuntime *r, int button)
     (void)button;
     ICStack res = grid_match(r);
     if (cc_is_empty(&res)) return;
-    ICStack cur = gm_player_cursor();
+    ICStack cur = gm_player_cursor(&r->ctl);
     if (cc_is_empty(&cur)) {
         cur = res;
     } else if (cc_stack_match(&cur, &res) &&
@@ -423,7 +423,7 @@ static void click_pickup_result(GmRuntime *r, int button)
         return;
     }
     grid_consume_one(r);
-    gm_player_cursor_set(cur);
+    gm_player_cursor_set(&r->ctl, cur);
 }
 
 static void click_pickup_chest(GmRuntime *r, int slot_id, int button)
@@ -431,7 +431,7 @@ static void click_pickup_chest(GmRuntime *r, int slot_id, int button)
     ChestLive *ch = ct_chest(r);
     if (!ch) return;
     int cslot = slot_id - GMC_CHEST0;
-    ICStack cur = gm_player_cursor();
+    ICStack cur = gm_player_cursor(&r->ctl);
     ICStack v = chest_live_get(ch, cslot);
 
     if (cc_is_empty(&v)) {
@@ -461,12 +461,12 @@ static void click_pickup_chest(GmRuntime *r, int slot_id, int button)
             }
         }
     }
-    gm_player_cursor_set(cur);
+    gm_player_cursor_set(&r->ctl, cur);
 }
 
 static void click_pickup(GmRuntime *r, int slot_id, int button)
 {
-    ICStack cur = gm_player_cursor();
+    ICStack cur = gm_player_cursor(&r->ctl);
     ICStack v = ct_get(r, slot_id);
     int armor = is_armor(slot_id);
     int armor_idx = armor ? (slot_id - GMC_ARMOR0) : -1;
@@ -507,12 +507,12 @@ static void click_pickup(GmRuntime *r, int slot_id, int button)
         }
     }
     ct_set(r, slot_id, v);
-    gm_player_cursor_set(cur);
+    gm_player_cursor_set(&r->ctl, cur);
 }
 
 static void click_throw(GmRuntime *r, int slot_id, int button)
 {
-    ICStack cur = gm_player_cursor();
+    ICStack cur = gm_player_cursor(&r->ctl);
     if (!cc_is_empty(&cur)) return; /* vanilla: THROW only with an empty cursor */
 
     if (slot_id == GMC_RESULT) {
@@ -561,7 +561,7 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
             return 1;
         }
         if (click_type != CC_CLICK_PICKUP) return 0;
-        ICStack cur = gm_player_cursor();
+        ICStack cur = gm_player_cursor(&r->ctl);
         if (!cc_is_empty(&cur)) {
             if (button == 0) {
                 ct_drop(r, cur);
@@ -569,7 +569,7 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
             } else {
                 ct_drop(r, cc_split_stack(&cur, 1));
             }
-            gm_player_cursor_set(cur);
+            gm_player_cursor_set(&r->ctl, cur);
         }
         return 1;
     }
@@ -614,10 +614,10 @@ void gm_container_close(struct GmRuntime *r)
         (void)isr_add_item_stack_to_inventory(&r->player.inv, &v);
         if (!cc_is_empty(&v)) ct_drop(r, v);
     }
-    ICStack cur = gm_player_cursor();
+    ICStack cur = gm_player_cursor(&r->ctl);
     if (!cc_is_empty(&cur)) {
         (void)isr_add_item_stack_to_inventory(&r->player.inv, &cur);
         if (!cc_is_empty(&cur)) ct_drop(r, cur);
-        gm_player_cursor_set(ic_empty());
+        gm_player_cursor_set(&r->ctl, ic_empty());
     }
 }

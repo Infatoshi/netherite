@@ -56,6 +56,7 @@
  */
 #include "core/types.h"
 #include "game/game.h"
+#include "game/player_ctl.h"
 #include "game/sky.h"
 #include "game/view.h"
 
@@ -193,6 +194,7 @@ static CrCamera cam_from_view(const GmPlayerView *pv, int fb_w, int fb_h) {
 }
 
 int main(int argc, char **argv) {
+    GmPlayerCtl ctl; gm_player_ctl_init(&ctl);
     long long   seed = 0;
     int         fb_w = 320, fb_h = 180;
     int         do_render = 1;
@@ -276,7 +278,7 @@ int main(int argc, char **argv) {
         GmBlockEdit se[MAX_EDITS]; int sne = 0;
         for (int s = 0; s < 40; ++s) {
             gm_world_fill_window(world, ccx, ccz, (struct Chunk *)win);
-            gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+            gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                            (struct PsvPlayer *)&pl, (struct PvStats *)&vitals, idle,
                            ox, 0, oz, se, &sne, MAX_EDITS);
             /* onGround=1 means the move already clamped feet to the surface (rest); psv
@@ -351,13 +353,13 @@ int main(int argc, char **argv) {
         /* ---- fill the physics window, tick the player, apply edits ---- */
         gm_world_fill_window(world, ccx, ccz, (struct Chunk *)win);
         GmBlockEdit edits[MAX_EDITS]; int nedits = 0;
-        gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+        gm_player_tick(&ctl, (struct Chunk *)win, (const struct McSinTable *)&st,
                        (struct PsvPlayer *)&pl, (struct PvStats *)&vitals, act,
                        ox, 0, oz, edits, &nedits, MAX_EDITS);
         for (int e = 0; e < nedits; ++e)
             gm_world_set_block(world, edits[e].wx, edits[e].wy, edits[e].wz, edits[e].id);
 
-        GmPlayerView pv; gm_player_view((const struct PsvPlayer *)&pl, ox, oz, &pv);
+        GmPlayerView pv; gm_player_view(&ctl, (const struct PsvPlayer *)&pl, ox, oz, &pv);
 
         /* ---- optional render + frame hash ---- */
         unsigned long long h = 0ULL;

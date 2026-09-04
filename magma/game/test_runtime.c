@@ -26,10 +26,32 @@ int main(void) {
     CHECK(gm_runtime_init(&r, &cfg, err, sizeof err), "runtime initializes");
     if (fail) return 1;
     {
+        GmRuntime other;
+        GmConfig flat = cfg;
+        flat.world = GM_WORLD_SUPERFLAT;
+        gm_player_cursor_set(&r.ctl, ic_mk(1, 9, 0));
+        gm_player_set_gui_blocked(&r.ctl, 1);
+        int initialized = gm_runtime_init(&other, &flat, err, sizeof err);
+        CHECK(initialized, "second runtime initializes independently");
+        if (initialized) {
+            CHECK(gm_player_cursor(&r.ctl).count == 9 &&
+                  !gm_player_left_click_allows(&r.ctl, 1),
+                  "second runtime initialization preserves first cursor and cooldown");
+            CHECK(gm_player_cursor(&other.ctl).count == 0 &&
+                  gm_player_left_click_allows(&other.ctl, 1),
+                  "second runtime starts with its own clean controller");
+            gm_runtime_destroy(&other);
+            CHECK(gm_player_cursor(&r.ctl).count == 9,
+                  "destroying second runtime preserves first controller");
+        }
+        gm_player_cursor_set(&r.ctl, ic_empty());
+        gm_player_set_gui_blocked(&r.ctl, 0);
+    }
+    {
         GmPlayerCtlSnap ctl;memset(&ctl,0,sizeof ctl);ctl.hurt_vel_reset=1;
-        gm_player_ctl_dig_import(&ctl);
-        gm_player_clear_inferred_hurt_velocity();
-        gm_player_ctl_dig_export(&ctl);
+        gm_player_ctl_dig_import(&r.ctl, &ctl);
+        gm_player_clear_inferred_hurt_velocity(&r.ctl);
+        gm_player_ctl_dig_export(&r.ctl, &ctl);
         CHECK(!ctl.hurt_vel_reset,
               "recorded EntityTracker velocity clears inferred fall resend");
     }

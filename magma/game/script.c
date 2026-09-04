@@ -280,7 +280,7 @@ static void write_state(FILE *out, const GmRuntime *r) {
         }
     }
     fprintf(out, "],");
-    { ICStack c = gm_player_cursor();
+    { ICStack c = gm_player_cursor(&r->ctl);
       fprintf(out, "\"cursor\":[%d,%d,%d],\"grid\":[", c.item, c.count, c.meta);
       for (int i = 0; i < 9; ++i)
           fprintf(out, "%s[%d,%d,%d]", i ? "," : "",
@@ -359,7 +359,7 @@ static void write_state(FILE *out, const GmRuntime *r) {
         int brk_x, brk_y, brk_z;
         float rel;
         ICStack held;
-        gm_player_ctl_dig_export(&d);
+        gm_player_ctl_dig_export(&r->ctl, &d);
         held = isr_get_stack(&r->player.inv, r->player.inv.current_item);
         fprintf(out, ",\"dig\":{\"lcc\":%d,\"bhd\":%d,\"hit\":%d",
                 d.left_click_counter, d.dig_delay, d.dig_hitting ? 1 : 0);
@@ -402,8 +402,7 @@ static void write_state(FILE *out, const GmRuntime *r) {
                     ray_lx, ray_ly, ray_lz);
                 rel_valid = 1;
             } else if (d.dig_hx != INT_MIN || d.dig_hitting) {
-                rel = gm_player_dig_rel_hardness(
-                    (const struct Chunk *)r->window,
+                rel = gm_player_dig_rel_hardness(&r->ctl, (const struct Chunk *)r->window,
                     (const struct PsvPlayer *)&r->player, creative);
                 rel_valid = 1;
             }
@@ -413,7 +412,7 @@ static void write_state(FILE *out, const GmRuntime *r) {
                 fprintf(out, ",\"rel\":null");
         }
         fprintf(out, ",\"reach\":%.9g", reach);
-        if (gm_player_dig_break_event(&brk_x, &brk_y, &brk_z))
+        if (gm_player_dig_break_event(&r->ctl, &brk_x, &brk_y, &brk_z))
             fprintf(out, ",\"brk\":[%d,%d,%d]", brk_x, brk_y, brk_z);
         else
             fprintf(out, ",\"brk\":0");
@@ -1503,7 +1502,7 @@ int gm_script_run(const GmConfig *cfg) {
                 goto bad;
             }
         }
-        if(clear_hurt_velocity_post)gm_player_clear_inferred_hurt_velocity();
+        if(clear_hurt_velocity_post)gm_player_clear_inferred_hurt_velocity(&r.ctl);
         if (prof_on) {
             long long bg = gm_world_block_gen(r.world), d = bg - prof_last;
             if (d < 0) d = 0;   /* dimension switch swapped in a fresh world */
