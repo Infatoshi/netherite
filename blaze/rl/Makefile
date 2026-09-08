@@ -907,3 +907,16 @@ $(OUT)/test_oracle_policy: test_oracle_policy.c test_eval_oracle.c eval_oracle.c
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) test_oracle_policy.c eval_oracle.c obs_config.c $(ORACLE_NN_OBJS) -lm -o $@
 test-oracle-policy: $(OUT)/test_oracle_policy $(OUT)/oracle-policy
 	$(OUT)/test_oracle_policy $(OUT)/oracle-policy
+
+$(OUT)/trace_dump: trace_dump.c $(CORE_SRC)/port_parity.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -o $@ trace_dump.c
+
+$(OUT)/test_trace_dump: test_trace_dump.c trace_dump.c $(CORE_SRC)/port_parity.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -o $@ test_trace_dump.c
+
+.PHONY: trace-dump test-trace-dump
+trace-dump: $(OUT)/trace_dump
+test-trace-dump: $(OUT)/test_trace_dump
+	cd $(REPO) && ./out/blaze/rl/test_trace_dump
+
+test-recipe: test-trace-dump
