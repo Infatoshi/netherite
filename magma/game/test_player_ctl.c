@@ -178,6 +178,38 @@ int main(void)
 
     Chunk *win = malloc(sizeof(Chunk) * PSV_NCHUNKS);
 
+    /* Java 1.11.2 EntityLivingBase.onLivingUpdate:2478-2498: a held
+     * jump decrements the cooldown, released isJumping resets it to zero.
+     * A low ceiling makes landing happen before the ten-tick cooldown ends,
+     * exposing the difference between holding and release/repress. */
+    printf("case jump release: low-ceiling landing and immediate repress\n");
+    fill_flat(win);
+    for (int x = 23; x <= 25; ++x)
+        for (int z = 23; z <= 25; ++z)
+            set_block_meta(win, x, 67, z, BLK_STONE, 0);
+    PsvPlayer jumper;
+    spawn_at(&jumper, 24.5, 65.0, 24.5);
+    jumper.ent.onGround = 1;
+    PsvAction jump_action;
+    memset(&jump_action, 0, sizeof jump_action);
+    const int jump_inputs[] = {1, 1, 1, 1, 0, 1};
+    const int java_cooldowns[] = {10, 9, 8, 7, 0, 10};
+    McAABB jump_blocks[PSV_MAX_BLOCKS];
+    double first_jump_y = 0;
+    for (int t = 0; t < 6; ++t) {
+        jump_action.jump = jump_inputs[t];
+        psv_physics_tick(win, &st, &jumper, &jump_action, jump_blocks);
+        CHECK(jumper.jump_ticks == java_cooldowns[t], "Java hold/release/repress cooldown sequence");
+        if (t == 0) {
+            first_jump_y = jumper.ent.posY;
+            CHECK(first_jump_y > 65.0 && first_jump_y < 65.21, "first jump hits low ceiling");
+        }
+        if (t == 3) CHECK(jumper.ent.onGround && jumper.ent.posY == 65.0,
+                          "held jump waits on floor while cooldown is nonzero");
+        if (t == 5) CHECK(double_bits(jumper.ent.posY) == double_bits(first_jump_y),
+                          "repress jumps immediately after release before old cooldown expires");
+    }
+
     /* ---------------- (A) LANDS ON FLOOR + reference parity ---------------- */
     printf("case A: land on floor + bitwise reference parity\n");
     fill_flat(win);

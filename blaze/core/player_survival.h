@@ -962,6 +962,8 @@ MC_HD static inline void psv_physics_tick_vit(const Chunk *now, const McSinTable
             e->motionX -= (double)(mc_sin(st, fj) * 0.2f);
             e->motionZ += (double)(mc_cos(st, fj) * 0.2f);
         }
+    } else if (!act->jump) {
+        pl->jump_ticks = 0; /* EntityLivingBase.onLivingUpdate: released input. */
     }
 
     /* EntityLivingBase.moveEntityWithHeading water/lava branches (1.11.2):
