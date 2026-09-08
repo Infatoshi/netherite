@@ -68,6 +68,72 @@ public class Recorder {
     private Req policyRequest;
     private long policyClientTicks, policyServerStart;
     private int policyPlayerStart;
+    private boolean policyInitialized;
+    private String policyOriginalObservation;
+
+    /** One explicit fixture initialization, never an episode correction. */
+    private String policyInitialize(final JsonObject action) {
+        synchronized (lockMon) {
+            if (!policyLocked || policyClientTicks != 0 || policyInitialized
+                || policyRequest != null || policyFault != null)
+                return err("policy_initialize requires a fresh policy_lock before any step; once only");
+            String bad = lockRequireParked("policy_initialize");
+            if (bad != null) return bad;
+            // Validate the complete request before the existing setter can write
+            // any field. No inventory, block, tick, RNG, or container setters.
+            try {
+                for (java.util.Map.Entry<String, com.google.gson.JsonElement> e : action.entrySet()) {
+                    String k = e.getKey();
+                    if (!(k.equals("x") || k.equals("y") || k.equals("z")
+                        || k.equals("vx") || k.equals("vy") || k.equals("vz")
+                        || k.equals("yaw") || k.equals("pitch") || k.equals("on_ground")
+                        || k.equals("fall_distance") || k.equals("food") || k.equals("health")))
+                        return err("policy_initialize unsupported field: " + k);
+                    if (!e.getValue().isJsonPrimitive() || !e.getValue().getAsJsonPrimitive().isNumber()
+                        || !isFinite(e.getValue().getAsDouble())) return err("initialization fields must be finite numbers");
+                }
+                for (String[] group : new String[][]{{"x","y","z"},{"vx","vy","vz"},{"yaw","pitch"}}) {
+                    int n = 0; for (String k : group) if (action.has(k)) n++;
+                    if (n != 0 && n != group.length) return err("initialization requires complete position, motion, and rotation groups");
+                }
+                if (action.entrySet().isEmpty()) return err("empty initialization");
+                if (action.has("food") && (action.get("food").getAsDouble() < 0
+                    || action.get("food").getAsDouble() > 20
+                    || action.get("food").getAsDouble() != action.get("food").getAsInt())) return err("food must be an integer 0..20");
+                if (action.has("on_ground") && action.get("on_ground").getAsDouble() != 0
+                    && action.get("on_ground").getAsDouble() != 1) return err("on_ground must be 0 or 1");
+                for (String k : new String[]{"yaw","pitch","fall_distance","health"})
+                    if (action.has(k) && !isFinite(action.get(k).getAsFloat())) return err("initialization float overflow");
+                if (action.has("pitch") && Math.abs(action.get("pitch").getAsDouble()) > 90) return err("pitch outside -90..90");
+                if (action.has("fall_distance") && action.get("fall_distance").getAsDouble() < 0) return err("negative fall_distance");
+                if (action.has("health") && (action.get("health").getAsDouble() < 0
+                    || action.get("health").getAsDouble() > Minecraft.getMinecraft().player.getMaxHealth())) return err("health outside player bounds");
+            } catch (Throwable t) { return err("invalid policy_initialize: " + t); }
+            policyInitialized = true; // An attempted write consumes the one-shot.
+        }
+        final Minecraft mc = Minecraft.getMinecraft();
+        try {
+            return mc.addScheduledTask(new java.util.concurrent.Callable<String>() {
+                public String call() {
+                    if (policyFault != null || !policyLocked || policyClientTicks != 0)
+                        return err("policy initialization cancelled before application");
+                    JsonObject initialized = new JsonParser().parse(lockSetPlayer(action)).getAsJsonObject();
+                    if (!initialized.has("ok") || !initialized.get("ok").getAsBoolean()) {
+                        policyFault = "policy initialization failed: " + initialized;
+                        return err(policyFault);
+                    }
+                    JsonObject result = new JsonParser().parse(obs(mc, true)).getAsJsonObject();
+                    result.addProperty("initialized", true);
+                    result.add("initialization", action);
+                    result.add("original_lock_observation", new JsonParser().parse(policyOriginalObservation));
+                    return result.toString();
+                }
+            }).get(10, TimeUnit.SECONDS);
+        } catch (Throwable t) {
+            policyFault = "policy initialization failed: " + t;
+            return err(policyFault);
+        }
+    }
 
     /** Called at a game-loop boundary, before any vanilla client tick. */
     public static boolean policyBeforeTick() {
@@ -3246,12 +3312,15 @@ public class Recorder {
         JsonObject world = msg.has("world") ? msg.getAsJsonObject("world") : new JsonObject();
         if (policyLocked && !(cmd.equals("policy_step") || cmd.equals("policy_unlock")
             || cmd.equals("obs") || cmd.equals("frame") || cmd.equals("recstart")
-            || cmd.equals("recstop") || cmd.equals("stats")))
+            || cmd.equals("recstop") || cmd.equals("stats") || cmd.equals("policy_initialize")
+            || cmd.equals("getblocks_locked") || cmd.equals("rng_cursor_locked")
+            || cmd.equals("capsule_dump_locked")))
             return err("policy lock permits only policy_step, policy_unlock, obs, frame, recstart, recstop, stats");
         if (cmd.equals("policy_step") && !policyLocked) return err("policy_step requires policy_lock");
         if (cmd.equals("policy_step") && action.has("n") && action.get("n").getAsInt() != 1)
             return err("policy_step permits exactly one tick");
         switch (cmd) {
+            case "policy_initialize": return policyInitialize(action);
             case "policy_lock": case "policy_unlock": case "policy_step": break;
             case "step": case "reset": case "obs": case "stats": case "close":
             case "overclock": case "cmd": case "spawn": case "fluid": case "capture_light":
@@ -3921,8 +3990,10 @@ public class Recorder {
             JsonObject result = new JsonParser().parse(lockControl("server_step_lock", new JsonObject())).getAsJsonObject();
             if (!result.has("ok") || !result.get("ok").getAsBoolean()) { reply(r, result.toString()); return; }
             policyLocked = true; policyFault = null; policyClientTicks = 0;
+            policyInitialized = false;
             clearKeys(mc);
-            reply(r, obs(mc, r.action.has("cam") && r.action.get("cam").getAsInt() != 0));
+            policyOriginalObservation = obs(mc, r.action.has("cam") && r.action.get("cam").getAsInt() != 0);
+            reply(r, policyOriginalObservation);
             return;
         }
         if (r.cmd.equals("policy_unlock")) {
