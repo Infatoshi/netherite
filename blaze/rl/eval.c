@@ -892,7 +892,10 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     env = fns.create(0, n, &opts);
     if (!env)
       die("blaze_create failed");
-    if (fns.set_success_item(env, cfg->success_item) != 0)
+    /* Replay compares the entire repeated action with Magma, which keeps
+     * ticking after acquisition. The evaluator owns goal termination below;
+     * a simulator success terminal would freeze only Blaze mid-repeat. */
+    if (fns.set_success_item(env, 0) != 0)
       die("blaze_set_success_item failed");
     if (fns.load_snapshots(env, paths, nsnaps, err, (int)sizeof(err)) < 0) {
       fprintf(stderr, "eval: blaze_load_snapshots: %s\n", err);
