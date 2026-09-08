@@ -26,6 +26,35 @@ Existing host main clones and other jobs remain untouched. Reuse verified
 build artifacts only with matching source and hashes. Parent maps training;
 read-only delegates map Oracle control/observations and transfer/trace gaps.
 
+Progress: native goal acquisition is separated from torch curriculum metrics;
+native Magma per-tick BOLR/PARY/actions/RGB capture and native Oracle CPU policy
+driver are implemented. Java strict policy_lock/policy_step/policy_unlock
+compiles and passed a real two-second idle/five-step clock gate. The native
+parser's real-response subnormal-float rejection was fixed with a regression.
+Oracle initial-pose/block-volume equality and recorded policy execution remain
+required; successful transport is not transfer evidence.
+
+Anvil training worktree is ~/nlanes/wooden-pickaxe-transfer, pinned feb35f4.
+The two-phase pickaxe fine-tune completed 262144 nominal ticks, Adam16->32,
+using only stage0/1 samples. Best fixed evaluation was9/9 at196608ticks; final
+checkpoint fell to0/9, so retain the selected best and do not claim stable
+training. Best weights: out/blaze/rl/pickaxe_v1_best.bin, SHA256
+11e7eba329b4ab425c4c3f0c9b2321c1c546e79b6d57ade1e75574ba8b5a888a.
+Starting chain4 checkpoint baseline was8/9 across10/11/33, and3/3 on10 in both
+Blaze and Magma. The latter is fresh closed-loop competence, not pixel equality.
+GPU job finished and released its lease; training outputs remain on Anvil.
+
+Oracle/Magma worktree: ~/nlanes/pickaxe-oracle-live; owned Xvfb:2 tmux
+pickaxe-display, Java tmux pickaxe-oracle, port25575, software GL. No hostmain
+changes. Evidence: out/verify/pickaxe-live/. Old baseline replay matched physics
+through pickaxe acquisition at761, then Blaze goal termination froze its last
+three repeated ticks. Replay now disables simulator success termination while
+the evaluator checks inventory itself. Also found a separate unmasked weather
+timer difference fromtick1: Magma weather-off clears timers; Blaze advances
+them even with effects disabled. Do not call full PARY equality established.
+Live realgame images are 854x480. Final video must compare raw matched frames,
+not MP4-decoded pixels, and retain all failed attempts as evidence.
+
 # Runtime architecture repair
 
 ## 2026-09-04 follow-up: configurable training recipes
