@@ -51,7 +51,7 @@ static int mock(int argc, char **argv) {
   while (fgets(line, sizeof line, stdin)) {
     n++;
     if (n == 2) {
-      assert(strstr(line, "\"forward\":1") && strstr(line, "\"strafe\":1") &&
+      assert(strstr(line, "\"forward\":1") && strstr(line, "\"strafe\":-1") &&
              strstr(line, "\"dyaw\":15") && strstr(line, "\"dpitch\":-10") &&
              strstr(line, "\"craft\":3"));
     }
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
   double a[13];
   char err[512];
   assert(eval_oracle_parse_request(action, a, err, sizeof err) == 1);
-  assert(a[0] == 1 && a[1] == 1 && a[2] == 15 && a[3] == -10 && a[9] == 4 &&
+  assert(a[0] == 1 && a[1] == -1 && a[2] == 15 && a[3] == -10 && a[9] == 4 &&
          a[10] == 3);
   assert(eval_oracle_parse_request("{\"cmd\":\"unknown_step\",\"action\":{}}",
                                    a, err, sizeof err) < 0);

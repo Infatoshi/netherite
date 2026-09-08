@@ -121,7 +121,7 @@ static void transport_test(const char *dir, int mode) {
         break;
       if (j) {
         if (!strstr(req, "\"cmd\":\"policy_step\"") ||
-            !strstr(req, "\"forward\":0,\"back\":1,\"left\":1,\"right\":0"))
+            !strstr(req, "\"forward\":0,\"back\":1,\"left\":0,\"right\":1"))
           _exit(5);
         char *start = strstr(req, "\"action\":") + 9;
         char *end = strrchr(req, '}');

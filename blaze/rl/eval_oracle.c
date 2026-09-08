@@ -634,7 +634,7 @@ int eval_oracle_step(EvalOracle *o, const double a[13], char *err, int cap) {
                    "\"dyaw\":%.9g,\"dpitch\":%.9g,\"jump\":%d,\"sneak\":%d,"
                    "\"sprint\":%d,\"attack\":%d,\"use\":%d,\"hotbar\":%d,"
                    "\"craft\":%d,\"interact\":%d,\"smelt\":%d,\"cam\":1}",
-                   a[0] > 0, a[0] < 0, a[1] > 0, a[1] < 0, a[2], a[3],
+                   a[0] > 0, a[0] < 0, a[1] < 0, a[1] > 0, a[2], a[3],
                    (int)a[4], (int)a[5], (int)a[6], (int)a[7], (int)a[8],
                    (int)a[9], (int)a[10], (int)a[11], (int)a[12]);
   if (n < 0 || (size_t)n >= sizeof action)
@@ -736,7 +736,7 @@ int eval_oracle_parse_request(const char *json, double a[13], char *err,
   }
   memset(a, 0, 13 * sizeof *a);
   a[0] = v[0] - v[1];
-  a[1] = v[2] - v[3];
+  a[1] = v[3] - v[2]; /* GmAction/Blaze positive strafe is RIGHT. */
   a[2] = v[4];
   a[3] = v[5];
   for (int k = 4; k < 13; k++)
