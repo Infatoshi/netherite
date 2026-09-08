@@ -113,7 +113,7 @@ public class Recorder {
         }
         final Minecraft mc = Minecraft.getMinecraft();
         try {
-            return mc.addScheduledTask(new java.util.concurrent.Callable<String>() {
+            String applied = mc.addScheduledTask(new java.util.concurrent.Callable<String>() {
                 public String call() {
                     if (policyFault != null || !policyLocked || policyClientTicks != 0)
                         return err("policy initialization cancelled before application");
@@ -121,6 +121,34 @@ public class Recorder {
                     if (!initialized.has("ok") || !initialized.get("ok").getAsBoolean()) {
                         policyFault = "policy initialization failed: " + initialized;
                         return err(policyFault);
+                    }
+                    return initialized.toString();
+                }
+            }).get(10, TimeUnit.SECONDS);
+            JsonObject appliedResult = new JsonParser().parse(applied).getAsJsonObject();
+            if (!appliedResult.has("ok") || !appliedResult.get("ok").getAsBoolean()) return applied;
+            // The teleport packet is part of initialization. Wait for its real
+            // delivery before queuing the final client task, otherwise a later
+            // packet can overwrite the pose advertised in the initial receipt.
+            net.minecraft.entity.player.EntityPlayerMP sp = mc.getIntegratedServer()
+                .getPlayerList().getPlayerByUUID(mc.player.getUniqueID());
+            policyNetworkBarrier(sp.connection.getNetworkManager());
+            policyNetworkBarrier(mc.getConnection().getNetworkManager());
+            return mc.addScheduledTask(new java.util.concurrent.Callable<String>() {
+                public String call() {
+                    if (policyFault != null || !policyLocked || policyClientTicks != 0)
+                        return err("policy initialization cancelled before receipt");
+                    // Vanilla absolute teleport handling zeros client motion.
+                    // Install declared fixture velocity after that handler, once
+                    // here before the episode, never after a policy step.
+                    if (action.has("vx")) {
+                        JsonObject motion = new JsonObject();
+                        for (String k : new String[]{"vx", "vy", "vz"}) motion.add(k, action.get(k));
+                        JsonObject result = new JsonParser().parse(lockSetPlayer(motion)).getAsJsonObject();
+                        if (!result.has("ok") || !result.get("ok").getAsBoolean()) {
+                            policyFault = "policy initial velocity failed: " + result;
+                            return err(policyFault);
+                        }
                     }
                     JsonObject result = new JsonParser().parse(obs(mc, true)).getAsJsonObject();
                     result.addProperty("initialized", true);
@@ -2394,7 +2422,12 @@ public class Recorder {
                     double z = f64of(a, "z", p.posZ);
                     if (!isFinite(x) || !isFinite(y) || !isFinite(z))
                         return err("locked player position must be finite");
-                    p.setPositionAndUpdate(x, y, z);
+                    if (policyLocked && a.has("yaw") && a.has("pitch")) {
+                        // Encode the requested rotation in the actual teleport
+                        // packet. setPositionAndUpdate would encode the old yaw.
+                        p.connection.setPlayerLocation(x, y, z,
+                            a.get("yaw").getAsFloat(), a.get("pitch").getAsFloat());
+                    } else p.setPositionAndUpdate(x, y, z);
                     if (cp != null) cp.setPosition(x, y, z);
                 }
                 boolean hasMotion = hasNum(a, "vx") || hasNum(a, "vy") || hasNum(a, "vz");
