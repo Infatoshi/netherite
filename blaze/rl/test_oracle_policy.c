@@ -178,8 +178,12 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
       continue;
     }
     if (strstr(req, "policy_unlock")) {
-      if (mode >= 5 && mode != 10)
+      if (mode >= 5 && mode != 10 && mode != 12)
         assert(stopped);
+      if (mode == 12)
+        assert(!recording && seq == 0 && blocks_done);
+      if (mode == 13)
+        assert(recording && stopped && seq == 0);
       if (mode == 10)
         assert(!recording && seq == 0 && blocks_done);
       fputs("{\"ok\":true,\"policy_locked\":false}\n", f);
@@ -221,6 +225,12 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
       free(s);
       s = v;
     }
+    if ((mode == 12 && blocks_done && strstr(req, "\"cmd\":\"obs\"")) ||
+        (mode == 13 && recording && strstr(req, "\"cmd\":\"obs\""))) {
+      v = replace(s, "\"yaw\":180", "\"yaw\":0");
+      free(s);
+      s = v;
+    }
     fputs(s, f);
     fflush(f);
     free(s);
@@ -240,14 +250,15 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   char buf[8192];
   assert(fgets(buf, sizeof buf, r));
   fclose(r);
-  assert(strstr(buf, (mode == 0 || mode == 4 || (mode >= 5 && mode != 10))
-                         ? "\"achieved\":true"
-                         : "\"achieved\":false"));
+  assert(strstr(
+      buf, (mode == 0 || mode == 4 || (mode >= 5 && mode <= 9) || mode == 11)
+               ? "\"achieved\":true"
+               : "\"achieved\":false"));
   assert(strstr(buf, mode == 0 || mode == 2 || mode == 4 || mode == 5 ||
                              mode == 8 || mode == 9 || mode == 11
                          ? "\"valid\":true"
                          : "\"valid\":false"));
-  if (mode >= 5 && mode != 10) {
+  if (mode >= 5 && mode != 10 && mode != 12) {
     assert(stopped);
     assert(strstr(buf, mode == 5 || mode == 8 || mode == 9 || mode == 11
                            ? "\"frame_files_verified\":true"
@@ -265,7 +276,7 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   if (mode >= 9) {
     assert(initialized && blocks_done);
     assert(strstr(buf, "\"initial_blocks_compared\":true"));
-    assert(strstr(buf, (mode == 9 || mode == 11)
+    assert(strstr(buf, (mode == 9 || mode == 11 || mode == 12 || mode == 13)
                            ? "\"initial_block_mismatches\":0"
                            : "\"initial_block_mismatches\":1"));
     char path[1200];
@@ -282,6 +293,12 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
       assert(!unlink(extra));
     }
     assert(!unlink(snapshot_path));
+  }
+  if (mode == 12 || mode == 13) {
+    assert(seq == 0);
+    assert(strstr(buf, mode == 12
+                           ? "capture/pre-rollout changed initial obs.yaw"
+                           : "recstart changed initial obs.yaw"));
   }
   const char *suffix[] = {"", ".conf", ".decisions.jsonl",
                           ".oracle.requests.jsonl", ".oracle.responses.jsonl"};
@@ -309,7 +326,7 @@ int main(int argc, char **argv) {
   policy_io_default(&c);
   char err[512];
   assert(!policy_io_checkpoint_write(ckpt, &c, err, sizeof err));
-  for (int mode = 0; mode < 12; mode++)
+  for (int mode = 0; mode < 14; mode++)
     run_driver(argv[1], dir, ckpt, mode);
   assert(!unlink(ckpt));
   snprintf(meta, sizeof meta, "%s.policy.conf", ckpt);

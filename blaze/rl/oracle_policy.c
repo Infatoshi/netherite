@@ -153,6 +153,51 @@ static int parse_int(const char *s, int lo, int hi, int *out) {
   *out = (int)n;
   return 0;
 }
+static int initial_boundary(const EvalOracleReceipt *r,
+                            const EvalOracleReceipt *expected,
+                            const char *phase, char *err, size_t cap) {
+#define SAME(field)                                                            \
+  do {                                                                         \
+    if (r->field != expected->field) {                                         \
+      snprintf(err, cap, "%s changed initial %s before first action", phase,   \
+               #field);                                                        \
+      return -1;                                                               \
+    }                                                                          \
+  } while (0)
+  if (!r || !r->policy_locked || !r->have_ticks) {
+    snprintf(err, cap, "%s lost frozen initial state", phase);
+    return -1;
+  }
+  SAME(player_tick);
+  SAME(server_tick);
+  SAME(action_seq);
+  SAME(action_fnv);
+  SAME(obs.x);
+  SAME(obs.y);
+  SAME(obs.z);
+  SAME(obs.yaw);
+  SAME(obs.pitch);
+  SAME(obs.dead);
+  SAME(have_physics);
+  SAME(vx);
+  SAME(vy);
+  SAME(vz);
+  SAME(health);
+  SAME(food);
+  SAME(fall_distance);
+  SAME(on_ground);
+  SAME(obs.hotbar_sel);
+  SAME(obs.container);
+  SAME(inventory_total);
+  if (memcmp(r->inventory, expected->inventory, sizeof r->inventory)) {
+    snprintf(err, cap, "%s changed initial inventory before first action",
+             phase);
+    return -1;
+  }
+  return 0;
+#undef SAME
+}
+
 static int step_locked(EvalOracle *o, const double *row, char *err, int cap) {
   if (eval_oracle_step(o, row, err, cap))
     return -1;
@@ -435,6 +480,7 @@ int main(int argc, char **argv) {
         "initial state violates empty inventory/no target/alive requirement");
     goto done;
   }
+  EvalOracleReceipt expected_initial = *r;
   if (initial_path) {
     RlSnapHead *h = &initial.head;
     char request[2048];
@@ -472,6 +518,7 @@ int main(int argc, char **argv) {
           "snapshot offhand is not empty; Oracle receipt cannot verify it");
       goto done;
     }
+    expected_initial = *r;
     char *block_request = NULL;
     size_t size = 0;
     FILE *mem = open_memstream(&block_request, &size);
@@ -535,15 +582,13 @@ int main(int argc, char **argv) {
       err[0] = 0; /* Original mismatch is preserved separately, never called
                      parity. */
     }
-    if (eval_oracle_observe(o, err, sizeof err))
-      goto done;
-    r = eval_oracle_receipt(o);
-    if (!r->policy_locked || r->player_tick != start_player ||
-        r->server_tick != start_server) {
-      snprintf(err, sizeof err, "initial block capture advanced frozen clocks");
-      goto done;
-    }
   }
+  if (eval_oracle_observe(o, err, sizeof err))
+    goto done;
+  r = eval_oracle_receipt(o);
+  if (initial_boundary(r, &expected_initial, "capture/pre-rollout", err,
+                       sizeof err))
+    goto done;
   if (tape) {
     char *request = NULL;
     size_t request_size = 0;
@@ -568,11 +613,8 @@ int main(int argc, char **argv) {
     if (eval_oracle_observe(o, err, sizeof err))
       goto done;
     r = eval_oracle_receipt(o);
-    if (!r->policy_locked || r->player_tick != start_player ||
-        r->server_tick != start_server) {
-      snprintf(err, sizeof err, "recording start advanced a frozen clock");
+    if (initial_boundary(r, &expected_initial, "recstart", err, sizeof err))
       goto done;
-    }
   }
   uint8_t planes[ENV_N_CH * ENV_NPIX],
       prior[ENV_N_PLANES * ENV_NPIX] = {0}, scratch[ENV_N_PLANES * ENV_NPIX],
