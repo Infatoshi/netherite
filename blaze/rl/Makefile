@@ -896,7 +896,7 @@ test-recipe: test-eval-trace
 # Oracle control always uses CPU inference, with no GPU dependency.
 ORACLE_NN_OBJS := $(REPO)/out/blaze/nn/cpu/nn.o $(REPO)/out/blaze/nn/cpu/cpu.o $(REPO)/out/blaze/nn/cpu/fixture.o
 $(ORACLE_NN_OBJS): $(NN_SRC)/nn.c $(NN_SRC)/cpu.c $(NN_SRC)/fixture.c $(NN_SRC)/nn.h $(NN_SRC)/model.h
-	$(MAKE) -C $(NN_SRC) ../../out/blaze/nn/cpu/nn.o ../../out/blaze/nn/cpu/cpu.o ../../out/blaze/nn/cpu/fixture.o
+	$(MAKE) -C $(NN_SRC) $@
 .PHONY: oracle-policy
 oracle-policy: $(OUT)/oracle-policy
 $(OUT)/oracle-policy: oracle_initial.c oracle_initial.h $(ENV_SRC)/blaze_snapshot.h oracle_policy.c eval_oracle.c eval_oracle.h eval_magma.c eval_magma.h eval_config.c eval_config.h obs_config.c obs_config.h obs_pack.h rl_ckpt.h $(ORACLE_NN_OBJS) | $(OUT)

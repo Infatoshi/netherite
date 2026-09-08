@@ -85,7 +85,7 @@ static int tape_paths(const char *path, char *frames, size_t cap, char *err,
       snprintf(check, sizeof check, "%.*s%s", (int)(n - 6), path, suffix[i]);
     struct stat st;
     if (!lstat(check, &st) || errno != ENOENT) {
-      snprintf(err, ec, "tape output already exists or cannot be inspected: %s",
+      snprintf(err, ec, "tape output already exists or cannot be inspected: %.800s",
                check);
       return -1;
     }
@@ -118,7 +118,7 @@ static int tape_frames(const char *tape, const char *dir, int64_t expected,
     if (f)
       fclose(f);
     if (!ok) {
-      snprintf(err, cap, "missing/incomplete frame: %s", path);
+      snprintf(err, cap, "missing/incomplete frame: %.800s", path);
       return -1;
     }
   }
