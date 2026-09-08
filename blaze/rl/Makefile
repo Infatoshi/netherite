@@ -935,3 +935,14 @@ $(OUT)/test_oracle_fixture: test_oracle_fixture.c oracle_fixture.c oracle_initia
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -DORACLE_FIXTURE_NO_MAIN test_oracle_fixture.c oracle_fixture.c oracle_initial.c $(ENV_SRC)/blaze_snapshot.c -lm -o $@
 test-oracle-fixture: $(OUT)/test_oracle_fixture
 	$(OUT)/test_oracle_fixture
+
+.PHONY: oracle-replay-magma
+oracle-replay-magma: $(OUT)/oracle-replay-magma
+$(OUT)/oracle-replay-magma: oracle_replay_magma.c eval_oracle.c eval_oracle.h eval_magma.c eval_magma.h $(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/port_parity.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) oracle_replay_magma.c eval_oracle.c eval_magma.c -lm -o $@
+
+.PHONY: test-oracle-replay-magma
+$(OUT)/test_oracle_replay_magma: test_oracle_replay_magma.c eval_oracle.c eval_oracle.h eval_magma.h $(ENV_SRC)/blaze_snapshot.h $(CORE_SRC)/port_parity.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) test_oracle_replay_magma.c eval_oracle.c -lm -o $@
+test-oracle-replay-magma: $(OUT)/test_oracle_replay_magma $(OUT)/oracle-replay-magma
+	$(OUT)/test_oracle_replay_magma $(OUT)/oracle-replay-magma

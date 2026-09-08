@@ -44,3 +44,8 @@ int eval_oracle_observe(EvalOracle *o, char *err, int cap);
  */
 int eval_oracle_step(EvalOracle *o, const double act13[13], char *err, int cap);
 const EvalOracleReceipt *eval_oracle_receipt(const EvalOracle *o);
+/* Parse one exact raw request for same-action replay. Returns 1 for a fully
+ * specified policy_step, 0 for an explicitly allowed non-step command, -1
+ * for malformed/unknown requests. Never guesses omitted action fields. */
+int eval_oracle_parse_request(const char *json, double act13[13], char *err,
+                              int cap);

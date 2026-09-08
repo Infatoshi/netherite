@@ -661,3 +661,88 @@ int eval_oracle_step(EvalOracle *o, const double a[13], char *err, int cap) {
   }
   return 0;
 }
+
+static int string_is(Parser *p, int i, const char *s) {
+  return i >= 0 && p->t[i].kind == '"' &&
+         p->t[i].b - p->t[i].a == (int)strlen(s) + 2 &&
+         !memcmp(p->s + p->t[i].a + 1, s, strlen(s));
+}
+int eval_oracle_parse_request(const char *json, double a[13], char *err,
+                              int cap) {
+  if (!json || !a || strlen(json) > 65536)
+    return fail(err, cap, "invalid request size");
+  Parser p = {json, 0, 0, calloc(MAX_TOK, sizeof(Tok))};
+  if (!p.t)
+    return fail(err, cap, "request allocation failed");
+  int rc = -1;
+  if (value(&p, 0) != 0) {
+    fail(err, cap, "malformed request JSON");
+    goto done;
+  }
+  ws(&p);
+  if (json[p.p] || p.t[0].kind != '{' || p.t[0].n != 2) {
+    fail(err, cap, "unexpected request envelope");
+    goto done;
+  }
+  int cmd = field(&p, 0, "cmd"), action = field(&p, 0, "action");
+  if (cmd < 0 || action < 0 || p.t[action].kind != '{') {
+    fail(err, cap, "request lacks cmd/action");
+    goto done;
+  }
+  if (!string_is(&p, cmd, "policy_step")) {
+    const char *controls[] = {"policy_lock",
+                              "policy_initialize",
+                              "policy_unlock",
+                              "obs",
+                              "recstart",
+                              "recstop",
+                              "getblocks_locked",
+                              "frame",
+                              "stats",
+                              "camera"};
+    for (unsigned k = 0; k < sizeof controls / sizeof controls[0]; k++)
+      if (string_is(&p, cmd, controls[k])) {
+        rc = 0;
+        goto done;
+      }
+    fail(err, cap, "unknown command in policy request log");
+    goto done;
+  }
+  static const char *keys[] = {"forward", "back",     "left",  "right",
+                               "dyaw",    "dpitch",   "jump",  "sneak",
+                               "sprint",  "attack",   "use",   "hotbar",
+                               "craft",   "interact", "smelt", "cam"};
+  if (p.t[action].n != 16) {
+    fail(err, cap, "policy_step must contain all 16 action fields");
+    goto done;
+  }
+  double v[16];
+  for (int k = 0; k < 16; k++) {
+    if (number(&p, field(&p, action, keys[k]), &v[k])) {
+      fail(err, cap, "invalid/missing policy action field");
+      goto done;
+    }
+    if (k != 4 && k != 5) {
+      int lo = k == 11 || k == 12 ? -1 : 0, hi = k == 11 ? 8 : k == 12 ? 7 : 1;
+      if (v[k] < lo || v[k] > hi || floor(v[k]) != v[k]) {
+        fail(err, cap, "policy discrete action out of range");
+        goto done;
+      }
+    }
+  }
+  if (v[15] != 1 || v[0] + v[1] > 1 || v[2] + v[3] > 1) {
+    fail(err, cap, "unsupported camera/contradictory movement");
+    goto done;
+  }
+  memset(a, 0, 13 * sizeof *a);
+  a[0] = v[0] - v[1];
+  a[1] = v[2] - v[3];
+  a[2] = v[4];
+  a[3] = v[5];
+  for (int k = 4; k < 13; k++)
+    a[k] = v[k + 2];
+  rc = 1;
+done:
+  free(p.t);
+  return rc;
+}
