@@ -257,6 +257,42 @@ checks the parsers, reward/curriculum behavior, policy contracts, phase constrai
 and world preparation. Executable CPU/Metal/CUDA runs are still required to
 validate a changed trainer path; a parsed knob alone is not evidence it works.
 
+### Measured policy transfer
+
+`blaze/rl/recipes/pickaxe/` contains the first wooden-pickaxe training and fixed
+evaluation recipes. `success_item=270` measures newly acquired wooden pickaxes,
+independently of torch-chain curriculum reporting. Evaluation records the
+starting target count and the acquisition interval when action repeat exceeds
+one tick. Target-bearing curriculum starts do not establish from-scratch success.
+
+`eval --set backend=magma --set transfer=closed` runs the frozen policy on
+Magma observations. `transfer=replay` feeds the Blaze policy's actions to both
+simulators and fails on measured disagreement. Optional `trace_dir` retains
+per-tick BOLR/PARY records, actions and actual game frames; `magma_conf` supplies
+explicit rendering/world-clock settings. Replay and closed-loop evaluation
+answer different questions and must not be presented interchangeably.
+
+`make -C blaze/rl oracle-policy oracle-fixture oracle-replay-magma trace-dump`
+builds the native Oracle/trace tools. Oracle policy execution uses the existing
+semantic observation and recipe-action contract with CPU inference. Java's
+`policy_lock`, `policy_initialize`, `policy_step` and `policy_unlock` provide
+one-time declared initialization and one actual client/server tick per action.
+The native driver rejects counter drift, late initial-state changes, malformed
+observations and incomplete recordings. `--tape` records every requested tick;
+`--initial-snapshot` requires pose/inventory/block agreement before acting.
+Explicit `--capture-oracle-snapshot` adopts actual Java blocks/light into a new
+v2 fixture without changing the Java world. Its provenance lists fields it does
+not import, including RNG streams, entities, biomes, clocks and scheduled work.
+Block equality alone is not complete state equality.
+
+`oracle-replay-magma` executes saved Oracle requests without policy inference.
+It validates every record/frame and stops on engine death, reporting an explicit
+incomplete terminal prefix instead of fabricating the remaining frames.
+`trace_dump` produces readable physics fields and unmasked subsystem differences.
+The V1 investigation has not established a successful Oracle pickaxe run or
+complete pixel/physics transfer; measured evidence and continuation state are
+recorded in `GOAL.md` and `docs/DEVLOG.md`.
+
 Runtime random values use a counter-based or hash-based protocol. The result
 does not depend on thread order or backend scheduling.
 

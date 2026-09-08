@@ -1,3 +1,67 @@
+## 2026-09-07 wooden-pickaxe transfer experiment and real trace repair
+
+The requested full Oracle transfer is not achieved. Real training, independent
+policy evaluation, Oracle capture, same-action physics replay and reviewed MP4
+artifacts now exist; none of those intermediate results is labeled a successful
+Oracle pickaxe run.
+
+The pickaxe recipe fine-tuned the existing Blaze-trained policy for 262,144
+nominal ticks, with logs-only rehearsal followed by empty-inventory starts.
+Stages 2+ were excluded because their snapshots already contain the pickaxe.
+Best fixed validation was 9/9 at 196,608 ticks; the final weights fell to 0/9, so the
+selected best was retained rather than claiming stable training. Its SHA256 is
+11e7eba329b4ab425c4c3f0c9b2321c1c546e79b6d57ade1e75574ba8b5a888a.
+The original checkpoint, SHA256
+00f8da648ad87883d556bfe069e1f9203538ad7d2b6a330bba173b89c52588b0,
+proved a better candidate on the Oracle-derived scene. After the physics fix,
+both Blaze CPU and closed-loop Magma completed 3/3 at first-observed ticks
+1080/5820/5008. Exact acquisition falls within the preceding four-tick action
+interval; these include the four-tick burn-in. The matching Oracle lane 0 still
+failed after 6,004 ticks. A fine-tuned Oracle attempt also failed after 6,004 ticks.
+
+New native tools: oracle-policy drives the unchanged CPU NN through Java's
+strict semantic-camera protocol, validates initial pose/inventory and block
+volume, and saves raw requests/responses, policy decisions and tick receipts.
+oracle-fixture creates explicitly limited v2 snapshots from actual Java blocks
+and light. oracle-replay-magma executes recorded actions without NN inference;
+trace_dump exports all named PARY fields/digests and reports every difference.
+Evaluation goal 270 is now independent of torch curriculum milestones. Supplied
+target inventory does not count as acquisition. Traced replay mismatches fail,
+and engine death is a validated terminal prefix, not a complete action replay.
+
+Live checks exposed and repaired soft-clock free-running, recording-dependent
+GUI behavior, late teleport packets overwriting validated rotation, rejection
+of legal subnormal JSON numbers, stale-frame fallback and recording cleanup on
+disconnect. Both logical clocks must advance exactly once per requested step
+and remain frozen during delayed inference and scene capture. Failed setup and
+interrupted attempts are retained separately from task outcomes.
+
+The first same-action position divergence was tick 169: Java Y 65.20000004768372
+versus Magma 65.0. The shared player code omitted Minecraft's jump-cooldown reset
+when jump is released. Fix 8817ca4 adds the cited Java branch. Its regression
+fails on the old code and passes on the fix; real 200-action replay then matches
+all 1,200 position/motion doubles bit-for-bit. Before the repair, Magma eventually
+died at 1002 under actions whose Oracle run stayed alive. A separate weather
+state discrepancy remains: weather-off clears Magma timers but Blaze advances
+them with effects disabled. Observation/render differences also remain.
+
+Reviewed deliverables are in Mac out/verify/pickaxe-live/. The pre-fix three-panel
+MP4 is 50.1 seconds at 20 fps and ends at Magma's death; SHA256
+baab1a64a047dc8b0103e4c0eb4a945fbbc5b4cb13a51cdbb58526fbe5b0e097.
+The 10-second post-fix MP4 covers the verified 200-action prefix. Both show
+Oracle, Magma and min(255,10*abs(OracleRGB-MagmaRGB)), computed before lossy video
+encoding, with no pixel mask or injected state corrections. Full raw frames
+remain on Anvil. Physics TSVs and both full 6,004-tick Oracle tapes are copied to
+the Mac alongside reports, action logs and checkpoint provenance.
+
+Final repaired-source Linux root tests passed in 201 seconds, including the new
+jump regression and 32 replay-contract cases; native Oracle/fixture/trace tests
+passed. The audit also fixed an unrelated build-order race by declaring the
+fall-reanchor object's prerequisites before parallel test recipes. CUDA parity
+for the repaired shared physics is still unverified; earlier GPU training is
+explicitly pre-repair. No goldens were blessed. The policy contract remains
+semantic images/scalars and recipe commands, not RGB plus vanilla GUI inputs.
+
 ## 2026-09-04 native training recipes, phases and fixed evaluation
 
 `lane/training-recipe` integrates reward/curriculum, observation/control and

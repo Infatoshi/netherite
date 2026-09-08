@@ -1,5 +1,53 @@
 # Wooden-pickaxe policy transfer
 
+## Measured result, 2026-09-07
+
+The requested successful Oracle pickaxe transfer has NOT been achieved.
+The experiment and evidence pipeline now run on the real path. Two valid Oracle
+episodes completed 6,004 ticks each without acquiring item 270. Attempt 4 uses
+the original Blaze-trained checkpoint; on its exact captured scene, corrected
+Blaze CPU and closed-loop Magma both succeed in all three sampled attempts,
+including the corresponding lane 0 at first-observed tick 1080. This is a
+measured remaining transfer gap, not an initial-block mismatch or a claimed
+success from action replay. Invalid attempts 0/1/3 remain separate: late initial
+rotation, unloaded capture chunks, and transport/display interruption.
+
+Actual outputs on the Mac are under out/verify/pickaxe-live/:
+oracle-magma-10x.mp4 (50.1 seconds, 20 fps, Oracle/Magma/10x unmasked RGB);
+oracle-magma-10x-jump-fixed.mp4 (10 seconds, same layout after the repair);
+physics-before.tsv, physics-after.tsv; complete Oracle attempt2/attempt4 tapes,
+requests, decisions and reports. The first video deliberately ends at Magma's
+death at tick 1002; the non-advancing response afterward is excluded explicitly
+in the terminal-prefix manifest, never padded into missing simulated time.
+The post-fix video covers only the verified 200-action regression prefix.
+
+Same-action replay found the first position/motion divergence at 169, a
+0.20000004768371582-block Y difference. Java clears jumpTicks when jump is
+released; player_survival.h omitted that branch. Fix 8817ca4 adds it. The
+low-ceiling release/repress test fails without the fix, passes with it, and
+actual replay now matches all 1,200 position/motion double values across 200
+actions exactly. Full root tests on this source passed in 201 seconds; evidence
+is out/verify/pickaxe-jump/final-audit/. CUDA parity for the repaired shared
+physics has NOT been rerun. The earlier GPU training used pre-repair physics.
+
+Do not equate a v2 Oracle-derived fixture with complete Java state: the native
+converter imports actual blocks/light and preserves the declared empty player
+header, but explicitly does not import RNG streams, entities, biomes, clocks
+or scheduled updates. Those omissions and remaining inventory/observation/
+render differences need investigation before claiming complete transfer.
+The policy observes semantic block/depth images and scalars, not RGB, and uses
+the existing recipe-crafting/container commands, not mouse-driven GUI crafting.
+The RGB films show the actual rendered games and are not the policy input.
+
+Continuation paths: Anvil ~/nlanes/pickaxe-oracle-live contains complete Oracle
+captures and fixtures; ~/nlanes/pickaxe-video contains paired raw frames;
+~/nlanes/pickaxe-jump-live contains the repaired CPU simulator/game and exact
+matched-scene control reports. Keep these artifacts. Main host clones and
+pre-existing untracked files remain untouched.
+All owned training, capture and display jobs have stopped. Temporary launch
+scripts were archived as command receipts and removed; generated evidence and
+runnable remote builds remain available for the next investigation.
+
 ## 2026-09-07 requested outcome
 
 Train a policy in Blaze to obtain a wooden pickaxe from an empty inventory.
