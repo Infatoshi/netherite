@@ -18,6 +18,7 @@
 #include "chain_reward.h"
 #include "eval_magma.h"
 #include "eval_goal.h"
+#include "port_parity.h"
 #include "eval_config.h"
 #include "world_recipe.h"
 #include "blaze_snapshot.h"
@@ -94,6 +95,28 @@ typedef struct BlazeFns {
   int (*set_success_item)(void *h, int item);
   int (*emit)(void *h, int env, int want_cam, void *out);
 } BlazeFns;
+
+typedef struct {
+  BlazeFns *f; void *env;
+  unsigned short *cam; unsigned char *depth,*edge,*done;
+  float *scal,*rew,*pose; int *status;
+  FILE *raw,*parity,*comparison;
+  int (*parity_state)(void *,int,void *);
+  int tick, mismatch;
+} EvalReplayTrace;
+static int replay_trace_tick(void *ctx, const double *action, const EvalMagmaObs *m) {
+  EvalReplayTrace *t=ctx; EvalMagmaObs b; BpParityRecord p; char why[128];
+  if(action) {
+    if(t->f->step_full(t->env,action,1,t->cam,t->depth,t->edge,t->scal,t->rew,t->done,t->pose,t->status)) return -1;
+    ++t->tick;
+  }
+  if(t->f->emit(t->env,0,1,&b) || t->parity_state(t->env,0,&p)) return -1;
+  int different=eval_magma_cmp_gated(m,&b,why,sizeof why);
+  if(different) t->mismatch=1;
+  if(fwrite(&b,sizeof b,1,t->raw)!=1 || fwrite(&p,sizeof p,1,t->parity)!=1) return -1;
+  fprintf(t->comparison,"%d\t%d\t%s\n",t->tick,different,different?why:"equal_gated_BOLR");
+  return fflush(t->raw)||fflush(t->parity)||fflush(t->comparison) ? -1:0;
+}
 
 typedef struct StageSeedResult {
   int skip;
@@ -649,6 +672,10 @@ int main(int argc, char **argv) {
     eval_cfg_dump(&cfg, stdout);
     return 0;
   }
+  if (cfg.trace_dir[0] && strcmp(cfg.backend,"magma"))
+    die("trace_dir currently requires backend=magma");
+  if (cfg.trace_dir[0] && cfg.transfer==EVAL_XFER_REPLAY && cfg.nseeds*cfg.tries!=1)
+    die("per-tick replay trace requires one seed and one attempt");
   if (!strcmp(cfg.backend, "magma") && cfg.success_item != 0 &&
       eval_goal_index(cfg.success_item) < 0)
     die("Magma evaluation success_item must be a supported chain inventory item");
@@ -759,6 +786,8 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   int *reached = NULL;
   int *base_stg = NULL;
   EvalMagma **mag = NULL;
+  EvalReplayTrace trace = {0};
+  char lane_trace[EVAL_STR_MAX+128] = {0};
   EvalMagmaObs blaze_obs;
   int *div_step = NULL;
   char (*div_why)[128] = NULL;
@@ -836,8 +865,12 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   for (i = 0; i < n; ++i) {
     int loaded = i / cfg->tries;
     int si = loaded_si[loaded];
-    mag[i] = eval_magma_open(cfg->magma_bin, paths[loaded], cfg->seeds[si], err,
-                             (int)sizeof(err));
+    if(cfg->trace_dir[0]) {
+      snprintf(lane_trace,sizeof lane_trace,"%s/stage%d_seed%d_try%d",cfg->trace_dir,stage_k,cfg->seeds[si],i%cfg->tries);
+      if(report_parents(lane_trace) || mkdir(lane_trace,0700)) die("trace lane directory exists or cannot be created");
+    }
+    mag[i] = eval_magma_open_trace(cfg->magma_bin, paths[loaded], cfg->seeds[si],
+                              cfg->trace_dir[0]?lane_trace:NULL,err,(int)sizeof(err));
     if (!mag[i]) {
       fprintf(stderr, "eval: magma open seed %d: %s\n", cfg->seeds[si], err);
       goto fail;
@@ -920,6 +953,18 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     }
   }
 
+  if(replay && cfg->trace_dir[0]) {
+    char p[EVAL_STR_MAX+160];
+    trace.f=&fns; trace.env=env; trace.cam=cam; trace.depth=depth; trace.edge=edge;
+    trace.done=done_buf; trace.scal=scal6; trace.rew=rew; trace.pose=pose; trace.status=status;
+    trace.parity_state=(int (*)(void*,int,void*))must_dlsym(fns.lib,"blaze_parity_state");
+    snprintf(p,sizeof p,"%s/blaze.bolr",lane_trace); trace.raw=fopen(p,"wbx");
+    snprintf(p,sizeof p,"%s/blaze.pary",lane_trace); trace.parity=fopen(p,"wbx");
+    snprintf(p,sizeof p,"%s/comparison.tsv",lane_trace); trace.comparison=fopen(p,"wx");
+    if(!trace.raw||!trace.parity||!trace.comparison||!trace.parity_state||replay_trace_tick(&trace,NULL,eval_magma_obs(mag[0]))) goto fail;
+    eval_magma_set_tick_callback(mag[0],replay_trace_tick,&trace);
+  }
+
   nc = nn_config_default();
   nc.rng_seed = rng_seed;
   nd.backend = NN_BACKEND_CPU;
@@ -940,14 +985,14 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     a[2] = 1;
   }
   acts_to_rows_config(&cfg->policy, acts, n, act_rows);
-  if (replay) {
+  if (replay && !cfg->trace_dir[0]) {
     if (fns.step_full(env, act_rows, cfg->action_repeat, cam, depth, edge,
                       scal6, rew, done_buf, pose, status) != 0)
       die("burn-in blaze step failed");
   }
   for (i = 0; i < n; ++i) {
     char why[80];
-    if (!mag[i])
+    if (!mag[i] || finished[i])
       continue;
     if (eval_magma_step(mag[i], act_rows + (size_t)i * ENV_ACT,
                         cfg->action_repeat) != 0) {
@@ -994,14 +1039,14 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     if (nn_sample(nn, logits, n, cfg->deterministic ? NN_SAMPLE_GREEDY : NN_SAMPLE_GUMBEL, acts, logp, NULL) != 0)
       dief("nn_sample: %s", nn_last_error());
     acts_to_rows_config(&cfg->policy, acts, n, act_rows);
-    if (replay) {
+    if (replay && !cfg->trace_dir[0]) {
       if (fns.step_full(env, act_rows, cfg->action_repeat, cam, depth, edge,
                         scal6, rew, done_buf, pose, status) != 0)
         die("blaze_step_full failed");
     }
     for (i = 0; i < n; ++i) {
       char why[80];
-      if (!mag[i])
+      if (!mag[i] || finished[i])
         continue;
       if (eval_magma_step(mag[i], act_rows + (size_t)i * ENV_ACT,
                           cfg->action_repeat) != 0) {
@@ -1112,6 +1157,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     }
     printf("MATCH %d/%d (step 0=t0, 1=burn-in, 2+=policy decision)\n", n_match,
            n_ran);
+    if(cfg->trace_dir[0]) printf("per_tick_replay ticks=%d mismatch=%d\n",trace.tick,trace.mismatch);
     fflush(stdout);
   }
 
@@ -1127,9 +1173,13 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   for (i = 0; i < n; ++i)
     report_episode(stage_k, cfg->seeds[loaded_si[i / cfg->tries]], i % cfg->tries,
                    ep_dec[i], episode_return[i], goals[i].success, episode_end[i], &goals[i]);
-  rc_out = 0;
+  rc_out = trace.mismatch ? 1 : 0;
+  for(i=0;i<n;++i) if(div_step[i]>=0) rc_out=1;
 
 fail:
+  if(trace.raw) fclose(trace.raw);
+  if(trace.parity) fclose(trace.parity);
+  if(trace.comparison) fclose(trace.comparison);
   magma_close_n(mag, n);
   free(mag);
   free(div_step);

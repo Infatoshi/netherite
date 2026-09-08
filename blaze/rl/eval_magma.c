@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <time.h>
 
 #define EM_PI 3.14159265358979323846
 #define EM_EYE 1.62
@@ -18,6 +19,9 @@ struct EvalMagma {
   FILE *in;  /* parent writes JSON */
   FILE *out; /* parent reads BOLR */
   EvalMagmaObs obs;
+  FILE *raw, *actions, *states;
+  EvalMagmaTickFn tick_fn;
+  void *tick_ctx;
 };
 
 static void err_set(char *err, int cap, const char *msg) {
@@ -117,12 +121,37 @@ static int nearest_coal(const EvalMagmaObs *o, double *ry, double *rp,
   return have;
 }
 
+static int trace_obs(EvalMagma *m, const double *action) {
+  if (!m->raw) return 0;
+  if (action && write_act(m->actions, action)) return -1;
+  if (fwrite(&m->obs, sizeof m->obs, 1, m->raw) != 1 || fflush(m->raw)) return -1;
+  const EvalMagmaObs *o = &m->obs;
+  fprintf(m->states, "{\"tick\":%lld,\"x\":%.17g,\"y\":%.17g,\"z\":%.17g,\"yaw\":%.9g,\"pitch\":%.9g,\"dead\":%d,\"container\":%d,\"hotbar_selected\":%d,\"velocity\":null,\"health\":null,\"rng\":null,\"inventory_counts\":[", o->tick,o->x,o->y,o->z,(double)o->yaw,(double)o->pitch,o->dead,o->container,o->hotbar_sel);
+  for(int i=0;i<EM_INV;++i) fprintf(m->states,"%s%d",i?",":"",o->inv_counts[i]);
+  fputs("],\"hotbar\":[",m->states);
+  for(int i=0;i<EM_INV;++i) fprintf(m->states,"%s[%d,%d]",i?",":"",o->hotbar_ids[i],o->hotbar_counts[i]);
+  fputs("]}\n",m->states);
+  return ferror(m->states) || fflush(m->states) ? -1 : 0;
+}
+
+void eval_magma_set_tick_callback(EvalMagma *m, EvalMagmaTickFn fn, void *ctx) {
+  if (m) { m->tick_fn=fn; m->tick_ctx=ctx; }
+}
+
 EvalMagma *eval_magma_open(const char *bin, const char *snap, int seed,
-                           char *err, int err_cap) {
+                          char *err, int err_cap) {
+  return eval_magma_open_trace(bin,snap,seed,NULL,err,err_cap);
+}
+
+EvalMagma *eval_magma_open_trace(const char *bin, const char *snap, int seed,
+                           const char *trace_dir, char *err, int err_cap) {
   EvalMagma *m;
   int pin[2] = {-1, -1}, pout[2] = {-1, -1};
   pid_t pid;
-  char seedbuf[32];
+  char seedbuf[32], frames[2048], parity_path[2048], stderr_path[2048];
+  if (trace_dir && (snprintf(frames,sizeof frames,"%s/frames",trace_dir) >= (int)sizeof frames ||
+      snprintf(parity_path,sizeof parity_path,"%s/magma.pary",trace_dir) >= (int)sizeof parity_path ||
+      snprintf(stderr_path,sizeof stderr_path,"%s/magma.stderr",trace_dir) >= (int)sizeof stderr_path)) return NULL;
 
   if (!bin || !bin[0] || !snap || !snap[0]) {
     err_set(err, err_cap, "magma bin/snap empty");
@@ -151,7 +180,7 @@ EvalMagma *eval_magma_open(const char *bin, const char *snap, int seed,
     return NULL;
   }
   if (pid == 0) {
-    char *argv[16];
+    char *argv[24], parity_arg[64];
     int n = 0;
     snprintf(seedbuf, sizeof(seedbuf), "%d", seed);
     if (dup2(pin[0], 0) < 0 || dup2(pout[1], 1) < 0)
@@ -172,9 +201,16 @@ EvalMagma *eval_magma_open(const char *bin, const char *snap, int seed,
     argv[n++] = (char *)snap;
     argv[n++] = "--seed";
     argv[n++] = seedbuf;
+    if (trace_dir) {
+      int pfd=open(parity_path,O_WRONLY|O_CREAT|O_EXCL,0600);
+      if (pfd < 0) _exit(126);
+      snprintf(parity_arg,sizeof parity_arg,"port_parity_fd=%d",pfd);
+      argv[n++]="--set"; argv[n++]=parity_arg;
+      argv[n++]="--frames-out"; argv[n++]=frames;
+    }
     argv[n] = NULL;
     {
-      int dn = open("/dev/null", O_WRONLY);
+      int dn = trace_dir ? open(stderr_path,O_WRONLY|O_CREAT|O_EXCL,0600) : open("/dev/null", O_WRONLY);
       if (dn >= 0) {
         dup2(dn, 2);
         close(dn);
@@ -216,6 +252,15 @@ EvalMagma *eval_magma_open(const char *bin, const char *snap, int seed,
     eval_magma_close(m);
     return NULL;
   }
+  if (trace_dir) {
+    char path[2048];
+    snprintf(path,sizeof path,"%s/magma.bolr",trace_dir); m->raw=fopen(path,"wbx");
+    snprintf(path,sizeof path,"%s/actions.jsonl",trace_dir); m->actions=fopen(path,"wx");
+    snprintf(path,sizeof path,"%s/magma_state.jsonl",trace_dir); m->states=fopen(path,"wx");
+    if (!m->raw || !m->actions || !m->states || trace_obs(m,NULL)) {
+      err_set(err,err_cap,"trace output failed"); eval_magma_close(m); return NULL;
+    }
+  }
   return m;
 }
 
@@ -228,9 +273,16 @@ void eval_magma_close(EvalMagma *m) {
   if (m->out)
     fclose(m->out);
   if (m->pid > 0) {
-    kill(m->pid, SIGTERM);
-    waitpid(m->pid, &st, 0);
+    int ended=0;
+    for(int i=0;i<100;++i) {
+      if(waitpid(m->pid,&st,WNOHANG)!=0) { ended=1; break; }
+      struct timespec pause={0,10000000}; nanosleep(&pause,NULL);
+    }
+    if(!ended) { kill(m->pid,SIGTERM); waitpid(m->pid,&st,0); }
   }
+  if(m->raw) fclose(m->raw);
+  if(m->actions) fclose(m->actions);
+  if(m->states) fclose(m->states);
   free(m);
 }
 
@@ -252,6 +304,7 @@ int eval_magma_step(EvalMagma *m, const double *act13, int repeat) {
       return -1;
     if (read_bolr(m->out, &m->obs) != 0)
       return -1;
+    if (trace_obs(m,a) || (m->tick_fn && m->tick_fn(m->tick_ctx,a,&m->obs))) return -1;
   }
   return 0;
 }

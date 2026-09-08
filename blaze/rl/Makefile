@@ -884,3 +884,12 @@ $(OUT)/test_eval_oracle: test_eval_oracle.c eval_oracle.c eval_oracle.h eval_mag
 
 test-oracle: $(OUT)/test_eval_oracle
 	$(OUT)/test_eval_oracle
+
+$(OUT)/test_eval_trace: test_eval_trace.c eval_magma.c eval_magma.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -o $@ test_eval_trace.c eval_magma.c -lm
+
+.PHONY: test-eval-trace
+test-eval-trace: $(OUT)/test_eval_trace
+	cd $(REPO) && ./out/blaze/rl/test_eval_trace
+
+test-recipe: test-eval-trace

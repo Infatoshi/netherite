@@ -53,6 +53,12 @@ typedef struct EvalMagma EvalMagma;
  * BOLR. bin/snap are paths from the caller's cwd (repo root). */
 EvalMagma *eval_magma_open(const char *bin, const char *snap, int seed,
                            char *err, int err_cap);
+/* trace_dir must already exist and be empty. Null disables capture. */
+EvalMagma *eval_magma_open_trace(const char *bin, const char *snap, int seed,
+                               const char *trace_dir, char *err, int err_cap);
+typedef int (*EvalMagmaTickFn)(void *ctx, const double *action,
+                              const EvalMagmaObs *obs);
+void eval_magma_set_tick_callback(EvalMagma *m, EvalMagmaTickFn fn, void *ctx);
 void eval_magma_close(EvalMagma *m);
 
 /* Write act13 (blaze_step layout) as JSON, `repeat` times. Last BOLR kept.

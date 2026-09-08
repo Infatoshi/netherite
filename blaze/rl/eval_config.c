@@ -103,6 +103,8 @@ int eval_cfg_set(EvalCfg *c, const char *key, const char *val) {
     char *dst = !strcmp(key, "fixture") ? c->fixture : c->report;
     return str_copy_fit(dst, EVAL_STR_MAX, val) ? 0 : -2;
   }
+  if (!strcmp(key, "trace_dir"))
+    return str_copy_fit(c->trace_dir, EVAL_STR_MAX, val) ? 0 : -2;
   if (!strcmp(key, "world_size")) {
     int n;
     if (!parse_int(val, &n, 0, 256) || (n && (n < 32 || n % 16))) return -2;
@@ -217,6 +219,7 @@ int eval_cfg_set(EvalCfg *c, const char *key, const char *val) {
 void eval_cfg_dump(const EvalCfg *c, FILE *out) {
   int i;
   fprintf(out, "fixture = %s\nreport = %s\nworld_size = %d\nepisode_decisions = %d\ndeterministic = %d\nallow_missing = %d\n", c->fixture, c->report, c->world_size, c->episode_decisions ? c->episode_decisions : c->ep_ticks / c->action_repeat, c->deterministic, c->allow_missing);
+  fprintf(out, "trace_dir = %s\n", c->trace_dir);
   policy_io_dump(&c->policy, out);
   fprintf(out, "ktime = %d\nstage_time = %d\nlegacy_recenter = %d\nwarp_tick = %d\nop_trace = %d\nno_ore_xy = %d\nstack_kib = %d\n", c->ktime, c->stage_time, c->legacy_recenter, c->warp_tick, c->op_trace, c->no_ore_xy, c->stack_kib);
   fprintf(out, "  %-16s = %s\n", "backend", c->backend);

@@ -41,6 +41,7 @@ typedef struct EvalCfg {
   char magma_bin[EVAL_STR_MAX];
   char fixture[EVAL_STR_MAX];
   char report[EVAL_STR_MAX];
+  char trace_dir[EVAL_STR_MAX];
   int world_size, episode_decisions, deterministic, allow_missing;
   PolicyIoConfig policy;
 } EvalCfg;

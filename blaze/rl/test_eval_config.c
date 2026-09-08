@@ -28,10 +28,12 @@ int main(void) {
   assert(eval_cfg_set(&a, "episodes_per_seed", "0") == -2);
   assert(eval_cfg_set(&a, "world_size", "65") == -2);
   assert(eval_cfg_set(&a, "deterministic", "true") == -2);
+  assert(eval_cfg_set(&a, "trace_dir", "out/verify/transfer") == 0);
   f = fopen(path, "w"); assert(f); eval_cfg_dump(&a, f); assert(fclose(f) == 0);
   eval_cfg_defaults(&b);
   assert(eval_cfg_load(&b, path, err, sizeof err) == 0);
   assert(eval_cfg_validate(&b, err, sizeof err) == 0);
+  assert(!strcmp(a.trace_dir,b.trace_dir));
   assert(a.ep_ticks == b.ep_ticks && a.nseeds == b.nseeds && a.tries == b.tries);
   assert(policy_io_fingerprint(&a.policy) == policy_io_fingerprint(&b.policy));
   assert(eval_cfg_set(&b, "seeds", "10,10") == 0);
