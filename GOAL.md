@@ -1,3 +1,31 @@
+# Wooden-pickaxe policy transfer
+
+## 2026-09-07 requested outcome
+
+Train a policy in Blaze to obtain a wooden pickaxe from an empty inventory.
+Curriculum may include starts holding logs and later crafting prerequisites,
+but final demonstrations start from scratch. Run the frozen checkpoint in
+Magma and the real Minecraft 1.11.2 Oracle without engine-specific policy
+changes. Record complete action/physics/inventory/block-change traces and
+produce reviewed three-panel MP4s: Oracle, Magma, and saturated 10x absolute
+RGB differences. Playback is 20 simulation ticks per second. Preserve these
+user-requested videos and traces as deliverables under out/verify/.
+
+Same-action replay establishes physics agreement, not closed-loop policy
+transfer. Measure both separately. Report first divergence and exact coverage;
+never call a scripted solution, selected best-of-N episode, absent frame, or
+masked pixel residual perfect transfer. Declare the policy's structured input
+and crafting action contract explicitly. A successful wooden-pickaxe goal is
+inventory item 270, not the existing torch-chain success metric. Final examples
+must have no initial resources and count ticks through crafting/placement.
+
+Starting source: 87978c7 on isolated branch lane/wooden-pickaxe-transfer.
+Live preflight: Anvil currently has an idle RTX 3090 and 83 GiB available RAM;
+Gamer's NVIDIA driver is unavailable. No Oracle client listens on 25575.
+Existing host main clones and other jobs remain untouched. Reuse verified
+build artifacts only with matching source and hashes. Parent maps training;
+read-only delegates map Oracle control/observations and transfer/trace gaps.
+
 # Runtime architecture repair
 
 ## 2026-09-04 follow-up: configurable training recipes
