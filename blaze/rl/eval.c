@@ -17,6 +17,7 @@
 #include "chain_curr.h"
 #include "chain_reward.h"
 #include "eval_magma.h"
+#include "eval_goal.h"
 #include "eval_config.h"
 #include "world_recipe.h"
 #include "blaze_snapshot.h"
@@ -128,6 +129,7 @@ static void dief(const char *fmt, const char *a) {
 typedef struct {
   int stage, seed, attempt, decisions, success, end;
   double reward;
+  EvalGoal goal;
 } EvalEpisode;
 static struct {
   EvalCfg cfg;
@@ -160,11 +162,11 @@ static int report_parents(const char *path) {
 }
 
 static void report_episode(int stage, int seed, int attempt, int decisions,
-                           double reward, int success, int end) {
+                           double reward, int success, int end, const EvalGoal *goal) {
   if (report_state.count >= EVAL_MAX_SEEDS * EVAL_MAX_TRIES * 5)
     die("episode report capacity exceeded");
   EvalEpisode *e = &report_state.episodes[report_state.count++];
-  *e = (EvalEpisode){stage, seed, attempt, decisions, success, end, reward};
+  *e = (EvalEpisode){stage, seed, attempt, decisions, success, end, reward, *goal};
 }
 
 static int report_finish(int rc) {
@@ -201,6 +203,7 @@ static int report_finish(int rc) {
   json_string(f, cfg->checkpoint);
   fprintf(f, ",\n  \"recipe\": "); json_string(f, recipe);
   fprintf(f, ",\n  \"backend\": "); json_string(f, cfg->backend);
+  fprintf(f, ",\n  \"success_item\": %d,\n  \"goal_baseline\": \"post_burn_in_inventory_count\",\n  \"success_tick_origin\": \"elapsed_simulation_ticks_including_burn_in\"", cfg->success_item);
   fprintf(f, ",\n  \"requested_seeds\": %d,\n  \"requested_episodes\": %d,\n  \"evaluated_episodes\": %d,\n  \"missing_episodes\": %d,\n  \"success_count\": %d,\n  \"success_rate\": %.17g,\n  \"boundary_count\": %d,\n  \"death_count\": %d,\n  \"time_limit_count\": %d,\n  \"burn_in_ticks_per_episode\": %d,\n  \"return_source\": \"%s\",\n  \"mean_return\": ",
           cfg->nseeds, requested, count, requested - count, successes,
           count ? (double)successes / count : 0, boundaries, deaths, limits,
@@ -214,6 +217,20 @@ static int report_finish(int rc) {
             i ? "," : "", e->stage, e->seed, e->attempt, e->decisions,
             e->success ? "true" : "false", e->end);
     if (returns) fprintf(f, "%.17g", e->reward); else fputs("null", f);
+    fprintf(f, ",\"success_item\":%d,\"initial_goal_count_after_burn_in\":", cfg->success_item);
+    if (e->goal.initial_count >= 0) fprintf(f, "%d", e->goal.initial_count);
+    else fputs("null", f);
+    fputs(",\"first_observed_success_tick\":", f);
+    if (e->goal.success) fprintf(f, "%d", e->goal.first_observed_tick);
+    else fputs("null", f);
+    fputs(",\"achievement_tick_lower_bound\":", f);
+    if (e->goal.success)
+      fprintf(f, "%d", e->goal.first_observed_tick - cfg->action_repeat + 1);
+    else fputs("null", f);
+    fputs(",\"first_achievement_tick\":", f);
+    if (e->goal.success && cfg->action_repeat == 1)
+      fprintf(f, "%d", e->goal.first_observed_tick);
+    else fputs("null", f);
     fputc('}', f);
   }
   fputs("\n  ]\n}\n", f);
@@ -632,6 +649,9 @@ int main(int argc, char **argv) {
     eval_cfg_dump(&cfg, stdout);
     return 0;
   }
+  if (!strcmp(cfg.backend, "magma") && cfg.success_item != 0 &&
+      eval_goal_index(cfg.success_item) < 0)
+    die("Magma evaluation success_item must be a supported chain inventory item");
   if (report_begin(&cfg)) { fprintf(stderr, "eval: cannot initialize report\n"); return 1; }
   if (!cfg.checkpoint[0]) {
     fprintf(stderr, "eval: --checkpoint PATH is required\n");
@@ -693,8 +713,6 @@ static void magma_lane_fill(const EvalMagmaObs *o, int i, unsigned short *cam,
     return;
   if (o->dead)
     done_buf[i] = 2;
-  else if (o->inv_counts[CR_IX_TORCH] >= 1)
-    done_buf[i] = 1;
   else
     done_buf[i] = 0;
 }
@@ -737,6 +755,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   int *ep_dec = NULL;
   uint8_t *finished = NULL;
   int *best9 = NULL;
+  EvalGoal *goals = NULL;
   int *reached = NULL;
   int *base_stg = NULL;
   EvalMagma **mag = NULL;
@@ -869,13 +888,14 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   frame_scratch = (uint8_t *)calloc((size_t)n * ENV_N_PLANES * ENV_NPIX, 1);
   ep_dec = (int *)calloc((size_t)n, sizeof(int));
   finished = (uint8_t *)calloc((size_t)n, 1);
+  goals = (EvalGoal *)calloc((size_t)n, sizeof(*goals));
   best9 = (int *)calloc((size_t)n * 9, sizeof(int));
   reached = (int *)calloc((size_t)n, sizeof(int));
   base_stg = (int *)calloc((size_t)n, sizeof(int));
   if (!assign || !cam || !depth || !edge || !scal6 || !rew || !done_buf ||
       !pose || !status || !act_rows || !planes || !scalars || !acts || !logp ||
       !values || !logits || !prior_frame || !have_prior || !frame_scratch ||
-      !ep_dec || !finished || !best9 || !reached || !base_stg)
+      !goals || !ep_dec || !finished || !best9 || !reached || !base_stg)
     die("alloc failed");
 
   for (i = 0; i < n; ++i)
@@ -958,6 +978,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
     int k;
     for (k = 0; k < 9; ++k)
       best9[(size_t)i * 9 + (size_t)k] = status[(size_t)i * ENV_STATUS + k];
+    eval_goal_init(&goals[i], cfg->success_item, status + (size_t)i * ENV_STATUS);
     base_stg[i] = inv_stage(best9 + (size_t)i * 9);
     have_prior[i] = 0;
     ep_dec[i] = 0;
@@ -1028,8 +1049,10 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
       memcpy(prior, frame, (size_t)ENV_N_PLANES * ENV_NPIX);
       have_prior[i] = 1;
       ep_dec[i] += 1;
-      if (best9[(size_t)i * 9 + CR_IX_TORCH] >= 1 || done_buf[i] == 1) {
-        reached[i] = CR_N_STAGES;
+      if (eval_goal_observe(&goals[i], status + (size_t)i * ENV_STATUS,
+                            done_buf[i], (ep_dec[i] + 1) * cfg->action_repeat)) {
+        episode_end[i] = 1;
+        reached[i] = cr_stage_of_best(best9 + (size_t)i * 9);
         finished[i] = 1;
         continue;
       }
@@ -1103,7 +1126,7 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
   print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
   for (i = 0; i < n; ++i)
     report_episode(stage_k, cfg->seeds[loaded_si[i / cfg->tries]], i % cfg->tries,
-                   ep_dec[i], episode_return[i], reached[i] >= CR_N_STAGES, episode_end[i]);
+                   ep_dec[i], episode_return[i], goals[i].success, episode_end[i], &goals[i]);
   rc_out = 0;
 
 fail:
@@ -1132,6 +1155,7 @@ fail:
   free(frame_scratch);
   free(ep_dec);
   free(finished);
+  free(goals);
   free(best9);
   free(reached);
   free(base_stg);
@@ -1186,6 +1210,7 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
   int *ep_dec = NULL;
   uint8_t *finished = NULL;
   int *best9 = NULL;
+  EvalGoal *goals = NULL;
   int *reached = NULL;
   int *base_stg = NULL;
   int rc_out = 1;
@@ -1384,13 +1409,14 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
   frame_scratch = (uint8_t *)calloc((size_t)n * ENV_N_PLANES * ENV_NPIX, 1);
   ep_dec = (int *)calloc((size_t)n, sizeof(int));
   finished = (uint8_t *)calloc((size_t)n, 1);
+  goals = (EvalGoal *)calloc((size_t)n, sizeof(*goals));
   best9 = (int *)calloc((size_t)n * 9, sizeof(int));
   reached = (int *)calloc((size_t)n, sizeof(int));
   base_stg = (int *)calloc((size_t)n, sizeof(int));
   if (!assign || !cam || !depth || !edge || !scal6 || !rew || !done_buf ||
       !pose || !status || !act_rows || !planes || !scalars || !acts || !logp ||
       !values || !logits || !prior_frame || !have_prior || !frame_scratch ||
-      !ep_dec || !finished || !best9 || !reached || !base_stg)
+      !goals || !ep_dec || !finished || !best9 || !reached || !base_stg)
     die("alloc failed");
 
   for (i = 0; i < n; ++i)
@@ -1431,6 +1457,7 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
       best9[(size_t)i * 9 + (size_t)k] = status[(size_t)i * ENV_STATUS + k];
     /* First populated best[] after assign+reset+burn-in. Stage-0
      * reporting still uses absolute reached (print unchanged). */
+    eval_goal_init(&goals[i], cfg->success_item, status + (size_t)i * ENV_STATUS);
     base_stg[i] = inv_stage(best9 + (size_t)i * 9);
     have_prior[i] = 0;
     ep_dec[i] = 0;
@@ -1470,8 +1497,10 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
       memcpy(prior, frame, (size_t)ENV_N_PLANES * ENV_NPIX);
       have_prior[i] = 1;
       ep_dec[i] += 1;
-      if (best9[(size_t)i * 9 + CR_IX_TORCH] >= 1 || done_buf[i] == 1) {
-        reached[i] = CR_N_STAGES;
+      if (eval_goal_observe(&goals[i], status + (size_t)i * ENV_STATUS,
+                            done_buf[i], (ep_dec[i] + 1) * cfg->action_repeat)) {
+        episode_end[i] = 1;
+        reached[i] = cr_stage_of_best(best9 + (size_t)i * 9);
         finished[i] = 1;
         continue;
       }
@@ -1523,7 +1552,7 @@ static int eval_run_stage(const EvalCfg *cfg, int stage_k,
   print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
   for (i = 0; i < n; ++i)
     report_episode(stage_k, cfg->seeds[loaded_si[i / cfg->tries]], i % cfg->tries,
-                   ep_dec[i], episode_return[i], reached[i] >= CR_N_STAGES, episode_end[i]);
+                   ep_dec[i], episode_return[i], goals[i].success, episode_end[i], &goals[i]);
   rc_out = 0;
 
 fail:
@@ -1548,6 +1577,7 @@ fail:
   free(frame_scratch);
   free(ep_dec);
   free(finished);
+  free(goals);
   free(best9);
   free(reached);
   free(base_stg);
