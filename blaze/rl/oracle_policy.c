@@ -4,6 +4,7 @@
 #include "model.h"
 #include "nn.h"
 #include "obs_pack.h"
+#include "oracle_initial.h"
 #include "rl_ckpt.h"
 #include <dirent.h>
 #include <errno.h>
@@ -177,7 +178,7 @@ static void tick_log(FILE *f, const EvalOracleReceipt *r, int dec, int repeat,
 int main(int argc, char **argv) {
   EvalCfg c;
   char err[1024] = "", prefix[2048], event_path[2048], conf_path[2048];
-  const char *ip = "127.0.0.1", *tape = NULL;
+  const char *ip = "127.0.0.1", *tape = NULL, *initial_path = NULL;
   char frames_dir[2048] = "";
   int port = 25575, timeout = 30000, seed_index = 0, attempt = 0,
       require_empty = 1, allow_legacy = 0, dump = 0;
@@ -189,6 +190,12 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     const char *a = argv[i];
     int *dest = NULL, lo = 0, hi = 1;
+    if (!strcmp(a, "--initial-snapshot")) {
+      if (++i == argc)
+        goto usage;
+      initial_path = argv[i];
+      continue;
+    }
     if (!strcmp(a, "--tape")) {
       if (++i == argc)
         goto usage;
@@ -309,6 +316,8 @@ int main(int argc, char **argv) {
   int64_t start_player = -1, start_server = -1, post_burn = -1,
           last_player = -1, last_server = -1, achievement = -1;
   const char *reason = "infrastructure_error";
+  OracleInitial initial = {0};
+  char initial_blocks[4096] = "";
   int recording = 0, frames_verified = 0;
   int64_t recorded_ticks = -1, expected_frames = -1;
   if (!report || !events || !conf) {
@@ -328,6 +337,29 @@ int main(int argc, char **argv) {
     goto done;
   }
   conf = NULL;
+  if (initial_path) {
+    if (oracle_initial_load(&initial, initial_path, c.seeds[seed_index],
+                            require_empty, err, sizeof err))
+      goto done;
+    if (c.report[0] == '/')
+      snprintf(initial_blocks, sizeof initial_blocks, "%s.initial-blocks.u16le",
+               c.report);
+    else {
+      char cwd[2048];
+      if (!getcwd(cwd, sizeof cwd)) {
+        snprintf(err, sizeof err, "working directory unavailable");
+        goto done;
+      }
+      snprintf(initial_blocks, sizeof initial_blocks,
+               "%s/%s.initial-blocks.u16le", cwd, c.report);
+    }
+    struct stat st;
+    if (!lstat(initial_blocks, &st) || errno != ENOENT) {
+      snprintf(err, sizeof err,
+               "initial block output already exists or cannot be inspected");
+      goto done;
+    }
+  }
   o = eval_oracle_open(ip, port, timeout, 1, prefix, err, sizeof err);
   if (!o)
     goto done;
@@ -355,6 +387,83 @@ int main(int argc, char **argv) {
         err, sizeof err,
         "initial state violates empty inventory/no target/alive requirement");
     goto done;
+  }
+  if (initial_path) {
+    RlSnapHead *h = &initial.head;
+    char request[2048];
+    snprintf(request, sizeof request,
+             "{\"cmd\":\"policy_initialize\",\"action\":{\"x\":%.17g,\"y\":%."
+             "17g,\"z\":%.17g,\"vx\":%.17g,\"vy\":%.17g,\"vz\":%.17g,\"yaw\":%."
+             "9g,\"pitch\":%.9g,\"on_ground\":%d,\"fall_distance\":%.9g,"
+             "\"food\":%d,\"health\":%.9g}}\n",
+             h->px + h->ox, h->py, h->pz + h->oz, h->mx, h->my, h->mz, h->yaw,
+             h->pitch, h->on_ground, h->fall_distance, h->food, h->health);
+    if (eval_oracle_command(o, request, 1, err, sizeof err))
+      goto done;
+    r = eval_oracle_receipt(o);
+    if (!r->policy_locked || !r->have_ticks || r->player_tick != start_player ||
+        r->server_tick != start_server || r->obs.x != h->px + h->ox ||
+        r->obs.y != h->py || r->obs.z != h->pz + h->oz ||
+        r->obs.yaw != h->yaw || r->obs.pitch != h->pitch || !r->have_physics ||
+        r->vx != h->mx || r->vy != h->my || r->vz != h->mz ||
+        r->food != h->food || r->health != h->health ||
+        r->fall_distance != h->fall_distance || r->on_ground != h->on_ground) {
+      snprintf(err, sizeof err,
+               "initialized pose or frozen clocks do not match snapshot");
+      goto done;
+    }
+    for (int slot = 0; slot < 36; slot++)
+      for (int k = 0; k < 3; k++)
+        if (r->inventory[slot][k] != h->inv[slot][k]) {
+          snprintf(err, sizeof err,
+                   "initial inventory differs at slot %d field %d", slot, k);
+          goto done;
+        }
+    if (h->inv[36][0] || h->inv[36][1]) {
+      snprintf(
+          err, sizeof err,
+          "snapshot offhand is not empty; Oracle receipt cannot verify it");
+      goto done;
+    }
+    char *block_request = NULL;
+    size_t size = 0;
+    FILE *mem = open_memstream(&block_request, &size);
+    if (!mem) {
+      snprintf(err, sizeof err, "block request allocation failed");
+      goto done;
+    }
+    fprintf(mem,
+            "{\"cmd\":\"getblocks_locked\",\"action\":{\"x0\":%d,\"y0\":%d,"
+            "\"z0\":%d,\"x1\":%d,\"y1\":%d,\"z1\":%d,\"file\":",
+            h->rx0, h->ry0, h->rz0, h->rx0 + h->rnx - 1, h->ry0 + h->rny - 1,
+            h->rz0 + h->rnz - 1);
+    json_string(mem, initial_blocks);
+    fputs("}}\n", mem);
+    if (fclose(mem)) {
+      free(block_request);
+      snprintf(err, sizeof err, "block request serialization failed");
+      goto done;
+    }
+    int br = eval_oracle_command(o, block_request, 0, err, sizeof err);
+    free(block_request);
+    if (br)
+      goto done;
+    int64_t bytes;
+    if (eval_oracle_control_integer(o, "bytes", &bytes) ||
+        bytes != (int64_t)initial.cells * 2) {
+      snprintf(err, sizeof err, "Oracle block receipt byte count mismatch");
+      goto done;
+    }
+    if (oracle_initial_compare(&initial, initial_blocks, err, sizeof err))
+      goto done;
+    if (eval_oracle_observe(o, err, sizeof err))
+      goto done;
+    r = eval_oracle_receipt(o);
+    if (!r->policy_locked || r->player_tick != start_player ||
+        r->server_tick != start_server) {
+      snprintf(err, sizeof err, "initial block capture advanced frozen clocks");
+      goto done;
+    }
   }
   if (tape) {
     char *request = NULL;
@@ -564,6 +673,23 @@ done:
     json_string(report, reason);
     fputs(",\"error\":", report);
     json_string(report, err);
+    fputs(",\"initial_snapshot\":", report);
+    if (initial_path)
+      json_string(report, initial_path);
+    else
+      fputs("null", report);
+    fputs(",\"initial_blocks\":", report);
+    if (initial_path)
+      json_string(report, initial_blocks);
+    else
+      fputs("null", report);
+    fprintf(report,
+            ",\"initial_blocks_compared\":%s,\"initial_block_cells\":%zu,"
+            "\"initial_block_mismatches\":%" PRIu64
+            ",\"initial_first_mismatch\":[%d,%d,%d,%u,%u]",
+            initial.compared ? "true" : "false", initial.cells,
+            initial.mismatches, initial.first_x, initial.first_y,
+            initial.first_z, initial.first_snapshot, initial.first_oracle);
     fputs(",\"tape\":", report);
     if (tape)
       json_string(report, tape);
@@ -610,6 +736,7 @@ done:
   free(logp);
   free(acts);
   nn_destroy(nn);
+  oracle_initial_free(&initial);
   fprintf(stderr,
           "oracle-policy: %s report=%s decisions=%d measured_ticks=%" PRId64
           "%s%s\n",

@@ -11,8 +11,12 @@ typedef struct {
   int64_t world_time, player_tick, server_tick;
   int have_ticks;
   int policy_locked, inventory_total;
+  int inventory[36][3];
   int64_t world_seed;
   int have_world_seed;
+  double vx, vy, vz;
+  float health, fall_distance;
+  int food, on_ground, have_physics;
 } EvalOracleReceipt;
 /* Exposed for replay/fixture validation; never accepts partial JSON. */
 int eval_oracle_parse(const char *json, EvalOracleReceipt *out, char *err,

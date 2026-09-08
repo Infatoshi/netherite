@@ -276,6 +276,13 @@ int eval_oracle_parse(const char *json, EvalOracleReceipt *out, char *err,
       BAD("duplicate inventory slot");
     seen |= UINT64_C(1) << slot;
     r.inventory_total += (int)count;
+    int64_t meta = 0;
+    int mi = field(&p, j, "meta");
+    if (mi != -1 && (integer(&p, mi, &meta) || meta < 0 || meta > INT_MAX))
+      BAD("invalid inventory metadata");
+    r.inventory[slot][0] = (int)id;
+    r.inventory[slot][1] = (int)count;
+    r.inventory[slot][2] = (int)meta;
     for (int k = 0; k < 9; k++)
       if (id == tracked_ids[k])
         measured_counts[k] += (int)count;
@@ -325,6 +332,34 @@ int eval_oracle_parse(const char *json, EvalOracleReceipt *out, char *err,
     if (integer(&p, a, &r.world_seed))
       BAD("invalid world_seed");
     r.have_world_seed = 1;
+  }
+  const char *physics_names[] = {
+      "vx", "vy", "vz", "health", "fall_distance", "food", "on_ground"};
+  int any_physics = 0;
+  for (int k = 0; k < 7; k++)
+    if (FIELD(physics_names[k]) != -1)
+      any_physics = 1;
+  if (any_physics) {
+    double pv[5];
+    for (int k = 0; k < 5; k++)
+      if (number(&p, FIELD(physics_names[k]), &pv[k]))
+        BAD("invalid/incomplete player physics");
+    int64_t food;
+    int g = FIELD("on_ground");
+    if (integer(&p, FIELD("food"), &food) || food < 0 || food > 20 || g < 0 ||
+        (p.t[g].kind != 't' && p.t[g].kind != 'f') || pv[3] < 0 || pv[3] > 20 ||
+        pv[4] < 0)
+      BAD("invalid player vitals");
+    r.vx = pv[0];
+    r.vy = pv[1];
+    r.vz = pv[2];
+    r.health = (float)pv[3];
+    r.fall_distance = (float)pv[4];
+    if (!isfinite(r.fall_distance))
+      BAD("fall distance overflow");
+    r.food = (int)food;
+    r.on_ground = p.t[g].kind == 't';
+    r.have_physics = 1;
   }
   r.obs.tick = r.have_ticks ? r.player_tick : r.world_time;
   *out = r;

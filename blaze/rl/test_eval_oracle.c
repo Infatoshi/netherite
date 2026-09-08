@@ -15,7 +15,9 @@ static char *fixture(int ticks, int drift, uint64_t seq, uint64_t hash) {
   FILE *f = open_memstream(&s, &n);
   assert(f);
   fprintf(f,
-          "{\"ok\":true,\"x\":8.5,\"y\":66,\"z\":8.5,\"yaw\":180,\"pitch\":0,"
+          "{\"ok\":true,\"vx\":0,\"vy\":0,\"vz\":0,\"health\":20,\"food\":20,"
+          "\"fall_distance\":0,\"on_ground\":true,\"x\":8.5,\"y\":66,\"z\":8.5,"
+          "\"yaw\":180,\"pitch\":0,"
           "\"dead\":false,\"hotbar_sel\":1,\"container\":0,\"inv_counts\":[2,0,"
           "0,0,0,0,0,0,0],\"inventory\":[{\"slot\":1,\"id\":17,\"count\":2}],"
           "\"coal\":[[1,64,2]],\"policy_action_seq\":%llu,\"policy_action_"
