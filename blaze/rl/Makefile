@@ -924,3 +924,14 @@ test-recipe: test-trace-dump
 
 $(OUT)/test_oracle_initial: test_oracle_initial.c oracle_initial.c oracle_initial.h $(ENV_SRC)/blaze_snapshot.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) test_oracle_initial.c oracle_initial.c -lm -o $@
+
+.PHONY: oracle-fixture
+oracle-fixture: $(OUT)/oracle-fixture
+$(OUT)/oracle-fixture: oracle_fixture.c oracle_initial.c oracle_initial.h $(ENV_SRC)/blaze_snapshot.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) oracle_fixture.c oracle_initial.c -lm -o $@
+
+.PHONY: test-oracle-fixture
+$(OUT)/test_oracle_fixture: test_oracle_fixture.c oracle_fixture.c oracle_initial.c oracle_initial.h $(ENV_SRC)/blaze_snapshot.c $(ENV_SRC)/blaze_snapshot.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -DORACLE_FIXTURE_NO_MAIN test_oracle_fixture.c oracle_fixture.c oracle_initial.c $(ENV_SRC)/blaze_snapshot.c -lm -o $@
+test-oracle-fixture: $(OUT)/test_oracle_fixture
+	$(OUT)/test_oracle_fixture
