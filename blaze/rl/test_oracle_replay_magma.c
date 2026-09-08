@@ -55,6 +55,10 @@ static int mock(int argc, char **argv) {
              strstr(line, "\"dyaw\":15") && strstr(line, "\"dpitch\":-10") &&
              strstr(line, "\"craft\":3"));
     }
+    if (strstr(snap, "case7")) {
+      assert(n == 1);
+      o.dead = 1;
+    }
     o.tick = n;
     if (strstr(snap, "case2") && n == 2)
       o.tick++;
@@ -100,7 +104,7 @@ int main(int argc, char **argv) {
                                    a, err, sizeof err) < 0);
   char dir[] = "/tmp/netherite-oracle-replay-XXXXXX";
   assert(mkdtemp(dir));
-  for (int mode = 0; mode < 7; mode++) {
+  for (int mode = 0; mode < 8; mode++) {
     char req[1024], snap[1024], conf[1024], trace[1024];
     snprintf(req, sizeof req, "%s/requests%d.jsonl", dir, mode);
     snprintf(snap, sizeof snap, "%s/case%d.bsnp", dir, mode);
@@ -143,8 +147,8 @@ int main(int argc, char **argv) {
     }
     int status;
     assert(waitpid(pid, &status, 0) == pid && WIFEXITED(status));
-    assert(WEXITSTATUS(status) == (mode == 0 ? 0 : 2));
-    if (mode < 4) {
+    assert(WEXITSTATUS(status) == (mode == 0 ? 0 : mode == 7 ? 4 : 2));
+    if (mode < 4 || mode == 7) {
       char path[1200];
       snprintf(path, sizeof path, "%s/replay.json", trace);
       f = fopen(path, "r");
@@ -152,11 +156,20 @@ int main(int argc, char **argv) {
       char text[4096];
       assert(fgets(text, sizeof text, f));
       fclose(f);
-      assert(strstr(text, mode == 0 ? "\"valid\":true" : "\"valid\":false"));
+      assert(strstr(text, (mode == 0 || mode == 7) ? "\"valid\":true"
+                                                   : "\"valid\":false"));
       assert(strstr(text, "\"expected_actions\":2"));
       if (mode == 0)
         assert(strstr(text, "\"executed_ticks\":2") &&
                strstr(text, "\"first_goal_action\":2"));
+      if (mode == 7) {
+        assert(strstr(text, "\"executed_ticks\":1") &&
+               strstr(text, "\"attempted_actions\":1") &&
+               strstr(text, "\"terminal_engine_dead\":true") &&
+               strstr(text, "\"complete_action_replay\":false") &&
+               strstr(text, "\"reason\":\"engine_death\"") &&
+               strstr(text, "\"verified_frame_count\":1"));
+      }
       const char *files[] = {"replay.json",   "magma.bolr",
                              "magma.pary",    "magma.stderr",
                              "actions.jsonl", "magma_state.jsonl"};
@@ -164,7 +177,7 @@ int main(int argc, char **argv) {
         snprintf(path, sizeof path, "%s/%s", trace, files[i]);
         assert(!unlink(path));
       }
-      for (int i = 0; i < 2; i++) {
+      for (int i = 0; i < (mode == 7 ? 1 : 2); i++) {
         snprintf(path, sizeof path, "%s/frames/frame_%06d.ppm", trace, i);
         if (!(mode == 3 && i == 1))
           assert(!unlink(path));

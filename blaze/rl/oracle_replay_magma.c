@@ -219,30 +219,36 @@ int main(int argc, char **argv) {
   }
   EvalMagma *m =
       eval_magma_open_config(bin, snapshot, seed, trace, conf, err, sizeof err);
-  size_t executed = 0;
+  size_t executed = 0, attempted = 0;
   int goal_count = 0;
   int64_t first_goal = -1, first_goal_tick = -1, initial_tick = -1,
           last_tick = -1;
-  int valid = 0, rc = 2;
+  int valid = 0, rc = 2, terminal_dead = 0;
+  const char *reason = "replay_failure";
   if (!m)
     goto report;
   initial_tick = last_tick = eval_magma_obs(m)->tick;
+  if (eval_magma_obs(m)->dead) {
+    snprintf(err, sizeof err, "snapshot begins in a dead state");
+    goto close;
+  }
   if (eval_magma_obs(m)->inv_counts[5]) {
     snprintf(err, sizeof err, "snapshot already has a wooden pickaxe");
     goto close;
   }
   for (size_t i = 0; i < expected; i++) {
+    attempted = i + 1;
     if (eval_magma_step(m, actions + i * 13, 1)) {
       snprintf(err, sizeof err, "Magma failed at requested action %zu", i);
       goto close;
     }
     const EvalMagmaObs *o = eval_magma_obs(m);
-    executed++;
     if (o->tick != last_tick + 1 || !isfinite(o->x) || !isfinite(o->y) ||
         !isfinite(o->z) || !isfinite(o->yaw) || !isfinite(o->pitch)) {
       snprintf(err, sizeof err, "Magma tick/state invalid at action %zu", i);
       goto close;
     }
+    executed++;
     last_tick = o->tick;
     goal_count = o->inv_counts[5];
     if (goal_count > 0 && first_goal < 0) {
@@ -252,6 +258,10 @@ int main(int argc, char **argv) {
     if (executed % 100 == 0)
       fprintf(stderr, "oracle-replay-magma: alive executed=%zu/%zu tick=%lld\n",
               executed, expected, o->tick);
+    if (o->dead) {
+      terminal_dead = 1;
+      break;
+    }
   }
   valid = 1;
 close:
@@ -259,16 +269,18 @@ close:
   if (valid) {
     char path[2048];
     snprintf(path, sizeof path, "%s/magma.bolr", trace);
-    if (records(path, sizeof(EvalMagmaObs), expected + 1, 0, err, sizeof err))
+    if (records(path, sizeof(EvalMagmaObs), executed + 1, 0, err, sizeof err))
       valid = 0;
     snprintf(path, sizeof path, "%s/magma.pary", trace);
     if (valid &&
-        records(path, sizeof(BpParityRecord), expected + 1, 1, err, sizeof err))
+        records(path, sizeof(BpParityRecord), executed + 1, 1, err, sizeof err))
       valid = 0;
-    if (valid && frames(trace, expected, err, sizeof err))
+    if (valid && frames(trace, executed, err, sizeof err))
       valid = 0;
   }
-  rc = valid ? (first_goal >= 0 ? 0 : 3) : 2;
+  rc = valid ? (terminal_dead ? 4 : first_goal >= 0 ? 0 : 3) : 2;
+  reason = valid ? (terminal_dead ? "engine_death" : "replay_complete")
+                 : "replay_failure";
 report:;
   char report_path[2048];
   snprintf(report_path, sizeof report_path, "%s/replay.json", trace);
@@ -287,6 +299,14 @@ report:;
     string(out, snapshot);
     fputs(",\"magma_conf\":", out);
     string(out, conf);
+    fputs(",\"reason\":", out);
+    string(out, reason);
+    fprintf(out,
+            ",\"terminal_engine_dead\":%s,\"complete_action_replay\":%s,"
+            "\"attempted_actions\":%zu,\"verified_frame_count\":%zu",
+            terminal_dead ? "true" : "false",
+            valid && !terminal_dead && executed == expected ? "true" : "false",
+            attempted, valid ? executed : 0);
     fputs(",\"error\":", out);
     string(out, err);
     fprintf(out,
@@ -297,8 +317,9 @@ report:;
             ",\"last_magma_tick\":%" PRId64
             ",\"success_item\":270,\"final_goal_count\":%d,\"first_goal_"
             "action\":%" PRId64 ",\"first_goal_tick\":%" PRId64
-            ",\"frames_verified\":%s,\"source_note\":\"All policy_step "
-            "requests replayed, including burn-in. Oracle acceptance is "
+            ",\"frames_verified\":%s,\"source_note\":\"Source policy_step "
+            "requests replayed in order including burn-in, stopping on engine "
+            "death. Oracle acceptance is "
             "established by the paired Oracle receipt report.\"}\n",
             request_hash, request_bytes, snapshot_hash, snapshot_bytes, lines,
             controls, expected, executed, initial_tick, last_tick, goal_count,
@@ -308,9 +329,10 @@ report:;
   }
   free(actions);
   fprintf(stderr,
-          "oracle-replay-magma: rc=%d expected=%zu executed=%zu goal_count=%d "
+          "oracle-replay-magma: rc=%d reason=%s expected=%zu executed=%zu "
+          "goal_count=%d "
           "first_goal_action=%" PRId64 " report=%s%s%s\n",
-          rc, expected, executed, goal_count, first_goal, report_path,
+          rc, reason, expected, executed, goal_count, first_goal, report_path,
           *err ? " error=" : "", err);
   return rc;
 bad_source:
