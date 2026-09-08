@@ -178,7 +178,8 @@ static void tick_log(FILE *f, const EvalOracleReceipt *r, int dec, int repeat,
 int main(int argc, char **argv) {
   EvalCfg c;
   char err[1024] = "", prefix[2048], event_path[2048], conf_path[2048];
-  const char *ip = "127.0.0.1", *tape = NULL, *initial_path = NULL;
+  const char *ip = "127.0.0.1", *tape = NULL, *initial_path = NULL,
+             *capture_path = NULL;
   char frames_dir[2048] = "";
   int port = 25575, timeout = 30000, seed_index = 0, attempt = 0,
       require_empty = 1, allow_legacy = 0, dump = 0;
@@ -190,6 +191,12 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     const char *a = argv[i];
     int *dest = NULL, lo = 0, hi = 1;
+    if (!strcmp(a, "--capture-oracle-snapshot")) {
+      if (++i == argc)
+        goto usage;
+      capture_path = argv[i];
+      continue;
+    }
     if (!strcmp(a, "--initial-snapshot")) {
       if (++i == argc)
         goto usage;
@@ -256,6 +263,25 @@ int main(int argc, char **argv) {
            ip, port, seed_index, attempt, require_empty);
     return 0;
   }
+  if (capture_path) {
+    if (!initial_path || capture_path[0] != '/' ||
+        strlen(capture_path) > 3000) {
+      snprintf(err, sizeof err,
+               "--capture-oracle-snapshot requires --initial-snapshot and a "
+               "new absolute output path");
+      goto config_error;
+    }
+    struct stat st;
+    char provenance[3100];
+    snprintf(provenance, sizeof provenance, "%s.provenance.json", capture_path);
+    if (!lstat(capture_path, &st) || errno != ENOENT ||
+        !lstat(provenance, &st) || errno != ENOENT) {
+      snprintf(err, sizeof err,
+               "captured snapshot/provenance path already exists or cannot be "
+               "inspected");
+      goto config_error;
+    }
+  }
   if (tape && tape_paths(tape, frames_dir, sizeof frames_dir, err, sizeof err))
     goto config_error;
   int contract =
@@ -317,7 +343,10 @@ int main(int argc, char **argv) {
           last_player = -1, last_server = -1, achievement = -1;
   const char *reason = "infrastructure_error";
   OracleInitial initial = {0};
-  char initial_blocks[4096] = "";
+  char initial_blocks[4096] = "", initial_light[4096] = "";
+  uint64_t template_mismatches = 0;
+  int template_compared = 0, captured = 0;
+  int template_first[5] = {0};
   int recording = 0, frames_verified = 0;
   int64_t recorded_ticks = -1, expected_frames = -1;
   if (!report || !events || !conf) {
@@ -341,6 +370,11 @@ int main(int argc, char **argv) {
     if (oracle_initial_load(&initial, initial_path, c.seeds[seed_index],
                             require_empty, err, sizeof err))
       goto done;
+    if (capture_path && initial.head.version != 2) {
+      snprintf(err, sizeof err,
+               "Oracle-derived capture requires v2 initial template");
+      goto done;
+    }
     if (c.report[0] == '/')
       snprintf(initial_blocks, sizeof initial_blocks, "%s.initial-blocks.u16le",
                c.report);
@@ -357,6 +391,19 @@ int main(int argc, char **argv) {
     if (!lstat(initial_blocks, &st) || errno != ENOENT) {
       snprintf(err, sizeof err,
                "initial block output already exists or cannot be inspected");
+      goto done;
+    }
+  }
+  if (capture_path) {
+    if (snprintf(initial_light, sizeof initial_light, "%s.light.u8",
+                 initial_blocks) >= (int)sizeof initial_light) {
+      snprintf(err, sizeof err, "initial light path too long");
+      goto done;
+    }
+    struct stat st;
+    if (!lstat(initial_light, &st) || errno != ENOENT) {
+      snprintf(err, sizeof err,
+               "initial light output already exists or cannot be inspected");
       goto done;
     }
   }
@@ -438,6 +485,10 @@ int main(int argc, char **argv) {
             h->rx0, h->ry0, h->rz0, h->rx0 + h->rnx - 1, h->ry0 + h->rny - 1,
             h->rz0 + h->rnz - 1);
     json_string(mem, initial_blocks);
+    if (capture_path) {
+      fputs(",\"light_file\":", mem);
+      json_string(mem, initial_light);
+    }
     fputs("}}\n", mem);
     if (fclose(mem)) {
       free(block_request);
@@ -454,8 +505,36 @@ int main(int argc, char **argv) {
       snprintf(err, sizeof err, "Oracle block receipt byte count mismatch");
       goto done;
     }
-    if (oracle_initial_compare(&initial, initial_blocks, err, sizeof err))
+    int compare_rc =
+        oracle_initial_compare(&initial, initial_blocks, err, sizeof err);
+    template_compared = initial.compared;
+    template_mismatches = initial.mismatches;
+    template_first[0] = initial.first_x;
+    template_first[1] = initial.first_y;
+    template_first[2] = initial.first_z;
+    template_first[3] = (int)initial.first_snapshot;
+    template_first[4] = (int)initial.first_oracle;
+    if (compare_rc && (!capture_path || !initial.compared))
       goto done;
+    if (capture_path) {
+      int64_t light_bytes;
+      if (eval_oracle_control_integer(o, "light_bytes", &light_bytes) ||
+          light_bytes != (int64_t)initial.cells) {
+        snprintf(err, sizeof err, "Oracle light receipt byte count mismatch");
+        goto done;
+      }
+      if (oracle_fixture_write(initial_path, initial_blocks, initial_light,
+                               capture_path, err, sizeof err))
+        goto done;
+      captured = 1;
+      oracle_initial_free(&initial);
+      if (oracle_initial_load(&initial, capture_path, c.seeds[seed_index],
+                              require_empty, err, sizeof err) ||
+          oracle_initial_compare(&initial, initial_blocks, err, sizeof err))
+        goto done;
+      err[0] = 0; /* Original mismatch is preserved separately, never called
+                     parity. */
+    }
     if (eval_oracle_observe(o, err, sizeof err))
       goto done;
     r = eval_oracle_receipt(o);
@@ -678,6 +757,30 @@ done:
       json_string(report, initial_path);
     else
       fputs("null", report);
+    fputs(",\"oracle_derived_fixture\":", report);
+    if (captured)
+      json_string(report, capture_path);
+    else
+      fputs("null", report);
+    fputs(",\"oracle_derived_provenance\":", report);
+    if (captured) {
+      char p[3100];
+      snprintf(p, sizeof p, "%s.provenance.json", capture_path);
+      json_string(report, p);
+    } else
+      fputs("null", report);
+    fputs(",\"comparison_fixture\":", report);
+    if (initial_path)
+      json_string(report, captured ? capture_path : initial_path);
+    else
+      fputs("null", report);
+    fprintf(report,
+            ",\"original_template_blocks_compared\":%s,\"original_template_"
+            "block_mismatches\":%" PRIu64
+            ",\"original_template_first_mismatch\":[%d,%d,%d,%d,%d]",
+            template_compared ? "true" : "false", template_mismatches,
+            template_first[0], template_first[1], template_first[2],
+            template_first[3], template_first[4]);
     fputs(",\"initial_blocks\":", report);
     if (initial_path)
       json_string(report, initial_blocks);

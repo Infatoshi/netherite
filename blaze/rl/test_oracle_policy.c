@@ -32,12 +32,14 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   socklen_t len = sizeof a;
   assert(!getsockname(sock, (struct sockaddr *)&a, &len));
   assert(!listen(sock, 1));
-  char report[1024], port[32], tape[1024], frames[1024], snapshot_path[1024];
+  char report[1024], port[32], tape[1024], frames[1024], snapshot_path[1024],
+      captured_path[1024];
+  snprintf(captured_path, sizeof captured_path, "%s/derived%d.bsnp", dir, mode);
   snprintf(snapshot_path, sizeof snapshot_path, "%s/initial%d.bsnp", dir, mode);
   if (mode >= 9) {
     RlSnapHead h = {0};
     memcpy(h.magic, "BSNP", 4);
-    h.version = 11;
+    h.version = mode == 11 ? 2 : 11;
     h.seed = 10;
     h.px = 8.5;
     h.py = 66;
@@ -49,13 +51,21 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
     h.rx0 = h.rz0 = 8;
     h.ry0 = 65;
     h.rnx = h.rny = h.rnz = 2;
-    h.inv[1][0] = 17;
-    h.inv[1][1] = 2;
+    if (mode != 11) {
+      h.inv[1][0] = 17;
+      h.inv[1][1] = 2;
+    }
     FILE *sf = fopen(snapshot_path, "wb");
     assert(sf);
     assert(fwrite(&h, sizeof h, 1, sf) == 1);
     for (uint16_t k = 0; k < 8; k++)
       assert(fwrite(&k, 2, 1, sf) == 1);
+    if (mode == 11) {
+      unsigned zero = 0;
+      assert(fwrite(&zero, 4, 1, sf) == 1);
+      unsigned char light[8] = {0};
+      assert(fwrite(light, 1, 8, sf) == 8);
+    }
     fclose(sf);
   }
   snprintf(tape, sizeof tape, "%s/capture%d%s.jsonl", dir, mode,
@@ -77,7 +87,9 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
           "--require-empty-inventory", mode == 1 ? "1" : "0",
           mode >= 5 ? "--tape" : NULL, mode >= 5 ? tape : NULL,
           mode >= 9 ? "--initial-snapshot" : NULL,
-          mode >= 9 ? snapshot_path : NULL, (char *)NULL);
+          mode >= 9 ? snapshot_path : NULL,
+          mode == 11 ? "--capture-oracle-snapshot" : NULL,
+          mode == 11 ? captured_path : NULL, (char *)NULL);
     _exit(127);
   }
   int fd = accept(sock, NULL, NULL);
@@ -104,12 +116,23 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
         for (int z = 0; z < 2; z++)
           for (int x = 0; x < 2; x++) {
             unsigned char b[2] = {(unsigned char)((x * 2 + y) * 2 + z), 0};
-            if (mode == 10 && !x && !y && !z)
+            if ((mode == 10 || mode == 11) && !x && !y && !z)
               b[0] = 255;
             assert(fwrite(b, 1, 2, bf) == 2);
           }
       fclose(bf);
-      fputs("{\"ok\":true,\"bytes\":16}\n", f);
+      if (mode == 11) {
+        assert(strstr(req, "\"light_file\":"));
+        char lp[1300];
+        snprintf(lp, sizeof lp, "%s.light.u8", path);
+        FILE *lf = fopen(lp, "wb");
+        assert(lf);
+        for (int j = 0; j < 8; j++)
+          fputc(240, lf);
+        fclose(lf);
+        fputs("{\"ok\":true,\"bytes\":16,\"light_bytes\":8}\n", f);
+      } else
+        fputs("{\"ok\":true,\"bytes\":16}\n", f);
       fflush(f);
       continue;
     }
@@ -178,11 +201,23 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
                       "{\"ok\":true,\"policy_locked\":true,\"world_seed\":10,");
     free(s);
     s = v;
-    if (((mode == 0 || mode >= 5) && seq == 2) || (mode == 4 && seq == 4)) {
-      v = replace(s, "[2,0,0,0,0,0,0,0,0]", "[0,0,0,0,0,1,0,0,0]");
+    if (mode == 11) {
+      v = replace(s, "[2,0,0,0,0,0,0,0,0]", "[0,0,0,0,0,0,0,0,0]");
       free(s);
       s = v;
-      v = replace(s, "\"id\":17,\"count\":2", "\"id\":270,\"count\":1");
+      v = replace(s, "[{\"slot\":1,\"id\":17,\"count\":2}]", "[]");
+      free(s);
+      s = v;
+    }
+    if (((mode == 0 || mode >= 5) && seq == 2) || (mode == 4 && seq == 4)) {
+      v = replace(s, mode == 11 ? "[0,0,0,0,0,0,0,0,0]" : "[2,0,0,0,0,0,0,0,0]",
+                  "[0,0,0,0,0,1,0,0,0]");
+      free(s);
+      s = v;
+      v = mode == 11
+              ? replace(s, "\"inventory\":[]",
+                        "\"inventory\":[{\"slot\":1,\"id\":270,\"count\":1}]")
+              : replace(s, "\"id\":17,\"count\":2", "\"id\":270,\"count\":1");
       free(s);
       s = v;
     }
@@ -194,7 +229,9 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   int status;
   assert(waitpid(child, &status, 0) == child);
   assert(WIFEXITED(status));
-  int want = (mode == 0 || mode == 4 || mode == 5 || mode == 8 || mode == 9) ? 0
+  int want = (mode == 0 || mode == 4 || mode == 5 || mode == 8 || mode == 9 ||
+              mode == 11)
+                 ? 0
              : mode == 2 ? 3
                          : 2;
   assert(WEXITSTATUS(status) == want);
@@ -203,16 +240,16 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   char buf[8192];
   assert(fgets(buf, sizeof buf, r));
   fclose(r);
-  assert(strstr(buf, (mode == 0 || mode == 4 || (mode >= 5 && mode <= 9))
+  assert(strstr(buf, (mode == 0 || mode == 4 || (mode >= 5 && mode != 10))
                          ? "\"achieved\":true"
                          : "\"achieved\":false"));
   assert(strstr(buf, mode == 0 || mode == 2 || mode == 4 || mode == 5 ||
-                             mode == 8 || mode == 9
+                             mode == 8 || mode == 9 || mode == 11
                          ? "\"valid\":true"
                          : "\"valid\":false"));
-  if (mode >= 5 && mode <= 9) {
+  if (mode >= 5 && mode != 10) {
     assert(stopped);
-    assert(strstr(buf, mode == 5 || mode == 8 || mode == 9
+    assert(strstr(buf, mode == 5 || mode == 8 || mode == 9 || mode == 11
                            ? "\"frame_files_verified\":true"
                            : "\"frame_files_verified\":false"));
     for (uint64_t i = 0; i < seq; i++) {
@@ -228,11 +265,22 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   if (mode >= 9) {
     assert(initialized && blocks_done);
     assert(strstr(buf, "\"initial_blocks_compared\":true"));
-    assert(strstr(buf, mode == 9 ? "\"initial_block_mismatches\":0"
-                                 : "\"initial_block_mismatches\":1"));
+    assert(strstr(buf, (mode == 9 || mode == 11)
+                           ? "\"initial_block_mismatches\":0"
+                           : "\"initial_block_mismatches\":1"));
     char path[1200];
     snprintf(path, sizeof path, "%s.initial-blocks.u16le", report);
     assert(!unlink(path));
+    if (mode == 11) {
+      assert(strstr(buf, "\"original_template_block_mismatches\":1"));
+      assert(strstr(buf, captured_path));
+      assert(!unlink(captured_path));
+      char extra[1300];
+      snprintf(extra, sizeof extra, "%s.provenance.json", captured_path);
+      assert(!unlink(extra));
+      snprintf(extra, sizeof extra, "%s.initial-blocks.u16le.light.u8", report);
+      assert(!unlink(extra));
+    }
     assert(!unlink(snapshot_path));
   }
   const char *suffix[] = {"", ".conf", ".decisions.jsonl",
@@ -261,7 +309,7 @@ int main(int argc, char **argv) {
   policy_io_default(&c);
   char err[512];
   assert(!policy_io_checkpoint_write(ckpt, &c, err, sizeof err));
-  for (int mode = 0; mode < 11; mode++)
+  for (int mode = 0; mode < 12; mode++)
     run_driver(argv[1], dir, ckpt, mode);
   assert(!unlink(ckpt));
   snprintf(meta, sizeof meta, "%s.policy.conf", ckpt);

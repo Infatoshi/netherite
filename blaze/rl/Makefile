@@ -899,8 +899,8 @@ $(ORACLE_NN_OBJS): $(NN_SRC)/nn.c $(NN_SRC)/cpu.c $(NN_SRC)/fixture.c $(NN_SRC)/
 	$(MAKE) -C $(NN_SRC) $@
 .PHONY: oracle-policy
 oracle-policy: $(OUT)/oracle-policy
-$(OUT)/oracle-policy: oracle_initial.c oracle_initial.h $(ENV_SRC)/blaze_snapshot.h oracle_policy.c eval_oracle.c eval_oracle.h eval_magma.c eval_magma.h eval_config.c eval_config.h obs_config.c obs_config.h obs_pack.h rl_ckpt.h $(ORACLE_NN_OBJS) | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) oracle_policy.c oracle_initial.c eval_oracle.c eval_magma.c eval_config.c obs_config.c $(ORACLE_NN_OBJS) -lm -o $@
+$(OUT)/oracle-policy: oracle_fixture.c oracle_initial.c oracle_initial.h $(ENV_SRC)/blaze_snapshot.h oracle_policy.c eval_oracle.c eval_oracle.h eval_magma.c eval_magma.h eval_config.c eval_config.h obs_config.c obs_config.h obs_pack.h rl_ckpt.h $(ORACLE_NN_OBJS) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) -DORACLE_FIXTURE_NO_MAIN oracle_policy.c oracle_fixture.c oracle_initial.c eval_oracle.c eval_magma.c eval_config.c obs_config.c $(ORACLE_NN_OBJS) -lm -o $@
 
 .PHONY: test-oracle-policy
 $(OUT)/test_oracle_policy: test_oracle_policy.c test_eval_oracle.c eval_oracle.c eval_oracle.h obs_config.c obs_config.h $(ORACLE_NN_OBJS) | $(OUT)
