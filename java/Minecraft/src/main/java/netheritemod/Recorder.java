@@ -2245,16 +2245,44 @@ public class Recorder {
             if (y0 < 0 || y1 > 255) return err("block box y must be 0..255");
             long cells = (long)(x1 - x0 + 1) * (long)(y1 - y0 + 1) * (long)(z1 - z0 + 1);
             if (cells > (1 << 26)) return err("block box too large");
+            String lightFile = a.has("light_file") ? a.get("light_file").getAsString() : null;
+            String biomeFile = a.has("biome_file") ? a.get("biome_file").getAsString() : null;
+            java.util.HashSet<String> paths = new java.util.HashSet<String>();
+            for (String field : new String[]{"file", "light_file", "biome_file"}) {
+                if (!a.has(field)) continue;
+                java.io.File f = new java.io.File(a.get(field).getAsString());
+                if (!paths.add(f.getCanonicalPath())) return err("capture output paths must differ");
+                if (!field.equals("file") && f.exists()) return err("capture output already exists: " + field);
+            }
+            byte[] light = lightFile == null ? null : new byte[(int)cells];
+            byte[] biomes = biomeFile == null ? null : new byte[(x1 - x0 + 1) * (z1 - z0 + 1)];
             byte[] buf = new byte[(int) cells * 2];
             net.minecraft.util.math.BlockPos.MutableBlockPos pos =
                 new net.minecraft.util.math.BlockPos.MutableBlockPos();
             int k = 0;
             for (int y = y0; y <= y1; y++) for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) {
+                if ((light != null || biomes != null) && !w.isBlockLoaded(pos.setPos(x, y, z)))
+                    return err("capture requires already loaded chunks");
                 net.minecraft.block.state.IBlockState st = w.getBlockState(pos.setPos(x, y, z));
                 net.minecraft.block.Block b = st.getBlock();
                 int v = (net.minecraft.block.Block.getIdFromBlock(b) << 4) | b.getMetaFromState(st);
+                if (light != null) light[k / 2] = (byte)(
+                    (w.getLightFor(net.minecraft.world.EnumSkyBlock.SKY, pos) << 4)
+                    | w.getLightFor(net.minecraft.world.EnumSkyBlock.BLOCK, pos));
                 buf[k++] = (byte) (v & 0xff); buf[k++] = (byte) ((v >> 8) & 0xff);
             }
+            if (biomes != null) {
+                int bi = 0;
+                for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) {
+                    int id = net.minecraft.world.biome.Biome.getIdForBiome(w.getBiome(pos.setPos(x, 0, z)));
+                    if (id < 0 || id > 255) return err("biome id outside byte encoding");
+                    biomes[bi++] = (byte)id;
+                }
+            }
+            if (light != null) java.nio.file.Files.write(java.nio.file.Paths.get(lightFile), light,
+                java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
+            if (biomes != null) java.nio.file.Files.write(java.nio.file.Paths.get(biomeFile), biomes,
+                java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
             if (a.has("file")) {
                 String file = a.get("file").getAsString();
                 java.io.DataOutputStream o = new java.io.DataOutputStream(
@@ -2269,8 +2297,22 @@ public class Recorder {
             o.addProperty("nz", z1 - z0 + 1);
             o.addProperty("bytes", k);
             o.addProperty("hash", fnv1a64hex(buf, k));
+            if (light != null) {
+                o.addProperty("light_file", lightFile); o.addProperty("light_bytes", light.length);
+                o.addProperty("light_order", "y,z,x");
+            }
+            if (biomes != null) {
+                o.addProperty("biome_file", biomeFile); o.addProperty("biome_bytes", biomes.length);
+                o.addProperty("biome_order", "x,z");
+            }
+            o.addProperty("world_time", w.getWorldTime());
+            o.addProperty("total_time", w.getTotalWorldTime());
+            o.addProperty("entity_count", w.loadedEntityList.size());
             synchronized (lockMon) { o.addProperty("gate_completed", lockCompleted); }
             lockAddPlayer(o);
+            // lockAddPlayer's legacy world_time names total time; expose both
+            // clocks explicitly here without that legacy alias overwriting day time.
+            o.addProperty("world_time", w.getWorldTime());
             return o.toString();
         } catch (Throwable t) { return err("getblocks_locked: " + t); }
     }
