@@ -62,6 +62,110 @@ public class Recorder {
     // game thread <-> socket thread handoff (one in-flight request)
     private final SynchronousQueue<Req> incoming = new SynchronousQueue<Req>();
     private Req inFlight = null;
+    private static volatile Recorder policyRecorder;
+    private volatile boolean policyLocked = false;
+    private volatile String policyFault = null;
+    private Req policyRequest;
+    private long policyClientTicks, policyServerStart;
+    private int policyPlayerStart;
+
+    /** Called at a game-loop boundary, before any vanilla client tick. */
+    public static boolean policyBeforeTick() {
+        Recorder r = policyRecorder;
+        return r != null && r.policyBeforeTickImpl();
+    }
+
+    public static boolean policyIsLocked() {
+        Recorder r = policyRecorder;
+        return r != null && r.policyLocked;
+    }
+
+    private boolean policyBeforeTickImpl() {
+        if (!policyLocked) return false;
+        Req r = incoming.poll();
+        if (r == null) return false;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (!r.cmd.equals("policy_step")) {
+            processRequest(mc, r);
+            return false;
+        }
+        if (policyFault != null) { reply(r, err(policyFault)); return false; }
+        try {
+            if (mc.player == null || mc.world == null || mc.isGamePaused)
+                throw new IllegalStateException("policy step requires an unpaused live player");
+            synchronized (lockMon) {
+                String bad = lockRequireParked("policy_step");
+                if (bad != null) throw new IllegalStateException(bad);
+                policyServerStart = lockCompleted;
+            }
+            policyPlayerStart = mc.player.ticksExisted;
+            applyAction(mc, r.action);
+            policyRequest = r;
+            return true;
+        } catch (Throwable t) {
+            policyFault = "policy step failed: " + t;
+            reply(r, err(policyFault));
+            return false;
+        }
+    }
+
+    /** Flush the actual local network queues, never synthesize player state. */
+    private static void policyNetworkBarrier(net.minecraft.network.NetworkManager n)
+            throws Exception {
+        if (n == null || !n.isLocalChannel() || !n.isChannelOpen())
+            throw new IllegalStateException("policy lock requires a live local connection");
+        n.channel().eventLoop().submit(new Runnable() { public void run() {} })
+            .get(5, TimeUnit.SECONDS);
+    }
+
+    public static void policyAfterTick() {
+        Recorder r = policyRecorder;
+        if (r == null || r.policyRequest == null) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        try {
+            if (mc.player.ticksExisted != r.policyPlayerStart + 1)
+                throw new IllegalStateException("client player tick did not advance exactly once");
+            r.policyClientTicks++;
+            net.minecraft.entity.player.EntityPlayerMP sp = mc.getIntegratedServer()
+                .getPlayerList().getPlayerByUUID(mc.player.getUniqueID());
+            policyNetworkBarrier(mc.getConnection().getNetworkManager());
+            policyNetworkBarrier(sp.connection.getNetworkManager());
+            JsonObject a = new JsonObject(); a.addProperty("n", 1);
+            JsonObject result = new JsonParser().parse(r.lockStepServer(a)).getAsJsonObject();
+            if (!result.has("ok") || !result.get("ok").getAsBoolean())
+                throw new IllegalStateException(result.toString());
+            synchronized (r.lockMon) {
+                if (r.lockCompleted != r.policyServerStart + 1)
+                    throw new IllegalStateException("server tick did not advance exactly once");
+            }
+            policyNetworkBarrier(sp.connection.getNetworkManager());
+            policyNetworkBarrier(mc.getConnection().getNetworkManager());
+        } catch (Throwable t) {
+            r.policyFault = "policy tick failed: " + t;
+        }
+    }
+
+    /** Called after the loop has drained server packets and rendered the tick. */
+    public static void policyAfterRender() {
+        Recorder r = policyRecorder;
+        if (r == null || r.policyRequest == null) return;
+        Req request = r.policyRequest;
+        r.policyRequest = null;
+        reply(request, r.policyFault == null
+            ? r.obs(Minecraft.getMinecraft(), r.rlCamPending) : err(r.policyFault));
+    }
+
+    public static void policyPacketsDrained() {
+        Recorder r = policyRecorder;
+        if (r == null || r.policyRequest == null || r.policyFault != null) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        try {
+            if (r.recWriter != null && mc.world != null && mc.player != null)
+                r.recordTick(mc);
+        } catch (Throwable t) {
+            r.policyFault = "policy recording failed: " + t;
+        }
+    }
 
     // ---------------- server tick lockstep gate ----------------
     // The integrated server runs on its own thread, so an ordinary bridge command
@@ -1718,6 +1822,7 @@ public class Recorder {
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent e) {
+        policyRecorder = this;
         // AO drop-in (render-opt kernel 13): when a qao AO mode is active, disable Forge's
         // smooth-lighting pipeline so the VANILLA AmbientOcclusionFace.getAoBrightness path (the
         // kernel we verified) becomes the live AO path that the coremod hook rewrites. Forge's
@@ -1808,6 +1913,10 @@ public class Recorder {
                     // A bridge that dies while the step lock is armed would leave
                     // the server thread parked forever. Always release it.
                     lockDisarm();
+                    policyLocked = false;
+                    policyFault = null;
+                    policyRequest = null;
+                    Minecraft.getMinecraft().addScheduledTask(() -> clearKeys(Minecraft.getMinecraft()));
                 }
             }
         } catch (Exception ex) {
@@ -3135,7 +3244,15 @@ public class Recorder {
         String cmd = msg.has("cmd") ? msg.get("cmd").getAsString() : "";
         JsonObject action = msg.has("action") ? msg.getAsJsonObject("action") : new JsonObject();
         JsonObject world = msg.has("world") ? msg.getAsJsonObject("world") : new JsonObject();
+        if (policyLocked && !(cmd.equals("policy_step") || cmd.equals("policy_unlock")
+            || cmd.equals("obs") || cmd.equals("frame") || cmd.equals("recstart")
+            || cmd.equals("recstop") || cmd.equals("stats")))
+            return err("policy lock permits only policy_step, policy_unlock, obs, frame, recstart, recstop, stats");
+        if (cmd.equals("policy_step") && !policyLocked) return err("policy_step requires policy_lock");
+        if (cmd.equals("policy_step") && action.has("n") && action.get("n").getAsInt() != 1)
+            return err("policy_step permits exactly one tick");
         switch (cmd) {
+            case "policy_lock": case "policy_unlock": case "policy_step": break;
             case "step": case "reset": case "obs": case "stats": case "close":
             case "overclock": case "cmd": case "spawn": case "fluid": case "capture_light":
             case "capture_fluidheight": case "capture_biome":
@@ -3183,7 +3300,7 @@ public class Recorder {
         // is a deadlock, so release it before handing the command over.
         if (cmd.equals("close") || cmd.equals("reset") || cmd.equals("dim")) lockDisarm();
         Req r = new Req(cmd, action, world);
-        incoming.put(r);
+        if (!incoming.offer(r, 10, TimeUnit.SECONDS)) return err("request was not accepted within 10s");
         String result = r.resp.poll(120, TimeUnit.SECONDS); // world-gen can be slow
         return result == null ? err("timeout") : result;
     }
@@ -3690,7 +3807,7 @@ public class Recorder {
         // holdDeath freezes the dead state for oracle HUD captures (hud_pin).
         if (mc.player != null && mc.player.getHealth() <= 0.0F) {
             if (!wasDead) { deaths++; wasDead = true; }
-            if (!holdDeath) {
+            if (!holdDeath && !policyLocked) {
                 mc.player.respawnPlayer();
                 if (mc.currentScreen instanceof net.minecraft.client.gui.GuiGameOver) {
                     mc.displayGuiScreen(null);
@@ -3731,7 +3848,7 @@ public class Recorder {
         }
 
         // human-play tape: record EVERY client tick while active, bridge or no bridge.
-        if (recWriter != null && mc.world != null && mc.player != null) {
+        if (!policyLocked && recWriter != null && mc.world != null && mc.player != null) {
             try { recordTick(mc); } catch (Throwable t) { /* never let recording crash the tick */ }
         } else if (recActive && (mc.world == null || mc.player == null)) {
             // World unload / dimension handoff: drop in-flight event channels
@@ -3751,7 +3868,7 @@ public class Recorder {
         // keybind action is a no-op. Close it at the tick boundary so the
         // policy sees the env it was trained in. Human play (mcwindow viewer
         // / tape recording) keeps its real GUIs.
-        if (rlV2Active && !recActive && !HumanStream.hasViewer()
+        if (rlV2Active && (!recActive || policyLocked) && !HumanStream.hasViewer()
             && mc.player != null
             && mc.currentScreen instanceof
                net.minecraft.client.gui.inventory.GuiContainer) {
@@ -3772,6 +3889,7 @@ public class Recorder {
             justFinalized = true;
         }
         if (inFlight != null) return; // shouldn't happen
+        if (policyLocked) return; // The game-loop boundary owns strict commands.
 
         // LOCKSTEP WINDOW: right after finalizing a step, wait briefly for the client's
         // next command so it applies THIS tick. Without this, the response->next-step
@@ -3790,8 +3908,27 @@ public class Recorder {
         }
         final Req r = polled;  // effectively final: captured by inner classes below
         if (r == null) return;
+        processRequest(mc, r);
+    }
 
+    private void processRequest(final Minecraft mc, final Req r) {
         try { // a malformed command (missing param, bad type) must never kill the client thread
+        if (r.cmd.equals("policy_lock")) {
+            if (mc.player == null || mc.world == null || mc.getIntegratedServer() == null
+                || HumanStream.hasViewer() || inFlight != null
+                || com.microsoft.Malmo.Utils.TimeHelper.SyncManager.isSynchronous())
+                { reply(r, err("policy_lock requires an idle local player without a human viewer")); return; }
+            JsonObject result = new JsonParser().parse(lockControl("server_step_lock", new JsonObject())).getAsJsonObject();
+            if (!result.has("ok") || !result.get("ok").getAsBoolean()) { reply(r, result.toString()); return; }
+            policyLocked = true; policyFault = null; policyClientTicks = 0;
+            clearKeys(mc);
+            reply(r, obs(mc, r.action.has("cam") && r.action.get("cam").getAsInt() != 0));
+            return;
+        }
+        if (r.cmd.equals("policy_unlock")) {
+            clearKeys(mc); policyLocked = false; policyFault = null;
+            lockDisarm(); reply(r, "{\"ok\":true,\"policy_locked\":false}"); return;
+        }
         if (r.cmd.equals("stats")) { reply(r, stats(mc)); return; }
         if (r.cmd.equals("recstart")) {
             if (mc.player == null || mc.world == null) { reply(r, err("no world")); return; }
@@ -8953,6 +9090,10 @@ public class Recorder {
         JsonObject o = new JsonObject();
         o.addProperty("ok", true);
         // ---- chain-RL protocol v2 fields (rl_mode.c obs parity) ----
+        o.addProperty("player_tick", p.ticksExisted);
+        o.addProperty("server_tick", mc.getIntegratedServer() == null ? -1 : mc.getIntegratedServer().getTickCounter());
+        o.addProperty("policy_locked", policyLocked);
+        o.addProperty("policy_client_ticks", policyClientTicks);
         o.addProperty("policy_action_seq", rlPolicyActionSeq);
         o.addProperty("policy_action_fnv64",
                       Long.toUnsignedString(rlPolicyActionFnv, 16));

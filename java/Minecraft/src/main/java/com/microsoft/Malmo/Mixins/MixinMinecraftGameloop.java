@@ -121,7 +121,20 @@ public abstract class MixinMinecraftGameloop {
         long l = System.nanoTime();
 
 
-        if(TimeHelper.SyncManager.isSynchronous() && !this.isGamePaused ){
+        if (netheritemod.Recorder.policyIsLocked()) {
+            this.timer.renderPartialTicks = 1.0F;
+            if (netheritemod.Recorder.policyBeforeTick()) {
+                this.runTick();
+                netheritemod.Recorder.policyAfterTick();
+                // The local network barriers have queued the authoritative
+                // packets. Apply them on their real owner without a second tick.
+                synchronized (this.scheduledTasks) {
+                    while (!this.scheduledTasks.isEmpty())
+                        Util.runTask((FutureTask)this.scheduledTasks.poll(), Minecraft.LOGGER);
+                }
+                netheritemod.Recorder.policyPacketsDrained();
+            }
+        } else if(TimeHelper.SyncManager.isSynchronous() && !this.isGamePaused ){
             this.mcProfiler.startSection("waitForTick");
             // TimeHelper.SyncManager.debugLog("[Client] Waiting for tick request!");
 
@@ -147,7 +160,7 @@ public abstract class MixinMinecraftGameloop {
 
             this.mcProfiler.endSection(); //ClientTick
          } else{
-            for (int j = 0; j < this.timer.elapsedTicks; ++j)
+            for (int j = 0; j < this.timer.elapsedTicks && !netheritemod.Recorder.policyIsLocked(); ++j)
             {
                 this.runTick();
             }
@@ -221,6 +234,7 @@ public abstract class MixinMinecraftGameloop {
 
         this.mcProfiler.startSection("root");
         TimeHelper.updateDisplay();
+        netheritemod.Recorder.policyAfterRender();
         // this.updateDisplay();
 
         if(
