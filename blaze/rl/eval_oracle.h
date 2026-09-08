@@ -31,6 +31,9 @@ int eval_oracle_set_step_command(EvalOracle *o, const char *command);
  * semantic schema, otherwise requires complete {ok:true,...}. */
 int eval_oracle_command(EvalOracle *o, const char *request,
                         int observation_reply, char *err, int cap);
+/* Integer field from the last successful non-observation control response. */
+int eval_oracle_control_integer(const EvalOracle *o, const char *key,
+                                int64_t *out);
 int eval_oracle_observe(EvalOracle *o, char *err, int cap);
 /* Exactly one simulation tick. Caller expands repeat with the same first-tick
  * primitive rule as eval_magma_step. Failure poisons transport: do not retry.

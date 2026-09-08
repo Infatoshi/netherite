@@ -5,6 +5,7 @@
 #include "nn.h"
 #include "obs_pack.h"
 #include "rl_ckpt.h"
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -12,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 static uint64_t hash_bytes(uint64_t h, const void *ptr, size_t n) {
@@ -61,6 +63,86 @@ static FILE *exclusive(const char *path) {
     close(fd);
   return f;
 }
+/* Tape paths are local to the Oracle host. This verifies expected file coverage
+ * and PNG framing, not pixel equality; the renderer comparison owns pixels. */
+static int tape_paths(const char *path, char *frames, size_t cap, char *err,
+                      size_t ec) {
+  size_t n = strlen(path);
+  if (n < 7 || n > 1500 || path[0] != '/' || strcmp(path + n - 6, ".jsonl")) {
+    snprintf(err, ec,
+             "--tape requires an absolute .jsonl path on the Oracle host");
+    return -1;
+  }
+  if (snprintf(frames, cap, "%.*s_frames", (int)(n - 6), path) >= (int)cap)
+    return -1;
+  const char *suffix[] = {"", ".geom.jsonl", "_frames", "_world"};
+  for (int i = 0; i < 4; i++) {
+    char check[2048];
+    if (i == 0)
+      snprintf(check, sizeof check, "%s", path);
+    else
+      snprintf(check, sizeof check, "%.*s%s", (int)(n - 6), path, suffix[i]);
+    struct stat st;
+    if (!lstat(check, &st) || errno != ENOENT) {
+      snprintf(err, ec, "tape output already exists or cannot be inspected: %s",
+               check);
+      return -1;
+    }
+  }
+  return 0;
+}
+static int tape_frames(const char *tape, const char *dir, int64_t expected,
+                       char *err, size_t cap) {
+  if (expected < 1) {
+    snprintf(err, cap, "tape has no verified frames");
+    return -1;
+  }
+  struct stat st;
+  if (stat(tape, &st) || !S_ISREG(st.st_mode) || st.st_size == 0) {
+    snprintf(err, cap, "recorded tape missing/empty");
+    return -1;
+  }
+  static const unsigned char sig[8] = {137, 80, 78, 71, 13, 10, 26, 10};
+  for (int64_t i = 0; i < expected; i++) {
+    char path[2048];
+    snprintf(path, sizeof path, "%s/f_%06" PRId64 ".png", dir, i);
+    FILE *f = fopen(path, "rb");
+    unsigned char head[24], tail[12];
+    int ok = f && fread(head, 1, sizeof head, f) == sizeof head &&
+             !memcmp(head, sig, 8) && !memcmp(head + 12, "IHDR", 4) &&
+             (head[16] || head[17] || head[18] || head[19]) &&
+             (head[20] || head[21] || head[22] || head[23]) &&
+             !fseek(f, -12, SEEK_END) && fread(tail, 1, 12, f) == 12 &&
+             !memcmp(tail, "\0\0\0\0IEND", 8);
+    if (f)
+      fclose(f);
+    if (!ok) {
+      snprintf(err, cap, "missing/incomplete frame: %s", path);
+      return -1;
+    }
+  }
+  DIR *d = opendir(dir);
+  if (!d) {
+    snprintf(err, cap, "frame directory unavailable");
+    return -1;
+  }
+  int64_t count = 0;
+  struct dirent *entry;
+  while ((entry = readdir(d))) {
+    size_t n = strlen(entry->d_name);
+    if (n >= 4 && !strcmp(entry->d_name + n - 4, ".png"))
+      count++;
+  }
+  closedir(d);
+  if (count != expected) {
+    snprintf(err, cap,
+             "frame count mismatch: expected %" PRId64 " found %" PRId64,
+             expected, count);
+    return -1;
+  }
+  return 0;
+}
+
 static int parse_int(const char *s, int lo, int hi, int *out) {
   char *end;
   errno = 0;
@@ -95,7 +177,8 @@ static void tick_log(FILE *f, const EvalOracleReceipt *r, int dec, int repeat,
 int main(int argc, char **argv) {
   EvalCfg c;
   char err[1024] = "", prefix[2048], event_path[2048], conf_path[2048];
-  const char *ip = "127.0.0.1";
+  const char *ip = "127.0.0.1", *tape = NULL;
+  char frames_dir[2048] = "";
   int port = 25575, timeout = 30000, seed_index = 0, attempt = 0,
       require_empty = 1, allow_legacy = 0, dump = 0;
   char **args = calloc((size_t)argc + 1, sizeof *args);
@@ -106,6 +189,12 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     const char *a = argv[i];
     int *dest = NULL, lo = 0, hi = 1;
+    if (!strcmp(a, "--tape")) {
+      if (++i == argc)
+        goto usage;
+      tape = argv[i];
+      continue;
+    }
     if (!strcmp(a, "--oracle-ip")) {
       if (++i == argc)
         goto usage;
@@ -160,6 +249,8 @@ int main(int argc, char **argv) {
            ip, port, seed_index, attempt, require_empty);
     return 0;
   }
+  if (tape && tape_paths(tape, frames_dir, sizeof frames_dir, err, sizeof err))
+    goto config_error;
   int contract =
       policy_io_checkpoint_check(c.checkpoint, &c.policy, err, sizeof err);
   if (contract < 0)
@@ -218,6 +309,8 @@ int main(int argc, char **argv) {
   int64_t start_player = -1, start_server = -1, post_burn = -1,
           last_player = -1, last_server = -1, achievement = -1;
   const char *reason = "infrastructure_error";
+  int recording = 0, frames_verified = 0;
+  int64_t recorded_ticks = -1, expected_frames = -1;
   if (!report || !events || !conf) {
     snprintf(
         err, sizeof err,
@@ -262,6 +355,36 @@ int main(int argc, char **argv) {
         err, sizeof err,
         "initial state violates empty inventory/no target/alive requirement");
     goto done;
+  }
+  if (tape) {
+    char *request = NULL;
+    size_t request_size = 0;
+    FILE *mem = open_memstream(&request, &request_size);
+    if (!mem) {
+      snprintf(err, sizeof err, "tape request allocation failed");
+      goto done;
+    }
+    fputs("{\"cmd\":\"recstart\",\"action\":{\"file\":", mem);
+    json_string(mem, tape);
+    fputs(",\"frames_every\":1,\"dig_trace\":1,\"contract\":1}}\n", mem);
+    if (fclose(mem)) {
+      free(request);
+      snprintf(err, sizeof err, "tape request serialization failed");
+      goto done;
+    }
+    int tr = eval_oracle_command(o, request, 0, err, sizeof err);
+    free(request);
+    if (tr)
+      goto done;
+    recording = 1;
+    if (eval_oracle_observe(o, err, sizeof err))
+      goto done;
+    r = eval_oracle_receipt(o);
+    if (!r->policy_locked || r->player_tick != start_player ||
+        r->server_tick != start_server) {
+      snprintf(err, sizeof err, "recording start advanced a frozen clock");
+      goto done;
+    }
   }
   uint8_t planes[ENV_N_CH * ENV_NPIX],
       prior[ENV_N_PLANES * ENV_NPIX] = {0}, scratch[ENV_N_PLANES * ENV_NPIX],
@@ -384,6 +507,32 @@ int main(int argc, char **argv) {
     reason = "decision_limit";
   rc = success ? 0 : 3;
 done:
+  if (o && recording && eval_oracle_receipt(o)) {
+    char tape_err[1024] = "";
+    expected_frames = last_player - start_player;
+    int stop = eval_oracle_command(o, "{\"cmd\":\"recstop\",\"action\":{}}\n",
+                                   0, tape_err, sizeof tape_err);
+    if (!stop)
+      stop = eval_oracle_control_integer(o, "ticks", &recorded_ticks);
+    if (!stop && recorded_ticks != expected_frames) {
+      snprintf(tape_err, sizeof tape_err,
+               "recorded tick count mismatch: expected %" PRId64
+               " received %" PRId64,
+               expected_frames, recorded_ticks);
+      stop = -1;
+    }
+    if (!stop)
+      stop = tape_frames(tape, frames_dir, expected_frames, tape_err,
+                         sizeof tape_err);
+    if (stop) {
+      if (rc != 2)
+        snprintf(err, sizeof err, "tape verification failed: %.950s",
+                 *tape_err ? tape_err : "missing stop tick count");
+      rc = 2;
+      reason = "infrastructure_error";
+    } else
+      frames_verified = 1;
+  }
   if (o && locked) {
     char unlock_err[256];
     if (eval_oracle_command(o, "{\"cmd\":\"policy_unlock\",\"action\":{}}\n", 0,
@@ -415,6 +564,21 @@ done:
     json_string(report, reason);
     fputs(",\"error\":", report);
     json_string(report, err);
+    fputs(",\"tape\":", report);
+    if (tape)
+      json_string(report, tape);
+    else
+      fputs("null", report);
+    fputs(",\"frames_dir\":", report);
+    if (tape)
+      json_string(report, frames_dir);
+    else
+      fputs("null", report);
+    fprintf(report,
+            ",\"frames_every\":1,\"expected_frames\":%" PRId64
+            ",\"recorded_ticks\":%" PRId64 ",\"frame_files_verified\":%s",
+            expected_frames, recorded_ticks,
+            frames_verified ? "true" : "false");
     fputs(",\"checkpoint\":", report);
     json_string(report, c.checkpoint);
     fprintf(report,
@@ -461,7 +625,8 @@ usage:
   fprintf(stderr,
           "oracle-policy: invalid arguments; eval --conf/--set plus "
           "--oracle-ip --oracle-port --timeout-ms --seed-index --attempt-index "
-          "--require-empty-inventory --allow-legacy-contract\n");
+          "--require-empty-inventory --allow-legacy-contract --tape "
+          "ABSOLUTE.jsonl\n");
   return 2;
 config_error:
   fprintf(stderr, "oracle-policy: %s\n", err);

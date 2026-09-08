@@ -5,6 +5,7 @@
 #include "nn.h"
 #include "obs_config.h"
 #include <fcntl.h>
+#include <sys/stat.h>
 
 static char *replace(const char *s, const char *old, const char *newtext) {
   const char *at = strstr(s, old);
@@ -30,7 +31,10 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   socklen_t len = sizeof a;
   assert(!getsockname(sock, (struct sockaddr *)&a, &len));
   assert(!listen(sock, 1));
-  char report[1024], port[32];
+  char report[1024], port[32], tape[1024], frames[1024];
+  snprintf(tape, sizeof tape, "%s/capture%d%s.jsonl", dir, mode,
+           mode == 8 ? "\"quote" : "");
+  snprintf(frames, sizeof frames, "%.*s_frames", (int)strlen(tape) - 6, tape);
   snprintf(report, sizeof report, "%s/driver%d.json", dir, mode);
   snprintf(port, sizeof port, "%d", ntohs(a.sin_port));
   pid_t child = fork();
@@ -44,7 +48,8 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
           mode == 4 ? "deterministic=0" : "deterministic=1", "--set",
           mode == 4 ? "tries=2" : "tries=1", "--attempt-index",
           mode == 4 ? "1" : "0", "--oracle-port", port,
-          "--require-empty-inventory", mode == 1 ? "1" : "0", (char *)NULL);
+          "--require-empty-inventory", mode == 1 ? "1" : "0",
+          mode >= 5 ? "--tape" : NULL, mode >= 5 ? tape : NULL, (char *)NULL);
     _exit(127);
   }
   int fd = accept(sock, NULL, NULL);
@@ -53,9 +58,51 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   FILE *f = fdopen(fd, "r+");
   assert(f);
   char req[4096];
+  int recording = 0, stopped = 0;
   uint64_t seq = 0, hash = UINT64_C(0xcbf29ce484222325);
   while (fgets(req, sizeof req, f)) {
+    if (strstr(req, "recstart")) {
+      assert(mode >= 5 && !recording && seq == 0);
+      if (mode == 8)
+        assert(strstr(req, "\\\"quote"));
+      assert(strstr(req, "\"frames_every\":1") &&
+             strstr(req, "\"dig_trace\":1") && strstr(req, "\"contract\":1"));
+      recording = 1;
+      FILE *tf = fopen(tape, "w");
+      assert(tf);
+      fputs("{\"header\":1}\n", tf);
+      fclose(tf);
+      assert(!mkdir(frames, 0700));
+      fputs("{\"ok\":true}\n", f);
+      fflush(f);
+      continue;
+    }
+    if (strstr(req, "recstop")) {
+      assert(recording && !stopped);
+      stopped = 1;
+      for (uint64_t i = 0; i < seq; i++) {
+        if (mode == 6 && i == 1)
+          continue;
+        char path[1200];
+        snprintf(path, sizeof path, "%s/f_%06llu.png", frames,
+                 (unsigned long long)i);
+        FILE *pf = fopen(path, "wb");
+        assert(pf);
+        unsigned char png[36] = {137, 80,  78,  71,  13,  10,  26,  10, 0,
+                                 0,   0,   13,  'I', 'H', 'D', 'R', 0,  0,
+                                 0,   1,   0,   0,   0,   1,   0,   0,  0,
+                                 0,   'I', 'E', 'N', 'D', 174, 66,  96, 130};
+        assert(fwrite(png, 1, sizeof png, pf) == sizeof png);
+        fclose(pf);
+      }
+      fprintf(f, "{\"ok\":true,\"ticks\":%llu}\n",
+              (unsigned long long)(seq + (mode == 7)));
+      fflush(f);
+      continue;
+    }
     if (strstr(req, "policy_unlock")) {
+      if (mode >= 5)
+        assert(stopped);
       fputs("{\"ok\":true,\"policy_locked\":false}\n", f);
       fflush(f);
       break;
@@ -68,13 +115,13 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
       }
       seq++;
     } else
-      assert(strstr(req, "policy_lock"));
+      assert(strstr(req, "policy_lock") || strstr(req, "\"cmd\":\"obs\""));
     char *s = fixture(1, mode == 3 && seq == 2 ? 1 : 0, seq, hash),
          *v = replace(s, "{\"ok\":true,",
                       "{\"ok\":true,\"policy_locked\":true,\"world_seed\":10,");
     free(s);
     s = v;
-    if ((mode == 0 && seq == 2) || (mode == 4 && seq == 4)) {
+    if (((mode == 0 || mode >= 5) && seq == 2) || (mode == 4 && seq == 4)) {
       v = replace(s, "[2,0,0,0,0,0,0,0,0]", "[0,0,0,0,0,1,0,0,0]");
       free(s);
       s = v;
@@ -90,17 +137,37 @@ static void run_driver(const char *binary, const char *dir, const char *ckpt,
   int status;
   assert(waitpid(child, &status, 0) == child);
   assert(WIFEXITED(status));
-  int want = (mode == 0 || mode == 4) ? 0 : mode == 2 ? 3 : 2;
+  int want = (mode == 0 || mode == 4 || mode == 5 || mode == 8) ? 0
+             : mode == 2                                        ? 3
+                                                                : 2;
   assert(WEXITSTATUS(status) == want);
   FILE *r = fopen(report, "r");
   assert(r);
   char buf[8192];
   assert(fgets(buf, sizeof buf, r));
   fclose(r);
-  assert(strstr(buf, (mode == 0 || mode == 4) ? "\"achieved\":true"
-                                              : "\"achieved\":false"));
-  assert(strstr(buf, mode == 0 || mode == 2 || mode == 4 ? "\"valid\":true"
-                                                         : "\"valid\":false"));
+  assert(strstr(buf, (mode == 0 || mode == 4 || mode >= 5)
+                         ? "\"achieved\":true"
+                         : "\"achieved\":false"));
+  assert(
+      strstr(buf, mode == 0 || mode == 2 || mode == 4 || mode == 5 || mode == 8
+                      ? "\"valid\":true"
+                      : "\"valid\":false"));
+  if (mode >= 5) {
+    assert(stopped);
+    assert(strstr(buf, mode == 5 || mode == 8
+                           ? "\"frame_files_verified\":true"
+                           : "\"frame_files_verified\":false"));
+    for (uint64_t i = 0; i < seq; i++) {
+      char path[1200];
+      snprintf(path, sizeof path, "%s/f_%06llu.png", frames,
+               (unsigned long long)i);
+      if (!(mode == 6 && i == 1))
+        assert(!unlink(path));
+    }
+    assert(!rmdir(frames));
+    assert(!unlink(tape));
+  }
   const char *suffix[] = {"", ".conf", ".decisions.jsonl",
                           ".oracle.requests.jsonl", ".oracle.responses.jsonl"};
   for (int i = 0; i < 5; i++) {
@@ -127,7 +194,7 @@ int main(int argc, char **argv) {
   policy_io_default(&c);
   char err[512];
   assert(!policy_io_checkpoint_write(ckpt, &c, err, sizeof err));
-  for (int mode = 0; mode < 5; mode++)
+  for (int mode = 0; mode < 9; mode++)
     run_driver(argv[1], dir, ckpt, mode);
   assert(!unlink(ckpt));
   snprintf(meta, sizeof meta, "%s.policy.conf", ckpt);

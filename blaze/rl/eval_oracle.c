@@ -335,7 +335,7 @@ done:
 struct EvalOracle {
   int fd, timeout, strict, ready, poison, policy_step;
   FILE *req, *resp;
-  char *partial;
+  char *partial, *control;
   EvalOracleReceipt r;
 };
 static int64_t now_ms(void) {
@@ -380,6 +380,7 @@ void eval_oracle_close(EvalOracle *o) {
   if (o->resp)
     fclose(o->resp);
   free(o->partial);
+  free(o->control);
   free(o);
 }
 EvalOracle *eval_oracle_open(const char *ip, int port, int timeout, int strict,
@@ -507,12 +508,21 @@ static int exchange(EvalOracle *o, const char *request, int obs_reply,
         ws(&p);
         int ok = field(&p, 0, "ok");
         if (!buf[p.p] && ok >= 0 && p.t[ok].kind == 't' &&
-            field(&p, 0, "error") == -1)
+            field(&p, 0, "error") == -1 && field(&p, 0, "snapshot_error") == -1)
           rc = 0;
       }
       free(p.t);
       if (rc)
         fail(err, cap, "invalid/error control response");
+    }
+    if (!rc && !obs_reply) {
+      char *copy = strdup(buf);
+      if (!copy) {
+        rc = fail(err, cap, "control receipt allocation failed");
+      } else {
+        free(o->control);
+        o->control = copy;
+      }
     }
     if (!rc)
       o->poison = 0;
@@ -529,6 +539,17 @@ int eval_oracle_command(EvalOracle *o, const char *request, int obs_reply,
   int rc = exchange(o, request, obs_reply, err, cap);
   if (!rc && obs_reply)
     o->ready = 1;
+  return rc;
+}
+int eval_oracle_control_integer(const EvalOracle *o, const char *key,
+                                int64_t *out) {
+  if (!o || !o->control || o->poison || !key || !out)
+    return -1;
+  Parser p = {o->control, 0, 0, calloc(MAX_TOK, sizeof(Tok))};
+  if (!p.t)
+    return -1;
+  int rc = value(&p, 0) == 0 ? integer(&p, field(&p, 0, key), out) : -1;
+  free(p.t);
   return rc;
 }
 int eval_oracle_observe(EvalOracle *o, char *err, int cap) {
