@@ -10,6 +10,9 @@ typedef struct {
   uint64_t action_seq, action_fnv;
   int64_t world_time, player_tick, server_tick;
   int have_ticks;
+  int policy_locked, inventory_total;
+  int64_t world_seed;
+  int have_world_seed;
 } EvalOracleReceipt;
 /* Exposed for replay/fixture validation; never accepts partial JSON. */
 int eval_oracle_parse(const char *json, EvalOracleReceipt *out, char *err,
@@ -24,6 +27,10 @@ EvalOracle *eval_oracle_open(const char *ipv4, int port, int timeout_ms,
 void eval_oracle_close(EvalOracle *o);
 /* Select step or policy_step before the first action. */
 int eval_oracle_set_step_command(EvalOracle *o, const char *command);
+/* Exact newline JSON control request; observation_reply requires the full
+ * semantic schema, otherwise requires complete {ok:true,...}. */
+int eval_oracle_command(EvalOracle *o, const char *request,
+                        int observation_reply, char *err, int cap);
 int eval_oracle_observe(EvalOracle *o, char *err, int cap);
 /* Exactly one simulation tick. Caller expands repeat with the same first-tick
  * primitive rule as eval_magma_step. Failure poisons transport: do not retry.

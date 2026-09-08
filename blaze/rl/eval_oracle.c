@@ -261,6 +261,8 @@ int eval_oracle_parse(const char *json, EvalOracleReceipt *out, char *err,
   if (a < 0 || p.t[a].kind != '[' || p.t[a].n > 36)
     BAD("invalid inventory");
   uint64_t seen = 0;
+  int measured_counts[9] = {0};
+  static const int tracked_ids[9] = {17, 5, 280, 4, 58, 270, 274, 263, 50};
   for (int j = a + 1; j < p.t[a].end; j = p.t[j].end) {
     int64_t slot, id, count;
     if (integer(&p, field(&p, j, "slot"), &slot) || slot < 0 || slot > 35 ||
@@ -270,11 +272,18 @@ int eval_oracle_parse(const char *json, EvalOracleReceipt *out, char *err,
     if (seen & (UINT64_C(1) << slot))
       BAD("duplicate inventory slot");
     seen |= UINT64_C(1) << slot;
+    r.inventory_total += (int)count;
+    for (int k = 0; k < 9; k++)
+      if (id == tracked_ids[k])
+        measured_counts[k] += (int)count;
     if (slot < 9) {
       r.obs.hotbar_ids[slot] = (int)id;
       r.obs.hotbar_counts[slot] = (int)count;
     }
   }
+  for (int k = 0; k < 9; k++)
+    if (measured_counts[k] != r.obs.inv_counts[k])
+      BAD("inventory/count receipt mismatch");
   if (integer(&p, FIELD("policy_action_seq"), &n) || n < 0)
     BAD("missing action sequence");
   r.action_seq = (uint64_t)n;
@@ -301,6 +310,18 @@ int eval_oracle_parse(const char *json, EvalOracleReceipt *out, char *err,
         r.player_tick < 0 || r.server_tick < 0)
       BAD("incomplete/invalid tick counters");
     r.have_ticks = 1;
+  }
+  a = FIELD("policy_locked");
+  if (a != -1) {
+    if (a < 0 || (p.t[a].kind != 't' && p.t[a].kind != 'f'))
+      BAD("invalid policy_locked");
+    r.policy_locked = p.t[a].kind == 't';
+  }
+  a = FIELD("world_seed");
+  if (a != -1) {
+    if (integer(&p, a, &r.world_seed))
+      BAD("invalid world_seed");
+    r.have_world_seed = 1;
   }
   r.obs.tick = r.have_ticks ? r.player_tick : r.world_time;
   *out = r;
@@ -415,7 +436,8 @@ bad:
   eval_oracle_close(o);
   return NULL;
 }
-static int exchange(EvalOracle *o, const char *request, char *err, int cap) {
+static int exchange(EvalOracle *o, const char *request, int obs_reply,
+                    char *err, int cap) {
   if (!o || o->poison)
     return fail(err, cap, "Oracle transport unavailable/poisoned");
   o->poison = 1;
@@ -477,15 +499,41 @@ static int exchange(EvalOracle *o, const char *request, char *err, int cap) {
   } else if (fwrite(buf, 1, got, o->resp) != got || fflush(o->resp))
     fail(err, cap, "response log failed");
   else {
-    rc = eval_oracle_parse(buf, &o->r, err, cap);
+    if (obs_reply)
+      rc = eval_oracle_parse(buf, &o->r, err, cap);
+    else {
+      Parser p = {buf, 0, 0, calloc(MAX_TOK, sizeof(Tok))};
+      if (p.t && value(&p, 0) == 0) {
+        ws(&p);
+        int ok = field(&p, 0, "ok");
+        if (!buf[p.p] && ok >= 0 && p.t[ok].kind == 't' &&
+            field(&p, 0, "error") == -1)
+          rc = 0;
+      }
+      free(p.t);
+      if (rc)
+        fail(err, cap, "invalid/error control response");
+    }
     if (!rc)
       o->poison = 0;
   }
   free(buf);
   return rc;
 }
+int eval_oracle_command(EvalOracle *o, const char *request, int obs_reply,
+                        char *err, int cap) {
+  if (!request || !*request || strlen(request) > 65536 ||
+      request[strlen(request) - 1] != '\n' ||
+      strchr(request, '\n') != request + strlen(request) - 1)
+    return fail(err, cap, "invalid control request framing");
+  int rc = exchange(o, request, obs_reply, err, cap);
+  if (!rc && obs_reply)
+    o->ready = 1;
+  return rc;
+}
 int eval_oracle_observe(EvalOracle *o, char *err, int cap) {
-  int rc = exchange(o, "{\"cmd\":\"obs\",\"action\":{\"cam\":1}}\n", err, cap);
+  int rc =
+      exchange(o, "{\"cmd\":\"obs\",\"action\":{\"cam\":1}}\n", 1, err, cap);
   if (!rc)
     o->ready = 1;
   return rc;
@@ -540,7 +588,7 @@ int eval_oracle_step(EvalOracle *o, const double a[13], char *err, int cap) {
     hash ^= (unsigned char)action[k];
     hash *= UINT64_C(0x100000001b3);
   }
-  if (exchange(o, request, err, cap))
+  if (exchange(o, request, 1, err, cap))
     return -1;
   if (o->r.action_seq != before.action_seq + 1 || o->r.action_fnv != hash) {
     o->poison = 1;

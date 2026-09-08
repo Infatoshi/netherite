@@ -893,3 +893,17 @@ test-eval-trace: $(OUT)/test_eval_trace
 	cd $(REPO) && ./out/blaze/rl/test_eval_trace
 
 test-recipe: test-eval-trace
+# Oracle control always uses CPU inference, with no GPU dependency.
+ORACLE_NN_OBJS := $(REPO)/out/blaze/nn/cpu/nn.o $(REPO)/out/blaze/nn/cpu/cpu.o $(REPO)/out/blaze/nn/cpu/fixture.o
+$(ORACLE_NN_OBJS): $(NN_SRC)/nn.c $(NN_SRC)/cpu.c $(NN_SRC)/fixture.c $(NN_SRC)/nn.h $(NN_SRC)/model.h
+	$(MAKE) -C $(NN_SRC) ../../out/blaze/nn/cpu/nn.o ../../out/blaze/nn/cpu/cpu.o ../../out/blaze/nn/cpu/fixture.o
+.PHONY: oracle-policy
+oracle-policy: $(OUT)/oracle-policy
+$(OUT)/oracle-policy: oracle_policy.c eval_oracle.c eval_oracle.h eval_magma.c eval_magma.h eval_config.c eval_config.h obs_config.c obs_config.h obs_pack.h rl_ckpt.h $(ORACLE_NN_OBJS) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) oracle_policy.c eval_oracle.c eval_magma.c eval_config.c obs_config.c $(ORACLE_NN_OBJS) -lm -o $@
+
+.PHONY: test-oracle-policy
+$(OUT)/test_oracle_policy: test_oracle_policy.c test_eval_oracle.c eval_oracle.c eval_oracle.h obs_config.c obs_config.h $(ORACLE_NN_OBJS) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) test_oracle_policy.c eval_oracle.c obs_config.c $(ORACLE_NN_OBJS) -lm -o $@
+test-oracle-policy: $(OUT)/test_oracle_policy $(OUT)/oracle-policy
+	$(OUT)/test_oracle_policy $(OUT)/oracle-policy

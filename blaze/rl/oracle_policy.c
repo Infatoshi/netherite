@@ -1,0 +1,469 @@
+#define _POSIX_C_SOURCE 200809L
+#include "eval_config.h"
+#include "eval_oracle.h"
+#include "model.h"
+#include "nn.h"
+#include "obs_pack.h"
+#include "rl_ckpt.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+static uint64_t hash_bytes(uint64_t h, const void *ptr, size_t n) {
+  const unsigned char *p = ptr;
+  for (size_t i = 0; i < n; i++) {
+    h ^= p[i];
+    h *= UINT64_C(0x100000001b3);
+  }
+  return h;
+}
+static int file_hash(const char *path, uint64_t *h, uint64_t *bytes) {
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return -1;
+  unsigned char b[8192];
+  size_t n;
+  *h = UINT64_C(0xcbf29ce484222325);
+  *bytes = 0;
+  while ((n = fread(b, 1, sizeof b, f))) {
+    *h = hash_bytes(*h, b, n);
+    *bytes += n;
+  }
+  int rc = ferror(f) ? -1 : 0;
+  if (fclose(f))
+    rc = -1;
+  return rc;
+}
+static void json_string(FILE *f, const char *s) {
+  fputc('"', f);
+  for (; *s; s++) {
+    unsigned char c = (unsigned char)*s;
+    if (c == '"' || c == '\\')
+      fprintf(f, "\\%c", c);
+    else if (c < 32)
+      fprintf(f, "\\u%04x", c);
+    else
+      fputc(c, f);
+  }
+  fputc('"', f);
+}
+static FILE *exclusive(const char *path) {
+  int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (fd < 0)
+    return NULL;
+  FILE *f = fdopen(fd, "w");
+  if (!f)
+    close(fd);
+  return f;
+}
+static int parse_int(const char *s, int lo, int hi, int *out) {
+  char *end;
+  errno = 0;
+  long n = strtol(s, &end, 10);
+  if (errno || end == s || *end || n < lo || n > hi)
+    return -1;
+  *out = (int)n;
+  return 0;
+}
+static int step_locked(EvalOracle *o, const double *row, char *err, int cap) {
+  if (eval_oracle_step(o, row, err, cap))
+    return -1;
+  const EvalOracleReceipt *r = eval_oracle_receipt(o);
+  if (!r || !r->policy_locked) {
+    snprintf(err, (size_t)cap, "policy lock disappeared during episode");
+    return -1;
+  }
+  return 0;
+}
+static int goal(const EvalOracleReceipt *r) { return r->obs.inv_counts[5] > 0; }
+static void tick_log(FILE *f, const EvalOracleReceipt *r, int dec, int repeat,
+                     int burnin) {
+  fprintf(f,
+          "{\"kind\":\"tick\",\"decision\":%d,\"repeat_tick\":%d,\"burnin\":%s,"
+          "\"player_tick\":%" PRId64 ",\"server_tick\":%" PRId64
+          ",\"action_seq\":%" PRIu64 ",\"wooden_pickaxes\":%d,\"dead\":%s}\n",
+          dec, repeat, burnin ? "true" : "false", r->player_tick,
+          r->server_tick, r->action_seq, r->obs.inv_counts[5],
+          r->obs.dead ? "true" : "false");
+}
+
+int main(int argc, char **argv) {
+  EvalCfg c;
+  char err[1024] = "", prefix[2048], event_path[2048], conf_path[2048];
+  const char *ip = "127.0.0.1";
+  int port = 25575, timeout = 30000, seed_index = 0, attempt = 0,
+      require_empty = 1, allow_legacy = 0, dump = 0;
+  char **args = calloc((size_t)argc + 1, sizeof *args);
+  if (!args)
+    return 2;
+  int ac = 1;
+  args[0] = argv[0];
+  for (int i = 1; i < argc; i++) {
+    const char *a = argv[i];
+    int *dest = NULL, lo = 0, hi = 1;
+    if (!strcmp(a, "--oracle-ip")) {
+      if (++i == argc)
+        goto usage;
+      ip = argv[i];
+      continue;
+    }
+    if (!strcmp(a, "--oracle-port")) {
+      dest = &port;
+      lo = 1;
+      hi = 65535;
+    } else if (!strcmp(a, "--timeout-ms")) {
+      dest = &timeout;
+      lo = 1;
+      hi = 600000;
+    } else if (!strcmp(a, "--seed-index")) {
+      dest = &seed_index;
+      hi = EVAL_MAX_SEEDS - 1;
+    } else if (!strcmp(a, "--attempt-index")) {
+      dest = &attempt;
+      hi = EVAL_MAX_TRIES - 1;
+    } else if (!strcmp(a, "--require-empty-inventory"))
+      dest = &require_empty;
+    else if (!strcmp(a, "--allow-legacy-contract"))
+      dest = &allow_legacy;
+    if (dest) {
+      if (++i == argc || parse_int(argv[i], lo, hi, dest))
+        goto usage;
+      continue;
+    }
+    args[ac++] = argv[i];
+  }
+  {
+    int pr = eval_cfg_parse_argv(&c, ac, args, &dump);
+    free(args);
+    args = NULL;
+    if (pr)
+      return pr > 0 ? 0 : 2;
+  }
+  if (eval_cfg_validate(&c, err, sizeof err))
+    goto config_error;
+  if (strcmp(c.backend, "cpu") || c.stage < 0 || c.stage > 4 ||
+      c.success_item != 270 || seed_index >= c.nseeds || attempt >= c.tries ||
+      c.allow_missing) {
+    snprintf(err, sizeof err,
+             "requires backend=cpu, one stage, success_item=270, valid "
+             "seed/attempt index, allow_missing=0");
+    goto config_error;
+  }
+  if (dump) {
+    eval_cfg_dump(&c, stdout);
+    printf("# oracle %s:%d seed_index=%d attempt_index=%d require_empty=%d\n",
+           ip, port, seed_index, attempt, require_empty);
+    return 0;
+  }
+  int contract =
+      policy_io_checkpoint_check(c.checkpoint, &c.policy, err, sizeof err);
+  if (contract < 0)
+    goto config_error;
+  if (contract == 1 && !allow_legacy) {
+    snprintf(
+        err, sizeof err,
+        "checkpoint policy contract missing; explicit --allow-legacy-contract "
+        "1 required for historical exact defaults");
+    goto config_error;
+  }
+  uint64_t ckhash = 0, ckbytes = 0;
+  if (file_hash(c.checkpoint, &ckhash, &ckbytes)) {
+    snprintf(err, sizeof err, "checkpoint cannot be hashed");
+    goto config_error;
+  }
+  int lane = seed_index * c.tries + attempt, n = lane + 1,
+      ep_lim = c.ep_ticks / c.action_repeat;
+  NnCreate desc = {0};
+  desc.backend = NN_BACKEND_CPU;
+  desc.device = 0;
+  desc.max_n = n;
+  desc.prec = NN_PREC_F32;
+  desc.config = nn_config_default();
+  desc.config.rng_seed = c.seed + (uint64_t)c.stage;
+  Nn *nn = nn_create(&desc);
+  if (!nn) {
+    snprintf(err, sizeof err, "nn_create: %s", nn_last_error());
+    goto config_error;
+  }
+  if (rl_ckpt_load_config(nn, c.checkpoint, &c.policy, err, sizeof err)) {
+    nn_destroy(nn);
+    goto config_error;
+  }
+  err[0] = 0; /* Legacy-contract warning is not an episode failure. */
+  /* Forward one real observation; sample dummy preceding lanes to retain the
+   * eval RNG index seed_index*tries+attempt without copying sampler code. */
+  float *logits = calloc((size_t)n * NN_N_LOGITS, sizeof(float)),
+        *logp = calloc((size_t)n, sizeof(float));
+  int32_t *acts = calloc((size_t)n * POL_HEADS, sizeof(int32_t));
+  if (!logits || !logp || !acts) {
+    free(logits);
+    free(logp);
+    free(acts);
+    nn_destroy(nn);
+    snprintf(err, sizeof err, "allocation failed");
+    goto config_error;
+  }
+  snprintf(prefix, sizeof prefix, "%s.oracle", c.report);
+  snprintf(event_path, sizeof event_path, "%s.decisions.jsonl", c.report);
+  snprintf(conf_path, sizeof conf_path, "%s.conf", c.report);
+  FILE *report = exclusive(c.report), *events = exclusive(event_path),
+       *conf = exclusive(conf_path);
+  EvalOracle *o = NULL;
+  int rc = 2, locked = 0, success = 0, decisions = 0;
+  int64_t start_player = -1, start_server = -1, post_burn = -1,
+          last_player = -1, last_server = -1, achievement = -1;
+  const char *reason = "infrastructure_error";
+  if (!report || !events || !conf) {
+    snprintf(
+        err, sizeof err,
+        "report/config/event paths must be new and parent directories exist");
+    goto done;
+  }
+  eval_cfg_dump(&c, conf);
+  fprintf(conf,
+          "# oracle_ip=%s port=%d timeout_ms=%d seed_index=%d attempt_index=%d "
+          "require_empty_inventory=%d\n",
+          ip, port, timeout, seed_index, attempt, require_empty);
+  if (fclose(conf)) {
+    conf = NULL;
+    snprintf(err, sizeof err, "config log failed");
+    goto done;
+  }
+  conf = NULL;
+  o = eval_oracle_open(ip, port, timeout, 1, prefix, err, sizeof err);
+  if (!o)
+    goto done;
+  if (eval_oracle_set_step_command(o, "policy_step") ||
+      eval_oracle_command(o,
+                          "{\"cmd\":\"policy_lock\",\"action\":{\"cam\":1}}\n",
+                          1, err, sizeof err))
+    goto done;
+  locked = 1;
+  const EvalOracleReceipt *r = eval_oracle_receipt(o);
+  if (!r || !r->policy_locked || !r->have_ticks) {
+    snprintf(err, sizeof err,
+             "policy_lock did not return locked authoritative tick receipt");
+    goto done;
+  }
+  start_player = last_player = r->player_tick;
+  start_server = last_server = r->server_tick;
+  if (!r->have_world_seed || r->world_seed != c.seeds[seed_index]) {
+    snprintf(err, sizeof err,
+             "Oracle world seed does not match configured evaluation seed");
+    goto done;
+  }
+  if ((require_empty && r->inventory_total) || goal(r) || r->obs.dead) {
+    snprintf(
+        err, sizeof err,
+        "initial state violates empty inventory/no target/alive requirement");
+    goto done;
+  }
+  uint8_t planes[ENV_N_CH * ENV_NPIX],
+      prior[ENV_N_PLANES * ENV_NPIX] = {0}, scratch[ENV_N_PLANES * ENV_NPIX],
+                           have_prior = 0;
+  float scal6[ENV_SCAL], pose[ENV_POSE], scalars[POL_SCAL], value;
+  int status[ENV_STATUS], ep_dec = 0;
+  double row[13];
+  int32_t noop[9] = {1, 1, 1, 0, 0, 0, 0, 0, 0};
+  acts_to_rows_config(&c.policy, noop, 1, row);
+  for (int j = 0; j < c.action_repeat; j++) {
+    if (step_locked(o, row, err, sizeof err))
+      goto done;
+    r = eval_oracle_receipt(o);
+    last_player = r->player_tick;
+    last_server = r->server_tick;
+    tick_log(events, r, -1, j, 1);
+    if (r->obs.dead || goal(r)) {
+      snprintf(err, sizeof err,
+               "dead or goal already reached during noop burn-in");
+      goto done;
+    }
+  }
+  post_burn = last_player;
+  for (int dec = 0; dec < ep_lim; dec++) {
+    r = eval_oracle_receipt(o);
+    eval_magma_fill_policy(&r->obs, NULL, NULL, NULL, pose, status, scal6);
+    pack_obs_config(&c.policy, r->obs.cam, r->obs.depth, r->obs.edge, scal6,
+                    pose, status, &ep_dec, ep_lim, &have_prior, prior, 1,
+                    planes, scalars, scratch);
+    float *real_logits = logits + (size_t)lane * NN_N_LOGITS;
+    if (nn_forward(nn, planes, scalars, 1, real_logits, &value) ||
+        !isfinite(value)) {
+      snprintf(err, sizeof err, "NN forward failed/nonfinite: %s",
+               nn_last_error());
+      goto done;
+    }
+    for (int k = 0; k < NN_N_LOGITS; k++)
+      if (!isfinite(real_logits[k])) {
+        snprintf(err, sizeof err, "nonfinite policy logits");
+        goto done;
+      }
+    if (nn_sample(nn, logits, n,
+                  c.deterministic ? NN_SAMPLE_GREEDY : NN_SAMPLE_GUMBEL, acts,
+                  logp, NULL) ||
+        !isfinite(logp[lane])) {
+      snprintf(err, sizeof err, "NN sampling failed/nonfinite: %s",
+               nn_last_error());
+      goto done;
+    }
+    int32_t *action = acts + (size_t)lane * POL_HEADS;
+    acts_to_rows_config(&c.policy, action, 1, row);
+    uint64_t ph = hash_bytes(UINT64_C(0xcbf29ce484222325), planes,
+                             sizeof planes),
+             sh = hash_bytes(UINT64_C(0xcbf29ce484222325), scalars,
+                             sizeof scalars);
+    fprintf(
+        events,
+        "{\"kind\":\"decision\",\"decision\":%d,\"rng_lane\":%d,\"player_tick_"
+        "before\":%" PRId64 ",\"server_tick_before\":%" PRId64
+        ",\"planes_fnv64\":\"%016" PRIx64 "\",\"scalars_fnv64\":\"%016" PRIx64
+        "\",\"sample_logp\":%.9g,\"value\":%.9g,\"heads\":[",
+        dec, lane, r->player_tick, r->server_tick, ph, sh, logp[lane], value);
+    for (int k = 0; k < POL_HEADS; k++)
+      fprintf(events, "%s%d", k ? "," : "", action[k]);
+    fputs("],\"act13\":[", events);
+    for (int k = 0; k < 13; k++)
+      fprintf(events, "%s%.17g", k ? "," : "", row[k]);
+    fputs("],\"logits\":[", events);
+    for (int k = 0; k < NN_N_LOGITS; k++)
+      fprintf(events, "%s%.9g", k ? "," : "", real_logits[k]);
+    fputs("],\"head_probabilities\":[", events);
+    for (int h = 0; h < NN_N_HEAD; h++) {
+      int off = NN_HEAD_OFF[h], w = NN_HEAD_WIDTHS[h];
+      double max = real_logits[off], sum = 0;
+      for (int k = 1; k < w; k++)
+        if (real_logits[off + k] > max)
+          max = real_logits[off + k];
+      for (int k = 0; k < w; k++)
+        sum += exp(real_logits[off + k] - max);
+      for (int k = 0; k < w; k++)
+        fprintf(events, "%s%.17g", h || k ? "," : "",
+                exp(real_logits[off + k] - max) / sum);
+    }
+    fputs("]}\n", events);
+    if (fflush(events) || ferror(events)) {
+      snprintf(err, sizeof err, "decision log failed");
+      goto done;
+    }
+    decisions = dec + 1;
+    for (int j = 0; j < c.action_repeat; j++) {
+      if (j) {
+        row[2] = row[3] = 0;
+        row[10] = -1;
+        row[11] = row[12] = 0;
+      }
+      if (step_locked(o, row, err, sizeof err))
+        goto done;
+      r = eval_oracle_receipt(o);
+      last_player = r->player_tick;
+      last_server = r->server_tick;
+      tick_log(events, r, dec, j, 0);
+      if (goal(r)) {
+        success = 1;
+        achievement = last_player;
+        reason = "goal";
+        break;
+      }
+      if (r->obs.dead) {
+        reason = "death";
+        break;
+      }
+    }
+    memcpy(prior, scratch, sizeof prior);
+    have_prior = 1;
+    ep_dec++;
+    if (success || r->obs.dead)
+      break;
+  }
+  if (!success && strcmp(reason, "death"))
+    reason = "decision_limit";
+  rc = success ? 0 : 3;
+done:
+  if (o && locked) {
+    char unlock_err[256];
+    if (eval_oracle_command(o, "{\"cmd\":\"policy_unlock\",\"action\":{}}\n", 0,
+                            unlock_err, sizeof unlock_err) &&
+        rc != 2) {
+      snprintf(err, sizeof err, "unlock failed: %s", unlock_err);
+      rc = 2;
+      reason = "infrastructure_error";
+    }
+  }
+  eval_oracle_close(o);
+  uint64_t after_hash = 0, after_bytes = 0;
+  if (file_hash(c.checkpoint, &after_hash, &after_bytes) ||
+      after_hash != ckhash || after_bytes != ckbytes) {
+    snprintf(err, sizeof err, "checkpoint changed during episode");
+    rc = 2;
+    reason = "infrastructure_error";
+  }
+  if (events && (fflush(events) || ferror(events))) {
+    snprintf(err, sizeof err, "event log failed");
+    rc = 2;
+    reason = "infrastructure_error";
+  }
+  if (report) {
+    fprintf(report,
+            "{\"schema\":\"netherite.oracle_policy.v1\",\"success_item\":270,"
+            "\"achieved\":%s,\"valid\":%s,\"reason\":",
+            success ? "true" : "false", rc != 2 ? "true" : "false");
+    json_string(report, reason);
+    fputs(",\"error\":", report);
+    json_string(report, err);
+    fputs(",\"checkpoint\":", report);
+    json_string(report, c.checkpoint);
+    fprintf(report,
+            ",\"checkpoint_fnv64\":\"%016" PRIx64
+            "\",\"checkpoint_bytes\":%" PRIu64
+            ",\"policy_contract\":\"%016" PRIx64
+            "\",\"world_seed\":%d,\"seed_index\":%d,\"attempt_index\":%d,\"rng_"
+            "seed\":%" PRIu64 ",\"rng_lane\":%d,\"decisions\":%d,\"action_"
+            "repeat\":%d,\"initial_player_tick\":%" PRId64
+            ",\"initial_server_tick\":%" PRId64
+            ",\"post_burn_player_tick\":%" PRId64
+            ",\"last_verified_player_tick\":%" PRId64
+            ",\"last_verified_server_tick\":%" PRId64
+            ",\"achievement_player_tick\":%" PRId64
+            ",\"measured_total_ticks\":%" PRId64 "}\n",
+            ckhash, ckbytes, policy_io_fingerprint(&c.policy),
+            c.seeds[seed_index], seed_index, attempt, desc.config.rng_seed,
+            lane, decisions, c.action_repeat, start_player, start_server,
+            post_burn, last_player, last_server, achievement,
+            rc != 2 && start_player >= 0 ? last_player - start_player : -1);
+    if (fclose(report))
+      rc = 2;
+  }
+  if (events)
+    fclose(events);
+  if (conf)
+    fclose(conf);
+  free(logits);
+  free(logp);
+  free(acts);
+  nn_destroy(nn);
+  fprintf(stderr,
+          "oracle-policy: %s report=%s decisions=%d measured_ticks=%" PRId64
+          "%s%s\n",
+          rc == 0   ? "goal achieved"
+          : rc == 3 ? "goal not achieved"
+                    : "failed",
+          c.report, decisions,
+          rc != 2 && start_player >= 0 ? last_player - start_player : -1,
+          *err ? " error=" : "", err);
+  return rc;
+usage:
+  free(args);
+  fprintf(stderr,
+          "oracle-policy: invalid arguments; eval --conf/--set plus "
+          "--oracle-ip --oracle-port --timeout-ms --seed-index --attempt-index "
+          "--require-empty-inventory --allow-legacy-contract\n");
+  return 2;
+config_error:
+  fprintf(stderr, "oracle-policy: %s\n", err);
+  return 2;
+}
