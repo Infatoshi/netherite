@@ -878,3 +878,9 @@ test-eval-goal: $(OUT)/test_eval_goal
 	cd $(REPO) && ./out/blaze/rl/test_eval_goal
 
 test-recipe: test-eval-goal
+.PHONY: test-oracle
+$(OUT)/test_eval_oracle: test_eval_oracle.c eval_oracle.c eval_oracle.h eval_magma.h $(CORE_SRC)/obs_camera.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS_COMMON) test_eval_oracle.c eval_oracle.c -lm -o $@
+
+test-oracle: $(OUT)/test_eval_oracle
+	$(OUT)/test_eval_oracle
