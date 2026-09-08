@@ -396,7 +396,7 @@ test-world-spawn: game/world_spawn.o
 	$(CC) $(CFLAGS) -I$(BLAZE)/core game/test_world_spawn.c game/world_spawn.o -o game/test_world_spawn $(LDLIBS)
 	./game/test_world_spawn
 
-test-fall-reanchor:
+test-fall-reanchor: game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o world/light.o world/mesh_mc.o world/populate_mc.o world/gen_prefetch.o world/blocks.o world/mesh.o world/world.o renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o core/math.o core/shade.o
 	bash game/test_fall_reanchor.sh
 
 test-sky-weather:
