@@ -2006,11 +2006,22 @@ public class Recorder {
                 } finally {
                     // A bridge that dies while the step lock is armed would leave
                     // the server thread parked forever. Always release it.
+                    final boolean abortPolicyRecording = policyLocked && recActive;
                     lockDisarm();
                     policyLocked = false;
                     policyFault = null;
                     policyRequest = null;
-                    Minecraft.getMinecraft().addScheduledTask(() -> clearKeys(Minecraft.getMinecraft()));
+                    Minecraft.getMinecraft().addScheduledTask(() -> {
+                        clearKeys(Minecraft.getMinecraft());
+                        if (abortPolicyRecording) {
+                            recActive = false;
+                            if (recWriter != null) {
+                                recWriter.println("{\"aborted\":true,\"reason\":\"strict_policy_disconnect\"}");
+                                recWriter.close(); recWriter = null;
+                            }
+                            if (recGeomWriter != null) { recGeomWriter.close(); recGeomWriter = null; }
+                        }
+                    });
                 }
             }
         } catch (Exception ex) {
