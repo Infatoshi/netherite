@@ -9009,13 +9009,18 @@ public class Recorder {
                             int my = sr.getScaledHeight() - org.lwjgl.input.Mouse.getY() * sr.getScaledHeight() / mc.displayHeight - 1;
                             mc.currentScreen.drawScreen(mx, my, 1.0F);
                         }
-                    } catch (Throwable ig2) {}
+                    } catch (Throwable ig2) {
+                        if (policyLocked) throw new IllegalStateException("strict policy HUD render failed", ig2);
+                    }
                     fb.unbindFramebuffer();
                     tb = true;
-                } catch (Throwable ig) {} // fall back to the last interpolated frame
+                } catch (Throwable ig) {
+                    if (policyLocked) throw new IllegalStateException("strict policy tick render failed", ig);
+                } // legacy human capture may retain the last interpolated frame
                 java.awt.image.BufferedImage img =
                     net.minecraft.util.ScreenShotHelper.createScreenshot(fw, fh, mc.getFramebuffer());
-                javax.imageio.ImageIO.write(img, "png", new java.io.File(fp));
+                if (!javax.imageio.ImageIO.write(img, "png", new java.io.File(fp)) && policyLocked)
+                    throw new IllegalStateException("strict policy PNG writer unavailable");
                 b.append(",\"frame\":\"").append(fp).append("\"");
                 if (tb) b.append(",\"tb\":1");
                 if (hud) b.append(",\"hud\":1");
@@ -9069,7 +9074,9 @@ public class Recorder {
                     }
                     recGeomWriter.flush();
                 }
-            } catch (Throwable ig) {}
+            } catch (Throwable ig) {
+                if (policyLocked) throw new IllegalStateException("strict policy frame capture failed", ig);
+            }
         }
         // nearby entities (client view = what renders), capped
         b.append(",\"ents\":[");
@@ -9194,6 +9201,8 @@ public class Recorder {
         b.append("}");
         recWriter.println(b.toString());
         recWriter.flush();
+        if (policyLocked && recWriter.checkError())
+            throw new IllegalStateException("strict policy tape write failed");
     }
 
     private String obs(Minecraft mc) { return obs(mc, false); }
