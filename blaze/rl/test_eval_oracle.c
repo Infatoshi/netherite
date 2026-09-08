@@ -65,6 +65,14 @@ static void parser_tests(void) {
                        "{} trailing"};
   for (unsigned k = 0; k < sizeof bad / sizeof bad[0]; k++)
     assert(eval_oracle_parse(bad[k], &r, e, sizeof e));
+  /* Actual Java lock receipt had an EntityItem vx/vz=-4.9E-324.
+   * strtod may set ERANGE for this finite subnormal; it is valid JSON. */
+  char *subnormal = malloc(strlen(s) + 128);
+  assert(subnormal);
+  snprintf(subnormal, strlen(s) + 128,
+           "{\"entities\":[{\"vx\":-4.9E-324,\"vz\":-5e-324}],%s", s + 1);
+  assert(!eval_oracle_parse(subnormal, &r, e, sizeof e));
+  free(subnormal);
   char *q = strstr(s, "8.5");
   memcpy(q, "1e9", 3);
   assert(!eval_oracle_parse(s, &r, e, sizeof e));
@@ -188,7 +196,30 @@ static void transport_test(const char *dir, int mode) {
     unlink(p);
   }
 }
-int main(void) {
+int main(int argc, char **argv) {
+  if (argc == 2) {
+    FILE *f = fopen(argv[1], "rb");
+    assert(f);
+    assert(!fseek(f, 0, SEEK_END));
+    long n = ftell(f);
+    assert(n > 0 && n <= 1048576);
+    rewind(f);
+    char *s = calloc((size_t)n + 1, 1);
+    assert(s);
+    assert(fread(s, 1, (size_t)n, f) == (size_t)n);
+    fclose(f);
+    EvalOracleReceipt r;
+    char err[512];
+    int rc = eval_oracle_parse(s, &r, err, sizeof err);
+    free(s);
+    if (rc) {
+      fprintf(stderr, "response rejected: %s\n", err);
+      return 1;
+    }
+    puts("actual response parser PASS");
+    return 0;
+  }
+  assert(argc == 1);
   parser_tests();
   char dir[] = "/tmp/netherite-oracle-test-XXXXXX";
   assert(mkdtemp(dir));

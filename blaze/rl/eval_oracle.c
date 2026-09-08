@@ -128,7 +128,8 @@ static int value(Parser *p, int depth) {
     char *end;
     errno = 0;
     double number_value = strtod(p->s + t->a, &end);
-    if (errno || !isfinite(number_value) || end != p->s + p->p)
+    if ((errno && errno != ERANGE) || !isfinite(number_value) ||
+        end != p->s + p->p)
       return -1;
     t->kind = 'N';
   }
@@ -159,7 +160,9 @@ static int number(Parser *p, int i, double *v) {
   char *end;
   errno = 0;
   *v = strtod(p->s + p->t[i].a, &end);
-  return errno || !isfinite(*v) || end != p->s + p->t[i].b ? -1 : 0;
+  return (errno && errno != ERANGE) || !isfinite(*v) || end != p->s + p->t[i].b
+             ? -1
+             : 0;
 }
 static int integer(Parser *p, int i, int64_t *v) {
   if (i < 0 || p->t[i].kind != 'N')
