@@ -4,6 +4,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <sys/stat.h>
+#include <unistd.h>
 static const int kCanonSeeds[] = {2,  3,  10, 11, 14, 16, 20,
                                   27, 29, 32, 33, 44, 46};
 static const int kCanonNSeeds = (int)(sizeof(kCanonSeeds) / sizeof(kCanonSeeds[0]));
@@ -103,6 +105,8 @@ int eval_cfg_set(EvalCfg *c, const char *key, const char *val) {
     char *dst = !strcmp(key, "fixture") ? c->fixture : c->report;
     return str_copy_fit(dst, EVAL_STR_MAX, val) ? 0 : -2;
   }
+  if (!strcmp(key, "magma_conf"))
+    return str_copy_fit(c->magma_conf, EVAL_STR_MAX, val) ? 0 : -2;
   if (!strcmp(key, "trace_dir"))
     return str_copy_fit(c->trace_dir, EVAL_STR_MAX, val) ? 0 : -2;
   if (!strcmp(key, "world_size")) {
@@ -219,7 +223,7 @@ int eval_cfg_set(EvalCfg *c, const char *key, const char *val) {
 void eval_cfg_dump(const EvalCfg *c, FILE *out) {
   int i;
   fprintf(out, "fixture = %s\nreport = %s\nworld_size = %d\nepisode_decisions = %d\ndeterministic = %d\nallow_missing = %d\n", c->fixture, c->report, c->world_size, c->episode_decisions ? c->episode_decisions : c->ep_ticks / c->action_repeat, c->deterministic, c->allow_missing);
-  fprintf(out, "trace_dir = %s\n", c->trace_dir);
+  fprintf(out, "trace_dir = %s\nmagma_conf = %s\n", c->trace_dir, c->magma_conf);
   policy_io_dump(&c->policy, out);
   fprintf(out, "ktime = %d\nstage_time = %d\nlegacy_recenter = %d\nwarp_tick = %d\nop_trace = %d\nno_ore_xy = %d\nstack_kib = %d\n", c->ktime, c->stage_time, c->legacy_recenter, c->warp_tick, c->op_trace, c->no_ore_xy, c->stack_kib);
   fprintf(out, "  %-16s = %s\n", "backend", c->backend);
@@ -382,6 +386,12 @@ int eval_cfg_validate(EvalCfg *c, char *err, size_t cap) {
       c->episode_decisions < 0 || c->nseeds < 1 || c->nseeds > EVAL_MAX_SEEDS ||
       c->tries < 1 || c->tries > EVAL_MAX_TRIES) {
     snprintf(err, cap, "invalid evaluation limits"); return -1;
+  }
+  if (c->magma_conf[0]) {
+    struct stat st;
+    if (stat(c->magma_conf, &st) || !S_ISREG(st.st_mode) || access(c->magma_conf, R_OK)) {
+      snprintf(err, cap, "magma_conf must be a readable regular file"); return -1;
+    }
   }
   if (c->episode_decisions) {
     if (c->episode_decisions > INT_MAX / c->action_repeat) {

@@ -56,6 +56,11 @@ EvalMagma *eval_magma_open(const char *bin, const char *snap, int seed,
 /* trace_dir must already exist and be empty. Null disables capture. */
 EvalMagma *eval_magma_open_trace(const char *bin, const char *snap, int seed,
                                const char *trace_dir, char *err, int err_cap);
+/* Optional flat Magma config. Protocol/snapshot/seed/mobs/trace switches
+ * remain explicit child arguments and override config-file values. */
+EvalMagma *eval_magma_open_config(const char *bin, const char *snap, int seed,
+                                const char *trace_dir, const char *magma_conf,
+                                char *err, int err_cap);
 typedef int (*EvalMagmaTickFn)(void *ctx, const double *action,
                               const EvalMagmaObs *obs);
 void eval_magma_set_tick_callback(EvalMagma *m, EvalMagmaTickFn fn, void *ctx);

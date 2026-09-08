@@ -8,7 +8,7 @@
 
 int main(void) {
   EvalCfg a, b;
-  char err[2048], path[] = "/tmp/netherite-eval-config-XXXXXX";
+  char err[2048], path[] = "/tmp/netherite eval config-XXXXXX";
   int fd = mkstemp(path), dump;
   assert(fd >= 0);
   FILE *f = fdopen(fd, "w");
@@ -28,12 +28,19 @@ int main(void) {
   assert(eval_cfg_set(&a, "episodes_per_seed", "0") == -2);
   assert(eval_cfg_set(&a, "world_size", "65") == -2);
   assert(eval_cfg_set(&a, "deterministic", "true") == -2);
+  assert(eval_cfg_set(&a, "magma_conf", path) == 0);
+  assert(eval_cfg_validate(&a,err,sizeof err)==0);
   assert(eval_cfg_set(&a, "trace_dir", "out/verify/transfer") == 0);
   f = fopen(path, "w"); assert(f); eval_cfg_dump(&a, f); assert(fclose(f) == 0);
   eval_cfg_defaults(&b);
   assert(eval_cfg_load(&b, path, err, sizeof err) == 0);
   assert(eval_cfg_validate(&b, err, sizeof err) == 0);
-  assert(!strcmp(a.trace_dir,b.trace_dir));
+  assert(!strcmp(a.trace_dir,b.trace_dir) && !strcmp(a.magma_conf,b.magma_conf));
+  assert(eval_cfg_set(&b,"magma_conf","/nonexistent/netherite.conf")==0);
+  assert(eval_cfg_validate(&b,err,sizeof err)==-1);
+  assert(eval_cfg_set(&b,"magma_conf","/tmp")==0);
+  assert(eval_cfg_validate(&b,err,sizeof err)==-1);
+  assert(eval_cfg_set(&b,"magma_conf",path)==0);
   assert(a.ep_ticks == b.ep_ticks && a.nseeds == b.nseeds && a.tries == b.tries);
   assert(policy_io_fingerprint(&a.policy) == policy_io_fingerprint(&b.policy));
   assert(eval_cfg_set(&b, "seeds", "10,10") == 0);

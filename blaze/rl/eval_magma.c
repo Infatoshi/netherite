@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #define EM_PI 3.14159265358979323846
 #define EM_EYE 1.62
@@ -145,6 +146,12 @@ EvalMagma *eval_magma_open(const char *bin, const char *snap, int seed,
 
 EvalMagma *eval_magma_open_trace(const char *bin, const char *snap, int seed,
                            const char *trace_dir, char *err, int err_cap) {
+  return eval_magma_open_config(bin,snap,seed,trace_dir,NULL,err,err_cap);
+}
+
+EvalMagma *eval_magma_open_config(const char *bin, const char *snap, int seed,
+                           const char *trace_dir, const char *magma_conf,
+                           char *err, int err_cap) {
   EvalMagma *m;
   int pin[2] = {-1, -1}, pout[2] = {-1, -1};
   pid_t pid;
@@ -164,6 +171,12 @@ EvalMagma *eval_magma_open_trace(const char *bin, const char *snap, int seed,
   if (access(snap, R_OK) != 0) {
     err_set(err, err_cap, "snapshot not readable");
     return NULL;
+  }
+  if (magma_conf && *magma_conf) {
+    struct stat st;
+    if (stat(magma_conf,&st) || !S_ISREG(st.st_mode) || access(magma_conf,R_OK)) {
+      err_set(err,err_cap,"magma config not a readable regular file"); return NULL;
+    }
   }
   if (pipe(pin) != 0 || pipe(pout) != 0) {
     err_set(err, err_cap, "pipe failed");
@@ -190,6 +203,7 @@ EvalMagma *eval_magma_open_trace(const char *bin, const char *snap, int seed,
     close(pout[0]);
     close(pout[1]);
     argv[n++] = (char *)bin;
+    if (magma_conf && *magma_conf) { argv[n++]="--conf"; argv[n++]=(char *)magma_conf; }
     argv[n++] = "--rl-bin";
     argv[n++] = "--render";
     argv[n++] = "off";

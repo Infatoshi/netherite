@@ -869,8 +869,8 @@ static int eval_run_stage_magma(const EvalCfg *cfg, int stage_k,
       snprintf(lane_trace,sizeof lane_trace,"%s/stage%d_seed%d_try%d",cfg->trace_dir,stage_k,cfg->seeds[si],i%cfg->tries);
       if(report_parents(lane_trace) || mkdir(lane_trace,0700)) die("trace lane directory exists or cannot be created");
     }
-    mag[i] = eval_magma_open_trace(cfg->magma_bin, paths[loaded], cfg->seeds[si],
-                              cfg->trace_dir[0]?lane_trace:NULL,err,(int)sizeof(err));
+    mag[i] = eval_magma_open_config(cfg->magma_bin, paths[loaded], cfg->seeds[si],
+                              cfg->trace_dir[0]?lane_trace:NULL,cfg->magma_conf,err,(int)sizeof(err));
     if (!mag[i]) {
       fprintf(stderr, "eval: magma open seed %d: %s\n", cfg->seeds[si], err);
       goto fail;

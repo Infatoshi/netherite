@@ -39,6 +39,7 @@ typedef struct EvalCfg {
   int stage; /* 0..4, or EVAL_STAGE_ALL */
   int transfer; /* EVAL_XFER_CLOSED | EVAL_XFER_REPLAY */
   char magma_bin[EVAL_STR_MAX];
+  char magma_conf[EVAL_STR_MAX];
   char fixture[EVAL_STR_MAX];
   char report[EVAL_STR_MAX];
   char trace_dir[EVAL_STR_MAX];

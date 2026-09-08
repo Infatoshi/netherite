@@ -20,6 +20,13 @@ static int observe(void *ctx,const double *a,const EvalMagmaObs *o) {
 }
 /* Protocol fixture only: no simulation or synthetic pixel evidence. */
 static int protocol_fixture(int argc,char **argv) {
+  if(!strcmp(argv[1],"--conf")) {
+    assert(argc>12 && strstr(argv[2],"render settings.conf"));
+    assert(!strcmp(argv[3],"--rl-bin") && !strcmp(argv[4],"--render") && !strcmp(argv[5],"off"));
+    assert(!strcmp(argv[8],"--mobs") && !strcmp(argv[9],"off"));
+    FILE *conf=fopen(argv[2],"r"); assert(conf); char line[80];
+    assert(fgets(line,sizeof line,conf) && !strcmp(line,"weather=0\n")); fclose(conf);
+  }
   for(int i=1;i+1<argc;++i) if(!strcmp(argv[i],"--frames-out")) assert(mkdir(argv[i+1],0700)==0);
   EvalMagmaObs o={0}; o.magic=EM_MAGIC;
   assert(fwrite(&o,sizeof o,1,stdout)==1); fflush(stdout);
@@ -28,11 +35,13 @@ static int protocol_fixture(int argc,char **argv) {
   return 0;
 }
 int main(int argc,char **argv) {
-  if(argc>1 && !strcmp(argv[1],"--rl-bin")) return protocol_fixture(argc,argv);
+  if(argc>1 && (!strcmp(argv[1],"--rl-bin") || !strcmp(argv[1],"--conf"))) return protocol_fixture(argc,argv);
   char dir[]="/tmp/netherite-eval-trace-XXXXXX",err[512],p[1024];
   assert(mkdtemp(dir));
   snprintf(p,sizeof p,"%s/fixture.bsnp",dir); FILE *snap=fopen(p,"w"); assert(snap); fclose(snap);
-  EvalMagma *m=eval_magma_open_trace(argv[0],p,10,dir,err,sizeof err);
+  char config[1024]; snprintf(config,sizeof config,"%s/render settings.conf",dir);
+  FILE *cf=fopen(config,"w"); assert(cf); fputs("weather=0\n",cf); fclose(cf);
+  EvalMagma *m=eval_magma_open_config(argv[0],p,10,dir,config,err,sizeof err);
   if(!m) { fprintf(stderr,"%s\n",err); return 1; }
   eval_magma_set_tick_callback(m,observe,NULL);
   double a[13]={1,0,2,3,0,0,0,1,0,-1,4,1,1};
@@ -45,7 +54,7 @@ int main(int argc,char **argv) {
   snprintf(p,sizeof p,"%s/magma_state.jsonl",dir); f=fopen(p,"r"); assert(f);n=0;
   while(fgets(line,sizeof line,f)) { assert(strstr(line,"\"velocity\":null")); ++n; } fclose(f); assert(n==4);
   snprintf(p,sizeof p,"%s/frames",dir); assert(!stat(p,&st)&&S_ISDIR(st.st_mode)); assert(!rmdir(p));
-  const char *files[]={"magma.bolr","actions.jsonl","magma_state.jsonl","magma.pary","magma.stderr","fixture.bsnp"};
+  const char *files[]={"magma.bolr","actions.jsonl","magma_state.jsonl","magma.pary","magma.stderr","fixture.bsnp","render settings.conf"};
   for(unsigned i=0;i<sizeof files/sizeof files[0];++i) {snprintf(p,sizeof p,"%s/%s",dir,files[i]);assert(!unlink(p));}
   assert(!rmdir(dir));
   calls=differs=0; fail_callback=1;

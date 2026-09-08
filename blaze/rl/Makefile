@@ -541,7 +541,7 @@ $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h world_recipe.h $(TRAIN_CFG_OBJ) $(CHAIN
 		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
 		$(LINK_LIBS) $(LDLIBS)
 
-$(EVAL_BIN): eval.c eval_goal.h eval_config.h obs_pack.h rl_ckpt.h $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
+$(EVAL_BIN): eval.c eval_goal.h eval_magma.h eval_config.h obs_pack.h rl_ckpt.h $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
 		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
 		$(METAL_LIB) | $(OUT)
 	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(EVAL_MAGMA_OBJ) \
@@ -553,7 +553,7 @@ $(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h world_recipe.h $(TRAIN_CFG_OBJ) $(CHAIN
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(WORLD_OBJS) $(CHAIN_OBJS) \
 		$(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
 
-$(EVAL_BIN): eval.c eval_goal.h eval_config.h obs_pack.h rl_ckpt.h $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
+$(EVAL_BIN): eval.c eval_goal.h eval_magma.h eval_config.h obs_pack.h rl_ckpt.h $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(CHAIN_OBJS) $(EVAL_MAGMA_OBJ) \
 		$(STAGE_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(OUT)/eval_config.o $(OUT)/obs_config.o $(WORLD_OBJS) $(EVAL_MAGMA_OBJ) \
 		$(CHAIN_OBJS) $(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
