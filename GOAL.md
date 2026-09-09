@@ -1,3 +1,28 @@
+# Minecraft version structure and native-state audit
+
+## 2026-09-09 requested decision evidence
+
+Compare authentic Minecraft 1.7.10 and 1.8.9 source structures before choosing
+a migration target. Recover or decompile private reference sources, trace the
+world-generation and survival call chains, inventory persistent state that a
+native C implementation must represent, and map it to proposed structure-of-
+arrays storage. Measure relevant execution/build costs and distinguish measured
+profiles from static call maps. Do not infer native porting ease from Java class
+count alone. Preserve exact behavior, RNG consumption and update ordering.
+
+The intended runtime remains native C with batched CPU/CUDA interfaces. Separate
+launcher startup, per-step language-boundary/copy costs, host compilation,
+device compilation and linking. Do not introduce a Python training/runtime
+dependency or migrate the game version during this investigation. Existing
+trace formats and tools are reusable infrastructure, not cross-version goldens.
+
+Work is isolated on lane/version-structure-audit. Private reconstructed sources
+and measurements belong under out/verify/version-structure/ on Anvil; only
+small reports and evidence are copied to the Mac. Archive discovery found
+mc-oracle.tar.zst, gtnh-1.7.10-mdk.tar.zst and netherite-v0-1.8.9.tar.zst in
+Anvil's ~/dev/minecraft/legacy-cold/. Inspect archive contents before selective
+extraction. No changes to the current simulator are authorized by this audit.
+
 # Wooden-pickaxe policy transfer
 
 ## Measured result, 2026-09-07
