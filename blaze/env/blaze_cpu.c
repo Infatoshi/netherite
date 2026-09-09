@@ -996,6 +996,14 @@ int blaze_obs_cam_commit(void *vh, const unsigned short *cam,
  return 0;
 }
 
+/* Read-only counter for actual executed ticks across a CPU batch. */
+unsigned long long blaze_measure_tick_sum(void *vh) {
+ CuVec *v=(CuVec*)vh; unsigned long long total=0; int i;
+ if(!v)return 0;
+ for(i=0;i<v->n;i++)total+=(unsigned long long)v->envs[i].tick;
+ return total;
+}
+
 int blaze_obs_cam_fresh(void *vh, int env) {
  CuVec *v=(CuVec*)vh;
  return (!v || env<0 || env>=v->n) ? -1 : v->envs[env].dec_cam_fresh;
