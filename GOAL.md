@@ -1,3 +1,54 @@
+# Architecture comparison measurements
+
+## Active request, 2026-09-09
+
+User authorized sustained measurements of all three candidate architectures and
+measurement tools before choosing a redesign. No version migration or default
+backend change. Work remains on lane/version-structure-audit, with owned Linux
+worktree anvil:~/nlanes/version-structure-audit. Live hardware is a 24GiB RTX3090
+and Ryzen9950X3D; compile sm_86. The old sm_120 host notes are stale. Gamer's
+NVIDIA driver presently exposes no usable GPU. Do not repair/reboot it here.
+
+Measurement tools are verify/architecture/: measure.c, prepare.c and a CPU-to-
+CUDA semantic observation bridge. Outputs out/verify/architecture/. Default GPU
+entry is unchanged; blaze_measure_set_split selects optional mode1 broad phases
+or mode2 a separately stored player-edit continuation. The CPU wrapper composes
+the same extracted functions in order. Hybrid skips full CPU rays but preserves
+the reward crosshair, uses masked default-camera reset and commits returned
+camera caches. Both dense and changed-page transfers are measured alternatives.
+
+Completed validation so far: pre-extraction CPU versus extracted CPU on ordinary,
+placement, fluid and deterministic-mob snapshots; CPU versus hybrid full internal
+parity with repeat/reset, trained-policy action replay, and explicit early death
+and boundary cases. Truncated reference artifacts fail nonzero. Synthetic bridge
+checks cover110592pixels. No GPU-simulation parity or fair three-way speed result
+yet. Current nn workload is actual native CUDA forward/sample, not PPO updates;
+observations are64x36semantic/depth/edge, not full RGB rasterization.
+
+Anvil machine lease: netherite-architecture-measure; renew during work and release
+at completion. Full gate-profile CUDA build runs in tmux architecture-cuda-build-real;
+logs/rc/start/end under out/verify/architecture/build-cuda.*. It was still in cicc
+after roughly12minutes at14:34MDT. Earlier /usr/bin/time launcher failure is kept
+as build-cuda-launch-error.*; no actual compiler ran in that failed attempt.
+CPU and NN builds completed. Other Luminite CPU jobs are active despite our lease;
+do not kill them or claim isolated timings while they run. Correctness/profile
+diagnostics can proceed; comparative timing needs an uncontended interval.
+
+NCU hardware access proved with a real metric. CPU perf counters work through
+sudo -n perf and harness --perf-control/--perf-ack FIFO gates. Nsight Systems
+bootstrap succeeded onAnvil: /opt/nvidia/nsight-systems-cli/2026.4.1/target-linux-x64/nsys,
+bundled python in adjacent python/bin/python. hybrid32.nsys-rep and report-fact
+JSON exist under outputs/profiles. CPU warm counter diagnostic excludes startup
+via FIFO, but CPU co-tenancy still disqualifies speed ranking.
+
+Remaining: finish CUDA build; compare GPU0/1/2 against CPU references; collect
+same-workload CPU/hybrid/fullGPU/splitGPU sweeps including policy work, batch and
+CPU-thread scaling; profile narrowed GPU entries; report tails, transfers and
+memory with explicit scope. Record/compare mode mutates derived parity caches,
+so those runs are validation-only. Fixed-action timing may replay actions loaded
+from a receipt, with I/O before the loop. Report nominal ticks separately from
+terminal partial-repeat work, and include reset cost separately.
+
 # Minecraft version structure and native-state audit
 
 ## 2026-09-09 first-principles scope correction
