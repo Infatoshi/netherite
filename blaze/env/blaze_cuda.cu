@@ -727,6 +727,8 @@ __global__ void k_tick_warp(Blaze *envs, int n, const McSinTable *st,
     }
 }
 
+#include "blaze_cuda_split.h"
+
 __global__ void k_obs(Blaze *envs, int n, const McSinTable *st,
                       unsigned short *cam, unsigned char *depth,
                       unsigned char *edge) {
@@ -1073,6 +1075,7 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_light);
     cudaFree(v->d_biome);
     cudaFree(v->d_active);
+    cudaFree(v->d_split_exec);
     cudaFree(v->d_assign);
     cudaFree(v->d_st);
     cudaFree(v->d_tn);
@@ -1729,7 +1732,9 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
     eblocks = (v->n + CU_TPB - 1) / CU_TPB;
     pblocks = (int)(((size_t)v->n * CU_NPIX + CU_TPB - 1) / CU_TPB);
     if (v->ktime) cudaEventRecord(v->ev[0], v->stream);
-    if (v->warp_tick)
+    if (v->measure_split)
+        cu_launch_split(v, v->d_envs, v->n, actions, repeat, v->d_aabb, NULL);
+    else if (v->warp_tick)
         k_tick_warp<<<(unsigned)(((size_t)v->n * 32 + 127) / 128), 128, 0,
                       v->stream>>>(v->d_envs, v->n, v->d_st, actions,
                                    repeat, v->d_aabb, v->d_recipes,
@@ -2339,7 +2344,9 @@ static int cu_launch_prod_tick(CuVecCu *v, Blaze *envs, int n,
                                const double *act, McAABB *aabb,
                                const double *inv) {
     int repeat = 1;
-    if (v->warp_tick)
+    if (v->measure_split)
+        cu_launch_split(v, envs, n, act, repeat, aabb, inv);
+    else if (v->warp_tick)
         k_tick_warp<<<(unsigned)(((size_t)n * 32 + 127) / 128), 128, 0,
                       v->stream>>>(envs, n, v->d_st, act, repeat, aabb,
                                    v->d_recipes, v->nrecipes, v->atk_gate,

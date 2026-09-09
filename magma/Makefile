@@ -677,7 +677,7 @@ BLAZE_NVCODE := $(if $(filter sm_%,$(BLAZE_SM)),$(foreach a,$(patsubst sm_%,%,$(
 # a different .so (out/blaze/env/blaze_cuda.so) with a different flag set
 # (single -arch, plus host -ffp-contract=off), so one recipe cannot serve both
 # without changing one of the two outputs.
-BLAZE_CUDA_HDRS := ../blaze/core/player_control_state.h ../blaze/env/blaze_core.h ../blaze/env/blaze_abi.h \
+BLAZE_CUDA_HDRS := ../blaze/env/blaze_cuda_split.h ../blaze/core/player_control_state.h ../blaze/env/blaze_core.h ../blaze/env/blaze_abi.h \
                         ../blaze/env/blaze_cuda_int.h ../blaze/env/blaze_snapshot.h \
                         $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
                         $(BLAZE_ITEMS) $(BLAZE_WEATHER) $(BLAZE_BED) $(BLAZE_CHEST) $(BLAZE_PROJECTILES) $(BLAZE_EXPLOSIONS) \

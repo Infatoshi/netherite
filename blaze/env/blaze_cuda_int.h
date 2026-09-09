@@ -188,6 +188,8 @@ typedef struct {
                            * 32x resident warps for the latency-bound serial
                            * chains + warp-parallel coal sweep. 0 = flat
                            * one-env-per-thread k_tick. */
+    int measure_split;   /* measurement-only ordered phase dispatch */
+    int *d_split_exec;   /* bit 0: decision active; bit 1: runtime continuation */
     int no_ore_xy;        /* create opts: skip ore spatial index at snap load */
     char nether_bank_path[1024]; /* create opts nether_bank; empty = unset */
     char end_bank_path[1024];    /* create opts end_bank; empty = unset */
