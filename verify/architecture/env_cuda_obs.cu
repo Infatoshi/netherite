@@ -25,6 +25,16 @@ extern "C" void env_cuda_obs_destroy(EnvCudaObs *s) {
  for(int i=0;i<4;i++)if(s->ev[i])cudaEventDestroy(s->ev[i]);
  if(s->stream)cudaStreamDestroy(s->stream); free(s);
 }
+extern "C" int env_cuda_obs_reset(EnvCudaObs *s,const unsigned char *mask) {
+ if(!s)return -1; CK(cudaSetDevice(s->device));
+ for(int e=0;e<s->n;e++) if(!mask||mask[e]) {
+  size_t off=(size_t)e*OC_NPIX;
+  CK(cudaMemsetAsync(s->cam+off,0,OC_NPIX*sizeof(u16),s->stream));
+  CK(cudaMemsetAsync(s->depth+off,255,OC_NPIX,s->stream));
+  CK(cudaMemsetAsync(s->edge+off,0,OC_NPIX,s->stream));
+ }
+ CK(cudaStreamSynchronize(s->stream)); return 0;
+}
 static int allocate(EnvCudaObs *s) {
  CK(cudaSetDevice(s->device)); CK(cudaStreamCreateWithFlags(&s->stream,cudaStreamNonBlocking));
  for(int i=0;i<4;i++)CK(cudaEventCreate(&s->ev[i]));
@@ -33,7 +43,7 @@ static int allocate(EnvCudaObs *s) {
  CK(cudaMallocHost(&s->hcameras,s->n*sizeof(Camera)));CK(cudaMalloc(&s->dcameras,s->n*sizeof(Camera)));
  CK(cudaMalloc(&s->cam,np*sizeof(u16)));CK(cudaMalloc(&s->depth,np));CK(cudaMalloc(&s->edge,np));
  CK(cudaMalloc(&s->trig,sizeof(McSinTable))); McSinTable t;mc_sin_table_init(&t);
- CK(cudaMemcpy(s->trig,&t,sizeof(t),cudaMemcpyHostToDevice));return 0;
+ CK(cudaMemcpy(s->trig,&t,sizeof(t),cudaMemcpyHostToDevice));return env_cuda_obs_reset(s,NULL);
 }
 extern "C" EnvCudaObs *env_cuda_obs_create(int device,int n,size_t cap,HybridCamInputsFn inputs,HybridCamFreshFn fresh) {
  if(n<=0||!cap||!inputs||!fresh||cap>SIZE_MAX/(size_t)n/sizeof(u16))return NULL;

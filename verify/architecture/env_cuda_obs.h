@@ -10,6 +10,8 @@ typedef int (*HybridCamFreshFn)(void *,int);
 typedef struct EnvCudaObs EnvCudaObs;
 typedef struct { double pack_ms, upload_ms, kernel_ms, download_ms; size_t h2d_bytes,d2h_bytes; } EnvCudaObsStats;
 EnvCudaObs *env_cuda_obs_create(int device,int n,size_t max_cells,HybridCamInputsFn,HybridCamFreshFn);
+/* NULL mask resets all lanes to CPU camera defaults, without rendering. */
+int env_cuda_obs_reset(EnvCudaObs *,const unsigned char *mask);
 void env_cuda_obs_destroy(EnvCudaObs *);
 /* force=1 after reset, otherwise respects CPU decision camera freshness.
  * host outputs all NULL leaves observations device-resident. Synchronous. */
