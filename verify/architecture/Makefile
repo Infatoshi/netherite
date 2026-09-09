@@ -1,11 +1,12 @@
 # Independent, small observation build. No simulation CUDA compilation.
 NVCC ?= $(CUDA_HOME)/bin/nvcc
 CC ?= cc
+CXX ?= c++
 CUDA_HOME ?= /usr/local/cuda
 BLAZE_SM ?= sm_86
 OUT ?= ../../out/verify/architecture
 .PHONY: all
-all: $(OUT)/env_cuda_obs.so $(OUT)/measure $(OUT)/prepare
+all: $(OUT)/env_cuda_obs.so $(OUT)/measure $(OUT)/prepare $(OUT)/driver_dispatch.so
 $(OUT)/env_cuda_obs.so: env_cuda_obs.cu env_cuda_obs.h ../../blaze/core/obs_camera.h ../../blaze/core/mc_math.h ../../blaze/core/mc.h
 	mkdir -p $(OUT)
 	$(NVCC) -O3 -std=c++14 -arch=$(BLAZE_SM) --fmad=false -Xcompiler=-fPIC,-ffp-contract=off -shared env_cuda_obs.cu -o $@
@@ -22,6 +23,10 @@ $(NN_OBJS):
 $(OUT)/prepare: prepare.c ../../blaze/env/blaze_snapshot.c ../../blaze/env/blaze_snapshot.h
 	mkdir -p $(OUT)
 	$(CC) -O2 -std=c11 -ffp-contract=off prepare.c ../../blaze/env/blaze_snapshot.c -lm -o $@
+
+$(OUT)/driver_dispatch.so: driver_dispatch.cpp $(wildcard ../../blaze/env/*.h ../../blaze/core/*.h)
+	mkdir -p $(OUT)
+	$(CXX) -O2 -std=c++17 -fPIC -shared -ffp-contract=off -I$(CUDA_HOME)/include $< -L$(CUDA_HOME)/lib64 -lcuda -lcudart -o $@
 $(OUT)/test_cuda_obs: test_cuda_obs.c env_cuda_obs.h $(OUT)/env_cuda_obs.so
 	$(CC) -O3 -ffp-contract=off test_cuda_obs.c -L$(OUT) -Wl,-rpath,$(abspath $(OUT)) -l:env_cuda_obs.so -lm -o $@
 .PHONY: check
