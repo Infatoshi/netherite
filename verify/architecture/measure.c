@@ -74,6 +74,7 @@ int main(int argc,char**argv){
  uint8_t*planes=alloc((size_t)n*ENV_N_CH*ENV_NPIX,1),*prior=alloc((size_t)n*ENV_N_PLANES*ENV_NPIX,1),*scratch=alloc((size_t)n*ENV_N_PLANES*ENV_NPIX,1),*have=alloc(n,1);
  float*scalars=alloc((size_t)n*POL_SCAL,4),*logits=alloc((size_t)n*34,4),*values=alloc(n,4),*logp=alloc(n,4);int32_t*acts=alloc((size_t)n*POL_HEADS,4);int*epdec=alloc(n,sizeof(int));
  Nn*nn=NULL;if(policy){NnCreate d={NN_BACKEND_CUDA,0,n,nn_config_default(),NN_PREC_FAST};nn=nn_create(&d);if(!nn)fail(nn_last_error());if(ckpt&&rl_ckpt_load(nn,ckpt))fail(nn_last_error());if(nn_prepare_n(nn,n)||nn_seal(nn))fail(nn_last_error());}
+ size_t gpu_free_init=0,gpu_total=0;if(gpu||hybrid||policy){if(cudaMemGetInfo(&gpu_free_init,&gpu_total)!=cudaSuccess)fail("GPU memory query");}
  int psize=parity_size();if(psize<1||psize>1000000)fail("parity size");void*parity=alloc(n,psize);
  if(recpath){record=fopen(recpath,"wb");if(!record)fail("record open");}if(refpath){reference=fopen(refpath,"rb");if(!reference)fail("reference open");}
  uint32_t header[8]={0x41524348,2,(uint32_t)n,(uint32_t)steps,(uint32_t)warm,(uint32_t)repeat,(uint32_t)reset_every,(uint32_t)psize};tick_index=-1;field("header",header,sizeof header);
@@ -111,6 +112,7 @@ int main(int argc,char**argv){
  if(ctl_fd>=0){close(ctl_fd);close(ack_fd);}
  if(profile&&cudaProfilerStop()!=cudaSuccess)fail("profiler stop");
  if(reference&&fgetc(reference)!=EOF)fail("trailing reference data");
+ size_t gpu_free_end=0;if(gpu||hybrid||policy){if(cudaMemGetInfo(&gpu_free_end,&gpu_total)!=cudaSuccess)fail("GPU memory query");printf("MEMORY gpu_used_init_bytes=%zu gpu_used_end_bytes=%zu\n",gpu_total-gpu_free_init,gpu_total-gpu_free_end);}
  struct rusage ru;getrusage(RUSAGE_SELF,&ru);
  printf("RESULT total_ms=%.6f nominal_subticks=%llu terminal_lanes=%llu decisions_per_s=%.6f nominal_ticks_per_s=%.6f maxrss_kib=%ld digest=%016llx compared=%d digest_scope=%s\n",sum,(unsigned long long)subticks,(unsigned long long)terminals,(double)n*steps*1000/sum,(double)subticks*1000/sum,ru.ru_maxrss,(unsigned long long)whole,reference!=NULL,(record||reference)?"trajectory":"header_only");
  if(op){int(*op_count)(void)=sym(lib,"blaze_op_count"),(*op_trace)(void*,unsigned long long*)=sym(lib,"blaze_op_trace");int k=op_count();unsigned long long*counts=alloc((size_t)n*k,sizeof(*counts));if(op_trace(env,counts))fail("op read");for(int j=0;j<k;j++){unsigned long long s=0;for(int i=0;i<n;i++)s+=counts[(size_t)i*k+j];printf("OP index=%d count=%llu\n",j,s);}free(counts);}
