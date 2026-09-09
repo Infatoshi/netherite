@@ -5,7 +5,7 @@ CUDA_HOME ?= /usr/local/cuda
 BLAZE_SM ?= sm_86
 OUT ?= ../../out/verify/architecture
 .PHONY: all
-all: $(OUT)/env_cuda_obs.so $(OUT)/measure
+all: $(OUT)/env_cuda_obs.so $(OUT)/measure $(OUT)/prepare
 $(OUT)/env_cuda_obs.so: env_cuda_obs.cu env_cuda_obs.h ../../blaze/core/obs_camera.h ../../blaze/core/mc_math.h ../../blaze/core/mc.h
 	mkdir -p $(OUT)
 	$(NVCC) -O3 -std=c++14 -arch=$(BLAZE_SM) --fmad=false -Xcompiler=-fPIC,-ffp-contract=off -shared env_cuda_obs.cu -o $@
@@ -18,6 +18,10 @@ $(OUT)/measure: measure.c env_cuda_obs.h ../../blaze/rl/obs_pack.h ../../blaze/r
 
 $(NN_OBJS):
 	$(MAKE) -C ../../blaze/nn cuda BLAZE_SM=$(BLAZE_SM) CUDA_HOME=$(CUDA_HOME)
+
+$(OUT)/prepare: prepare.c ../../blaze/env/blaze_snapshot.c ../../blaze/env/blaze_snapshot.h
+	mkdir -p $(OUT)
+	$(CC) -O2 -std=c11 -ffp-contract=off prepare.c ../../blaze/env/blaze_snapshot.c -lm -o $@
 $(OUT)/test_cuda_obs: test_cuda_obs.c env_cuda_obs.h $(OUT)/env_cuda_obs.so
 	$(CC) -O3 -ffp-contract=off test_cuda_obs.c -L$(OUT) -Wl,-rpath,$(abspath $(OUT)) -l:env_cuda_obs.so -lm -o $@
 .PHONY: check
