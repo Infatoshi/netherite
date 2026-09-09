@@ -53,7 +53,8 @@ static void init(Cohort*c,const char*fixture,HybridCamInputsFn inputs,HybridCamF
  BlazeCreateOpts o;blaze_create_opts_default(&o);c->env=create_env(0,n,&o);if(!c->env)die("create");
  char error[1024]={0};if(load_env(c->env,&fixture,1,error,sizeof error)!=1)die(error);
  int*assignment=mem(n,sizeof(int));c->mask=mem(n,1);memset(c->mask,1,n);
- if(mobs&&(set_mobs(c->env,1)||set_rng(c->env,1)))die("enable mobs");
+ if(mobs&&set_mobs(c->env,1))die("enable mobs");
+ if(det_ai&&set_rng(c->env,1))die("enable deterministic AI");
  if(assign_env(c->env,assignment)||success_env(c->env,0)||reset_env(c->env,c->mask))die("initial reset");
  free(assignment);
  size_t capacity=0;for(int e=0;e<n;e++){int x,y,z;if(inputs(c->env,e,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&x,&y,&z,NULL))die("dimensions");size_t k=(size_t)x*y*z;if(k>capacity)capacity=k;}
@@ -103,7 +104,7 @@ int main(int argc,char**argv){
  const char*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*libpath="out/blaze/env/blaze_cpu.so",*checkpoint=NULL;int delta=1;
  for(int i=1;i<argc;i++){if(i+1>=argc)die("argument value");const char*k=argv[i],*v=argv[++i];
   if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))checkpoint=v;
-  else if(!strcmp(k,"--cohort-n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warmup=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--verify"))verify=atoi(v);else if(!strcmp(k,"--overlap"))overlap=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--move"))work_move=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else die("unknown option");
+  else if(!strcmp(k,"--cohort-n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warmup=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--verify"))verify=atoi(v);else if(!strcmp(k,"--overlap"))overlap=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--move"))work_move=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--det-ai"))det_ai=atoi(v);else die("unknown option");
  }
  if(n<1||n>4096||steps<1||warmup<0||repeat<1||threads<1||reset_every<1||(overlap<0||overlap>2)||(profile!=0&&profile!=1))die("invalid config");
  omp_set_num_threads(threads);
@@ -116,6 +117,7 @@ int main(int argc,char**argv){
  init(cohort,fixture,inputs,fresh,delta);init(cohort+1,fixture,inputs,fresh,delta);
  if(policy){NnCreate d={NN_BACKEND_CUDA,0,n,nn_config_default(),NN_PREC_FAST};nn=nn_create(&d);if(!nn)die(nn_last_error());if(checkpoint&&rl_ckpt_load(nn,checkpoint))die(nn_last_error());if(nn_prepare_n(nn,n)||nn_seal(nn))die(nn_last_error());}
  uint64_t reference_digest[2]={0},reference_policy[2]={0};
+ printf("AI mobs=%d deterministic=%d natural_spawn=0\n",mobs,det_ai);
  int selected_mode=overlap;
  for(int run=0;run<(selected_mode==2?2:1);run++){overlap=selected_mode==2?run:selected_mode;
  for(int t=0;t<warmup;t++)for(int k=0;k<2;k++){cpu(cohort+k,t);gpu(cohort+k);}

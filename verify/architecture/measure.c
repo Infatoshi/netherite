@@ -38,11 +38,11 @@ static void field(const char*name,const void*p,size_t n){
 }
 #define FN(ret,name,args) ret(*name)args=(ret(*)args)sym(lib,"blaze_" #name)
 int main(int argc,char**argv){
- int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0,busy_every=0,grain=0;
+ int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0,busy_every=0,grain=0,det_ai=0;
  const char*mode="cpu",*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*work="idle",*libpath=NULL,*ckpt=NULL,*recpath=NULL,*refpath=NULL,*replaypath=NULL,*perfctl=NULL,*perfack=NULL,*cubin=NULL,*fine_dir=NULL;
  for(int i=1;i<argc;i++){if(i+1>=argc)fail("arguments require values");const char*k=argv[i],*v=argv[++i];
   if(!strcmp(k,"--mode"))mode=v;else if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--work"))work=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))ckpt=v;else if(!strcmp(k,"--record"))recpath=v;else if(!strcmp(k,"--reference"))refpath=v;else if(!strcmp(k,"--replay"))replaypath=v;else if(!strcmp(k,"--perf-control"))perfctl=v;else if(!strcmp(k,"--perf-ack"))perfack=v;else if(!strcmp(k,"--cubin"))cubin=v;else if(!strcmp(k,"--fine"))fine_dir=v;
-  else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--busy-every"))busy_every=atoi(v);else if(!strcmp(k,"--grain"))grain=atoi(v);else fail("unknown option");
+  else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--det-ai"))det_ai=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--busy-every"))busy_every=atoi(v);else if(!strcmp(k,"--grain"))grain=atoi(v);else fail("unknown option");
  }
  int gpu=!strcmp(mode,"cuda"),hybrid=!strcmp(mode,"hybrid");
  if((!gpu&&!hybrid&&strcmp(mode,"cpu"))||n<1||n>4096||steps<1||warm<0||repeat<1||threads<1||reset_every<1)fail("invalid config");
@@ -59,7 +59,8 @@ int main(int argc,char**argv){
  if(gpu&&split){int(*sel)(void*,int)=sym(lib,"blaze_measure_set_split");if(sel(env,split))fail("split select");}
  char err[1024]={0};char*fixture_copy=strdup(fixture),*save=NULL;const char*paths[16];int path_count=0;if(!fixture_copy)fail("fixture allocation");for(char*p=strtok_r(fixture_copy,",",&save);p;p=strtok_r(NULL,",",&save)){if(path_count==16)fail("too many fixtures");paths[path_count++]=p;}if(!path_count||load_snapshots(env,paths,path_count,err,sizeof err)!=path_count)fail(err);
  int*assignment=alloc(n,sizeof(int));unsigned char*mask=alloc(n,1);memset(mask,1,n);
- if(mobs){int(*setmob)(void*,int)=sym(lib,"blaze_set_mobs_enabled"),(*setrng)(void*,int)=sym(lib,"blaze_set_det_entity_rng");if(setmob(env,1)||setrng(env,1))fail("enable AI");}
+ if(mobs){int(*setmob)(void*,int)=sym(lib,"blaze_set_mobs_enabled");if(setmob(env,1))fail("enable generic AI");}
+ if(det_ai){if(gpu)fail("deterministic task/path AI is not implemented by CUDA");int(*setrng)(void*,int)=sym(lib,"blaze_set_det_entity_rng");if(setrng(env,1))fail("enable deterministic AI");}
  for(int i=0;i<n;i++)assignment[i]=(busy_every>0&&path_count==2)?((i%busy_every)==0?1:0):i%path_count;
  if(assign(env,assignment)||set_success_item(env,0)||reset(env,mask))fail("initial reset");
  void*dispatch=NULL;int(*driver_release)(void)=NULL;
@@ -90,7 +91,7 @@ int main(int argc,char**argv){
  if(hybrid){obs_reset=sym(bridge,"env_cuda_obs_reset");int(*set_delta)(EnvCudaObs*,int)=sym(bridge,"env_cuda_obs_set_delta");if(set_delta(obs,delta))fail("delta select");}
  printf("DISPATCH scalar_grain=%d cubin=%s fine=%s\n",grain,cubin?cubin:"original",fine_dir?fine_dir:"none");
  printf("BRIDGE delta=%d transfer_columns=hybrid_poststep_only policy_uses_host_ABI=1\n",delta);
- printf("DETAIL mobs=%d det_entity_rng=%d natural_spawn=0 op_trace=%d timing_excludes_reset=1 parity_capture=%d\n",mobs,mobs,op,record!=NULL||reference!=NULL);
+ printf("DETAIL mobs=%d det_entity_rng=%d natural_spawn=0 op_trace=%d timing_excludes_reset=1 parity_capture=%d\n",mobs,det_ai,op,record!=NULL||reference!=NULL);
  printf("step,env_ms,render_ms,pack_ms,policy_ms,reset_ms,total_ms,terminal_lanes,hybrid_poststep_h2d_bytes,hybrid_poststep_d2h_bytes\n");fflush(stdout);
  if(perfctl||perfack){if(!perfctl||!perfack)fail("both perf fifo paths required");ctl_fd=open(perfctl,O_WRONLY);ack_fd=open(perfack,O_RDONLY);if(ctl_fd<0||ack_fd<0)fail("perf fifo open");}
  double sum=0;uint64_t terminals=0,subticks=0;
