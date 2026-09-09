@@ -27,6 +27,13 @@ $(OUT)/prepare: prepare.c ../../blaze/env/blaze_snapshot.c ../../blaze/env/blaze
 $(OUT)/driver_dispatch.so: driver_dispatch.cpp $(wildcard ../../blaze/env/*.h ../../blaze/core/*.h)
 	mkdir -p $(OUT)
 	$(CXX) -O2 -std=c++17 -fPIC -shared -ffp-contract=off -I$(CUDA_HOME)/include $< -L$(CUDA_HOME)/lib64 -lcuda -lcudart -o $@
+
+.PHONY: fine
+fine: $(OUT)/fine/pre_actions.cubin $(OUT)/fine/pure_player.cubin $(OUT)/fine/after_player.cubin
+$(OUT)/fine/%.cubin: %.cu $(wildcard ../../blaze/env/*.h ../../blaze/core/*.h)
+	@test "$$(sha256sum ../../blaze/env/blaze_core.h | cut -d' ' -f1)" = 925f5018c71b36e128d61c12fefcd5a2b6c84272295364d3eda3838198b56e21 || { echo 'copied phase source requires review against changed core' >&2; exit 1; }
+	mkdir -p $(OUT)/fine
+	$(NVCC) -O2 --fmad=false -arch=$(BLAZE_SM) -Xptxas -v -cubin $< -o $@
 $(OUT)/test_cuda_obs: test_cuda_obs.c env_cuda_obs.h $(OUT)/env_cuda_obs.so
 	$(CC) -O3 -ffp-contract=off test_cuda_obs.c -L$(OUT) -Wl,-rpath,$(abspath $(OUT)) -l:env_cuda_obs.so -lm -o $@
 .PHONY: check
