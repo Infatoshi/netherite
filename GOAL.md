@@ -1,5 +1,30 @@
 # Minecraft version structure and native-state audit
 
+## 2026-09-09 measured structural result
+
+Recovered both private source trees and checked critical layouts against
+official server bytecode. Actual section constructors measured 10,424 bytes
+for ordinary skylit 1.7.10 storage versus 12,408 for 1.8.9. Both permit compact
+native arrays; 1.8.9 does not allocate property maps per voxel. Parent reran
+the storage measurement and reproduced every byte count.
+
+Six official-server baseline runs completed, each saving 625 overworld chunks.
+Across seeds 0/10/42, median startup wall time was 3.505 seconds for 1.7.10 and
+4.512 for 1.8.9. This is Java startup evidence, not native gameplay throughput.
+Static world/survival/render call maps and a native state-ownership ledger are
+in out/verify/version-structure/reports/decision.txt and adjacent reports.
+Private full evidence is under that path in anvil:~/nlanes/version-structure-audit.
+Both stack-only server profiles completed with exit0. The earlier allocation-
+instrumented 1.8.9 run timed out and remains explicitly incomplete; its timing
+does not enter the baseline. Profiling includes startup, idle, save and shutdown.
+
+Preferred candidate remains 1.8.9, based on reusable state/model architecture
+and no demonstrated SoA advantage for 1.7.10. No migration occurred. Full
+survival/client profiling and version-specific replay closure remain prerequisites
+for promoting a switch. The existing C trainer remains the runtime direction;
+host/device transfers and large CUDA compilation units need separate measurement
+from any launcher or binding cost.
+
 ## 2026-09-09 requested decision evidence
 
 Compare authentic Minecraft 1.7.10 and 1.8.9 source structures before choosing

@@ -1,3 +1,76 @@
+## 2026-09-09 Minecraft version structure and native-state comparison
+
+Investigated 1.7.10 and 1.8.9 without changing the current 1.11.2 target.
+Recovered private Forge-patched decompilations from existing archives: 1,833
+and 2,171 Java files respectively. Source counts are provenance, not a porting
+complexity metric. Official server JARs match Mojang SHA1 values
+952438ac4e01b4d115c5fc38f891710c4941df29 and
+b58b2ceb36e01bcd8dbf49c8fb66c55a9f0676cd respectively.
+
+Measured actual official ExtendedBlockStorage instances using Java8
+Instrumentation and independent thread-allocation counts. Ordinary skylit
+sections: 1.7.10 payload 10,240 bytes / owned object graph 10,424; 1.8.9 payload
+12,288 / graph 12,408. With the optional high-ID nibble constructed in a lab
+fixture, 1.7.10 becomes payload 12,288 / graph 12,512. Parent independently
+reran the measurement; all 30 samples agreed. Static registries are excluded.
+Vanilla bytecode confirms 1.8.9 generation scratch is short[65536].
+
+1.8.9 stores primitive state codes per voxel, not per-cell property maps.
+State descriptors can become shared immutable C tables. Either version can
+use the same packed-state/light arrays and SoA entity/player layout. The
+1.7.10 procedural renderer is simpler from scratch; the 1.8.9 baked-model
+architecture is closer to the current renderer. The latter is a migration-cost
+inference, not a benchmark or completed compatibility audit.
+
+Both retain the difficult semantics: cross-chunk population, ordered random
+draws/neighbor updates/scheduled ticks, separate client/server digging state,
+item merge/pickup state, and container/cursor/transaction state. Packet phase
+differs: ordinary queued packets are processed after world updates in the
+inspected 1.7 server path; 1.8 drains queued tasks before world ticks. State
+flattening must preserve behavior and phases rather than Java allocation style.
+
+Six fresh official-server JVM runs on Anvil, seeds 0/10/42, each saved 625
+overworld chunks. Median startup wall: 3.505 seconds versus 4.512. Median
+process CPU to ready: 7.44 versus 9.38 seconds. Java8.0_502, SerialGC, four
+visible processors, initial256MiB/max1GiB, structures disabled, no players.
+Same chunk count does not imply identical generation work. These are small
+fixed-order Java startup measurements, not native survival/render performance.
+Seed10 heap histograms total 63,786,008 versus 97,596,536 bytes; no claim that
+the difference is all per-environment or all block-state data.
+
+Both matched stack-only HPROF captures completed with exit0, alongside vanilla
+debug tick profiles. These include startup, no-player idle, save and shutdown;
+sampled blocking waits mean percentages are not exclusive CPU shares. The first
+allocation-heavy 1.8.9 capture hit its 180-second bound (exit143, never ready).
+That incomplete profile is retained separately and excluded from comparisons.
+Instrumented elapsed times do not replace the six uninstrumented baselines.
+Parent checked both raw sample totals (4,334 and 4,753), all six successful
+baseline receipts, 625 saved chunk records per run, and all 30 storage samples.
+Both profiles contain the executed server initialization -> spawn preparation
+-> chunk provider -> biome terrain path. Sparse sampled leaf counts do not
+support a precise algorithm-speed ranking.
+
+Current native ppo.c resolves the C simulation entry points once. There is no
+Python decision loop on that path. CUDA staging and policy APIs still perform
+host/device round trips. Binding overhead, copies, device compilation and
+linking are separate questions. Preserve the native C contract; inspect GPU
+timelines and compiler expansion before attributing costs or quoting speedups.
+
+Recommendation: prefer 1.8.9 as the candidate; no evidence found that 1.7.10
+inherently enables better native SoA storage. Do not promote a switch until a
+version-specific empty-to-pickaxe oracle trace and native closed-loop replay
+prove physics, inventory, initial world and pixels. Reuse tape tooling, not
+1.11.2 goldens as proof for another version. Full client gameplay profiling and
+checkpoint/resume closure of the proposed state ledger are still outstanding.
+
+Readable report: out/verify/version-structure/reports/decision.txt, with source
+call maps, byte measurements, baseline TSV and profile receipts beside it.
+Full private sources/jars/profiles remain in
+anvil:~/nlanes/version-structure-audit/out/verify/version-structure/.
+decision.txt SHA256:
+1382c985ba2c860abd537b033c968bedf679d76da76615aa4f3c03a124580823.
+No simulator code or game version changed.
+
 ## 2026-09-07 wooden-pickaxe transfer experiment and real trace repair
 
 The requested full Oracle transfer is not achieved. Real training, independent
