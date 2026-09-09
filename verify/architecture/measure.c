@@ -10,6 +10,7 @@
 #include <dlfcn.h>
 #include <omp.h>
 #include <sys/resource.h>
+#include <cuda_profiler_api.h>
 #include "../../blaze/env/blaze_abi.h"
 #include "../../blaze/rl/env_cuda_stage.h"
 #include "../../blaze/rl/obs_pack.h"
@@ -32,11 +33,11 @@ static void field(const char*name,const void*p,size_t n){
 }
 #define FN(ret,name,args) ret(*name)args=(ret(*)args)sym(lib,"blaze_" #name)
 int main(int argc,char**argv){
- int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0;
+ int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0;
  const char*mode="cpu",*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*work="idle",*libpath=NULL,*ckpt=NULL,*recpath=NULL,*refpath=NULL;
  for(int i=1;i<argc;i++){if(i+1>=argc)fail("arguments require values");const char*k=argv[i],*v=argv[++i];
   if(!strcmp(k,"--mode"))mode=v;else if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--work"))work=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))ckpt=v;else if(!strcmp(k,"--record"))recpath=v;else if(!strcmp(k,"--reference"))refpath=v;
-  else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else fail("unknown option");
+  else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else fail("unknown option");
  }
  int gpu=!strcmp(mode,"cuda"),hybrid=!strcmp(mode,"hybrid");
  if((!gpu&&!hybrid&&strcmp(mode,"cpu"))||n<1||n>4096||steps<1||warm<0||repeat<1||threads<1||reset_every<1)fail("invalid config");
@@ -78,6 +79,7 @@ int main(int argc,char**argv){
  printf("step,env_ms,render_ms,pack_ms,policy_ms,reset_ms,total_ms,terminal_lanes,hybrid_poststep_h2d_bytes,hybrid_poststep_d2h_bytes\n");fflush(stdout);
  double sum=0;uint64_t terminals=0,subticks=0;
  for(int t=0;t<steps+warm;t++){
+  if(profile&&t==warm&&cudaProfilerStart()!=cudaSuccess)fail("profiler start");
   double t0=now(),resetms=0,render_ms=0,packms=0,nnms=0;EnvCudaObsStats stats={0};
   int any=0;for(int i=0;i<n;i++){mask[i]=(t==0||t==warm||(t>warm&&(t-warm)%reset_every==0)||done[i]);any|=mask[i];}
   if(any){double a=now();if(reset(env,mask))fail("reset");for(int i=0;i<n;i++)if(mask[i]){have[i]=0;epdec[i]=0;}if(hybrid&&obs_reset(obs,mask))fail("reset observation cache");resetms=(now()-a)*1000;}
@@ -93,6 +95,7 @@ int main(int argc,char**argv){
   if(t>=warm){sum+=total;terminals+=term;subticks+=(uint64_t)n*repeat;printf("%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%zu,%zu\n",t-warm,envms,render_ms,packms,nnms,resetms,total,term,stats.h2d_bytes,stats.d2h_bytes);fflush(stdout);}
   if(record||reference){tick_index=t;field("actions",actions,(size_t)n*ENV_ACT*8);field("cam",cam,pixels*2);field("depth",depth,pixels);field("edge",edge,pixels);field("scalars",scal,(size_t)n*ENV_SCAL*4);field("reward",rew,(size_t)n*4);field("done",done,n);field("pose",pose,(size_t)n*ENV_POSE*4);field("status",status,(size_t)n*ENV_STATUS*sizeof(int));for(int i=0;i<n;i++)if(parity_state(env,i,(char*)parity+(size_t)i*psize))fail("parity read");field("parity",parity,(size_t)n*psize);}
  }
+ if(profile&&cudaProfilerStop()!=cudaSuccess)fail("profiler stop");
  if(reference&&fgetc(reference)!=EOF)fail("trailing reference data");
  struct rusage ru;getrusage(RUSAGE_SELF,&ru);
  printf("RESULT total_ms=%.6f nominal_subticks=%llu terminal_lanes=%llu decisions_per_s=%.6f nominal_ticks_per_s=%.6f maxrss_kib=%ld digest=%016llx compared=%d digest_scope=%s\n",sum,(unsigned long long)subticks,(unsigned long long)terminals,(double)n*steps*1000/sum,(double)subticks*1000/sum,ru.ru_maxrss,(unsigned long long)whole,reference!=NULL,(record||reference)?"trajectory":"header_only");
