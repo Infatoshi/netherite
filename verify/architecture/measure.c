@@ -39,11 +39,11 @@ static void field(const char*name,const void*p,size_t n){
 }
 #define FN(ret,name,args) ret(*name)args=(ret(*)args)sym(lib,"blaze_" #name)
 int main(int argc,char**argv){
- int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0,busy_every=0,grain=0,det_ai=0;
+ int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0,busy_every=0,grain=0,det_ai=0,graph_mode=0;
  const char*mode="cpu",*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*work="idle",*libpath=NULL,*ckpt=NULL,*recpath=NULL,*refpath=NULL,*replaypath=NULL,*perfctl=NULL,*perfack=NULL,*cubin=NULL,*fine_dir=NULL,*rows_path=NULL;
  for(int i=1;i<argc;i++){if(i+1>=argc)fail("arguments require values");const char*k=argv[i],*v=argv[++i];
   if(!strcmp(k,"--mode"))mode=v;else if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--work"))work=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))ckpt=v;else if(!strcmp(k,"--record"))recpath=v;else if(!strcmp(k,"--reference"))refpath=v;else if(!strcmp(k,"--replay"))replaypath=v;else if(!strcmp(k,"--perf-control"))perfctl=v;else if(!strcmp(k,"--perf-ack"))perfack=v;else if(!strcmp(k,"--cubin"))cubin=v;else if(!strcmp(k,"--fine"))fine_dir=v;else if(!strcmp(k,"--action-rows"))rows_path=v;
-  else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--det-ai"))det_ai=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--busy-every"))busy_every=atoi(v);else if(!strcmp(k,"--grain"))grain=atoi(v);else fail("unknown option");
+  else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--det-ai"))det_ai=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--busy-every"))busy_every=atoi(v);else if(!strcmp(k,"--grain"))grain=atoi(v);else if(!strcmp(k,"--graph"))graph_mode=atoi(v);else fail("unknown option");
  }
  int gpu=!strcmp(mode,"cuda"),hybrid=!strcmp(mode,"hybrid");
  if((!gpu&&!hybrid&&strcmp(mode,"cpu"))||n<1||n>4096||steps<1||warm<0||repeat<1||threads<1||reset_every<1)fail("invalid config");
@@ -67,6 +67,7 @@ int main(int argc,char**argv){
  void*dispatch=NULL;int(*driver_release)(void)=NULL;
  if(grain){if(!gpu||!split||!cubin)fail("grain requires CUDA split and cubin");dispatch=dlopen("out/verify/architecture/driver_dispatch.so",RTLD_NOW|RTLD_LOCAL);if(!dispatch)fail(dlerror());int(*configure)(void*,const char*,int)=sym(dispatch,"blaze_driver_configure");driver_release=sym(dispatch,"blaze_driver_release");if(configure(env,cubin,grain))fail("driver configure");step=(BlazeStepFullFn)sym(dispatch,"blaze_driver_step_full");if(fine_dir){char pre[2048],pure[2048],after[2048];snprintf(pre,sizeof pre,"%s/pre_actions.cubin",fine_dir);snprintf(pure,sizeof pure,"%s/pure_player.cubin",fine_dir);snprintf(after,sizeof after,"%s/after_player.cubin",fine_dir);int(*configure_fine)(const char*,const char*,const char*)=sym(dispatch,"blaze_driver_configure_fine");if(configure_fine(pre,pure,after))fail("fine player configure");}}
  if(fine_dir&&!grain)fail("fine requires driver grain");
+ if(graph_mode){if(!dispatch)fail("graph requires driver grain");int(*set_graph)(int)=sym(dispatch,"blaze_driver_set_graph");if(set_graph(graph_mode))fail("graph select");}
 
  size_t pixels=(size_t)n*ENV_NPIX;
  unsigned short*cam=alloc(pixels,2);unsigned char*depth=alloc(pixels,1),*edge=alloc(pixels,1),*done=alloc(n,1);
@@ -91,7 +92,7 @@ int main(int argc,char**argv){
  if(rows_path){if(replay_actions)fail("choose one action input");FILE*f=fopen(rows_path,"rb");uint32_t h[4];if(!f||fread(h,1,sizeof h,f)!=sizeof h||h[0]!=0x41524f57||h[1]!=1||h[2]!=(uint32_t)(steps+warm)||h[3]!=(uint32_t)n)fail("action rows header");size_t count=(size_t)(steps+warm)*n*ENV_ACT;replay_actions=alloc(count,8);if(fread(replay_actions,8,count,f)!=count||fgetc(f)!=EOF)fail("action rows length");fclose(f);}
  printf("CONFIG mode=%s split=%d n=%d steps=%d warmup=%d repeat=%d threads=%d policy=%d workload=%s reset_every=%d init_s=%.6f fixture=%s lib=%s\n",mode,split,n,steps,warm,repeat,threads,policy,work,reset_every,now()-start,fixture,libpath);
  if(hybrid){obs_reset=sym(bridge,"env_cuda_obs_reset");int(*set_delta)(EnvCudaObs*,int)=sym(bridge,"env_cuda_obs_set_delta");if(set_delta(obs,delta))fail("delta select");}
- printf("DISPATCH scalar_grain=%d cubin=%s fine=%s\n",grain,cubin?cubin:"original",fine_dir?fine_dir:"none");
+ printf("DISPATCH scalar_grain=%d cubin=%s fine=%s graph=%d\n",grain,cubin?cubin:"original",fine_dir?fine_dir:"none",graph_mode);
  printf("BRIDGE delta=%d transfer_columns=hybrid_poststep_only policy_uses_host_ABI=1\n",delta);
  printf("DETAIL mobs=%d det_entity_rng=%d natural_spawn=0 op_trace=%d timing_excludes_reset=1 parity_capture=%d\n",mobs,det_ai,op,record!=NULL||reference!=NULL);
  printf("step,env_ms,render_ms,pack_ms,policy_ms,reset_ms,total_ms,terminal_lanes,hybrid_poststep_h2d_bytes,hybrid_poststep_d2h_bytes\n");fflush(stdout);
@@ -131,6 +132,7 @@ int main(int argc,char**argv){
  if(nn)nn_destroy(nn);
  if(obs)obs_destroy(obs);
  if(gpu)env_cuda_stage_destroy(&stage);
+ if(dispatch){unsigned long long(*builds)(void)=sym(dispatch,"blaze_driver_graph_builds");printf("GRAPH builds=%llu\n",builds());}
  if(driver_release&&driver_release())fail("driver release");
  destroy(env);return 0;
 }
