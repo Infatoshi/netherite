@@ -51,6 +51,25 @@ __global__ void k_split_randtick(Blaze *envs, int n, const int *exec) {
     CU_PHASE_END(envs + i, CU_PHASE_RANDTICK);
 }
 
+__global__ void k_split_player(Blaze *envs, int n, const McSinTable *st,
+                               const double *a, int rep, McAABB *blocks,
+                               int *exec, BlazePlayerContinuation *ctx) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n || !(exec[i] & 1)) return;
+    CuAction act;
+    CU_OP(envs + i, CU_OP_SUBTICK);
+    blaze_act_from_row(&act, a + (size_t)i * BLAZE_ACT_HEADS, rep);
+    exec[i] = 1 | (blaze_runtime_player_phase(envs + i, st, act,
+        blocks + (size_t)i * PSV_MAX_BLOCKS, ctx + i) ? 2 : 0);
+}
+
+__global__ void k_split_world(Blaze *envs, int n, const int *exec,
+                              BlazePlayerContinuation *ctx) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n || !(exec[i] & 2)) return;
+    blaze_runtime_world_phase(envs + i, ctx + i);
+}
+
 __global__ void k_split_post(Blaze *envs, int n, const McSinTable *st,
                              int rep, int repeat, const int *exec) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -87,8 +106,15 @@ static void cu_launch_split(CuVecCu *v, Blaze *envs, int n,
         v->d_recipes, v->nrecipes, inv, v->d_split_exec);
     for (int rep = 0; rep < repeat; ++rep) {
         k_split_recenter<<<nw, tpb, 0, v->stream>>>(envs, n, v->d_split_exec);
-        k_split_pre<<<nb, tpb, 0, v->stream>>>(envs, n, v->d_st, a, rep,
-            blocks, v->d_split_exec);
+        if (v->measure_split == 2) {
+            k_split_player<<<nb, tpb, 0, v->stream>>>(envs, n, v->d_st, a,
+                rep, blocks, v->d_split_exec, v->d_split_player);
+            k_split_world<<<nb, tpb, 0, v->stream>>>(envs, n, v->d_split_exec,
+                v->d_split_player);
+        } else {
+            k_split_pre<<<nb, tpb, 0, v->stream>>>(envs, n, v->d_st, a, rep,
+                blocks, v->d_split_exec);
+        }
         k_split_randtick<<<nb, tpb, 0, v->stream>>>(envs, n, v->d_split_exec);
         k_split_post<<<nb, tpb, 0, v->stream>>>(envs, n, v->d_st, rep, repeat,
             v->d_split_exec);
@@ -101,11 +127,17 @@ static void cu_launch_split(CuVecCu *v, Blaze *envs, int n,
  * Call only between synchronous step/tick calls. No work runs on selection. */
 extern "C" int blaze_measure_set_split(void *vh, int mode) {
     CuVecCu *v = (CuVecCu *)vh;
-    if (!v || mode < 0 || mode > 1) return -1;
+    if (!v || mode < 0 || mode > 2) return -1;
     if (mode && !v->d_split_exec) {
         if (cu_ck(cudaSetDevice(v->device), "split device") ||
             cu_ck(cudaMalloc(&v->d_split_exec, (size_t)v->n * sizeof(int)),
                   "split continuation allocation")) return -1;
+    }
+    if (mode == 2 && !v->d_split_player) {
+        if (cu_ck(cudaSetDevice(v->device), "split player device") ||
+            cu_ck(cudaMalloc(&v->d_split_player,
+                            (size_t)v->n * sizeof(BlazePlayerContinuation)),
+                  "split player continuation allocation")) return -1;
     }
     v->measure_split = mode;
     return 0;

@@ -5715,10 +5715,17 @@ MC_HD static inline void cu_clear_mob_state(Blaze *env) {
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
  * blaze_runtime_tick below, or warp-cooperatively in the CUDA k_tick). */
-MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *st,
-                                                  CuAction act, McAABB *blocks) {
+/* Edits survive the optional kernel boundary until applied in order. */
+typedef struct {
     CuEdit edits[CU_MAX_EDITS];
-    int n = 0, i;
+    int n;
+} BlazePlayerContinuation;
+
+MC_HD static inline int blaze_runtime_player_phase(Blaze *env, const McSinTable *st,
+                                                  CuAction act, McAABB *blocks,
+                                                  BlazePlayerContinuation *ctx) {
+    CuEdit *edits = ctx->edits;
+    int n = 0;
 
     if (env->dead || env->dimension_error) return 0;                     /* r->dead || r->won gate */
     {
@@ -5874,6 +5881,14 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
     CU_PHASE_END(env, CU_PHASE_PHYS);
     }
 
+    ctx->n = n;
+    return 1;
+}
+
+MC_HD static inline void blaze_runtime_world_phase(Blaze *env,
+                                                   BlazePlayerContinuation *ctx) {
+    CuEdit *edits = ctx->edits;
+    int n = ctx->n, i;
     /* ghost pushers (runtime.c:328-354): tape-replay only, nghosts==0. */
 
     for (i = 0; i < n; ++i) {
@@ -5924,6 +5939,14 @@ MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *
         cu_fluid_tick(env, env->dimension, env->tick);
         CU_PHASE_END(env, CU_PHASE_FLUID);
     }
+
+}
+
+MC_HD static inline int blaze_runtime_tick_pre_rt(Blaze *env, const McSinTable *st,
+                                                  CuAction act, McAABB *blocks) {
+    BlazePlayerContinuation ctx;
+    if (!blaze_runtime_player_phase(env, st, act, blocks, &ctx)) return 0;
+    blaze_runtime_world_phase(env, &ctx);
     return 1;
 }
 

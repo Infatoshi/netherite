@@ -1076,6 +1076,7 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_biome);
     cudaFree(v->d_active);
     cudaFree(v->d_split_exec);
+    cudaFree(v->d_split_player);
     cudaFree(v->d_assign);
     cudaFree(v->d_st);
     cudaFree(v->d_tn);
