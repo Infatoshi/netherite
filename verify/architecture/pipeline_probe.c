@@ -11,6 +11,9 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include <omp.h>
+#include <cuda_runtime_api.h>
+#include <cuda_profiler_api.h>
+#include <nvtx3/nvToolsExt.h>
 #include "../../blaze/env/blaze_abi.h"
 #include "../../blaze/rl/env_cuda_stage.h"
 #include "../../blaze/rl/obs_pack.h"
@@ -23,7 +26,7 @@ static void *mem(size_t n,size_t z){void*p=calloc(n,z);if(!p)die("allocation");r
 static void *symbol(void*l,const char*s){void*p=dlsym(l,s);if(!p)die(dlerror());return p;}
 static void hash(uint64_t *h,const void*v,size_t n){const unsigned char*p=v;for(size_t i=0;i<n;i++)*h=(*h^p[i])*1099511628211ULL;}
 static int n=8,steps=32,warmup=4,repeat=4,threads=8,reset_every=64,policy=1,verify=1,overlap=0;
-static int work_move=0,mobs=0;
+static int work_move=0,mobs=0,profile=0,profile_active=0;
 static void*(*create_env)(int,int,const BlazeCreateOpts*);
 static void(*destroy_env)(void*);
 static int(*load_env)(void*,const char*const*,int,char*,int),(*assign_env)(void*,const int*),(*reset_env)(void*,const unsigned char*),(*success_env)(void*,int);
@@ -61,6 +64,7 @@ static void init(Cohort*c,const char*fixture,HybridCamInputsFn inputs,HybridCamF
  c->logits=mem((size_t)n*34,4);c->values=mem(n,4);c->logp=mem(n,4);c->acts=mem((size_t)n*POL_HEADS,4);c->parity=mem(n,psize);c->digest=c->policy_digest=1469598103934665603ULL;
 }
 static void cpu(Cohort*c,int t){
+ if(profile_active)nvtxRangePushA(c==cohort?"CPU cohort 0":"CPU cohort 1");
  double start=now();int any=0;
  for(int e=0;e<n;e++){c->mask[e]=(t%reset_every==0)||c->done[e];any|=c->mask[e];if(c->mask[e]){c->have[e]=0;c->epdec[e]=0;}}
  if(any&&reset_env(c->env,c->mask))die("CPU reset");
@@ -70,8 +74,10 @@ static void cpu(Cohort*c,int t){
  if(step_env(c->env,c->actions,repeat,NULL,NULL,NULL,c->scal,c->rew,c->done,c->pose,c->status))die("CPU step");
  if(tick_sum)c->actual_ticks+=tick_sum(c->env)-before;
  c->cpu_s+=now()-start;
+ if(profile_active)nvtxRangePop();
 }
 static void gpu(Cohort*c){
+ if(profile_active)nvtxRangePushA(c==cohort?"GPU stage cohort 0":"GPU stage cohort 1");
  double start=now();EnvCudaObsStats stats={0};
  /* No other thread accesses this cohort between READY and EMPTY. */
  int any=0;for(int e=0;e<n;e++)any|=c->mask[e];if(any&&reset_obs(c->obs,c->mask))die("GPU reset");
@@ -81,6 +87,7 @@ static void gpu(Cohort*c){
  if(policy&&(nn_forward(nn,c->planes,c->scalars,n,c->logits,c->values)||nn_sample(nn,c->logits,n,NN_SAMPLE_GREEDY,c->acts,c->logp,NULL)))die(nn_last_error());
  c->gpu_s+=now()-start;c->pack_s+=stats.pack_ms*.001;c->upload_s+=stats.upload_ms*.001;c->kernel_s+=stats.kernel_ms*.001;c->download_s+=stats.download_ms*.001;c->h2d+=stats.h2d_bytes;c->d2h+=stats.d2h_bytes;
  for(int e=0;e<n;e++)c->terminals+=c->done[e]!=0;
+ if(profile_active)nvtxRangePop();
  /* Digest cost is outside GPU stage but inside total when --verify=1. */
  if(verify){size_t pixels=(size_t)n*ENV_NPIX;
   hash(&c->digest,c->cam,pixels*2);hash(&c->digest,c->depth,pixels);hash(&c->digest,c->edge,pixels);hash(&c->digest,c->rew,n*4);hash(&c->digest,c->done,n);hash(&c->digest,c->status,(size_t)n*ENV_STATUS*sizeof(int));
@@ -96,9 +103,9 @@ int main(int argc,char**argv){
  const char*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*libpath="out/blaze/env/blaze_cpu.so",*checkpoint=NULL;int delta=1;
  for(int i=1;i<argc;i++){if(i+1>=argc)die("argument value");const char*k=argv[i],*v=argv[++i];
   if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))checkpoint=v;
-  else if(!strcmp(k,"--cohort-n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warmup=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--verify"))verify=atoi(v);else if(!strcmp(k,"--overlap"))overlap=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--move"))work_move=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else die("unknown option");
+  else if(!strcmp(k,"--cohort-n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warmup=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--verify"))verify=atoi(v);else if(!strcmp(k,"--overlap"))overlap=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--move"))work_move=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else die("unknown option");
  }
- if(n<1||n>4096||steps<1||warmup<0||repeat<1||threads<1||reset_every<1||(overlap<0||overlap>2))die("invalid config");
+ if(n<1||n>4096||steps<1||warmup<0||repeat<1||threads<1||reset_every<1||(overlap<0||overlap>2)||(profile!=0&&profile!=1))die("invalid config");
  omp_set_num_threads(threads);
  void*lib=dlopen(libpath,RTLD_NOW|RTLD_LOCAL);if(!lib)die(dlerror());
 #define LOAD(name,s) name=symbol(lib,s)
@@ -114,10 +121,14 @@ int main(int argc,char**argv){
  for(int t=0;t<warmup;t++)for(int k=0;k<2;k++){cpu(cohort+k,t);gpu(cohort+k);}
  for(int k=0;k<2;k++){Cohort*c=cohort+k;c->digest=c->policy_digest=1469598103934665603ULL;c->h2d=c->d2h=c->terminals=c->actual_ticks=0;c->cpu_s=c->gpu_s=c->pack_s=c->upload_s=c->kernel_s=c->download_s=0;}
  printf("CONFIG cohorts=2 cohort_n=%d total_envs=%d overlap=%d steps=%d repeat=%d threads=%d delta=%d policy=%d verify=%d reset_every=%d move=%d action_source=scripted warmup=%d\n",n,2*n,overlap,steps,repeat,threads,delta,policy,verify,reset_every,work_move,warmup);fflush(stdout);
+ printf("PROFILE enabled=%d ranges=measured_pass_cpu_cohort_gpu_stage_cohort\n",profile);
+ if(profile){if(cudaProfilerStart()!=cudaSuccess)die("profiler start");profile_active=1;nvtxRangePushA(overlap?"measured overlap":"measured serial");}
  double start=now();pthread_t thread;
  if(overlap){if(pthread_create(&thread,NULL,worker,NULL))die("worker create");for(int t=warmup;t<steps+warmup;t++)for(int k=0;k<2;k++){Cohort*c=cohort+k;pthread_mutex_lock(&lock);while(c->state!=2)pthread_cond_wait(&changed,&lock);c->state=3;pthread_mutex_unlock(&lock);gpu(c);pthread_mutex_lock(&lock);c->state=0;pthread_cond_broadcast(&changed);pthread_mutex_unlock(&lock);}pthread_join(thread,NULL);}
  else for(int t=warmup;t<steps+warmup;t++)for(int k=0;k<2;k++){cpu(cohort+k,t);gpu(cohort+k);}
- double elapsed=now()-start;printf("RESULT elapsed_s=%.9f decisions_per_s=%.9f total_decisions=%d\n",elapsed,2.0*n*steps/elapsed,2*n*steps);
+ double elapsed=now()-start;
+ if(profile){nvtxRangePop();profile_active=0;if(cudaProfilerStop()!=cudaSuccess)die("profiler stop");}
+ printf("RESULT elapsed_s=%.9f decisions_per_s=%.9f total_decisions=%d\n",elapsed,2.0*n*steps/elapsed,2*n*steps);
  for(int k=0;k<2;k++){Cohort*c=cohort+k;printf("COHORT id=%d digest=%016llx policy_digest=%016llx cpu_s=%.9f gpu_stage_s=%.9f scan_pack_s=%.9f upload_s=%.9f kernel_s=%.9f download_s=%.9f h2d_bytes=%llu d2h_bytes=%llu terminals=%llu nominal_ticks=%llu actual_ticks=%lld\n",k,(unsigned long long)c->digest,(unsigned long long)c->policy_digest,c->cpu_s,c->gpu_s,c->pack_s,c->upload_s,c->kernel_s,c->download_s,(unsigned long long)c->h2d,(unsigned long long)c->d2h,(unsigned long long)c->terminals,(unsigned long long)n*steps*repeat,tick_sum?(long long)c->actual_ticks:-1LL);}
   if(selected_mode==2 && verify)for(int k=0;k<2;k++) {
    if(!run){reference_digest[k]=cohort[k].digest;reference_policy[k]=cohort[k].policy_digest;}
