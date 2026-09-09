@@ -87,7 +87,7 @@ static void gpu(Cohort*c){
  }
 }
 static void *worker(void*unused){(void)unused;omp_set_num_threads(threads);
- for(int t=0;t<steps;t++)for(int k=0;k<2;k++){Cohort*c=cohort+k;pthread_mutex_lock(&lock);while(c->state!=0)pthread_cond_wait(&changed,&lock);c->state=1;pthread_mutex_unlock(&lock);cpu(c,t);pthread_mutex_lock(&lock);c->state=2;pthread_cond_broadcast(&changed);pthread_mutex_unlock(&lock);}
+ for(int t=warmup;t<steps+warmup;t++)for(int k=0;k<2;k++){Cohort*c=cohort+k;pthread_mutex_lock(&lock);while(c->state!=0)pthread_cond_wait(&changed,&lock);c->state=1;pthread_mutex_unlock(&lock);cpu(c,t);pthread_mutex_lock(&lock);c->state=2;pthread_cond_broadcast(&changed);pthread_mutex_unlock(&lock);}
  return NULL;
 }
 int main(int argc,char**argv){
@@ -113,8 +113,8 @@ int main(int argc,char**argv){
  for(int k=0;k<2;k++){Cohort*c=cohort+k;c->digest=c->policy_digest=1469598103934665603ULL;c->h2d=c->d2h=c->terminals=c->actual_ticks=0;c->cpu_s=c->gpu_s=c->pack_s=c->upload_s=c->kernel_s=c->download_s=0;}
  printf("CONFIG cohorts=2 cohort_n=%d total_envs=%d overlap=%d steps=%d repeat=%d threads=%d delta=%d policy=%d verify=%d reset_every=%d move=%d action_source=scripted warmup=%d\n",n,2*n,overlap,steps,repeat,threads,delta,policy,verify,reset_every,work_move,warmup);fflush(stdout);
  double start=now();pthread_t thread;
- if(overlap){if(pthread_create(&thread,NULL,worker,NULL))die("worker create");for(int t=0;t<steps;t++)for(int k=0;k<2;k++){Cohort*c=cohort+k;pthread_mutex_lock(&lock);while(c->state!=2)pthread_cond_wait(&changed,&lock);c->state=3;pthread_mutex_unlock(&lock);gpu(c);pthread_mutex_lock(&lock);c->state=0;pthread_cond_broadcast(&changed);pthread_mutex_unlock(&lock);}pthread_join(thread,NULL);}
- else for(int t=0;t<steps;t++)for(int k=0;k<2;k++){cpu(cohort+k,t);gpu(cohort+k);}
+ if(overlap){if(pthread_create(&thread,NULL,worker,NULL))die("worker create");for(int t=warmup;t<steps+warmup;t++)for(int k=0;k<2;k++){Cohort*c=cohort+k;pthread_mutex_lock(&lock);while(c->state!=2)pthread_cond_wait(&changed,&lock);c->state=3;pthread_mutex_unlock(&lock);gpu(c);pthread_mutex_lock(&lock);c->state=0;pthread_cond_broadcast(&changed);pthread_mutex_unlock(&lock);}pthread_join(thread,NULL);}
+ else for(int t=warmup;t<steps+warmup;t++)for(int k=0;k<2;k++){cpu(cohort+k,t);gpu(cohort+k);}
  double elapsed=now()-start;printf("RESULT elapsed_s=%.9f decisions_per_s=%.9f total_decisions=%d\n",elapsed,2.0*n*steps/elapsed,2*n*steps);
  for(int k=0;k<2;k++){Cohort*c=cohort+k;printf("COHORT id=%d digest=%016llx policy_digest=%016llx cpu_s=%.9f gpu_stage_s=%.9f scan_pack_s=%.9f upload_s=%.9f kernel_s=%.9f download_s=%.9f h2d_bytes=%llu d2h_bytes=%llu terminals=%llu nominal_ticks=%llu actual_ticks=%lld\n",k,(unsigned long long)c->digest,(unsigned long long)c->policy_digest,c->cpu_s,c->gpu_s,c->pack_s,c->upload_s,c->kernel_s,c->download_s,(unsigned long long)c->h2d,(unsigned long long)c->d2h,(unsigned long long)c->terminals,(unsigned long long)n*steps*repeat,tick_sum?(long long)c->actual_ticks:-1LL);}
   if(selected_mode==2 && verify)for(int k=0;k<2;k++) {
