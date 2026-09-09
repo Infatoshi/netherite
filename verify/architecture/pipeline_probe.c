@@ -26,7 +26,7 @@ static void *mem(size_t n,size_t z){void*p=calloc(n,z);if(!p)die("allocation");r
 static void *symbol(void*l,const char*s){void*p=dlsym(l,s);if(!p)die(dlerror());return p;}
 static void hash(uint64_t *h,const void*v,size_t n){const unsigned char*p=v;for(size_t i=0;i<n;i++)*h=(*h^p[i])*1099511628211ULL;}
 static int n=8,steps=32,warmup=4,repeat=4,threads=8,reset_every=64,policy=1,verify=1,overlap=0;
-static int work_move=0,mobs=0,profile=0,profile_active=0;
+static int work_move=0,mobs=0,det_ai=0,profile=0,profile_active=0;
 static void*(*create_env)(int,int,const BlazeCreateOpts*);
 static void(*destroy_env)(void*);
 static int(*load_env)(void*,const char*const*,int,char*,int),(*assign_env)(void*,const int*),(*reset_env)(void*,const unsigned char*),(*success_env)(void*,int);
