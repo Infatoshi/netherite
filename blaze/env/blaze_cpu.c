@@ -983,6 +983,19 @@ int blaze_step_full_no_camera(void *vh, const double *actions, int repeat,
  (void)cam; (void)depth; (void)edge;
  return blaze_step_full_impl(0,vh,actions,repeat,NULL,NULL,NULL,scal,rew,done,pose,status);
 }
+/* Explicit cache synchronization after externally rendered observations. */
+int blaze_obs_cam_commit(void *vh, const unsigned short *cam,
+ const unsigned char *depth, const unsigned char *edge) {
+ CuVec *v=(CuVec*)vh; int i;
+ if(!v || !cam || !depth || !edge) return -1;
+ for(i=0;i<v->n;i++) {
+  memcpy(v->envs[i].cam,cam+(size_t)i*CU_NPIX,CU_NPIX*sizeof(*cam));
+  memcpy(v->envs[i].dep,depth+(size_t)i*CU_NPIX,CU_NPIX);
+  memcpy(v->envs[i].edg,edge+(size_t)i*CU_NPIX,CU_NPIX);
+ }
+ return 0;
+}
+
 int blaze_obs_cam_fresh(void *vh, int env) {
  CuVec *v=(CuVec*)vh;
  return (!v || env<0 || env>=v->n) ? -1 : v->envs[env].dec_cam_fresh;
