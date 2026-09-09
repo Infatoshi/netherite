@@ -288,7 +288,7 @@ ifneq ($(UNAME_S),Darwin)
 # win: make -j runs the two cicc/ptxas passes at the same time, and an edit to
 # one unit does not recompile the other. Flags are unchanged, and no device
 # call crosses a unit, so no -rdc and the same SASS per kernel.
-ENV_CUDA_HDRS := $(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h $(ENV_SRC)/blaze_abi.h \
+ENV_CUDA_HDRS := $(ENV_SRC)/blaze_cuda_split.h $(ENV_SRC)/blaze_core.h $(CORE_SRC)/player_control_state.h $(ENV_SRC)/blaze_abi.h \
 		$(ENV_SRC)/blaze_cuda_int.h $(ENV_SRC)/blaze_snapshot.h \
 		$(CORE_SRC)/entity_spine.h $(CORE_SRC)/falling_live.h \
 		$(CORE_SRC)/explosion_live.h $(CORE_SRC)/explosion.h \
