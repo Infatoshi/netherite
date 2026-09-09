@@ -1,5 +1,5 @@
 # Independent, small observation build. No simulation CUDA compilation.
-NVCC ?= nvcc
+NVCC ?= $(CUDA_HOME)/bin/nvcc
 CC ?= cc
 CUDA_HOME ?= /usr/local/cuda
 BLAZE_SM ?= sm_86
