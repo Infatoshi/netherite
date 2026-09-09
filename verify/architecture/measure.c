@@ -34,9 +34,9 @@ static void field(const char*name,const void*p,size_t n){
 #define FN(ret,name,args) ret(*name)args=(ret(*)args)sym(lib,"blaze_" #name)
 int main(int argc,char**argv){
  int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0;
- const char*mode="cpu",*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*work="idle",*libpath=NULL,*ckpt=NULL,*recpath=NULL,*refpath=NULL;
+ const char*mode="cpu",*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*work="idle",*libpath=NULL,*ckpt=NULL,*recpath=NULL,*refpath=NULL,*replaypath=NULL;
  for(int i=1;i<argc;i++){if(i+1>=argc)fail("arguments require values");const char*k=argv[i],*v=argv[++i];
-  if(!strcmp(k,"--mode"))mode=v;else if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--work"))work=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))ckpt=v;else if(!strcmp(k,"--record"))recpath=v;else if(!strcmp(k,"--reference"))refpath=v;
+  if(!strcmp(k,"--mode"))mode=v;else if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--work"))work=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))ckpt=v;else if(!strcmp(k,"--record"))recpath=v;else if(!strcmp(k,"--reference"))refpath=v;else if(!strcmp(k,"--replay"))replaypath=v;
   else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else fail("unknown option");
  }
  int gpu=!strcmp(mode,"cuda"),hybrid=!strcmp(mode,"hybrid");
@@ -72,6 +72,9 @@ int main(int argc,char**argv){
  int psize=parity_size();if(psize<1||psize>1000000)fail("parity size");void*parity=alloc(n,psize);
  if(recpath){record=fopen(recpath,"wb");if(!record)fail("record open");}if(refpath){reference=fopen(refpath,"rb");if(!reference)fail("reference open");}
  uint32_t header[8]={0x41524348,2,(uint32_t)n,(uint32_t)steps,(uint32_t)warm,(uint32_t)repeat,(uint32_t)reset_every,(uint32_t)psize};tick_index=-1;field("header",header,sizeof header);
+ double*replay_actions=NULL;
+ if(replaypath){FILE*f=fopen(replaypath,"rb");if(!f)fail("replay open");uint32_t h[8];if(fread(h,1,sizeof h,f)!=sizeof h||memcmp(h,header,sizeof h))fail("replay header");size_t action_bytes=(size_t)n*ENV_ACT*8, row_bytes=action_bytes+pixels*4+(size_t)n*(ENV_SCAL*4+4+1+ENV_POSE*4+ENV_STATUS*sizeof(int)+psize);if(fseek(f,0,SEEK_END)||ftell(f)!=(long)(sizeof h+(size_t)(steps+warm)*row_bytes))fail("replay length");replay_actions=alloc((size_t)(steps+warm)*n*ENV_ACT,8);for(int t=0;t<steps+warm;t++){if(fseek(f,(long)(sizeof h+(size_t)t*row_bytes),SEEK_SET)||fread(replay_actions+(size_t)t*n*ENV_ACT,1,action_bytes,f)!=action_bytes)fail("replay actions");}fclose(f);}
+
  printf("CONFIG mode=%s split=%d n=%d steps=%d warmup=%d repeat=%d threads=%d policy=%d workload=%s reset_every=%d init_s=%.6f fixture=%s lib=%s\n",mode,split,n,steps,warm,repeat,threads,policy,work,reset_every,now()-start,fixture,libpath);
  if(hybrid){obs_reset=sym(bridge,"env_cuda_obs_reset");int(*set_delta)(EnvCudaObs*,int)=sym(bridge,"env_cuda_obs_set_delta");if(set_delta(obs,delta))fail("delta select");}
  printf("BRIDGE delta=%d transfer_columns=hybrid_poststep_only policy_uses_host_ABI=1\n",delta);
@@ -88,10 +91,11 @@ int main(int argc,char**argv){
   if(!strcmp(work,"boundary"))for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;memset(a,0,ENV_ACT*8);a[0]=1;a[9]=-1;a[10]=-1;}
   if(!strcmp(work,"policy")&&t>0)acts_to_rows(acts,n,actions);
   if(!strcmp(work,"policy"))for(int i=0;i<n;i++)if(mask[i]){double*a=actions+(size_t)i*ENV_ACT;memset(a,0,ENV_ACT*8);a[9]=-1;a[10]=-1;}
+  if(replay_actions)memcpy(actions,replay_actions+(size_t)t*n*ENV_ACT,(size_t)n*ENV_ACT*8);
   double a=now();int rc=gpu?env_cuda_stage_step_full(&stage,step,env,actions,repeat,cam,depth,edge,scal,rew,done,pose,status):step(env,actions,repeat,cam,depth,edge,scal,rew,done,pose,status);if(rc)fail("step_full");double envms=(now()-a)*1000;
   if(hybrid){a=now();if(render(obs,env,0,cam,depth,edge,&stats)||commit(env,cam,depth,edge))fail("hybrid render");render_ms=(now()-a)*1000;}
   a=now();pack_obs(cam,depth,edge,scal,pose,status,epdec,1500,have,prior,n,planes,scalars,scratch);memcpy(prior,scratch,(size_t)n*ENV_N_PLANES*ENV_NPIX);memset(have,1,n);for(int i=0;i<n;i++)epdec[i]++;packms=(now()-a)*1000;
-  if(policy){a=now();if(nn_forward(nn,planes,scalars,n,logits,values)||nn_sample(nn,logits,n,NN_SAMPLE_GREEDY,acts,logp,NULL))fail(nn_last_error());nnms=(now()-a)*1000;}
+  if(policy){a=now();if(nn_forward(nn,planes,scalars,n,logits,values)||nn_sample(nn,logits,n,NN_SAMPLE_GUMBEL,acts,logp,NULL))fail(nn_last_error());nnms=(now()-a)*1000;}
   double total=(now()-t0)*1000-resetms;int term=0;for(int i=0;i<n;i++)term+=done[i]!=0;
   if(t>=warm){sum+=total;terminals+=term;subticks+=(uint64_t)n*repeat;printf("%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%zu,%zu\n",t-warm,envms,render_ms,packms,nnms,resetms,total,term,stats.h2d_bytes,stats.d2h_bytes);fflush(stdout);}
   if(record||reference){tick_index=t;field("actions",actions,(size_t)n*ENV_ACT*8);field("cam",cam,pixels*2);field("depth",depth,pixels);field("edge",edge,pixels);field("scalars",scal,(size_t)n*ENV_SCAL*4);field("reward",rew,(size_t)n*4);field("done",done,n);field("pose",pose,(size_t)n*ENV_POSE*4);field("status",status,(size_t)n*ENV_STATUS*sizeof(int));for(int i=0;i<n;i++)if(parity_state(env,i,(char*)parity+(size_t)i*psize))fail("parity read");field("parity",parity,(size_t)n*psize);}
