@@ -1,5 +1,29 @@
 # Minecraft version structure and native-state audit
 
+## 2026-09-09 first-principles scope correction
+
+The user excludes proximity to the existing implementation from the foundation
+decision. The earlier preference for 1.8.9 on migration distance is superseded.
+Choose the smallest authentic game contract supporting the intended speedrun
+progression. Both versions permit compact C state and batched phase kernels.
+1.7.10 is the parent's provisional narrower-scope choice; Fable prefers 1.8.9
+for its enumerable state registry. Neither is a measured native-speed winner.
+Sheep food is a concrete scope difference: 1.7 wool, 1.8 also mutton.
+
+Current focus is architecture clarification, not an authorized full rewrite:
+one faithful C transition program and GPU execution of equivalent ready work
+across worlds. Preserve same-tick calls, scheduled-event order, RNG, client
+state and observation/action dependencies. Do not invent next-tick delays.
+The next discriminating implementation experiment is one fully integrated
+player-phase split, preserving continuation state and all remaining systems,
+with CPU/Oracle parity and measured end-to-end/build costs. No speedup yet.
+
+Read the supplied Claude conversation 063ca500-3ce7-4f37-8cd1-7c6d9bfaa932,
+checked its phase compiler logs and obtained fresh Fable advice. Analysis and
+review are in out/verify/engine-architecture/architecture.txt, with the full
+advice and checked raw-resource table alongside. General device scheduling,
+aggressive stream overlap and a simultaneous version port are postponed.
+
 ## 2026-09-09 measured structural result
 
 Recovered both private source trees and checked critical layouts against

@@ -1,3 +1,42 @@
+## 2026-09-09 engine architecture and version-choice correction
+
+The user rejected migration distance as a foundation criterion. Supersede the
+earlier 1.8.9 preference on that basis. Both versions support explicit C state
+and specialized batched kernels. Parent provisionally favors 1.7.10's narrower
+scope; fresh Fable advice favors 1.8.9's enumerable state registry. The decision
+must follow the desired gameplay contract, not Java heap or object count.
+Source inspection finds a concrete gameplay difference: sheep drop wool in
+1.7.10 and additionally mutton in 1.8.9. Both inspected panic tasks select a
+nearby target, request navigation and follow a stored path; task admission has
+a three-call cadence. Source trees contain Forge patches; no new live sheep
+trace was measured in this design discussion.
+
+Read the user-supplied Claude session
+063ca500-3ce7-4f37-8cd1-7c6d9bfaa932 and checked the original logs from
+anvil:~/nlanes/nn-fable-fp16/out/verify/regprobe-4ccbf35/.
+The old tree's full tick is 255 registers/35,504 stack bytes; extracted player
+134/6,480; coal query 46/1,920; mob AI 255/29,136. These are compile probes,
+not an integrated runtime speedup. Corrected an error in its summary: the full
+tick entry in coal.log has 3,048 bytes spill stores and 3,140 spill loads, not
+zero. Register-only warps/SM estimates and stack-per-environment multiplication
+are not verified occupancy or allocated-memory measurements.
+
+Fresh read-only claude-fable-5-1 consultation completed in fork
+e7d847d1-cc70-47ff-af97-c5425b66cbd4. Preserve ordered per-world transitions and
+group ready work across worlds. Parent rejected suggestions that RNG must be
+approximate, that client state can be omitted from pixel/action fidelity, or
+that all post-tick work can be skipped when no mobs exist. Capture RNG state;
+items/furnaces/projectiles have independent eligibility. General scheduling
+does not justify moving synchronous effects to a later tick.
+
+Next experiment: a genuinely separate player phase at its original position,
+with all continuation state and remaining behavior preserved, compared against
+the unsplit reference. Establish per-phase CPU/GPU parity, Oracle anchoring and
+checkpoint suffix reproduction, then measure end-to-end timing, tails, memory
+and incremental compile/link turnaround. No implementation or new GPU benchmark
+was performed. The full design, consultation and reviewed compiler receipts
+are under out/verify/engine-architecture/ on the Mac and owned Anvil worktree.
+
 ## 2026-09-09 Minecraft version structure and native-state comparison
 
 Investigated 1.7.10 and 1.8.9 without changing the current 1.11.2 target.
