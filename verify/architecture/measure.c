@@ -41,7 +41,7 @@ int main(int argc,char**argv){
  }
  int gpu=!strcmp(mode,"cuda"),hybrid=!strcmp(mode,"hybrid");
  if((!gpu&&!hybrid&&strcmp(mode,"cpu"))||n<1||n>4096||steps<1||warm<0||repeat<1||threads<1||reset_every<1)fail("invalid config");
- if(strcmp(work,"idle")&&strcmp(work,"move")&&strcmp(work,"edit")&&strcmp(work,"policy"))fail("invalid workload");
+ if(strcmp(work,"idle")&&strcmp(work,"move")&&strcmp(work,"edit")&&strcmp(work,"policy")&&strcmp(work,"boundary"))fail("invalid workload");
  if(!strcmp(work,"policy")&&!policy)fail("policy workload requires --policy 1");
  omp_set_num_threads(threads);
  if(!libpath)libpath=gpu?"out/blaze/env/blaze_cuda.so":"out/blaze/env/blaze_cpu.so";
@@ -85,6 +85,7 @@ int main(int argc,char**argv){
   if(any){double a=now();if(reset(env,mask))fail("reset");for(int i=0;i<n;i++)if(mask[i]){have[i]=0;epdec[i]=0;}if(hybrid&&obs_reset(obs,mask))fail("reset observation cache");resetms=(now()-a)*1000;}
   memset(actions,0,(size_t)n*ENV_ACT*8);
   for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;a[9]=-1;a[10]=-1;if(strcmp(work,"idle")){a[0]=((t/8+i)%3)==0?0:1;a[2]=(t%8==0)?((i%2)?15:-15):0;a[4]=(t%9==0);if(!strcmp(work,"edit")){a[7]=1;a[8]=(t%11==0);}}}
+  if(!strcmp(work,"boundary"))for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;memset(a,0,ENV_ACT*8);a[0]=1;a[9]=-1;a[10]=-1;}
   if(!strcmp(work,"policy")&&t>0)acts_to_rows(acts,n,actions);
   if(!strcmp(work,"policy"))for(int i=0;i<n;i++)if(mask[i]){double*a=actions+(size_t)i*ENV_ACT;memset(a,0,ENV_ACT*8);a[9]=-1;a[10]=-1;}
   double a=now();int rc=gpu?env_cuda_stage_step_full(&stage,step,env,actions,repeat,cam,depth,edge,scal,rew,done,pose,status):step(env,actions,repeat,cam,depth,edge,scal,rew,done,pose,status);if(rc)fail("step_full");double envms=(now()-a)*1000;
