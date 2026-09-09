@@ -11,6 +11,8 @@
 #include <omp.h>
 #include <sys/resource.h>
 #include <cuda_profiler_api.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "../../blaze/env/blaze_abi.h"
 #include "../../blaze/rl/env_cuda_stage.h"
 #include "../../blaze/rl/obs_pack.h"
@@ -25,6 +27,9 @@ static void *sym(void*l,const char*s){void*p=dlsym(l,s);if(!p){fprintf(stderr,"m
 static uint64_t digest(const void*p,size_t n){const unsigned char*b=p;uint64_t h=1469598103934665603ULL;for(size_t i=0;i<n;i++)h=(h^b[i])*1099511628211ULL;return h;}
 static uint64_t whole=1469598103934665603ULL;
 static FILE *record,*reference;
+static int ctl_fd=-1,ack_fd=-1;
+static void perf_command(const char*s){if(ctl_fd<0)return;size_t z=strlen(s);if(write(ctl_fd,s,z)!=(ssize_t)z)fail("perf control write");char c;do{if(read(ack_fd,&c,1)!=1)fail("perf ack read");}while(c!='\n');}
+
 static int tick_index;
 static void field(const char*name,const void*p,size_t n){
  const unsigned char*bytes=p;for(size_t i=0;i<n;i++)whole=(whole^bytes[i])*1099511628211ULL;
@@ -34,9 +39,9 @@ static void field(const char*name,const void*p,size_t n){
 #define FN(ret,name,args) ret(*name)args=(ret(*)args)sym(lib,"blaze_" #name)
 int main(int argc,char**argv){
  int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0;
- const char*mode="cpu",*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*work="idle",*libpath=NULL,*ckpt=NULL,*recpath=NULL,*refpath=NULL,*replaypath=NULL;
+ const char*mode="cpu",*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*work="idle",*libpath=NULL,*ckpt=NULL,*recpath=NULL,*refpath=NULL,*replaypath=NULL,*perfctl=NULL,*perfack=NULL;
  for(int i=1;i<argc;i++){if(i+1>=argc)fail("arguments require values");const char*k=argv[i],*v=argv[++i];
-  if(!strcmp(k,"--mode"))mode=v;else if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--work"))work=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))ckpt=v;else if(!strcmp(k,"--record"))recpath=v;else if(!strcmp(k,"--reference"))refpath=v;else if(!strcmp(k,"--replay"))replaypath=v;
+  if(!strcmp(k,"--mode"))mode=v;else if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--work"))work=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))ckpt=v;else if(!strcmp(k,"--record"))recpath=v;else if(!strcmp(k,"--reference"))refpath=v;else if(!strcmp(k,"--replay"))replaypath=v;else if(!strcmp(k,"--perf-control"))perfctl=v;else if(!strcmp(k,"--perf-ack"))perfack=v;
   else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else fail("unknown option");
  }
  int gpu=!strcmp(mode,"cuda"),hybrid=!strcmp(mode,"hybrid");
@@ -80,12 +85,14 @@ int main(int argc,char**argv){
  printf("BRIDGE delta=%d transfer_columns=hybrid_poststep_only policy_uses_host_ABI=1\n",delta);
  printf("DETAIL mobs=%d det_entity_rng=%d natural_spawn=0 op_trace=%d timing_excludes_reset=1 parity_capture=%d\n",mobs,mobs,op,record!=NULL||reference!=NULL);
  printf("step,env_ms,render_ms,pack_ms,policy_ms,reset_ms,total_ms,terminal_lanes,hybrid_poststep_h2d_bytes,hybrid_poststep_d2h_bytes\n");fflush(stdout);
+ if(perfctl||perfack){if(!perfctl||!perfack)fail("both perf fifo paths required");ctl_fd=open(perfctl,O_WRONLY);ack_fd=open(perfack,O_RDONLY);if(ctl_fd<0||ack_fd<0)fail("perf fifo open");}
  double sum=0;uint64_t terminals=0,subticks=0;
  for(int t=0;t<steps+warm;t++){
   if(profile&&t==warm&&cudaProfilerStart()!=cudaSuccess)fail("profiler start");
   double t0=now(),resetms=0,render_ms=0,packms=0,nnms=0;EnvCudaObsStats stats={0};
   int any=0;for(int i=0;i<n;i++){mask[i]=(t==0||t==warm||(t>warm&&(t-warm)%reset_every==0)||done[i]);any|=mask[i];}
   if(any){double a=now();if(reset(env,mask))fail("reset");for(int i=0;i<n;i++)if(mask[i]){have[i]=0;epdec[i]=0;}if(hybrid&&obs_reset(obs,mask))fail("reset observation cache");resetms=(now()-a)*1000;}
+  if(t==warm)perf_command("enable\n");
   memset(actions,0,(size_t)n*ENV_ACT*8);
   for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;a[9]=-1;a[10]=-1;if(strcmp(work,"idle")){a[0]=((t/8+i)%3)==0?0:1;a[2]=(t%8==0)?((i%2)?15:-15):0;a[4]=(t%9==0);if(!strcmp(work,"edit")){a[7]=1;a[8]=(t%11==0);}}}
   if(!strcmp(work,"boundary"))for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;memset(a,0,ENV_ACT*8);a[0]=1;a[9]=-1;a[10]=-1;}
@@ -100,6 +107,8 @@ int main(int argc,char**argv){
   if(t>=warm){sum+=total;terminals+=term;subticks+=(uint64_t)n*repeat;printf("%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%zu,%zu\n",t-warm,envms,render_ms,packms,nnms,resetms,total,term,stats.h2d_bytes,stats.d2h_bytes);fflush(stdout);}
   if(record||reference){tick_index=t;field("actions",actions,(size_t)n*ENV_ACT*8);field("cam",cam,pixels*2);field("depth",depth,pixels);field("edge",edge,pixels);field("scalars",scal,(size_t)n*ENV_SCAL*4);field("reward",rew,(size_t)n*4);field("done",done,n);field("pose",pose,(size_t)n*ENV_POSE*4);field("status",status,(size_t)n*ENV_STATUS*sizeof(int));for(int i=0;i<n;i++)if(parity_state(env,i,(char*)parity+(size_t)i*psize))fail("parity read");field("parity",parity,(size_t)n*psize);}
  }
+ perf_command("disable\n");
+ if(ctl_fd>=0){close(ctl_fd);close(ack_fd);}
  if(profile&&cudaProfilerStop()!=cudaSuccess)fail("profiler stop");
  if(reference&&fgetc(reference)!=EOF)fail("trailing reference data");
  struct rusage ru;getrusage(RUSAGE_SELF,&ru);
