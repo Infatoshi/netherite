@@ -23,10 +23,11 @@ static void *mem(size_t n,size_t z){void*p=calloc(n,z);if(!p)die("allocation");r
 static void *symbol(void*l,const char*s){void*p=dlsym(l,s);if(!p)die(dlerror());return p;}
 static void hash(uint64_t *h,const void*v,size_t n){const unsigned char*p=v;for(size_t i=0;i<n;i++)*h=(*h^p[i])*1099511628211ULL;}
 static int n=8,steps=32,warmup=4,repeat=4,threads=8,reset_every=64,policy=1,verify=1,overlap=0;
-static int work_move=0;
+static int work_move=0,mobs=0;
 static void*(*create_env)(int,int,const BlazeCreateOpts*);
 static void(*destroy_env)(void*);
 static int(*load_env)(void*,const char*const*,int,char*,int),(*assign_env)(void*,const int*),(*reset_env)(void*,const unsigned char*),(*success_env)(void*,int);
+static int(*set_mobs)(void*,int),(*set_rng)(void*,int);
 static int(*parity_state)(void*,int,void*),(*commit)(void*,const unsigned short*,const unsigned char*,const unsigned char*);
 static BlazeStepFullFn step_env;
 static EnvCudaObs*(*create_obs)(int,int,size_t,HybridCamInputsFn,HybridCamFreshFn);
@@ -49,6 +50,7 @@ static void init(Cohort*c,const char*fixture,HybridCamInputsFn inputs,HybridCamF
  BlazeCreateOpts o;blaze_create_opts_default(&o);c->env=create_env(0,n,&o);if(!c->env)die("create");
  char error[1024]={0};if(load_env(c->env,&fixture,1,error,sizeof error)!=1)die(error);
  int*assignment=mem(n,sizeof(int));c->mask=mem(n,1);memset(c->mask,1,n);
+ if(mobs&&(set_mobs(c->env,1)||set_rng(c->env,1)))die("enable mobs");
  if(assign_env(c->env,assignment)||success_env(c->env,0)||reset_env(c->env,c->mask))die("initial reset");
  free(assignment);
  size_t capacity=0;for(int e=0;e<n;e++){int x,y,z;if(inputs(c->env,e,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&x,&y,&z,NULL))die("dimensions");size_t k=(size_t)x*y*z;if(k>capacity)capacity=k;}
@@ -94,14 +96,14 @@ int main(int argc,char**argv){
  const char*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*libpath="out/blaze/env/blaze_cpu.so",*checkpoint=NULL;int delta=1;
  for(int i=1;i<argc;i++){if(i+1>=argc)die("argument value");const char*k=argv[i],*v=argv[++i];
   if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))checkpoint=v;
-  else if(!strcmp(k,"--cohort-n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warmup=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--verify"))verify=atoi(v);else if(!strcmp(k,"--overlap"))overlap=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--move"))work_move=atoi(v);else die("unknown option");
+  else if(!strcmp(k,"--cohort-n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warmup=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--verify"))verify=atoi(v);else if(!strcmp(k,"--overlap"))overlap=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--move"))work_move=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else die("unknown option");
  }
  if(n<1||n>4096||steps<1||warmup<0||repeat<1||threads<1||reset_every<1||(overlap<0||overlap>2))die("invalid config");
  omp_set_num_threads(threads);
  void*lib=dlopen(libpath,RTLD_NOW|RTLD_LOCAL);if(!lib)die(dlerror());
 #define LOAD(name,s) name=symbol(lib,s)
  tick_sum=(unsigned long long(*)(void*))dlsym(lib,"blaze_measure_tick_sum");
- LOAD(create_env,"blaze_create");LOAD(destroy_env,"blaze_destroy");LOAD(load_env,"blaze_load_snapshots");LOAD(assign_env,"blaze_assign");LOAD(reset_env,"blaze_reset");LOAD(success_env,"blaze_set_success_item");LOAD(step_env,"blaze_step_full_no_camera");LOAD(commit,"blaze_obs_cam_commit");LOAD(parity_state,"blaze_parity_state");int(*size_fn)(void)=symbol(lib,"blaze_parity_size");psize=size_fn();if(psize<1||psize>1000000)die("parity size");HybridCamInputsFn inputs=symbol(lib,"blaze_obs_cam_inputs");HybridCamFreshFn fresh=symbol(lib,"blaze_obs_cam_fresh");
+ LOAD(set_mobs,"blaze_set_mobs_enabled");LOAD(set_rng,"blaze_set_det_entity_rng");LOAD(create_env,"blaze_create");LOAD(destroy_env,"blaze_destroy");LOAD(load_env,"blaze_load_snapshots");LOAD(assign_env,"blaze_assign");LOAD(reset_env,"blaze_reset");LOAD(success_env,"blaze_set_success_item");LOAD(step_env,"blaze_step_full_no_camera");LOAD(commit,"blaze_obs_cam_commit");LOAD(parity_state,"blaze_parity_state");int(*size_fn)(void)=symbol(lib,"blaze_parity_size");psize=size_fn();if(psize<1||psize>1000000)die("parity size");HybridCamInputsFn inputs=symbol(lib,"blaze_obs_cam_inputs");HybridCamFreshFn fresh=symbol(lib,"blaze_obs_cam_fresh");
  void*bridge=dlopen("out/verify/architecture/env_cuda_obs.so",RTLD_NOW|RTLD_LOCAL);if(!bridge)die(dlerror());
  create_obs=symbol(bridge,"env_cuda_obs_create");reset_obs=symbol(bridge,"env_cuda_obs_reset");delta_obs=symbol(bridge,"env_cuda_obs_set_delta");render_obs=symbol(bridge,"env_cuda_obs_render");destroy_obs=symbol(bridge,"env_cuda_obs_destroy");
  init(cohort,fixture,inputs,fresh,delta);init(cohort+1,fixture,inputs,fresh,delta);

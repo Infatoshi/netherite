@@ -46,7 +46,7 @@ int main(int argc,char**argv){
  }
  int gpu=!strcmp(mode,"cuda"),hybrid=!strcmp(mode,"hybrid");
  if((!gpu&&!hybrid&&strcmp(mode,"cpu"))||n<1||n>4096||steps<1||warm<0||repeat<1||threads<1||reset_every<1)fail("invalid config");
- if(strcmp(work,"idle")&&strcmp(work,"move")&&strcmp(work,"edit")&&strcmp(work,"policy")&&strcmp(work,"boundary"))fail("invalid workload");
+ if(strcmp(work,"idle")&&strcmp(work,"move")&&strcmp(work,"edit")&&strcmp(work,"policy")&&strcmp(work,"boundary")&&strcmp(work,"mine")&&strcmp(work,"place"))fail("invalid workload");
  if(!strcmp(work,"policy")&&!policy)fail("policy workload requires --policy 1");
  omp_set_num_threads(threads);
  if(!libpath)libpath=gpu?"out/blaze/env/blaze_cuda.so":"out/blaze/env/blaze_cpu.so";
@@ -98,6 +98,7 @@ int main(int argc,char**argv){
   memset(actions,0,(size_t)n*ENV_ACT*8);
   for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;a[9]=-1;a[10]=-1;if(strcmp(work,"idle")){a[0]=((t/8+i)%3)==0?0:1;a[2]=(t%8==0)?((i%2)?15:-15):0;a[4]=(t%9==0);if(!strcmp(work,"edit")){a[7]=1;a[8]=(t%11==0);}}}
   if(!strcmp(work,"boundary"))for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;memset(a,0,ENV_ACT*8);a[0]=1;a[9]=-1;a[10]=-1;}
+  if(!strcmp(work,"mine")||!strcmp(work,"place"))for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;memset(a,0,ENV_ACT*8);a[9]=!strcmp(work,"place")?0:-1;a[10]=-1;a[7]=!strcmp(work,"mine");a[8]=!strcmp(work,"place")&&(t%2==0);}
   if(!strcmp(work,"policy")&&t>0)acts_to_rows(acts,n,actions);
   if(!strcmp(work,"policy"))for(int i=0;i<n;i++)if(mask[i]){double*a=actions+(size_t)i*ENV_ACT;memset(a,0,ENV_ACT*8);a[9]=-1;a[10]=-1;}
   if(replay_actions)memcpy(actions,replay_actions+(size_t)t*n*ENV_ACT,(size_t)n*ENV_ACT*8);
