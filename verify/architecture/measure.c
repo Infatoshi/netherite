@@ -11,6 +11,7 @@
 #include <omp.h>
 #include <sys/resource.h>
 #include <cuda_profiler_api.h>
+#include <cuda_runtime_api.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include "../../blaze/env/blaze_abi.h"
