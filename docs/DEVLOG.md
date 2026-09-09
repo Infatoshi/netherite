@@ -1,3 +1,55 @@
+## 2026-09-09 architecture measurements and capability mismatch
+
+Native tools under verify/architecture measure CPU, GPU monolithic, explicit GPU
+phases and CPU-to-CUDA observations. Fine pre-actions/player/after-player kernels
+retain all continuation outputs; a host Driver API shim varies scalar launch
+grain and optionally replays a CUDA Graph without another full simulation build.
+The hybrid has dense or changed-page uploads and a two-cohort overlap probe.
+No version switch or production default was promoted.
+
+The standard2058-action chain passed on64GPU lanes for patched monolithic and
+integrated split modes1/2, byte-exact BOLR plus required state digests each tick.
+Fine phases passed the two-lane2058-action production-step trace. CPU/hybrid and
+serial/overlap checks cover normal, generic mobs, fluids, placement, early
+boundary/death and host-only task/A* AI. Truncated references fail nonzero.
+
+Capability finding: deterministic Java-style task/A* AI is explicitly excluded
+from CUDA by !__CUDACC__ in blaze_core.h; CUDA has no det-entity setter. The
+ledger already lists mobs_det M2 as blocked. Three-way comparisons must use
+common generic AI; CPU task/A* versus hybrid is a separate comparison. A faster
+GPU run with a different AI algorithm would not be a valid result.
+
+Live Anvil is a24GiB RTX3090 with Ryzen9950X3D; NVCC is13.3.73 despite older
+toolchain path names. Original16ba096 GPU object compiled on Gamer in47m57.62s,
+maxRSS23044592KiB. Expanded object took roughly64min on Anvil. A fresh CPU
+environment library target took about10s. These are differing-scope/shared-host
+build observations, not a controlled compiler speedup ratio. Original GPU
+k_tick_warp has619816SASS instructions; expanded control640632, despite both
+using255registers/35824stack bytes. Keep the original runtime control.
+
+Same128-world64x128x64 case and CUDA policy, device used memory after one step:
+CPU sim/CPU obs420544512bytes; CPU sim/CUDA obs554762240; original CUDA sim/obs
+17489264640. Current CUDA stack configuration reserves15.375GiB by the source's
+device-wide formula. This is not an inherent per-environment memory need.
+NCU original tick:98.998%uniform branches but2.71active threads/warp instruction;
+camera14.91active threads. Fine player174registers with live edits, rather than
+the integrated phase's255. Lower registers alone did not establish occupancy.
+
+Warmed CPU task/A* profiling found46.07%of sampled cycles in mai_fill_pf and
+35.60%in oc_pixel; separate counter collection measured0.659%branch misses.
+The two-cohort changed-page capture scanned2GiB of CPU world state to upload
+2244608bytes of world/camera changes. This identifies avoidable handoff scanning,
+not a fundamental rejection of CPU/GPU partitioning.
+
+Clean throughput ranking is NOT complete: unrelated Anvil CPU jobs remained
+active throughout timing pilots. A quiet CPU window was requested; other jobs
+were not paused. Keep pilot-contended logs out of architecture recommendations.
+Full report and exact commands/profiles: out/verify/architecture/REPORT.txt and
+adjacent outputs on the Mac/owned Anvil worktree. Gamer's full legacy verifier
+assembly was stopped by the RAM guard after unrelated processes consumed memory;
+its original production measurement library remains complete. Anvil's full
+verification library completed and passed the chain checks.
+
 ## 2026-09-09 engine architecture and version-choice correction
 
 The user rejected migration distance as a foundation criterion. Supersede the

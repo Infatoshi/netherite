@@ -1,5 +1,40 @@
 # Architecture comparison measurements
 
+## Measurement checkpoint: clean throughput still blocked
+
+All measurement implementations now run. The original production object,
+patched monolithic control, integrated phases, live-output pure-player phases,
+launch grains and CUDA Graph replay have CPU-reference checks. The standard
+2058-action/64-lane production chain passed for monolithic and split modes1/2.
+Fine phases passed a2058-action two-lane production-step trace. CPU/hybrid and
+serial/overlap matched, including explicit boundary/death and host task/A* AI.
+
+Important capability correction: Java-style task/A* AI is host-only under
+!__CUDACC__ in blaze_core.h. CUDA has generic AI but no det-entity setter. Never
+compare host det-ai=1 against CUDA det-ai=0 as equivalent. Tools now separate
+--mobs and --det-ai and reject unsupported CUDA requests.
+
+Valid measured evidence is summarized in out/verify/architecture/REPORT.txt.
+At128worlds64x128x64 with the same CUDA policy, GPU used memory after one step
+was420544512bytes (CPU sim/CPU obs),554762240 (CPU sim/CUDA obs),17489264640
+(original CUDA sim/obs). The128KiB configured stack limit accounts for a
+15.375GiB reservation by the documented device-wide formula, not per-world size.
+NCU original tick:255regs,2.71active threads/warp instruction,98.998%uniform
+branches. Fine player174regs. Camera42regs/14.91active threads. CPU task/A*
+profile:46.07%sampled cycles grid prep,35.60%observation rays;0.659%branch misses
+in the separate warmed counter run. These are diagnostics, not throughput ranks.
+
+The changed-page bridge's32x2cohort capture scanned2GiB to send2244608bytes of
+world/camera updates. Its current full shadow scan must not be mistaken for an
+optimized mutation journal. Policy packing still uses host pointers.
+
+Clean end-to-end ranking remains incomplete. Anvil's unrelated CPU jobs remained
+active; a quiet window was requested asynchronously, with no approval received
+to pause those jobs. pilot-contended contains screening only, not publishable
+speed comparisons. Do not promote a default based on those logs. Resume by
+running interleaved repeated common-feature sweeps on an uncontended Anvil.
+No game version or production default was changed. All work is isolated here.
+
 ## Active request, 2026-09-09
 
 User authorized sustained measurements of all three candidate architectures and
