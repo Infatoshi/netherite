@@ -942,7 +942,7 @@ int blaze_reset(void *vh, const unsigned char *mask) {
 /* blaze_step + an optional int32[n][CU_STATUS_K] status readout (the 9
  * rl_inv_ids counts, hotbar_sel, held item id, container) - everything the
  * milestone-chain trainer needs. status may be NULL (== legacy blaze_step). */
-int blaze_step_full(void *vh, const double *actions, int repeat,
+static int blaze_step_full_impl(int render_camera, void *vh, const double *actions, int repeat,
                     unsigned short *cam, unsigned char *depth,
                     unsigned char *edge, float *scal, float *rew,
                     unsigned char *done, float *pose, int *status) {
@@ -954,8 +954,11 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
         Blaze *e = &v->envs[i];
         McAABB *blocks = v->blocks + (size_t)i * PSV_MAX_BLOCKS;
         blaze_decision_ticks(e, &v->st, &actions[i * BLAZE_ACT_HEADS], repeat,
-                             blocks, 1, v->atk_gate, v->recipes,
+                             blocks, render_camera, v->atk_gate, v->recipes,
                              v->nrecipes);
+        /* Finalize uses the crosshair for reward, even in hybrid mode. */
+        if (!render_camera && e->dec_cam_fresh)
+            blaze_render_cam_pixel(e, &v->st, 18 * CU_CAM_W + 32);
         if (cam)   memcpy(cam + (size_t)i * CU_NPIX, e->cam,
                           CU_NPIX * sizeof *cam);
         if (depth) memcpy(depth + (size_t)i * CU_NPIX, e->dep, CU_NPIX);
@@ -971,6 +974,23 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
     for (i = 0; i < v->n; ++i)
         if (v->envs[i].dimension_error) return -1;
     return 0;
+}
+
+/* Measurement export: omit bulk CPU rays, preserve reward crosshair. */
+int blaze_step_full_no_camera(void *vh, const double *actions, int repeat,
+ unsigned short *cam, unsigned char *depth, unsigned char *edge, float *scal,
+ float *rew, unsigned char *done, float *pose, int *status) {
+ (void)cam; (void)depth; (void)edge;
+ return blaze_step_full_impl(0,vh,actions,repeat,NULL,NULL,NULL,scal,rew,done,pose,status);
+}
+int blaze_obs_cam_fresh(void *vh, int env) {
+ CuVec *v=(CuVec*)vh;
+ return (!v || env<0 || env>=v->n) ? -1 : v->envs[env].dec_cam_fresh;
+}
+int blaze_step_full(void *vh, const double *actions, int repeat,
+ unsigned short *cam, unsigned char *depth, unsigned char *edge, float *scal,
+ float *rew, unsigned char *done, float *pose, int *status) {
+ return blaze_step_full_impl(1,vh,actions,repeat,cam,depth,edge,scal,rew,done,pose,status);
 }
 
 int blaze_step(void *vh, const double *actions, int repeat,
