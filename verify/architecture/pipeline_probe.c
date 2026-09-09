@@ -106,6 +106,7 @@ int main(int argc,char**argv){
  create_obs=symbol(bridge,"env_cuda_obs_create");reset_obs=symbol(bridge,"env_cuda_obs_reset");delta_obs=symbol(bridge,"env_cuda_obs_set_delta");render_obs=symbol(bridge,"env_cuda_obs_render");destroy_obs=symbol(bridge,"env_cuda_obs_destroy");
  init(cohort,fixture,inputs,fresh,delta);init(cohort+1,fixture,inputs,fresh,delta);
  if(policy){NnCreate d={NN_BACKEND_CUDA,0,n,nn_config_default(),NN_PREC_FAST};nn=nn_create(&d);if(!nn)die(nn_last_error());if(checkpoint&&rl_ckpt_load(nn,checkpoint))die(nn_last_error());if(nn_prepare_n(nn,n)||nn_seal(nn))die(nn_last_error());}
+ uint64_t reference_digest[2]={0},reference_policy[2]={0};
  int selected_mode=overlap;
  for(int run=0;run<(selected_mode==2?2:1);run++){overlap=selected_mode==2?run:selected_mode;
  for(int t=0;t<warmup;t++)for(int k=0;k<2;k++){cpu(cohort+k,t);gpu(cohort+k);}
@@ -116,7 +117,12 @@ int main(int argc,char**argv){
  else for(int t=0;t<steps;t++)for(int k=0;k<2;k++){cpu(cohort+k,t);gpu(cohort+k);}
  double elapsed=now()-start;printf("RESULT elapsed_s=%.9f decisions_per_s=%.9f total_decisions=%d\n",elapsed,2.0*n*steps/elapsed,2*n*steps);
  for(int k=0;k<2;k++){Cohort*c=cohort+k;printf("COHORT id=%d digest=%016llx policy_digest=%016llx cpu_s=%.9f gpu_stage_s=%.9f scan_pack_s=%.9f upload_s=%.9f kernel_s=%.9f download_s=%.9f h2d_bytes=%llu d2h_bytes=%llu terminals=%llu nominal_ticks=%llu actual_ticks=%lld\n",k,(unsigned long long)c->digest,(unsigned long long)c->policy_digest,c->cpu_s,c->gpu_s,c->pack_s,c->upload_s,c->kernel_s,c->download_s,(unsigned long long)c->h2d,(unsigned long long)c->d2h,(unsigned long long)c->terminals,(unsigned long long)n*steps*repeat,tick_sum?(long long)c->actual_ticks:-1LL);}
+  if(selected_mode==2 && verify)for(int k=0;k<2;k++) {
+   if(!run){reference_digest[k]=cohort[k].digest;reference_policy[k]=cohort[k].policy_digest;}
+   else if(reference_digest[k]!=cohort[k].digest || reference_policy[k]!=cohort[k].policy_digest)die("serial/overlap digest mismatch");
+  }
  }
+ if(selected_mode==2 && verify)puts("PARITY serial_overlap_exact=1 includes=observations_fullstate_policy");
  for(int k=0;k<2;k++){destroy_obs(cohort[k].obs);destroy_env(cohort[k].env);}
  if(nn)nn_destroy(nn);
  return 0;
