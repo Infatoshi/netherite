@@ -16,6 +16,9 @@ static CUmodule module;
 static CUfunction fun[NK];
 static CuVecCu *owner;
 static int grain;
+static CUmodule fine_module[3];
+static CUfunction fine_fun[3];
+static CuAction *fine_actions;
 static int ck(CUresult r, const char *what) {
     if (r == CUDA_SUCCESS) return 0;
     const char *msg = NULL;
@@ -27,12 +30,20 @@ static int launch(int k, unsigned blocks, unsigned threads, void **args) {
     return ck(cuLaunchKernel(fun[k], blocks, 1, 1, threads, 1, 1, 0,
                             (CUstream)owner->stream, args, NULL), names[k]);
 }
+static void release_fine(void) {
+    cudaFree(fine_actions); fine_actions = NULL;
+    for (int i = 0; i < 3; ++i) {
+        if (fine_module[i]) cuModuleUnload(fine_module[i]);
+        fine_module[i] = NULL; fine_fun[i] = NULL;
+    }
+}
 extern "C" int blaze_driver_release(void) {
     if (!module) return 0;
     if (owner && cu_ck(cudaSetDevice(owner->device), "driver release device"))
         return -1;
     if (owner && cu_ck(cudaStreamSynchronize(owner->stream), "driver release sync"))
         return -1;
+    release_fine();
     int rc = ck(cuModuleUnload(module), "module unload");
     module = NULL; owner = NULL; memset(fun, 0, sizeof fun);
     return rc;
@@ -75,6 +86,29 @@ bad:
     blaze_driver_release(); return -1;
 }
 
+/* Optional finer player boundary, after base configure and mode2 selection.
+ * Calls execute the exact pre-actions/player/hazards sequence in three kernels.
+ * Inputs are separately compiled cubins, never a source/runtime compiler. */
+extern "C" int blaze_driver_configure_fine(const char *pre, const char *pure,
+                                           const char *after) {
+    if (!owner || !module || owner->measure_split != 2 || !pre || !pure || !after)
+        return -1;
+    if (cu_ck(cudaSetDevice(owner->device), "fine device") ||
+        cu_ck(cudaStreamSynchronize(owner->stream), "fine sync")) return -1;
+    release_fine();
+    const char *paths[3] = {pre, pure, after};
+    const char *symbols[3] = {"measure_pre_actions", "measure_pure_player",
+                              "measure_after_player"};
+    for (int i = 0; i < 3; ++i) {
+        if (ck(cuModuleLoad(&fine_module[i], paths[i]), "fine module") ||
+            ck(cuModuleGetFunction(&fine_fun[i], fine_module[i], symbols[i]),
+               symbols[i])) { release_fine(); return -1; }
+    }
+    if (cu_ck(cudaMalloc(&fine_actions, (size_t)owner->n * sizeof(CuAction)),
+              "fine action continuation")) { release_fine(); return -1; }
+    return 0;
+}
+
 extern "C" int blaze_driver_step_full(void *env, const double *actions, int repeat,
     unsigned short *cam, unsigned char *depth, unsigned char *edge, float *scal,
     float *rew, unsigned char *done, float *pose, int *status) {
@@ -97,7 +131,17 @@ extern "C" int blaze_driver_step_full(void *env, const double *actions, int repe
         void *pre[] = {&v->d_envs, &n, &v->d_st, &actions, &rep, &v->d_aabb,
                        &v->d_split_exec, &v->d_split_player};
         if (v->measure_split == 2) {
-            if (launch(PLAYER, nb, grain, pre)) return -1;
+            if (fine_actions) {
+                void *before[] = {&v->d_envs, &n, &v->d_st, &actions, &rep,
+                                   &fine_actions, &v->d_split_exec};
+                void *pure[] = {&v->d_envs, &n, &v->d_st, &fine_actions,
+                                 &v->d_aabb, &v->d_split_player, &v->d_split_exec};
+                void *after[] = {&v->d_envs, &n, &v->d_split_exec};
+                void **params[3] = {before, pure, after};
+                for (int j = 0; j < 3; ++j)
+                    if (ck(cuLaunchKernel(fine_fun[j], nb, 1, 1, grain, 1, 1,
+                        0, (CUstream)v->stream, params[j], NULL), "fine player")) return -1;
+            } else if (launch(PLAYER, nb, grain, pre)) return -1;
             void *world[] = {&v->d_envs, &n, &v->d_split_exec, &v->d_split_player};
             if (launch(WORLD, nb, grain, world)) return -1;
         } else if (launch(PRE, nb, grain, pre)) return -1;
