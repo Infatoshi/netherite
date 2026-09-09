@@ -6,6 +6,7 @@
 #include <cuda.h>
 #include <cxxabi.h>
 #include <vector>
+#include <cstdint>
 
 enum { BEGIN, RECENTER, PRE, PLAYER, WORLD, RANDOM, POST, REWARD, OBS, FINAL,
        DIMENSION, NK };
@@ -19,6 +20,26 @@ static int grain;
 static CUmodule fine_module[3];
 static CUfunction fine_fun[3];
 static CuAction *fine_actions;
+static int graph_enabled;
+static cudaGraph_t graph;
+static cudaGraphExec_t graph_exec;
+static uint64_t graph_key[40];
+static unsigned long long graph_builds;
+static void release_graph(void) {
+    if (graph_exec) cudaGraphExecDestroy(graph_exec);
+    if (graph) cudaGraphDestroy(graph);
+    graph_exec = NULL; graph = NULL;
+    memset(graph_key, 0, sizeof graph_key);
+}
+extern "C" int blaze_driver_set_graph(int enabled) {
+    if (!owner || (enabled != 0 && enabled != 1)) return -1;
+    if (cu_ck(cudaSetDevice(owner->device), "graph device") ||
+        cu_ck(cudaStreamSynchronize(owner->stream), "graph configure sync")) return -1;
+    release_graph(); graph_enabled = enabled;
+    return 0;
+}
+extern "C" unsigned long long blaze_driver_graph_builds(void) { return graph_builds; }
+
 static int ck(CUresult r, const char *what) {
     if (r == CUDA_SUCCESS) return 0;
     const char *msg = NULL;
@@ -31,6 +52,7 @@ static int launch(int k, unsigned blocks, unsigned threads, void **args) {
                             (CUstream)owner->stream, args, NULL), names[k]);
 }
 static void release_fine(void) {
+    release_graph();
     cudaFree(fine_actions); fine_actions = NULL;
     for (int i = 0; i < 3; ++i) {
         if (fine_module[i]) cuModuleUnload(fine_module[i]);
@@ -46,11 +68,12 @@ extern "C" int blaze_driver_release(void) {
     release_fine();
     int rc = ck(cuModuleUnload(module), "module unload");
     module = NULL; owner = NULL; memset(fun, 0, sizeof fun);
+    graph_enabled = 0; graph_builds = 0;
     return rc;
 }
 extern "C" int blaze_driver_configure(void *env, const char *cubin, int scalar_tpb) {
     CuVecCu *v = (CuVecCu *)env;
-    if (!v || !cubin || (scalar_tpb != 1 && scalar_tpb != 32 && scalar_tpb != 128)
+    if (!v || !cubin || (scalar_tpb < 1 || scalar_tpb > 128 || (scalar_tpb & (scalar_tpb - 1)))
         || (v->measure_split != 1 && v->measure_split != 2)
         || !v->d_split_exec || (v->measure_split == 2 && !v->d_split_player)) return -1;
     if (blaze_driver_release()) return -1;
@@ -120,6 +143,7 @@ extern "C" int blaze_driver_step_full(void *env, const double *actions, int repe
     unsigned nb = (n + grain - 1) / grain;
     unsigned nw = (unsigned)(((size_t)n * 32 + 127) / 128);
     unsigned np = (unsigned)(((size_t)n * CU_NPIX + 127) / 128);
+    auto enqueue = [&]() -> int {
     const double *inv = NULL;
     if (v->ktime) cudaEventRecord(v->ev[0], v->stream);
     void *begin[] = {&v->d_envs, &n, &v->d_st, &actions, &v->d_recipes,
@@ -160,7 +184,45 @@ extern "C" int blaze_driver_step_full(void *env, const double *actions, int repe
                      &v->atk_gate, &status};
     if (launch(FINAL, (n + 127) / 128, 128, final)) return -1;
     if (v->ktime) cudaEventRecord(v->ev[3], v->stream);
+    return 0;
+    };
+    if (graph_enabled) {
+        /* Every captured by-value argument and launch/config choice is keyed.
+         * Mutable simulation/observation CONTENTS are intentionally not keyed.
+         * Changed addresses/repeat/mode/recipe count/reward gate rebuild before
+         * execution. Fine/module reconfiguration also destroys this cache. */
+        uint64_t gate_bits;
+        memcpy(&gate_bits, &v->atk_gate, sizeof gate_bits);
+        uint64_t key[40] = {
+            (uint64_t)repeat, (uint64_t)n, (uint64_t)v->measure_split,
+            (uint64_t)grain, (uint64_t)v->nrecipes, (uint64_t)v->ktime, gate_bits,
+            (uintptr_t)v, (uintptr_t)v->stream,
+            (uintptr_t)v->d_envs, (uintptr_t)v->d_st, (uintptr_t)v->d_recipes,
+            (uintptr_t)v->d_aabb, (uintptr_t)v->d_split_exec,
+            (uintptr_t)v->d_split_player, (uintptr_t)fine_actions,
+            (uintptr_t)actions, (uintptr_t)cam, (uintptr_t)depth,
+            (uintptr_t)edge, (uintptr_t)scal, (uintptr_t)rew, (uintptr_t)done,
+            (uintptr_t)pose, (uintptr_t)status, (uintptr_t)v->ev[0],
+            (uintptr_t)v->ev[1], (uintptr_t)v->ev[2], (uintptr_t)v->ev[3]
+        };
+        if (!graph_exec || memcmp(key, graph_key, sizeof key)) {
+            release_graph();
+            if (cu_ck(cudaStreamBeginCapture(v->stream, cudaStreamCaptureModeThreadLocal),
+                      "graph capture begin")) return -1;
+            int rc = enqueue();
+            cudaError_t ended = cudaStreamEndCapture(v->stream, &graph);
+            if (rc || cu_ck(ended, "graph capture end")) {
+                release_graph(); return -1;
+            }
+            if (cu_ck(cudaGraphInstantiate(&graph_exec, graph, NULL, NULL, 0),
+                      "graph instantiate")) { release_graph(); return -1; }
+            memcpy(graph_key, key, sizeof key);
+            ++graph_builds;
+        }
+        if (cu_ck(cudaGraphLaunch(graph_exec, v->stream), "graph launch")) return -1;
+    } else if (enqueue()) return -1;
     if (cu_ck(cudaStreamSynchronize(v->stream), "driver step")) return -1;
+
     if (v->ktime) {
         float ms;
         cudaEventElapsedTime(&ms, v->ev[0], v->ev[1]); v->ms_tick += ms;
