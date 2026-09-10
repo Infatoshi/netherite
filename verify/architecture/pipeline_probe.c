@@ -27,6 +27,7 @@ static void *symbol(void*l,const char*s){void*p=dlsym(l,s);if(!p)die(dlerror());
 static void hash(uint64_t *h,const void*v,size_t n){const unsigned char*p=v;for(size_t i=0;i<n;i++)*h=(*h^p[i])*1099511628211ULL;}
 static int n=8,steps=32,warmup=4,repeat=4,threads=8,reset_every=64,policy=1,verify=1,overlap=0;
 static int work_move=0,mobs=0,det_ai=0,profile=0,profile_active=0;
+static double *frozen_actions;
 static void*(*create_env)(int,int,const BlazeCreateOpts*);
 static void(*destroy_env)(void*);
 static int(*load_env)(void*,const char*const*,int,char*,int),(*assign_env)(void*,const int*),(*reset_env)(void*,const unsigned char*),(*success_env)(void*,int);
@@ -44,7 +45,7 @@ typedef struct {
  unsigned short*cam;unsigned char*depth,*edge,*done,*mask,*have,*planes,*prior,*scratch;
  float*scal,*rew,*pose,*scalars,*logits,*values,*logp;
  int*status,*epdec;int32_t*acts;double*actions;void*parity;
- uint64_t digest,policy_digest,h2d,d2h,terminals,actual_ticks;double cpu_s,gpu_s,pack_s,upload_s,kernel_s,download_s;
+ uint64_t digest,policy_digest,sample_digest,h2d,d2h,terminals,actual_ticks;double cpu_s,gpu_s,pack_s,upload_s,kernel_s,download_s;
 } Cohort;
 static Cohort cohort[2];
 static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
@@ -62,18 +63,19 @@ static void init(Cohort*c,const char*fixture,HybridCamInputsFn inputs,HybridCamF
  size_t pixels=(size_t)n*ENV_NPIX;c->cam=mem(pixels,2);c->depth=mem(pixels,1);c->edge=mem(pixels,1);c->done=mem(n,1);c->have=mem(n,1);
  c->scal=mem((size_t)n*ENV_SCAL,4);c->rew=mem(n,4);c->pose=mem((size_t)n*ENV_POSE,4);c->status=mem((size_t)n*ENV_STATUS,sizeof(int));c->epdec=mem(n,sizeof(int));c->actions=mem((size_t)n*ENV_ACT,8);
  c->planes=mem(pixels*ENV_N_CH,1);c->prior=mem(pixels*ENV_N_PLANES,1);c->scratch=mem(pixels*ENV_N_PLANES,1);c->scalars=mem((size_t)n*POL_SCAL,4);
- c->logits=mem((size_t)n*34,4);c->values=mem(n,4);c->logp=mem(n,4);c->acts=mem((size_t)n*POL_HEADS,4);c->parity=mem(n,psize);c->digest=c->policy_digest=1469598103934665603ULL;
+ c->logits=mem((size_t)n*34,4);c->values=mem(n,4);c->logp=mem(n,4);c->acts=mem((size_t)n*POL_HEADS,4);c->parity=mem(n,psize);c->digest=c->policy_digest=c->sample_digest=1469598103934665603ULL;
 }
 static void cpu(Cohort*c,int t){
  if(profile_active)nvtxRangePushA(c==cohort?"CPU cohort 0":"CPU cohort 1");
  double start=now();int any=0;
- for(int e=0;e<n;e++){c->mask[e]=(t%reset_every==0)||c->done[e];any|=c->mask[e];if(c->mask[e]){c->have[e]=0;c->epdec[e]=0;}}
+ for(int e=0;e<n;e++){c->mask[e]=(t==0||(t>0&&t%reset_every==0))||c->done[e];any|=c->mask[e];if(c->mask[e]){c->have[e]=0;c->epdec[e]=0;}}
  if(any&&reset_env(c->env,c->mask))die("CPU reset");
  memset(c->actions,0,(size_t)n*ENV_ACT*8);
- for(int e=0;e<n;e++){double*a=c->actions+(size_t)e*ENV_ACT;a[9]=-1;a[10]=-1;if(work_move){a[0]=(t/8+e)%3?1:0;a[2]=t%8?0:((e%2)?15:-15);a[4]=t%9==0;}}
- unsigned long long before=tick_sum?tick_sum(c->env):0;
+ for(int e=0;e<n;e++){double*a=c->actions+(size_t)e*ENV_ACT;a[9]=-1;a[10]=-1;if(work_move){int global_e=e+(int)(c-cohort)*n;a[0]=(t/8+global_e)%3?1:0;a[2]=t%8?0:((global_e%2)?15:-15);a[4]=t%9==0;}}
+ if(frozen_actions)memcpy(c->actions,frozen_actions+((size_t)t*2*n+(size_t)(c-cohort)*n)*ENV_ACT,(size_t)n*ENV_ACT*sizeof(double));
+ unsigned long long before=tick_sum(c->env);
  if(step_env(c->env,c->actions,repeat,NULL,NULL,NULL,c->scal,c->rew,c->done,c->pose,c->status))die("CPU step");
- if(tick_sum)c->actual_ticks+=tick_sum(c->env)-before;
+ c->actual_ticks+=tick_sum(c->env)-before;
  c->cpu_s+=now()-start;
  if(profile_active)nvtxRangePop();
 }
@@ -85,15 +87,17 @@ static void gpu(Cohort*c){
  if(render_obs(c->obs,c->env,0,c->cam,c->depth,c->edge,&stats)||commit(c->env,c->cam,c->depth,c->edge))die("render/commit");
  pack_obs(c->cam,c->depth,c->edge,c->scal,c->pose,c->status,c->epdec,1500,c->have,c->prior,n,c->planes,c->scalars,c->scratch);
  memcpy(c->prior,c->scratch,(size_t)n*ENV_N_PLANES*ENV_NPIX);for(int e=0;e<n;e++)c->have[e]=1;for(int e=0;e<n;e++)c->epdec[e]++;
- if(policy&&(nn_forward(nn,c->planes,c->scalars,n,c->logits,c->values)||nn_sample(nn,c->logits,n,NN_SAMPLE_GREEDY,c->acts,c->logp,NULL)))die(nn_last_error());
+ if(policy&&(nn_forward(nn,c->planes,c->scalars,n,c->logits,c->values)||nn_sample(nn,c->logits,n,NN_SAMPLE_GUMBEL,c->acts,c->logp,NULL)))die(nn_last_error());
  c->gpu_s+=now()-start;c->pack_s+=stats.pack_ms*.001;c->upload_s+=stats.upload_ms*.001;c->kernel_s+=stats.kernel_ms*.001;c->download_s+=stats.download_ms*.001;c->h2d+=stats.h2d_bytes;c->d2h+=stats.d2h_bytes;
  for(int e=0;e<n;e++)c->terminals+=c->done[e]!=0;
  if(profile_active)nvtxRangePop();
  /* Digest cost is outside GPU stage but inside total when --verify=1. */
  if(verify){size_t pixels=(size_t)n*ENV_NPIX;
+  hash(&c->digest,c->actions,(size_t)n*ENV_ACT*sizeof(double));
+  hash(&c->digest,c->scal,(size_t)n*ENV_SCAL*sizeof(float));hash(&c->digest,c->pose,(size_t)n*ENV_POSE*sizeof(float));
   hash(&c->digest,c->cam,pixels*2);hash(&c->digest,c->depth,pixels);hash(&c->digest,c->edge,pixels);hash(&c->digest,c->rew,n*4);hash(&c->digest,c->done,n);hash(&c->digest,c->status,(size_t)n*ENV_STATUS*sizeof(int));
   for(int e=0;e<n;e++){if(parity_state(c->env,e,(char*)c->parity+(size_t)e*psize))die("parity");}hash(&c->digest,c->parity,(size_t)n*psize);
-  if(policy){hash(&c->policy_digest,c->logits,(size_t)n*34*4);hash(&c->policy_digest,c->values,n*4);hash(&c->policy_digest,c->acts,(size_t)n*POL_HEADS*4);}
+  if(policy){hash(&c->policy_digest,c->logits,(size_t)n*34*4);hash(&c->policy_digest,c->values,n*4);hash(&c->sample_digest,c->acts,(size_t)n*POL_HEADS*4);}
  }
 }
 static void *worker(void*unused){(void)unused;omp_set_num_threads(threads);
@@ -101,16 +105,24 @@ static void *worker(void*unused){(void)unused;omp_set_num_threads(threads);
  return NULL;
 }
 int main(int argc,char**argv){
- const char*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*libpath="out/blaze/env/blaze_cpu.so",*checkpoint=NULL;int delta=1;
+ const char*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*libpath="out/blaze/env/blaze_cpu.so",*checkpoint=NULL,*rows_path=NULL;int delta=1;
  for(int i=1;i<argc;i++){if(i+1>=argc)die("argument value");const char*k=argv[i],*v=argv[++i];
-  if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))checkpoint=v;
+  if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))checkpoint=v;else if(!strcmp(k,"--action-rows"))rows_path=v;
   else if(!strcmp(k,"--cohort-n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warmup=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--verify"))verify=atoi(v);else if(!strcmp(k,"--overlap"))overlap=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--move"))work_move=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--det-ai"))det_ai=atoi(v);else die("unknown option");
  }
  if(n<1||n>4096||steps<1||warmup<0||repeat<1||threads<1||reset_every<1||(overlap<0||overlap>2)||(profile!=0&&profile!=1))die("invalid config");
  omp_set_num_threads(threads);
+ if(rows_path){
+  FILE*f=fopen(rows_path,"rb");uint32_t h[4];
+  if(!f||fread(h,1,sizeof h,f)!=sizeof h||h[0]!=0x41524f57||h[1]!=1||h[2]!=(uint32_t)(steps+warmup)||h[3]!=(uint32_t)(2*n))die("action rows header: expected total_envs=2*cohort_n");
+  size_t count=(size_t)(steps+warmup)*2*n*ENV_ACT;
+  frozen_actions=mem(count,sizeof(double));
+  if(fread(frozen_actions,sizeof(double),count,f)!=count||fgetc(f)!=EOF)die("action rows length");
+  fclose(f);
+ }
  void*lib=dlopen(libpath,RTLD_NOW|RTLD_LOCAL);if(!lib)die(dlerror());
 #define LOAD(name,s) name=symbol(lib,s)
- tick_sum=(unsigned long long(*)(void*))dlsym(lib,"blaze_measure_tick_sum");
+ tick_sum=(unsigned long long(*)(void*))symbol(lib,"blaze_measure_tick_sum");
  LOAD(set_mobs,"blaze_set_mobs_enabled");LOAD(set_rng,"blaze_set_det_entity_rng");LOAD(create_env,"blaze_create");LOAD(destroy_env,"blaze_destroy");LOAD(load_env,"blaze_load_snapshots");LOAD(assign_env,"blaze_assign");LOAD(reset_env,"blaze_reset");LOAD(success_env,"blaze_set_success_item");LOAD(step_env,"blaze_step_full_no_camera");LOAD(commit,"blaze_obs_cam_commit");LOAD(parity_state,"blaze_parity_state");int(*size_fn)(void)=symbol(lib,"blaze_parity_size");psize=size_fn();if(psize<1||psize>1000000)die("parity size");HybridCamInputsFn inputs=symbol(lib,"blaze_obs_cam_inputs");HybridCamFreshFn fresh=symbol(lib,"blaze_obs_cam_fresh");
  void*bridge=dlopen("out/verify/architecture/env_cuda_obs.so",RTLD_NOW|RTLD_LOCAL);if(!bridge)die(dlerror());
  create_obs=symbol(bridge,"env_cuda_obs_create");reset_obs=symbol(bridge,"env_cuda_obs_reset");delta_obs=symbol(bridge,"env_cuda_obs_set_delta");render_obs=symbol(bridge,"env_cuda_obs_render");destroy_obs=symbol(bridge,"env_cuda_obs_destroy");
@@ -121,8 +133,9 @@ int main(int argc,char**argv){
  int selected_mode=overlap;
  for(int run=0;run<(selected_mode==2?2:1);run++){overlap=selected_mode==2?run:selected_mode;
  for(int t=0;t<warmup;t++)for(int k=0;k<2;k++){cpu(cohort+k,t);gpu(cohort+k);}
- for(int k=0;k<2;k++){Cohort*c=cohort+k;c->digest=c->policy_digest=1469598103934665603ULL;c->h2d=c->d2h=c->terminals=c->actual_ticks=0;c->cpu_s=c->gpu_s=c->pack_s=c->upload_s=c->kernel_s=c->download_s=0;}
- printf("CONFIG cohorts=2 cohort_n=%d total_envs=%d overlap=%d steps=%d repeat=%d threads=%d delta=%d policy=%d verify=%d reset_every=%d move=%d action_source=scripted warmup=%d\n",n,2*n,overlap,steps,repeat,threads,delta,policy,verify,reset_every,work_move,warmup);fflush(stdout);
+ for(int k=0;k<2;k++){Cohort*c=cohort+k;c->digest=c->policy_digest=c->sample_digest=1469598103934665603ULL;c->h2d=c->d2h=c->terminals=c->actual_ticks=0;c->cpu_s=c->gpu_s=c->pack_s=c->upload_s=c->kernel_s=c->download_s=0;}
+ printf("CONFIG cohorts=2 cohort_n=%d total_envs=%d overlap=%d steps=%d repeat=%d threads=%d delta=%d policy=%d verify=%d reset_every=%d move=%d action_source=%s warmup=%d\n",n,2*n,overlap,steps,repeat,threads,delta,policy,verify,reset_every,work_move,rows_path?"frozen_rows":"scripted",warmup);fflush(stdout);
+ printf("CONTRACT action_source=%s action_rows_envs=%d sampler=gumbel sampled_actions_drive_sim=0 optimizer_updates=0 reset_inclusive=1 det_ai=%d policy_calls_per_pass=%d verification_in_elapsed=%d\n",rows_path?"frozen_rows":"scripted",2*n,det_ai,policy?2*steps:0,verify);
  printf("PROFILE enabled=%d ranges=measured_pass_cpu_cohort_gpu_stage_cohort\n",profile);
  if(profile){if(cudaProfilerStart()!=cudaSuccess)die("profiler start");profile_active=1;nvtxRangePushA(overlap?"measured overlap":"measured serial");}
  double start=now();pthread_t thread;
@@ -131,14 +144,15 @@ int main(int argc,char**argv){
  double elapsed=now()-start;
  if(profile){nvtxRangePop();profile_active=0;if(cudaProfilerStop()!=cudaSuccess)die("profiler stop");}
  printf("RESULT elapsed_s=%.9f decisions_per_s=%.9f total_decisions=%d\n",elapsed,2.0*n*steps/elapsed,2*n*steps);
- for(int k=0;k<2;k++){Cohort*c=cohort+k;printf("COHORT id=%d digest=%016llx policy_digest=%016llx cpu_s=%.9f gpu_stage_s=%.9f scan_pack_s=%.9f upload_s=%.9f kernel_s=%.9f download_s=%.9f h2d_bytes=%llu d2h_bytes=%llu terminals=%llu nominal_ticks=%llu actual_ticks=%lld\n",k,(unsigned long long)c->digest,(unsigned long long)c->policy_digest,c->cpu_s,c->gpu_s,c->pack_s,c->upload_s,c->kernel_s,c->download_s,(unsigned long long)c->h2d,(unsigned long long)c->d2h,(unsigned long long)c->terminals,(unsigned long long)n*steps*repeat,tick_sum?(long long)c->actual_ticks:-1LL);}
+ for(int k=0;k<2;k++){Cohort*c=cohort+k;printf("COHORT id=%d digest=%016llx policy_digest=%016llx sampled_digest=%016llx cpu_s=%.9f gpu_stage_s=%.9f scan_pack_s=%.9f upload_s=%.9f kernel_s=%.9f download_s=%.9f h2d_bytes=%llu d2h_bytes=%llu terminals=%llu nominal_ticks=%llu actual_ticks=%lld\n",k,(unsigned long long)c->digest,(unsigned long long)c->policy_digest,(unsigned long long)c->sample_digest,c->cpu_s,c->gpu_s,c->pack_s,c->upload_s,c->kernel_s,c->download_s,(unsigned long long)c->h2d,(unsigned long long)c->d2h,(unsigned long long)c->terminals,(unsigned long long)n*steps*repeat,tick_sum?(long long)c->actual_ticks:-1LL);}
   if(selected_mode==2 && verify)for(int k=0;k<2;k++) {
    if(!run){reference_digest[k]=cohort[k].digest;reference_policy[k]=cohort[k].policy_digest;}
    else if(reference_digest[k]!=cohort[k].digest || reference_policy[k]!=cohort[k].policy_digest)die("serial/overlap digest mismatch");
   }
  }
- if(selected_mode==2 && verify)puts("PARITY serial_overlap_exact=1 includes=observations_fullstate_policy");
+ if(selected_mode==2 && verify)puts("PARITY serial_overlap_exact=1 includes=actions_observations_fullstate_policy_logits_values excludes=stochastic_samples");
  for(int k=0;k<2;k++){destroy_obs(cohort[k].obs);destroy_env(cohort[k].env);}
+ free(frozen_actions);
  if(nn)nn_destroy(nn);
  return 0;
 }

@@ -1,5 +1,43 @@
 # Architecture comparison measurements
 
+## Overnight goal, 2026-09-10
+
+User explicitly activated sustained overnight pursuit of a defensible rollout
+architecture recommendation. The goal remains active until the accounting,
+correctness checks, repeated comparison and bottleneck analysis are complete.
+This supersedes the earlier paused measurement checkpoint below.
+
+Before timing, include resets in headline elapsed time, count actual ticks when
+termination truncates action repeat, align serial/overlapped workload contracts,
+and separate validation capture from timing. Automate rotated repeated runs with
+exact arguments, source/binary/input hashes and CPU/GPU activity receipts. Keep
+common CUDA-supported AI separate from the fuller CPU-only task/pathfinding AI.
+The current campaign measures rollout including CUDA inference, not full RGB or
+PPO backward/optimizer work. No version switch or production default promotion.
+
+Owned code lanes: measure_split fixes measure.c accounting; measure_hybrid
+aligns pipeline_probe.c; world_state_compare adds sweep.sh orchestration. Parent
+reviews, builds and runs on anvil:~/nlanes/version-structure-audit. Existing large
+CUDA objects are preserved. Runtime tools must not require another giant kernel
+build merely for timing. Generated evidence stays under out/verify/architecture/.
+
+Live preflight found one RTX 3090, 266 MiB used, 0% GPU utilization, but active
+unrelated CPU compilation. Use a machine lease and verify actual isolation for
+timing. Do not stop unrelated jobs, reboot hosts or purchase compute. Continue
+implementation and validation while a clean measurement window is unavailable;
+label contaminated attempts instead of interpreting them as architecture wins.
+
+Overnight implementation checkpoint: pipeline_probe accepts the same AROW v1
+frozen actions as measure, uses CUDA Gumbel sampling, and resets on absolute
+decision cadence without a warmup-boundary reset. Parent rebuilt it on Anvil and
+verified serial/overlap equality on a periodic-reset smoke and the full 2058-row
+frozen action file with two environments. Each cohort reported 2058 actual ticks;
+trajectory and policy logits/values matched. Stochastic samples are separately
+reported because the shared sampler advances between paired passes. These are
+correctness runs, not throughput evidence. Logs: out/verify/architecture/
+pipeline-overnight-smoke.log and pipeline-overnight-chain.log. Both coordinator
+wrapped jobs exited zero and released their machine leases.
+
 ## Measurement checkpoint: clean throughput still blocked
 
 All measurement implementations now run. The original production object,
