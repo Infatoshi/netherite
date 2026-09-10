@@ -591,3 +591,15 @@ NN and all 32 replay contract cases. Evidence is copied to the main Mac checkout
 `out/verify/architecture-metal-ten-runs.tsv`. The tested isolated Metal
 executable SHA256 is
 `ec13cc9b878cbbbd0866e6d1d8e429863bb531a87ff40c135f67c2d2f5fc1624`.
+
+## Integrated overnight sweep checkpoint
+
+The integrated sweep includes cohort serial/overlap variants under the same load
+monitor as CPU, hybrid and CUDA. Six synthetic monitor checks passed on Anvil's
+awk, including missing telemetry rejection; failed-monitor and missing-process-
+timing cases also reject. The first live smoke correctly rejected five attempts
+with unrelated CPU work. A quiet-wait loop now waits within the campaign budget.
+First timing campaign: quiet/move, batches 8/64/128, workers 1/8, three rotated
+repetitions, 256 measured decisions and 32 warmup decisions. Source frozen before
+launch; output out/verify/architecture/overnight-core. More workload coverage,
+instrumentation overhead controls and bottleneck analysis remain after this pass.
