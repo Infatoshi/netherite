@@ -37,7 +37,7 @@ while (($#)); do
   case $key in --out) out=$value;; --batches) batches=$value;; --workers) workers=$value;; --repeats) reps=$value;; --steps) steps=$value;; --warmup) warm=$value;; --variants) variants=$value;; --workloads) workloads=$value;; --policy) policy=$value;; --checkpoint) checkpoint=$value;; --timeout) timeout_s=$value;; --max-seconds) budget=$value;; --retries) retries=$value;; --foreign-cpu) foreign_cpu=$value;; --gpu-index) gpu_index=$value;; --quiet-wait) quiet_wait=$value;; --tick-accounting) tick_accounting=$value;; esac;;
  *) echo "unknown flag: $1" >&2; exit 2;; esac
 done
-if ((full)); then : "${batches:=8,64,128,256}" "${workers:=1,4,8,16}" "${reps:=3}" "${steps:=128}" "${warm:=16}" "${budget:=21600}" "${workloads:=quiet,move,mine,placement,fluid,mobs,mixed,reset,det_ai}";
+if ((full)); then : "${batches:=8,64,128,256}" "${workers:=1,4,8,16}" "${reps:=3}" "${steps:=128}" "${warm:=16}" "${budget:=21600}" "${workloads:=quiet,move,mine,placement,fluid,mobs,mixed,reset,det_ai,pickaxe}";
 else : "${batches:=8}" "${workers:=8}" "${reps:=1}" "${steps:=8}" "${warm:=2}" "${budget:=1800}" "${workloads:=quiet,placement,reset}"; fi
 : "${variants:=cpu,hybrid_dense,hybrid_delta,cohort_serial,cohort_overlap,cuda,fine1_g0,fine1_g1,fine32_g0,fine32_g1}"
 for v in "$reps" "$steps" "$warm" "$timeout_s" "$budget" "$retries" "$foreign_cpu" "$gpu_index" "$policy" "$quiet_wait" "$tick_accounting"; do [[ $v =~ ^[0-9]+$ ]] || { echo "invalid unsigned integer: $v" >&2; exit 2; }; done
@@ -47,7 +47,7 @@ IFS=, read -r -a batch_list <<< "$batches"; IFS=, read -r -a worker_list <<< "$w
 for n in "${batch_list[@]}"; do [[ $n =~ ^[0-9]+$ ]] && ((n>0 && n<=4096)) || exit 2; done
 for n in "${worker_list[@]}"; do [[ $n =~ ^[0-9]+$ ]] && ((n>0 && n<=16)) || exit 2; done
 for v in "${variant_list[@]}"; do case $v in cpu|hybrid_dense|hybrid_delta|cohort_serial|cohort_overlap|cuda|fine1_g0|fine1_g1|fine32_g0|fine32_g1);; *) echo "bad variant $v" >&2; exit 2;; esac; done
-for w in "${work_list[@]}"; do case $w in quiet|move|mine|placement|fluid|mobs|mixed|reset|det_ai);; *) echo "bad workload $w" >&2; exit 2;; esac; done
+for w in "${work_list[@]}"; do case $w in quiet|move|mine|placement|fluid|mobs|mixed|reset|det_ai|pickaxe);; *) echo "bad workload $w" >&2; exit 2;; esac; done
 root=$(cd "$(dirname "$0")/../.." && pwd); cd "$root"
 base=out/verify/architecture; measure=$base/measure
 : "${out:=$base/sweep-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
@@ -56,17 +56,18 @@ printf 'repeat\tworkload\tbatch\tworkers\tvariant\targv_shell\n' > "$out/plan.ts
 printf 'id\tattempt\tclassification\trc\tworkload\tbatch\tworkers\tvariant\tlog\n' > "$out/runs.tsv"
 # GPU-only variants use one host worker, avoiding duplicate GPU rows per worker sweep.
 build_cmd() {
- local v=$1 w=$2 n=$3 threads=$4 fixture=$base/fixtures/no_liquid-64.bsnp work=idle mobs=0 det=0 reset=256 busy=0
- case $w in move) work=move;; mine) fixture=$base/fixtures/placement-64.bsnp; work=mine;; mixed) fixture=$base/fixtures/no_liquid-64.bsnp,$base/fixtures/mobs_det-64.bsnp; mobs=1; busy=100;; placement) fixture=$base/fixtures/placement-64.bsnp; work=place;; fluid) fixture=$base/fixtures/fluid_spread-64.bsnp;; mobs) fixture=$base/fixtures/mobs_det-64.bsnp; mobs=1;; reset) reset=2;; det_ai) fixture=$base/fixtures/mobs_det-64.bsnp; mobs=1; det=1;; esac
- cmd=("$measure" --fixture "$fixture" --work "$work" --n "$n" --threads "$threads" --steps "$steps" --warmup "$warm" --repeat 4 --reset-every "$reset" --mobs "$mobs" --det-ai "$det" --busy-every "$busy" --policy "$policy")
+ local v=$1 w=$2 n=$3 threads=$4 fixture=$base/fixtures/no_liquid-64.bsnp work=idle mobs=0 det=0 reset=256 busy=0 run_steps=$steps run_warm=$warm run_repeat=4 action_rows=
+ case $w in pickaxe) fixture=verify/fixtures/port/s10_t0_r64_no_liquid.bsnp; run_steps=443; run_warm=443; run_repeat=1; reset=443; action_rows=$base/inputs/pickaxe-443-n$n.actions;; move) work=move;; mine) fixture=$base/fixtures/placement-64.bsnp; work=mine;; mixed) fixture=$base/fixtures/no_liquid-64.bsnp,$base/fixtures/mobs_det-64.bsnp; mobs=1; busy=100;; placement) fixture=$base/fixtures/placement-64.bsnp; work=place;; fluid) fixture=$base/fixtures/fluid_spread-64.bsnp;; mobs) fixture=$base/fixtures/mobs_det-64.bsnp; mobs=1;; reset) reset=2;; det_ai) fixture=$base/fixtures/mobs_det-64.bsnp; mobs=1; det=1;; esac
+ cmd=("$measure" --fixture "$fixture" --work "$work" --n "$n" --threads "$threads" --steps "$run_steps" --warmup "$run_warm" --repeat "$run_repeat" --reset-every "$reset" --mobs "$mobs" --det-ai "$det" --busy-every "$busy" --policy "$policy")
  if [[ $v == cohort_* ]]; then
   local overlap=0 moving=0
   [[ $v != cohort_overlap ]] || overlap=1
   [[ $work != move ]] || moving=1
-  cmd=("$base/pipeline_probe" --fixture "$fixture" --cohort-n "$((n/2))" --threads "$threads" --steps "$steps" --warmup "$warm" --repeat 4 --reset-every "$reset" --mobs "$mobs" --det-ai "$det" --policy "$policy" --overlap "$overlap" --move "$moving" --delta 1 --verify 0 --lib out/blaze/env/blaze_cpu.so)
+  cmd=("$base/pipeline_probe" --fixture "$fixture" --cohort-n "$((n/2))" --threads "$threads" --steps "$run_steps" --warmup "$run_warm" --repeat "$run_repeat" --reset-every "$reset" --mobs "$mobs" --det-ai "$det" --policy "$policy" --overlap "$overlap" --move "$moving" --delta 1 --verify 0 --lib out/blaze/env/blaze_cpu.so)
  else
   cmd+=(--tick-accounting "$tick_accounting")
  fi
+ [[ -z $action_rows ]] || cmd+=(--action-rows "$action_rows")
  [[ -z $checkpoint ]] || cmd+=(--checkpoint "$checkpoint")
  case $v in
  cpu) cmd+=(--mode cpu --lib out/blaze/env/blaze_cpu.so);;
@@ -89,6 +90,7 @@ for ((r=0;r<reps;r++)); do for w in "${work_list[@]}"; do for n in "${batch_list
   for threads in "${active_workers[@]}"; do build_cmd "$v" "$w" "$n" "$threads"; printf -v receipt '%q ' "${cmd[@]}"; printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$r" "$w" "$n" "$threads" "$v" "$receipt" >> "$out/plan.tsv"; rows+=("$r $w $n $threads $v"); done
  done; done; done; done
 echo 'mixed workload only at batch>=128; mine/place/mob names require independent event verification.' > "$out/scope.txt"
+echo 'pickaxe uses the original fixture and frozen actions:443 warmup decisions,443 measured,repeat1,reset443; other workloads default repeat4.' >> "$out/scope.txt"
 echo 'cohort_serial vs cohort_overlap isolates overlap; hybrid_delta vs cohorts also changes policy batch shape. Cohorts exclude mine/placement/mixed.' >> "$out/scope.txt"
 printf 'planned_runs=%s per_attempt_timeout_s=%s wall_budget_s=%s retries=%s execute=%s\n' "${#rows[@]}" "$timeout_s" "$budget" "$retries" "$run" | tee "$out/campaign.txt"
 ((run)) || { echo "plan: $out/plan.tsv"; exit 0; }
@@ -98,7 +100,7 @@ for tool in timeout sha256sum awk nvidia-smi; do command -v "$tool" >/dev/null |
 { pwd; uname -a; date -u; lscpu; nvidia-smi; git rev-parse HEAD; git status --short; } > "$out/host.txt" 2>&1
 # Hash tracked source content, including dirty changes, and all binaries/data selected by plan.
 { git ls-files blaze; find verify/architecture -maxdepth 1 -type f; } | sort -u | while IFS= read -r source; do [[ ! -f $source ]] || sha256sum "$source"; done > "$out/source.sha256"
-{ printf '%s\n' "$measure" "$0"; for row in "${rows[@]}"; do read -r r w n threads v <<< "$row"; build_cmd "$v" "$w" "$n" "$threads"; printf '%s\n' "${cmd[0]}"; for ((i=1;i<${#cmd[@]};i++)); do case ${cmd[$i]} in --fixture) tr ',' '\n' <<< "${cmd[$((i+1))]}";; --lib|--checkpoint|--cubin) printf '%s\n' "${cmd[$((i+1))]}";; --fine) printf '%s\n' "$base/fine/pre_actions.cubin" "$base/fine/pure_player.cubin" "$base/fine/after_player.cubin" "$base/driver_dispatch.so";; esac; done; [[ $v != hybrid_* && $v != cohort_* ]] || echo "$base/env_cuda_obs.so"; done; [[ -z $checkpoint || ! -f $checkpoint.policy.conf ]] || echo "$checkpoint.policy.conf"; } | sort -u > "$out/input-files.txt"
+{ printf '%s\n' "$measure" "$0"; for row in "${rows[@]}"; do read -r r w n threads v <<< "$row"; build_cmd "$v" "$w" "$n" "$threads"; printf '%s\n' "${cmd[0]}"; for ((i=1;i<${#cmd[@]};i++)); do case ${cmd[$i]} in --fixture) tr ',' '\n' <<< "${cmd[$((i+1))]}";; --lib|--checkpoint|--cubin|--action-rows) printf '%s\n' "${cmd[$((i+1))]}";; --fine) printf '%s\n' "$base/fine/pre_actions.cubin" "$base/fine/pure_player.cubin" "$base/fine/after_player.cubin" "$base/driver_dispatch.so";; esac; done; [[ $v != hybrid_* && $v != cohort_* ]] || echo "$base/env_cuda_obs.so"; done; [[ -z $checkpoint || ! -f $checkpoint.policy.conf ]] || echo "$checkpoint.policy.conf"; } | sort -u > "$out/input-files.txt"
 while IFS= read -r f; do [[ -f $f ]] || { echo "missing input: $f" >&2; exit 2; }; sha256sum "$f"; done < "$out/input-files.txt" > "$out/inputs.sha256"
 ldd "$measure" > "$out/linked-libraries.txt" 2>&1
 echo 'CPU residual includes unobserved exited owned work and telemetry overhead; conservative invalidation at threshold, not attribution proof.' >> "$out/host.txt"

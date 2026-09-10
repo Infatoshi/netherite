@@ -603,3 +603,64 @@ First timing campaign: quiet/move, batches 8/64/128, workers 1/8, three rotated
 repetitions, 256 measured decisions and 32 warmup decisions. Source frozen before
 launch; output out/verify/architecture/overnight-core. More workload coverage,
 instrumentation overhead controls and bottleneck analysis remain after this pass.
+
+Partition audit completed independently on the Mac: the 41,279,396-byte main
+record parity/fullstep-chain2.bin (SHA256
+08faf946a705ab2d09dd47d9a45c4b487859d97c0860c9a92993f2b81ea78c0f)
+was read in pipeline field order per environment. Both 2058-decision digests
+are 1d39d5a7bcdfbdd7, exactly matching serial and overlap outputs. Parent rebuilt
+and reran the native analysis; result out/verify/architecture/partition-audit/
+parent-result.txt. Different configured reset intervals do not trigger during
+this trace, so the executed reset schedules are equivalent.
+
+Live overnight process 537995 was verified at 231 seconds elapsed, waiting for
+quiet on run 1 with 15 advancing probes. The lease wrapper and tmux session
+netherite-overnight-core remain live. Do not restart solely because it is waiting;
+check that handle, log, and overnight-core.rc before taking further action.
+
+Extended correctness coverage completed while only our waiting sweep was paused.
+Twenty comparisons passed: five workloads (move, mine, placement, fluid, common
+mobs) against hybrid, original CUDA, fine grain32 and graph grain1, each with eight
+environments, 32 warmup and 256 measured decisions, repeat4. Parent separately
+confirmed actual-tick/reset totals across all five implementations. Movement
+executed 8185 ticks with12 reset lanes in4 batches; other scenes executed8192
+with8 reset lanes in1 batch. These are validation counts, not timing claims.
+All logs are copied to out/verify/architecture/extended-workload-parity/.
+The validation wrapper exited0 and automatically resumed the original campaign
+PID537995; it was live and waiting again at742seconds elapsed. No source or
+binary under the running campaign changed.
+
+Workload event audit corrected naming: placement fixture plus --work mine never
+starts digging (dig progress/hitting remain zero, torch64 unchanged). It measures
+attack misses, not mining. --work place consumes one torch per reset (torch63),
+then no sustained placement or motion. Background world-hash changes are not
+mining evidence. Keep those observations explicit in reports; core quiet/move
+campaign is unaffected. The recorded2058-action chain is being audited as the
+meaningful mining/crafting workload. Do not invent event coverage from names.
+
+Active pickaxe workload is now verified. The audited sequence obtains the first
+wooden pickaxe at tick443; the full2058 trace contains substantial post-success
+work. Generated AROW inputs contain two443-decision episodes, with443 warmup,
+443 measured, repeat1 and reset443, preserving identical frozen actions at every
+batch size. The original fixture is retained; do not compare its world size or
+policy cadence to quiet/move without labeling that difference.
+CPU/hybrid/original/graph prefix runs match, including886 actual measured ticks,
+2 reset lanes and1 reset batch for2 environments. Parent verified inventory:
+both lanes hold1 pickaxe at record442,0 after reset at443,1 at885. Serial/overlap
+passes; parent independently reconstructs per-cohort digest ebbfb0a124b3834e
+from the full-batch record, matching both pipeline cohorts. Evidence lives at
+out/verify/architecture/pickaxe-prefix-parity/. The original waiting sweep was
+paused only for validation and resumed automatically; its source was unchanged.
+The local sweep now accepts pickaxe; this local update is not yet deployed over
+the frozen running campaign. Next step is to time this active workload along
+with the core sweep, retaining clean-machine and instrumentation controls.
+
+Pickaxe timing is queued behind the core lease, not concurrent with it. The live
+coordinator process is596774 in tmux netherite-overnight-pickaxe, using generated
+out/verify/architecture/sweep-pickaxe.sh (reviewed sweep copy with canonical root
+pinned). This preserves the running core campaign's source hashes. Logs and
+terminal receipts are overnight-pickaxe.log/.rc/.start/.end. It waits up to6h for
+the machine lease, then applies the same quiet checks and six-hour campaign budget.
+The planned pickaxe pass covers batches8/64/128,workers1/8,three rotated repeats.
+Both waiting processes have been verified live; the core has not accepted any
+contaminated timings. Do not infer completed measurements from their existence.
