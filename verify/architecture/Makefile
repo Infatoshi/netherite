@@ -17,9 +17,9 @@ $(OUT)/env_cuda_obs.so: env_cuda_obs.cu env_cuda_obs.h ../../blaze/core/obs_came
 
 NN_OUT := ../../out/blaze/nn/cuda
 NN_OBJS := $(addprefix $(NN_OUT)/,nn.o cpu.o fixture.o cuda.o cuda_ws.o cuda_conv_graph.o cuda_lt_gemm.o cuda_layout.o)
-$(OUT)/measure: measure.c env_cuda_obs.h ../../blaze/rl/obs_pack.h ../../blaze/rl/env_cuda_stage.c $(NN_OBJS)
+$(OUT)/measure: measure.c env_cuda_obs.h ../../blaze/rl/obs_pack.h ../../blaze/rl/env_cuda_stage.c $(wildcard ../../blaze/env/*.h ../../blaze/core/*.h) $(NN_OBJS)
 	mkdir -p $(OUT)
-	$(CC) -std=c11 -O2 -ffp-contract=off -Wall -Wextra -Wno-unused-function -fopenmp -I../../blaze/nn -I../../blaze/rl -I$(CUDA_HOME)/include measure.c ../../blaze/rl/env_cuda_stage.c $(NN_OBJS) -L$(CUDA_HOME)/lib64 -lcudnn -lcublas -lcublasLt -lcudart -lstdc++ -lm -ldl -o $@
+	$(CC) -std=c11 -O2 -ffp-contract=off -Wall -Wextra -Wno-unused-function -fopenmp -I../../blaze/core -I../../blaze/env -I../../blaze/nn -I../../blaze/rl -I$(CUDA_HOME)/include measure.c ../../blaze/rl/env_cuda_stage.c $(NN_OBJS) -L$(CUDA_HOME)/lib64 -lcudnn -lcublas -lcublasLt -lcudart -lstdc++ -lm -ldl -o $@
 
 $(NN_OBJS):
 	$(MAKE) -C ../../blaze/nn cuda BLAZE_SM=$(BLAZE_SM) CUDA_HOME=$(CUDA_HOME)

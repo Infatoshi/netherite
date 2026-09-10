@@ -38,6 +38,19 @@ correctness runs, not throughput evidence. Logs: out/verify/architecture/
 pipeline-overnight-smoke.log and pipeline-overnight-chain.log. Both coordinator
 wrapped jobs exited zero and released their machine leases.
 
+Accounting validation now passes on six scenes (quiet, placement, fluid, common
+mob AI, death and boundary), each comparing CPU against hybrid, original CUDA,
+fine CUDA and graph CUDA. All 24 comparisons match trajectory records plus exact
+tick and reset totals. Death illustrates why this matters: original CUDA reports
+16 actual ticks versus 64 nominal ticks over eight decisions on two lanes. The
+new reader preserves the original simulation object, uses a verified layout and
+copies only tick fields. Inclusive timing reports its readback overhead separately;
+--tick-accounting 0 permits paired measurement of instrumentation cost and labels
+actual ticks NA. Parent logs: out/verify/architecture/accounting-parity.log and
+accounting-parity/. The campaign scripts still need parent integration of cohort
+variants, a smoke execution, and uncontended repeated timing. Do not treat the
+newly passing correctness runs as throughput results.
+
 ## Measurement checkpoint: clean throughput still blocked
 
 All measurement implementations now run. The original production object,

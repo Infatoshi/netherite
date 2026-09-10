@@ -15,6 +15,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "../../blaze/env/blaze_abi.h"
+#include "../../blaze/env/blaze_core.h"
+#include <stddef.h>
 #include "../../blaze/rl/env_cuda_stage.h"
 #include "../../blaze/rl/obs_pack.h"
 #include "../../blaze/rl/rl_ckpt.h"
@@ -37,13 +39,35 @@ static void field(const char*name,const void*p,size_t n){
  if(record&&fwrite(p,1,n,record)!=n)fail("record write");
  if(reference){unsigned char*b=alloc(n,1);if(fread(b,1,n,reference)!=n)fail("truncated reference");if(memcmp(p,b,n)){size_t i=0;while(i<n&&((unsigned char*)p)[i]==b[i])i++;fprintf(stderr,"MISMATCH step=%d field=%s byte=%zu actual=%u reference=%u\n",tick_index,name,i,((unsigned char*)p)[i],b[i]);exit(3);}free(b);}
 }
+/* Original16ba096 and current Linux layouts independently checked on both
+ * hosts. Copy only tick fields, not the entire ~704KiB Blaze per lane. */
+typedef struct { int n,device; cudaStream_t stream; Blaze *envs; } TickCudaPrefix;
+_Static_assert(sizeof(Blaze)==703736 && offsetof(Blaze,tick)==5456,
+               "tick reader requires reverified Blaze layout");
+_Static_assert(offsetof(TickCudaPrefix,envs)==16 && sizeof(long long)==8,
+               "tick reader requires reverified CUDA handle layout");
+typedef int (*DebugStateFn)(void*,int,double*,int);
+static void read_ticks(void *env,int gpu,int n,DebugStateFn debug,long long *out,int crosscheck){
+ if(gpu){TickCudaPrefix v;memcpy(&v,env,sizeof v);
+  if(v.n!=n||!v.envs||v.device<0)fail("tick reader CUDA handle layout");
+  if(cudaSetDevice(v.device)!=cudaSuccess||cudaMemcpy2D(out,sizeof(*out),
+      (const char*)v.envs+offsetof(Blaze,tick),sizeof(Blaze),sizeof(*out),n,
+      cudaMemcpyDeviceToHost)!=cudaSuccess)fail("tick counter readback");
+ }
+ if(!gpu||crosscheck)for(int i=0;i<n;i++){double d[21];
+  if(debug(env,i,d,21)!=21||!isfinite(d[20])||d[20]<0||d[20]>9007199254740991.0||floor(d[20])!=d[20])fail("invalid exact debug tick");
+  long long tick=(long long)d[20];
+  if(gpu&&out[i]!=tick)fail("tick reader ABI crosscheck");
+  if(!gpu)out[i]=tick;
+ }
+}
 #define FN(ret,name,args) ret(*name)args=(ret(*)args)sym(lib,"blaze_" #name)
 int main(int argc,char**argv){
- int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0,busy_every=0,grain=0,det_ai=0,graph_mode=0;
+ int n=8,steps=32,warm=4,repeat=4,threads=8,split=0,policy=0,reset_every=256,op=0,mobs=0,delta=0,profile=0,busy_every=0,grain=0,det_ai=0,graph_mode=0,tick_accounting=1;
  const char*mode="cpu",*fixture="verify/fixtures/port/s10_t0_r64_no_liquid.bsnp",*work="idle",*libpath=NULL,*ckpt=NULL,*recpath=NULL,*refpath=NULL,*replaypath=NULL,*perfctl=NULL,*perfack=NULL,*cubin=NULL,*fine_dir=NULL,*rows_path=NULL;
  for(int i=1;i<argc;i++){if(i+1>=argc)fail("arguments require values");const char*k=argv[i],*v=argv[++i];
   if(!strcmp(k,"--mode"))mode=v;else if(!strcmp(k,"--fixture"))fixture=v;else if(!strcmp(k,"--work"))work=v;else if(!strcmp(k,"--lib"))libpath=v;else if(!strcmp(k,"--checkpoint"))ckpt=v;else if(!strcmp(k,"--record"))recpath=v;else if(!strcmp(k,"--reference"))refpath=v;else if(!strcmp(k,"--replay"))replaypath=v;else if(!strcmp(k,"--perf-control"))perfctl=v;else if(!strcmp(k,"--perf-ack"))perfack=v;else if(!strcmp(k,"--cubin"))cubin=v;else if(!strcmp(k,"--fine"))fine_dir=v;else if(!strcmp(k,"--action-rows"))rows_path=v;
-  else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--det-ai"))det_ai=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--busy-every"))busy_every=atoi(v);else if(!strcmp(k,"--grain"))grain=atoi(v);else if(!strcmp(k,"--graph"))graph_mode=atoi(v);else fail("unknown option");
+  else if(!strcmp(k,"--n"))n=atoi(v);else if(!strcmp(k,"--steps"))steps=atoi(v);else if(!strcmp(k,"--warmup"))warm=atoi(v);else if(!strcmp(k,"--repeat"))repeat=atoi(v);else if(!strcmp(k,"--threads"))threads=atoi(v);else if(!strcmp(k,"--split"))split=atoi(v);else if(!strcmp(k,"--policy"))policy=atoi(v);else if(!strcmp(k,"--reset-every"))reset_every=atoi(v);else if(!strcmp(k,"--op"))op=atoi(v);else if(!strcmp(k,"--mobs"))mobs=atoi(v);else if(!strcmp(k,"--det-ai"))det_ai=atoi(v);else if(!strcmp(k,"--delta"))delta=atoi(v);else if(!strcmp(k,"--profile"))profile=atoi(v);else if(!strcmp(k,"--busy-every"))busy_every=atoi(v);else if(!strcmp(k,"--grain"))grain=atoi(v);else if(!strcmp(k,"--graph"))graph_mode=atoi(v);else if(!strcmp(k,"--tick-accounting"))tick_accounting=atoi(v);else fail("unknown option");
  }
  int gpu=!strcmp(mode,"cuda"),hybrid=!strcmp(mode,"hybrid");
  if((!gpu&&!hybrid&&strcmp(mode,"cpu"))||n<1||n>4096||steps<1||warm<0||repeat<1||threads<1||reset_every<1)fail("invalid config");
@@ -55,6 +79,8 @@ int main(int argc,char**argv){
  FN(void*,create,(int,int,const BlazeCreateOpts*));FN(void,destroy,(void*));FN(int,load_snapshots,(void*,const char*const*,int,char*,int));FN(int,assign,(void*,const int*));FN(int,reset,(void*,const unsigned char*));FN(int,set_success_item,(void*,int));
  BlazeStepFullFn step=(BlazeStepFullFn)sym(lib,hybrid?"blaze_step_full_no_camera":"blaze_step_full");
  FN(int,parity_size,(void));FN(int,parity_state,(void*,int,void*));
+ DebugStateFn debug_state=(DebugStateFn)sym(lib,"blaze_debug_state");
+ if(tick_accounting!=0&&tick_accounting!=1)fail("invalid tick accounting flag");
  BlazeCreateOpts opts;blaze_create_opts_default(&opts);opts.op_trace=op;
  double start=now();void*env=create(0,n,&opts);if(!env)fail("env create");
  if(gpu&&split){int(*sel)(void*,int)=sym(lib,"blaze_measure_set_split");if(sel(env,split))fail("split select");}
@@ -90,19 +116,24 @@ int main(int argc,char**argv){
  if(replaypath){FILE*f=fopen(replaypath,"rb");if(!f)fail("replay open");uint32_t h[8];if(fread(h,1,sizeof h,f)!=sizeof h||memcmp(h,header,sizeof h))fail("replay header");size_t action_bytes=(size_t)n*ENV_ACT*8, row_bytes=action_bytes+pixels*4+(size_t)n*(ENV_SCAL*4+4+1+ENV_POSE*4+ENV_STATUS*sizeof(int)+psize);if(fseek(f,0,SEEK_END)||ftell(f)!=(long)(sizeof h+(size_t)(steps+warm)*row_bytes))fail("replay length");replay_actions=alloc((size_t)(steps+warm)*n*ENV_ACT,8);for(int t=0;t<steps+warm;t++){if(fseek(f,(long)(sizeof h+(size_t)t*row_bytes),SEEK_SET)||fread(replay_actions+(size_t)t*n*ENV_ACT,1,action_bytes,f)!=action_bytes)fail("replay actions");}fclose(f);}
 
  if(rows_path){if(replay_actions)fail("choose one action input");FILE*f=fopen(rows_path,"rb");uint32_t h[4];if(!f||fread(h,1,sizeof h,f)!=sizeof h||h[0]!=0x41524f57||h[1]!=1||h[2]!=(uint32_t)(steps+warm)||h[3]!=(uint32_t)n)fail("action rows header");size_t count=(size_t)(steps+warm)*n*ENV_ACT;replay_actions=alloc(count,8);if(fread(replay_actions,8,count,f)!=count||fgetc(f)!=EOF)fail("action rows length");fclose(f);}
+ long long *tick_previous=alloc(n,sizeof(long long)),*tick_after=alloc(n,sizeof(long long));
+ if(tick_accounting)read_ticks(env,gpu,n,debug_state,tick_previous,1);
  printf("CONFIG mode=%s split=%d n=%d steps=%d warmup=%d repeat=%d threads=%d policy=%d workload=%s reset_every=%d init_s=%.6f fixture=%s lib=%s\n",mode,split,n,steps,warm,repeat,threads,policy,work,reset_every,now()-start,fixture,libpath);
  if(hybrid){obs_reset=sym(bridge,"env_cuda_obs_reset");int(*set_delta)(EnvCudaObs*,int)=sym(bridge,"env_cuda_obs_set_delta");if(set_delta(obs,delta))fail("delta select");}
  printf("DISPATCH scalar_grain=%d cubin=%s fine=%s graph=%d\n",grain,cubin?cubin:"original",fine_dir?fine_dir:"none",graph_mode);
  printf("BRIDGE delta=%d transfer_columns=hybrid_poststep_only policy_uses_host_ABI=1\n",delta);
- printf("DETAIL mobs=%d det_entity_rng=%d natural_spawn=0 op_trace=%d timing_excludes_reset=1 parity_capture=%d\n",mobs,det_ai,op,record!=NULL||reference!=NULL);
- printf("step,env_ms,render_ms,pack_ms,policy_ms,reset_ms,total_ms,terminal_lanes,hybrid_poststep_h2d_bytes,hybrid_poststep_d2h_bytes\n");fflush(stdout);
+ printf("DETAIL mobs=%d det_entity_rng=%d natural_spawn=0 op_trace=%d timing_excludes_reset=0 parity_capture=%d\n",mobs,det_ai,op,record!=NULL||reference!=NULL);
+ printf("RECEIPT kind=%s total_scope=reset_and_tick_readback_inclusive base_stage_scope=reset_inclusive_excludes_tick_readback reset_cadence=absolute_decision_index forced_warmup_reset=0 record_format=2\n",(record||reference)?"validation":"timing");
+ printf("TICK_READER enabled=%d kind=%s blaze_size=%zu tick_offset=%zu handle_env_offset=%zu init_crosscheck=%s\n",tick_accounting,gpu?"cudaMemcpy2D":"debug_state",sizeof(Blaze),offsetof(Blaze,tick),offsetof(TickCudaPrefix,envs),tick_accounting?"all_lanes":"disabled");
+ printf("step,env_ms,render_ms,pack_ms,policy_ms,reset_ms,total_ms,terminal_lanes,hybrid_poststep_h2d_bytes,hybrid_poststep_d2h_bytes,tick_read_ms,base_stage_ms,actual_ticks,reset_lanes,reset_batches\n");fflush(stdout);
  if(perfctl||perfack){if(!perfctl||!perfack)fail("both perf fifo paths required");ctl_fd=open(perfctl,O_WRONLY);ack_fd=open(perfack,O_RDONLY);if(ctl_fd<0||ack_fd<0)fail("perf fifo open");}
- double sum=0;uint64_t terminals=0,subticks=0;
+ double sum=0,base_sum=0,tick_read_sum=0,reset_sum=0;uint64_t terminals=0,subticks=0,actual_ticks=0,reset_lanes=0,reset_batches=0;
  for(int t=0;t<steps+warm;t++){
   if(profile&&t==warm&&cudaProfilerStart()!=cudaSuccess)fail("profiler start");
-  double t0=now(),resetms=0,render_ms=0,packms=0,nnms=0;EnvCudaObsStats stats={0};
-  int any=0;for(int i=0;i<n;i++){mask[i]=(t==0||t==warm||(t>warm&&(t-warm)%reset_every==0)||done[i]);any|=mask[i];}
+  double t0=now(),resetms=0,render_ms=0,packms=0,nnms=0,tick_read_ms=0;EnvCudaObsStats stats={0};
+  int any=0,resets=0;for(int i=0;i<n;i++){mask[i]=(t==0||(t>0&&t%reset_every==0)||done[i]);any|=mask[i];resets+=mask[i]!=0;}
   if(any){double a=now();if(reset(env,mask))fail("reset");for(int i=0;i<n;i++)if(mask[i]){have[i]=0;epdec[i]=0;}if(hybrid&&obs_reset(obs,mask))fail("reset observation cache");resetms=(now()-a)*1000;}
+  if(any&&tick_accounting){double tr=now();read_ticks(env,gpu,n,debug_state,tick_previous,0);tick_read_ms+=(now()-tr)*1000;}
   if(t==warm)perf_command("enable\n");
   memset(actions,0,(size_t)n*ENV_ACT*8);
   for(int i=0;i<n;i++){double*a=actions+(size_t)i*ENV_ACT;a[9]=-1;a[10]=-1;if(strcmp(work,"idle")){a[0]=((t/8+i)%3)==0?0:1;a[2]=(t%8==0)?((i%2)?15:-15):0;a[4]=(t%9==0);if(!strcmp(work,"edit")){a[7]=1;a[8]=(t%11==0);}}}
@@ -115,8 +146,18 @@ int main(int argc,char**argv){
   if(hybrid){a=now();if(render(obs,env,0,cam,depth,edge,&stats)||commit(env,cam,depth,edge))fail("hybrid render");render_ms=(now()-a)*1000;}
   a=now();pack_obs(cam,depth,edge,scal,pose,status,epdec,1500,have,prior,n,planes,scalars,scratch);memcpy(prior,scratch,(size_t)n*ENV_N_PLANES*ENV_NPIX);memset(have,1,n);for(int i=0;i<n;i++)epdec[i]++;packms=(now()-a)*1000;
   if(policy){a=now();if(nn_forward(nn,planes,scalars,n,logits,values)||nn_sample(nn,logits,n,NN_SAMPLE_GUMBEL,acts,logp,NULL))fail(nn_last_error());nnms=(now()-a)*1000;}
-  double total=(now()-t0)*1000-resetms;int term=0;for(int i=0;i<n;i++)term+=done[i]!=0;
-  if(t>=warm){sum+=total;terminals+=term;subticks+=(uint64_t)n*repeat;printf("%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%zu,%zu\n",t-warm,envms,render_ms,packms,nnms,resetms,total,term,stats.h2d_bytes,stats.d2h_bytes);fflush(stdout);}
+  uint64_t executed=0;
+  if(tick_accounting){double tr=now();read_ticks(env,gpu,n,debug_state,tick_after,0);tick_read_ms+=(now()-tr)*1000;
+   for(int i=0;i<n;i++){long long dt=tick_after[i]-tick_previous[i];
+    if(dt<0||dt>repeat)fail("nonmonotonic or excessive runtime tick delta");
+    executed+=(uint64_t)dt;tick_previous[i]=tick_after[i];
+   }
+  }
+  double total=(now()-t0)*1000,base_stage=total-tick_read_ms;int term=0;for(int i=0;i<n;i++)term+=done[i]!=0;
+  if(t>=warm){sum+=total;base_sum+=base_stage;tick_read_sum+=tick_read_ms;reset_sum+=resetms;terminals+=term;subticks+=(uint64_t)n*repeat;actual_ticks+=executed;reset_lanes+=resets;reset_batches+=any!=0;
+   char exact[32];if(tick_accounting)snprintf(exact,sizeof exact,"%llu",(unsigned long long)executed);else strcpy(exact,"NA");
+   printf("%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%zu,%zu,%.6f,%.6f,%s,%d,%d\n",t-warm,envms,render_ms,packms,nnms,resetms,total,term,stats.h2d_bytes,stats.d2h_bytes,tick_read_ms,base_stage,exact,resets,any!=0);fflush(stdout);
+  }
   if(record||reference){tick_index=t;field("actions",actions,(size_t)n*ENV_ACT*8);field("cam",cam,pixels*2);field("depth",depth,pixels);field("edge",edge,pixels);field("scalars",scal,(size_t)n*ENV_SCAL*4);field("reward",rew,(size_t)n*4);field("done",done,n);field("pose",pose,(size_t)n*ENV_POSE*4);field("status",status,(size_t)n*ENV_STATUS*sizeof(int));for(int i=0;i<n;i++)if(parity_state(env,i,(char*)parity+(size_t)i*psize))fail("parity read");field("parity",parity,(size_t)n*psize);}
  }
  perf_command("disable\n");
@@ -126,6 +167,9 @@ int main(int argc,char**argv){
  size_t gpu_free_end=0;if(gpu||hybrid||policy){if(cudaMemGetInfo(&gpu_free_end,&gpu_total)!=cudaSuccess)fail("GPU memory query");printf("MEMORY gpu_used_init_bytes=%zu gpu_used_end_bytes=%zu\n",gpu_total-gpu_free_init,gpu_total-gpu_free_end);}
  struct rusage ru;getrusage(RUSAGE_SELF,&ru);
  printf("RESULT total_ms=%.6f nominal_subticks=%llu terminal_lanes=%llu decisions_per_s=%.6f nominal_ticks_per_s=%.6f maxrss_kib=%ld digest=%016llx compared=%d digest_scope=%s\n",sum,(unsigned long long)subticks,(unsigned long long)terminals,(double)n*steps*1000/sum,(double)subticks*1000/sum,ru.ru_maxrss,(unsigned long long)whole,reference!=NULL,(record||reference)?"trajectory":"header_only");
+ char exact_total[32],exact_rate[64];
+ if(tick_accounting){snprintf(exact_total,sizeof exact_total,"%llu",(unsigned long long)actual_ticks);snprintf(exact_rate,sizeof exact_rate,"%.6f",(double)actual_ticks*1000/sum);}else{strcpy(exact_total,"NA");strcpy(exact_rate,"NA");}
+ printf("ACCOUNTING actual_ticks=%s nominal_subticks=%llu reset_lanes=%llu reset_batches=%llu tick_read_ms=%.6f reset_ms=%.6f base_stage_ms=%.6f instrumented_total_ms=%.6f actual_ticks_per_s=%s enabled=%d\n",exact_total,(unsigned long long)subticks,(unsigned long long)reset_lanes,(unsigned long long)reset_batches,tick_read_sum,reset_sum,base_sum,sum,exact_rate,tick_accounting);
  if(op){int(*op_count)(void)=sym(lib,"blaze_op_count"),(*op_trace)(void*,unsigned long long*)=sym(lib,"blaze_op_trace");int k=op_count();unsigned long long*counts=alloc((size_t)n*k,sizeof(*counts));if(op_trace(env,counts))fail("op read");for(int j=0;j<k;j++){unsigned long long s=0;for(int i=0;i<n;i++)s+=counts[(size_t)i*k+j];printf("OP index=%d count=%llu\n",j,s);}free(counts);}
  if(record&&fclose(record))fail("record close");
  if(reference)fclose(reference);
