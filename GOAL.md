@@ -664,3 +664,34 @@ the machine lease, then applies the same quiet checks and six-hour campaign budg
 The planned pickaxe pass covers batches8/64/128,workers1/8,three rotated repeats.
 Both waiting processes have been verified live; the core has not accepted any
 contaminated timings. Do not infer completed measurements from their existence.
+
+Alternative-host recheck at2026-09-10 02:59 MDT: Gamer's nvidia-smi cannot
+communicate with the driver, and lspci enumerates only AMD Raphael graphics,
+with no NVIDIA device. An NVIDIA kernel module exists for its current kernel,
+but that does not establish available hardware. No driver changes or reboot were
+attempted. Anvil remains the available GPU measurement host. At1393seconds the
+core watcher was live, with unrelated Python and native-test CPU work still
+above the timing gate. The queued pickaxe coordinator was also live.
+
+## External execution blocker
+
+The same lack of an uncontended GPU host has persisted across more than three
+consecutive goal continuations. Preparation, accounting, supported-path parity,
+active-task coverage, monitor failure tests and scheduling are complete; the
+architecture ranking and remaining adaptive measurements cannot proceed without
+an external CPU-availability change. At1611seconds elapsed, core PID537995 was
+live with96 advancing quiet probes and zero executed timing rows. Substantial
+unrelated Python, C compiler and native-test work remains active. Gamer has no
+enumerated NVIDIA device. No authority to interrupt those jobs or add hardware
+has been received. The goal is blocked on that external resource condition,
+not complete.
+
+The detached measurement jobs remain armed and must not be restarted just because
+they are waiting. Core: tmux netherite-overnight-core, PID537995, logs/receipts
+out/verify/architecture/overnight-core.log and overnight-core.rc. Pickaxe: tmux
+netherite-overnight-pickaxe, coordinator PID596774, overnight-pickaxe.log/.rc.
+Their wrappers renew leases and record terminal exit codes. They can execute if
+a clean window opens without further interaction. On resumption, inspect these
+same handles and receipts first, validate source/input rechecks and accepted-run
+counts, then finish missing sweeps and the data-backed recommendation. Do not
+turn waiting jobs or contaminated pilots into a throughput result.
