@@ -78,8 +78,9 @@ build_cmd() {
 }
 # Store arrays as tab-separated descriptors; never eval shell receipts.
 rows=()
-for ((r=0;r<reps;r++)); do for w in "${work_list[@]}"; do for n in "${batch_list[@]}"; do
+for w in "${work_list[@]}"; do for n in "${batch_list[@]}"; do
  [[ $w != mixed ]] || ((n>=128)) || continue
+ for ((r=0;r<reps;r++)); do
  for ((k=0;k<${#variant_list[@]};k++)); do v=${variant_list[$(((k+r)%${#variant_list[@]}))]}
   [[ $w != det_ai || $v == cpu || $v == hybrid_* || $v == cohort_* ]] || continue
   if [[ $v == cohort_* ]]; then
@@ -121,10 +122,17 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 snapshot() {
  local dest=$1
+ local proc_file proc_row uptime_value uptime_idle
+ read -r uptime_value uptime_idle < /proc/uptime
+ printf '%s\n' "$uptime_value" > "$dest.uptime"
  date +%s%N > "$dest.ns"; cat /proc/stat > "$dest.cpu"
  # comm may contain spaces/parentheses; strip through last closing parenthesis.
- awk '{pid=$1;sub(/^.*\) /, "");split($0,a," ");print pid,a[2],a[12]+a[13]}' /proc/[0-9]*/stat > "$dest.proc" 2>/dev/null || true
- nvidia-smi -i "$gpu_index" --query-gpu=timestamp,uuid,utilization.gpu,memory.used --format=csv,noheader,nounits > "$dest.gpu" 2>&1 || touch "$dest.gpu-error"
+ # Read separately: a vanished process must not abort the entire enumeration.
+ { for proc_file in /proc/[0-9]*/stat; do
+    if IFS= read -r proc_row 2>/dev/null < "$proc_file"; then printf '%s\n' "$proc_row"; fi
+   done
+ } | awk '{pid=$1;sub(/^.*\) /, "");split($0,a," ");if(length(a)>=20)print pid,a[2],a[12]+a[13],a[20]}' > "$dest.proc"
+ nvidia-smi -i "$gpu_index" --query-gpu=timestamp,uuid,utilization.gpu,memory.used,clocks.sm,clocks.mem,power.draw,temperature.gpu,pstate --format=csv,noheader,nounits > "$dest.gpu" 2>&1 || touch "$dest.gpu-error"
  nvidia-smi -i "$gpu_index" --query-compute-apps=pid,process_name,used_memory --format=csv,noheader,nounits > "$dest.gpu-processes" 2>&1 || touch "$dest.gpu-error"
 }
 classify_load() {
@@ -134,18 +142,36 @@ classify_load() {
  [[ -s $a.proc && -s $b.proc ]] || { echo "INVALID process_telemetry" >> "$result"; return; }
  local owned=$result.owned
  touch "$owned"
- awk -v cpucheck="$cpucheck" -v hz="$hz" -v limit="$foreign_cpu" -v owner="$owner" -v shell="$$" -v known="$owned" -v c1="$a.cpu" -v c2="$b.cpu" -v t1="$(cat "$a.ns")" -v t2="$(cat "$b.ns")" '
- BEGIN {while((getline p < known)>0)own[p]=1;close(known);own[owner]=1;own[shell]=1;
+ awk -v cpucheck="$cpucheck" -v hz="$hz" -v limit="$foreign_cpu" -v owner="$owner" -v shell="$$" -v known="$owned" -v boot1="$(cat "$a.uptime")" -v c1="$a.cpu" -v c2="$b.cpu" -v t1="$(cat "$a.ns")" -v t2="$(cat "$b.ns")" '
+ BEGIN {while((getline line < known)>0){split(line,k," ");remember[k[1]]=k[2]}close(known);
  if((getline line<c1)!=1 || split(line,a," ")<9 || a[1]!="cpu")bad=1;if((getline line<c2)!=1 || split(line,b," ")<9 || b[1]!="cpu")bad=1;busy=0;total=0;for(i=2;i<=9;i++){d=b[i]-a[i];total+=d;if(i!=5&&i!=6)busy+=d}}
- FNR==NR {old[$1]=$3;parent[$1]=$2;next} {parent[$1]=$2;now[$1]=$3}
- END {if(bad){print "INVALID cpu_telemetry";exit}dt=(t2-t1)/1e9;used=0;for(p in now){q=p;for(j=0;j<100&&q>1;j++){if(q in own){own[p]=1;break}q=parent[q]}if(p in own){delta=now[p]-(p in old?old[p]:0);if(delta>0)used+=delta}}
+ FNR==NR {old[$1]=$3;oldstart[$1]=$4;parent[$1]=$2;next} {parent[$1]=$2;now[$1]=$3;start[$1]=$4}
+ END {if(bad){print "INVALID cpu_telemetry";exit}own[owner]=1;own[shell]=1;for(p in remember)if(p in start && start[p]==remember[p])own[p]=1;
+ dt=(t2-t1)/1e9;used=0;for(p in now){q=p;for(j=0;j<100&&q>1;j++){if(q in own){own[p]=1;break}q=parent[q]}if(p in own){delta=0;if(p in old && oldstart[p]==start[p])delta=now[p]-old[p];else if(start[p]>=boot1*hz)delta=now[p];if(delta>0)used+=delta}}
  residual=busy-used;if(residual<0)residual=0;pct=dt>0?residual/hz/dt*100:99999;
  printf "residual_cpu_pct=%.3f threshold=%s host_cpu_busy_pct=%.3f owned_cpu_ticks=%s busy_cpu_ticks=%s\n",pct,limit,(total>0?100*busy/total:0),used,busy;
- if(pct>limit&&cpucheck)print "CONTENTION cpu";for(p in own)if(p>0)print p > known;close(known)}' "$a.proc" "$b.proc" >> "$result"
+ if(pct>limit&&cpucheck)print "CONTENTION cpu";for(p in own)if(p>0 && p in start)print p,start[p] > known;close(known)}' "$a.proc" "$b.proc" >> "$result"
  if [[ $owner == 0 ]]; then awk -F, '$3+0>5{print "CONTENTION gpu_util_pct="($3+0)}' "$b.gpu" >> "$result"; fi
  if [[ -f $b.gpu-error ]]; then echo 'INVALID telemetry' >> "$result"; fi
- awk -F, -v owner="$owner" -v shell="$$" -v known="$owned" 'BEGIN{while((getline p<known)>0)owned[p]=1;close(known)}FILENAME==ARGV[1]{split($0,a," ");parent[a[1]]=a[2];next}$1~/^[ ]*[0-9]+[ ]*$/{p=$1+0;q=p;own=0;for(j=0;j<100&&q>1;j++){if(q==owner||q==shell||q in owned){own=1;break}q=parent[q]}if(!own)print "CONTENTION gpu_pid="p}' "$b.proc" "$b.gpu-processes" >> "$result"
+ awk -F, -v owner="$owner" -v shell="$$" -v known="$owned" 'BEGIN{while((getline line<known)>0){split(line,k," ");owned[k[1]]=k[2]}close(known)}FILENAME==ARGV[1]{split($0,a," ");parent[a[1]]=a[2];start[a[1]]=a[4];next}$1~/^[ ]*[0-9]+[ ]*$/{p=$1+0;q=p;own=0;for(j=0;j<100&&q>1;j++){if(q==owner||q==shell||(q in owned && start[q]==owned[q])){own=1;break}q=parent[q]}if(!own)print "CONTENTION gpu_pid="p}' "$b.proc" "$b.gpu-processes" >> "$result"
 }
+finalize() {
+ local final_rc=$?
+ trap - EXIT
+ set +e
+ cleanup
+printf 'id\tworkload\tbatch\tworkers\tvariant\tsteps\tstep_median_ms\tstep_p95_ms\ttotal_ms\tdecisions_per_s\tactual_ticks_per_s\treset_count\treset_lanes\tresult_fields\n' > "$out/summary.tsv"
+while IFS=$'\t' read -r sid attempt classification rc sw sn st sv log; do
+ [[ $classification == valid ]] || continue
+ awk -v id="$sid" -v workload="$sw" -v batch="$sn" -v workers="$st" -v variant="$sv" -f verify/architecture/summarize.awk "$log" >> "$out/summary.tsv" || final_rc=2
+done < "$out/runs.tsv"
+sha256sum -c "$out/inputs.sha256" > "$out/inputs-recheck.txt" 2>&1 || final_rc=2
+sha256sum -c "$out/source.sha256" > "$out/source-recheck.txt" 2>&1 || final_rc=2
+printf 'finished_utc=%s elapsed_s=%s failed_or_invalid=%s\n' "$(date -u +%FT%TZ)" "$((SECONDS-campaign_start))" "$final_rc" >> "$out/campaign.txt"
+ exit "$final_rc"
+}
+trap finalize EXIT
+
 for row in "${rows[@]}"; do
  if ((SECONDS-campaign_start>=budget)); then echo 'BUDGET_EXHAUSTED' >> "$out/campaign.txt"; failed=1; break; fi
  read -r r w n threads v <<< "$row"; id=$((id+1)); build_cmd "$v" "$w" "$n" "$threads"
@@ -189,12 +215,4 @@ for row in "${rows[@]}"; do
   [[ $classification == valid ]] || failed=1; break
  done
 done
-printf 'id\tworkload\tbatch\tworkers\tvariant\tsteps\tstep_median_ms\tstep_p95_ms\ttotal_ms\tdecisions_per_s\tactual_ticks_per_s\treset_count\treset_lanes\tresult_fields\n' > "$out/summary.tsv"
-while IFS=$'\t' read -r sid attempt classification rc sw sn st sv log; do
- [[ $classification == valid ]] || continue
- awk -v id="$sid" -v workload="$sw" -v batch="$sn" -v workers="$st" -v variant="$sv" -f verify/architecture/summarize.awk "$log" >> "$out/summary.tsv"
-done < "$out/runs.tsv"
-sha256sum -c "$out/inputs.sha256" > "$out/inputs-recheck.txt" 2>&1 || failed=1
-sha256sum -c "$out/source.sha256" > "$out/source-recheck.txt" 2>&1 || failed=1
-printf 'finished_utc=%s elapsed_s=%s failed_or_invalid=%s\n' "$(date -u +%FT%TZ)" "$((SECONDS-campaign_start))" "$failed" >> "$out/campaign.txt"
 exit "$failed"

@@ -695,3 +695,30 @@ a clean window opens without further interaction. On resumption, inspect these
 same handles and receipts first, validate source/input rechecks and accepted-run
 counts, then finish missing sweeps and the data-backed recommendation. Do not
 turn waiting jobs or contaminated pilots into a throughput result.
+
+## Resumed audit, 2026-09-11
+
+Both prior campaigns ended with rc124 after their six-hour limits. Core recorded
+53 invalid-contention attempts and no accepted rows; pickaxe likewise had no
+accepted comparison. They are terminal, not live waiting jobs.
+
+A concrete monitor bug was found in raw receipts: global awk over /proc/*/stat
+aborted when one process vanished, silently truncating snapshots. Long-lived
+owned processes missing from the old snapshot were then incorrectly treated as
+new and their lifetime CPU counters subtracted, producing false quiet prechecks.
+Examples:978owned ticks versus325 hostbusy;1023versus220. Whole-run checks still
+rejected the busy runs, so no invalid result was promoted. New code reads each
+process independently, records its start time, counts unseen lifetime work only
+for demonstrably new processes, and prevents reused PIDs inheriting ownership.
+All six targeted start-time/ownership/missing-telemetry tests pass on Anvil awk.
+
+A fresh smoke before this fix obtained three low-background-load runs (CPU,
+CUDA,cohort overlap); no architecture ranking follows from one sample each.
+Heavy unrelated compilation resumed during the corrected smoke, which properly
+rejected all three prechecks. The resumed campaign groups repetitions within
+workload/batch to obtain complete comparison groups promptly, records GPU clocks,
+power and temperature, and finalizes partial summaries and source/input rechecks
+even on timeout. A one-second budget test preserved exit124, an empty summary
+and passing hash rechecks. Next campaign starts with the verified pickaxe task,
+then quiet/move, batches8/64/128,workers1/8,three repetitions, under unchanged
+contention thresholds. Production defaults and simulation binaries remain fixed.
