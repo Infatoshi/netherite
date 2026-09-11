@@ -722,3 +722,22 @@ even on timeout. A one-second budget test preserved exit124, an empty summary
 and passing hash rechecks. Next campaign starts with the verified pickaxe task,
 then quiet/move, batches8/64/128,workers1/8,three repetitions, under unchanged
 contention thresholds. Production defaults and simulation binaries remain fixed.
+
+Corrected campaign verified live: tmux netherite-resumed-campaign, sweep PID715520,
+coordinator715499, source d4a914b. Output out/verify/architecture/resumed-campaign
+and resumed-campaign.log/.rc/.start/.end. Plan has405runs with pickaxe first,
+then quiet/move, grouped repetitions, three retries for contaminated attempts.
+It acquired the machine lease and began advancing quiet probes. Inspect this
+handle and these receipts on continuation; prior overnight jobs are terminal.
+
+Resumed blocked audit: the same external CPU-availability condition persisted
+across three consecutive resumed goal turns. The accounting/monitor defects have
+been fixed and tested; no further preparation is required before the scheduled
+comparison can run. At191seconds, PID715520 and its coordinator715499 remained
+live with12 quiet probes, zero executed rows and multiple unrelated compilers
+using full cores. No authority exists to interrupt those jobs. Mark the goal
+blocked on that resource condition, not complete. Leave the corrected campaign
+armed; it will execute automatically if its unchanged load checks pass. Resume
+from resumed-campaign.log/.rc and the existing PID, not the obsolete overnight
+jobs. The remaining deliverables are valid repeated timings, any required followup
+measurements, and the architecture/bottleneck recommendation.
