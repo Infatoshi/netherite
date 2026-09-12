@@ -1,5 +1,17 @@
 # Architecture comparison measurements
 
+## Current status, 2026-09-12
+
+Blocked pending approval for the requested maximum45-minute pause of the two
+unrelated compiler/test job trees, or an independently available quiet window.
+This condition persisted across three resumed goal turns. The measurement tools
+and bounded resume guardian are prepared and tested; no further independent
+preparation is required. At13:59 MDT Anvil still had multiple full-core compiler
+jobs, and no measurement or hold job was running. No unrelated job has been
+paused. Valid repeated timings and the final recommendation remain outstanding.
+Do not execute the hold helper until explicit approval arrives. Revalidate target
+identities at execution time and acquire the machine lease before any GPU work.
+
 ## Overnight goal, 2026-09-10
 
 User explicitly activated sustained overnight pursuit of a defensible rollout
