@@ -741,3 +741,17 @@ armed; it will execute automatically if its unchanged load checks pass. Resume
 from resumed-campaign.log/.rc and the existing PID, not the obsolete overnight
 jobs. The remaining deliverables are valid repeated timings, any required followup
 measurements, and the architecture/bottleneck recommendation.
+
+## 2026-09-12 execution audit
+
+The corrected resumed campaign is terminal: rc124 at2026-09-11T13:07:23Z,
+1338 quiet-window rejections, zero executed timing rows. Input and source rechecks
+passed and its empty accepted-run summary was preserved. Current Anvil still has
+unrelated compiler/test activity. Those job trees were traced to two agents under
+~/dev/luminite/out/agents/autopilot/promotions/{npc-spawn-on-player-bosses,integ-w50}.
+No unrelated process was signalled. Rather than launch another identical failed
+wait, user approval is pending for a bounded pause of these CPU job trees for up
+to45minutes with automatic resumption. The explicit goal forbids interrupting
+unrelated jobs without authorization. A safety helper is being prepared and may
+be tested only against helper-owned dummy processes until approval arrives.
+No measurement job is currently running. The ranking remains incomplete.
