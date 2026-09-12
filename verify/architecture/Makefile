@@ -11,6 +11,10 @@ all: $(OUT)/env_cuda_obs.so $(OUT)/measure $(OUT)/prepare $(OUT)/driver_dispatch
 $(OUT)/action_rows: action_rows.c
 	mkdir -p $(OUT)
 	$(CC) -O2 -std=c11 -Wall -Wextra $< -o $@
+
+$(OUT)/hold_jobs: hold_jobs.c
+	mkdir -p $(OUT)
+	$(CC) -O2 -std=c11 -Wall -Wextra -Werror $< -o $@
 $(OUT)/env_cuda_obs.so: env_cuda_obs.cu env_cuda_obs.h ../../blaze/core/obs_camera.h ../../blaze/core/mc_math.h ../../blaze/core/mc.h
 	mkdir -p $(OUT)
 	$(NVCC) -O3 -std=c++14 -arch=$(BLAZE_SM) --fmad=false -Xcompiler=-fPIC,-ffp-contract=off -shared env_cuda_obs.cu -o $@

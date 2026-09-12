@@ -755,3 +755,17 @@ to45minutes with automatic resumption. The explicit goal forbids interrupting
 unrelated jobs without authorization. A safety helper is being prepared and may
 be tested only against helper-owned dummy processes until approval arrives.
 No measurement job is currently running. The ranking remains incomplete.
+
+Bounded hold helper is prepared in verify/architecture/hold_jobs.c, optional make
+target out/verify/architecture/hold_jobs. Dry-run is default; execution requires
+explicit PID:starttime identities and a maximum2700-second hold. A separate
+session guardian uses pidfds, preserves pre-stopped processes, confirms STOP
+before repeated descendant closure, and resumes on command completion, timeout,
+frontend termination or catchable guardian termination. Dead/zombie descendants
+are skipped and dead roots fail closed. It cannot recover from guardian SIGKILL
+or host failure and is not an atomic cgroup freezer.
+Eleven helper-owned dummy-process checks passed. Parent independently compiled
+with-Werror and tested normal completion, timeout and frontend SIGKILL; every
+owned dummy resumed and no helper remained running. Receipts are under
+out/verify/architecture/hold-helper/ and hold-parent-check/. No unrelated process
+was signalled. Real-job execution remains blocked on the pending user approval.
