@@ -1,0 +1,60 @@
+{
+  "path": "oracle/src/command/server/CommandMessageRaw.java",
+  "classes": [
+    "CommandMessageRaw"
+  ],
+  "lines": 75,
+  "side": "server",
+  "category": "commands",
+  "role": "The /tellraw command: sends a raw JSON chat component to one named player.",
+  "scope": "not_needed",
+  "scope_reason": "Never reached: the agent and RL paths have no chat or command input (SPEC input: look, gui ops, held keys; no command source), and the native engine has no command dispatcher. world.conf does not list commands.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,[Ljava/lang/String;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,[Ljava/lang/String;)Ljava/util/List;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isUsernameIndex",
+      "sig": "([Ljava/lang/String;I)Z",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": []
+}

@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/entity/ai/EntitySenses.java",
+  "classes": ["EntitySenses"],
+  "lines": 64,
+  "side": "server",
+  "category": "ai",
+  "role": "Line-of-sight cache for the targeting tasks: canSee raytraces eye to eye once per entity per cache generation and remembers the answer until clearSensingCache.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["senses_clear", "senses_can_see"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-skeleton-s1", "out/java/snapshots/fight-zombie-s1", "out/java/snapshots/fight-witch-s1", "csrc/tests/test_hostiles.c"],
+  "members": [
+    {"kind": "field", "name": "entityObj", "sig": "EntityLiving", "native": "csrc/engine/living.h:living", "status": "exact", "note": "folded: the cache is the senses member of struct living"},
+    {"kind": "field", "name": "seenEntities", "sig": "List", "native": "csrc/engine/living.h:living", "status": "exact", "note": "senses.seen[64] with nseen, a fixed array instead of the ArrayList (capacity 64 vs Java's unbounded list)"},
+    {"kind": "field", "name": "unseenEntities", "sig": "List", "native": "csrc/engine/living.h:living", "status": "exact", "note": "senses.unseen[64] with nunseen"},
+    {"kind": "ctor", "name": "EntitySenses", "sig": "(EntityLiving)V", "native": "csrc/engine/living.h:living", "status": "exact", "note": "the struct member is zero-initialized"},
+    {"kind": "method", "name": "clearSensingCache", "sig": "()V", "native": "csrc/engine/ai.c:senses_clear", "status": "exact"},
+    {"kind": "method", "name": "canSee", "sig": "(Entity)Z", "native": "csrc/engine/ai.c:senses_can_see", "status": "exact", "note": "cache hit, otherwise the eye-to-eye raytrace (Java calls EntityLiving.canEntityBeSeen; native calls raytrace_trace directly) and the result cached"}
+  ],
+  "missing": [],
+  "notes": "The engine clears the cache where EntityLiving.onUpdate clears it; the 64-entry cap is a fixed-capacity stand-in for the lists and cannot overflow silently beyond 64 distinct queried entities per generation."
+}

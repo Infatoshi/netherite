@@ -1,0 +1,150 @@
+{
+ "classes": [
+  "ContainerMerchant"
+ ],
+ "lines": 169,
+ "side": "server",
+ "category": "inventory",
+ "role": "The villager trading container: two buy slots and the recipe's sell slot (SlotMerchantResult), the trade-list S3F sync, setCurrentRecipeIndex, and the close-time setCustomer and buy-slot spill.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_init",
+    "transfer_merchant",
+    "container_merchant_reset",
+    "container_merchant_set_recipe_index",
+    "merchant_out_on_pickup",
+    "container_close"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_open_merchant",
+    "surv_merchant_use",
+    "surv_merchant_sound",
+    "PK_S3F",
+    "gui_can_interact"
+   ]
+  },
+  {
+   "file": "csrc/engine/trades.c",
+   "symbols": [
+    "trades_can_be_used"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/trade-full-s1",
+  "csrc/tests/test_trades.c",
+  "out/java/trades",
+  "csrc/tests/test_containers.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "theMerchant",
+   "sig": "IMerchant",
+   "native": "csrc/engine/container.h:merchant_use",
+   "status": "exact",
+   "note": "the villager half is carried as the merchant_use and merchant_sound callbacks"
+  },
+  {
+   "kind": "field",
+   "name": "merchantInventory",
+   "sig": "InventoryMerchant",
+   "native": "csrc/engine/container.h:merchant",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "theWorld",
+   "sig": "World",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerMerchant",
+   "sig": "(InventoryPlayer,IMerchant,World)V",
+   "native": "csrc/engine/survival.c:gui_open_merchant",
+   "status": "exact",
+   "note": "container_init(CONTAINER_MERCHANT) plus the S2D and S3F open batch"
+  },
+  {
+   "kind": "method",
+   "name": "getMerchantInventory",
+   "sig": "()Lnet/minecraft/inventory/InventoryMerchant;",
+   "native": "csrc/engine/container.h:merchant",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addCraftingToCrafters",
+   "sig": "(Lnet/minecraft/inventory/ICrafting;)V",
+   "native": "csrc/engine/survival.c:PK_S3F",
+   "status": "exact",
+   "note": "The open path's S3F recipe list and the slots' S2Fs (survival.c:gui_open_merchant); trade-s1 opens it twice."
+  },
+  {
+   "kind": "method",
+   "name": "detectAndSendChanges",
+   "sig": "()V",
+   "native": "csrc/engine/survival.c:detect_and_send_changes",
+   "status": "exact",
+   "note": "The three merchant slots through the shared S2F sync; trade-s1's rows compare the window every tick."
+  },
+  {
+   "kind": "method",
+   "name": "onCraftMatrixChanged",
+   "sig": "(Lnet/minecraft/inventory/IInventory;)V",
+   "native": "csrc/engine/container.c:container_merchant_reset",
+   "status": "n/a",
+   "note": "n/a: no caller: InventoryCrafting and the table and anvil containers call their own containers, and InventoryMerchant resets itself (resetRecipeAndSlots)"
+  },
+  {
+   "kind": "method",
+   "name": "setCurrentRecipeIndex",
+   "sig": "(I)V",
+   "native": "csrc/engine/container.c:container_merchant_set_recipe_index",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateProgressBar",
+   "sig": "(II)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "the villager's customer is still the player (EntityAITradePlayer's resetTask clears it past 4 blocks)"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:transfer_merchant",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onContainerClosed",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/container.c:container_close",
+   "status": "exact",
+   "note": "the merchant branch: the buy slots spill after the cursor The setCustomer(null) half ran only inside the chest branch of surv_server_close_screen before containers2; it now runs for the merchant window."
+  }
+ ],
+ "missing": [],
+ "notes": "The trade list, uses, locking and re-rolls live in trades.c and are gated by test_trades.c and the trade-s1 whole-server replay (recipe locked at 7 of 7 uses, then re-opened and re-selected). lane/idxblocks: reviewed; trade-s1 is the gate. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): containers2-s42. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour.",
+ "path": "oracle/src/inventory/ContainerMerchant.java"
+}

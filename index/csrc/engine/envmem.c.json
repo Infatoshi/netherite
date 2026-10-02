@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/envmem.c",
+ "lines": 234,
+ "role": "One environment's live bytes by owner (GPU audit L9): the server worlds' chunks and structs, the region store, the client world (chunks, client entities, particles), the renderer (play), entities (the arena's live slots and the list slab), pending tick sets, scratch and the rest of the replay and session. Variable storage counts what it holds (a chunk its struct, its bands once however many chunks share them, and its packed blob; a table its capacity; a pool its live slots); fixed structs and reserve-and-commit mappings count the pages written so far (mincore). test_snapshots --mem and play --bench --mem print the first row's and the peak's.",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "envmem_session",
+  "envmem_chunk",
+  "envmem_add",
+  "envmem_total",
+  "envmem_print",
+  "envmem_name"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/play/play.c"
+ ],
+ "notes": "Ports no oracle/src file: a measure for the harness, never called by the tick. The snapshot and the tape a run reads are the harness's and are not counted. lane/envmem: the spill index and buffers under region; spilled chunk count and file bytes (on disk) in struct envmem."
+}

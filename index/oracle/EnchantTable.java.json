@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/EnchantTable.java",
+ "lines": 137,
+ "role": "Generator that writes the enchantment registry (effectId, weight, level range, enchantability windows, type ordinal, canApplyTogether bitmask) as the C header csrc/engine/enchants.h, read from the oracle's own Enchantment objects.",
+ "kind": "util",
+ "used_by": [
+  "csrc/engine/enchants.h (generated; included by csrc/engine/enchant.c and csrc/engine/trades.c)",
+  "run by hand: java -cp ... netherite.oracle.EnchantTable ../csrc/engine/enchants.h (no Makefile target, unlike biomes-h/blocks-h/items-h)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "The string EnchantTable in oracle/src/tileentity/TileEntity.java is the tile entity id of TileEntityEnchantmentTable, not a call into this class, so it has no vanilla hooks. No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

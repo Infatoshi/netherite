@@ -1,0 +1,138 @@
+{
+ "classes": [
+  "ContainerEnchantment"
+ ],
+ "lines": 325,
+ "side": "common",
+ "category": "inventory",
+ "role": "The enchanting table GUI container: one item slot, the three enchantLevels computed from the bookshelf count and a table-position seed, and enchantItem applying a level.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf enchanting = off: the enchanting table is a plain block, so this container never opens.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "tableInventory",
+   "sig": "IInventory",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "worldPointer",
+   "sig": "World",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "posX",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "posY",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "posZ",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "rand",
+   "sig": "Random",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "nameSeed",
+   "sig": "long",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "enchantLevels",
+   "sig": "int[]",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerEnchantment",
+   "sig": "(InventoryPlayer,World,III)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addCraftingToCrafters",
+   "sig": "(Lnet/minecraft/inventory/ICrafting;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "detectAndSendChanges",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateProgressBar",
+   "sig": "(II)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onCraftMatrixChanged",
+   "sig": "(Lnet/minecraft/inventory/IInventory;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "enchantItem",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onContainerClosed",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/ContainerEnchantment.java"
+}

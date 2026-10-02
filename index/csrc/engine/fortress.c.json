@@ -1,0 +1,30 @@
+{
+ "path": "csrc/engine/fortress.c",
+ "lines": 428,
+ "role": "MapGenNetherBridge's spawn test and StructureNetherBridgePieces' layout half: the start piece, the per-start weighted piece picker with its limits and no-repeat rule, the 112-block reach cutoff with dead ends, the random-order pending queue, every piece's buildComponent, and setRandomHeight(48, 70).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/MapGenNetherBridge.java", "members": ["canSpawnStructureAtCoords", "getStructureStart", "Start"]},
+  {"path": "oracle/src/world/gen/structure/StructureNetherBridgePieces.java", "members": ["primaryComponents", "secondaryComponents", "func_143049_a", "PieceWeight", "Piece.getTotalWeight", "Piece.getNextComponent", "Piece.getNextComponentNormal", "Piece.getNextComponentX", "Piece.getNextComponentZ", "Piece.isAboveGround", "Start.Start", "Start.field_74967_d", "Start.theNetherBridgePieceWeight", "Crossing3.buildComponent", "Straight.buildComponent", "Corridor.buildComponent", "Corridor2.buildComponent", "Corridor3.buildComponent", "Corridor4.buildComponent", "Corridor5.buildComponent", "Crossing.buildComponent", "Crossing2.buildComponent", "Entrance.buildComponent", "NetherStalkRoom.buildComponent", "Stairs.buildComponent", "End.func_74971_a", "createValidComponent"]},
+  {"path": "oracle/src/world/gen/structure/StructureStart.java", "members": ["updateBoundingBox", "setRandomHeight"]},
+  {"path": "oracle/src/world/gen/structure/StructureComponent.java", "members": ["findIntersecting", "getComponentToAddBoundingBox"]}
+ ],
+ "structs": [
+  {"name": "shape / shapes", "java": "each piece's getComponentToAddBoundingBox offsets and size", "fields": ["ox", "oy", "oz", "size_x", "size_y", "size_z"]},
+  {"name": "ids", "java": "MapGenStructureIO registry names (NeStart, NeBS, ...) from func_143049_a", "fields": []},
+  {"name": "primary_weights / secondary_weights", "java": "StructureNetherBridgePieces.primaryComponents and secondaryComponents PieceWeight tables", "fields": ["kind", "weight", "spawned", "limit", "repeat"]},
+  {"name": "structure_fortress", "java": "MapGenNetherBridge as a structure_type (name, begin, can_spawn, make_start)", "fields": []}
+ ],
+ "entry_points": ["structure_fortress", "fortress_begin", "fortress_build_component"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 99 and 375, functions fortress_create and fortress_make_start: calloc per piece (pointer graph of pieces owned by the start)",
+  "line 141, function pending_add: realloc growth of the pending queue",
+  "lines 175-177 and 390-404: weight lists are arrays of pointers into the start piece's own store",
+  "lines 410-418, function fortress_make_start: pending-queue loop whose length depends on the layout (bounded in practice by the depth <= 30 cap and the 112-block reach)",
+  "lines 100 and 376: abort() on allocation failure"
+ ],
+ "tests": ["csrc/tests/test_structures.c", "csrc/tests/test_fortress_spawn.c", "csrc/tests/test_dims.c", "csrc/tests/test_populate.c"],
+ "notes": "Java member names given as Class.member for nested classes; getStructureStart and the nested-class member names are from the file layout, not diffed method by method. The block half is fortress_blocks.c. Recursion into buildComponent goes through structure.c's piece_build_component, driven by the explicit pending queue rather than C recursion."
+}

@@ -1,0 +1,63 @@
+{
+ "path": "oracle/src/client/model/ModelSkeletonHead.java",
+ "classes": [
+  "ModelSkeletonHead"
+ ],
+ "lines": 44,
+ "side": "client",
+ "category": "client_model",
+ "role": "The skull's tile-entity model: the 8x8x8 head box, rendered by TileEntitySkullRenderer.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_tileent.c",
+   "symbols": [
+    "render_skull"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/rendertick/te_skulls",
+  "out/java/render/te_skulls_f25"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "skeletonHead",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_tileent.c:render_skull",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSkeletonHead",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "(0, 35, 64, 64): the wither skull's head, whose entity is switched off"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSkeletonHead",
+   "sig": "(int,int,int,int)V",
+   "native": "csrc/engine/raster_tileent.c:render_skull",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_tileent.c:render_skull",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_tileent.c:render_skull",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

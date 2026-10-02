@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/statediff.h",
+ "lines": 38,
+ "role": "Declares statediff_run (the native state against a snapshot of the same tick) and statediff_nbt (every differing path of two canonical NBT trees).",
+ "layer": "test",
+ "java": [],
+ "structs": [
+  {
+   "name": "statediff_sum",
+   "java": "the per-group counts of one comparison",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "statediff_run",
+  "statediff_nbt"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header for statediff.c."
+}

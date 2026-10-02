@@ -1,0 +1,15 @@
+{
+ "path": "csrc/tests/trace_diff.c",
+ "lines": 146,
+ "role": "Tool: prints the first differing line of two matched trace files (Java oracle vs native), with three lines of context and d:/f: tokens decoded to decimal; exits 0 when identical.",
+ "layer": "tool",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "Standalone tool beside the tests, no engine code linked. Consumes traces written by csrc/engine/trace.c and the oracle's tracing."
+}

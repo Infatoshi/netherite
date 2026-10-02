@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/entity/ai/EntityJumpHelper.java",
+  "classes": ["EntityJumpHelper"],
+  "lines": 29,
+  "side": "server",
+  "category": "ai",
+  "role": "One-tick jump request buffer: tasks set the flag, and doJump (called from the living tick) transfers it to the entity's jumping state and clears it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["jump_helper_do", "move_helper_update", "ai_update"]},
+    {"file": "csrc/engine/living.h", "symbols": ["living"]}
+  ],
+  "evidence": ["out/java/snapshots/mobspawn-final-s1", "out/java/snapshots/cp-mobs-s1", "csrc/tests/test_animals.c"],
+  "members": [
+    {"kind": "field", "name": "entity", "sig": "EntityLiving", "native": "csrc/engine/living.h:living", "status": "exact", "note": "folded: the helper is the jump member of struct living"},
+    {"kind": "field", "name": "isJumping", "sig": "boolean", "native": "csrc/engine/living.h:living", "status": "exact", "note": "l->jump.is_jumping"},
+    {"kind": "ctor", "name": "EntityJumpHelper", "sig": "(EntityLiving)V", "native": "csrc/engine/living.h:living", "status": "exact", "note": "the struct member is zero-initialized"},
+    {"kind": "method", "name": "setJumping", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "the AI tasks write l->jump.is_jumping directly (AIC_SWIMMING), and move_helper_update sets it on upward moves"},
+    {"kind": "method", "name": "doJump", "sig": "()V", "native": "csrc/engine/ai.c:jump_helper_do", "status": "exact", "note": "living_set_jumping(isJumping) then clears the flag"}
+  ],
+  "missing": [],
+  "notes": ""
+}

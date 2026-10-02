@@ -1,0 +1,69 @@
+{
+  "path": "oracle/src/command/IEntitySelector.java",
+  "classes": [
+    "IEntitySelector",
+    "IEntitySelector.ArmoredMob"
+  ],
+  "lines": 69,
+  "side": "common",
+  "category": "commands",
+  "role": "Entity filter interface plus ready-made selectors (alive, alive and unridden, inventories) used by AI, hoppers and spawn code, and the ArmoredMob filter for equipment pickup.",
+  "scope": "not_needed",
+  "scope_reason": "An interface with no behaviour of its own that runs in this game: the entity filters that matter are anonymous implementations inside their users (EntityAINearestAttackableTarget.java:44, EntityAIAvoidEntity.java:15, IMob.mobSelector), indexed there. Its own static selectors are unreached: selectAnything and field_152785_b have no caller, selectInventories is the hopper's (redstone = off) and ArmoredMob the dispenser's armour behaviour (redstone = off).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "selectAnything",
+      "sig": "IEntitySelector (static)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_152785_b",
+      "sig": "IEntitySelector (static)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "selectInventories",
+      "sig": "IEntitySelector (static)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isEntityApplicable",
+      "sig": "(Entity)boolean",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "ArmoredMob.field_96567_c",
+      "sig": "ItemStack",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "ArmoredMob",
+      "sig": "(ItemStack)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "ArmoredMob.isEntityApplicable",
+      "sig": "(Entity)boolean",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "The filters it parameterizes are reimplemented inline in the native AI and container code (csrc/engine/ai.c, csrc/engine/container.c); I did not verify each use site maps one to one. Static __OBFID constants are grouped out per the brief. idxaudit 2026-09-27: scope reason rewritten."
+}

@@ -1,0 +1,145 @@
+{
+ "path": "oracle/src/entity/passive/EntityTameable.java",
+ "classes": [
+  "EntityTameable"
+ ],
+ "lines": 224,
+ "side": "server",
+ "category": "entity",
+ "role": "The tamed-animal base (the sit AI, the owner UUID in watcher 16/17, the taming particles, the team hooks). Its only 1.7.10 subclasses are the wolf and the ocelot.",
+ "scope": "switched_off",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EntityTameable",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "playTameEffect",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "handleHealthUpdate",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isTamed",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setTamed",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isSitting",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setSitting",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152113_b",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152115_b",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getOwner",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_152114_e",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_70907_r",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_142018_a",
+   "sig": "(2p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getTeam",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isOnSameTeam",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "scope_reason": "world.conf has wolves = off and ocelots = off, so no tameable subclass is ever spawned on either side (SPEC 'Unsupported features are world switches').",
+ "notes": "Every member row is n/a: nothing instantiates this class in either the oracle (the spawn entries are pruned by WorldConf.pruneSpawns, /summon refuses it) or the native engine."
+}

@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/util/Util.java",
+  "classes": ["Util", "Util.EnumOS"],
+  "lines": 26,
+  "side": "common",
+  "category": "util",
+  "role": "One static helper: getOSType reads the os.name system property and returns a Linux/Windows/OSX/Solaris enum, used to pick client resource paths.",
+  "scope": "not_needed",
+  "scope_reason": "OS detection only steers client asset and library paths; the native engine targets the build host directly and never reads the environment.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getOSType", "sig": "()Util.EnumOS", "native": null, "status": "n/a", "note": "a System.getProperty read, exactly the kind of environment access the GPU contract forbids"},
+    {"kind": "field", "name": "EnumOS", "sig": "enum", "native": null, "status": "n/a"}
+  ],
+  "missing": []
+}

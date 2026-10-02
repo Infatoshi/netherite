@@ -1,0 +1,387 @@
+{
+ "path": "csrc/engine/serverreplay.c",
+ "lines": 11714,
+ "role": "The whole integrated server tick by tick from a tape's snapshot: loads worlds.nbt and the snapshot's entities, runs WorldServer.tick for the overworld, Nether and End in worldServers order with the spawner, villages, tile entity pass and World.updateEntities over every pool in loadedEntityList order, keeps per-dimension state swapped in and out, handles chunk loads, unloads and region saves with their entities and pending ticks, portal and End travel, the End fight's entity plumbing, the player's chunk send queue, and the Rows w/d values (block hash, world RNG, Det) the gate compares.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/server/MinecraftServer.java",
+   "members": [
+    "tick",
+    "updateTimeLightAndEntities",
+    "initialWorldChunkLoad"
+   ]
+  },
+  {
+   "path": "oracle/src/server/integrated/IntegratedServer.java",
+   "members": [
+    "tick"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "tick",
+    "updateEntities",
+    "updateEntityTick",
+    "newExplosion",
+    "villageSiegeObj"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateEntities",
+    "updateEntityWithOptionalForce",
+    "updateEntity",
+    "spawnEntityInWorld",
+    "removeEntity",
+    "setActivePlayerChunksAndCheckLight",
+    "getEntitiesWithinAABBExcludingEntity",
+    "getTopSolidOrLiquidBlock",
+    "func_147457_a",
+    "weatherEffects",
+    "loadedEntityList",
+    "activeChunkSet",
+    "canPlaceEntityOnSide"
+   ]
+  },
+  {
+   "path": "oracle/src/world/ChunkCoordIntPair.java",
+   "members": [
+    "hashCode"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderServer.java",
+   "members": [
+    "loadChunk",
+    "provideChunk",
+    "unloadQueuedChunks",
+    "unloadAllChunks",
+    "populate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "getPossibleCreatures"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderHell.java",
+   "members": [
+    "getPossibleCreatures",
+    "populate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderEnd.java",
+   "members": [
+    "populate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenScatteredFeature.java",
+   "members": [
+    "func_143030_a",
+    "getScatteredFeatureSpawnList"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "onChunkUnload",
+    "onChunkLoad"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/storage/AnvilChunkLoader.java",
+   "members": [
+    "writeChunkToNBT",
+    "readChunkFromNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityList.java",
+   "members": [
+    "createEntityFromNBT",
+    "createEntityByName",
+    "addMapping"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/MobSpawnerBaseLogic.java",
+   "members": [
+    "updateSpawner",
+    "resetTimer"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityChest.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/server/management/ServerConfigurationManager.java",
+   "members": [
+    "transferPlayerToDimension",
+    "respawnPlayer",
+    "transferEntityToWorld"
+   ]
+  },
+  {
+   "path": "oracle/src/server/management/PlayerManager.java",
+   "members": [
+    "updatePlayerInstances",
+    "updateMountedMovingPlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "onUpdate",
+    "travelToDimension",
+    "onNewPotionEffect",
+    "onChangedPotionEffect",
+    "onFinishedPotionEffect",
+    "loadedChunks"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "onKillEntity",
+    "addToPlayerScore",
+    "collideWithNearbyEntities"
+   ]
+  },
+  {
+   "path": "oracle/src/network/NetHandlerPlayServer.java",
+   "members": [
+    "setPlayerLocation",
+    "processClientStatus"
+   ]
+  },
+  {
+   "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+   "members": [
+    "handleMapChunkBulk",
+    "handleChunkData",
+    "handleMultiBlockChange",
+    "handleBlockChange"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "onEntityUpdate",
+    "setInPortal",
+    "travelToDimension",
+    "copyDataFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockPortal.java",
+   "members": [
+    "onEntityCollidedWithBlock",
+    "updateTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockEndPortal.java",
+   "members": [
+    "onEntityCollidedWithBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/world/Teleporter.java",
+   "members": [
+    "removeStalePortalLocations"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/boss/EntityDragon.java",
+   "members": [
+    "collideWithEntities",
+    "attackEntitiesInList"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderCrystal.java",
+   "members": [
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/world/Explosion.java",
+   "members": [
+    "doExplosionA"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/effect/EntityLightningBolt.java",
+   "members": [
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIMate.java",
+   "members": [
+    "spawnBaby"
+   ]
+  },
+  {
+   "path": "oracle/src/village/VillageSiege.java",
+   "members": [
+    "tick"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemHangingEntity.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "travelToDimension"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockBasePressurePlate.java",
+   "members": [
+    "onEntityCollidedWithBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityZombie.java",
+   "members": [
+    "attackEntityFrom"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "sr_dimstate",
+   "java": "the per-dimension half of WorldServer, one per dimension in serverreplay.h's dims (defined there): entity pools, pass order, spawner, weather effects, chunk provider/player manager, region store, saved entities and chunk ticks, and its pending set (a ticks_set)",
+   "fields": [
+    "dim",
+    "iew",
+    "fhw",
+    "spawner",
+    "anw",
+    "ents",
+    "nents",
+    "capents",
+    "bolts",
+    "nbolts",
+    "capbolts",
+    "cl",
+    "extra",
+    "nextra",
+    "capextra",
+    "saved",
+    "saved_ready",
+    "saved_ents",
+    "nsaved_ents",
+    "chunk_ticks",
+    "nchunk_ticks",
+    "capchunk_ticks",
+    "initial_ent_count",
+    "ticks"
+   ]
+  },
+  {
+   "name": "sr_vc / sr_vs (file statics)",
+   "java": "WorldServer.villageCollectionObj and villageSiegeObj",
+   "fields": []
+  },
+  {
+   "name": "eb_entry",
+   "java": "one entity Explosion.doExplosionA's End query reaches, with its attack and motion callbacks",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "serverreplay_action_begin",
+  "serverreplay_action_end",
+  "serverreplay_bind_player",
+  "serverreplay_set_view_distance",
+  "serverreplay_break_hanging",
+  "serverreplay_dragon",
+  "serverreplay_end_crystal_hit",
+  "serverreplay_end_listed",
+  "serverreplay_enter",
+  "serverreplay_lightning_strike",
+  "serverreplay_load",
+  "serverreplay_move_mob",
+  "serverreplay_order_players_only",
+  "serverreplay_pause_save",
+  "serverreplay_player_collide",
+  "serverreplay_player_dim",
+  "serverreplay_player_manager",
+  "serverreplay_player_to_tail",
+  "serverreplay_queue_packets",
+  "serverreplay_respawn_conquered",
+  "serverreplay_summon_hostile",
+  "serverreplay_sync_client",
+  "serverreplay_sync_client_chunks",
+  "serverreplay_take_sent",
+  "serverreplay_tick",
+  "serverreplay_track_entity",
+  "serverreplay_world_rand",
+  "sr_active_set",
+  "sr_active_set_memo",
+  "sr_block_hash",
+  "sr_block_writes",
+  "sr_constructor_begin",
+  "sr_constructor_end",
+  "sr_det",
+  "sr_negative",
+  "sr_order_push",
+  "sr_top_solid_or_liquid",
+  "sr_total_time",
+  "sr_world_rng",
+  "sr_world_time",
+  "serverreplay_place_hanging",
+  "serverreplay_dim_nents",
+  "serverreplay_client_prefill",
+  "serverreplay_drop_env_begin",
+  "serverreplay_drop_env_end"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 5530 and 5564, functions sr_tiles_loaded and sr_tiles_unloaded: getenv(\"NOTL\") and getenv(\"NOTU\") environment reads that skip the tile entity bookkeeping (against the AGENTS rule of no environment variables)",
+  "line 1617, function sr_on_block: realloc of the entity pass's extra writes inside the tick",
+  "function sr_order_push: the pass order is a fixed array made with the dimensions (SR_MAX_ORDER) (lane/gpuarena, L3)",
+  "line 2251, function sr_on_spawn: realloc of weatherEffects (bolts) inside the tick",
+  "line 1739, function sr_tile_construct, and line 2351, function serverreplay_lightning_strike: calloc of a new struct living per spawner attempt or pig-to-pigman conversion inside the tick",
+  "functions sr_restore_checkpoint_entity and sr_restore_saved_entities: calloc per reloaded entity on chunk load inside the tick",
+  "functions sr_end_save_entities, sr_save_item, sr_chunk_unload_cb and the checkpoint loads: saved_ents grows by one element per saved entity on chunk unload, in the arena's slab (slab_grow); the list is never compacted, so a long session grows it without bound (lane/querybounds, TM-06)",
+  "function sr_end_save_entities: the saved dragon_state copy is a slab block (slab_take) (lane/querybounds, TM-06)",
+  "line 4326, function sr_player_send_chunks: malloc of a full chunk copy per sent chunk (up to 5 per tick)",
+  "functions sr_save_chunk_ticks, sr_put_chunk_ticks, sr_save_seed_ticks, sr_saved_read_region: the chunk tick table and each chunk's saved ticks are slab blocks (slab_grow, slab_take, slab_give) (lane/querybounds, TM-06)",
+  "function sr_ensure_saved: lazily fills the region store from the first chunk load/unload callback inside a tick: the seed world from its region-cache image (regioncache.c; the whole seedworld build, 625 chunks, on a miss); a checkpoint start records the save's chunk coordinates (sr->lazy) and sr_saved_fetch reads one region chunk at its first load (sr_saved_read_region: cells, tile entities, pending ticks, entities)",
+  "lines 5553 and 5549-5551, function sr_tiles_loaded: realloc of the tile entity list and linear presence scans over it (O(n) per tile, O(n^2) per chunk)",
+  "lines 5890-5892, function sr_cl_event: three malloc'd pointer arrays per chunk unload event",
+  "realloc of the client chunk stream (line 466); the send queue grows in the slab (slab_grow) (lane/querybounds, TM-06)",
+  "the entity pass names its entities by pool slot (struct sr_ent pool + id, sr_ent_p); the region store's live instances are sr_ent or lref (pool 6), and the End dragon's saved state a heap copy (lane/gpuarena, L3)",
+  "function sr_active_set: the active chunk set's HashSet order from jorder.c's jord_ccp_window (the window sorted by JDK bin, a 2 KB count array) (lane/gpuorder, L4)",
+  "line 5427, function sr_ie_copy, and line 5584, function sr_ie_post_update: a portal traveller's copy and its dead old instance are malloc'd inside the entity pass",
+  "line 5505, function sr_ie_portal_travel: calloc'd an_ent wrappers for a mob-pool traveller inside the tick",
+  "line 5355, function sr_living_portal_travel: the destination dimension is swapped in mid-update (serverreplay_enter) and left entered until the traveller's post_update",
+  "functions sr_store_chunk, serverreplay_park, the seed-world build, sr_adopt_dim_snapshot: a chunk an unload parks in the region store keeps its bands through the tick and the row after (SR_PARK_WAIT, lane/spillfast: most reloads come within a row) and is packed between rows (serverreplay_park, the PARK sub-mark; chunk_pack, lzpack.c), a seed-world or adopted Nether/End region chunk as it enters the store, and unpacked at its next load (chunk_unpack in sr_chunk_load_cb, sr_hell_provide, sr_sky_provide) (lanes worldmem, gpumem2)",
+  "functions sr_chunk_load_cb, sr_hell_provide, sr_sky_provide: a stored chunk enters the live world through world_chunk_request (CREQ_STORED) (lane/gpuorder, L4)",
+  "functions sr_hell_restore_entities and sr_restore_saved_entities: the restore order is a slab block taken and given back per chunk load; sr_end_blast_query's list is a slab block taken once (lane/querybounds, TM-06)",
+  "function sr_saved_take: a region-store chunk, its tile entities, saved entities (NBT) and saved ticks read back from the environment's spill file (regionspill.c: pread and lzp_decompress) inside the tick"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_lightning.c"
+ ],
+ "notes": "The largest file in the native tree; this record was built from its function list and comments plus targeted reads (load head, sr_swap, sr_active_set, sr_tick_world head and tail, serverreplay_tick, chunk load callbacks), not a line-by-line review of all 6160 lines, so the Java member lists are those the comments name. The End's creatures other than the dragon and crystals, and any Nether entities beyond the living pool, may be partially covered; sr_on_spawn sets an error for any tick-spawned class the native lists do not carry. The village collection is always empty (a snapshot carries no villages), so village siege zombies never spawn here. Minecarts and boats in a checkpoint region are skipped (switched off in world.conf). The replay is driven by csrc/play/play.c and csrc/tests/test_snapshots.c, which compare every row against the oracle tapes under out/java/snapshots/. lane/pick: sr_query_other and sr_other_hit give every dimension's projectile pass the fh pool's falling blocks and hanging entities; sr_order_push tracks the pick's non-living kinds (pickobj_server_spawn); the ghasts' player mirror runs for any pool with a gh_world. The region store's seed-world (or checkpoint) build runs at the first chunk load (sr_ensure_saved); an unload before it stores into an empty store (sr_saved_init) and sets the globals the build leaves (sr_saved_context), so a recording that never loads a chunk never builds the seed world (lane suitestart, 2026-09-25). The checkpoint's region chunks are read at their first load instead of at the build (lane worldmem, 2026-09-26): a golden-chain save holds every chunk the playthrough visited (4301 for G15); the pending ticks of a chunk seedticks.jsonl.gz covers are skipped there, as the seedticks pass replaced them. Vacated order-list slots and grown order arrays are zeroed so grave.c's scan finds no stale copies. A mid-run snapshot (it records the send queue) resumes the chunk stream (sr_resume_stream: EntityPlayerMP.loadedChunks, the pending S26/S21), prefills the client world from the client's chunk list (serverreplay_client_prefill), takes the player manager's square from managedPosX/Z, loads a seed start's save/ overlay through the region loader (sr_saved_add_region_chunk), sets the region store's context at load, and at the player bind restores the player's mount, potion effects, slice stamp and every runtime reference to the player. The region FallingSand restore draws the constructor's id, Random and UUID on the server streams. lane/stronghold: the block environments also install a container spill sink (sr_block_env_spill, BlockChest.breakBlock's spill inside any write that replaces a chest, e.g. a population step), sr_pop_ent adopts the spills a structure piece records, and the item/fh pass removes a dead entity even when updateEntityWithOptionalForce's 32-block guard skips its update. lane/endbot: sr_ie_exit_end (an item or orb through the exit portal), sr_player_dragon_push and sr_dragon_before (the dragon's collision in chunk order), End arrows saved and reloaded (pool 9 in sr_hell_save_entities and sr_hell_restore_entities), a reloaded mob keeps only saved attribute modifiers (sr_reload_living), the unloaded dragon leaves its shadow alive for the endermen. Lane gpuphase (GPU audit L6): sr_tick_world is sr_world_begin, servertick_tick, then the phases S9 sr_world_tail, SG (overworld), S10 sr_weather_effects, S11 sr_entity_pass, S12 sr_tile_pass between sr_pass_begin and sr_pass_end; serverreplay_tick adds NT sr_track (the dev S1C and combat_server_finish), SE sr_tick_empty and S13 sr_fold_writes per world. The client sync notes its cell writes (world_note_write) so the phase digests see them. lane/gpumem2 (GPU plan L14): sr_cl_event buries (grave_bury) the livings an unloading chunk takes out of the world (World.unloadEntities drops the objects; they were kept for good before, 3,860 of gold-g15-s42's 4,900 living slots); a saved record's live instance carries its list slot's generation (sr_saved_activate, sr_saved_active_is), so a slot the grave gave back and another entity took is not matched as the record's. lane/idxentity: sr_on_reinforce, sr_player_kill's two parts, sr_player_achievement, the End's crystals and dragon in sr_place_entity_in, the spawner's persistence sync. lane/chainfuzz: the S28 and S24 fan-outs (func_148543_a over playerEntityList) reach a dead player and one past the exit portal; the S27 (the world's playerEntities) a dead player, not one past the exit portal; a player out of loadedEntityList gets no onUpdate, so no chunk send and no func_85172_a (serverreplay_player_on_update; pfc-deadfx-fresh, pfc-deadchunks-g5). lane/envmem: the park (serverreplay_park) spills parked chunks with their tile entities, saved entities and ticks to the environment's file (sr_park_chunk), collects loaded saved-entity records nothing reads again (sr_saved_gc), drops unloaded chunks' empty entity lists, compacts the overworld spawner and spills far mineshaft starts. lane/spillfast: an unloaded chunk packs at the park one row after its unload (park_row, nwait); an unload's entity lists still go at the park of its own row."
+}

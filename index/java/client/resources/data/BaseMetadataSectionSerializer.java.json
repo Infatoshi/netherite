@@ -1,0 +1,16 @@
+{
+  "path": "oracle/src/client/resources/data/BaseMetadataSectionSerializer.java",
+  "classes": ["BaseMetadataSectionSerializer"],
+  "lines": 6,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Empty abstract base of every IMetadataSectionSerializer; exists only so Gson can type the hierarchy.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack metadata plumbing the native engine never touches.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [],
+  "missing": [],
+  "notes": null
+}

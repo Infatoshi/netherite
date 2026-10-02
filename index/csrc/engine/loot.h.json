@@ -1,0 +1,97 @@
+{
+ "path": "csrc/engine/loot.h",
+ "lines": 106,
+ "role": "Declares the loot entry and table types, the per-structure chest count kinds, the generated slot and book stack types, and the loot.c entry points.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/util/WeightedRandomChestContent.java",
+   "members": [
+    "theItemId",
+    "theMinimumChanceToGenerateItem",
+    "theMaximumChanceToGenerateItem",
+    "generateChestContents",
+    "func_150706_a"
+   ]
+  },
+  {
+   "path": "oracle/src/util/WeightedRandom.java",
+   "members": [
+    "itemWeight"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemEnchantedBook.java",
+   "members": [
+    "func_92114_b",
+    "func_92112_a"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "loot_entry",
+   "java": "WeightedRandomChestContent: theItemId (id and damage), min and max count, itemWeight, plus the func_92112_a book arguments",
+   "fields": [
+    "item",
+    "damage",
+    "min_count",
+    "max_count",
+    "weight",
+    "book_enchantability",
+    "book_min",
+    "book_max",
+    "book_weight"
+   ]
+  },
+  {
+   "name": "loot_table",
+   "java": "one structure's WeightedRandomChestContent[] with its name",
+   "fields": [
+    "name",
+    "entries",
+    "n"
+   ]
+  },
+  {
+   "name": "loot_count_kind",
+   "java": "the count argument each structure call site passes (fixed or 'a + rand.nextInt(b)')",
+   "fields": []
+  },
+  {
+   "name": "loot_stack",
+   "java": "the ItemStack placed in one IInventory slot",
+   "fields": [
+    "item",
+    "damage",
+    "count",
+    "tag"
+   ]
+  },
+  {
+   "name": "loot_book",
+   "java": "the enchanted book ItemStack a structure builds once and appends via func_92080_a",
+   "fields": [
+    "tag"
+   ]
+  }
+ ],
+ "entry_points": [
+  "loot_count",
+  "loot_table_by_name",
+  "loot_book_build",
+  "loot_book_free",
+  "loot_generate_contents",
+  "loot_generate_dispenser",
+  "loot_free",
+  "loot_tables"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "lines 36-37, struct loot_table: const pointers to name and entries (read-only data, fine as a constant table)"
+ ],
+ "tests": [
+  "csrc/tests/test_loot.c"
+ ],
+ "notes": "The slot and book tags are indices into the item tag store (itemtag.h), interned from the enchantment list the book entry builds."
+}

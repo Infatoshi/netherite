@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/hostiles_witch.h",
+ "lines": 13,
+ "role": "Declares the witch kind functions implemented in hostiles_witch.c.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntityWitch.java", "members": ["EntityWitch", "onLivingUpdate", "attackEntityWithRangedAttack", "dropFewItems", "setAggressive", "getAggressive"]}
+ ],
+ "structs": [],
+ "entry_points": ["witch_construct", "witch_on_living_update", "witch_attack_entity_with_ranged_attack", "witch_drop_few_items", "witch_set_aggressive", "witch_get_aggressive"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hostiles.c"],
+ "notes": "Header only; hazards are on hostiles_witch.c. Included by ai.c, hostiles.c and serverreplay.c."
+}

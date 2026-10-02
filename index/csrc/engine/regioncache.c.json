@@ -1,0 +1,54 @@
+{
+ "path": "csrc/engine/regioncache.c",
+ "lines": 819,
+ "role": "The region cache: the region store's seed-world build (serverreplay.c sr_ensure_saved) runs once per distinct input and every later replay maps its image from ~/.cache/netherite-regioncache. The key is a SHA-1 of the build hash (the Makefile's hash of csrc/engine, compiler and flags), the struct sizes, the seed, the quiet-join pin, the run_config and the big-tree state; the image is the seed world's chunks (struct, packed sections, tile entities, pending ticks), the creatures after their pass, and the env state the build leaves (big-tree state, entity chunk stamp advance, the item tags it used in first-use order).",
+ "layer": "io",
+ "java": [],
+ "structs": [
+  {
+   "name": "rc_image",
+   "java": null,
+   "fields": [
+    "key",
+    "mode",
+    "fresh",
+    "lock_fd",
+    "dir",
+    "buf",
+    "n",
+    "mapped",
+    "bigtree_after",
+    "nchunks",
+    "nents",
+    "njournal",
+    "chunk_off",
+    "ents_off",
+    "tagmap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "regioncache_flag",
+  "regioncache_begin",
+  "regioncache_note_bigtree",
+  "regioncache_capture",
+  "regioncache_apply_env",
+  "regioncache_tags",
+  "regioncache_chunk_pos",
+  "regioncache_chunk",
+  "regioncache_ticks",
+  "regioncache_entity",
+  "regioncache_end"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function regioncache_begin/regioncache_capture: file I/O (open, mmap, flock, rename, readdir) inside the first chunk load of a tick, once per replay; host only, like the build it replaces",
+  "function regioncache_chunk: chunk_new, malloc of the packed blob and calloc of each tile entity in the tick (the build it replaces allocated 170,000 times)",
+  "function rc_mode: getenv(\"HOME\") for the default cache directory"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_interleave.c"
+ ],
+ "notes": "Ports no oracle/src file. A miss builds, captures and applies the image exactly as a hit does. --region-cache verify rebuilds and exits 3 when the stored image differs (lane/regioncache: every seed-world recording verified against the three keys the suite has)."
+}

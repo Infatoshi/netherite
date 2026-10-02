@@ -1,0 +1,19 @@
+{
+ "path": "csrc/engine/raster_texture.c",
+ "lines": 118,
+ "role": "Loads the block atlas and its mip levels (from dumped atlas_N.rgba files, or generated with TextureUtil's gamma-weighted 2x2 average and cutout alpha rule when a level file is missing) and samples it with GL_NEAREST_MIPMAP_LINEAR (9986) level-of-detail selection.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/texture/TextureUtil.java", "members": ["func_147949_a", "func_147943_a"]}
+ ],
+ "structs": [],
+ "entry_points": ["raster_texture_load", "raster_texture_sample", "raster_texture_free"],
+ "tick_path": false,
+ "gpu": [
+  "line 29, function make_level: malloc per generated mip level, exit(1) on failure",
+  "line 59, function raster_texture_load: calloc of the per-sprite transparency table",
+  "line 55 and 72-76, function raster_texture_load: fopen/fread of atlas files, exit(1) on a failed read"
+ ],
+ "tests": ["csrc/tests/raster.c", "csrc/tests/test_render.c"],
+ "notes": "Used by raster.c and raster_overlay.c. The transparent-sprite test checks only the first levels+1 pixels of each 16x16 sprite, as the comment says TextureUtil does. The lod model (log2 of the max screen-space texel derivative, linear blend between levels) is a GL model, not Java code."
+}

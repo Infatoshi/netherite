@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/util/Direction.java",
+  "classes": ["Direction"],
+  "lines": 33,
+  "side": "common",
+  "category": "util",
+  "role": "Static lookup tables for the four horizontal movement directions (SOUTH/WEST/NORTH/EAST): offsets, direction-to-facing mappings, rotations, bed direction mapping, and the movement direction of a velocity vector.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["DIR_OFF_X", "DIR_OFF_Z", "DIR_FACING_TO_DIRECTION", "DIR_ROTATE_OPPOSITE", "DIR_ROTATE_RIGHT", "FACING_OPPOSITE_SIDE"]},
+    {"file": "csrc/engine/portal.c", "symbols": ["DIR_OFFSET_X", "DIR_OFFSET_Z", "DIR_ROTATE_LEFT", "DIR_ROTATE_RIGHT", "DIR_ROTATE_OPPOSITE", "direction_get_movement"]},
+    {"file": "csrc/engine/activate.c", "symbols": ["bed_head_offset"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_portals.c",
+    "csrc/tests/test_place.c",
+    "out/java/snapshots/nether-trip-s1",
+    "out/java/snapshots/surv2-bed-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "offsetX", "sig": "int[] (static)", "native": "csrc/engine/place.c:DIR_OFF_X", "status": "exact", "note": "also csrc/engine/portal.c:DIR_OFFSET_X"},
+    {"kind": "field", "name": "offsetZ", "sig": "int[] (static)", "native": "csrc/engine/place.c:DIR_OFF_Z", "status": "exact"},
+    {"kind": "field", "name": "directions", "sig": "String[] (static)", "native": null, "status": "n/a", "note": "display names only"},
+    {"kind": "field", "name": "directionToFacing", "sig": "int[] (static)", "native": "csrc/engine/place.c:DIR_FACING_TO_DIRECTION", "status": "exact"},
+    {"kind": "field", "name": "facingToDirection", "sig": "int[] (static)", "native": "csrc/engine/place.c:DIR_FACING_TO_DIRECTION", "status": "partial", "note": "no standalone facingToDirection table; users rederive it (csrc/engine/features_plants.c:478, csrc/engine/randomtick.c:1044 comment it)"},
+    {"kind": "field", "name": "rotateOpposite", "sig": "int[] (static)", "native": "csrc/engine/place.c:DIR_ROTATE_OPPOSITE", "status": "exact", "note": "also csrc/engine/portal.c:DIR_ROTATE_OPPOSITE"},
+    {"kind": "field", "name": "rotateRight", "sig": "int[] (static)", "native": "csrc/engine/portal.c:DIR_ROTATE_RIGHT", "status": "exact", "note": "also csrc/engine/place.c:DIR_ROTATE_RIGHT"},
+    {"kind": "field", "name": "rotateLeft", "sig": "int[] (static)", "native": "csrc/engine/portal.c:DIR_ROTATE_LEFT", "status": "exact"},
+    {"kind": "field", "name": "bedDirection", "sig": "int[][] (static)", "native": "csrc/engine/activate.c:bed_head_offset", "status": "partial", "note": "the bed foot-to-head mapping exists as a per-direction offset helper, not the full 4x6 table"},
+    {"kind": "method", "name": "getMovementDirection", "sig": "(double,double)int", "native": "csrc/engine/portal.c:direction_get_movement", "status": "exact", "note": "used for Entity.teleportDirection at csrc/engine/portal.c:706"},
+    {"kind": "ctor", "name": "Direction", "sig": "()V", "native": null, "status": "n/a", "note": "a holder of static members: oracle/src has no `new Direction(` anywhere, so the implicit ctor never runs"}
+  ],
+  "missing": [],
+  "notes": "The tables are duplicated per consumer file (place.c, portal.c) rather than shared; that duplication is the only gap. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers."
+}

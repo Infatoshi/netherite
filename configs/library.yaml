@@ -1,0 +1,43 @@
+# A bounded, already populated seed-1 world for exploration training.
+# The checkpoint came from oracle/tests/lib-product2-s1-pre.jsonl. Loads outside its
+# saved chunk region follow ordinary generation; see lane/genlight's DEVLOG.
+world:
+  seed: 1
+  difficulty: normal
+  render_distance: 4
+  daylight_cycle: on
+  keep_inventory: off
+  villages: on
+  horses: off
+  wolves: off
+  ocelots: off
+  built_golems: off
+  wither: off
+  minecarts: off
+  boats: off
+  redstone: off
+  enchanting: off
+  anvil: off
+  brewing: off
+  beacon: off
+  maps: off
+  fishing: off
+  fireworks: off
+  book_editing: off
+  sign_editing: off
+
+client:
+  graphics: fast
+  particles: minimal
+  observation: 128x128
+  ticks_per_step: 4
+  hud: off
+
+engine:
+  device_mesh: 1
+  device_generation: off
+  device_light: off
+
+pipeline:
+  kind: library
+  start: out/java/snapshots/library-product2-full-s1

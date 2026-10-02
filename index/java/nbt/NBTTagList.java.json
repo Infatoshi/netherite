@@ -1,0 +1,194 @@
+{
+  "path": "oracle/src/nbt/NBTTagList.java",
+  "classes": [
+    "NBTTagList"
+  ],
+  "lines": 259,
+  "side": "common",
+  "category": "nbt",
+  "role": "The list tag, type id 9: a typed sequence of same-type tags (inventory slots, entity lists, attributes, armor drop chances).",
+  "scope": "in_scope",
+  "scope_reason": "Part of the NBT layer behind snapshots and digests; inventory and attribute lists are core state.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/nbtjson.h",
+      "symbols": [
+        "nbt_new_list",
+        "nbt_list_add",
+        "nbt_list_set",
+        "nbt_list_size",
+        "nbt_list_get"
+      ]
+    },
+    {
+      "file": "csrc/engine/nbtbin.c",
+      "symbols": [
+        "write_payload"
+      ]
+    },
+    {
+      "file": "csrc/engine/region.c",
+      "symbols": [
+        "nbt_bin_value"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/fresh-play-s1",
+    "out/java/snapshots/dev-give-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "tagList",
+      "sig": "List",
+      "native": "csrc/engine/nbtjson.h:nbt_new_list",
+      "status": "exact",
+      "note": "An ordered node sequence inside the list node."
+    },
+    {
+      "kind": "field",
+      "name": "tagType",
+      "sig": "byte",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "exact",
+      "note": "The native list derives the type byte from its first element at write time, exactly what Java's write does; the field itself is not stored."
+    },
+    {
+      "kind": "method",
+      "name": "write",
+      "sig": "(LDataOutput;)V",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "exact",
+      "note": "Type byte (0 for an empty list), size int, then each element's payload."
+    },
+    {
+      "kind": "method",
+      "name": "func_152446_a",
+      "sig": "(LDataInput;ILNBTSizeTracker;)V",
+      "native": "csrc/engine/region.c:nbt_bin_value",
+      "status": "exact",
+      "note": "Reads the type byte and size, then one element per iteration; the 512 depth guard matches Java's."
+    },
+    {
+      "kind": "method",
+      "name": "getId",
+      "sig": "()B",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "exact",
+      "note": "9; NBT_LIST."
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "Java's text form: built only by ItemStack.func_151000_E (the item hover in a chat line), CommandGive (chat commands are not agent input) and logging. func_151000_E runs at StatList's init on tagless stacks (id, Count, Damage: a short and a byte) and in a death message only for an item with hasDisplayName (EntityDamageSource, EntityDamageSourceIndirect, CombatTracker), and only the anvil names an item (world.conf anvil = off)"
+    },
+    {
+      "kind": "method",
+      "name": "appendTag",
+      "sig": "(LNBTBase;)V",
+      "native": "csrc/engine/nbtjson.h:nbt_list_add",
+      "status": "exact",
+      "note": "Java warns and drops a mismatching type; the native builder never adds one, and no engine data does."
+    },
+    {
+      "kind": "method",
+      "name": "func_150304_a",
+      "sig": "(ILNBTBase;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "its only caller is GuiScreenBook (a book page edit), and book editing is switched off (world.conf book_editing = off)"
+    },
+    {
+      "kind": "method",
+      "name": "removeTag",
+      "sig": "(I)LNBTBase;",
+      "native": null,
+      "status": "n/a",
+      "note": "No native list removal; the only in-game caller is the book page editor (GuiScreenBook), and book editing is switched off (world.conf book_editing = off)."
+    },
+    {
+      "kind": "method",
+      "name": "getCompoundTagAt",
+      "sig": "(I)LNBTTagCompound;",
+      "native": "csrc/engine/nbtjson.h:nbt_list_get",
+      "status": "exact",
+      "note": "The empty-compound fallback for a wrong type or index is done by the native callers."
+    },
+    {
+      "kind": "method",
+      "name": "func_150306_c",
+      "sig": "(I)[I",
+      "native": "csrc/engine/nbtjson.h:nbt_int_array",
+      "status": "exact",
+      "note": "The int-array element accessor; the empty fallback is caller-side."
+    },
+    {
+      "kind": "method",
+      "name": "func_150309_d",
+      "sig": "(I)D",
+      "native": "csrc/engine/nbtjson.h:nbt_double_bits",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_150308_e",
+      "sig": "(I)F",
+      "native": "csrc/engine/nbtjson.h:nbt_float_bits",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getStringTagAt",
+      "sig": "(I)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "its callers: ItemStack.getTooltip's display.Lore lines (lore is written only by commands), ItemWritableBook.func_150930_a (NetHandlerPlayServer's MC|BEdit and MC|BSign; ItemEditableBook.validBookTagContents is called only from MC|BSign), GuiScreenBook, and ScoreboardSaveData (teams: commands only); book editing is switched off (world.conf book_editing = off)"
+    },
+    {
+      "kind": "method",
+      "name": "tagCount",
+      "sig": "()I",
+      "native": "csrc/engine/nbtjson.h:nbt_list_size",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "copy",
+      "sig": "()LNBTBase;",
+      "native": "csrc/engine/crafting.c:copy_tag",
+      "status": "exact",
+      "note": "Deep copy through the canonical text round trip."
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Ljava/lang/Object;)Z",
+      "native": "csrc/engine/nbtjson.c:nbt_diff",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "Only feeds Java's HashMap."
+    },
+    {
+      "kind": "method",
+      "name": "func_150303_d",
+      "sig": "()I",
+      "native": "csrc/engine/nbtjson.h:nbt_list_size",
+      "status": "exact",
+      "note": "The element-type accessor; native callers read the first element's kind where Java reads the stored tagType (equal by construction once the list is non-empty)."
+    }
+  ],
+  "missing": [],
+  "notes": "The element accessors' fallbacks (empty compound, zero array, empty string for out-of-range or wrong-type indices) live in the native callers rather than in nbtjson.c, which keeps the tree type-pure. Did not verify each accessor call site; the accessors are used by the entity NBT writers."
+}

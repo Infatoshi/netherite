@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/loot_tables.h",
+ "lines": 209,
+ "role": "Generated data: the eleven 1.7.10 chest and dispenser loot tables (dungeon, mineshaft corridor, stronghold corridor, library and crossing, desert and jungle temple, jungle dispenser, village blacksmith, nether fortress, bonus chest), each row with its book entry appended, dumped by netherite.oracle.LootProbe.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenDungeons.java", "members": ["field_111189_a"]},
+  {"path": "oracle/src/world/gen/structure/StructureMineshaftPieces.java", "members": ["mineshaftChestContents"]},
+  {"path": "oracle/src/world/gen/structure/StructureStrongholdPieces.java", "members": ["strongholdChestContents", "strongholdLibraryChestContents", "strongholdRoomCrossingChestContents"]},
+  {"path": "oracle/src/world/gen/structure/ComponentScatteredFeaturePieces.java", "members": ["itemsToGenerateInTemple", "junglePyramidsChestContents", "junglePyramidsDispenserContents"]},
+  {"path": "oracle/src/world/gen/structure/StructureVillagePieces.java", "members": ["villageBlacksmithChestContents"]},
+  {"path": "oracle/src/world/gen/structure/StructureNetherBridgePieces.java", "members": ["field_111019_a"]},
+  {"path": "oracle/src/world/WorldServer.java", "members": ["bonusChestContent"]}
+ ],
+ "structs": [
+  {"name": "LOOT_DUNGEON, LOOT_MINESHAFT_CORRIDOR, LOOT_STRONGHOLD_CORRIDOR, LOOT_STRONGHOLD_LIBRARY, LOOT_STRONGHOLD_CROSSING, LOOT_DESERT_TEMPLE, LOOT_JUNGLE_TEMPLE, LOOT_JUNGLE_DISPENSER, LOOT_BLACKSMITH, LOOT_NETHER_BRIDGE, LOOT_BONUS_CHEST", "java": "the WeightedRandomChestContent[] static fields listed above, with func_92080_a's book row appended", "fields": ["item", "damage", "min_count", "max_count", "weight", "book_enchantability", "book_min", "book_max", "book_weight"]},
+  {"name": "LOOT_TABLES", "java": null, "fields": ["name", "entries", "n"]}
+ ],
+ "entry_points": [],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_loot.c"],
+ "notes": "Static const data only; included by loot.c, which exposes it through loot_tables and loot_table_by_name. Generated, do not edit by hand. The comment above each table names its Java call and count; the Java field names in this record were matched by grep of the Java files, the dungeon table's field being field_111189_a."
+}

@@ -1,0 +1,3 @@
+# lane/gputick: the game tick on the device as a throughput path, 2026-10-01
+id	found	by	area	field	cause	status	commit	pin	repro
+gputick-unmapped-write	2026-10-01	lane/gputick (gate)	cuda	-	S4 on the device (fight-skeleton-s1 row 27, a falling block's adoption) grew a pool past the extents' mapped margin: the memset faulted the whole device context (Warp MMU fault), and the download's gather of the pages listed before it faulted again; the barrier now ends the run before an unbacked write and before listing its pages, and C redoes it	fixed	7161fa85	out/java/snapshots/fight-skeleton-s1	-

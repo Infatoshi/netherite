@@ -1,0 +1,15 @@
+{
+ "path": "oracle/harness/netherite/oracle/RecipeTable.java",
+ "lines": 361,
+ "role": "Generator: writes the recipe registry as a C header (csrc/engine/recipes.h): CraftingManager.getRecipeList() in list order (shaped, shapeless, special IRecipe classes by simple name) and FurnaceRecipes smelting and experience tables, read off the live objects.",
+ "kind": "util",
+ "used_by": [
+  "make -C oracle run CLASS=RecipeTable CMD='{\"out\":...}' (regenerates csrc/engine/recipes.h)",
+  "csrc/engine/crafting.c (includes recipes.h)",
+  "csrc/tests/test_crafting.c",
+  "oracle/harness/netherite/oracle/CraftingProbe.java (field helpers)",
+  "oracle/harness/netherite/oracle/ContainersProbe.java"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No dedicated make target like biomes-h was found in oracle/Makefile; the generic run target is assumed. csrc/engine/recipes.h names RecipeTable as its generator."
+}

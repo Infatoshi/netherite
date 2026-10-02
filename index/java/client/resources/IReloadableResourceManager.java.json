@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/client/resources/IReloadableResourceManager.java",
+  "classes": ["IReloadableResourceManager"],
+  "lines": 10,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Interface for a resource manager that can reload from a resource-pack list and register reload listeners (SimpleReloadableResourceManager implements it).",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "reloadResources", "sig": "(List)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "registerReloadListener", "sig": "(IResourceManagerReloadListener)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The native engine has no resource-pack layer; every asset it needs is pre-converted into csrc/assets or into a scene's state dump. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Resource-reload interface; native has no resource layer to reload."
+}

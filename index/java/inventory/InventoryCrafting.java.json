@@ -1,0 +1,187 @@
+{
+ "classes": [
+  "InventoryCrafting"
+ ],
+ "lines": 171,
+ "side": "common",
+ "category": "crafting",
+ "role": "The craft grid: a width*width slot array read by index or by row and column, whose every change recomputes the container's result through its eventHandler.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/crafting.h",
+   "symbols": [
+    "craft_grid",
+    "craft_grid_clear",
+    "craft_find_matching"
+   ]
+  },
+  {
+   "file": "csrc/engine/crafting.c",
+   "symbols": [
+    "slot_ptr"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_init",
+    "matrix_changed",
+    "inv_set",
+    "inv_decr",
+    "inv_take"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_crafting.c",
+  "csrc/tests/test_containers.c",
+  "out/java/crafting",
+  "out/java/snapshots/pickaxe-complete-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "stackList",
+   "sig": "ItemStack[]",
+   "native": "csrc/engine/crafting.h:craft_grid",
+   "status": "exact",
+   "note": "the grid's slots in row-major order"
+  },
+  {
+   "kind": "field",
+   "name": "inventoryWidth",
+   "sig": "int",
+   "native": "csrc/engine/crafting.h:craft_grid",
+   "status": "exact",
+   "note": "craft_grid's side"
+  },
+  {
+   "kind": "field",
+   "name": "eventHandler",
+   "sig": "Container",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact",
+   "note": "struct inv's owner pointer"
+  },
+  {
+   "kind": "ctor",
+   "name": "InventoryCrafting",
+   "sig": "(Container,II)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact",
+   "note": "the grid starts empty with side 2 or 3"
+  },
+  {
+   "kind": "method",
+   "name": "getSizeInventory",
+   "sig": "()I",
+   "native": "csrc/engine/crafting.h:craft_grid",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlot",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.h:container_slot",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInRowAndColumn",
+   "sig": "(II)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/crafting.c:slot_ptr",
+   "status": "exact",
+   "note": "the width-checked read the recipe matcher uses"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInventoryNameLocalized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlotOnClosing",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_take",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(II)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_decr",
+   "status": "exact",
+   "note": "each take triggers matrix_changed"
+  },
+  {
+   "kind": "method",
+   "name": "setInventorySlotContents",
+   "sig": "(ILnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact",
+   "note": "no limit clamp, then matrix_changed"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact",
+   "note": "64"
+  },
+  {
+   "kind": "method",
+   "name": "onInventoryChanged",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "isUseableByPlayer",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "returns true unconditionally"
+  },
+  {
+   "kind": "method",
+   "name": "openInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "closeInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValidForSlot",
+   "sig": "(ILnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "returns true unconditionally"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/InventoryCrafting.java"
+}

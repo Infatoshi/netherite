@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/client/renderer/EntitySorter.java",
+  "classes": ["EntitySorter"],
+  "lines": 40,
+  "side": "client",
+  "category": "client_render",
+  "role": "A Comparator that orders WorldRenderer chunk sections by squared distance from the camera; RenderGlobal uses it to sort the render lists (notably the translucent water pass) back-to-front.",
+  "scope": "in_scope",
+  "scope_reason": "The sort order decides the draw order of the translucent water sections, which the pixel gate can see (blend order); raster.c reproduces the same distance metric.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster.c", "symbols": ["water_section_compare", "water_quad_compare", "live_water_compare", "live_quad_distance", "water_quad_distance"]}
+  ],
+  "evidence": [
+    "out/java/render/water-fast",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "entityPosX", "sig": "double", "native": "csrc/engine/raster.c:water_section_compare", "status": "partial", "note": "not stored; folded into the section distance dx = cx*16+8 - cam"},
+    {"kind": "field", "name": "entityPosY", "sig": "double", "native": "csrc/engine/raster.c:water_section_compare", "status": "partial"},
+    {"kind": "field", "name": "entityPosZ", "sig": "double", "native": "csrc/engine/raster.c:water_section_compare", "status": "partial"},
+    {"kind": "ctor", "name": "EntitySorter", "sig": "(Entity)V", "native": "csrc/engine/raster.c:water_section_compare", "status": "partial", "note": "the negated entity position is folded into the distance terms at the raster.c call sites"},
+    {"kind": "method", "name": "compare", "sig": "(WorldRenderer,WorldRenderer)I", "native": "csrc/engine/raster.c:water_section_compare", "status": "partial", "note": "same squared-distance metric against the section center (posXPlus = posX+8); Java's *1024 int truncation is not reproduced, the C qsort compares the raw double with a stable index tie-break (live_water_compare)"},
+    {"kind": "method", "name": "compare", "sig": "(Object,Object)I", "native": null, "status": "n/a", "note": "the raw Comparator bridge overload"}
+  ],
+  "missing": [],
+  "notes": "Java sorts WorldRenderer objects; the C engine sorts section centers (cx*16+8, s*16+8, cz*16+8) and individual water quads (live_quad_distance over the quad's four vertices). Ties in Java keep the array order because Arrays.sort is stable and the truncated int can merge distinct distances; the C tie-break keeps index order, which matches only when the truncation agrees. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): opaque order is invariant under depth testing. Formerly listed as missing: The opaque render lists: the C engine draws opaque sections in fixed grid order and applies the distance sort only to the translucent water sections and quads, so sortAndRender's sortedWorldRenderers order for opaque passes has no counterpart (it is order-invariant under depth testing)."
+}

@@ -1,0 +1,381 @@
+{
+ "path": "oracle/src/world/gen/structure/StructureComponent.java",
+ "classes": [
+  "StructureComponent",
+  "StructureComponent.BlockSelector"
+ ],
+ "lines": 853,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The base of every structure piece: its bounding box, orientation and depth, NBT write/read, and the block helpers pieces draw with (oriented coordinates and metadata, fills, random fills, domes, chests, dispensers, doors), all clipped to the chunk-step box.",
+ "scope": "in_scope",
+ "scope_reason": "Every mineshaft, temple, village, stronghold and fortress piece uses it.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/structure.h",
+   "symbols": [
+    "piece"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure.c",
+   "symbols": [
+    "piece_nbt",
+    "piece_build_component",
+    "start_find_intersecting"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure_blocks.c",
+   "symbols": [
+    "sc_x_with_offset",
+    "sc_y_with_offset",
+    "sc_z_with_offset",
+    "sc_orient_meta",
+    "sc_place",
+    "sc_block_at",
+    "sc_fill",
+    "sc_fill_meta",
+    "sc_fill_air",
+    "sc_fill_random",
+    "sc_random_place",
+    "sc_fill_randomized",
+    "sc_fill_dome",
+    "sc_fill_down",
+    "sc_clear_upwards",
+    "sc_is_liquid_in",
+    "sc_chest_contents",
+    "sc_dispenser_contents",
+    "sc_generate"
+   ]
+  },
+  {
+   "file": "csrc/engine/village_blocks.c",
+   "symbols": [
+    "place_door"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_populate.c",
+  "out/java/structures/s2",
+  "out/java/structures/vi-2",
+  "out/java/structures/nf-2",
+  "out/java/sblocks/s2-a",
+  "out/java/sblocks/te2-01",
+  "out/java/sblocks/vi2-a",
+  "out/java/sblocks/sh-2a",
+  "out/java/sblocks/fo-s2a"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "boundingBox",
+   "sig": "StructureBoundingBox",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "piece.bb."
+  },
+  {
+   "kind": "field",
+   "name": "coordBaseMode",
+   "sig": "int",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "piece.coord_base_mode."
+  },
+  {
+   "kind": "field",
+   "name": "componentType",
+   "sig": "int",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "piece.component_type."
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "StructureComponent",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "NBT-load constructor."
+  },
+  {
+   "kind": "ctor",
+   "name": "StructureComponent",
+   "sig": "(int)V",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "Each type file allocates a struct piece with its component type."
+  },
+  {
+   "kind": "method",
+   "name": "func_143010_b",
+   "sig": "()NBTTagCompound",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_143012_a",
+   "sig": "abstract (NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact",
+   "note": "Per-kind keys are a switch in piece_nbt (stronghold_piece_nbt for strongholds)."
+  },
+  {
+   "kind": "method",
+   "name": "func_143009_a",
+   "sig": "(World,NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "the box, the orientation, the depth and the kind's once-set fields come back from structures.json onto the rebuilt piece"
+  },
+  {
+   "kind": "method",
+   "name": "func_143011_b",
+   "sig": "abstract (NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "the kinds' own fields as above"
+  },
+  {
+   "kind": "method",
+   "name": "buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/structure.c:piece_build_component",
+   "status": "exact",
+   "note": "Dispatch per piece family; the base empty body is the PIECE_TEMPLE case."
+  },
+  {
+   "kind": "method",
+   "name": "addComponentParts",
+   "sig": "abstract (World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/structure_blocks.c:sc_generate",
+   "status": "exact",
+   "note": "sc_generate calls the type's piece_fn (mineshaft_blocks, temple_blocks, ...) per intersecting piece."
+  },
+  {
+   "kind": "method",
+   "name": "getBoundingBox",
+   "sig": "()StructureBoundingBox",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "Direct field read."
+  },
+  {
+   "kind": "method",
+   "name": "getComponentType",
+   "sig": "()I",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "Direct field read."
+  },
+  {
+   "kind": "method",
+   "name": "findIntersecting",
+   "sig": "static (List,StructureBoundingBox)StructureComponent",
+   "native": "csrc/engine/structure.c:start_find_intersecting",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151553_a",
+   "sig": "()ChunkPosition",
+   "native": "csrc/engine/stronghold.c:stronghold_nearest_impl",
+   "status": "exact",
+   "note": "the box centre; its caller is the eye of ender's stronghold search (Stairs2 points at the portal room)"
+  },
+  {
+   "kind": "method",
+   "name": "isLiquidInStructureBoundingBox",
+   "sig": "(World,StructureBoundingBox)Z",
+   "native": "csrc/engine/structure_blocks.c:sc_is_liquid_in",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getXWithOffset",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/structure_blocks.c:sc_x_with_offset",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getYWithOffset",
+   "sig": "(int)I",
+   "native": "csrc/engine/structure_blocks.c:sc_y_with_offset",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getZWithOffset",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/structure_blocks.c:sc_z_with_offset",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151555_a",
+   "sig": "(Block,int)I",
+   "native": "csrc/engine/structure_blocks.c:sc_orient_meta",
+   "status": "exact",
+   "note": "Metadata rotation per block family and coordBaseMode."
+  },
+  {
+   "kind": "method",
+   "name": "func_151550_a",
+   "sig": "(World,Block,int,int,int,int,StructureBoundingBox)V",
+   "native": "csrc/engine/structure_blocks.c:sc_place",
+   "status": "exact",
+   "note": "placeBlockAtCurrentPosition."
+  },
+  {
+   "kind": "method",
+   "name": "func_151548_a",
+   "sig": "(World,int,int,int,StructureBoundingBox)Block",
+   "native": "csrc/engine/structure_blocks.c:sc_block_at",
+   "status": "exact",
+   "note": "getBlockAtCurrentPosition."
+  },
+  {
+   "kind": "method",
+   "name": "fillWithAir",
+   "sig": "(World,StructureBoundingBox,int,int,int,int,int,int)V",
+   "native": "csrc/engine/structure_blocks.c:sc_fill_air",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151549_a",
+   "sig": "(World,StructureBoundingBox,int,int,int,int,int,int,Block,Block,boolean)V",
+   "native": "csrc/engine/structure_blocks.c:sc_fill",
+   "status": "exact",
+   "note": "fillWithBlocks."
+  },
+  {
+   "kind": "method",
+   "name": "func_151556_a",
+   "sig": "(World,StructureBoundingBox,int,int,int,int,int,int,Block,int,Block,int,boolean)V",
+   "native": "csrc/engine/structure_blocks.c:sc_fill_meta",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "fillWithRandomizedBlocks",
+   "sig": "(World,StructureBoundingBox,int,int,int,int,int,int,boolean,Random,BlockSelector)V",
+   "native": "csrc/engine/structure_blocks.c:sc_fill_randomized",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151551_a",
+   "sig": "(World,StructureBoundingBox,Random,float,int,int,int,int,int,int,Block,Block,boolean)V",
+   "native": "csrc/engine/structure_blocks.c:sc_fill_random",
+   "status": "exact",
+   "note": "randomlyFillWithBlocks."
+  },
+  {
+   "kind": "method",
+   "name": "func_151552_a",
+   "sig": "(World,StructureBoundingBox,Random,float,int,int,int,Block,int)V",
+   "native": "csrc/engine/structure_blocks.c:sc_random_place",
+   "status": "exact",
+   "note": "randomlyPlaceBlock."
+  },
+  {
+   "kind": "method",
+   "name": "func_151547_a",
+   "sig": "(World,StructureBoundingBox,int,int,int,int,int,int,Block,boolean)V",
+   "native": "csrc/engine/structure_blocks.c:sc_fill_dome",
+   "status": "exact",
+   "note": "The mineshaft room's dome carve."
+  },
+  {
+   "kind": "method",
+   "name": "clearCurrentPositionBlocksUpwards",
+   "sig": "(World,int,int,int,StructureBoundingBox)V",
+   "native": "csrc/engine/structure_blocks.c:sc_clear_upwards",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151554_b",
+   "sig": "(World,Block,int,int,int,int,StructureBoundingBox)V",
+   "native": "csrc/engine/structure_blocks.c:sc_fill_down",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generateStructureChestContents",
+   "sig": "(World,StructureBoundingBox,Random,int,int,int,WeightedRandomChestContent[],int)Z",
+   "native": "csrc/engine/structure_blocks.c:sc_chest_contents",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generateStructureDispenserContents",
+   "sig": "(World,StructureBoundingBox,Random,int,int,int,int,WeightedRandomChestContent[],int)Z",
+   "native": "csrc/engine/structure_blocks.c:sc_dispenser_contents",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "placeDoorAtCurrentPosition",
+   "sig": "(World,StructureBoundingBox,Random,int,int,int,int)V",
+   "native": "csrc/engine/village_blocks.c:place_door",
+   "status": "exact",
+   "note": "the village's; the stronghold's own door helpers in stronghold_blocks.c"
+  },
+  {
+   "kind": "field",
+   "name": "BlockSelector.field_151562_a, selectedBlockMetaData",
+   "sig": "Block, int",
+   "native": "csrc/engine/structure_blocks.c:sc_fill_randomized",
+   "status": "exact",
+   "note": "The selector is a callback writing *id and *meta (e.g. temple_blocks.c jungle_stones_select)."
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockSelector",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "BlockSelector.selectBlocks",
+   "sig": "abstract (Random,int,int,int,boolean)V",
+   "native": "csrc/engine/structure_blocks.c:sc_fill_randomized",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "BlockSelector.func_151561_a",
+   "sig": "()Block",
+   "native": null,
+   "status": "n/a",
+   "note": "Getter; the callback returns the id directly."
+  },
+  {
+   "kind": "method",
+   "name": "BlockSelector.getSelectedBlockMetaData",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "Getter."
+  }
+ ],
+ "missing": [],
+ "notes": "Pieces are heap-allocated structs linked from struct start by pointer, with per-type state in a union or an owned malloc block (strongholds); a GPU port needs them flattened. Gate not re-run for this record. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

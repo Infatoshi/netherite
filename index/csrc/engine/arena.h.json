@@ -1,0 +1,83 @@
+{
+ "path": "csrc/engine/arena.h",
+ "lines": 246,
+ "role": "The arena's types and capacities: struct arena, slot_pool, slab, sec_list (a chunk section's entity list as pool slot indices), arena_env; the slot accessors (pool_index, pool_at, an/ie/fh_ent_at and _index, an_ref/an_deref) and nw_arena() (struct env starts with its arena_env).",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  {
+   "name": "slot_pool",
+   "java": null,
+   "fields": [
+    "base",
+    "size",
+    "cap",
+    "top",
+    "free_head",
+    "live",
+    "next",
+    "gen",
+    "what"
+   ]
+  },
+  {
+   "name": "slab",
+   "java": null,
+   "fields": [
+    "base",
+    "size",
+    "used",
+    "free_head"
+   ]
+  },
+  {
+   "name": "sec_list",
+   "java": "Chunk.entityLists[y]",
+   "fields": [
+    "off",
+    "n",
+    "cap"
+   ]
+  },
+  {
+   "name": "arena_env",
+   "java": null,
+   "fields": [
+    "a",
+    "slab",
+    "ai_parts",
+    "villager_parts",
+    "player_parts",
+    "paths",
+    "livings",
+    "an_ents",
+    "ie_ents",
+    "fh_ents",
+    "doors",
+    "pf",
+    "bands",
+    "nibs",
+    "chunks"
+   ]
+  }
+ ],
+ "entry_points": [
+  "nw_arena",
+  "sec_items",
+  "an_ent_at",
+  "an_ent_index",
+  "ie_ent_at",
+  "ie_ent_index",
+  "fh_ent_at",
+  "fh_ent_index",
+  "an_ref",
+  "an_deref",
+  "fixed_array_resident"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "ARENA_PATHS, ARENA_LIVINGS, ARENA_AN_ENTS, ARENA_IE_ENTS, ARENA_FH_ENTS, ARENA_DOORS and ARENA_SLAB_BYTES are the capacities. ARENA_NIBS: the bands' nibble arrays that are not one value (2 KB slots), after the sixteen constant arrays (lane/chunkmem)."
+}

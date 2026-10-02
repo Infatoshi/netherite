@@ -1,0 +1,141 @@
+{
+  "path": "oracle/src/network/EnumConnectionState.java",
+  "classes": [
+    "EnumConnectionState"
+  ],
+  "lines": 354,
+  "side": "common",
+  "category": "network",
+  "role": "The protocol state machine: HANDSHAKING, PLAY, STATUS and LOGIN, each holding the bidirectional packet-id registries for its state, plus the id-to-state and class-to-state lookups.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_150764_e",
+      "sig": "TIntObjectMap",
+      "native": null,
+      "status": "n/a",
+      "note": "The static id-to-state map for the handshake's state id."
+    },
+    {
+      "kind": "field",
+      "name": "field_150761_f",
+      "sig": "Map",
+      "native": null,
+      "status": "n/a",
+      "note": "The static packet-class-to-state map used on send."
+    },
+    {
+      "kind": "field",
+      "name": "field_150762_g",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "The state id sent on the wire."
+    },
+    {
+      "kind": "field",
+      "name": "field_150769_h",
+      "sig": "BiMap",
+      "native": null,
+      "status": "n/a",
+      "note": "Clientbound id-to-class for this state."
+    },
+    {
+      "kind": "field",
+      "name": "field_150770_i",
+      "sig": "BiMap",
+      "native": null,
+      "status": "n/a",
+      "note": "Serverbound id-to-class for this state."
+    },
+    {
+      "kind": "ctor",
+      "name": "EnumConnectionState",
+      "sig": "(I)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Builds the two empty bimaps the enum constants fill."
+    },
+    {
+      "kind": "method",
+      "name": "func_150751_a",
+      "sig": "(ILjava/lang/Class;)LEnumConnectionState;",
+      "native": null,
+      "status": "n/a",
+      "note": "Registers a serverbound packet id; each enum constant's body fills the PLAY, STATUS and LOGIN tables."
+    },
+    {
+      "kind": "method",
+      "name": "func_150756_b",
+      "sig": "(ILjava/lang/Class;)LEnumConnectionState;",
+      "native": null,
+      "status": "n/a",
+      "note": "Registers a clientbound packet id."
+    },
+    {
+      "kind": "method",
+      "name": "func_150753_a",
+      "sig": "()LBiMap;",
+      "native": null,
+      "status": "n/a",
+      "note": "Serverbound map getter."
+    },
+    {
+      "kind": "method",
+      "name": "func_150755_b",
+      "sig": "()LBiMap;",
+      "native": null,
+      "status": "n/a",
+      "note": "Clientbound map getter."
+    },
+    {
+      "kind": "method",
+      "name": "func_150757_a",
+      "sig": "(Z)LBiMap;",
+      "native": null,
+      "status": "n/a",
+      "note": "Receivable map for a side."
+    },
+    {
+      "kind": "method",
+      "name": "func_150754_b",
+      "sig": "(Z)LBiMap;",
+      "native": null,
+      "status": "n/a",
+      "note": "Sendable map for a side."
+    },
+    {
+      "kind": "method",
+      "name": "func_150759_c",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "The state id getter."
+    },
+    {
+      "kind": "method",
+      "name": "func_150760_a",
+      "sig": "(I)LEnumConnectionState;",
+      "native": null,
+      "status": "n/a",
+      "note": "State by handshake id."
+    },
+    {
+      "kind": "method",
+      "name": "func_150752_a",
+      "sig": "(LPacket;)LEnumConnectionState;",
+      "native": null,
+      "status": "n/a",
+      "note": "State by packet class, used in NetworkManager.dispatchPacket."
+    }
+  ],
+  "missing": [
+    "The packet-id registries and the state transition they gate: the native tick carries no protocol state; messages are structs with a kind tag (player.h, survival.c's PK_* constants)."
+  ],
+  "notes": "The four enum constants are the state bodies; their registration calls are the 100-plus lines the schema summary elides. Nothing native consumes packet ids, so the tables are intentionally absent."
+}

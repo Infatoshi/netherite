@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/block/BlockCarrot.java",
+  "classes": ["BlockCarrot"],
+  "lines": 52,
+  "side": "common",
+  "category": "block",
+  "role": "The carrot crop: BlockCrops' updateTick with the carrot as both the base and the bonus drop, plantable on farmland, bonemeal-able.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["rt_crops", "rt_crops", "randomtick_is_igrowable", "randomtick_bonemeal_can", "crop_drop"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": ["out/java/snapshots/cov-harvest-s1", "out/java/snapshots/world-crops-s1", "out/java/ticks/ticks-s2", "csrc/tests/test_ticks.c", "out/java/place/big2", "out/java/snapshots/farmfall-s1", "out/java/snapshots/farmdry-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCarrot", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 141, class BlockCarrot."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": "csrc/engine/render_blocks2.c:rb2_render_crops", "status": "partial", "note": "The age-based textures resolve inside the crops renderer (render type 6)."},
+    {"kind": "method", "name": "func_149866_i", "sig": "(IRandom)Item", "native": "csrc/engine/randomtick.c:rt_crops", "status": "exact", "note": "The base item; randomtick.c:222 notes func_149866_i and func_149865_P are both the carrot."},
+    {"kind": "method", "name": "func_149865_P", "sig": "(IRandom)Item", "native": "csrc/engine/randomtick.c:rt_crops", "status": "exact"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."}
+  ],
+  "missing": [],
+  "notes": "Inherited BlockCrops members (updateTick, func_149863_m, func_149864_n, the bonemeal trio, the drops) are in the BlockCrops record. The bonus-item loop is the same switch (randomtick.c:222-240); the bonemeal igrowable list carries BM_CARROTS (randomtick.c:1410)."
+}

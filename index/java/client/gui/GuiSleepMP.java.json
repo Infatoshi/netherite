@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/gui/GuiSleepMP.java",
+  "classes": ["GuiSleepMP"],
+  "lines": 64,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The sleep screen shown while the player sleeps: the Leave Bed button and the chat passthrough on Enter.",
+  "scope": "in_scope",
+  "scope_reason": "Sleeping is a ported mechanic (csrc/engine/sleep.c, out/java/snapshots/surv2-bed-s1) and this screen is the client's state while it sleeps.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["screen_sleep"]},
+    {"file": "csrc/engine/sleep.c", "symbols": ["sleep_client_wake", "sleep_client_update", "sleep_client_use_bed"]},
+    {"file": "csrc/engine/player.c", "symbols": ["server_player_tick"]}
+  ],
+  "evidence": ["out/java/snapshots/surv2-bed-s1", "csrc/tests/test_snapshots.c", "out/java/snapshots/details-blocks-s1", "out/java/clientframes/idx-tpv-s1"],
+  "members": [
+    {"kind": "method", "name": "initGui", "sig": "()V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "GuiChat's text field and the Leave Bed button at (width / 2 - 100, height - 40): drawn with the strip, the field's blinking cursor and the button (gui_screen_extra.sleep); its click is the wake gui op's C0B action 3 (play: escape)"},
+    {"kind": "method", "name": "keyTyped", "sig": "(char,int)V", "native": "csrc/play/play.c:main", "status": "exact", "note": "escape is func_146418_g's wake (the wake gui op); typed text is GuiChat's, whose record is client_cosmetic (a chat line the product does not enter)"},
+    {"kind": "method", "name": "actionPerformed", "sig": "(GuiButton)V", "native": "csrc/engine/survival.c:surv_client_input", "status": "exact", "note": "The act's [\"wake\"] op while the sleep screen is open sets client_out.c0b_wake."},
+    {"kind": "method", "name": "func_146418_g", "sig": "()V", "native": "csrc/engine/player.c:server_player_tick", "status": "exact", "note": "The C0B action 3: processEntityAction runs wakeUpPlayer(false, true, true) (sleep.c:sleep_server_wake) ahead of the tick's other C0B actions and the C03. details-blocks-s1 leaves a bed with it."}
+  ],
+  "missing": [],
+  "notes": "sleep.h documents the screen as client state with the button unported because no recorded act carries a click on it. lane/idxclient: the screen is drawn (GuiChat.drawScreen's strip and cursor, the button); idx-tpv-s1's asleep frames 100, 103, 106 at 0 px over 25."
+}

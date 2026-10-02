@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenJungle.java",
+  "classes": ["BiomeGenJungle"],
+  "lines": 77,
+  "side": "common",
+  "category": "worldgen",
+  "role": "Jungle (21), JungleHills (22) and JungleEdge (23): dense trees (2 on the edge), jungle tree choice, fern-heavy grass, an extra chicken spawn row, and a melon plus 50 vine attempts after the decorator.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions). The ocelot spawn row is switched off (world.conf ocelots = off).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of", "choice_of", "place_tree", "grass_choice", "jungle_post", "TR_JUNGLE"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["jungle_creature", "spawning_list_for"]}
+  ],
+  "evidence": ["csrc/tests/test_populate.c", "csrc/tests/test_spawning.c", "out/java/populate", "out/java/chunks/junglem-123456789"],
+  "members": [
+    {"kind": "field", "name": "field_150614_aC", "sig": "boolean (edge)", "native": "csrc/engine/decorator.c:choice_of", "status": "exact", "note": "the flag output for id 23"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenJungle", "sig": "(int,boolean)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "trees 50 or 2, grass 25, flowers 4; chicken row in spawning.c jungle_creature; ocelot row is off by world.conf"},
+    {"kind": "method", "name": "func_150567_a", "sig": "(Random)WorldGenAbstractTree", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "TR_JUNGLE branch"},
+    {"kind": "method", "name": "getRandomWorldGenForGrass", "sig": "(Random)WorldGenerator", "native": "csrc/engine/decorator.c:grass_choice", "status": "exact"},
+    {"kind": "method", "name": "decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:jungle_post", "status": "exact", "note": "melon then 50 vines at y 128"}
+  ],
+  "missing": [],
+  "notes": "Ocelot spawning is a world.conf switch (ocelots = off), so its row is n/a, not missing."
+}

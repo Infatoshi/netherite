@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/world/ColorizerFoliage.java",
+  "classes": ["ColorizerFoliage"],
+  "lines": 45,
+  "side": "client",
+  "category": "client_render",
+  "role": "The foliage colormap lookup (foliagecolor.png indexed by temperature and humidity) plus the fixed pine, birch and basic leaf colours used to tint leaves.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["colormap_lookup", "foliage_color_multiplier", "color_multiplier"]},
+    {"file": "csrc/engine/item_color.c", "symbols": ["item_block_color"]}
+  ],
+  "evidence": ["csrc/tests/test_render.c", "csrc/tests/test_meshes.c", "out/java/render/hud_leaves", "csrc/tests/test_hudscreens.c", "out/java/clientframes/cov-foliage-s1", "out/java/clientframes/cov-mesa-s1"],
+  "members": [
+    {"kind": "field", "name": "foliageBuffer", "sig": "static int[65536]", "native": "csrc/engine/render_blocks.c:foliage_map", "status": "exact", "note": "rb table's foliage_map"},
+    {"kind": "method", "name": "setFoliageBiomeColorizer", "sig": "(int[])V", "native": null, "status": "n/a", "note": "the table is loaded with the mesher inputs"},
+    {"kind": "method", "name": "getFoliageColor", "sig": "(double,double)I", "native": "csrc/engine/render_blocks.c:colormap_lookup", "status": "exact"},
+    {"kind": "method", "name": "getFoliageColorPine", "sig": "()I", "native": "csrc/engine/item_color.h:FOLIAGE_PINE", "status": "exact", "note": "6396257 inline"},
+    {"kind": "method", "name": "getFoliageColorBirch", "sig": "()I", "native": "csrc/engine/item_color.h:FOLIAGE_BIRCH", "status": "exact", "note": "8431445 inline"},
+    {"kind": "method", "name": "getFoliageColorBasic", "sig": "()I", "native": "csrc/engine/item_color.h:FOLIAGE_BASIC", "status": "exact", "note": "4764952 (item_color.h FOLIAGE_BASIC: an oak leaf or vine item's colour in hand and hotbar, BlockLeaves/BlockVine.getRenderColor); cov-foliage-s1 and cov-mesa-s1 hold oak leaves"},
+    {"kind": "ctor", "name": "ColorizerFoliage", "sig": "()", "native": null, "status": "n/a", "note": "a class of static members only: nothing in oracle/src constructs it (no `new ColorizerFoliage`), so its implicit constructor never runs"}
+  ],
+  "missing": [],
+  "notes": "I did not verify how raster_hand or the item renderer tints leaf items; a grep for 4764952 found nothing."
+}

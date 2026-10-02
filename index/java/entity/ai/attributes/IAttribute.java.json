@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/entity/ai/attributes/IAttribute.java",
+  "classes": ["IAttribute"],
+  "lines": 12,
+  "side": "server",
+  "category": "ai",
+  "role": "Interface of an attribute definition: its unlocalized name, default value, clamp bounds and whether the client is told about it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.c", "symbols": ["ATTR_NAME", "ATTR_DEFAULT", "attrs_clamp"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "csrc/tests/test_lightning.c",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {"kind": "method", "name": "getAttributeUnlocalizedName", "sig": "()String", "native": "csrc/engine/living.c:ATTR_NAME", "status": "exact", "note": "the interface is folded away; the six names are a const table"},
+    {"kind": "method", "name": "clampValue", "sig": "(double)double", "native": "csrc/engine/living.c:attrs_clamp", "status": "exact", "note": "bounds come from the ATTR_MIN/ATTR_MAXV tables instead of per-object fields"},
+    {"kind": "method", "name": "getDefaultValue", "sig": "()double", "native": "csrc/engine/living.c:ATTR_DEFAULT", "status": "exact"},
+    {"kind": "method", "name": "getShouldWatch", "sig": "()boolean", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "Pure interface: no runtime existence in C, its four methods are split across the ATTR_* const tables and attrs_clamp in living.c. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): interface, marker or abstract base; its behavior lives in the subclasses' ports. Formerly listed as missing: getShouldWatch has no native counterpart: attributes are never marked watched and no client sync exists."
+}

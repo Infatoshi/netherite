@@ -1,0 +1,7 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{"dlook":[0,0]}}
+{"n":10,"act":{}}
+{"n":1,"act":{"press":["inventory"]}}
+{"n":1,"act":{"gui":[["close"]]}}
+{"n":2,"act":{}}

@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/PathProbe.java",
+ "lines": 699,
+ "role": "Pathfinding probe: random World.getEntityPathToXYZ and getPathEntityToEntity calls on a raw region scattered with path-relevant blocks (fences, walls, gates, doors, trapdoors, cactus, rails, ladders, leaves, slabs, stairs, pits, liquids), recording inputs and every resulting PathPoint.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=PathProbe",
+  "csrc/tests/test_paths.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output DIR/manifest.json, shapes.bin, cases.bin. Runs on the OTHER-role thread while the server is parked."
+}

@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/util/CryptManager.java",
+  "classes": ["CryptManager"],
+  "lines": 215,
+  "side": "common",
+  "category": "network",
+  "role": "The RSA/AES handshake helper for encrypted online-mode connections: key generation, the server-id hash, shared-secret encryption and the cipher factory.",
+  "scope": "not_needed",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "createNewSharedKey", "sig": "()SecretKey", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "createNewKeyPair", "sig": "()KeyPair", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getServerIdHash", "sig": "(String,PublicKey,SecretKey)byte[]", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "digestOperation", "sig": "(String,byte[])byte[]", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "decodePublicKey", "sig": "(byte[])PublicKey", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "decryptSharedKey", "sig": "(PrivateKey,byte[])SecretKey", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "encryptData", "sig": "(Key,byte[])byte[]", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "decryptData", "sig": "(Key,byte[])byte[]", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "cipherOperation", "sig": "(int,Key,byte[])byte[]", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "createTheCipherInstance", "sig": "(int,String,Key)Cipher", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151229_a", "sig": "(int,Key)Cipher", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The game is a single-JVM integrated server with a loopback channel (SPEC oracle section); no encrypted login or online-mode handshake exists, so nothing calls this. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "RSA/AES helpers for online-mode login encryption; the oracle's client joins its integrated server over a local channel that never encrypts, and native has no login."
+}

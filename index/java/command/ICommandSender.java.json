@@ -1,0 +1,61 @@
+{
+  "path": "oracle/src/command/ICommandSender.java",
+  "classes": [
+    "ICommandSender"
+  ],
+  "lines": 35,
+  "side": "server",
+  "category": "commands",
+  "role": "The source of a command execution: name, chat component, chat output, permission check, position and world.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandSenderName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145748_c_",
+      "sig": "()IChatComponent",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addChatMessage",
+      "sig": "(IChatComponent)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "canCommandSenderUseCommand",
+      "sig": "(int,String)boolean",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getPlayerCoordinates",
+      "sig": "()ChunkCoordinates",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getEntityWorld",
+      "sig": "()World",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "Implemented by EntityPlayerMP, CommandBlockLogic and the dedicated-server console sources; the native dev ops address the session player directly and never go through this interface. Static __OBFID constants are grouped out per the brief."
+}

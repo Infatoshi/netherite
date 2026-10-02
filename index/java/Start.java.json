@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/Start.java",
+  "classes": ["Start"],
+  "lines": 20,
+  "side": "server",
+  "category": "other",
+  "role": "MCP's launcher: main() prepends the MCP client arguments to whatever the command line carries and calls net.minecraft.client.main.Main. It is build scaffolding, not game code.",
+  "scope": "not_needed",
+  "scope_reason": "The oracle is launched through netherite.oracle.Main (oracle/tests/rs.sh and the Makefile targets); Start.main is never run and nothing in the native engine mirrors a launcher.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "main", "sig": "(String[])V", "native": null, "status": "n/a", "note": "Launcher entry; the oracle's entry is netherite.oracle.Main."},
+    {"kind": "method", "name": "concat", "sig": "(T[],T[])T[]", "native": null, "status": "n/a", "note": "Array concat helper for main only."}
+  ],
+  "missing": [],
+  "notes": "Only used by oracle/Makefile's pristine-diff step, which copies it beside the pristine tree. No behavior of the game depends on it."
+}

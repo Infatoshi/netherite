@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/sha1.c",
+ "lines": 206,
+ "role": "SHA-1 (FIPS 180-1), the digest java.security.MessageDigest SHA-1 computes; the oracle's Rows.nbtLong takes its first eight bytes for the tape's d.ents and d.sp digests. The block function is the x86 SHA extensions' (blocks_ni, chosen at the first call by cpuid) or the portable one; both give the same state.",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "sha1",
+  "sha1_init",
+  "sha1_blocks",
+  "sha1_final"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "function blocks_portable: w[80] per block on the stack; function sha1_final: last[128]; no heap",
+  "static function pointer blocks, set once at the first call (blocks_select): global mutable, not reentrant during that first call",
+  "function blocks_ni: x86 SHA-NI intrinsics (target attribute); the GPU port needs the portable rounds"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Ports no oracle/src file: it matches the JDK's MessageDigest and oracle/harness/netherite/oracle/Rows.java (nbtLong). Called from csrc/engine/nbtbin.c for the entity digests the snapshot gate compares. blocks_ni was checked against blocks_portable on 200,000 random messages (lane replayspeed, 2026-09-25) and every snapshot recording's d.ents rows."
+}

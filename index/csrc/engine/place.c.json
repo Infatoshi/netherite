@@ -1,0 +1,279 @@
+{
+ "path": "csrc/engine/place.c",
+ "lines": 2346,
+ "role": "Block placement from items: ItemStack.tryPlaceItemIntoWorld dispatched to every block-storing onItemUse (ItemBlock family, reed, snow, slab, bed, door, sign, skull, seeds, hoe, redstone, cocoa dye, eye of ender) plus each block class's canPlaceBlockAt, canPlaceBlockOnSide, onBlockPlaced, onBlockPlacedBy and onPostBlockPlaced; also hosts the rail-shape refresh, tripwire hook updates, portal frame scan, torch support checks and the self-drop streams blockcb.c calls back into.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/item/ItemStack.java",
+   "members": [
+    "tryPlaceItemIntoWorld"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemBlock.java",
+   "members": [
+    "onItemUse",
+    "func_150936_a",
+    "getMetadata"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemReed.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSnow.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSlab.java",
+   "members": [
+    "onItemUse",
+    "func_150936_a"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemBed.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemDoor.java",
+   "members": [
+    "onItemUse",
+    "func_150924_a"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSign.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSkull.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSeeds.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSeedFood.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemHoe.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemRedstone.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemDye.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemEnderEye.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "canPlaceBlockAt",
+    "canPlaceBlockOnSide",
+    "canReplace",
+    "onBlockPlaced",
+    "onBlockPlacedBy",
+    "onPostBlockPlaced"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockRailBase.java",
+   "members": [
+    "onBlockAdded",
+    "onNeighborBlockChange",
+    "func_150052_a",
+    "Rail.func_150648_a",
+    "Rail.func_150654_a",
+    "Rail.func_150651_b",
+    "Rail.func_150652_b",
+    "Rail.func_150650_a",
+    "Rail.func_150649_b",
+    "Rail.func_150645_c",
+    "Rail.func_150647_c",
+    "Rail.func_150655_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockPortal.java",
+   "members": [
+    "onNeighborBlockChange",
+    "Size"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTorch.java",
+   "members": [
+    "canPlaceBlockAt",
+    "func_150107_m"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTripWire.java",
+   "members": [
+    "onBlockAdded"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTripWireHook.java",
+   "members": [
+    "func_150134_a",
+    "func_150136_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockPistonBase.java",
+   "members": [
+    "func_150071_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockReed.java",
+   "members": [
+    "canPlaceBlockAt"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLiquid.java",
+   "members": [
+    "func_149799_m"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFire.java",
+   "members": [
+    "func_149847_e",
+    "func_149843_e",
+    "onBlockAdded"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockSkull.java",
+   "members": [
+    "breakBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockChest.java",
+   "members": [
+    "func_149952_n"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockBush.java",
+   "members": [
+    "func_149854_a",
+    "canBlockStay"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockMushroom.java",
+   "members": [
+    "canBlockStay"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockVine.java",
+   "members": [
+    "func_150093_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTrapDoor.java",
+   "members": [
+    "func_150119_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "doesBlockHaveSolidTopSurface",
+    "isBlockNormalCubeDefault",
+    "getFullBlockLightValue",
+    "isBlockIndirectlyGettingPowered",
+    "canPlaceEntityOnSide",
+    "func_147453_f"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct rail",
+   "java": "BlockRailBase.Rail (field_150656_f powered flag, field_150657_g connection list)",
+   "fields": [
+    "w",
+    "x",
+    "y",
+    "z",
+    "powered",
+    "con_x",
+    "con_y",
+    "con_z",
+    "ncon"
+   ]
+  }
+ ],
+ "entry_points": [
+  "place_try",
+  "place_would_use",
+  "place_set_case",
+  "place_world_state",
+  "place_lava_fizz",
+  "place_fire_flammable_near",
+  "place_fire_tick_draw",
+  "place_dispenser_seeder",
+  "place_block_drop",
+  "place_skull_break_drop",
+  "place_item_drop",
+  "place_rail_on_added",
+  "place_rail_on_neighbor",
+  "place_tripwire_on_added",
+  "place_torch_can_stay",
+  "place_torch_wall_ok",
+  "place_portal_frame_ok",
+  "place_case_det_swap"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 51-73, functions mat_named, is_block_class, is_item_class: material, block class and item class identity by strcmp on names, called per placement inside the tick",
+  "line 759, function portal_run: portal frame scan loop bounded by 21 cells",
+  "lines 371-377, struct rail: carries a struct world pointer; rails are stack values, no heap graph"
+ ],
+ "tests": [
+  "csrc/tests/test_place.c"
+ ],
+ "notes": "Callers: blockcb.c (rails, tripwire, torches, drops, portal frame), survival.c and world.c (place_try, place_would_use). Entities are not consulted: checkNoEntityCollision always answers yes, which is correct for the probe world (the header says so) but not verified for whole-server replay with mobs standing in the target cell. Redstone is switched off in world.conf, so isBlockIndirectlyGettingPowered is shorted to 0 and func_147453_f's comparator walk stores nothing. Signs are placed blank (sign_editing off). ItemDye's bonemeal branch is in another file. No malloc found in this file (grep). place_torch_can_support is declared in place.h but defined in blockcb.c, not here."
+}

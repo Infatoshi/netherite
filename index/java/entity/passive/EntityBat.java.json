@@ -1,0 +1,247 @@
+{
+ "path": "oracle/src/entity/passive/EntityBat.java",
+ "classes": [
+  "EntityBat"
+ ],
+ "lines": 287,
+ "side": "server",
+ "category": "entity",
+ "role": "The cave bat: hangs under a block, flies toward a random nearby perch, spawns only below y=63 in low light (relaxed around Halloween), and carries its hanging flag in dataWatcher 16.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_construct",
+    "animal_attributes",
+    "bat_on_base_update",
+    "bat_update_ai_tasks",
+    "bat_fall",
+    "bat_write_kind_nbt",
+    "bat_spawn_x"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "can_spawn_here_bat"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_has_living_sound",
+    "living_can_be_pushed",
+    "living_collide_with_nearby_entities",
+    "living_can_despawn",
+    "living_attack_entity_from_attacker"
+   ]
+  },
+  {
+   "file": "csrc/engine/dev.c",
+   "symbols": [
+    "dev_summon"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_spawning.c",
+  "out/java/snapshots/mobspawn-final-s1",
+  "out/java/spawning/rec-s2-night",
+  "out/java/render/mobs2b_bat_f006",
+  "out/java/snapshots/details-mobs-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "spawnPosition",
+   "sig": "ChunkCoordinates",
+   "native": "csrc/engine/animals.c:bat_spawn_x",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityBat",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_construct",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact",
+   "note": "watcher 16 is the hanging byte"
+  },
+  {
+   "kind": "method",
+   "name": "getSoundVolume",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a",
+   "note": "sound strings and volumes are client-only"
+  },
+  {
+   "kind": "method",
+   "name": "getSoundPitch",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getLivingSound",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_has_living_sound",
+   "status": "exact",
+   "note": "the hanging && nextInt(4)!=0 null roll is ported"
+  },
+  {
+   "kind": "method",
+   "name": "getHurtSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDeathSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canBePushed",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_can_be_pushed",
+   "status": "exact",
+   "note": "the bat answers false"
+  },
+  {
+   "kind": "method",
+   "name": "collideWithEntity",
+   "sig": "(1p)",
+   "native": "csrc/engine/living.c:living_collide_with_nearby_entities",
+   "status": "n/a",
+   "note": "n/a: its one caller, collideWithNearbyEntities, is empty in EntityBat"
+  },
+  {
+   "kind": "method",
+   "name": "collideWithNearbyEntities",
+   "sig": "(0p)",
+   "native": "csrc/engine/living.c:living_collide_with_nearby_entities",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityAttributes",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_attributes",
+   "status": "exact",
+   "note": "maxHealth 6"
+  },
+  {
+   "kind": "method",
+   "name": "getIsBatHanging",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setIsBatHanging",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isAIEnabled",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a",
+   "note": "the AI is always on in the engine"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:bat_on_base_update",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateAITasks",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:bat_update_ai_tasks",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canTriggerWalking",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:can_trigger_walking",
+   "status": "exact",
+   "note": "can_trigger_walking is cleared in the constructor"
+  },
+  {
+   "kind": "method",
+   "name": "fall",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:bat_fall",
+   "status": "n/a",
+   "note": "n/a: EntityBat.updateFallState is empty, so nothing calls fall"
+  },
+  {
+   "kind": "method",
+   "name": "updateFallState",
+   "sig": "(2p)",
+   "native": "csrc/engine/living.c:living_can_despawn",
+   "status": "n/a",
+   "note": "both bat fall hooks are empty; living.c skips the fall accumulation for AK_BAT"
+  },
+  {
+   "kind": "method",
+   "name": "doesEntityNotTriggerPressurePlate",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a",
+   "note": "no entity walk trigger exists in the engine to suppress"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(2p)",
+   "native": "csrc/engine/living.c:living_attack_entity_from_attacker",
+   "status": "exact",
+   "note": "a server bat clears the hanging bit before super runs; details-mobs-s1 hits a hanging bat with a short-draw arrow (negative control: without it the replay fails at the hit)"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:bat_write_kind_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:bat_write_kind_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getCanSpawnHere",
+   "sig": "(0p)",
+   "native": "csrc/engine/spawning.c:can_spawn_here_bat",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Sound strings and volumes are client-only and carry no recorded state. The aux SFX 1015 on take-off draws nothing and writes no state. The dev summon goes through createEntityFromNBT, whose readEntityFromNBT reads BatFlags 0, so a summoned bat starts flying (dev.c mirrors it). The client copy of a hanging bat is not where the server bat hangs (it sits on the floor below), so a melee hit on a hanging bat depends on the client entity model; the gate uses an arrow."
+}

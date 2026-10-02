@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/item/ItemAppleGold.java",
+  "classes": ["ItemAppleGold"],
+  "lines": 63,
+  "side": "server",
+  "category": "item",
+  "role": "The golden apple: meta 0 applies absorption (field_76444_x) for 2400 ticks, meta 1 (the enchanted one) applies regeneration II, resistance and fire resistance, and its ItemFood fields give regen for 100 ticks at amplifier 1 with a 1.0 probability.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["sr_pot_food_effect", "surv_server_eat_tick"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "ITEM_FOOD", "always_edible", "heal_amount", "saturation"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/pot-apple-s1",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemAppleGold", "sig": "(IFZ)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 322: kind ITEM_FOOD, heal 4, saturation 1.2, has_subtypes, always_edible"},
+    {"kind": "method", "name": "hasEffect", "sig": "(ItemStack)Z", "native": null, "status": "n/a", "note": "client glint"},
+    {"kind": "method", "name": "getRarity", "sig": "(ItemStack)EnumRarity", "native": null, "status": "n/a", "note": "client rarity colour"},
+    {"kind": "method", "name": "onFoodEaten", "sig": "(ItemStack,World,EntityPlayer)V", "native": "csrc/engine/survival.c:sr_pot_food_effect", "status": "exact", "note": "survival.c hardcodes the meta-0 absorption 2400 and the meta-1 regeneration 600 amp 4, resistance 6000 and fire resistance 6000, then the ItemFood fields"},
+    {"kind": "method", "name": "getSubItems", "sig": "(Item,CreativeTabs,List)V", "native": null, "status": "n/a", "note": "creative menu only"}
+  ],
+  "missing": [],
+  "notes": "pot-apple-s1 gates both metas eaten while hurt through out/native/test_snapshots."
+}

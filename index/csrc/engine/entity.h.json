@@ -1,0 +1,22 @@
+{
+ "path": "csrc/engine/entity.h",
+ "lines": 112,
+ "role": "Declares the base Entity struct every native kind embeds (position, box, motion, size, fall and walk counters, fire, collision flags, the chunk-list stamp) with the Entity virtuals moveEntity reaches as function-pointer hooks, plus the moveEntity, setPosition, setSize and setInWeb entry points and the global chunk stamp.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/Entity.java", "members": ["worldObj", "posX", "posY", "posZ", "prevPosX", "prevPosY", "prevPosZ", "boundingBox", "motionX", "motionY", "motionZ", "width", "height", "stepHeight", "yOffset", "ySize", "fallDistance", "distanceWalkedModified", "distanceWalkedOnStepModified", "nextStepDistance", "fire", "fireResistance", "firstUpdate", "onGround", "isCollidedHorizontally", "isCollidedVertically", "isCollided", "isInWeb", "inWater", "noClip", "field_70135_K", "velocityChanged", "preventEntitySpawning", "canTriggerWalking", "setSize", "setPosition", "setInWeb", "moveEntity", "updateFallState", "fall", "isInWater", "setInPortal", "travelToDimension", "attackEntityFrom"]},
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["addEntity"]}
+ ],
+ "structs": [
+  {"name": "entity", "java": "Entity's movement and collision fields, plus the chunk section list position and function-pointer stand-ins for the virtuals moveEntity calls", "fields": ["world", "chunk_stamp", "pos_x", "pos_y", "pos_z", "prev_pos_x", "prev_pos_y", "prev_pos_z", "bounding_box", "motion_x", "motion_y", "motion_z", "width", "height", "step_height", "y_offset", "y_size", "fall_distance", "distance_walked_modified", "distance_walked_on_step_modified", "next_step_distance", "fire", "fire_resistance", "first_update", "on_ground", "is_collided_horizontally", "is_collided_vertically", "is_collided", "is_in_web", "in_water", "no_clip", "is_sneaking", "field_70135_K", "velocity_changed", "prevent_entity_spawning", "can_trigger_walking", "self", "extra_boxes", "attack_from", "fizz", "swim_sound", "walking_block", "kind_in_water", "fall", "set_in_web", "set_in_portal", "end_portal"]}
+ ],
+ "entry_points": ["entity_init", "entity_set_size", "entity_set_position", "entity_set_in_web", "entity_move", "entity_move_ex"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 17, struct entity: world pointer",
+  "line 52-71, struct entity: self pointer and eleven function-pointer virtual hooks (a vtable by pointer; a GPU port needs a kind switch instead)"
+ ],
+ "tests": ["csrc/tests/test_move.c", "csrc/tests/test_paths.c", "csrc/tests/test_portals.c", "csrc/tests/test_projectiles.c"],
+ "notes": "The header comment ('only setPosition and moveEntity are ever called') predates the struct's growth into the base of every entity kind. The Java field names are MCP names matched by the C names; isSneaking is a method (isSneaking()) in Java, not a field, and was not re-checked."
+}

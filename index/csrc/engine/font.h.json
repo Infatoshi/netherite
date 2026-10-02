@@ -1,0 +1,18 @@
+{
+  "path": "csrc/engine/font.h",
+  "lines": 44,
+  "role": "Declares font.c's FontRenderer metrics (font_metrics, the section sign) for the HUD, chat, screens and credits.",
+  "layer": "render",
+  "java": [
+    {"path": "oracle/src/client/gui/FontRenderer.java", "members": ["charWidth", "getStringWidth", "trimStringToWidth", "listFormattedStringToWidth"]}
+  ],
+  "structs": [
+    {"name": "font_metrics", "java": "FontRenderer.charWidth", "fields": ["cw"]}
+  ],
+  "entry_points": [],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_hudscreens.c"
+  ]
+}

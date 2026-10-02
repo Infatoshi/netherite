@@ -1,0 +1,336 @@
+{
+  "path": "oracle/src/tileentity/TileEntityChest.java",
+  "classes": [
+    "TileEntityChest"
+  ],
+  "lines": 491,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The chest and trapped chest block entity: 27 item slots, the double-chest neighbour scan, the viewer count and the lid angle with its open/close sounds, and the NBT.",
+  "scope": "in_scope",
+  "scope_reason": "Worldgen loot chests (dungeons, temples, strongholds, villages, mineshafts) and player-placed chests.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_chest",
+        "TE_CHEST",
+        "CHEST_SLOTS"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_chest_like",
+        "load_items",
+        "render_items"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "chest_update",
+        "chest_scan",
+        "chest_neighbor_check"
+      ]
+    },
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "chest_open",
+        "chest_close",
+        "chest_inventory",
+        "act_live_chest_close"
+      ]
+    },
+    {
+      "file": "csrc/engine/container.c",
+      "symbols": [
+        "transfer_chest",
+        "container_set_chest"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "gui_open_tile",
+        "gui_tile_pull",
+        "gui_tile_changed",
+        "gui_can_interact"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_chest_viewers"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_tileent.c",
+      "symbols": [
+        "raster_tileents_lid_tick"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/te-chest-s1",
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_containers.c",
+    "out/java/containers/seed2",
+    "csrc/tests/test_populate.c",
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/containers2-s42",
+    "out/java/rendertick/te_chests",
+    "csrc/tests/test_rendertick.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145985_p",
+      "sig": "ItemStack[36]",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact",
+      "note": "27 slots natively; Java never uses beyond 26"
+    },
+    {
+      "kind": "field",
+      "name": "field_145984_a",
+      "sig": "boolean (adjacentChestChecked)",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact",
+      "note": "adjacent_checked"
+    },
+    {
+      "kind": "field",
+      "name": "field_145992_i, field_145990_j, field_145991_k, field_145988_l",
+      "sig": "TileEntityChest neighbours",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact",
+      "note": "adj[4] flags instead of pointers"
+    },
+    {
+      "kind": "field",
+      "name": "field_145989_m, field_145986_n",
+      "sig": "float lid, prevLid",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145987_o",
+      "sig": "int numPlayersUsing",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145983_q",
+      "sig": "int ticksSinceSync",
+      "native": "csrc/engine/tileentity.h:te_chest",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145982_r",
+      "sig": "int cachedChestType",
+      "native": null,
+      "status": "exact",
+      "note": "The block id (54 or 146) compared where func_145980_j is read."
+    },
+    {
+      "kind": "field",
+      "name": "field_145981_s",
+      "sig": "String customName",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "ctor",
+      "name": "TileEntityChest",
+      "sig": "()V / (I)V",
+      "native": "csrc/engine/tileentity.c:te_new",
+      "status": "exact",
+      "note": "the typed constructor runs only in TileEntityRendererChestHelper (a held or slotted chest drawn): covframes' frame coverage runs it in cf-idx-heldblock-s1"
+    },
+    {
+      "kind": "method",
+      "name": "getSizeInventory",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:CHEST_SLOTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlot",
+      "sig": "(I)ItemStack",
+      "native": "csrc/engine/survival.c:gui_tile_pull",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "decrStackSize",
+      "sig": "(II)ItemStack",
+      "native": "csrc/engine/container.c:container_set_chest",
+      "status": "exact",
+      "note": "Clicks run on the container copy and are written back (gui_tile_changed); te-chest-s1 and chest-break-s1."
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlotOnClosing",
+      "sig": "(I)ItemStack",
+      "native": null,
+      "status": "n/a",
+      "note": "only for crafting grids"
+    },
+    {
+      "kind": "method",
+      "name": "setInventorySlotContents",
+      "sig": "(ILItemStack)V",
+      "native": "csrc/engine/survival.c:gui_tile_changed",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "The window title is client text; the unnamed chest is container.chest."
+    },
+    {
+      "kind": "method",
+      "name": "isInventoryNameLocalized",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "func_145976_a",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "Items (and a CustomName only an anvil writes)."
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_chest_like",
+      "status": "exact",
+      "note": "CustomName not written"
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryStackLimit",
+      "sig": "()I",
+      "native": "csrc/engine/container.c:container_init",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isUseableByPlayer",
+      "sig": "(EntityPlayer)Z",
+      "native": "csrc/engine/survival.c:gui_can_interact",
+      "status": "exact",
+      "note": "the same tile and within 8"
+    },
+    {
+      "kind": "method",
+      "name": "updateContainingBlockInfo",
+      "sig": "()V",
+      "native": null,
+      "status": "exact",
+      "note": "adjacent_checked reset through the neighbour change (blockcb.c) and the tick pass."
+    },
+    {
+      "kind": "method",
+      "name": "func_145978_a",
+      "sig": "(TileEntityChest,int)V",
+      "native": "csrc/engine/tileticks.c:chest_neighbor_check",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145979_i",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:chest_scan",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145977_a",
+      "sig": "(III)Z",
+      "native": "csrc/engine/tileticks.c:chest_scan",
+      "status": "exact",
+      "note": "same-kind chest test by block id"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntity",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:chest_update",
+      "status": "exact",
+      "note": "recount every 200 ticks via tt_env.chest_viewers; lid sounds draw World.rand"
+    },
+    {
+      "kind": "method",
+      "name": "receiveClientEvent",
+      "sig": "(II)Z",
+      "native": "csrc/engine/raster_tileent.c:raster_tileents_lid_tick",
+      "status": "exact",
+      "note": "The server's: world.c world_block_events_run sets the count to the queued parameter at the end of the next WorldServer.tick (chest-toggle-s1); the client's lid steps from the server count in the playable client (raster_tileents_lid_tick, test_rendertick section 6)."
+    },
+    {
+      "kind": "method",
+      "name": "openInventory",
+      "sig": "()V",
+      "native": "csrc/engine/activate.c:chest_open",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "closeInventory",
+      "sig": "()V",
+      "native": "csrc/engine/activate.c:chest_close",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isItemValidForSlot",
+      "sig": "(ILItemStack)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "always true; hopper insertion is off"
+    },
+    {
+      "kind": "method",
+      "name": "invalidate",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:tileticks_pass",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145980_j",
+      "sig": "()I",
+      "native": null,
+      "status": "exact",
+      "note": "Chest or trapped chest by block id."
+    }
+  ],
+  "missing": [],
+  "notes": "Chest NBT round-trips in test_snapshots; the tick is exact against the tile tick probe; the open/close counts and the 200-tick recount are exercised by te-chest-s1. lane/idxblocks: names are the anvil switch. lane/reloadstate: sr_tiles_loaded resets the chest's transients on a chunk reload."
+}

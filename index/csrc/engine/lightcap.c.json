@@ -1,0 +1,123 @@
+{
+ "path": "csrc/engine/lightcap.c",
+ "lines": 918,
+ "role": "The light engine's capture (GPU plan L16): around every update_light_by_type call (and, with drivers on, around func_150809_p's column checks, func_150801_a's edge checks and enqueueRelightChecks whole) it keeps a mirror of chunk slots in the env image's layout in step with C (a chunk struct and only the bands whose hash changed, sent when the chunk, its write sequence or its height, precipitation, mask, cursor or populated flag differ) and writes each call with C's result and the after-state of every chunk it wrote, for a consumer (the CUDA replay, cuda/lighting/replay.cu) to run and compare, or stores it in a file (lc_sink_file_create: test_snapshots --light-cap save:FILE) that cuda/lighting/check.c replays on the device alone later (lane/cudasplit); alone it counts the calls, refusals, writes, queue lengths and cap hits In the deferred mode (lightdefer.h's device executor) it streams the pending operations with no after-state, syncs, and writes the slots that come back (light, band storage, stamps, write sequences; heights and precipitation where the device regenerated the sky map) into the host's chunks.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateLightByType",
+    "func_147451_t"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "func_150809_p",
+    "func_150801_a",
+    "func_150811_f",
+    "enqueueRelightChecks"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct lightcap",
+   "java": null,
+   "fields": [
+    "sink",
+    "L",
+    "st",
+    "at",
+    "failed",
+    "head",
+    "slot",
+    "nslots",
+    "worlds",
+    "drivers",
+    "nrec",
+    "rec",
+    "drv_token",
+    "drv_rec",
+    "drv",
+    "maxslots",
+    "defer",
+    "win_start",
+    "win_slots",
+    "ctr_w",
+    "ctr_epoch",
+    "ctr_wseq",
+    "dst"
+   ]
+  },
+  {
+   "name": "struct lc_slot",
+   "java": null,
+   "fields": [
+    "w",
+    "c",
+    "cx",
+    "cz",
+    "wseq",
+    "used",
+    "next",
+    "live",
+    "present",
+    "band",
+    "head"
+   ]
+  },
+  {
+   "name": "struct lc_head",
+   "java": null,
+   "fields": [
+    "height",
+    "precip",
+    "height_min",
+    "queued_light_checks",
+    "mask",
+    "no_sky",
+    "terrain_populated"
+   ]
+  },
+  {
+   "name": "struct lc_rec",
+   "java": null,
+   "fields": [
+    "index",
+    "epoch0",
+    "wseq0",
+    "acx",
+    "acz",
+    "win",
+    "before",
+    "sl"
+   ]
+  }
+ ],
+ "entry_points": [
+  "lightcap_new",
+  "lightcap_update",
+  "lightcap_driver_begin",
+  "lightcap_driver_end",
+  "lightcap_finish",
+  "lightcap_stats",
+  "lightcap_free",
+  "lightcap_layout",
+  "lightcap_blocks",
+  "lightcap_new_defer",
+  "lightcap_defer_run",
+  "lightcap_defer_forget",
+  "lc_sink_file_create"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function lightcap_update: runs inside the tick only when a harness set nw_env->light.cap (test_snapshots --light-cap); it allocates nothing there (its buffers and the mirror's map are made by lightcap_new)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/light_check.sh"
+ ],
+ "notes": "Relight checks whose facing chunk is not loaded (C would load it on a block read) are left to their calls. The stream's consumer is csrc/cuda/lighting/cap.c (a forked child, as worldgen/ahead.c). make -C csrc gpu-lighting-check (lane/gpulight, 2026-09-26)."
+}

@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/resources/Language.java",
+  "classes": ["Language"],
+  "lines": 53,
+  "side": "client",
+  "category": "client_resources",
+  "role": "One language entry from a pack's language metadata section: code, region, display name and the bidirectional flag; comparable by code.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "languageCode", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "region", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "name", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "bidirectional", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "Language", "sig": "(String,String,String,boolean)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getLanguageCode", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isBidirectional", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "equals", "sig": "(Object)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hashCode", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "compareTo", "sig": "(Language)I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "compareTo", "sig": "(Object)I", "native": null, "status": "n/a", "note": "bridge for Comparable"}
+  ],
+  "missing": [],
+  "notes": "The game runs en_US only; the language-selection GUI is not in scope. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "A language entry for the selection screen; the game runs en_US only."
+}

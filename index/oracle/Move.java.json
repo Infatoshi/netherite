@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/Move.java",
+ "lines": 477,
+ "role": "The \"move\" kind of the probe: random Entity.moveEntity calls of a never-ticked ProbeEntity on raw terrain scattered with non-full-cube collision shapes, teleported every 50 moves; the reference for the native collision physics.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle probe KIND=move (Probe.dump dispatches kind move to Move.dump)",
+  "csrc/tests/test_move.c",
+  "oracle/harness/netherite/oracle/Probe.java, EntityProbe.java, ExplosionProbe.java, VillageProbe.java, MobMove.java (share it)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output shapes.bin and moves.bin; its local RNG does not touch CLIENT or SERVER streams."
+}

@@ -1,0 +1,40 @@
+{
+  "path": "oracle/src/entity/monster/EntityBlaze.java",
+  "classes": ["EntityBlaze"],
+  "lines": 241,
+  "side": "common",
+  "category": "entity",
+  "role": "The blaze: a fortress mob that floats with a randomized height offset, fires volleys of three small fireballs at a seen target, burns in water, and drops blaze rods.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/hostiles_blaze.c", "symbols": ["blaze_construct", "blaze_on_living_update", "blaze_attack_entity", "blaze_spawn_small_fireball", "blaze_set_on_fire", "blaze_is_on_fire", "blaze_fall", "blaze_drop_few_items", "blaze_update_entity_action_state"]},
+    {"file": "csrc/engine/hostiles.c", "symbols": ["hostile_spawn", "hostile_loot_update"]},
+    {"file": "csrc/engine/projectile.c", "symbols": ["IE_SMALL_FIREBALL"]}
+  ],
+  "evidence": ["out/java/snapshots/nether-trip-s1", "csrc/tests/test_hostiles.c", "out/java/snapshots/cov-mobs-s1"],
+  "members": [
+    {"kind": "field", "name": "heightOffset", "sig": "float", "native": "csrc/engine/hostiles_blaze.c:blaze_height_offset", "status": "exact"},
+    {"kind": "field", "name": "heightOffsetUpdateTime", "sig": "int", "native": "csrc/engine/hostiles_blaze.c:blaze_height_offset_update_time", "status": "exact"},
+    {"kind": "field", "name": "field_70846_g", "sig": "int", "native": "csrc/engine/hostiles_blaze.c:blaze_attack_step", "status": "exact"},
+    {"kind": "ctor", "name": "EntityBlaze", "sig": "(World)V", "native": "csrc/engine/hostiles_blaze.c:blaze_construct", "status": "exact", "note": "immune to fire, experienceValue 10, the 0.6x1.8 size, dataWatcher 16 at 0"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": "csrc/engine/hostiles_blaze.c:blaze_construct", "status": "exact", "note": "attackDamage base 6.0 (movement 0.1 and followRange 16 come from the non-AI EntityLivingBase defaults)"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": "csrc/engine/hostiles_blaze.c:blaze_construct", "status": "exact", "note": "dataWatcher 16 is l->data_watcher_16"},
+    {"kind": "method", "name": "getLivingSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getHurtSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getDeathSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getBrightnessForRender", "sig": "(F)I", "native": "csrc/play/play.c:mob_self_lit", "status": "exact", "note": "the renderer's light, constant 15728880 whatever the world's light (csrc/play's mob_self_lit, lane/glowfix; clientframes/dragon-s1chain-S8 t=5090, cr-sweep-gold-g7-s42 3700 and 4100); the getBrightness 1.0F it pairs with is the hurt overlay's scalar there too"},
+    {"kind": "method", "name": "getBrightness", "sig": "(F)F", "native": "csrc/engine/hostiles_blaze.c:blaze_on_living_update", "status": "exact", "note": "always 1.0F, so EntityMob.onLivingUpdate's age bump is unconditional; the native bumps entity_age unconditionally in the same place"},
+    {"kind": "method", "name": "onLivingUpdate", "sig": "()V", "native": "csrc/engine/hostiles_blaze.c:blaze_on_living_update", "status": "exact", "note": "the drown hit when wet, the 100-tick heightOffset re-roll, the rise-toward-target rule, the fire.fire and largesmoke draws, then EntityMob's body"},
+    {"kind": "method", "name": "attackEntity", "sig": "(Lnet/minecraft/entity/Entity;F)V", "native": "csrc/engine/hostiles_blaze.c:blaze_attack_entity", "status": "exact", "note": "the touch attack under 2.0F, the field_70846_g volley counter (60/6/100 timing), the small-fireball spawn with the two gaussian draws, the yaw snap"},
+    {"kind": "method", "name": "fall", "sig": "(F)V", "native": "csrc/engine/hostiles_blaze.c:blaze_fall", "status": "exact", "note": "empty override, no fall damage"},
+    {"kind": "method", "name": "func_146068_u", "sig": "()Lnet/minecraft/item/Item;", "native": "csrc/engine/hostiles_blaze.c:blaze_drop_few_items", "status": "n/a", "note": "n/a: its one caller is EntityLiving.dropFewItems, which EntityBlaze.dropFewItems overrides without super (blaze_drop_few_items)"},
+    {"kind": "method", "name": "isBurning", "sig": "()Z", "native": "csrc/engine/hostiles_blaze.c:blaze_is_on_fire", "status": "exact", "note": "cov-mobs-s1: a Fire Aspect sword on a blaze (EntityPlayer.attackTargetEntityWithCurrentItem's !isBurning test)"},
+    {"kind": "method", "name": "dropFewItems", "sig": "(ZI)V", "native": "csrc/engine/hostiles_blaze.c:blaze_drop_few_items", "status": "exact", "note": "0-2+looting blaze rods only when hit by a player"},
+    {"kind": "method", "name": "func_70845_n", "sig": "()Z", "native": "csrc/engine/hostiles_blaze.c:blaze_is_on_fire", "status": "exact", "note": "through isBurning (cov-mobs-s1)"},
+    {"kind": "method", "name": "func_70844_e", "sig": "(Z)V", "native": "csrc/engine/hostiles_blaze.c:blaze_set_on_fire", "status": "exact"},
+    {"kind": "method", "name": "isValidLightLevel", "sig": "()Z", "native": "csrc/engine/spawning.c:can_spawn_here", "status": "exact", "note": "SP_BLAZE's case: EntityBlaze's always-true override, no draws (spawning.c:1264-1271)"}
+  ],
+  "missing": [],
+  "notes": "The blaze is old-AI (EntityBlaze never overrides isAIEnabled), so its tick is blaze_update_entity_action_state over EntityCreature's path machinery, mirroring the file's comments. Small fireballs go through projectile.c's IE_SMALL_FIREBALL branch. te-spawner-s1 records a blaze spawner. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): nether-trip2-s42, te-spawner-s1."
+}

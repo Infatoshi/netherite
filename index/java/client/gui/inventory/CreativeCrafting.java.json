@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/gui/inventory/CreativeCrafting.java",
+  "classes": ["CreativeCrafting"],
+  "lines": 36,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The ICrafting listener GuiContainerCreative registers so every client-side slot change in the creative screen is echoed back as a C10 creative-inventory-action packet (playerController.sendSlotPacket).",
+  "scope": "client_cosmetic",
+  "scope_reason": "Plumbing of the creative screen, which is not ported. The one behavior with a native counterpart, the creative windowClick mode 3 handling, lives in container.c, not here.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_146109_a", "sig": "Minecraft", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "CreativeCrafting", "sig": "(Minecraft)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "sendContainerAndContentsToPlayer", "sig": "(Container,List)V", "native": null, "status": "n/a", "note": "empty in Java"},
+    {"kind": "method", "name": "sendSlotContents", "sig": "(Container,int,ItemStack)V", "native": null, "status": "n/a", "note": "the sendSlotPacket echo"},
+    {"kind": "method", "name": "sendProgressBarUpdate", "sig": "(Container,int,int)V", "native": null, "status": "n/a", "note": "empty in Java"}
+  ],
+  "missing": [],
+  "notes": "Creative-mode slot clicks (windowClick mode 3) are ported in csrc/engine/container.c:1741, but the screen that drives CreativeCrafting is not."
+}

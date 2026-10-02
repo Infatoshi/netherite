@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/block/BlockWorkbench.java",
+  "classes": ["BlockWorkbench"],
+  "lines": 87,
+  "side": "common",
+  "category": "block",
+  "role": "The crafting table (id 58): right click opens the vanilla crafting GUI, and the collision-box tweak on its placement uses a 2-tick grace.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]},
+    {"file": "csrc/engine/activate.c", "symbols": ["on_block_activated"]},
+    {"file": "csrc/engine/container.c", "symbols": ["transfer_workbench"]},
+    {"file": "csrc/engine/place.c", "symbols": ["on_post_block_placed"]}
+  ],
+  "evidence": ["out/java/snapshots/flow-craft-s1", "csrc/tests/test_activate.c", "csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockWorkbench", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 58: Material.wood row and static properties in the table"},
+    {"kind": "field", "name": "field_149962_a", "sig": "static final String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": null, "status": "missing", "note": "the top/bottom/side texture choice; the native mesher's workbench branch was not verified per face"},
+    {"kind": "method", "name": "getIcon", "sig": "(Lnet/minecraft/world/IBlockAccess;IIII)Lnet/minecraft/util/IIcon;", "native": null, "status": "missing", "note": "the rotation-aware top texture (unused in 1.7.10); never called"},
+    {"kind": "method", "name": "onBlockActivated", "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z", "native": "csrc/engine/activate.c:on_block_activated", "status": "exact", "note": "case ID_WORKBENCH: opens the GUI and returns true"},
+    {"kind": "method", "name": "onBlockPlaced", "sig": "(Lnet/minecraft/world/World;IIIFFFFI)I", "native": "csrc/engine/place.c:on_block_placed", "status": "exact", "note": "the 2-tick placement grace (field_149961_l 0.75f) is folded into the placement path's bounds"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [
+    "getIcon: the per-face texture choice was not verified in the native mesher."
+  ],
+  "notes": "flow-craft-s1 exercises the crafting flow end to end (DEVLOG 2026-09-25); test_activate.c and test_crafting.c cover the GUI open and the recipe result."
+}

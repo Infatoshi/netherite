@@ -1,0 +1,42 @@
+{
+  "path": "oracle/src/village/MerchantRecipe.java",
+  "classes": ["MerchantRecipe"],
+  "lines": 160,
+  "side": "common",
+  "category": "inventory",
+  "role": "One villager trade: one or two stacks to buy, a stack to sell, a use count and a max-uses cap (default 7), with the id/price comparisons the offer list dedupes by and its NBT form.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/trades.h", "symbols": ["trade_recipe", "trade_stack"]},
+    {"file": "csrc/engine/trades.c", "symbols": ["trades_same_ids", "same_items", "trades_is_disabled", "trades_disable", "trades_unlock_boost", "stack_w", "trades_w", "trades_nbt"]},
+    {"file": "csrc/engine/trades.c", "symbols": ["trades_from_nbt"]},
+    {"file": "csrc/engine/villagers.c", "symbols": ["villager_player_trade"]}
+  ],
+  "evidence": ["csrc/tests/test_trades.c", "csrc/tests/test_villagers.c", "out/java/snapshots/trade-full-s1", "out/java/snapshots/cov-tradelist-s1"],
+  "members": [
+    {"kind": "field", "name": "itemToBuy", "sig": "ItemStack", "native": "csrc/engine/trades.h:trade_recipe", "status": "exact", "note": "trade_recipe.buy"},
+    {"kind": "field", "name": "secondItemToBuy", "sig": "ItemStack", "native": "csrc/engine/trades.h:trade_recipe", "status": "exact", "note": "buy_b with has_buy_b"},
+    {"kind": "field", "name": "itemToSell", "sig": "ItemStack", "native": "csrc/engine/trades.h:trade_recipe", "status": "exact", "note": "sell"},
+    {"kind": "field", "name": "toolUses", "sig": "int", "native": "csrc/engine/trades.h:trade_recipe", "status": "exact", "note": "uses"},
+    {"kind": "field", "name": "maxTradeUses", "sig": "int", "native": "csrc/engine/trades.h:trade_recipe", "status": "exact", "note": "max_uses"},
+    {"kind": "ctor", "name": "MerchantRecipe", "sig": "(NBTTagCompound)", "native": "csrc/engine/trades.c:trades_from_nbt", "status": "exact", "note": "trades_from_nbt (the snapshot loaders, the open trade window) reads buy/buyB/sell/uses/maxUses, maxUses defaulting to 7"},
+    {"kind": "ctor", "name": "MerchantRecipe", "sig": "(ItemStack,ItemStack,ItemStack)", "native": "csrc/engine/trades.c:op_buy", "status": "exact", "note": "the profession table ops build recipes with max_uses 7"},
+    {"kind": "ctor", "name": "MerchantRecipe", "sig": "(ItemStack,ItemStack)", "native": "csrc/engine/trades.c:op_sell", "status": "exact"},
+    {"kind": "ctor", "name": "MerchantRecipe", "sig": "(ItemStack,Item)", "native": "csrc/engine/trades.c:op_tools", "status": "exact"},
+    {"kind": "method", "name": "getItemToBuy", "sig": "()ItemStack", "native": null, "status": "n/a", "note": "direct field read"},
+    {"kind": "method", "name": "getSecondItemToBuy", "sig": "()ItemStack", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasSecondItemToBuy", "sig": "()Z", "native": null, "status": "n/a", "note": "has_buy_b"},
+    {"kind": "method", "name": "getItemToSell", "sig": "()ItemStack", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasSameIDsAs", "sig": "(MerchantRecipe)Z", "native": "csrc/engine/trades.c:trades_same_ids", "status": "exact"},
+    {"kind": "method", "name": "hasSameItemsAs", "sig": "(MerchantRecipe)Z", "native": "csrc/engine/trades.c:same_items", "status": "exact", "note": "cov-tradelist-s1: a blacksmith's second unlock draws the IDs of a trade it already offers"},
+    {"kind": "method", "name": "incrementToolUses", "sig": "()V", "native": "csrc/engine/villagers.c:villager_player_trade", "status": "exact", "note": "++rec->uses"},
+    {"kind": "method", "name": "func_82783_a", "sig": "(I)V", "native": "csrc/engine/trades.c:trades_unlock_boost", "status": "exact", "note": "maxUses += nextInt(6)+nextInt(6)+2"},
+    {"kind": "method", "name": "isRecipeDisabled", "sig": "()Z", "native": "csrc/engine/trades.c:trades_is_disabled", "status": "exact"},
+    {"kind": "method", "name": "func_82785_h", "sig": "()V", "native": "csrc/engine/trades.c:trades_disable", "status": "exact"},
+    {"kind": "method", "name": "readFromTags", "sig": "(NBTTagCompound)V", "native": "csrc/engine/trades.c:trades_from_nbt", "status": "exact"},
+    {"kind": "method", "name": "writeToTags", "sig": "()NBTTagCompound", "native": "csrc/engine/trades.c:stack_w", "status": "exact", "note": "inside trades_nbt"}
+  ],
+  "missing": [],
+  "notes": "Evidence: trade-s1 (DEVLOG 2026-09-25 villager trading) passes test_snapshots per DEVLOG; not re-run here. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

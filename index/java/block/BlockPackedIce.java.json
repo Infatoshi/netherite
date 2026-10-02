@@ -1,0 +1,51 @@
+{
+ "path": "oracle/src/block/BlockPackedIce.java",
+ "classes": [
+  "BlockPackedIce"
+ ],
+ "lines": 25,
+ "side": "common",
+ "category": "block",
+ "role": "Packed ice (id 174): slippery 0.98 and drops nothing.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_drops.c",
+  "out/java/chunks",
+  "out/java/snapshots/cov-blkbreak-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockPackedIce",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 174: packed-ice material, slipperiness 0.98"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Random)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 174: no drop"
+  }
+ ],
+ "missing": [],
+ "notes": "Packed ice generates in the ice plains spikes biome; chunk dumps cover its placement. Silk-touch harvest of 174 was not traced."
+}

@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/SpawnProbe.java",
+ "lines": 1295,
+ "role": "Mob spawning probe with three kinds: 'spawner' runs SpawnerAnimals.findChunksForSpawning inside ws.tick() from a real world state with a parked player in a chosen biome (spawns recorded, never ticked); 'scene' ticks a squid and bat scene on its own list; 'populate' records SpawnerAnimals.performWorldGenSpawning over the populate probe's regions.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=SpawnProbe (the generic {\"cmd\":\"run\",\"class\":\"SpawnProbe\"} reflection dispatch in Oracle.java) with CMD='{\"kind\":\"spawner\"|\"scene\"|\"populate\",...}'",
+  "csrc/tests/test_spawning.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output manifest.json, the start snapshot files, tickwrites.bin, tickrows.jsonl.gz, spawns.jsonl.gz, end.txt. Reuses ServerTickProbe, Snapshot and AnimalProbe helpers. Which native test consumes the scene and populate kinds was not traced (test_hostiles.c also mentions squid). No oracle/src hook."
+}

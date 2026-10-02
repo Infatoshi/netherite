@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/lzpack.h",
+ "lines": 44,
+ "role": "Declares the parked chunks' and spill file's codec (lzpack.c): LZP_BOUND, LZP_SLACK and LZP_TABLE_BYTES, the caller's buffer sizes, and the two calls.",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "lzp_compress",
+  "lzp_decompress"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/lzpack_check.c"
+ ],
+ "notes": ""
+}

@@ -1,0 +1,102 @@
+{
+ "path": "csrc/engine/surface.c",
+ "lines": 355,
+ "role": "The overworld surface pass: ChunkProviderGenerate.func_147422_a over one chunk and each biome's func_150573_a (the generic top/filler/bedrock column, Mesa bands and Bryce spires, hills, mega taiga, Savanna M, mutated dispatch), writing block ids and metas into the chunk arrays.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "func_147422_a",
+    "field_147430_m"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenBase.java",
+   "members": [
+    "func_150573_a",
+    "func_150560_b",
+    "topBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenMesa.java",
+   "members": [
+    "func_150573_a",
+    "func_150619_a",
+    "func_150618_d",
+    "field_150621_aC",
+    "field_150625_aG",
+    "field_150623_aE",
+    "field_150624_aF",
+    "field_150622_aD"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenHills.java",
+   "members": [
+    "func_150573_a",
+    "field_150638_aH"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenTaiga.java",
+   "members": [
+    "func_150573_a",
+    "field_150644_aH"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenSavanna.java",
+   "members": [
+    "Mutated.func_150573_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenSwamp.java",
+   "members": [
+    "func_150573_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenMutated.java",
+   "members": [
+    "func_150573_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenOcean.java",
+   "members": [
+    "func_150573_a (only calls super)"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct surface",
+   "java": "state the biome objects keep: each BiomeGenBase.topBlock, and BiomeGenMesa's field_150621_aC, field_150625_aG, field_150623_aE, field_150624_aF",
+   "fields": [
+    "top",
+    "bands",
+    "band_shift",
+    "spire",
+    "spire_cap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "surface_init",
+  "surface_pass",
+  "surface_tops_merge"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 258, function column: recursion for SURF_MUTATED into the base biome (depth 1 in practice, a mutated biome's base is not mutated)",
+  "line 270, 289, 302, function column: writes the per-biome topBlock back into struct surface (mutable per-world state carried across columns, mirroring Java's biome singletons)",
+  "line 159, function mesa_column: libm cos, whose sign only is used (the note says StrictMath.cos in Java)"
+ ],
+ "tests": [
+  "csrc/tests/test_worldgen.c"
+ ],
+ "notes": "Called from chunkgen.c when a chunk is generated, which happens inside the server tick as chunks load. The swamp override places nothing in 1.7.10 (its loop exits on air at y 255), so SURF_SWAMP falls through to the generic column. Mesa's spire noises come from Random(0) in a fresh JVM, a quirk the port keeps. The Java member names were matched by grep against ChunkProviderGenerate.java and BiomeGenMesa.java; the hills, taiga and savanna field names are taken from the port's comments. surface_tops_merge sets the topBlock entries a pass over a chunk's biomes wrote from that pass's table (the provider state a generation run elsewhere leaves, lane/gpugen)."
+}

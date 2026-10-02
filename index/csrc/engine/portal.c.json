@@ -1,0 +1,36 @@
+{
+ "path": "csrc/engine/portal.c",
+ "lines": 815,
+ "role": "Dimension travel: the Teleporter (placeInPortal, placeInExistingPortal with the destination-coordinate cache, makePortal, removeStalePortalLocations, the End's obsidian platform), Entity's portal timers (setInPortal and onEntityUpdate's portal section), the per-dimension coordinate scaling of transferEntityToWorld, and the End-exit respawn placement.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/Teleporter.java", "members": ["Teleporter", "placeInPortal", "placeInExistingPortal", "makePortal", "removeStalePortalLocations", "destinationCoordinateCache", "destinationCoordinateKeys", "random", "PortalPosition"]},
+  {"path": "oracle/src/util/Direction.java", "members": ["offsetX", "offsetZ", "rotateLeft", "rotateRight", "rotateOpposite", "getMovementDirection"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["setInPortal", "onEntityUpdate", "timeUntilPortal", "inPortal", "portalCounter", "teleportDirection", "getMaxInPortalTime", "getPortalCooldown", "dimension"]},
+  {"path": "oracle/src/server/management/ServerConfigurationManager.java", "members": ["transferEntityToWorld", "transferPlayerToDimension", "respawnPlayer"]},
+  {"path": "oracle/src/world/World.java", "members": ["getActualHeight"]}
+ ],
+ "structs": [
+  {"name": "struct portal_cache_entry", "java": "Teleporter.PortalPosition (ChunkCoordinates plus lastUpdateTime) keyed in destinationCoordinateCache", "fields": ["key", "x", "y", "z", "last_update_time", "occupied"]},
+  {"name": "struct portal_cache", "java": "Teleporter.destinationCoordinateCache (LongHashMap) plus destinationCoordinateKeys (ArrayList, the removal order)", "fields": ["entries", "cap", "count", "keys", "key_count", "key_cap"]},
+  {"name": "struct teleporter", "java": "Teleporter: worldServerInstance, random, the cache; plus the world time for stale removal", "fields": ["world", "rand", "cache", "world_time"]},
+  {"name": "struct portal_entity_state", "java": "Entity.timeUntilPortal, portalCounter, inPortal, teleportDirection, getMaxInPortalTime, getPortalCooldown, dimension", "fields": ["time_until_portal", "portal_counter", "in_portal", "teleport_direction", "max_in_portal_time", "portal_cooldown", "dimension"]},
+  {"name": "DIR_OFFSET_X, DIR_OFFSET_Z, DIR_ROTATE_LEFT, DIR_ROTATE_RIGHT, DIR_ROTATE_OPPOSITE", "java": "Direction.offsetX, offsetZ, rotateLeft, rotateRight, rotateOpposite", "fields": []}
+ ],
+ "entry_points": ["direction_get_movement", "portal_cache_init", "portal_cache_free", "portal_cache_get", "portal_cache_put", "portal_cache_remove", "portal_cache_remove_stale", "teleporter_init", "teleporter_free", "teleporter_remove_stale_locations", "teleporter_place_in_existing_portal", "teleporter_make_portal", "teleporter_place_in_portal", "portal_entity_init", "portal_entity_set_in_portal", "portal_entity_tick", "portal_transfer_entity", "portal_respawn_end_exit", "portal_search_radius_override", "portal_site_draw_order_override"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 67 and 70, function portal_cache_init: calloc and malloc of the cache (at teleporter creation)",
+  "line 102, function portal_cache_grow: calloc rehash growth inside the tick when the cache fills",
+  "line 162, function portal_cache_put: realloc of the key list inside the tick",
+  "lines 109, 117, 147, 183: open-addressing probe while loops bounded only by table load",
+  "lines 212-228, function portal_cache_remove_stale: removal order carried by the keys array (mirrors destinationCoordinateKeys), with O(n) shifting per removal",
+  "line 296, function teleporter_place_in_existing_portal: while loop descending a portal column, bounded by the column",
+  "lines 464 and 529, function teleporter_make_portal: while loops dropping to the ground, bounded by y > 0",
+  "lines 492 and 550, function teleporter_make_portal: goto-based early exit from the site scan",
+  "line 264, function teleporter_place_in_existing_portal: 128-block radius scan (257x257 columns by height) on a cache miss"
+ ],
+ "tests": ["csrc/tests/test_portals.c"],
+ "notes": "Caller: serverreplay.c, which seeds each teleporter's rand from the world seed (Teleporter's new Random(seed)) and clears in_portal itself after a non-triggering tick, as Entity.onEntityUpdate does. Differences seen against oracle/src/entity/Entity.java and not verified against a recording: portal_entity_tick returns before the trailing --timeUntilPortal on the tick it triggers (Java decrements after travelToDimension), and it does not check ridingEntity == null. portal_cooldown defaults to 10 (EntityPlayer's getPortalCooldown); Entity's own is 300. portal_site_draw_order_override (line 446) perturbs makePortal's random start direction for a negative check."
+}

@@ -1,0 +1,27 @@
+{
+ "path": "csrc/engine/gunzip.h",
+ "lines": 29,
+ "role": "Declares gunzip_file, the whole-file gzip reader snapshot.c loads its chunk files with.",
+ "layer": "io",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "gunzip_file",
+  "gunzip_open",
+  "gunzip_read",
+  "gunzip_gets",
+  "gunzip_close"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_activate.c",
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_animals.c"
+ ],
+ "notes": "Header for gunzip.c."
+}

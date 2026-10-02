@@ -1,0 +1,517 @@
+{
+  "path": "csrc/engine/survival.h",
+  "lines": 806,
+  "role": "Declares the player survival layer (survival.c): FoodStats, the ItemStack slot, the C2S packet record a client tick sends, the per-player survival state carried by client_player and server_player (health, food, XP, inventory, ender chest, statistics and achievements, potions), the S2C packet and queue, the survival world, the mouseover, and every survival entry point. s2c_pkt carries an S2D title.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/util/FoodStats.java",
+      "members": [
+        "foodLevel",
+        "foodSaturationLevel",
+        "foodExhaustionLevel",
+        "foodTimer",
+        "prevFoodLevel"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayer.java",
+      "members": [
+        "experienceLevel",
+        "experienceTotal",
+        "experience",
+        "xpCooldown",
+        "itemInUse",
+        "itemInUseCount",
+        "sleeping",
+        "sleepTimer",
+        "playerLocation",
+        "spawnChunk",
+        "spawnForced"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayerMP.java",
+      "members": [
+        "field_147101_bU",
+        "lastHealth",
+        "lastFoodLevel",
+        "wasHungry",
+        "lastExperience"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "hurtTime",
+        "maxHurtTime",
+        "attackTime",
+        "maxHurtResistantTime",
+        "hurtResistantTime",
+        "lastDamage",
+        "deathTime",
+        "recentlyHit",
+        "prevHealth",
+        "activePotionsMap"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/InventoryPlayer.java",
+      "members": [
+        "mainInventory",
+        "armorInventory",
+        "currentItem",
+        "itemStack"
+      ]
+    },
+    {
+      "path": "oracle/src/inventory/InventoryEnderChest.java",
+      "members": [
+        "27 slots"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/StatisticsFile.java",
+      "members": [
+        "field_150888_e",
+        "field_150886_g",
+        "field_150885_f"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/AchievementList.java",
+      "members": [
+        "the 30 achievements and their parents"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/StatList.java",
+      "members": [
+        "the general, mineBlock, useItem, craftItem and breakItem stats"
+      ]
+    },
+    {
+      "path": "oracle/src/client/gui/achievement/GuiAchievement.java",
+      "members": [
+        "toast state"
+      ]
+    },
+    {
+      "path": "oracle/src/util/DamageSource.java",
+      "members": [
+        "the damage sources, in declaration order",
+        "hungerDamage"
+      ]
+    },
+    {
+      "path": "oracle/src/util/CombatTracker.java",
+      "members": [
+        "combatEntries"
+      ]
+    },
+    {
+      "path": "oracle/src/network/play/server/S37PacketStatistics.java",
+      "members": [
+        "field_148976_a"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "struct surv_food",
+      "java": "FoodStats",
+      "fields": [
+        "level",
+        "saturation",
+        "exhaustion",
+        "timer"
+      ]
+    },
+    {
+      "name": "struct surv_stack",
+      "java": "ItemStack (item, damage, stack size) plus a generation count standing in for object identity",
+      "fields": [
+        "item",
+        "damage",
+        "count",
+        "gen"
+      ]
+    },
+    {
+      "name": "struct c03",
+      "java": "C03PacketPlayer and its C04/C05/C06 forms",
+      "fields": [
+        "kind",
+        "c",
+        "d",
+        "e",
+        "f",
+        "yaw",
+        "pitch",
+        "on_ground"
+      ]
+    },
+    {
+      "name": "struct client_pkt",
+      "java": "one packet of Minecraft.runTick's input block as its consumer sent it: C09 (a consumer's syncCurrentPlayItem), C16 (the inventory key), C07, C08, C02 ATTACK, C02 INTERACT",
+      "fields": [
+        "kind",
+        "v",
+        "x",
+        "y",
+        "z",
+        "side",
+        "hx",
+        "hy",
+        "hz",
+        "stack"
+      ]
+    },
+    {
+      "name": "struct client_out",
+      "java": "the C2S packets one client tick sends, in arrival order: updateController's C09, the C06 confirmations, the gui ops' C16 respawn, the input block's packets in send order (pkt, CLIENT_PKT_CAP), C0A, C0B, C03, C17 MC|TrSel",
+      "fields": [
+        "has_confirm_c03",
+        "confirm_c03",
+        "has_confirm2_c03",
+        "confirm2_c03",
+        "c09_slot",
+        "c16",
+        "nc0a",
+        "c0b_wake",
+        "nc0b",
+        "c0b",
+        "has_c03",
+        "c03",
+        "trsel_window",
+        "trsel_index",
+        "has_trsel",
+        "npkt",
+        "pkt"
+      ]
+    },
+    {
+      "name": "struct surv_stats",
+      "java": "StatisticsFile / StatFileWriter counters and dirty set, the client StatFileWriter mirror, and GuiAchievement's toast",
+      "fields": [
+        "v",
+        "present",
+        "dirty",
+        "ach_dirty",
+        "last_send_tick",
+        "explored",
+        "has_progress",
+        "client_v",
+        "client_present",
+        "has_stats",
+        "show_hint",
+        "toast_ach",
+        "toast_l",
+        "toast_desc",
+        "toast_title",
+        "toast_sub"
+      ]
+    },
+    {
+      "name": "struct surv_state",
+      "java": "the survival fields of EntityPlayer, EntityPlayerMP, EntityLivingBase, FoodStats, InventoryPlayer, InventoryEnderChest and the container slot mirror",
+      "fields": [
+        "food",
+        "stats",
+        "health",
+        "air",
+        "fire",
+        "absorption",
+        "hurt_time",
+        "max_hurt_time",
+        "attack_time",
+        "max_hurt_resistant",
+        "hurt_resistant_time",
+        "last_damage",
+        "velocity_changed",
+        "death_time",
+        "recently_hit",
+        "xp_cooldown",
+        "dead_reported",
+        "dead",
+        "removed",
+        "xp_level",
+        "xp_total",
+        "score",
+        "xp_progress",
+        "using_count",
+        "using_slot",
+        "using_gen",
+        "gen_counter",
+        "inv",
+        "ender",
+        "current_item",
+        "respawn_protect",
+        "net_tick_count",
+        "has_set_health",
+        "last_health",
+        "hud_prev_health",
+        "hud_prev_food",
+        "last_food",
+        "was_hungry",
+        "last_xp_total",
+        "erand",
+        "has_spawn",
+        "spawn_x",
+        "spawn_y",
+        "spawn_z",
+        "spawn_forced",
+        "sleeping",
+        "sleep_timer",
+        "has_bed",
+        "bed_x",
+        "bed_y",
+        "bed_z",
+        "mirror",
+        "cursor",
+        "potions",
+        "potions_need_update",
+        "potion_liquid_color",
+        "potion_is_ambient",
+        "potion_fresh"
+      ]
+    },
+    {
+      "name": "struct s2c_trade",
+      "java": "one MerchantRecipe of the S3F MC|TrList payload, out of line in its queue's side store",
+      "fields": [
+        "item",
+        "count",
+        "damage",
+        "has_buy_b",
+        "item_b",
+        "count_b",
+        "damage_b",
+        "sell_item",
+        "sell_count",
+        "sell_damage",
+        "tag",
+        "tag_b",
+        "sell_tag"
+      ]
+    },
+    {
+      "name": "struct s2c_pkt",
+      "java": "one S2C packet the survival flow queues (S06, S1F, S07, S19, S2F, S08, S12, S2D, S27, S1C, S0A, S0B, S1D, S1E, S30, S3F, S2B, S2E, S37)",
+      "fields": [
+        "kind",
+        "window",
+        "f0",
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "i0",
+        "i1",
+        "i2",
+        "slot",
+        "st",
+        "ntrlist",
+        "s37_slot",
+        "s37_seq",
+        "side_off",
+        "side_len"
+      ]
+    },
+    {
+      "name": "struct s2c_queue",
+      "java": "NetworkManager's outbound queue for one player, fixed at 128",
+      "fields": [
+        "n",
+        "nside",
+        "q",
+        "side"
+      ]
+    },
+    {
+      "name": "struct s2c_ring",
+      "java": "the row's three packet queues (the server tick's, the sent one, the client's) handed on by index in the env (GPU plan L11)",
+      "fields": [
+        "q",
+        "out",
+        "sent",
+        "in"
+      ]
+    },
+    {
+      "name": "struct surv_world",
+      "java": "the world-level state the survival code needs",
+      "fields": [
+        "det",
+        "difficulty",
+        "keep_inventory",
+        "iew",
+        "extra_iew",
+        "anw",
+        "world_rand",
+        "entity_tick_off",
+        "no_sprint_exhaustion",
+        "drown_fast"
+      ]
+    },
+    {
+      "name": "struct surv_mouseover_pos / struct surv_mouseover",
+      "java": "Minecraft.objectMouseOver (MovingObjectPosition)",
+      "fields": [
+        "num",
+        "entity_id",
+        "is_miss",
+        "x",
+        "y",
+        "z",
+        "side",
+        "hx",
+        "hy",
+        "hz",
+        "cur",
+        "prev_copy",
+        "prev"
+      ]
+    },
+    {
+      "name": "SURV_*, ACH_*, EGG_*, STAT_*, C03_*, PK_* enums",
+      "java": "DamageSource order, AchievementList, EntityList egg mappings, StatList ids, the C03 family and the S2C packet kinds",
+      "fields": []
+    },
+    {
+      "name": "struct surv_combat_entry",
+      "java": "CombatEntry as the death reads it: getDamageSrc's attacker kind, damage type and entity name, func_94563_c, func_94562_g's label, func_94561_i's fall distance",
+      "fields": [
+        "kind",
+        "damage",
+        "dtype",
+        "name",
+        "fall",
+        "label"
+      ]
+    },
+    {
+      "name": "struct surv_combat",
+      "java": "the server player's CombatTracker as its death reads it (the last entry, func_94544_f's longest fall and its entry, func_94550_c's best living and player over kinds and names, the count; field_94555_c, field_94552_d, field_94553_e) and EntityLivingBase's revenge target by kind",
+      "fields": [
+        "n",
+        "last",
+        "fall_entry",
+        "fall_len",
+        "has_fall",
+        "kd_best",
+        "kd_player",
+        "k_best",
+        "k_player",
+        "nd_best",
+        "nd_player",
+        "n_best",
+        "n_player",
+        "last_tick",
+        "in_combat",
+        "active",
+        "revenge_kind",
+        "revenge_timer"
+      ]
+    },
+    {
+      "name": "struct surv_s37",
+      "java": "S37PacketStatistics.field_148976_a, one send's (stat, value) map",
+      "fields": [
+        "seq",
+        "n",
+        "id",
+        "val"
+      ]
+    }
+  ],
+  "entry_points": [
+    "surv_world_setup",
+    "surv_client_load",
+    "surv_server_load",
+    "surv_server_fresh",
+    "surv_server_fresh_state",
+    "surv_client_fresh",
+    "surv_client_tick_start",
+    "surv_client_click",
+    "surv_server_click",
+    "surv_client_base_tick",
+    "surv_server_tick_start",
+    "surv_server_close_screen",
+    "surv_server_world_update",
+    "surv_server_damage",
+    "surv_server_damage_by",
+    "surv_server_jump",
+    "surv_server_add_xp",
+    "surv_server_move_stat",
+    "surv_client_pump",
+    "surv_client_armor_value",
+    "surv_client_in_water",
+    "surv_client_eat_tick",
+    "surv_server_base_tick",
+    "surv_server_living_tail",
+    "surv_server_food_and_gate",
+    "surv_server_eat_tick",
+    "surv_server_fall",
+    "throw_item",
+    "s2c_add",
+    "s2c_side_new",
+    "s2c_side",
+    "s2c_reset",
+    "s2c_sent_queue",
+    "s2c_out",
+    "s2c_out_peek",
+    "s2c_clear",
+    "s2c_in",
+    "s2c_drain",
+    "s2c_receive",
+    "s2c_send",
+    "surv_clone_take",
+    "surv_server_sync_inventory",
+    "surv_client_mouseover",
+    "surv_client_dig_stage",
+    "surv_client_dig_tick",
+    "surv_client_attack_pressed",
+    "surv_client_use_pressed",
+    "surv_server_dig_packet",
+    "surv_server_use_packet",
+    "surv_server_c08_tail",
+    "surv_server_dig_update",
+    "surv_add_exhaustion",
+    "surv_bed_safe_spot",
+    "surv_add_stat",
+    "surv_stats_flush",
+    "surv_stats_login",
+    "surv_client_apply_s37",
+    "surv_client_toast_json",
+    "surv_is_imob",
+    "surv_egg_of_kind",
+    "surv_stats_load_file",
+    "surv_stats_load_snapshot",
+    "surv_stats_compare",
+    "surv_stat_name",
+    "surv_stat_by_name",
+    "surv_bred",
+    "surv_skeleton_shot",
+    "surv_set_attacker",
+    "surv_s37",
+    "surv_combat",
+    "STAT_COUNT",
+    "surv_client_pick_block",
+    "surv_server_hook_own_container",
+    "surv_server_combat_tick",
+    "surv_server_peaceful_heal",
+    "surv_client_join_hint"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "line 234-238, struct surv_stats: toast_title and toast_sub are const char pointers (client-only string pointers inside per-player state)",
+    "line 425-427, struct surv_world: det, iew, extra_iew, anw and world_rand are pointers to shared world objects",
+    "line 454, extern struct surv_world surv: one global world instance for the survival layer",
+    "struct s2c_ring (env.h survival.s2c): three 128-packet queues with a per-queue side store sized for 128 full S3F lists; only n packets and nside side bytes are live, the rest is never touched (an image export needs only those)"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "Header only. surv_server_death, surv_client_input and surv_server_food_tick are defined non-static in survival.c but declared in no header under csrc/engine (grep). surv_state is flat except the embedded struct potion_map (potion.h): 32 bucket pointers into its own fixed 32-node pool with next links, a pointer graph but no heap. surv_server_dig_packet and surv_server_c08_tail are declared here but defined and called nowhere in csrc/ (stale declarations; the C07 path is survival.c's static process_c07)."
+}

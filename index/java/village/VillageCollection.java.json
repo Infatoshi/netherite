@@ -1,0 +1,227 @@
+{
+  "path": "oracle/src/village/VillageCollection.java",
+  "classes": [
+    "VillageCollection"
+  ],
+  "lines": 378,
+  "side": "server",
+  "category": "ai",
+  "role": "The per-world set of villages (saved as villages.dat): villagers report their positions, each tick one position is scanned for wooden doors, new doors join the nearest village within 32 + radius or found a new one, and empty villages are dropped.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/villagers.h",
+      "symbols": [
+        "village_collection",
+        "chunk_coords",
+        "VILLAGE_MAX_POSITIONS",
+        "vc_list_at"
+      ]
+    },
+    {
+      "file": "csrc/engine/villagers.c",
+      "symbols": [
+        "vc_init",
+        "vc_tick",
+        "vc_add_villager_position",
+        "vc_get_door_at",
+        "vc_find_nearest_village",
+        "door_calc_inside_dir",
+        "vc_load",
+        "vc_free_slot",
+        "vc_slot_named",
+        "vc_push_slot",
+        "vc_list_push"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "serverreplay_load"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_villagers.c",
+    "out/java/villagers/vil-2",
+    "out/java/villagers/vil-42",
+    "out/java/snapshots/village-cp-s42",
+    "out/java/snapshots/struct-cp-s42",
+    "out/java/snapshots/idx-villageref-s1",
+    "out/java/snapshots/village-siege-s42",
+    "out/java/snapshots/village-hurt-s42"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "worldObj",
+      "sig": "World",
+      "native": "csrc/engine/villagers.h:world",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "villagerPositionsList",
+      "sig": "List<ChunkCoordinates>",
+      "native": "csrc/engine/villagers.h:positions",
+      "status": "exact",
+      "note": "array of 128; Java caps additions at size <= 64"
+    },
+    {
+      "kind": "field",
+      "name": "newDoors",
+      "sig": "List<VillageDoorInfo>",
+      "native": "csrc/engine/villagers.h:new_doors",
+      "status": "exact",
+      "note": "a slab table; grows as the ArrayList does"
+    },
+    {
+      "kind": "field",
+      "name": "villageList",
+      "sig": "List<Village>",
+      "native": "csrc/engine/villagers.h:list",
+      "status": "exact",
+      "note": "list, a slab table of slots into villages (a slab table of Village objects): removeAnnihilatedVillages drops the slot from the list and the Village object stays readable while a villager, golem, EntityAIVillagerMate or the siege names it (vc_slot_named); a new village takes a slot nothing names, else a new one (vc_free_slot); both tables grow as the ArrayList does"
+    },
+    {
+      "kind": "field",
+      "name": "tickCounter",
+      "sig": "int",
+      "native": "csrc/engine/villagers.h:tick_counter",
+      "status": "exact",
+      "note": "vc_init's 2 for a fresh replay; a snapshot's villages.nbt Tick otherwise"
+    },
+    {
+      "kind": "ctor",
+      "name": "VillageCollection",
+      "sig": "(String)",
+      "native": null,
+      "status": "n/a",
+      "note": "MapStorage load path"
+    },
+    {
+      "kind": "ctor",
+      "name": "VillageCollection",
+      "sig": "(World)",
+      "native": "csrc/engine/villagers.c:vc_init",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_82566_a",
+      "sig": "(World)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addVillagerPosition",
+      "sig": "(int,int,int)V",
+      "native": "csrc/engine/villagers.c:vc_add_villager_position",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "tick",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:vc_tick",
+      "status": "exact",
+      "note": "markDirty every 400 ticks has no native counterpart (save bookkeeping only)"
+    },
+    {
+      "kind": "method",
+      "name": "removeAnnihilatedVillages",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:vc_tick",
+      "status": "exact",
+      "note": "inlined"
+    },
+    {
+      "kind": "method",
+      "name": "getVillageList",
+      "sig": "()List",
+      "native": null,
+      "status": "n/a",
+      "note": "direct array access"
+    },
+    {
+      "kind": "method",
+      "name": "findNearestVillage",
+      "sig": "(int,int,int,int)Village",
+      "native": "csrc/engine/villagers.c:vc_find_nearest_village",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "dropOldestVillagerPosition",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:vc_tick",
+      "status": "exact",
+      "note": "inlined"
+    },
+    {
+      "kind": "method",
+      "name": "addNewDoorsToVillageOrCreateVillage",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:vc_tick",
+      "status": "exact",
+      "note": "inlined in vc_tick; a new village takes vc_free_slot's slot"
+    },
+    {
+      "kind": "method",
+      "name": "addUnassignedWoodenDoorsAroundToNewDoorsList",
+      "sig": "(ChunkCoordinates)V",
+      "native": "csrc/engine/villagers.c:vc_tick",
+      "status": "exact",
+      "note": "inlined 32x8x32 scan"
+    },
+    {
+      "kind": "method",
+      "name": "getVillageDoorAt",
+      "sig": "(int,int,int)VillageDoorInfo",
+      "native": "csrc/engine/villagers.c:vc_get_door_at",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "addDoorToNewListIfAppropriate",
+      "sig": "(int,int,int)V",
+      "native": "csrc/engine/villagers.c:door_calc_inside_dir",
+      "status": "exact",
+      "note": "canBlockSeeTheSky count over +-5 decides the inside direction"
+    },
+    {
+      "kind": "method",
+      "name": "isVillagerPositionPresent",
+      "sig": "(int,int,int)Z",
+      "native": "csrc/engine/villagers.c:vc_add_villager_position",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isWoodenDoorAt",
+      "sig": "(int,int,int)Z",
+      "native": "csrc/engine/villagers.c:vc_tick",
+      "status": "exact",
+      "note": "blk == 64"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/villagers.c:vc_load",
+      "status": "exact",
+      "note": "the snapshot's villages.nbt (the live collection at the snapshot: Tick, the villages, the villager position queue); serverreplay.c loads it"
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "status": "n/a",
+      "note": "native never writes save files (product decision); Snapshot.java writes the live state"
+    }
+  ],
+  "missing": [],
+  "notes": "I did not verify door_calc_inside_dir line by line against addDoorToNewListIfAppropriate's func_150013_e branch. serverreplay.c calls vc_tick each tick (line ~3134). lane/idxclient: villages keep their slots (see villageList); caps are loud. idx-villageref-s1 proves the kept object (master's native failed it at row 305)."
+}

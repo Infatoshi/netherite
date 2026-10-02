@@ -1,0 +1,33 @@
+{
+ "path": "csrc/engine/raster_particles.h",
+ "lines": 60,
+ "role": "Declares the particle pass over a recorded scene (raster_particles_scene) and over the live client's fx list (raster_particles_draw_live), and documents the GL state each particle layer draws with.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/particle/EffectRenderer.java",
+   "members": [
+    "renderLitParticles",
+    "renderParticles"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/ActiveRenderInfo.java",
+   "members": [
+    "updateRenderInfo"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "raster_particles_scene",
+  "raster_particles_draw_live"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/raster.c",
+  "csrc/tests/test_render.c"
+ ],
+ "notes": "Header only; implementation in raster_particles.c. Forward-declares struct rb_mesher twice (lines 22 and 40), harmless."
+}

@@ -1,0 +1,17 @@
+{
+  "path": "oracle/src/stats/IStatType.java",
+  "classes": ["IStatType"],
+  "lines": 9,
+  "side": "common",
+  "category": "stats",
+  "role": "Interface that formats a stat value for the statistics screen (plain count, time, distance, damage).",
+  "scope": "client_cosmetic",
+  "scope_reason": "Only the GuiStats screen and toString read the formatted text; stat values themselves are integers.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "format", "sig": "(I)String", "native": null, "status": "n/a"}
+  ],
+  "missing": []
+}

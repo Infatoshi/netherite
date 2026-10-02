@@ -1,0 +1,40 @@
+{
+ "path": "csrc/engine/jmath.h",
+ "lines": 27,
+ "role": "MathHelper bit for bit: the 65536-entry sine table declaration and the inline sin and cos; includes jfloor.h (the floors and Java's casts).",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/util/MathHelper.java",
+   "members": [
+    "SIN_TABLE",
+    "sin",
+    "cos"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "MH_SIN",
+   "java": "MathHelper.SIN_TABLE",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "jmath_init",
+  "mh_sin",
+  "mh_cos"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 8: extern float MH_SIN[65536], a global table written once by jmath_init and read-only afterwards"
+ ],
+ "tests": [
+  "csrc/tests/test_itemuse.c",
+  "csrc/tests/test_dragon.c",
+  "csrc/tests/test_renderstate.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_villagers.c"
+ ],
+ "notes": "The header comment argues any libm sin with under 1 ulp error rounds to the same floats as Java's table, so the GPU can rebuild or upload the table. sin and cos index it through jfloor.h's j_f2i."
+}

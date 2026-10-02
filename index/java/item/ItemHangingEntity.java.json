@@ -1,0 +1,90 @@
+{
+  "path": "oracle/src/item/ItemHangingEntity.java",
+  "classes": [
+    "ItemHangingEntity"
+  ],
+  "lines": 69,
+  "side": "server",
+  "category": "item",
+  "role": "Places paintings and item frames: on a side face 2-5 it builds the hanging entity for the facing direction, checks onValidSurface and spawns it.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/fallhang.c",
+      "symbols": [
+        "fh_place_hanging",
+        "fh_valid_surface",
+        "fh_spawn_painting"
+      ]
+    },
+    {
+      "file": "csrc/engine/items.h",
+      "symbols": [
+        "ITEMS"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_server_use_packet",
+        "surv_client_use_pressed"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "serverreplay_place_hanging"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickobj.c",
+      "symbols": [
+        "pickobj_client_hanging_fits"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/persist-hanging-full-s1",
+    "csrc/tests/test_fallhang.c",
+    "out/java/snapshots/details-frames-s1",
+    "out/java/snapshots/idx-painting-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "hangingEntityClass",
+      "sig": "Class",
+      "native": "csrc/engine/fallhang.c:fh_place_hanging",
+      "status": "exact",
+      "note": "fallhang.c distinguishes the painting kind (with its EnumArt choice) from the item frame"
+    },
+    {
+      "kind": "ctor",
+      "name": "ItemHangingEntity",
+      "sig": "(Class)V",
+      "native": "csrc/engine/items.h:ITEMS",
+      "status": "exact",
+      "note": "rows 321 (painting) and 389 (item frame)"
+    },
+    {
+      "kind": "method",
+      "name": "onItemUse",
+      "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z",
+      "native": "csrc/engine/fallhang.c:fh_place_hanging",
+      "status": "exact",
+      "note": "the side 0/1 refusal, the Direction.facingToDirection map, canPlayerEdit, the onValidSurface check, the spawn and the stack decrement"
+    },
+    {
+      "kind": "method",
+      "name": "createHangingEntity",
+      "sig": "(World,IIII)EntityHanging",
+      "native": "csrc/engine/fallhang.c:fh_spawn_painting",
+      "status": "exact",
+      "note": "the EntityPainting constructor with its art loop, and the item frame constructor, both in fallhang.c"
+    }
+  ],
+  "missing": [],
+  "notes": "The item frame's onItemUse runs on both sides: the server builds and spawns it (serverreplay_place_hanging), the client spends its constructor draws and checks onValidSurface on its own copies (pickobj_client_hanging_fits); the top and bottom faces answer false. details-frames-s1 places two frames and clicks a floor top. persist-hanging-s1 and test_fallhang.c gate the validity tick and the drop when broken. lane/idxblocks: the painting (321) now hangs through the same path (survival.c, serverreplay.c:serverreplay_place_hanging with FH_PAINTING, the client's pickobj_client_hanging_fits running the art loop against its own hanging copies); idx-painting-s1 hangs five paintings side by side, refuses a floor top, a frame beside them, and breaks one. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-hanging-full-s1, whose native replay starts before the behaviour."
+}

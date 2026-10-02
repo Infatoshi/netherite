@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/item/crafting/FurnaceRecipes.java",
+  "classes": ["FurnaceRecipes"],
+  "lines": 131,
+  "side": "common",
+  "category": "crafting",
+  "role": "The smelting registry: input stack to result stack and result stack to experience, built at class load.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/recipes.h", "symbols": ["SMELTING", "SMELT_EXPERIENCE"]},
+    {"file": "csrc/engine/smelting.c", "symbols": ["smelt_result", "smelt_experience", "matches"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c", "out/java/snapshots/te-furnace-s1", "out/java/snapshots/te-charcoal-s1"],
+  "members": [
+    {"kind": "field", "name": "smeltingBase", "sig": "FurnaceRecipes", "native": null, "status": "n/a", "note": "a singleton; the native holds the tables at file scope"},
+    {"kind": "field", "name": "smeltingList", "sig": "Map", "native": "csrc/engine/recipes.h:SMELTING", "status": "exact", "note": "22 baked input-to-result entries in map order"},
+    {"kind": "field", "name": "experienceList", "sig": "Map", "native": "csrc/engine/recipes.h:SMELT_EXPERIENCE", "status": "exact", "note": "the experience map, whose keys are result stacks, not inputs"},
+    {"kind": "method", "name": "smelting", "sig": "()Lnet/minecraft/item/crafting/FurnaceRecipes;", "native": "csrc/engine/recipes.h:SMELTING", "status": "exact", "note": "no singleton; the tables are file scope"},
+    {"kind": "method", "name": "func_151393_a", "sig": "(Lnet/minecraft/block/Block;Lnet/minecraft/item/ItemStack;F)V", "native": "csrc/engine/recipes.h:SMELTING", "status": "exact", "note": "a bake-time registration"},
+    {"kind": "method", "name": "func_151396_a", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/item/ItemStack;F)V", "native": "csrc/engine/recipes.h:SMELTING", "status": "exact", "note": "a bake-time registration with the wildcard 32767 input"},
+    {"kind": "method", "name": "func_151394_a", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;F)V", "native": "csrc/engine/recipes.h:SMELTING", "status": "exact", "note": "a bake-time registration"},
+    {"kind": "method", "name": "func_151395_a", "sig": "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/smelting.c:smelt_result", "status": "exact", "note": "the first entry whose input is the same item with a wildcard or equal damage"},
+    {"kind": "method", "name": "func_151397_a", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;)Z", "native": "csrc/engine/smelting.c:matches", "status": "exact", "note": "the item-and-damage key comparison the walk uses"},
+    {"kind": "method", "name": "getSmeltingList", "sig": "()Ljava/util/Map;", "native": "csrc/engine/recipes.h:SMELTING", "status": "exact"},
+    {"kind": "method", "name": "func_151398_b", "sig": "(Lnet/minecraft/item/ItemStack;)F", "native": "csrc/engine/smelting.c:smelt_experience", "status": "exact", "note": "Java walks experienceList keyed by result stacks, so an ordinary ore input finds nothing and 0.0F is the vanilla answer; the port keeps that quirk"}
+  ],
+  "missing": [],
+  "notes": null
+}

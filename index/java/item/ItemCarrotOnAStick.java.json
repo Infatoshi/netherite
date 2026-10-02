@@ -1,0 +1,68 @@
+{
+ "path": "oracle/src/item/ItemCarrotOnAStick.java",
+ "classes": [
+  "ItemCarrotOnAStick"
+ ],
+ "lines": 62,
+ "side": "server",
+ "category": "item",
+ "role": "The pig controller: while riding a saddled pig it boosts the pig's AI-controlled-by-player speed and damages the item by 7, returning a fishing rod with the same NBT when it breaks.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/items.h",
+   "symbols": [
+    "ITEMS",
+    "max_damage"
+   ]
+  },
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_carrot_right_click"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_items.c",
+  "out/java/snapshots/ride-pig-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ItemCarrotOnAStick",
+   "sig": "()V",
+   "native": "csrc/engine/items.h:ITEMS",
+   "status": "exact",
+   "note": "row 398, max stack 1, max damage 25"
+  },
+  {
+   "kind": "method",
+   "name": "isFull3D",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "shouldRotateAroundWhenRendering",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "client render"
+  },
+  {
+   "kind": "method",
+   "name": "onItemRightClick",
+   "sig": "(ItemStack,World,EntityPlayer)ItemStack",
+   "native": "csrc/engine/riding.c:ride_carrot_right_click",
+   "status": "exact",
+   "note": "the boost, damageItem(7) and the fishing rod on break; the client's copy never boosts (its pig runs no AI)"
+  }
+ ],
+ "missing": [],
+ "notes": "Ported in lane/ride (riding.c); ride-pig-s1 boosts once."
+}

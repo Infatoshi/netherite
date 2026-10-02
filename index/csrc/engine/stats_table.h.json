@@ -1,0 +1,28 @@
+{
+ "path": "csrc/engine/stats_table.h",
+ "lines": 911,
+ "role": "Generated StatList registry: per block or item id the stat each of the mineBlock, useItem, craftItem and breakItem arrays holds after replaceAllSimilarBlocks (-1 for null), the general stats and achievements in registration order with the parents, EntityList.entityEggs and BiomeGenBase.field_150597_n. Written by netherite.oracle.StatTable via make -C oracle stats-h; never edited by hand.",
+ "layer": "util",
+ "java": [
+  {"path": "oracle/src/stats/StatList.java", "members": ["mineBlockStatArray", "objectUseStats", "objectCraftStats", "objectBreakStats", "replaceAllSimilarBlocks", "generalStats"]},
+  {"path": "oracle/src/stats/AchievementList.java", "members": ["achievementList"]},
+  {"path": "oracle/src/entity/EntityList.java", "members": ["entityEggs"]},
+  {"path": "oracle/src/world/biome/BiomeGenBase.java", "members": ["field_150597_n"]},
+  {"path": "oracle/harness/netherite/oracle/StatTable.java", "members": []}
+ ],
+ "structs": [
+  {"name": "STAT_TABLE_MINE", "java": "StatList.mineBlockStatArray by block id", "fields": []},
+  {"name": "STAT_TABLE_USE", "java": "StatList.objectUseStats by item id", "fields": []},
+  {"name": "STAT_TABLE_CRAFT", "java": "StatList.objectCraftStats by item id", "fields": []},
+  {"name": "STAT_TABLE_BREAK", "java": "StatList.objectBreakStats by item id", "fields": []},
+  {"name": "STAT_TABLE_GENERAL", "java": "StatList.generalStats statIds", "fields": []},
+  {"name": "STAT_TABLE_ACH", "java": "AchievementList.achievementList statIds", "fields": []},
+  {"name": "STAT_TABLE_EGG", "java": "EntityList.entityEggs (id, name)", "fields": []},
+  {"name": "STAT_TABLE_EXPLORE", "java": "BiomeGenBase.field_150597_n biome ids", "fields": []}
+ ],
+ "entry_points": ["STAT_TABLE_MINE", "STAT_TABLE_USE", "STAT_TABLE_CRAFT", "STAT_TABLE_BREAK", "STAT_TABLE_GENERAL", "STAT_TABLE_ACH", "STAT_TABLE_ACH_PARENT", "STAT_TABLE_EGG", "STAT_TABLE_EXPLORE"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Included by survival.c only (32 KB of per-id tables). survival.c static-asserts its enums against the counts here."
+}

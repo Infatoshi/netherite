@@ -1,0 +1,207 @@
+{
+ "path": "csrc/engine/villagers.h",
+ "lines": 142,
+ "role": "Declares the village system's state (VillageDoorInfo, Village, VillageCollection, VillageSiege as fixed-capacity structs) and the Village, VillageCollection, VillageSiege, villager, iron golem, spawn and door APIs.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/village/VillageDoorInfo.java",
+   "members": [
+    "posX",
+    "posY",
+    "posZ",
+    "insideDirectionX",
+    "insideDirectionZ",
+    "lastActivityTimestamp",
+    "isDetachedFromVillageFlag",
+    "doorOpeningRestrictionCounter"
+   ]
+  },
+  {
+   "path": "oracle/src/village/Village.java",
+   "members": [
+    "villageDoorInfoList",
+    "center",
+    "centerHelper",
+    "villageRadius",
+    "lastAddDoorTimestamp",
+    "tickCounter",
+    "numVillagers",
+    "noBreedTicks",
+    "numIronGolems",
+    "playerReputation",
+    "villageAgressors"
+   ]
+  },
+  {
+   "path": "oracle/src/village/VillageCollection.java",
+   "members": [
+    "villagerPositionsList",
+    "newDoors",
+    "villageList",
+    "tickCounter"
+   ]
+  },
+  {
+   "path": "oracle/src/village/VillageSiege.java",
+   "members": [
+    "field_75535_b",
+    "field_75536_c",
+    "field_75533_d",
+    "field_75534_e",
+    "theVillage",
+    "field_75532_g",
+    "field_75538_h",
+    "field_75539_i"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "village_door_info",
+   "java": "VillageDoorInfo",
+   "fields": [
+    "pos_x",
+    "pos_y",
+    "pos_z",
+    "inside_dir_x",
+    "inside_dir_z",
+    "last_activity_timestamp",
+    "is_detached_from_village_flag",
+    "door_opening_restriction_counter"
+   ]
+  },
+  {
+   "name": "village_player_rep",
+   "java": "one entry of Village.playerReputation",
+   "fields": [
+    "name",
+    "rep"
+   ]
+  },
+  {
+   "name": "village_agressor",
+   "java": "Village.VillageAgressor",
+   "fields": [
+    "agressor",
+    "agression_time"
+   ]
+  },
+  {
+   "name": "village",
+   "java": "Village",
+   "fields": [
+    "world",
+    "doors",
+    "num_doors",
+    "center_x",
+    "center_y",
+    "center_z",
+    "center_helper_x",
+    "center_helper_y",
+    "center_helper_z",
+    "village_radius",
+    "last_add_door_timestamp",
+    "tick_counter",
+    "num_villagers",
+    "no_breed_ticks",
+    "num_iron_golems",
+    "player_rep",
+    "num_player_rep",
+    "agressors",
+    "num_agressors"
+   ]
+  },
+  {
+   "name": "chunk_coords",
+   "java": "ChunkCoordinates",
+   "fields": [
+    "x",
+    "y",
+    "z"
+   ]
+  },
+  {
+   "name": "village_collection",
+   "java": "VillageCollection",
+   "fields": [
+    "world",
+    "positions",
+    "num_positions",
+    "new_doors",
+    "num_new_doors",
+    "villages",
+    "num_villages",
+    "tick_counter"
+   ]
+  },
+  {
+   "name": "village_siege",
+   "java": "VillageSiege",
+   "fields": [
+    "world",
+    "field_75535_b",
+    "field_75536_c",
+    "field_75533_d",
+    "field_75534_e",
+    "the_village",
+    "field_75532_g",
+    "field_75538_h",
+    "field_75539_i"
+   ]
+  }
+ ],
+ "entry_points": [
+  "vdi_dist_sq",
+  "vdi_inside_dist_sq",
+  "vdi_inside_x",
+  "vdi_inside_y",
+  "vdi_inside_z",
+  "vdi_is_inside",
+  "v_init",
+  "v_tick",
+  "v_add_door",
+  "v_find_nearest_door",
+  "v_find_nearest_door_unrestricted",
+  "v_get_door_at",
+  "v_is_in_range",
+  "v_get_reputation",
+  "v_set_reputation",
+  "v_set_default_player_reputation",
+  "v_is_mating_season",
+  "v_end_mating_season",
+  "v_is_annihilated",
+  "vc_init",
+  "vc_tick",
+  "vc_add_villager_position",
+  "vc_find_nearest_village",
+  "vc_get_door_at",
+  "vs_init",
+  "vs_tick",
+  "villager_construct",
+  "villager_on_living_update",
+  "villager_get_recipes",
+  "villager_player_trade",
+  "villager_func_110297_a_",
+  "villager_update_ai_tick",
+  "villager_on_spawn_with_egg",
+  "villager_create_child",
+  "iron_golem_construct",
+  "iron_golem_on_living_update",
+  "iron_golem_update_ai_tick",
+  "iron_golem_set_holding_rose",
+  "vil_spawn_living",
+  "door_calc_inside_dir",
+  "door_set_open"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "village.doors holds door-pool slots (door_at); a villager's, a task's and the siege's village is an index + 1 in its collection (vc_village) and aggressors are lrefs (lane/gpuarena, L3)",
+  "lines 32, 37, 59, 70, 75: raw pointers to living, an_world and village objects inside the structs",
+  "the doors, aggressors, new doors and villages are slab tables that grow (villagers.c, lane/capacity); positions hold 128 where Java adds while 64 or fewer (never past 65); pointers into a slab table move when it grows"
+ ],
+ "tests": [
+  "csrc/tests/test_villagers.c"
+ ],
+ "notes": "Java field names for Village, VillageCollection, VillageSiege and VillageDoorInfo were grepped in the Java files and exist there."
+}

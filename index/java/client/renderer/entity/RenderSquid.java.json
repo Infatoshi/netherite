@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderSquid.java",
+  "classes": ["RenderSquid"],
+  "lines": 112,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the squid: ModelSquid, the tentacle-angle rotation float, and the squid's own body-oriented corpse rotation.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_squid", "model_vertex", "raster_mobs_draw", "texture_names"]}
+  ],
+  "evidence": ["out/java/render/mobs2b_squid_f006", "out/java/render/mobs2b_squid_f011", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "squidTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constant, grouped; the TEX_SQUID entry"},
+    {"kind": "ctor", "name": "RenderSquid", "sig": "(ModelBase,float)V", "native": "csrc/engine/raster_mobs.c:model_squid", "status": "exact"},
+    {"kind": "method", "name": "doRender", "sig": "(EntitySquid,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntitySquid)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntitySquid,float,float,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the MOB_SQUID branch: -1.2 y shift, pitch/yaw rotations, +0.5"},
+    {"kind": "method", "name": "handleRotationFloat", "sig": "(EntitySquid,float)V", "native": "csrc/play/play.c:draw_hitboxes", "status": "exact", "note": "m.tentacle is lastTentacleAngle + (tentacleAngle - lastTentacleAngle) * pt, consumed by model_squid"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "handleRotationFloat", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityLivingBase,float,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

@@ -1,0 +1,5 @@
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"run","class":"Roundtrip"}
+{"n":80,"act":{}}
+{"n":20,"act":{"hold":["forward"]}}
+{"n":40,"act":{}}

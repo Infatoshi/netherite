@@ -1,0 +1,243 @@
+{
+ "path": "oracle/src/entity/EntityHanging.java",
+ "classes": [
+  "EntityHanging"
+ ],
+ "lines": 362,
+ "side": "server",
+ "category": "entity",
+ "role": "The wall-mounted entity base (paintings, item frames, leash knots): direction and tile position, the placement geometry, the 100-tick validity check, the break-on-touch rules, and the Direction/TileX NBT.",
+ "scope": "in_scope",
+ "scope_reason": "Paintings and item frames are placeable vanilla content and a dev-op recording covers them.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/fallhang.c",
+   "symbols": [
+    "fh_set_direction",
+    "fh_valid_surface",
+    "fh_spawn_hanging_nbt",
+    "fh_write_nbt",
+    "fh_tick",
+    "fallhang_player_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/fallhang.h",
+   "symbols": [
+    "struct fh_ent",
+    "FH_PAINTING",
+    "FH_FRAME"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickobj.c",
+   "symbols": [
+    "pickobj_server_attack"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_fallhang.c",
+  "out/java/fallhang/fh2b",
+  "out/java/snapshots/persist-hanging-full-s1",
+  "out/java/raypick/rp-1",
+  "csrc/tests/test_raypick.c",
+  "out/java/snapshots/pick-shapes-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "tickCounter1",
+   "sig": "int",
+   "native": "csrc/engine/fallhang.c:fh_tick",
+   "status": "exact",
+   "note": "the 100-tick validity counter in the hanging tick"
+  },
+  {
+   "kind": "field",
+   "name": "hangingDirection",
+   "sig": "int",
+   "native": "csrc/engine/fallhang.h:struct fh_ent",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_146063_b",
+   "sig": "int",
+   "native": "csrc/engine/fallhang.h:struct fh_ent",
+   "status": "exact",
+   "note": "TileX"
+  },
+  {
+   "kind": "field",
+   "name": "field_146064_c",
+   "sig": "int",
+   "native": "csrc/engine/fallhang.h:struct fh_ent",
+   "status": "exact",
+   "note": "TileY"
+  },
+  {
+   "kind": "field",
+   "name": "field_146062_d",
+   "sig": "int",
+   "native": "csrc/engine/fallhang.h:struct fh_ent",
+   "status": "exact",
+   "note": "TileZ"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityHanging",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the yOffset 0 / size 0.5x0.5 defaults live in the fh constructor"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityHanging",
+   "sig": "(World,IIII)V",
+   "native": "csrc/engine/fallhang.c:fh_spawn_hanging_nbt",
+   "status": "exact",
+   "note": "the tile coordinates"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty"
+  },
+  {
+   "kind": "method",
+   "name": "setDirection",
+   "sig": "(int)V",
+   "native": "csrc/engine/fallhang.c:fh_set_direction",
+   "status": "exact",
+   "note": "the yaw, the 0.5625 wall offset, the func_70517_b half-pixel centering and the bounding box"
+  },
+  {
+   "kind": "method",
+   "name": "func_70517_b",
+   "sig": "(int)F",
+   "native": "csrc/engine/fallhang.c:fh_set_direction",
+   "status": "exact",
+   "note": "the 32/64-pixel centering"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/fallhang.c:fh_tick",
+   "status": "exact",
+   "note": "prev position, the tickCounter1 validity check and the onBroken"
+  },
+  {
+   "kind": "method",
+   "name": "onValidSurface",
+   "sig": "()Z",
+   "native": "csrc/engine/fallhang.c:fh_valid_surface",
+   "status": "exact",
+   "note": "the collision test, the backing-wall material scan and the no-other-hanging rule"
+  },
+  {
+   "kind": "method",
+   "name": "canBeCollidedWith",
+   "sig": "()Z",
+   "native": "csrc/engine/serverreplay.c:sr_query_other",
+   "status": "exact",
+   "note": "true: the projectile lists and the client pick (pickobj.c)"
+  },
+  {
+   "kind": "method",
+   "name": "hitByEntity",
+   "sig": "(Entity)Z",
+   "native": "csrc/engine/pickobj.c:pickobj_server_attack",
+   "status": "exact",
+   "note": "the player's punch breaks it (serverreplay_break_hanging)"
+  },
+  {
+   "kind": "method",
+   "name": "func_145781_i",
+   "sig": "(int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the render-range mark; the native client re-renders whole chunks"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(DamageSource,F)Z",
+   "native": "csrc/engine/fallhang.c:fh_tick",
+   "status": "exact",
+   "note": "setDead + onBroken, server side only"
+  },
+  {
+   "kind": "method",
+   "name": "moveEntity",
+   "sig": "(DDD)V",
+   "native": "csrc/engine/fallhang.c:fh_tick",
+   "status": "n/a",
+   "note": "n/a: a hanging entity never moves itself; the only code that moves another entity is TileEntityPiston (no block is powered: redstone = off)"
+  },
+  {
+   "kind": "method",
+   "name": "addVelocity",
+   "sig": "(DDD)V",
+   "native": "csrc/engine/fallhang.c:fh_tick",
+   "status": "n/a",
+   "note": "n/a: EntityPlayer.attackTargetEntityWithCurrentItem stops at hitByEntity (true for a player), Entity.applyEntityCollision needs canBePushed (false) or a minecart or boat (switched off), and an explosion adds to the motion fields directly"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/fallhang.c:fh_write_nbt",
+   "status": "exact",
+   "note": "Direction/TileX/TileY/TileZ and the legacy Dir byte's mapping"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/fallhang.c:fh_spawn_hanging_nbt",
+   "status": "exact",
+   "note": "the Direction-or-Dir fallback, the tile fields and setDirection"
+  },
+  {
+   "kind": "method",
+   "name": "getWidthPixels",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract; per kind (painting 32x32.., frame 12x12, knot 9x9)"
+  },
+  {
+   "kind": "method",
+   "name": "getHeightPixels",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract; per kind"
+  },
+  {
+   "kind": "method",
+   "name": "onBroken",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/fallhang.c:fh_tick",
+   "status": "partial",
+   "note": "the painting drops itself, the frame drops its item; the knot's is empty"
+  },
+  {
+   "kind": "method",
+   "name": "shouldSetPosAfterLoading",
+   "sig": "()Z",
+   "native": "csrc/engine/fallhang.c:fh_spawn_hanging_nbt",
+   "status": "exact",
+   "note": "false: setDirection places the entity"
+  }
+ ],
+ "missing": [],
+ "notes": "Leash knots are EntityHanging subclasses but the native hanging kinds are FH_PAINTING and FH_FRAME only; see the EntityLeashKnot record. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-hanging-full-s1, whose native replay starts before the behaviour. lane/villagetrade 2026-09-27: a painting or item frame reloaded from a saved chunk draws its constructor's id, Random and UUID on the server streams (serverreplay.c sr_restore_saved_entities set the fake Det without its role: id 0); persist-hanging-full-s1."
+}

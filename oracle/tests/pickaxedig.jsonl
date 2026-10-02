@@ -1,0 +1,9 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"Snapshot","out":"@OUT@/java/tmp/digprobe"}
+{"n":1,"act":{"dlook":[0,0]}}
+{"n":20,"act":{"hold":["forward"]}}
+{"n":1,"act":{"dlook":[0,30]}}
+{"n":3,"act":{"hold":["attack"]}}
+{"n":5,"act":{}}
+{"n":62,"act":{"hold":["attack"]}}
+{"n":5,"act":{}}

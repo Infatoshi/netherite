@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/network/play/client/C12PacketUpdateSign.java",
+  "classes": ["C12PacketUpdateSign"],
+  "lines": 87,
+  "side": "client",
+  "category": "network",
+  "role": "The sign editor's save: the sign's coords and its four text lines.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has sign_editing = off: signs are placed blank on both sides, the editor never opens and the packet is never built.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149593_a (x)", "sig": "I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149591_b (y)", "sig": "I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149592_c (z)", "sig": "I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149590_d (lines)", "sig": "String[]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "C12PacketUpdateSign", "sig": "(IIIString[])V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149588_c", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149586_d", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149585_e", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149589_f", "sig": "()String[]", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

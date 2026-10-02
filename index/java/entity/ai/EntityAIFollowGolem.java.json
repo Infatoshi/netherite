@@ -1,0 +1,33 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIFollowGolem.java",
+ "classes": ["EntityAIFollowGolem"],
+ "lines": 109,
+ "side": "server",
+ "category": "ai",
+ "role": "The villager child's goal: on a daytime tick, find a golem holding a rose in a 6x2x6 box, approach it on the matching tick and take the rose.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_tasks_update"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/persist-village-full-s42",
+  "csrc/tests/test_villagers.c",
+  "out/java/snapshots/village-life-s42"
+ ],
+ "members": [
+  {"kind": "field", "name": "theVillager", "sig": "EntityVillager", "native": null, "status": "n/a", "note": "the owning struct living"},
+  {"kind": "field", "name": "theGolem", "sig": "EntityIronGolem", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "target_golem"},
+  {"kind": "field", "name": "takeGolemRoseTick", "sig": "int", "native": "csrc/engine/living.h:take_golem_rose_tick", "status": "exact"},
+  {"kind": "field", "name": "tookGolemRose", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "took_golem_rose"},
+  {"kind": "ctor", "name": "EntityAIFollowGolem", "sig": "(EntityVillager)V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the villager's registration at priority 7, mutex 3 (ai.c:2790)"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:1460: the growing-age and daytime gates, then the golem-with-rose search in the box"},
+  {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:1768: the golem still holds the rose"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:1983: the nextInt(320) rose tick, tookGolemRose reset and the golem's clearPath"},
+  {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2163: clear the golem and the path"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2328: the look, the rose-tick approach and the within-4 take with setHoldingRose(false)"}
+ ],
+ "missing": [],
+ "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/raster_glx.h",
+ "lines": 56,
+ "role": "Declares struct glx and the fixed-function helpers the non-living entity renders, the held items and the pickup animation draw through.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderHelper.java", "members": ["enableStandardItemLighting"]}
+ ],
+ "structs": [
+  {"name": "glx", "java": "the GL state a Render class draws under", "fields": ["t", "mv", "light", "color", "lighting", "normal", "lb", "ls", "tex_matrix", "tm"]}
+ ],
+ "entry_points": ["glx_init", "glx_quad"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_render.c"]
+}

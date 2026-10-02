@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/world/WorldSavedData.java",
+  "classes": ["WorldSavedData"],
+  "lines": 52,
+  "side": "common",
+  "category": "world",
+  "role": "Abstract base for per-world data files kept by MapStorage (villages.dat, map_N.dat, structure data): a name, a dirty flag, and abstract NBT read and write.",
+  "scope": "not_needed",
+  "scope_reason": "It is only save-file bookkeeping: the dirty flag decides when MapStorage writes a .dat file and has no effect on game state. The native engine persists state through its own snapshots (snapshot.c); the data the subclasses hold (VillageCollection, MapGenStructureData) is indexed in their own records.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "mapName", "sig": "String", "native": null, "status": "n/a", "note": "The data file name, e.g. villages."},
+    {"kind": "field", "name": "dirty", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "WorldSavedData", "sig": "(String)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "Abstract; implemented per subclass."},
+    {"kind": "method", "name": "writeToNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "Abstract; implemented per subclass."},
+    {"kind": "method", "name": "markDirty", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setDirty", "sig": "(Z)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isDirty", "sig": "()Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Judgement call: scoped not_needed because nothing observable in a tick depends on the dirty flag. If the native engine ever writes vanilla-format saves, MapStorage and this base become io work."
+}

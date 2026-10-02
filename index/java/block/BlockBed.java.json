@@ -1,0 +1,298 @@
+{
+  "path": "oracle/src/block/BlockBed.java",
+  "classes": [
+    "BlockBed"
+  ],
+  "lines": 317,
+  "side": "common",
+  "category": "block",
+  "role": "The bed: a two-half block the player right clicks to sleep (setting spawn and passing the night), with a head-foot pair kept in sync and half-height bounds.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "bed_activate",
+        "bed_head_offset"
+      ]
+    },
+    {
+      "file": "csrc/engine/sleep.c",
+      "symbols": [
+        "sleep_bed_activate",
+        "set_occupied"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_bed_safe_spot"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "block_on_neighbor_changed"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks3.c",
+      "symbols": [
+        "rb3_render_bed"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/tnt.c",
+      "symbols": [
+        "tnt_replay_blast"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "serverreplay_end_run_blast"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/surv2-bed-s1",
+    "out/java/snapshots/te-chest-s1",
+    "out/java/snapshots/rc-blocks-s1",
+    "csrc/tests/test_activate.c",
+    "csrc/tests/test_snapshots.c",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/bed-boom-s1",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/meshes/scene3-42",
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/end-bed-s42",
+    "out/java/snapshots/bed-safe-tops-s1",
+    "out/java/snapshots/bed-ride-s1",
+    "out/java/snapshots/bed-respawn-s1",
+    "out/java/snapshots/bed-refuse-s1",
+    "out/java/snapshots/bed-wake-s1",
+    "out/java/snapshots/bed-thunder-s1",
+    "out/java/snapshots/cov-blkbreak-s1",
+    "out/java/snapshots/cov-blkmisc-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockBed",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Entry 26: hardness 0.2, bounds to 0.5625, render type 14."
+    },
+    {
+      "kind": "field",
+      "name": "field_149981_a",
+      "sig": "int[][] (foot-to-head offsets)",
+      "native": "csrc/engine/blockcb.c:bed_head_offset",
+      "status": "exact",
+      "note": "Ported as a function; activate.c:158 and blockcb.c:320 carry the same table."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(World,III)AxisAlignedBB",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getSelectedBoundingBoxFromPool",
+      "sig": "(World,III)AxisAlignedBB",
+      "native": "csrc/engine/raytrace.c:raytrace_block_bounds",
+      "status": "exact",
+      "note": "The selection box is the bed bounds (0.5625 high) the pick and the outline read."
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(IBlockAccess,IIIII)IIcon",
+      "native": "csrc/engine/render_blocks3.c:rb3_render_bed",
+      "status": "exact",
+      "note": "The bed's part textures resolve inside the renderer."
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)IIcon",
+      "native": "csrc/engine/render_blocks3.c:rb3_render_bed",
+      "status": "exact",
+      "note": "The item-form and inventory icon; the mesh scenes compare the bed halves, the block-icon goldens the item."
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Atlas naming only."
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "false."
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "14; render_blocks3.c:1 names it."
+    },
+    {
+      "kind": "method",
+      "name": "getMobilityFlag",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:MATERIALS",
+      "status": "n/a",
+      "note": "only BlockPistonBase calls getMobilityFlag, when a piston extends or retracts; with world.conf redstone = off no piston ever moves"
+    },
+    {
+      "kind": "method",
+      "name": "getItem",
+      "sig": "(World,III)Item",
+      "native": "csrc/engine/pickblock.c:block_get_item",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "func_149895_l",
+      "sig": "(I)I",
+      "native": "csrc/engine/render_blocks3.c:rb3_render_bed",
+      "status": "exact",
+      "note": "meta & 3 at render_blocks3.c:374; inherited from BlockDirectional."
+    },
+    {
+      "kind": "method",
+      "name": "func_149975_b",
+      "sig": "(I)Z",
+      "native": "csrc/engine/render_blocks3.c:rb3_render_bed",
+      "status": "exact",
+      "note": "The head bit, meta & 8, at render_blocks3.c:375."
+    },
+    {
+      "kind": "method",
+      "name": "func_149976_c",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/sleep.c:sleep_bed_activate",
+      "status": "exact",
+      "note": "The occupied bit (meta & 4) read by onBlockActivated's occupied branch inside sleep_bed_activate; surv2-bed-s1 sleeps and wakes."
+    },
+    {
+      "kind": "method",
+      "name": "func_149977_a",
+      "sig": "(World,IIIII)EntityPlayer",
+      "native": "csrc/engine/survival.c:surv_bed_safe_spot",
+      "status": "exact",
+      "note": "World.doesBlockHaveSolidTopSurface through place_solid_top_surface (stair bit 4, slab bit 8, hopper, full snow layer); EntityPlayer.verifyRespawnCoordinates (survival.c verify_respawn) and both wakes (sleep.c) call it. bed-safe-tops-s1 wakes and respawns on a top slab, an upside-down stair, a hopper and a full snow layer, then finds nothing over a 6/8 layer."
+    },
+    {
+      "kind": "method",
+      "name": "func_149979_a",
+      "sig": "(World,IIZ)V",
+      "native": "csrc/engine/sleep.c:set_occupied",
+      "status": "exact",
+      "note": "The occupied bit as a flag-4 metadata write (sleep.c:184)."
+    },
+    {
+      "kind": "method",
+      "name": "func_149978_e",
+      "sig": "(World,III)AxisAlignedBB",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIIIIIIFFF)Z",
+      "native": "csrc/engine/sleep.c:sleep_bed_activate",
+      "status": "exact",
+      "note": "The live server's copy in sleep.c (activate.c:bed_activate is the probe's). Outside the overworld: the head goes (the foot pops through onNeighborBlockChange with its bed drop), the cell past the head is cleared if it is a bed, and tnt.c:tnt_replay_blast runs newExplosion(null, 5.0F, true, true) on that cell in the player's world. bed-boom-s1 uses a bed in the Nether."
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact",
+      "note": "blockcb.c pops a half whose partner is gone (the foot drops the bed item); surv2-bed-s1 and bed-boom-s1."
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(World,IIIBlockI)V",
+      "native": null,
+      "status": "n/a",
+      "note": "BlockBed.java declares no breakBlock (Block's empty body runs); the partner half goes through onNeighborBlockChange (blockcb.c)."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockHarvested",
+      "sig": "(World,IIIIIEntityPlayer)V",
+      "native": "csrc/engine/harvestdrops.c:harvestdrops_break",
+      "status": "exact",
+      "note": "Its body acts only in creative mode (the head half removes the foot); survival breaks leave it to onNeighborBlockChange."
+    },
+    {
+      "kind": "method",
+      "name": "dropBlockAsItemWithChance",
+      "sig": "(World,IIIFII)V",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "The head half drops nothing, the foot the bed item (drops.c, blockcb.c)."
+    }
+  ],
+  "missing": [],
+  "notes": "surv2-bed-s1 exercises the sleep machine end to end (the S0A and S0B packets, the occupied bit, the spawn set). The dig-region copy of breakBlock is in dig.c's bed case (dig.c:26, ids.bed at dig.c:81). lane/idxblocks: reviewed member by member; nothing survival reaches is left. Since lane/endreturn (2026-09-27): a bed used in the End blows up over the End's lists, so the blast reaches the dragon's parts and the crystals (tnt.c tnt_replay_blast through serverreplay_end_run_blast), end-bed-s42 (three beds, the first beside the dragon's head). lane/beds: the refusals (day, a zombie near, a slime near is no refusal, too far, a stale occupied bit), the wakes by damage and by the broken bed, the respawns at and away from the bed and the thunder sleep each have a recording (bed-*-s1)."
+}

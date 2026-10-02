@@ -1,0 +1,49 @@
+{
+  "path": "oracle/src/command/CommandKill.java",
+  "classes": [
+    "CommandKill"
+  ],
+  "lines": 35,
+  "side": "server",
+  "category": "commands",
+  "role": "The /kill command: kills the sender with DamageSource.outOfWorld at Float.MAX_VALUE.",
+  "scope": "not_needed",
+  "scope_reason": "Not needed: /kill never runs in this game. Its level 0 is checked through EntityPlayerMP.canCommandSenderUseCommand (oracle/src/entity/player/EntityPlayerMP.java:1079), which for any command but seed, tell, help and me requires ServerConfigurationManager.func_152596_g (oracle/src/server/management/ServerConfigurationManager.java:683): an ops entry (none in a fresh singleplayer world), or singleplayer with WorldInfo.areCommandsAllowed (the oracle's world is new WorldSettings(seed, SURVIVAL, true, false, DEFAULT) without enableCommands, oracle/harness/netherite/oracle/Oracle.java:251, so allowCommands is false), or commandsAllowedForAll (set only by IntegratedServer.shareToLAN with cheats). CommandHandler.executeCommand therefore answers commands.generic.permission before processCommand. Typing it also needs C01PacketChatMessage and ServerCommandManager, both not_needed (lane/idxchat, 2026-09-27).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a",
+      "note": "0, but the sender's canCommandSenderUseCommand still needs op or cheats"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": null,
+      "status": "n/a",
+      "note": "never reached: the permission check fails first; its outOfWorld damage is ported for the void (survival.c SURV_OUT_OF_WORLD, chat-deaths-s1)"
+    }
+  ],
+  "missing": [],
+  "notes": "Static __OBFID constants are grouped out per the brief. idxaudit 2026-09-27 had put it in scope on the level-0 reading; lane/idxchat checked the sender's permission test (scope_reason)."
+}

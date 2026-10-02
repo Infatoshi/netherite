@@ -1,0 +1,119 @@
+{
+  "path": "oracle/src/tileentity/TileEntityFlowerPot.java",
+  "classes": [
+    "TileEntityFlowerPot"
+  ],
+  "lines": 61,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The flower pot's block entity: the potted plant's Item and data value.",
+  "scope": "in_scope",
+  "scope_reason": "Flower pots generate in witch huts and villages and can be crafted and filled.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_pot",
+        "TE_FLOWER_POT"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_flower_pot",
+        "te_load"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "world_tile_entity",
+        "flower_pot_contents"
+      ]
+    },
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "on_block_activated"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_populate.c",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_activate.c",
+    "out/java/activate/full2"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145967_a",
+      "sig": "Item",
+      "native": "csrc/engine/tileentity.h:te_pot",
+      "status": "exact",
+      "note": "-1 for null"
+    },
+    {
+      "kind": "field",
+      "name": "field_145968_i",
+      "sig": "int data",
+      "native": "csrc/engine/tileentity.h:te_pot",
+      "status": "exact"
+    },
+    {
+      "kind": "ctor",
+      "name": "TileEntityFlowerPot",
+      "sig": "()V / (Item,int)V",
+      "native": "csrc/engine/world.c:flower_pot_contents",
+      "status": "exact",
+      "note": "BlockFlowerPot.createNewTileEntity from metadata"
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_flower_pot",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getDescriptionPacket",
+      "sig": "()Packet",
+      "native": null,
+      "status": "n/a",
+      "note": "S35 action 5 to the client; not a gap (triage 2026-09-25)"
+    },
+    {
+      "kind": "method",
+      "name": "func_145964_a",
+      "sig": "(Item,int)V",
+      "native": "csrc/engine/activate.c:on_block_activated",
+      "status": "exact",
+      "note": "BlockFlowerPot.onBlockActivated fills the pot"
+    },
+    {
+      "kind": "method",
+      "name": "func_145965_a",
+      "sig": "()Item",
+      "native": "csrc/engine/tileentity.h:te_pot",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145966_b",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:te_pot",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "Planting into an empty pot and the creative clear on harvest replay exact in the activation probe (DEVLOG, the nine remaining interactions). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the client reads the pot contents from shared state. Formerly listed as missing: The S35 description packet; the native client's potted plant render depends on how the client learns the contents (not traced)."
+}

@@ -1,0 +1,216 @@
+{
+ "path": "oracle/src/network/play/server/S27PacketExplosion.java",
+ "classes": [
+  "S27PacketExplosion"
+ ],
+ "lines": 152,
+ "side": "server",
+ "category": "network",
+ "role": "An explosion near the client player: the center, the affected-block list and the player's knockback delta.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "serverreplay_queue_packets",
+    "sr_explosion_done"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_client_pump"
+   ]
+  },
+  {
+   "file": "csrc/engine/explosion.c",
+   "symbols": [
+    "expl_run_extras"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_explosion_packet"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/surv2-tnt-s1",
+  "csrc/tests/test_explosions.c",
+  "out/java/snapshots/idx-blast-s1",
+  "out/java/snapshots/fight-creeper-s1",
+  "out/java/snapshots/pf-blastpush-g16"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149158_a",
+   "sig": "double",
+   "status": "exact",
+   "note": "x, rides s2c_pkt.f0"
+  },
+  {
+   "kind": "field",
+   "name": "field_149156_b",
+   "sig": "double",
+   "status": "exact",
+   "note": "y, rides s2c_pkt.f1"
+  },
+  {
+   "kind": "field",
+   "name": "field_149157_c",
+   "sig": "double",
+   "status": "exact",
+   "note": "z, rides s2c_pkt.f2"
+  },
+  {
+   "kind": "field",
+   "name": "field_149154_d",
+   "sig": "float",
+   "status": "exact",
+   "note": "the strength: the huge or the large explosion",
+   "native": "csrc/engine/serverreplay.c:sr_explosion_done"
+  },
+  {
+   "kind": "field",
+   "name": "field_149155_e",
+   "sig": "List",
+   "status": "exact",
+   "note": "its count, for the client's WorldClient.rand draws; the blocks reach the client world through the player manager",
+   "native": "csrc/engine/serverreplay.c:sr_explosion_done"
+  },
+  {
+   "kind": "field",
+   "name": "field_149152_f",
+   "sig": "float",
+   "status": "exact",
+   "note": "player motion x, rides s2c_pkt.f3"
+  },
+  {
+   "kind": "field",
+   "name": "field_149153_g",
+   "sig": "float",
+   "status": "exact",
+   "note": "player motion y"
+  },
+  {
+   "kind": "field",
+   "name": "field_149159_h",
+   "sig": "float",
+   "status": "exact",
+   "note": "player motion z"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(double,double,double,float,List,Vec3)V",
+   "status": "exact",
+   "native": "csrc/engine/serverreplay.c:serverreplay_queue_packets",
+   "note": "one per explosion within 64 blocks"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/particles_live.c:particles_live_explosion_packet",
+   "note": "doExplosionB(true) on the client, then the knockback"
+  },
+  {
+   "kind": "method",
+   "name": "func_149149_c",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149144_d",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149147_e",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149148_f",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149143_g",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149145_h",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149146_i",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149150_j",
+   "sig": "()Ljava/util/List;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "WorldServer.newExplosion sends each player within 64 blocks an S27 after doExplosionB(false): the center, the strength, the affected positions (cleared for a non-smoking one) and the player's knockback from the explosion's map. Natively expl_run_extras hands every finished explosion to the replay's explosion.on_done hook (sr_explosion_done: the player's world, within 64 blocks), and serverreplay_queue_packets puts one S27 per explosion at the head of the tick's queue, the tick's summed knockback on the first. The integrated server passes the packet object, so the center arrives as the server's doubles. The client's handleExplosion builds its own Explosion (isSmoking) and runs doExplosionB(true): the sound's two draws and five per affected block on WorldClient.rand (which the live client does not carry: the explode and smoke particles those draws place are never made at agent mode's minimal particle setting), the huge (strength 2 or more) or large explosion, then the knockback (survival.c's PK_S27 case). idx-blast-s1 (TNT and a creeper) holds the client's huge and large explosion particles, positions and ages to the oracle client's at every frame."
+}

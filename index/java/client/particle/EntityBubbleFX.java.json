@@ -1,0 +1,60 @@
+{
+ "classes": [
+  "EntityBubbleFX"
+ ],
+ "lines": 50,
+ "side": "client",
+ "category": "particles",
+ "role": "An underwater bubble that rises and dies on leaving water.",
+ "scope": "in_scope",
+ "scope_reason": "In scope like the other particle classes: 'bubble' spawns when an entity enters water (Entity.java:1131), while drowning (EntityLivingBase.java:301) and behind throwables, arrows, eyes and fireballs in water; RenderGlobal builds EntityBubbleFX for it at the All and Decreased particle settings, and each construction spends the client's entity id, seeder and Math.random draws.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "new_bubble",
+    "fx_update",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.c",
+   "symbols": [
+    "client_player_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/rendertick/fx_client",
+  "csrc/tests/test_rendertick.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityBubbleFX",
+   "sig": "(World,DDDDDD)V",
+   "native": "csrc/engine/particles_live.c:new_bubble",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/particles_live.c:fx_update",
+   "status": "exact",
+   "note": "PLIVE_BUBBLE: up 0.002, x0.85, dead out of water or past its age"
+  }
+ ],
+ "missing": [],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). fx_client: the player's splash into water (Entity.handleWaterMovement, 39 bubbles). lane/idxlast 2026-09-27: proven by the rendertick scene fx_client (seed 1, --particles 0, 143 ticks, 3,923 FX compared field by field against the oracle's dump, test_rendertick); it fails with the class changed (a negative control of 80 mismatches).",
+ "path": "oracle/src/client/particle/EntityBubbleFX.java"
+}

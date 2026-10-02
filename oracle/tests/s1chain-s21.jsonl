@@ -1,0 +1,4 @@
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"run","class":"Roundtrip"}
+{"cmd":"run","class":"GoldBot","seg":"S21","as":"G28"}
+{"cmd":"save","name":"S21"}

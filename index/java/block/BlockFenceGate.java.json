@@ -1,0 +1,217 @@
+{
+  "path": "oracle/src/block/BlockFenceGate.java",
+  "classes": [
+    "BlockFenceGate"
+  ],
+  "lines": 240,
+  "side": "common",
+  "category": "block",
+  "role": "The fence gate: a wood fence segment that opens on right click (the meta open bit); under world.conf redstone = off nothing else toggles it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "on_block_activated",
+        "ID_GATE",
+        "ACT_GATE"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes",
+        "connects"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks3.c",
+      "symbols": [
+        "rb3_render_fence_gate"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "func_150071_a"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "client_toggle_openable"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/activate/full2",
+    "out/java/snapshots/scen-fences-s1",
+    "csrc/tests/test_activate.c",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/cpred-doors-s1",
+    "out/java/snapshots/pen-gates-s1",
+    "out/java/snapshots/cov-blkplace-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockFenceGate",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 107, render_type 21"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture selection"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockAt",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/place.c:func_150071_a",
+      "status": "exact",
+      "note": "the solid-below test; cov-blkplace-s1"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(World,III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "case 107: the open-null and the two closed orientations"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "opaque_cube 0"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "normal_block 0"
+    },
+    {
+      "kind": "method",
+      "name": "getBlocksMovement",
+      "sig": "(IBlockAccess,III)Z",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "isFenceGateOpen, folded into the gate case"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type 21 -> rb3_render_fence_gate"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIILnet/minecraft/entity/EntityLivingBase;ItemStack)V",
+      "native": "csrc/engine/place.c:func_150071_a",
+      "status": "exact",
+      "note": "the yaw meta; cov-blkplace-s1"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z",
+      "native": "csrc/engine/activate.c:on_block_activated",
+      "status": "exact",
+      "note": "case ID_GATE: the open-bit flip and the neighbour notification; the wire side is inert under redstone = off; the client half (the toggle on WorldClient before the same tick's move, the 1003 sound's Math.random and world rand draws) is survival.c:client_toggle_openable"
+    },
+    {
+      "kind": "method",
+      "name": "isFenceGateOpen",
+      "sig": "(I)Z",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "n/a",
+      "note": "meta & 4, folded into the collide and activate cases"
+    },
+    {
+      "kind": "method",
+      "name": "func_149895_l",
+      "sig": "(I)I",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "n/a",
+      "note": "meta & 7, folded"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange (inherited)",
+      "sig": "(World,IIIBlock)V",
+      "native": null,
+      "status": "n/a",
+      "note": "only the redstone-driven close, dead under redstone = off"
+    },
+    {
+      "kind": "method",
+      "name": "hasComparatorInputOverride",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "redstone off"
+    },
+    {
+      "kind": "method",
+      "name": "getComparatorInputOverride",
+      "sig": "(World,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "redstone off"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture registration"
+    },
+    {
+      "kind": "method",
+      "name": "shouldSideBeRendered",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;IIII)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "RenderBlocks.renderBlockFenceGate draws with renderAllFaces set, which short-circuits every shouldSideBeRendered test; nothing else asks a fence gate"
+    }
+  ],
+  "missing": [],
+  "notes": "Verified by the activate probe (case ID_GATE) and scen-fences-s1 (the render). The fence's connects() counts a fence gate as a connector."
+}

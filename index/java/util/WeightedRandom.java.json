@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/util/WeightedRandom.java",
+  "classes": ["WeightedRandom", "WeightedRandom.Item"],
+  "lines": 132,
+  "side": "common",
+  "category": "util",
+  "role": "The weighted pick: total the itemWeight fields, draw nextInt(total), walk the list subtracting until negative. Every spawn list, loot table and enchantment draw goes through it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/loot.c", "symbols": ["total_weight", "pick_entry"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["weighted_pick"]},
+    {"file": "csrc/engine/enchant.c", "symbols": ["pick_weighted"]}
+  ],
+  "evidence": ["csrc/tests/test_loot.c", "csrc/tests/test_spawning.c"],
+  "members": [
+    {"kind": "method", "name": "getTotalWeight", "sig": "(Collection)I", "native": "csrc/engine/loot.c:total_weight", "status": "partial", "note": "one static copy per consumer (loot.c, fortress.c, spawning.c), no shared function"},
+    {"kind": "method", "name": "getRandomItem", "sig": "(Random,Collection,I)LWeightedRandom$Item;", "native": "csrc/engine/spawning.c:weighted_pick", "status": "partial", "note": "spawning.c's weighted_pick is the collection form over the spawn lists"},
+    {"kind": "method", "name": "getRandomItem", "sig": "(Random,Collection)LWeightedRandom$Item;", "native": "csrc/engine/loot.c:pick_entry", "status": "partial", "note": "total computed first, then the walk"},
+    {"kind": "method", "name": "getTotalWeight", "sig": "([LWeightedRandom$Item;)I", "native": "csrc/engine/loot.c:total_weight", "status": "partial", "note": "loot.c's entries are the array form"},
+    {"kind": "method", "name": "getRandomItem", "sig": "(Random,[LWeightedRandom$Item;,I)LWeightedRandom$Item;", "native": "csrc/engine/loot.c:pick_entry", "status": "partial"},
+    {"kind": "method", "name": "getRandomItem", "sig": "(Random,[LWeightedRandom$Item;)LWeightedRandom$Item;", "native": "csrc/engine/loot.c:pick_entry", "status": "partial"},
+    {"kind": "field", "name": "Item", "sig": "class", "native": "csrc/engine/loot.h:loot_entry", "status": "partial", "note": "itemWeight becomes loot_entry.weight for tables; the spawn lists carry their own weight fields"},
+    {"kind": "method", "name": "Item.Item", "sig": "(I)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "WeightedRandom", "sig": "()V", "native": null, "status": "n/a", "note": "a holder of static members: oracle/src has no `new WeightedRandom(` anywhere, so the implicit ctor never runs"}
+  ],
+  "missing": [],
+  "notes": "seedworld.c:477 and enchant.c:233 carry further copies of the same algorithm for the spawn-cycle and enchantment draws. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: No shared WeightedRandom function: each consumer (loot.c, spawning.c, enchant.c, fortress.c, seedworld.c) carries its own copy of the total-then-walk algorithm; the draw order is what the gates check."
+}

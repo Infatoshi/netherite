@@ -1,0 +1,93 @@
+{
+  "path": "csrc/engine/renderstate.c",
+  "lines": 796,
+  "role": "The client's per-frame render state: from one frame's inputs (options, EntityRenderer carried state, the view entity, world time and weather) it computes the celestial angle, sun, star, sky, fog and cloud colours, sunrise colours, the 256-entry lightmap, the fog colour, the projection and modelview matrices and the GL fog state, bit-exact against RenderStateProbe; also the first-person hand camera and Mesa-exact GL matrix helpers.",
+  "layer": "render",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "updateLightmap",
+        "updateFogColor",
+        "setupFog",
+        "setupCameraTransform",
+        "orientCamera",
+        "setupViewBobbing",
+        "hurtCameraEffect",
+        "getFOVModifier",
+        "renderHand",
+        "updateTorchFlicker"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "getSkyColor",
+        "getFogColor",
+        "getCloudColour",
+        "getStarBrightness",
+        "getCelestialAngle",
+        "getCelestialAngleRadians",
+        "getSunBrightness",
+        "getRainStrength",
+        "getWeightedThunderStrength"
+      ]
+    },
+    {
+      "path": "oracle/src/world/WorldProvider.java",
+      "members": [
+        "calculateCelestialAngle",
+        "calcSunriseSunsetColors",
+        "getFogColor"
+      ]
+    },
+    {
+      "path": "oracle/src/world/WorldProviderHell.java",
+      "members": [
+        "calculateCelestialAngle",
+        "getFogColor"
+      ]
+    },
+    {
+      "path": "oracle/src/world/WorldProviderEnd.java",
+      "members": [
+        "calculateCelestialAngle",
+        "getFogColor"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "getLook"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/ActiveRenderInfo.java",
+      "members": [
+        "getBlockAtEntityViewpoint"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "renderstate_compute",
+    "renderstate_hand_camera",
+    "rs_gl_identity",
+    "rs_gl_mult",
+    "rs_gl_rotate",
+    "rs_gl_translate",
+    "rs_gl_scale",
+    "renderstate_torch_flicker",
+    "renderstate_celestial",
+    "renderstate_torch_flicker_step"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "line 30, file scope: static int rs_dim, global mutable state set by renderstate_compute (line 432) and read by rs_celestial, rs_providerfog and rs_skycolor; not reentrant across environments, a GPU port should pass the dimension as an argument"
+  ],
+  "tests": [
+    "csrc/tests/test_renderstate.c",
+    "csrc/tests/test_render.c"
+  ],
+  "notes": "The structs rs_in and rs_out are declared in renderstate.h (not in this file list). Frame-side, outside the tick; no allocation, no loops beyond the fixed 256-entry lightmap. Not ported: the nausea/confusion potion branch of setupCameraTransform (comment: generic portal path only), third-person camera (rs_in.tpv is never read), anaglyph (ana unused), camera zoom (zoom unused), debug camera (dbgcam unused); RenderGlobal.hasCloudFog is hard-coded false as in 1.7.10. test_renderstate.c compares every output bit for bit against the oracle's renderstate frames (out/java/renderstate). Callers: raster.c, raster_hand.c, raster_worldfx.c, csrc/play/play.c. lane/clientstate: World.getSkyColor's thunder mix blends toward the grey (var16), not the thunder strength (0.75 too bright at full thunder before); the portal warp turns at 7 under confusion. Every cs_* recording is exact through renderstate_compute, and test_rendertick recomputes their cameras from the native client state."
+}

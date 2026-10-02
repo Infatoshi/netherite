@@ -1,0 +1,118 @@
+# One RL run: the recommended GRPO layout (lane/rlasync, 18,745 env-steps/s with
+# learning): 496 worlds, 248 on each of sim cards 0 and 1 in 4 groups of 62,
+# the policy on card 3, its own learner on card 2, the update one iteration
+# stale, minibatch 64; otherwise logs2's hyperparameters (configs/speedrun-grpo-logs2.yaml).
+# sim: the world and the envs (configs/speedrun.yaml's sections, every key of the
+# C and Java registries); policy: the trainer's (mcsr-speedrun mcsr/runconf.py).
+# The grammar is config.yaml's header. Run it with the overlapped driver:
+#   NETHERITE=~/dev/netherite-v2 uv run python scripts/nw_grpo_async.py --run ~/dev/netherite-v2/configs/speedrun-grpo.yaml
+# (a flag overrides its key; the resolved file goes to the run's out dir).
+# scripts/nw_grpo.py refuses it (stale 1 is the overlapped driver's).
+
+# netherite train: ../mcsr-speedrun: NETHERITE={root} uv run python scripts/nw_grpo_async.py --run {run}
+sim:
+  world:
+    seed: 1
+    difficulty: normal       # hostiles spawn: blazes and endermen exist
+    render_distance: 4       # 64-block overworld fog (lane/headline)
+    daylight_cycle: on
+    keep_inventory: off
+    villages: on
+    horses: off
+    wolves: off
+    ocelots: off
+    built_golems: off
+    wither: off
+    minecarts: off
+    boats: off
+    redstone: off
+    enchanting: off
+    anvil: off
+    brewing: off
+    beacon: off
+    maps: off
+    fishing: off
+    fireworks: off
+    book_editing: off
+    sign_editing: off
+
+  client:
+    graphics: fast
+    particles: minimal
+    observation: 256x144     # the policy's frame (mcsr-speedrun SPEC.md: 256x144 at 20 fps)
+    ticks_per_step: 1        # the policy's 20 Hz; 4 is the headline's frame skip
+    hud: on                  # the training footage has it (rlsplit-hudframe fixed)
+    gamma: 1.0               # the 1.16 training renders' brightness (lane/versionprior: netherite at 0.0 is darker)
+
+  engine:
+    device_mesh: 1
+    device_generation: off
+    device_light: off
+
+  # seed 1's fresh world under this file (oracle/tests/speedrun-s1.jsonl)
+  pipeline:
+    kind: speedrun
+    start: out/java/snapshots/sr-speedrun-s1
+    worlds: 496            # 248 on each sim card (nw_grpo_async --n 248 --sims 0,1)
+    groups: 4              # GRPO groups a sim card (8 of 62 in all)
+    cards: 0,1             # the sim cards
+    episode_seconds: 60
+
+  actions:                 # the engine-side action compiler (lanes guiact, moveact)
+    click_interval: 1
+    mask_close_grid: off
+    mask_noop_clicks: off
+    move_stack: off
+    item_select: off
+    recipes: off
+    hold_attack: on          # lane/moveact: the engine's attack latch (with the policy's attack: hold)
+    look_target: off
+    look_ticks: 3
+
+policy:
+  model:
+    ckpt: data/play_export/fast-D-s20000.pt   # paths in policy: under the mcsr-speedrun checkout
+    edits: version
+    mode: graph
+    compile: default
+    resume: none           # a run's out dir to continue (nw_grpo_async --resume: its policy.pt, optimizer, iteration)
+    lean: on               # lane/polfast: bf16 weights made once, the K/V write in the decode (the same arithmetic)
+    kv: int8               # lane/polfast: the K/V cache in int8 (one fp16 scale a slot and head)
+    fp8: conv34            # lane/polfast: FP8 conv blocks in encoder stages 3-4 (all four stages fail the check)
+    obs: 256x144           # lane/polfast: 128x72 (a distilled encoder) 1.6-1.9x faster, lost 8% of the logs
+    obs_encoder: none
+  placement:
+    cards: 3               # the policy card
+    learner: 2             # the learner's own card
+  action:
+    gui: macro
+    gui_head: none
+    gui_pointer: slot
+    gui_decide: every_tick
+    ops_per_step: 1
+    camera: mulaw41          # lane/moveact: target (the distilled camera head) 0.91 logs closed loop against 1.17
+    attack: hold             # lane/moveact: GRPO 50 its at 64 worlds 2.79 logs against press's 2.45, one seed each;
+                             # closed loop 1.15 against 1.17 (out/perf/moveact.tsv). The mine-lock macro stays on
+    act_every: 1             # lane/moveact: 4 kept the imitation policy's logs and moved it 70% farther, GRPO no better
+  grpo:
+    objective: logs
+    iters: 100
+    lr: 1e-05
+    beta: 0.04
+    clip: 0.2
+    epochs: 2
+    mb: 64                 # 16 contends for the interpreter (rlasync: 16,619 against 18,745)
+    stale: 1               # the update on t beside rollout t + 1 (rlasync: the curve held)
+    max_hours: 1.5              # 100 iterations of about 32 s (logs2 had 0.75 for 24 s ones)
+    seed: 1                # the overlapped rollout is always seeded
+  reward:                  # objective: the weight mcsr.rl.reward.OBJECTIVES[grpo.objective] gives the term
+    items: objective
+    logs: objective
+    chest: objective
+    progress: objective
+    ach: objective
+    death: objective
+    milestone: objective
+    looted: objective
+  out:
+    dir: data/nw_grpo/speedrun-grpo

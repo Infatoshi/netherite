@@ -1,0 +1,178 @@
+{
+ "path": "oracle/src/block/BlockRedstoneRepeater.java",
+ "classes": [
+  "BlockRedstoneRepeater"
+ ],
+ "lines": 147,
+ "side": "common",
+ "category": "block",
+ "role": "The repeater (93 unpowered, 94 powered): right-click cycles the 1-4 tick delay bits, side repeaters lock it, and the powered one shows reddust.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: right-clicking a repeater cycles its delay bits (a live metadata write, ported in activate.c), and placement, drops and the break sweep run with redstone = off.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/activate.c",
+   "symbols": [
+    "on_block_activated",
+    "ID_REP_U",
+    "ID_REP_P"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "bwl_on_broken",
+    "diode_notify"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks3.c",
+   "symbols": [
+    "rb3_render_repeater"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/activate/full2",
+  "csrc/tests/test_activate.c",
+  "csrc/tests/test_place.c",
+  "out/java/place/big2",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/snapshots/rs-diode-s1",
+  "csrc/tests/test_snapshots.c",
+  "out/java/meshes/scene3-2",
+  "csrc/tests/test_meshes.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149973_b",
+   "sig": "static double[]",
+   "native": null,
+   "status": "n/a",
+   "note": "particle offsets"
+  },
+  {
+   "kind": "field",
+   "name": "field_149974_M",
+   "sig": "static int[]",
+   "native": null,
+   "status": "n/a",
+   "note": "delays 1-4"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRedstoneRepeater",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 93 and 94"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIIEntityPlayer,IFFF)Z",
+   "native": "csrc/engine/activate.c:on_block_activated",
+   "status": "exact",
+   "note": "delay bits ((meta & 12) >> 2 + 1) << 2 & 12, flags 3"
+  },
+  {
+   "kind": "method",
+   "name": "func_149901_b",
+   "sig": "(I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "delay * 2"
+  },
+  {
+   "kind": "method",
+   "name": "func_149906_e",
+   "sig": "()BlockRedstoneDiode",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149898_i",
+   "sig": "()BlockRedstoneDiode",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 93/94: repeater item"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks3.c:rb3_render_repeater",
+   "status": "exact",
+   "note": "15"
+  },
+  {
+   "kind": "method",
+   "name": "func_149910_g",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": "csrc/engine/render_blocks3.c:diode_input",
+   "status": "exact",
+   "note": "the lock test the renderer's lock bar reads: a side diode's World.isBlockProvidingPowerTo, 0 in this game, so false; repeater vertices match in out/java/meshes/scene3-2"
+  },
+  {
+   "kind": "method",
+   "name": "func_149908_a",
+   "sig": "(Block)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": null,
+   "status": "n/a",
+   "note": "powered repeater only; unreachable"
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": "csrc/engine/blockcb.c:bwl_on_broken",
+   "status": "exact",
+   "note": "func_149911_e's sweep with the old meta"
+  }
+ ],
+ "missing": [],
+ "notes": "The powered repeater (94) is unreachable with redstone off. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact on rs-diode-s1 (four yaws, every delay, digs, floors pulled, a repeater facing a water pit)."
+}

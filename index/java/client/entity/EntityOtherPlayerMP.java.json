@@ -1,0 +1,152 @@
+{
+ "path": "oracle/src/client/entity/EntityOtherPlayerMP.java",
+ "classes": [
+  "EntityOtherPlayerMP"
+ ],
+ "lines": 202,
+ "side": "client",
+ "category": "player",
+ "role": "The client-side stand-in for another player in multiplayer: interpolates the server's position updates, animates limbs and mirrors item use.",
+ "scope": "not_needed",
+ "scope_reason": "The game is single player (one agent per world, integrated server); no other player ever joins, so the client never constructs one.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "isItemInUse",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "otherPlayerMPPosRotationIncrements",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "otherPlayerMPX",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "otherPlayerMPY",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "otherPlayerMPZ",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "otherPlayerMPYaw",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "otherPlayerMPPitch",
+   "sig": "double",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityOtherPlayerMP",
+   "sig": "(World,GameProfile)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "resetHeight",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(DamageSource,F)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setPositionAndRotation2",
+   "sig": "(DDDFFI)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getShadowSize",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onLivingUpdate",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setCurrentItemOrArmor",
+   "sig": "(I,ItemStack)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getEyeHeight",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addChatMessage",
+   "sig": "(IChatComponent)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canCommandSenderUseCommand",
+   "sig": "(I,String)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerCoordinates",
+   "sig": "()ChunkCoordinates",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "If multi-agent worlds are ever added, this class's interpolation (a 3-step lerp, like the mobs' setPositionAndRotation2) would be needed for the client view."
+}

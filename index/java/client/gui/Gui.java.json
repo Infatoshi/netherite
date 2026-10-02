@@ -1,0 +1,123 @@
+{
+ "path": "oracle/src/client/gui/Gui.java",
+ "classes": [
+  "Gui"
+ ],
+ "lines": 182,
+ "side": "client",
+ "category": "client_gui",
+ "role": "Base class of every GUI: the z level and the textured-rectangle, solid-rect, gradient-rect and string drawing helpers every screen and the HUD reuse.",
+ "scope": "in_scope",
+ "scope_reason": "The HUD and the container screens draw through these helpers; the native overlay implements the used subset.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_hud.c",
+   "symbols": [
+    "modal",
+    "screen_gradient",
+    "screen_rect_gradient",
+    "font_string",
+    "font_shadow",
+    "font_width"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/hud_mixed",
+  "out/java/render/gui_inventory",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "zLevel",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "the native overlay is a painter's algorithm over the frame; no z level; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "drawHorizontalLine",
+   "sig": "(int,int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "drawVerticalLine",
+   "sig": "(int,int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "drawRect",
+   "sig": "(int,int,int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the native slot highlight (screen_highlight) writes pixels directly; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "drawGradientRect",
+   "sig": "(int,int,int,int,int,int)V",
+   "native": "csrc/engine/raster_hud.c:screen_rect_gradient",
+   "status": "partial",
+   "note": "the full-screen overlay gradient (screen_gradient) and the scaled-rect gradient cover the two uses the screens make"
+  },
+  {
+   "kind": "method",
+   "name": "drawCenteredString",
+   "sig": "(FontRenderer,String,int,int,int)V",
+   "native": "csrc/engine/raster_hud.c:font_shadow",
+   "status": "partial",
+   "note": "the native callers centre with font_width themselves; the shadowed draw matches"
+  },
+  {
+   "kind": "method",
+   "name": "drawString",
+   "sig": "(FontRenderer,String,int,int,int)V",
+   "native": "csrc/engine/raster_hud.c:font_shadow",
+   "status": "n/a",
+   "note": "called only by GuiIngame's debug screen, behind !Oracle.cleanHud() (GuiIngame.java:289), true in every oracle run, and by GuiLabel.func_146159_a, which no in-scope screen adds (lane/covclient)"
+  },
+  {
+   "kind": "method",
+   "name": "drawTexturedModalRect",
+   "sig": "(int,int,int,int,int,int)V",
+   "native": "csrc/engine/raster_hud.c:modal",
+   "status": "exact",
+   "note": "the same 1/256 texel scaling (MODAL_UV)"
+  },
+  {
+   "kind": "method",
+   "name": "drawTexturedModelRectFromIcon",
+   "sig": "(int,int,IIcon,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_146110_a",
+   "sig": "(int,int,float,float,int,int,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the static float-UV textured rect; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_152125_a",
+   "sig": "(int,int,float,float,int,int,int,int,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the tiled variant; not a gap (triage 2026-09-25)"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: drawRect and the horizontal/vertical line helpers have no native counterpart (the slot highlight writes pixels directly in screen_highlight). drawTexturedModelRectFromIcon and the two static float-UV variants func_146110_a and func_152125_a are not drawn."
+}

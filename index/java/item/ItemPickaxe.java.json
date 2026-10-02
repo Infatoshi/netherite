@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/item/ItemPickaxe.java",
+  "classes": ["ItemPickaxe"],
+  "lines": 28,
+  "side": "common",
+  "category": "item",
+  "role": "The pickaxes (ids 256-259, 270-274, 278-285): stone-class harvest rules by material and harvest level, efficiency on the pickaxe block set.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "TOOL_MATERIALS"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["pickaxe_set", "pickaxe_level", "item_str_vs_block", "item_can_harvest"]},
+    {"file": "csrc/engine/dig.c", "symbols": ["item_on_block_destroyed"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["gui_crafted"]}
+  ],
+  "evidence": ["csrc/tests/test_harvest.c", "csrc/tests/test_dig.c", "out/java/snapshots/pickaxe-complete-s1", "out/java/snapshots/pickaxe-complete-s42"],
+  "members": [
+    {"kind": "field", "name": "field_150915_c", "sig": "Set", "native": "csrc/engine/harvest.c:pickaxe_set", "status": "exact", "note": "the block set as a switch, under the material test the override adds"},
+    {"kind": "ctor", "name": "ItemPickaxe", "sig": "(Lnet/minecraft/item/Item$ToolMaterial;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the TOOL_MATERIALS row plus the efficiency and damage columns of each pickaxe row"},
+    {"kind": "method", "name": "func_150897_b", "sig": "(Lnet/minecraft/block/Block;)Z", "native": "csrc/engine/harvest.c:item_can_harvest", "status": "exact", "note": "the ItemPickaxe branch: the named ores and blocks by harvest level, then material.rock/iron/anvil"},
+    {"kind": "method", "name": "func_150893_a", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/block/Block;)F", "native": "csrc/engine/harvest.c:item_str_vs_block", "status": "exact", "note": "the efficiency on iron/anvil/rock materials and on the pickaxe set"}
+  ],
+  "missing": [],
+  "notes": "The inherited ItemTool behavior (hitEntity wear 2, onBlockDestroyed damage 1, enchantability) is ported where the base class lives: dig.c, combat.c and enchant.c. The buildPickaxe/buildBetterPickaxe achievements are survival.c:gui_crafted."
+}

@@ -1,0 +1,9 @@
+{
+ "path": "oracle/harness/netherite/oracle/RayProbe.java",
+ "lines": 575,
+ "role": "The pick and ray-shape probe: on the client world, every state of every block with a state-dependent shape in a raw-written 5x5x5 room with seeded rays (collisionRayTrace, the pick walk, the arrow walk), and entity cases for every collidable and non-collidable kind the pick meets, run through getMouseOver's entity pass over getEntitiesWithinAABBExcludingEntity.",
+ "kind": "probe",
+ "used_by": ["oracle/Makefile run target (make run CLASS=RayProbe)", "csrc/tests/test_raypick.c (out/java/raypick/rp-1)"],
+ "vanilla_hooks": [],
+ "notes": "Writes cases.bin.gz and manifest.json (kind raypick)."
+}

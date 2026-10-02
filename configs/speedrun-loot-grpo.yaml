@@ -1,0 +1,111 @@
+# One RL run: lane/rlbind's loot2 run (chests objective), its exact settings
+# but sim.actions and policy.action, lane/guiact's recommendation (the recipe
+# head on the screens the macros open, through the action compiler; loot2 ran
+# the macros' own clicks: gui macro, every actions switch off)
+# (mcsr-speedrun data/nw_grpo/loot2/args.json) as a run file: sim, the
+# world and the envs (configs/speedrun-loot.yaml's sections, every key of the C and
+# Java registries), and policy, the trainer's (mcsr-speedrun mcsr/runconf.py).
+# The grammar is config.yaml's header. Run it:
+#   NETHERITE=~/dev/netherite-v2 uv run python scripts/nw_grpo.py --run ~/dev/netherite-v2/configs/speedrun-loot-grpo.yaml
+# (a flag overrides its key; the resolved file goes to the run's out dir).
+
+# netherite train: ../mcsr-speedrun: NETHERITE={root} uv run python scripts/nw_grpo_async.py --run {run}
+sim:
+  world:
+    seed: 110
+    difficulty: normal       # hostiles spawn: blazes and endermen exist
+    render_distance: 4       # 64-block overworld fog (lane/headline)
+    daylight_cycle: on
+    keep_inventory: off
+    villages: on
+    horses: off
+    wolves: off
+    ocelots: off
+    built_golems: off
+    wither: off
+    minecarts: off
+    boats: off
+    redstone: off
+    enchanting: off
+    anvil: off
+    brewing: off
+    beacon: off
+    maps: off
+    fishing: off
+    fireworks: off
+    book_editing: off
+    sign_editing: off
+
+  client:
+    graphics: fast
+    particles: minimal
+    observation: 256x144     # the policy's frame (mcsr-speedrun SPEC.md: 256x144 at 20 fps)
+    ticks_per_step: 1        # the policy's 20 Hz; 4 is the headline's frame skip
+    hud: on                  # the training footage has it (rlsplit-hudframe fixed)
+    gamma: 1.0               # the 1.16 training renders' brightness (lane/versionprior: netherite at 0.0 is darker)
+
+  engine:
+    device_mesh: 1
+    device_generation: off
+    device_light: off
+
+  # seed 1's fresh world under this file (oracle/tests/speedrun-s1.jsonl)
+  pipeline:
+    kind: speedloot
+    start: out/java/snapshots/sr-loot-s110
+    worlds: 128            # 64 envs on each sim card (nw_grpo --n 64 --sims 0,1)
+    groups: 2              # GRPO groups a sim card
+    cards: 0,1             # the sim cards
+    episode_seconds: 60
+
+  actions:                 # the engine-side action compiler (csrc/runtime/rlact.h); lane/guiact's recommendation:
+    click_interval: 3        # human speed: the heads craft and loot 16/16 at 3 as at 1 (lane/guiact's DAgger table)
+    mask_close_grid: on      # no close while the crafting grid holds items (lane/invact's pickaxe failure)
+    mask_noop_clicks: on
+    move_stack: on
+    item_select: off         # the item pointer did no better than the move pointer
+    recipes: on              # the recipe pointer: the fewest decisions (craft R x n)
+    hold_attack: off
+    look_target: off
+    look_ticks: 3
+
+policy:
+  model:
+    ckpt: data/play_export/fast-D-s20000.pt   # paths in policy: under the mcsr-speedrun checkout
+    edits: version
+    mode: graph
+    compile: default
+    resume: none           # a run's out dir to continue (nw_grpo_async --resume: its policy.pt, optimizer, iteration)
+  placement:
+    cards: 2,3              # the policy cards; the first also learns (learner shared)
+    learner: shared
+  action:                  # lane/guiact's recommendation: the recipe head on the screens the macros open
+    gui: head
+    gui_head: data/guiact/recipe-c3.pt   # DAgger from lane/invact's dagger2-vpt.pt trunk, click_interval 3
+    gui_pointer: recipe
+    gui_decide: on_op        # asked only when the compiler's queue is empty
+    ops_per_step: 1          # 2 and 4 decoded on one frame did worse (pick 0/16 and 4/16)
+    camera: mulaw41
+    attack: press
+  grpo:
+    objective: chests
+    iters: 150
+    lr: 1e-05
+    beta: 0.04
+    clip: 0.2
+    epochs: 2
+    mb: 16
+    stale: 0
+    max_hours: 0.75
+    seed: none             # none: the policy draws from torch's generator (logs2 and loot2 ran so)
+  reward:                  # objective: the weight mcsr.rl.reward.OBJECTIVES[grpo.objective] gives the term
+    items: objective
+    logs: objective
+    chest: objective
+    progress: objective
+    ach: objective
+    death: objective
+    milestone: objective
+    looted: objective
+  out:
+    dir: data/nw_grpo/speedrun-loot-grpo

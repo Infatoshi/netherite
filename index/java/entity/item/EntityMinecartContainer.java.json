@@ -1,0 +1,45 @@
+{
+  "path": "oracle/src/entity/item/EntityMinecartContainer.java",
+  "classes": ["EntityMinecartContainer"],
+  "lines": 302,
+  "side": "common",
+  "category": "entity",
+  "role": "Abstract base of the container minecarts (chest, hopper): an IInventory of 36 slots riding a cart, dropping its contents when broken.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf minecarts = off: the mineshaft chest cart is built and filled but never spawned, so its slots are never read; the fill's draws are WeightedRandomChestContent's against EntityMinecartChest's 27-slot bound (that record).",
+  "status": "not_applicable",
+  "native": [
+    {
+      "file": "csrc/engine/structure_blocks.c",
+      "symbols": ["sc_cart_new"]
+    }
+  ],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "minecartContainerItems", "sig": "ItemStack[]", "native": "csrc/engine/structure_blocks.c:sc_cart_new", "status": "partial", "note": "the chest cart's loot slots exist in the generation-time cart record; no live inventory exists because the cart never spawns"},
+    {"kind": "field", "name": "dropContentsWhenDead", "sig": "boolean", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "field", "name": "static constants", "sig": "String __OBFID", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityMinecartContainer", "sig": "(World)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "ctor", "name": "EntityMinecartContainer", "sig": "(World,DDD)V", "native": "csrc/engine/structure_blocks.c:sc_cart_new", "status": "partial", "note": "the EntityMinecartChest ctor draws and the filled slots are built at generation time only"},
+    {"kind": "method", "name": "killMinecart", "sig": "(DamageSource)V", "native": null, "status": "n/a", "note": "the item-spill loop; feature switched off"},
+    {"kind": "method", "name": "getStackInSlot", "sig": "(I)ItemStack", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "decrStackSize", "sig": "(II)ItemStack", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "getStackInSlotOnClosing", "sig": "(I)ItemStack", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "setInventorySlotContents", "sig": "(IItemStack)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "onInventoryChanged", "sig": "()V", "native": null, "status": "n/a", "note": "empty in Java; feature switched off"},
+    {"kind": "method", "name": "isUseableByPlayer", "sig": "(EntityPlayer)Z", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "openInventory", "sig": "()V", "native": null, "status": "n/a", "note": "empty in Java; feature switched off"},
+    {"kind": "method", "name": "closeInventory", "sig": "()V", "native": null, "status": "n/a", "note": "empty in Java; feature switched off"},
+    {"kind": "method", "name": "isItemValidForSlot", "sig": "(IItemStack)Z", "native": null, "status": "n/a", "note": "always true in Java; feature switched off"},
+    {"kind": "method", "name": "getInventoryName", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "getInventoryStackLimit", "sig": "()I", "native": null, "status": "n/a", "note": "returns 64; feature switched off"},
+    {"kind": "method", "name": "travelToDimension", "sig": "(int)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "setDead", "sig": "()V", "native": null, "status": "n/a", "note": "the drop-contents spill; feature switched off"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "the Items tag list; feature switched off"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "the Items tag list; feature switched off"},
+    {"kind": "method", "name": "interactFirst", "sig": "(EntityPlayer)Z", "native": null, "status": "n/a", "note": "opens the cart GUI; feature switched off"},
+    {"kind": "method", "name": "applyDrag", "sig": "()V", "native": null, "status": "n/a", "note": "the redstone-from-inventory drag modifier; feature switched off"}
+  ],
+  "missing": [],
+  "notes": "Only the chest cart's generation-time record exists natively (structure_blocks.c sc_cart_new, structure_blocks.h's 27-slot cart struct); it is built and filled in mineshaft corridors and never spawned while world.conf keeps minecarts off. The hopper cart has no native trace at all; I did not verify the loot tables against a mineshaft recording. idxaudit 2026-09-27: scope reason rewritten."
+}

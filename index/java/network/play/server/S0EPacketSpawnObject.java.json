@@ -1,0 +1,296 @@
+{
+ "path": "oracle/src/network/play/server/S0EPacketSpawnObject.java",
+ "classes": [
+  "S0EPacketSpawnObject"
+ ],
+ "lines": 238,
+ "side": "server",
+ "category": "network",
+ "role": "Spawns a non-living entity on the client: item, orb, arrow, falling block, TNT, minecart, boat, ender pearl and the rest, with a type id and optional thrower data.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_clientworld.c",
+  "out/java/clientworld/smoke-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149018_a",
+   "sig": "int",
+   "status": "partial",
+   "note": "entity id, rides tracker_packet.id"
+  },
+  {
+   "kind": "field",
+   "name": "field_149016_b",
+   "sig": "int",
+   "status": "partial",
+   "note": "type, rides tracker_packet.type"
+  },
+  {
+   "kind": "field",
+   "name": "field_149017_c",
+   "sig": "int",
+   "status": "partial",
+   "note": "x * 32, rides tracker_packet.x"
+  },
+  {
+   "kind": "field",
+   "name": "field_149014_d",
+   "sig": "int",
+   "status": "partial",
+   "note": "y * 32"
+  },
+  {
+   "kind": "field",
+   "name": "field_149015_e",
+   "sig": "int",
+   "status": "partial",
+   "note": "z * 32"
+  },
+  {
+   "kind": "field",
+   "name": "field_149012_f",
+   "sig": "int",
+   "status": "partial",
+   "note": "pitch byte"
+  },
+  {
+   "kind": "field",
+   "name": "field_149013_g",
+   "sig": "int",
+   "status": "partial",
+   "note": "yaw byte"
+  },
+  {
+   "kind": "field",
+   "name": "field_149021_h",
+   "sig": "int",
+   "status": "partial",
+   "note": "object data, rides tracker_packet.data"
+  },
+  {
+   "kind": "field",
+   "name": "field_149022_i",
+   "sig": "int",
+   "status": "n/a",
+   "note": "velocity x * 8000; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_149019_j",
+   "sig": "int",
+   "status": "n/a",
+   "note": "velocity y * 8000; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_149020_k",
+   "sig": "int",
+   "status": "n/a",
+   "note": "velocity z * 8000; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(Entity,int)V",
+   "status": "n/a",
+   "note": "no live-flow emission of S0E; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(Entity,int,int)V",
+   "status": "n/a",
+   "note": "the thrower-data variant, also not emitted; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "partial",
+   "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+   "note": "TRACKER_PKT_S0E case: spawns the non-living client entity; type 2 also spends the four math draws its constructor makes"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_149001_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148997_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148998_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148994_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149010_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149004_h",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148999_i",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149008_j",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149006_k",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148993_l",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149009_m",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148996_a",
+   "sig": "(int)V",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148995_b",
+   "sig": "(int)V",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149005_c",
+   "sig": "(int)V",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149003_d",
+   "sig": "(int)V",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149000_e",
+   "sig": "(int)V",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149007_f",
+   "sig": "(int)V",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149002_g",
+   "sig": "(int)V",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "The client half is exercised by the ClientWorldProbe replay (csrc/tests/test_clientworld.c), where the recording supplies the packets. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the renderer draws non-living entities from server state (by design). Formerly listed as missing: No live-flow emission of S0E: items, orbs, arrows, pearls, falling blocks, TNT and the other non-living entities never enter the native client's entity mirror; the renderer draws them from the server's own state (csrc/engine/raster_worldfx.c, csrc/engine/raster_entities.c)."
+}

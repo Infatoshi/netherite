@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/MeshScene.java",
+ "lines": 1005,
+ "role": "Mesh reference scenes: builds a grid far from spawn at y 240..255 holding every registered block in every meta its class uses plus neighbor-dependent cells (fences, stairs, rails, wire, doors, beds, crops, torches, ladders, vines), then meshes each scene section through MeshProbe's path over the server world.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=MeshScene",
+  "csrc/tests/test_meshes.c (scene mode, manifests with \"scene\":true)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output sections.bin, chunks.bin, table.bin, tileentities.bin, atlas.json, manifest.json. Scene built on its own thread while the server is parked."
+}

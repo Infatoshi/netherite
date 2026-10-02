@@ -1,0 +1,17 @@
+{
+ "path": "csrc/engine/features_springs.h",
+ "lines": 23,
+ "role": "Declares the springs group's table lookup (WorldGenLiquids) and the two liquid tick bodies the rest of the engine reuses: BlockDynamicLiquid.updateTick and BlockStaticLiquid.updateTick.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenLiquids.java", "members": ["generate"]},
+  {"path": "oracle/src/block/BlockDynamicLiquid.java", "members": ["updateTick"]},
+  {"path": "oracle/src/block/BlockStaticLiquid.java", "members": ["updateTick"]}
+ ],
+ "structs": [],
+ "entry_points": ["features_springs_for", "liquid_update_tick", "liquid_static_update_tick"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_fallhang.c", "csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "liquid_update_tick is called from ticks.c, servertick.c, fortress_blocks.c and features_nether.c as well as this lane's feature."
+}

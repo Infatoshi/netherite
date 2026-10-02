@@ -1,0 +1,129 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenHugeTrees.java",
+ "classes": [
+  "WorldGenHugeTrees"
+ ],
+ "lines": 166,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Abstract base of the 2x2 trees (mega pine, mega jungle): trunk height draw, room and ground checks, and the two leaf-blob helpers.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_trees.c",
+   "symbols": [
+    "huge_height",
+    "huge_room",
+    "huge_ground",
+    "huge_leaf_blob",
+    "huge_leaf_round"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-megapine-2",
+  "out/java/probes/fe-megapine-42",
+  "out/java/probes/fe-megajungle-2",
+  "out/java/probes/fe-megajungle-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "baseHeight",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:huge_height",
+   "status": "exact",
+   "note": "Passed per variant."
+  },
+  {
+   "kind": "field",
+   "name": "woodMetadata",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:PINE_WOOD",
+   "status": "exact",
+   "note": "Per-variant constants PINE_WOOD / JUNGLE_WOOD."
+  },
+  {
+   "kind": "field",
+   "name": "leavesMetadata",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:PINE_LEAVES",
+   "status": "exact",
+   "note": "Per-variant constants PINE_LEAVES / JUNGLE_LEAVES."
+  },
+  {
+   "kind": "field",
+   "name": "field_150538_d",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:huge_height",
+   "status": "exact",
+   "note": "The height jitter argument."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenHugeTrees",
+   "sig": "(boolean,int,int,int,int)",
+   "native": null,
+   "status": "n/a",
+   "note": "Fields become arguments and constants."
+  },
+  {
+   "kind": "method",
+   "name": "func_150533_a",
+   "sig": "(Random)I",
+   "native": "csrc/engine/features_trees.c:huge_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150536_b",
+   "sig": "(World,Random,int,int,int,int)Z",
+   "native": "csrc/engine/features_trees.c:huge_room",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150532_c",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_trees.c:huge_ground",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150537_a",
+   "sig": "(World,Random,int,int,int,int)Z",
+   "native": "csrc/engine/features_trees.c:huge_room",
+   "status": "exact",
+   "note": "The && of huge_room and huge_ground at each generate's call site."
+  },
+  {
+   "kind": "method",
+   "name": "func_150535_a",
+   "sig": "(World,int,int,int,int,Random)V",
+   "native": "csrc/engine/features_trees.c:huge_leaf_blob",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150534_b",
+   "sig": "(World,int,int,int,int,Random)V",
+   "native": "csrc/engine/features_trees.c:huge_leaf_round",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

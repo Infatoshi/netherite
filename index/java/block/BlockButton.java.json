@@ -1,0 +1,51 @@
+{
+  "path": "oracle/src/block/BlockButton.java",
+  "classes": ["BlockButton"],
+  "lines": 365,
+  "side": "common",
+  "category": "block",
+  "role": "The abstract button base: a wall-mounted block the player presses to pulse power for 20 (stone) or 30 (wooden) ticks, with arrows keeping wooden buttons down.",
+  "scope": "in_scope",
+  "scope_reason": "The press, release, scheduling and the neighbour pulse exist natively; only the power a receiver would receive is dead (world.conf redstone = off), which is outside this file's behavior.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/activate.c", "symbols": ["act_run", "blockcb_button_notify"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["ticks_schedule_block_update", "servertick_wood_button"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["blockcb_button_notify", "block_on_neighbor_changed"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/raytrace.c", "symbols": ["block_bounds", "raytrace_collision"]},
+    {"file": "csrc/engine/projectile.c", "symbols": ["arrow_block_collisions"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["sr_arrow_button", "sr_arrows_in"]}
+  ],
+  "evidence": ["out/java/snapshots/te-ticks-s1", "out/java/snapshots/rc-blocks-s1", "csrc/tests/test_activate.c", "csrc/tests/test_servertick.c", "out/java/place/big2", "out/java/raypick/rp-1", "csrc/tests/test_raypick.c", "out/java/snapshots/button-arrow-s1", "out/java/snapshots/cov-blkbreak-s1", "out/java/snapshots/cov-blkplace-s1", "out/java/snapshots/cov-blkpower-s1", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockButton", "sig": "(boolean,Material)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "The wooden flag is the only difference between entries 77 (BlockButtonStone) and 143 (BlockButtonWood)."},
+    {"kind": "field", "name": "field_150047_a", "sig": "boolean (wooden)", "native": "csrc/engine/servertick.c:ticks_schedule_block_update", "status": "exact", "note": "The 143 branch reads it as the tick-length choice (servertick.c:612)."},
+    {"kind": "method", "name": "func_150043_b", "sig": "(III)AxisAlignedBB", "native": "csrc/engine/raytrace.c:block_bounds", "status": "exact"},
+    {"kind": "method", "name": "func_150045_e", "sig": "(World,IIIIIII)I", "native": "csrc/engine/place.c:place_try", "status": "n/a", "note": "the fallthrough of BlockButton.onBlockPlaced, which ItemBlock.onItemUse calls only after World.canPlaceEntityOnSide passed BlockButton.canPlaceBlockOnSide, the same four side tests on the same unchanged world; no other item places a button"},
+    {"kind": "method", "name": "func_150046_n", "sig": "(World,III)V", "native": "csrc/engine/servertick.c:servertick_wood_button", "status": "exact", "note": "The wooden button's arrow test: func_150043_b's bounds for the metadata as it is (0.125 deep up, 0.0625 down), sr_arrows_in over the projectile pool (pool 2), press or release with the neighbour pulse, the 30-tick reschedule while an arrow is inside (button-arrow-s1)."},
+    {"kind": "method", "name": "onEntityCollidedWithBlock", "sig": "(World,IIIEntity)V", "native": "csrc/engine/serverreplay.c:sr_arrow_button", "status": "exact", "note": "Reached from an arrow's func_145775_I (projectile.c arrow_block_collisions, ie_world.on_arrow_button): func_150046_n while up. Any other entity in the cell runs the same arrow test in Java; natively only the arrow's own walk reaches it (an arrow keeps its button down, so an up button with an arrow inside is transient)."},
+    {"kind": "method", "name": "func_150042_a", "sig": "(World,IIIII)V", "native": "csrc/engine/blockcb.c:blockcb_button_notify", "status": "exact", "note": "The six-neighbour plus attach-block pulse, blockcb.c:1219."},
+    {"kind": "method", "name": "setBlockBoundsBasedOnState", "sig": "(IBlockAccess,III)V", "native": "csrc/engine/raytrace.c:block_bounds", "status": "exact"},
+    {"kind": "method", "name": "setBlockBoundsForItemRender", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "Same bounds family; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "exact", "note": "Null collision; collide.c:407 lists the buttons."},
+    {"kind": "method", "name": "canPlaceBlockOnSide", "sig": "(World,IIII)Z", "native": "csrc/engine/place.c:place_try", "status": "exact", "note": "Needs a normal cube on one horizontal side; place.c's class checks."},
+    {"kind": "method", "name": "onBlockPlaced", "sig": "(World,IIIFIII)I", "native": "csrc/engine/place.c:place_try", "status": "exact", "note": "The facing metadata, place.c:1128-1147."},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "The support pop, blockcb.c:1239 and 2210."},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/servertick.c:ticks_schedule_block_update", "status": "exact", "note": "The stone release, and servertick_wood_button for the wooden one (servertick.c update_tick case 77/143)."},
+    {"kind": "method", "name": "onBlockActivated", "sig": "(World,IIIIIIIFFF)Z", "native": "csrc/engine/activate.c:act_run", "status": "exact", "note": "The press: set_meta plus blockcb_button_notify plus the schedule, activate.c:624-638."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false."},
+    {"kind": "method", "name": "getMobilityFlag", "sig": "()I", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact"},
+    {"kind": "method", "name": "isProvidingWeakPower", "sig": "(IBlockAccess,IIII)I", "native": null, "status": "n/a", "note": "world.conf redstone = off: World.isBlockProvidingPowerTo and getIndirectPowerLevelTo return 0 before asking any block (its other callers are the redstone wire, torch and diode power reads, which run only under those)"},
+    {"kind": "method", "name": "isProvidingStrongPower", "sig": "(IBlockAccess,IIII)I", "native": null, "status": "n/a", "note": "world.conf redstone = off: World.isBlockProvidingPowerTo and getIndirectPowerLevelTo return 0 before asking any block"},
+    {"kind": "method", "name": "canProvidePower", "sig": "()Z", "native": "csrc/engine/blockcb.c:source_provides_power", "status": "exact", "note": "the registry's provides_power flag, which the door, trapdoor, fence gate and rail neighbour branches read (cov-blkpower-s1: a placed button closes an open door, trapdoor and gate)"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."},
+    {"kind": "method", "name": "onBlockClicked", "sig": "(World,IIIEntityPlayer)V", "native": null, "status": "exact", "note": "Block's empty body overridden empty; a left click on a button (cov-blkbreak-s1) changes nothing"}
+  ],
+  "missing": [
+    "BlockButton.isProvidingWeakPower and isProvidingStrongPower (the power the pressed button emits) are not ported: world.conf redstone = off means nothing receives it."
+  ],
+  "notes": "te-ticks-s1 covers pressing both buttons (DEVLOG 2026-09-25 names the stone and wooden buttons). The press is in the activate machine, the release and the wooden arrow hold are in the scheduled-tick pass (servertick.c), the pulse walk is in blockcb.c. Subclass records: BlockButtonStone and BlockButtonWood carry only the constructor flag and the getIcon texture."
+}

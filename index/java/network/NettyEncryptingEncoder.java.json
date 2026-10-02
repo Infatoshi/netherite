@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/network/NettyEncryptingEncoder.java",
+  "classes": [
+    "NettyEncryptingEncoder"
+  ],
+  "lines": 28,
+  "side": "common",
+  "category": "network",
+  "role": "The Netty pipeline encoder that AES- encrypts outbound bytes once encryption is enabled on a connection.",
+  "scope": "not_needed",
+  "scope_reason": "Encryption is enabled only by an online-mode login (NetworkManager.enableEncryption); the oracle's client and integrated server talk over a Netty LocalChannel in one JVM, which never reaches that path.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "NettyEncryptingEncoder",
+      "sig": "(LCipher;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Never constructed in the recorded game."
+    },
+    {
+      "kind": "method",
+      "name": "encode",
+      "sig": "(LChannelHandlerContext;LByteBuf;LByteBuf;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Delegates to NettyEncryptionTranslator.func_150504_a."
+    }
+  ],
+  "missing": [],
+  "notes": "Added to the pipeline only inside NetworkManager.enableEncryption."
+}

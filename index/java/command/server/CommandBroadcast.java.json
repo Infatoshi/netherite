@@ -1,0 +1,54 @@
+{
+  "path": "oracle/src/command/server/CommandBroadcast.java",
+  "classes": [
+    "CommandBroadcast"
+  ],
+  "lines": 53,
+  "side": "server",
+  "category": "commands",
+  "role": "The /say command: broadcasts an announcement chat line to every player.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,String[])List",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "Static __OBFID constants are grouped out per the brief."
+}

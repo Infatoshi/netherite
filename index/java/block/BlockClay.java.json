@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/block/BlockClay.java",
+  "classes": ["BlockClay"],
+  "lines": 31,
+  "side": "common",
+  "category": "block",
+  "role": "The clay block: a soft block that drops four clay balls.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["block_hardness"]}
+  ],
+  "evidence": ["csrc/tests/test_drops.c", "out/java/drops/s2", "out/java/probes/fe-clay-2"],
+  "members": [
+    {"kind": "ctor", "name": "BlockClay", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 82: hardness 0.6, clay material."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": null, "status": "n/a", "note": "Standard cube renderer with the atlas icon."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Random)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "4, drops.c:503."},
+    {"kind": "method", "name": "getItemDropped", "sig": "(IRandomI)Item", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "Items.clay_ball, drops.c:503."}
+  ],
+  "missing": [],
+  "notes": "The fe-clay-2 and fe-clay-ocean-42 probes cover clay placement in worldgen; the drop is exercised by test_drops.c and the drops probe."
+}

@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/nbt/CompressedStreamTools.java",
+  "classes": ["CompressedStreamTools"],
+  "lines": 233,
+  "side": "common",
+  "category": "nbt",
+  "role": "The NBT file layer: reads and writes compounds from files, streams and byte arrays, with gzip wrapping and the root-tag framing (type byte, empty name) that region files, player data and the snapshot digests sit on.",
+  "scope": "in_scope",
+  "scope_reason": "The binary form its write path produces is exactly what the d.ents digest hashes, and its read path is what loads region files; snapshots need both. Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/nbtbin.c", "symbols": ["nbtbin_write_root", "write_payload"]},
+    {"file": "csrc/engine/region.c", "symbols": ["nbt_bin_compound", "nbt_bin_value", "inflate_zlib"]},
+    {"file": "csrc/engine/nbtjson.c", "symbols": ["nbt_render", "nbt_parse"]}
+  ],
+  "evidence": ["csrc/tests/test_snapshots.c", "csrc/tests/test_populate.c", "out/java/snapshots/fresh-play-s1"],
+  "members": [
+    {"kind": "method", "name": "readCompressed", "sig": "(Ljava/io/InputStream;)LNBTTagCompound;", "native": "csrc/engine/region.c:inflate_zlib", "status": "exact", "note": "GZIP-wrapped compound read; region.c inflates with zlib before the binary reader. (Java's region files use the same Inflater over the chunk stream.)"},
+    {"kind": "method", "name": "writeCompressed", "sig": "(LNBTTagCompound;Ljava/io/OutputStream;)V", "native": null, "status": "n/a", "note": "its callers write save files (SaveHandler, MapStorage, SaveFormatOld); the native engine writes none by the product decision in the IntegratedServer record (Java writes every checkpoint), so no gzip output exists to match"},
+    {"kind": "method", "name": "func_152457_a", "sig": "([BLNBTSizeTracker;)LNBTTagCompound;", "native": "csrc/engine/region.c:nbt_bin_compound", "status": "exact", "note": "Decompress a byte array and read; the native readers take the inflated buffer directly."},
+    {"kind": "method", "name": "compress", "sig": "(LNBTTagCompound;)[B", "native": null, "status": "n/a", "note": "its callers are PacketBuffer.writeNBTTagCompoundToBuffer (the wire form of a stack's or tile entity's tag) and the save paths above; native messages are structs that carry the tag itself, and readNBTTagCompoundFromBuffer's func_152457_a gives the client back the same tag, so the compressed bytes have no consumer"},
+    {"kind": "method", "name": "safeWrite", "sig": "(LNBTTagCompound;Ljava/io/File;)V", "native": null, "status": "n/a", "note": "Temp-file-then-rename atomic save of world data; the native engine keeps its state in memory and snapshots on demand."},
+    {"kind": "method", "name": "write", "sig": "(LNBTTagCompound;Ljava/io/File;)V", "native": null, "status": "n/a", "note": "its callers are MapStorage.getUniqueDataId's idcounts.dat (reached only from ItemEmptyMap.onItemRightClick and ItemMap: world.conf maps = off) and AnvilSaveConverter (converting an old-format save; every world here is created new); chunks and level.dat go through the stream forms"},
+    {"kind": "method", "name": "read", "sig": "(Ljava/io/File;)LNBTTagCompound;", "native": null, "status": "n/a", "note": "its callers are MapStorage.getUniqueDataId's idcounts.dat (reached only from ItemEmptyMap.onItemRightClick and ItemMap: world.conf maps = off) and AnvilSaveConverter (converting an old-format save; every world here is created new); chunks and level.dat go through the stream forms"},
+    {"kind": "method", "name": "func_152458_a", "sig": "(Ljava/io/File;LNBTSizeTracker;)LNBTTagCompound;", "native": null, "status": "n/a", "note": "read(File)'s body; its callers are MapStorage.getUniqueDataId's idcounts.dat (reached only from ItemEmptyMap.onItemRightClick and ItemMap: world.conf maps = off) and AnvilSaveConverter (converting an old-format save; every world here is created new); chunks and level.dat go through the stream forms"},
+    {"kind": "method", "name": "read", "sig": "(LDataInputStream;)LNBTTagCompound;", "native": "csrc/engine/region.c:nbt_bin_compound", "status": "exact", "note": "Stream read of a framed root compound."},
+    {"kind": "method", "name": "func_152456_a", "sig": "(LDataInput;LNBTSizeTracker;)LNBTTagCompound;", "native": "csrc/engine/region.c:nbt_bin_compound", "status": "exact"},
+    {"kind": "method", "name": "write", "sig": "(LNBTTagCompound;LDataOutput;)V", "native": "csrc/engine/nbtbin.c:nbtbin_write_root", "status": "exact", "note": "The digest form: type byte 10, writeUTF of the empty name, then the compound payload; proven byte for byte by the d.ents SHA-1 chain on the replayed mob-free tapes."},
+    {"kind": "method", "name": "func_150663_a", "sig": "(LNBTBase;LDataOutput;)V", "native": "csrc/engine/nbtbin.c:write_payload", "status": "exact", "note": "Writes the type byte, the name and the payload for any tag; the whole binary writer lives in nbtbin.c."},
+    {"kind": "method", "name": "func_152455_a", "sig": "(LDataInput;ILNBTSizeTracker;)LNBTBase;", "native": "csrc/engine/region.c:nbt_bin_value", "status": "exact", "note": "Reads one framed tag by type."},
+    {"kind": "ctor", "name": "CompressedStreamTools", "sig": "()V", "native": null, "status": "n/a", "note": "a holder of static members: oracle/src has no `new CompressedStreamTools(` anywhere, so the implicit ctor never runs"}
+  ],
+  "missing": [],
+  "notes": "The read and write directions that state flows through in this engine are proven: region chunks in test_populate.c (35 overworld regions plus the Nether and End) and the binary digest form in the whole-tape replay gates. The write-to-file and safeWrite paths are dead in the native engine by design, not gaps in ported behavior. lane/idxclient: writeCompressed and compress are n/a (reasons on the members, checkable by grepping oracle/src for their callers); every in-scope member is exact."
+}

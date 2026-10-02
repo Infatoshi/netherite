@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiChest.java",
+  "classes": ["GuiChest"],
+  "lines": 44,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The chest's container screen: the title, the inventory label and a background whose height grows with the chest's row count (single 27 or double 54), over ContainerChest's slot layout.",
+  "scope": "in_scope",
+  "scope_reason": "Chests are vanilla, in scope, and their screens are pixel-gated (out/java/render/gui_chest, gui_double_chest).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_layout", "gui_screen_slot_xy"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["raster_gui_live"]},
+    {"file": "csrc/engine/container.c", "symbols": ["chest_size"]}
+  ],
+  "evidence": [
+    "out/java/render/gui_chest",
+    "out/java/render/gui_double_chest",
+    "csrc/tests/test_containers.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_147017_u", "sig": "static ResourceLocation", "native": null, "status": "n/a", "note": "static texture constant"},
+    {"kind": "field", "name": "field_147016_v", "sig": "IInventory", "native": null, "status": "n/a", "note": "the player inventory half"},
+    {"kind": "field", "name": "field_147015_w", "sig": "IInventory", "native": null, "status": "n/a", "note": "the chest half"},
+    {"kind": "field", "name": "field_147018_x", "sig": "int", "native": "csrc/engine/container.c:chest_size", "status": "exact", "note": "rows = getSizeInventory()/9 lives in the native container's chest_size"},
+    {"kind": "ctor", "name": "GuiChest", "sig": "(IInventory,IInventory)V", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "partial", "note": "the 222-108 base plus rows*18 height is gui_screen_layout's CONTAINER_CHEST branch (114 + rows*18); the ContainerChest construction is container.c's business"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "\"Chest\"/\"Large Chest\" at (8,6) and \"Inventory\" at (8, height-94), raster_hud.c:1568-1577"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the two modal draws: rows*18+17 at v 0 and 96 px at v 126, raster_hud.c:1563-1567"}
+  ],
+  "missing": [],
+  "notes": "Slot coordinates for the chest half and the player half are gui_screen_slot_xy's CONTAINER_CHEST branch, including the (n/9 - 4) shift for tall chests."
+}

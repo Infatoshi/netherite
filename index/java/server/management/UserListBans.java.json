@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/server/management/UserListBans.java",
+  "classes": ["UserListBans"],
+  "lines": 69,
+  "side": "server",
+  "category": "server",
+  "role": "The banned-players.json list: a UserList keyed by the profile's UUID, with name lookup and a is-banned check.",
+  "scope": "not_needed",
+  "scope_reason": "Consulted only by ServerConfigurationManager.func_148542_a on TCP login and by /ban commands; neither runs in the oracle (commands off, DEVLOG 2026-09-25; the only join is the local host).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "UserListBans", "sig": "(File)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152682_a", "sig": "(JsonObject)UserListEntry", "native": null, "status": "n/a", "note": "builds a UserListBansEntry"},
+    {"kind": "method", "name": "func_152702_a", "sig": "(GameProfile)Z", "native": null, "status": "n/a", "note": "is this profile banned"},
+    {"kind": "method", "name": "func_152685_a", "sig": "()String[]", "native": null, "status": "n/a", "note": "banned names"},
+    {"kind": "method", "name": "func_152701_b", "sig": "(GameProfile)String", "native": null, "status": "n/a", "note": "the UUID string as key"},
+    {"kind": "method", "name": "func_152703_a", "sig": "(String)GameProfile", "native": null, "status": "n/a", "note": "case-insensitive name lookup"},
+    {"kind": "method", "name": "func_152681_a", "sig": "(Object)String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderWitch.java",
+  "classes": ["RenderWitch"],
+  "lines": 196,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the witch: ModelWitch with the nose, the 0.9375 scale, the held-item flag on the model, and the held item drawn from the nose postRender transform.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_witch", "model_vertex", "raster_mobs_draw", "texture_names", "draw_equipped"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2a_witch_f006",
+    "out/java/render/mobs2a_witch_f011",
+    "csrc/tests/test_render.c",
+    "out/java/render-src/ent_held2"
+  ],
+  "members": [
+    {"kind": "field", "name": "witchTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constant, grouped; the TEX_WITCH entry"},
+    {"kind": "field", "name": "witchModel", "sig": "ModelWitch", "native": "csrc/engine/raster_mobs.c:model_witch", "status": "exact"},
+    {"kind": "ctor", "name": "RenderWitch", "sig": "()V (ModelWitch(0), shadow 0.5)", "native": "csrc/engine/raster_mobs.c:model_witch", "status": "exact"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityWitch,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:model_witch", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityWitch)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityWitch,float)V", "native": "csrc/engine/raster_mobs.c:draw_equipped", "status": "exact", "note": "villagerNose.postRender, glColor white once (the potion's bottle pass takes the glint's colour)"},
+    {"kind": "method", "name": "func_82410_b", "sig": "()V", "native": "csrc/engine/raster_mobs.c:draw_equipped", "status": "n/a", "note": "called only for a held item that isFull3D; a witch holds only the potions EntityWitch.onLivingUpdate gives it and never picks up loot (lane/covframes)"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityWitch,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the MOB_WITCH branch scales 0.9375"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: the held potion and the drinking pose (field_82900_g: nose rotateAngleX -0.9 with offsetY 0.1875, offsetZ -0.09375, rotateAngleZ kept). ent_held2 within 195 px (the glint's bands where llvmpipe's unlit glint z-fights the lit bottle)."
+}

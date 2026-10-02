@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/util/ReportedException.java",
+  "classes": ["ReportedException"],
+  "lines": 33,
+  "side": "common",
+  "category": "util",
+  "role": "The RuntimeException that wraps a CrashReport, thrown when a tick or update crashes so the game can show the crash screen.",
+  "scope": "not_needed",
+  "scope_reason": "Crash reporting is oracle harness surface: the gates never crash, and the native engine emulates the few data-shaped crashes the probes reach (for example the crafting gate's thrown(out, \"ReportedException\") in crafting.c) without any exception machinery.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "theReportedExceptionCrashReport", "sig": "CrashReport", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ReportedException", "sig": "(CrashReport)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getCrashReport", "sig": "()CrashReport", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getCause", "sig": "()Throwable", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMessage", "sig": "()String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No native crash-report infrastructure exists or is planned; crashes are avoided by construction."
+}

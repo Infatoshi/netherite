@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderBoat.java",
+  "classes": ["RenderBoat"],
+  "lines": 84,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityBoat: the boat model rotated by its yaw with the post-hit wobble rotation, at the boat texture.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf sets boats = off: boats cannot be placed, so no EntityBoat ever exists and this renderer is never reached, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "boatTextures", "sig": "static ResourceLocation", "native": null, "status": "n/a", "note": "never bound; boats are switched off"},
+    {"kind": "field", "name": "modelBoat", "sig": "protected ModelBase", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "RenderBoat", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityBoat,DDD FF)V", "native": null, "status": "n/a", "note": "unreachable: boats cannot be placed (world.conf boats = off)"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityBoat)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The renderer would only matter after the boats switch turns on, which SPEC gates on the native engine having the feature first."
+}

@@ -1,0 +1,56 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGeneratorBonusChest.java",
+ "classes": [
+  "WorldGeneratorBonusChest"
+ ],
+ "lines": 90,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The bonus chest placed near spawn when a world is created with the bonus chest option: a chest of starter loot with up to four torches.",
+ "scope": "not_needed",
+ "scope_reason": "The oracle creates every world with new WorldSettings(seed, SURVIVAL, true, false, DEFAULT) (oracle/harness/netherite/oracle/Oracle.java) and never calls enableBonusChest, so WorldServer.createBonusChest is never reached.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [
+  "oracle/harness/netherite/oracle/LootProbe.java"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "theBonusChestGenerator",
+   "sig": "WeightedRandomChestContent[]",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "itemsToGenerateInBonusChest",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGeneratorBonusChest",
+   "sig": "(WeightedRandomChestContent[],int)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "LootProbe.java records the bonusChest loot table, but no native code places the chest. Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

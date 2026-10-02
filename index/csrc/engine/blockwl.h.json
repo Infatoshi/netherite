@@ -1,0 +1,93 @@
+{
+ "path": "csrc/engine/blockwl.h",
+ "lines": 139,
+ "role": "The block-callback worklist: World.setBlock's callbacks (breakBlock, onBlockAdded, onNeighborBlockChange), the notifications, the immediate schedule and the liquid ticks run as steps over an explicit per-env frame stack, in vanilla's depth-first order, instead of calling each other.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "setBlock",
+    "setBlockMetadataWithNotify",
+    "notifyBlockChange",
+    "notifyBlocksOfNeighborChange",
+    "func_147460_e",
+    "func_147441_b",
+    "scheduleBlockUpdate"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "bwl_op",
+   "java": "one call: which method, its arguments",
+   "fields": [
+    "kind",
+    "x",
+    "y",
+    "z",
+    "a",
+    "w",
+    "p"
+   ]
+  },
+  {
+   "name": "bwl_frame",
+   "java": "one call in progress: its op, resume point and the locals that live across its calls",
+   "fields": [
+    "op",
+    "pc",
+    "i",
+    "u"
+   ]
+  },
+  {
+   "name": "bwl",
+   "java": "the JVM stack's frames for this cycle",
+   "fields": [
+    "sp",
+    "nemit",
+    "ret",
+    "running",
+    "emit",
+    "stack"
+   ]
+  },
+  {
+   "name": "wl_depth",
+   "java": null,
+   "fields": [
+    "bwl_frames",
+    "bwl_emit",
+    "flow_cost",
+    "nbt",
+    "potion",
+    "riding"
+   ]
+  }
+ ],
+ "entry_points": [
+  "bwl_emit_",
+  "bwl_call",
+  "bwl_pending",
+  "bwl_quiet",
+  "bwl_order_fail",
+  "world_bwl_step",
+  "ticks_bwl_step",
+  "springs_bwl_step",
+  "blockcb_bwl_step"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "the stack is fixed (BWL_CAP 4096 frames, BWL_EMIT_CAP 128 ops per step) and overflow aborts; the deepest measured is 895 frames (make -C csrc worklist-depth)",
+  "ops carry a struct world pointer and a jrand pointer (the liquid tick's Random): a device copy needs them as indices"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_fallhang.c",
+  "csrc/tests/test_place.c"
+ ],
+ "notes": "make -C csrc worklist-depth (csrc/tests/wldepth.sh) builds with NETHERITE_WL_DEPTH and reports each explicit stack's deepest point and the run that reached it."
+}

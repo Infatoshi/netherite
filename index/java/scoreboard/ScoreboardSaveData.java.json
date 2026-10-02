@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/scoreboard/ScoreboardSaveData.java",
+  "classes": ["ScoreboardSaveData"],
+  "lines": 241,
+  "side": "server",
+  "category": "other",
+  "role": "The scoreboard.dat WorldSavedData: reads and writes the objectives, player scores, display slots and teams as NBT.",
+  "scope": "not_needed",
+  "scope_reason": "Only meaningful when a scoreboard exists; objectives and teams require /scoreboard commands, which are off in our survival worlds (DEVLOG 2026-09-25), so the saved compound is always the empty one.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "theScoreboard", "sig": "Scoreboard", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_96506_b", "sig": "NBTTagCompound (deferred read)", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ScoreboardSaveData", "sig": "()V", "native": null, "status": "n/a", "note": "name 'scoreboard'"},
+    {"kind": "ctor", "name": "ScoreboardSaveData", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_96499_a", "sig": "(Scoreboard)V", "native": null, "status": "n/a", "note": "binds the scoreboard and replays a deferred NBT read"},
+    {"kind": "method", "name": "readFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_96498_a", "sig": "(NBTTagList)V", "native": null, "status": "n/a", "note": "teams"},
+    {"kind": "method", "name": "func_96502_a", "sig": "(ScorePlayerTeam,NBTTagList)V", "native": null, "status": "n/a", "note": "team memberships"},
+    {"kind": "method", "name": "func_96504_c", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "display slots"},
+    {"kind": "method", "name": "func_96501_b", "sig": "(NBTTagList)V", "native": null, "status": "n/a", "note": "objectives"},
+    {"kind": "method", "name": "func_96500_c", "sig": "(NBTTagList)V", "native": null, "status": "n/a", "note": "player scores"},
+    {"kind": "method", "name": "writeToNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_96496_a", "sig": "()NBTTagList", "native": null, "status": "n/a", "note": "teams out"},
+    {"kind": "method", "name": "func_96497_d", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "display slots out"},
+    {"kind": "method", "name": "func_96505_b", "sig": "()NBTTagList", "native": null, "status": "n/a", "note": "objectives out"},
+    {"kind": "method", "name": "func_96503_e", "sig": "()NBTTagList", "native": null, "status": "n/a", "note": "player scores out"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

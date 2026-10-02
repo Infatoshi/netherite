@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/entity/ai/EntityMinecartMobSpawner.java",
+  "classes": ["EntityMinecartMobSpawner"],
+  "lines": 96,
+  "side": "server",
+  "category": "entity",
+  "role": "A minecart carrying a MobSpawnerBaseLogic: it rides rails ticking the spawner, renders as a mob spawner block, and reads/writes the spawner logic in its NBT.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf sets minecarts = off: carts cannot be placed and mineshaft chest carts are never spawned, so no minecart entity of any type exists, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "mobSpawnerLogic", "sig": "MobSpawnerBaseLogic (anonymous)", "native": null, "status": "n/a", "note": "forwards world/position to the cart and setEntityState for the spawn-particle byte"},
+    {"kind": "ctor", "name": "EntityMinecartMobSpawner", "sig": "(World)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityMinecartMobSpawner", "sig": "(World,DDD)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMinecartType", "sig": "()I", "native": null, "status": "n/a", "note": "returns 4"},
+    {"kind": "method", "name": "func_145817_o", "sig": "()Block", "native": null, "status": "n/a", "note": "the displayed block: mob_spawner"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "handleHealthUpdate", "sig": "(byte)V", "native": null, "status": "n/a", "note": "setDelayToMin from the client particle byte"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": null, "status": "n/a", "note": "cart physics then mobSpawnerLogic.updateSpawner"},
+    {"kind": "method", "name": "func_98039_d", "sig": "()MobSpawnerBaseLogic", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Despite living in the ai package this is a minecart entity, not a task; its spawner logic is TileEntityMobSpawner's MobSpawnerBaseLogic."
+}

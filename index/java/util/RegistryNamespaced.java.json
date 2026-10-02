@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/util/RegistryNamespaced.java",
+  "classes": ["RegistryNamespaced"],
+  "lines": 109,
+  "side": "common",
+  "category": "util",
+  "role": "The namespaced registry (string key plus integer id per object) that Block.registerBlocks and Item's static init fill; the native engine replaces it with the generated blocks.h/items.h tables.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/activate.c", "symbols": ["block_named"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c"],
+  "members": [
+    {"kind": "field", "name": "underlyingIntegerMap", "sig": "ObjectIntIdentityMap", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "the id is the table index"},
+    {"kind": "field", "name": "field_148758_b", "sig": "BiMap (inverse)", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "the object-to-name direction is the table's name field, compared by string"},
+    {"kind": "method", "name": "addObject", "sig": "(int,String,Object)V", "native": null, "status": "n/a", "note": "registration is done once by the table generator, not at runtime; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "createUnderlyingMap", "sig": "()Map", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getObject", "sig": "(String)Object", "native": "csrc/engine/activate.c:block_named", "status": "partial", "note": "activate.c's block_named/item_named scan the generated tables by full name"},
+    {"kind": "method", "name": "getNameForObject", "sig": "(Object)String", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "BLOCKS[id].name is the stored 'minecraft:...' string"},
+    {"kind": "method", "name": "containsKey", "sig": "(String)Z", "native": "csrc/engine/activate.c:block_named", "status": "partial"},
+    {"kind": "method", "name": "getIDForObject", "sig": "(Object)I", "native": "csrc/engine/items.h:ITEMS", "status": "partial", "note": "the id is the array index"},
+    {"kind": "method", "name": "getObjectForID", "sig": "(I)Object", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial"},
+    {"kind": "method", "name": "iterator", "sig": "()Iterator", "native": null, "status": "n/a", "note": "iteration over the tables is a plain for loop at each call site; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "containsID", "sig": "(I)Z", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "ensureNamespaced", "sig": "(String)String", "native": null, "status": "n/a", "note": "the generated names already carry the 'minecraft:' prefix"}
+  ],
+  "missing": [],
+  "notes": "test_registry.c checks the generated tables' ids, names and construction values against hand-read 1.7.10 values. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): runtime registry replaced by the generated blocks.h/items.h tables; nothing registers at runtime. Formerly listed as missing: No runtime registration or iteration: the registry is a static generated table (blocks.h/items.h), so addObject, iterator and containsID have no native counterpart."
+}

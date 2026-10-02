@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/features_dungeons.c",
+ "lines": 215,
+ "role": "WorldGenDungeons ported literally: the shape check, the cobblestone and mossy-cobblestone room, up to two chests filled from the dungeon loot table (with the enchanted book stack drawn first), and the mob spawner with its randomly picked mob.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenDungeons.java", "members": ["generate", "pickMobSpawner", "field_111189_a"]},
+  {"path": "oracle/src/util/WeightedRandomChestContent.java", "members": ["generateChestContents", "func_92080_a"]},
+  {"path": "oracle/src/item/ItemEnchantedBook.java", "members": ["func_92114_b"]},
+  {"path": "oracle/src/world/World.java", "members": ["isAirBlock"]}
+ ],
+ "structs": [],
+ "entry_points": ["feature_dungeons"],
+ "tick_path": true,
+ "gpu": [
+  "line 58, function own_str: malloc of the spawner's mob id string inside population",
+  "lines 175 and 207, function feature_dungeons: free of chest slot NBT tags and the old spawner mob id (heap-owned tile entity data)",
+  "line 169 and 203: tile entities fetched by pointer via world_tile_entity (pointer into a heap structure)",
+  "lines 131-199, function feature_dungeons: chest-attempt loop bounded by 2 chests x 3 tries",
+  "line 212: fprintf to stderr when the spawner tile entity is missing"
+ ],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "Called from features.c's DUNGEONS row (FeatureProbe) and from populate.c. The loot table 'dungeon' and the book building live in loot.c. That test_feature.c actually runs the dungeons row was not verified; it runs rows by name from features_for."
+}

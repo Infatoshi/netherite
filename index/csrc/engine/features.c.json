@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/features.c",
+ "lines": 306,
+ "role": "The feature table dispatcher and WorldGenMinable: features_for delegates to the lakes, springs, nether, trees, small trees and plants groups and owns the eight ore/dirt/gravel minable rows and the dungeon row; it also holds the tree write-flag switch (WorldGenerator.func_150516_a) and the literal WorldGenMinable vein.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenMinable.java", "members": ["WorldGenMinable", "generate", "field_150519_a", "numberOfBlocks", "field_150518_c"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenerator.java", "members": ["func_150516_a", "doBlockNotify"]},
+  {"path": "oracle/src/world/biome/BiomeDecorator.java", "members": ["dirtGen", "gravelGen", "coalGen", "ironGen", "goldGen", "redstoneGen", "diamondGen", "lapisGen"]}
+ ],
+ "structs": [
+  {"name": "MINABLE", "java": "BiomeDecorator's eight WorldGenMinable instances (dirt 32, gravel 32, coal 16, iron 8, gold 8, redstone 7, diamond 7, lapis 6) as FeatureProbe rows 0-7", "fields": ["name", "config", "y0", "y1", "margin", "block", "count", "generate"]},
+  {"name": "DUNGEONS", "java": "FeatureProbeDungeons' single WorldGenDungeons row", "fields": ["name", "config", "y0", "y1", "margin", "block", "count", "generate"]}
+ ],
+ "entry_points": ["features_for", "features_tree_notify", "features_tree_write", "feature_minable", "feature_minable_target"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 43-88, function features_for: string-name dispatch through a chain of per-group lookups returning function-pointer tables",
+  "function feature_minable_target (lane/popfeat): struct vein_bands, the 2x2x2 (chunk, band) pointers a step's box reads, forgotten after every write and every read through world_get_block"
+ ],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "The y band, margin and count columns mirror the oracle's FeatureProbe FEATURES table, not BiomeDecorator's own height ranges (decorator.c drives the real population). BLK_DIRT, BLK_GRAVEL, BLK_STONE and BLK_AIR come from an included header (not verified which). Callers of feature_minable seen: decorator.c, populate_nether.c; features_for is also used by randomtick.c. Line numbers in gpu are line numbers of features.c. feature_minable_target reads a step's cells straight from its bands (vein_read, vein_band): a band is looked up at its first read in the step and dropped after a write (which can copy a shared band or load a chunk) or a read through world_get_block (lane/popfeat)."
+}

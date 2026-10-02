@@ -1,0 +1,147 @@
+{
+ "path": "oracle/src/network/play/server/S07PacketRespawn.java",
+ "classes": [
+  "S07PacketRespawn"
+ ],
+ "lines": 86,
+ "side": "server",
+ "category": "network",
+ "role": "Respawn and dimension-change packet: handleRespawn swaps the client world for the new dimension's fresh WorldClient and a fresh player.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_fresh",
+    "surv_client_pump"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_transfer_player",
+    "serverreplay_respawn_conquered"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/nether-trip-s1",
+  "out/java/snapshots/nether-trip2-s42",
+  "out/java/snapshots/end-arrival-s1",
+  "out/java/snapshots/death-lava-s1",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149088_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "dimension, rides s2c_pkt.i0"
+  },
+  {
+   "kind": "field",
+   "name": "field_149086_b",
+   "sig": "EnumDifficulty",
+   "status": "exact",
+   "note": "constant on every tape"
+  },
+  {
+   "kind": "field",
+   "name": "field_149087_c",
+   "sig": "WorldSettings.GameType",
+   "status": "exact",
+   "note": "survival on every tape"
+  },
+  {
+   "kind": "field",
+   "name": "field_149085_d",
+   "sig": "WorldType",
+   "status": "exact",
+   "note": "default on every tape"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,EnumDifficulty,WorldType,WorldSettings.GameType)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_server_fresh",
+   "note": "also serverreplay.c:sr_transfer_player and serverreplay.c:serverreplay_respawn_conquered"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "PK_S07 case: dimension change gives a fresh empty WorldClient and surv_client_fresh"
+  },
+  {
+   "kind": "method",
+   "name": "func_149082_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149081_d",
+   "sig": "()Lnet/minecraft/world/EnumDifficulty;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149083_e",
+   "sig": "()Lnet/minecraft/world/WorldSettings$GameType;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149080_f",
+   "sig": "()Lnet/minecraft/world/WorldType;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "The difficulty, game type and world type fields are constant on every recorded world, so the native packet carries only the dimension id."
+}

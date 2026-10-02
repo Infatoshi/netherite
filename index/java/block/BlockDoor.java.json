@@ -1,0 +1,302 @@
+{
+  "path": "oracle/src/block/BlockDoor.java",
+  "classes": [
+    "BlockDoor"
+  ],
+  "lines": 429,
+  "side": "common",
+  "category": "block",
+  "role": "The door: a two-half block (wooden 64, iron 71) the player right clicks to toggle open, placed as a pair with a hinge, popped when its lower half loses support, and pathfind-blocking when closed.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "door_set_open",
+        "door_neighbor",
+        "block_on_neighbor_changed"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "door_bounds",
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "door_activate"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "door_place_pair"
+      ]
+    },
+    {
+      "file": "csrc/engine/pathfind.c",
+      "symbols": [
+        "door_blocks_movement"
+      ]
+    },
+    {
+      "file": "csrc/engine/dig.c",
+      "symbols": [
+        "dig_op"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks2.c",
+      "symbols": [
+        "rb2_render_door"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "raytrace_block_bounds",
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "client_toggle_openable"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/cov-door-s1",
+    "out/java/snapshots/rc-blocks-s1",
+    "out/java/snapshots/walk300-s1",
+    "csrc/tests/test_activate.c",
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_dig.c",
+    "out/java/place/big2",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/cpred-doors-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockDoor",
+      "sig": "(Material)V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Entries 64 and 71: the wooden and iron doors."
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "Atlas icons through the door renderer."
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(IBlockAccess,IIIII)IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "Same."
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Atlas naming only."
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getBlocksMovement",
+      "sig": "(IBlockAccess,III)Z",
+      "native": "csrc/engine/pathfind.c:door_blocks_movement",
+      "status": "exact",
+      "note": "pathfind.c:57; the ai.c copy at ai.c:100."
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "false."
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "7; the dispatch at render_blocks.c:3091."
+    },
+    {
+      "kind": "method",
+      "name": "getSelectedBoundingBoxFromPool",
+      "sig": "(World,III)AxisAlignedBB",
+      "native": "csrc/engine/collide.c:door_bounds",
+      "status": "partial",
+      "note": "The same per-facing box; collide.c:749 carries it for the raytrace path; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(World,III)AxisAlignedBB",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "collide.c:455."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_150013_e",
+      "sig": "(I)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Inlined as meta & 3 in the native facing code."
+    },
+    {
+      "kind": "method",
+      "name": "func_150015_f",
+      "sig": "(I)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Same family; the facing masks are inline."
+    },
+    {
+      "kind": "method",
+      "name": "func_150011_b",
+      "sig": "(I)AxisAlignedBB",
+      "native": "csrc/engine/collide.c:door_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockClicked",
+      "sig": "(World,IIIIEntityPlayer)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Empty body in Java."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIIIIIIFFF)Z",
+      "native": "csrc/engine/activate.c:door_activate",
+      "status": "exact",
+      "note": "activate.c:527; iron doors answer true untouched (survival.c:4940's comment); the client half (the toggle on WorldClient before the same tick's move, the 1003 sound's Math.random and world rand draws) is survival.c:client_toggle_openable"
+    },
+    {
+      "kind": "method",
+      "name": "func_150014_a",
+      "sig": "(World,IIZ)V",
+      "native": "csrc/engine/blockcb.c:door_set_open",
+      "status": "exact",
+      "note": "blockcb.c:1490, the both-halves write."
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:door_neighbor",
+      "status": "exact",
+      "note": "blockcb.c:1510; the powered branch is dead (redstone off), the support pop and the top-half sync live."
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(IRandomI)Item",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "The wooden door item (drops.c:56) or none for iron."
+    },
+    {
+      "kind": "method",
+      "name": "collisionRayTrace",
+      "sig": "(World,IIIVec3Vec3)MovingObjectPosition",
+      "native": "csrc/engine/raytrace.c:raytrace_block_bounds",
+      "status": "exact",
+      "note": "The per-facing bounds through the shared raytrace engine."
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockAt",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/place.c:place_try",
+      "status": "exact",
+      "note": "The support and replaceability rules; ItemBlock's pair placement is door_place_pair."
+    },
+    {
+      "kind": "method",
+      "name": "getMobilityFlag",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:MATERIALS",
+      "status": "n/a",
+      "note": "only BlockPistonBase calls getMobilityFlag, when a piston extends or retracts; with world.conf redstone = off no piston ever moves"
+    },
+    {
+      "kind": "method",
+      "name": "func_150012_g",
+      "sig": "(IBlockAccess,III)Z",
+      "native": "csrc/engine/ai.c:blocks_movement",
+      "status": "exact",
+      "note": "ai.c:78-109 (the static blocks_movement helper); the same logic also drives the pathfinder (pathfind.c:53)."
+    },
+    {
+      "kind": "method",
+      "name": "getItem",
+      "sig": "(World,III)Item",
+      "native": "csrc/engine/pickblock.c:block_get_item",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockHarvested",
+      "sig": "(World,IIIIIEntityPlayer)V",
+      "native": "csrc/engine/dig.c:dig_op",
+      "status": "partial",
+      "note": "The creative-mode half pop (dig.c:613); the survival paths go through the dig lane."
+    }
+  ],
+  "missing": [
+    "The powered auto-open branch of onNeighborBlockChange is dead: world.conf redstone = off (blockcb.c:36 notes it)."
+  ],
+  "notes": "rc-blocks-s1 exercises doors in a replay; the place probe covers the pair placement (place.c:1709). The door pop's drop goes through blockcb's item_drop with the stack damage spelled out (blockcb.c:1412)."
+}

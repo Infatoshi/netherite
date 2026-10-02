@@ -1,0 +1,45 @@
+{
+  "path": "oracle/src/block/BlockDragonEgg.java",
+  "classes": ["BlockDragonEgg"],
+  "lines": 159,
+  "side": "common",
+  "category": "block",
+  "role": "The dragon egg: falls like BlockFalling, teleports 1000 tries away on a click or a hit, and schedules its fall tick at rate 5.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/activate.c", "symbols": ["dragon_egg_teleport", "act_live_dragon_egg", "ID_DRAGON_EGG", "on_block_activated"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["falling_can_fall", "falling_spawn"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["bwl_on_added", "block_on_neighbor_changed", "ID_DRAGON_EGG"]},
+    {"file": "csrc/engine/dig.c", "symbols": ["act_live_dragon_egg"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": [
+    "out/java/activate/full2",
+    "out/java/snapshots/act2-s1",
+    "csrc/tests/test_activate.c",
+    "csrc/tests/test_tileticks.c",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/end-egg-s42",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockDragonEgg", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 122: the 0.9375 egg bounds, render_type 27"},
+    {"kind": "method", "name": "onBlockAdded", "sig": "(World,III)V", "native": "csrc/engine/blockcb.c:bwl_on_added", "status": "exact", "note": "case ID_DRAGON_EGG: the tick scheduled at rate 5"},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "the same rate-5 schedule"},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/servertick.c:falling_can_fall", "status": "exact", "note": "case 122: the fall test, the 32-chunk entity spawn or the short drop with flag 2"},
+    {"kind": "method", "name": "func_150018_e", "sig": "(World,III)V", "native": "csrc/engine/servertick.c:falling_spawn", "status": "exact", "note": "the same body, reached from updateTick"},
+    {"kind": "method", "name": "onBlockActivated", "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z", "native": "csrc/engine/activate.c:on_block_activated", "status": "exact", "note": "case ID_DRAGON_EGG: the teleport"},
+    {"kind": "method", "name": "onBlockClicked", "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;)V", "native": "csrc/engine/dig.c:act_live_dragon_egg", "status": "exact", "note": "the dig path's live teleport (dig.c line 796)"},
+    {"kind": "method", "name": "func_150019_m", "sig": "(World,III)V", "native": "csrc/engine/activate.c:dragon_egg_teleport", "status": "exact", "note": "the 1000-try six-draw walk, the flag-2 write and the origin clear; the client branch is the 128 portal particles, which clientworld stubs as draw counts"},
+    {"kind": "method", "name": "func_149738_a", "sig": "(World)I", "native": "csrc/engine/blockcb.c:bwl_on_added", "status": "exact", "note": "the 5 tick rate, folded into the schedule"},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "opaque_cube 0"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "normal_block 0"},
+    {"kind": "method", "name": "shouldSideBeRendered", "sig": "(IBlockAccess,IIII)Z", "native": "csrc/engine/render_blocks.c:rb_mesh_section", "status": "partial", "note": "the always-true override rides the render_type 27 lane; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "render_type 27"},
+    {"kind": "method", "name": "getItem", "sig": "(World,III)Lnet/minecraft/item/Item;", "native": "csrc/engine/pickblock.c:block_get_item", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"}
+  ],
+  "missing": [],
+  "notes": "Verified by the activate probe (block 122 among the 22000 cases) and act2-s1 (the dragon egg is one of the activate2 recordings' blocks, DEVLOG's activate2 row). The teleport runs on the world Random in activate.c. Since lane/endreturn (2026-09-27): end-egg-s42 punches and right-clicks the egg on the seed-42 exit portal five times each (the teleport, the client's portal particles, the moved eggs falling as falling blocks); it passed with no change."
+}

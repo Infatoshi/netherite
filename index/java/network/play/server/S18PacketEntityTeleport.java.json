@@ -1,0 +1,177 @@
+{
+ "path": "oracle/src/network/play/server/S18PacketEntityTeleport.java",
+ "classes": [
+  "S18PacketEntityTeleport"
+ ],
+ "lines": 108,
+ "side": "server",
+ "category": "network",
+ "role": "The absolute entity teleport: scaled position and byte angles, sent when the relative move cannot express the delta or the entity rode something.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/tracker.c",
+   "symbols": [
+    "tracker_entry_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/auditfix-attr-s1",
+  "csrc/tests/test_clientworld.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149458_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "entity id, rides tracker_packet.id"
+  },
+  {
+   "kind": "field",
+   "name": "field_149456_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "x * 32, rides tracker_packet.x"
+  },
+  {
+   "kind": "field",
+   "name": "field_149457_c",
+   "sig": "int",
+   "status": "exact",
+   "note": "y * 32"
+  },
+  {
+   "kind": "field",
+   "name": "field_149454_d",
+   "sig": "int",
+   "status": "exact",
+   "note": "z * 32"
+  },
+  {
+   "kind": "field",
+   "name": "field_149455_e",
+   "sig": "byte",
+   "status": "exact",
+   "note": "yaw byte, rides tracker_packet.yaw"
+  },
+  {
+   "kind": "field",
+   "name": "field_149453_f",
+   "sig": "byte",
+   "status": "exact",
+   "note": "pitch byte, rides tracker_packet.pitch"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(Entity)V",
+   "status": "n/a",
+   "native": null,
+   "note": "no caller in oracle/src: EntityTrackerEntry.sendLocationToAllClients builds its S18 from its own scaled fields with the six-value ctor"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,int,int,byte,byte)V",
+   "status": "exact",
+   "note": "EntityTrackerEntry.sendLocationToAllClients' teleport branch (a move over 4 blocks, every 400 ticks, or a ridden entity): tracker.c TRACKER_PKT_S18 from the entry's scaled position and angles",
+   "native": "csrc/engine/tracker.c:tracker_entry_tick"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+   "note": "TRACKER_PKT_S18 case, including the 0.03125 / 0.015625 snap-to-newPos check"
+  },
+  {
+   "kind": "method",
+   "name": "func_149451_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149449_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149448_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149446_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149450_g",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149447_h",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": []
+}

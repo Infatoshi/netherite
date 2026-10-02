@@ -1,0 +1,29 @@
+{
+ "path": "csrc/engine/render_blocks3.c",
+ "lines": 3031,
+ "role": "The last RenderBlocks render types: 14 beds, 15 repeaters, 16 piston bases, 17 piston extensions, 18 panes, 19 stems, 20 vines, 21 fence gates, 23 lily pads, 24 cauldrons, 25 brewing stands, 26 end portal frames, 27 dragon eggs, 28 cocoa, 29 tripwire hooks, 30 tripwire, 32 walls, 33 flower pots, 34 beacons, 35 anvils, 37 comparators, 38 hoppers, 39 quartz pillars and 41 stained glass panes, plus the getIcon overrides that read mutable state (anvil part, piston bounds).",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderBlocks.java", "members": ["renderBlockBed", "renderBlockRepeater", "renderBlockRedstoneDiodeMetadata", "renderBlockRedstoneComparator", "renderPistonBase", "renderPistonRodUD", "renderPistonRodSN", "renderPistonRodEW", "renderPistonExtension", "renderBlockPane", "renderBlockStainedGlassPane", "renderBlockStem", "renderBlockStemSmall", "renderBlockStemBig", "renderBlockVine", "renderBlockFenceGate", "renderBlockLilyPad", "renderBlockCauldron", "renderBlockBrewingStand", "renderBlockEndPortalFrame", "renderBlockDragonEgg", "renderBlockCocoa", "renderBlockTripWireSource", "renderBlockTripWire", "renderBlockWall", "renderBlockFlowerpot", "renderBlockBeacon", "renderBlockAnvil", "renderBlockAnvilOrient", "renderBlockAnvilRotate", "renderBlockHopper", "renderBlockHopperMetadata", "renderBlockQuartz"]},
+  {"path": "oracle/src/block/BlockPistonBase.java", "members": ["getIcon", "setBlockBoundsBasedOnState", "func_150070_b"]},
+  {"path": "oracle/src/block/BlockAnvil.java", "members": ["getIcon", "field_149833_b"]},
+  {"path": "oracle/src/block/BlockRedstoneDiode.java", "members": ["func_149913_i", "func_149902_h"]},
+  {"path": "oracle/src/block/BlockStem.java", "members": ["func_149873_e", "func_149872_i"]},
+  {"path": "oracle/src/block/BlockTripWire.java", "members": ["func_150139_a"]},
+  {"path": "oracle/src/block/BlockPane.java", "members": ["func_150098_a"]},
+  {"path": "oracle/src/block/BlockCocoa.java", "members": ["func_149987_c"]},
+  {"path": "oracle/src/block/BlockFlowerPot.java", "members": ["getIcon"]},
+  {"path": "oracle/src/block/BlockWall.java", "members": ["func_150091_e"]}
+ ],
+ "structs": [],
+ "entry_points": ["rb3_init", "rb3_block_icon_index", "rb3_piston_dispatch_bounds", "rb3_piston_store_bounds", "rb3_render_bed", "rb3_render_repeater", "rb3_render_piston_base", "rb3_render_piston_extension", "rb3_render_pane", "rb3_render_stem", "rb3_render_vine", "rb3_render_fence_gate", "rb3_render_lily_pad", "rb3_render_cauldron", "rb3_render_brewing_stand", "rb3_render_end_portal_frame", "rb3_render_dragon_egg", "rb3_render_cocoa", "rb3_render_tripwire_source", "rb3_render_tripwire", "rb3_render_wall", "rb3_render_flowerpot", "rb3_render_beacon", "rb3_render_anvil", "rb3_render_comparator", "rb3_render_hopper", "rb3_render_quartz", "rb3_render_stained_glass_pane", "rb_trig_brewing"],
+ "tick_path": false,
+ "gpu": [
+  "line 1359, function rb3_render_cocoa: static const struct rb_uv *cocoa[3] caches pointers into the first mesher's atlas on first use; global mutable state, and stale if a later mesher loads a different atlas",
+  "line 1940, function rb3_render_flowerpot: rb_world_tile_entity is a linear first-match scan of the tile entity list (container-order dependence)",
+  "lines 128, 134, 161, 769, 2201: strcmp on class, registry and material names per block (rb3_block_icon_index runs for every face icon lookup); a GPU port needs per-id flags",
+  "lines 501-543, functions rb3_piston_dispatch_bounds and rb3_piston_store_bounds: the piston base's stored bounds carry over from one piston render to the next (vanilla's shared Block instance state), so mesh output depends on block visit order"
+ ],
+ "tests": ["csrc/tests/test_meshes.c", "csrc/tests/test_render.c"],
+ "notes": "No structs of its own: it writes into rb_mesher's special3, anvil_part and piston_bounds. Diode inputs only model redstone wire and air as power sources (comment at line 179); redstone power is switched off in world.conf. The flower pot is the only renderer reading tile entities (tileentities.bin). Gated by test_meshes.c against MeshProbe dumps in out/java/meshes (the scene3-* dumps, per the file's mesh3 naming; not verified per render type). rb3_block_icon_index tests the anvil and piston base by the block class table's bits (render_blocks.c rb_block_class), not by comparing class names on every face (lane/meshgpu)."
+}

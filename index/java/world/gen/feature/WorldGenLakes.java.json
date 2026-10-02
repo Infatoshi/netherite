@@ -1,0 +1,77 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenLakes.java",
+ "classes": [
+  "WorldGenLakes"
+ ],
+ "lines": 175,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Water or lava lake: carves a blobby 16x8x16 basin from random ellipsoids, fills it, turns exposed dirt to grass (water) or borders it in stone (lava), and freezes the surface in cold biomes.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_lakes.c",
+   "symbols": [
+    "feature_lake",
+    "biome_at",
+    "biome_temperature",
+    "block_freezable"
+   ]
+  },
+  {
+   "file": "csrc/engine/populate.c",
+   "symbols": [
+    "populate_lakes"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-waterlake-2",
+  "out/java/probes/fe-waterlake-42",
+  "out/java/probes/fe-lavalake-2",
+  "out/java/probes/fe-lavalake-42",
+  "out/java/probes/fe-waterlake-cold-2",
+  "out/java/probes/fe-waterlake-cold-42",
+  "out/java/probes/fe-lakes-cold-2",
+  "out/java/probes/fe-lakes-cold-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150556_a",
+   "sig": "Block",
+   "native": "csrc/engine/features_lakes.c:feature_lake",
+   "status": "exact",
+   "note": "Blocks.water or Blocks.lava via the row's block."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenLakes",
+   "sig": "(Block)",
+   "native": "csrc/engine/features_lakes.c:features_lakes_for",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_lakes.c:feature_lake",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

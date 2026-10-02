@@ -1,0 +1,16 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"n":10,"act":{"hold":["forward"]}}
+{"n":1,"act":{"opts":{"rd":8}}}
+{"n":40,"act":{"hold":["forward"]}}
+{"n":20,"act":{}}
+{"n":1,"act":{"opts":{"rd":3}}}
+{"n":30,"act":{"hold":["back"]}}
+{"n":1,"act":{"opts":{"rd":6},"hold":["back"]}}
+{"n":40,"act":{"hold":["back"]}}
+{"n":1,"act":{"opts":{"rd":2}}}
+{"n":30,"act":{"hold":["forward"]}}
+{"n":1,"act":{"opts":{"rd":5}}}
+{"n":40,"act":{}}
+{"cmd":"run","class":"Snapshot","sub":"end"}

@@ -1,0 +1,167 @@
+{
+ "path": "oracle/src/block/BlockRailDetector.java",
+ "classes": [
+  "BlockRailDetector"
+ ],
+ "lines": 164,
+ "side": "common",
+ "category": "block",
+ "role": "The detector rail (28): a straight rail that sets bit 8 and emits power while a minecart is on it, and feeds comparators from the cart's inventory.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "detector_power_state",
+    "rail_on_added",
+    "rail_neighbor"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "rail_on_neighbor"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks2.c",
+   "symbols": [
+    "rb2_render_rail"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/place/big2",
+  "out/java/place/big42",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_structures.c",
+  "out/java/structures/s2",
+  "out/java/snapshots/cov-blkpower-s1",
+  "out/java/snapshots/cov-blkplace-s1",
+  "out/java/clientframes/cov-blkgallery-s1",
+  "out/java/snapshots/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150055_b",
+   "sig": "IIcon[]",
+   "native": null,
+   "status": "n/a",
+   "note": "client icons"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRailDetector",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 28, tick_randomly, powered-form flag"
+  },
+  {
+   "kind": "method",
+   "name": "func_149738_a",
+   "sig": "(World)I",
+   "native": null,
+   "status": "n/a",
+   "note": "tick rate 20; only scheduled when a cart is present"
+  },
+  {
+   "kind": "method",
+   "name": "canProvidePower",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "registry flag; also triggers BlockRail's re-curve"
+  },
+  {
+   "kind": "method",
+   "name": "onEntityCollidedWithBlock",
+   "sig": "(World,IIIIEntity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "calls func_150054_a on unpowered meta; no minecart can exist (world.conf minecarts = off) and the scan finds none"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": null,
+   "status": "n/a",
+   "note": "scheduled only by func_150054_a when a minecart stands on the rail; world.conf minecarts = off"
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingWeakPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "redstone off"
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingStrongPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "redstone off"
+  },
+  {
+   "kind": "method",
+   "name": "func_150054_a",
+   "sig": "(World,IIII)V",
+   "native": "csrc/engine/blockcb.c:detector_power_state",
+   "status": "exact",
+   "note": "the no-cart branch: clear bit 8 and notify self and below"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:rail_on_added",
+   "status": "exact",
+   "note": "super then func_150054_a"
+  },
+  {
+   "kind": "method",
+   "name": "hasComparatorInputOverride",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "comparators are redstone"
+  },
+  {
+   "kind": "method",
+   "name": "getComparatorInputOverride",
+   "sig": "(World,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "cart inventory signal; no carts"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+  }
+ ],
+ "missing": [],
+ "notes": "Minecarts are switched off (world.conf minecarts = off), so the detector never sees a cart; what remains is a straight rail, which is exact."
+}

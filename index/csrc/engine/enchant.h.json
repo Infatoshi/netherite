@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/enchant.h",
+ "lines": 59,
+ "role": "Declares the enchantment-list port: EnchantmentData as (effect id, level), build_enchantment_list, the enchanted-book NBT builders and can_apply_together.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/enchantment/EnchantmentHelper.java", "members": ["buildEnchantmentList", "addRandomEnchantment"]},
+  {"path": "oracle/src/enchantment/EnchantmentData.java", "members": ["enchantmentobj", "enchantmentLevel"]},
+  {"path": "oracle/src/item/ItemEnchantedBook.java", "members": ["func_92112_a", "addEnchantment"]},
+  {"path": "oracle/src/enchantment/Enchantment.java", "members": ["canApplyTogether"]}
+ ],
+ "structs": [
+  {"name": "enchant_data", "java": "EnchantmentData (enchantmentobj by effectId, enchantmentLevel)", "fields": ["effect_id", "level"]}
+ ],
+ "entry_points": ["build_enchantment_list", "add_random_enchantment_book", "add_random_enchantment_tag", "can_apply_together"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_loot.c", "csrc/tests/test_trades.c"],
+ "notes": "BOOK_ENCHANTABILITY is ItemBook.getItemEnchantability's 1. The two add_random_enchantment_* functions return malloc'd text the caller frees. The header refers to java_hashmap.c for the HashMap; enchant.c carries its own."
+}

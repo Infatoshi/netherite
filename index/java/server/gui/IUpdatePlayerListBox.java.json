@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/server/gui/IUpdatePlayerListBox.java",
+  "classes": ["IUpdatePlayerListBox"],
+  "lines": 9,
+  "side": "server",
+  "category": "server",
+  "role": "The interface MinecraftServer.tickables uses to update the server GUI's player list every tick.",
+  "scope": "not_needed",
+  "scope_reason": "The server GUI is never built: getGuiEnabled() is false and nothing is ever added to MinecraftServer.tickables in the oracle, so the per-tick tickables loop runs over an empty list.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "update", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The tickables loop itself (MinecraftServer.updateTimeLightAndEntities) runs every tick but the list is empty."
+}

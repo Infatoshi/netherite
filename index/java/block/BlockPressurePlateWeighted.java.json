@@ -1,0 +1,117 @@
+{
+ "path": "oracle/src/block/BlockPressurePlateWeighted.java",
+ "classes": [
+  "BlockPressurePlateWeighted"
+ ],
+ "lines": 48,
+ "side": "common",
+ "category": "block",
+ "role": "The gold (147, light) and iron (148, heavy) weighted plates: power is the entity count over the weight cap, scaled to 15.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: gold and iron weighted plates are craftable and placeable, and an entity standing on one makes the oracle write its power level as metadata (BlockBasePressurePlate.func_150062_a over this class's func_150065_e) even with redstone = off.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "can_place_block_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "block_on_neighbor_changed"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/collide.c",
+   "symbols": [
+    "collide_entity_effect"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "update_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_plate_count",
+    "sr_box_count_all",
+    "sr_plate_func_150062_a",
+    "sr_plate_collide",
+    "sr_plate_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_place.c",
+  "out/java/snapshots/plates-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150068_a",
+   "sig": "int",
+   "native": "csrc/engine/serverreplay.c:sr_plate_count",
+   "status": "exact",
+   "note": "the weight cap (15 or 150)"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockPressurePlateWeighted",
+   "sig": "(String,Material,I)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 147 and 148"
+  },
+  {
+   "kind": "method",
+   "name": "func_150065_e",
+   "sig": "(World,III)I",
+   "native": "csrc/engine/serverreplay.c:sr_plate_count",
+   "status": "exact",
+   "note": "min(count, cap)/cap * 15 ceil; the count is sr_box_count_all (every entity in the chunk lists, a dead one until its removal)"
+  },
+  {
+   "kind": "method",
+   "name": "func_150060_c",
+   "sig": "(I)I",
+   "native": "csrc/engine/serverreplay.c:sr_plate_collide",
+   "status": "exact",
+   "note": "identity"
+  },
+  {
+   "kind": "method",
+   "name": "func_150066_d",
+   "sig": "(I)I",
+   "native": "csrc/engine/serverreplay.c:sr_plate_func_150062_a",
+   "status": "exact",
+   "note": "identity"
+  },
+  {
+   "kind": "method",
+   "name": "func_149738_a",
+   "sig": "(World)I",
+   "native": "csrc/engine/serverreplay.c:sr_plate_func_150062_a",
+   "status": "exact",
+   "note": "tick rate 10"
+  }
+ ],
+ "missing": [],
+ "notes": "Support and drops through BlockBasePressurePlate (blockcb.c case 147/148, drops.c plate case). idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/containers 2026-09-27: stepping on a weighted plate is native (collide.c 147/148, the servertick update_tick case, serverreplay.c sr_plate_count); plates-s1 steps on both."
+}

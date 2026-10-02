@@ -1,0 +1,129 @@
+{
+ "path": "oracle/src/nbt/NBTTagString.java",
+ "classes": [
+  "NBTTagString"
+ ],
+ "lines": 85,
+ "side": "common",
+ "category": "nbt",
+ "role": "The string tag, type id 8: entity names, item ids, text pages, the keys of every mod-ish string field in saved data.",
+ "scope": "in_scope",
+ "scope_reason": "Part of the NBT layer behind snapshots and digests.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/nbtjson.h",
+   "symbols": [
+    "nbt_new_string",
+    "nbt_string_value"
+   ]
+  },
+  {
+   "file": "csrc/engine/nbtbin.c",
+   "symbols": [
+    "write_payload"
+   ]
+  },
+  {
+   "file": "csrc/engine/region.c",
+   "symbols": [
+    "nbt_bin_value"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/fresh-play-s1",
+  "out/java/snapshots/dev-give-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "data",
+   "sig": "String",
+   "native": "csrc/engine/nbtjson.h:nbt_new_string",
+   "status": "exact",
+   "note": "Canonical text str:<text>, a quoted span with no escapes."
+  },
+  {
+   "kind": "ctor",
+   "name": "NBTTagString",
+   "sig": "()V",
+   "native": "csrc/engine/nbtjson.h:nbt_new_string",
+   "status": "exact",
+   "note": "The empty-string constructor; canonical text str:."
+  },
+  {
+   "kind": "ctor",
+   "name": "NBTTagString",
+   "sig": "(Ljava/lang/String;)V",
+   "native": "csrc/engine/nbtjson.h:nbt_new_string",
+   "status": "exact",
+   "note": "Java throws on a null argument; the native builder takes a non-null pointer."
+  },
+  {
+   "kind": "method",
+   "name": "write",
+   "sig": "(LDataOutput;)V",
+   "native": "csrc/engine/nbtbin.c:write_payload",
+   "status": "exact",
+   "note": "writeUTF: a two-byte length then modified-UTF-8 bytes; nbtbin reproduces the encoding for the digest."
+  },
+  {
+   "kind": "method",
+   "name": "func_152446_a",
+   "sig": "(LDataInput;ILNBTSizeTracker;)V",
+   "native": "csrc/engine/region.c:nbt_bin_value",
+   "status": "exact",
+   "note": "The region reader reads the name through the same writeUTF encoding; 16 bytes per char go to the size tracker."
+  },
+  {
+   "kind": "method",
+   "name": "getId",
+   "sig": "()B",
+   "native": "csrc/engine/nbtjson.h:nbt_kind",
+   "status": "exact",
+   "note": "8; NBT_STRING."
+  },
+  {
+   "kind": "method",
+   "name": "toString",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "Java's text form: built only by ItemStack.func_151000_E (the item hover in a chat line), CommandGive (chat commands are not agent input) and logging. func_151000_E runs at StatList's init on tagless stacks (id, Count, Damage: a short and a byte) and in a death message only for an item with hasDisplayName (EntityDamageSource, EntityDamageSourceIndirect, CombatTracker), and only the anvil names an item (world.conf anvil = off)"
+  },
+  {
+   "kind": "method",
+   "name": "copy",
+   "sig": "()LNBTBase;",
+   "native": "csrc/engine/crafting.c:copy_tag",
+   "status": "exact",
+   "note": "The canonical text carries a string with no quote or backslash; such a string is refused rather than dropped (crafting.c copy_tag's header comment)."
+  },
+  {
+   "kind": "method",
+   "name": "equals",
+   "sig": "(Ljava/lang/Object;)Z",
+   "native": "csrc/engine/nbtjson.c:nbt_diff",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "hashCode",
+   "sig": "()I",
+   "native": "csrc/engine/nbtjson.c:intern",
+   "status": "n/a",
+   "note": "Only feeds the tagMap HashMap; nbtjson.c's intern computes Java's String.hashCode once per interned key, and nbtbin.c's write_compound uses it for the bucket-order emulation, so the hash itself is reproduced where it matters."
+  },
+  {
+   "kind": "method",
+   "name": "func_150285_a_",
+   "sig": "()Ljava/lang/String;",
+   "native": "csrc/engine/nbtjson.h:nbt_string_value",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Java's hashCode is String.hashCode on the data; nbtbin.c computes the same hash for the HashMap bucket emulation, which is why the citation points at the writer rather than a hash function."
+}

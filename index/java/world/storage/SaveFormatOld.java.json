@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/world/storage/SaveFormatOld.java",
+  "classes": ["SaveFormatOld"],
+  "lines": 273,
+  "side": "common",
+  "category": "world",
+  "role": "Base ISaveFormat over the saves directory: lists worlds for the singleplayer menu, reads a world's level.dat into a WorldInfo, renames and recursively deletes world folders, and hands out a SaveHandler. AnvilSaveConverter extends it.",
+  "scope": "not_needed",
+  "scope_reason": "Save-directory management (world list, rename, delete, format conversion) is menu and disk plumbing; the native engine starts from oracle snapshots (worldinfo.nbt written by oracle/harness/netherite/oracle/Snapshot.java), never from a saves folder.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "logger", "sig": "static Logger", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "savesDirectory", "sig": "File", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "SaveFormatOld", "sig": "(File)", "native": null, "status": "n/a", "note": "mkdirs the saves directory"},
+    {"kind": "method", "name": "func_154333_a", "sig": "()String", "native": null, "status": "n/a", "note": "format name \"Old Format\""},
+    {"kind": "method", "name": "getSaveList", "sig": "()List", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "flushCache", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getWorldInfo", "sig": "(String)WorldInfo", "native": null, "status": "n/a", "note": "level.dat then level.dat_old; native reads the snapshot's worldinfo.nbt instead (csrc/engine/snapshot.c)"},
+    {"kind": "method", "name": "renameWorld", "sig": "(String,String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_154335_d", "sig": "(String)Z", "native": null, "status": "n/a", "note": "can a new level folder be made"},
+    {"kind": "method", "name": "deleteWorldDirectory", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "deleteFiles", "sig": "static (File[])Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSaveLoader", "sig": "(String,boolean)ISaveHandler", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_154334_a", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isOldMapFormat", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "convertMapFormat", "sig": "(String,IProgressUpdate)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "canLoadWorld", "sig": "(String)Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Grep of csrc/engine and csrc/play for SaveFormat, level.dat and the member names found nothing. deleteWorldDirectory sleeps 500 ms between attempts (wall clock), irrelevant since it never runs in the tick."
+}

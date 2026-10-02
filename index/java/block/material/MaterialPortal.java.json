@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/block/material/MaterialPortal.java",
+  "classes": ["MaterialPortal"],
+  "lines": 32,
+  "side": "common",
+  "category": "material",
+  "role": "The portal material: not solid, does not block light, no tool required, blocks movement.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["MATERIALS"]}
+  ],
+  "evidence": ["out/java/snapshots/cov-blkmisc-s1"],
+  "members": [
+    {"kind": "ctor", "name": "MaterialPortal", "sig": "(Lnet/minecraft/block/material/MapColor;)V", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "the portal row (id 90): isSolid false, opaque false, blocksMovement true, no tool required"},
+    {"kind": "method", "name": "isSolid", "sig": "()Z", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "false"},
+    {"kind": "method", "name": "isToolNotRequired", "sig": "(Lnet/minecraft/block/material/Material;)Z", "native": "csrc/engine/harvest.c:item_can_harvest", "status": "exact", "note": "true"}
+  ],
+  "missing": [],
+  "notes": "BlockPortal's own behavior (dimension travel) is a follow-up per DEVLOG, but the material row itself is in the generated table and reads through the ordinary block path."
+}

@@ -1,0 +1,46 @@
+# configs/speedrun.yaml at seed 3 (lane/seedgen): the same world, its own start,
+# oracle/tests/speedrun-s1.jsonl's walk recorded at this seed (make -C oracle script
+# CONF=../configs/speedrun.yaml SET="seed=3"). One of the curriculum's seed pool.
+
+world:
+  seed: 3
+  difficulty: normal       # hostiles spawn: blazes and endermen exist
+  render_distance: 4       # 64-block overworld fog (lane/headline)
+  daylight_cycle: on
+  keep_inventory: off
+  villages: on
+  horses: off
+  wolves: off
+  ocelots: off
+  built_golems: off
+  wither: off
+  minecarts: off
+  boats: off
+  redstone: off
+  enchanting: off
+  anvil: off
+  brewing: off
+  beacon: off
+  maps: off
+  fishing: off
+  fireworks: off
+  book_editing: off
+  sign_editing: off
+
+client:
+  graphics: fast
+  particles: minimal
+  observation: 256x144     # the policy's frame (mcsr-speedrun SPEC.md: 256x144 at 20 fps)
+  ticks_per_step: 1        # the policy's 20 Hz; 4 is the headline's frame skip
+  hud: on                  # the training footage has it (rlsplit-hudframe fixed)
+  gamma: 1.0               # the 1.16 training renders' brightness (lane/versionprior: netherite at 0.0 is darker)
+
+engine:
+  device_mesh: 1
+  device_generation: off
+  device_light: off
+
+# seed 3's fresh world under this file
+pipeline:
+  kind: speedrun
+  start: out/java/snapshots/sr-speedrun-s3

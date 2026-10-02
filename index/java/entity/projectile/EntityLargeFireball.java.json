@@ -1,0 +1,36 @@
+{
+ "path": "oracle/src/entity/projectile/EntityLargeFireball.java",
+ "classes": ["EntityLargeFireball"],
+ "lines": 68,
+ "side": "common",
+ "category": "entity",
+ "role": "The ghast's fireball: 6.0 damage to the hit entity, then an explosion (power 1, flaming, mobGriefing-gated) at the impact point.",
+ "scope": "in_scope",
+ "scope_reason": "Fired by the replayed ghasts; the explosion chain is a recorded surface.",
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ghasts.c", "symbols": ["gh_fireball_impact", "ghast_fire_fireball", "gh_expl_query", "gh_player_expl_attack"]},
+  {"file": "csrc/engine/projectile.c", "symbols": ["proj_spawn_fireball"]},
+  {"file": "csrc/engine/explosion.c", "symbols": ["attack_from_explosion", "expl_run_extras"]},
+  {"file": "csrc/engine/entity_nbt.c", "symbols": ["ent_nbt_ie"]}
+ ],
+ "evidence": [
+  "out/java/ghasts/gh-b42",
+  "out/java/snapshots/pfc-fireballjoin-f305",
+  "out/java/projectiles/proj-42",
+  "csrc/tests/test_ghasts.c",
+  "csrc/tests/test_projectiles.c",
+  "out/java/snapshots/pick-shapes-s1"
+ ],
+ "members": [
+  {"kind": "field", "name": "field_92057_e", "sig": "int", "native": "csrc/engine/ghasts.c:gh_fireball_impact", "status": "exact", "note": "ExplosionPower, default 1"},
+  {"kind": "ctor", "name": "EntityLargeFireball", "sig": "(World)", "native": "csrc/engine/projectile.c:proj_spawn_fireball", "status": "exact"},
+  {"kind": "ctor", "name": "EntityLargeFireball", "sig": "(World,DDDDDD)", "native": "csrc/engine/projectile.c:proj_spawn_fireball", "status": "exact"},
+  {"kind": "ctor", "name": "EntityLargeFireball", "sig": "(World,EntityLivingBase,DDD)", "native": "csrc/engine/ghasts.c:ghast_fire_fireball", "status": "exact", "note": "the ghast's aim draws ride the shooter form"},
+  {"kind": "method", "name": "onImpact", "sig": "(MovingObjectPosition)V", "native": "csrc/engine/ghasts.c:gh_fireball_impact", "status": "exact", "note": "the 6.0F entity damage, then newExplosion(null, ..., flaming, mobGriefing) and the kill; a fireball read back from a save has no shooter: causeFireballDamage(this, null) makes the fireball the source entity, the knockback's origin (pfc-fireballjoin-f305)"},
+  {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/entity_nbt.c:ent_nbt_ie", "status": "exact", "note": "ExplosionPower after the base keys (it was missing before lane/pick; pick-shapes-s1 catches it)"},
+  {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/entity_nbt.c:ent_nbt_ie", "status": "exact"}
+ ],
+ "missing": [],
+ "notes": "The explosion itself is explosion.c's port of WorldServer.newExplosion; the impact wires it. The player-hit knockback and the S27 fan-out are explosion.c's business, not this class's."
+}

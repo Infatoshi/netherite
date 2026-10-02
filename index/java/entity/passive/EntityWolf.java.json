@@ -1,0 +1,341 @@
+{
+ "path": "oracle/src/entity/passive/EntityWolf.java",
+ "classes": [
+  "EntityWolf"
+ ],
+ "lines": 624,
+ "side": "server",
+ "category": "entity",
+ "role": "The wolf: taming with bones, the angry flag, collar colours, the owner-revenge target tasks, the shaking-dry animation state, and sheep as untamed prey.",
+ "scope": "switched_off",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_70926_e",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_70924_f",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "isShaking",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_70928_h",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "timeWolfIsShaking",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "prevTimeWolfIsShaking",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityWolf",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityAttributes",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isAIEnabled",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setAttackTarget",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateAITick",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145780_a",
+   "sig": "(4p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getLivingSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getHurtSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDeathSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getSoundVolume",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146068_u",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onLivingUpdate",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getWolfShaking",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getShadingWhileShaking",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getShakeAngle",
+   "sig": "(2p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getInterestedAngle",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getEyeHeight",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getVerticalFaceSpeed",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(2p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityAsMob",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setTamed",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "interact",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "handleHealthUpdate",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getTailRotation",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isBreedingItem",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxSpawnedInChunk",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isAngry",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setAngry",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getCollarColor",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setCollarColor",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "createChild",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_70918_i",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canMateWith",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_70922_bv",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canDespawn",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_142018_a",
+   "sig": "(2p)",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "scope_reason": "world.conf has wolves = off: wolves leave every spawn list and /summon refuses them (SPEC 'Unsupported features are world switches').",
+ "notes": "Every member row is n/a: nothing instantiates this class in either the oracle (the spawn entries are pruned by WorldConf.pruneSpawns, /summon refuses it) or the native engine."
+}

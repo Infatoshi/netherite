@@ -1,0 +1,3 @@
+# lane/headline: the headline configuration (peaceful, render distance), 2026-09-30
+id	found	by	area	field	cause	status	commit	pin	repro
+hl-village-s42	2026-09-30	lane/headline (gate)	save-reload	d.ents	a render distance shrink (PlayerManager.func_152622_a) walks the old radius around the player's position with getOrCreateChunkWatcher(x, z, true).removePlayer: a chunk outside the managed square gets a player-less instance (its chunk loaded, off chunksToUnload) that saveAllChunks never queues; native dropped only held instances, so its tick-900 save queued and unloaded a column Java kept (rd 8 to 4 while walking; hl-mount-s1 the same)	fixed	d0f0ef74	out/java/snapshots/hl-village-s42	-

@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/client/resources/data/FontMetadataSection.java",
+  "classes": ["FontMetadataSection"],
+  "lines": 16,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The parsed 'font' section of a font texture's .mcmeta: per-character width, left bearing and spacing floats for the bitmap font renderer.",
+  "scope": "client_cosmetic",
+  "scope_reason": "The native HUD and GUI text renderer (csrc/engine/raster_hud.c) uses its own font metrics from the dumped assets; vanilla font .mcmeta is never parsed.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "FontMetadataSection", "sig": "(float[],float[],float[])V", "native": null, "status": "n/a", "note": "widths, lefts, spacings, 256 entries"},
+    {"kind": "field", "name": "charWidths", "sig": "float[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "charLefts", "sig": "float[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "charSpacings", "sig": "float[]", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

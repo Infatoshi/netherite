@@ -1,0 +1,350 @@
+{
+  "path": "oracle/src/util/ChatStyle.java",
+  "classes": [
+    "ChatStyle",
+    "ChatStyle.Serializer"
+  ],
+  "lines": 607,
+  "side": "common",
+  "category": "util",
+  "role": "The style of a chat component: colour, bold/italic/strikethrough/underline/obfuscated flags, click and hover events, resolved through a parent chain rooted at the immutable rootStyle, plus its Gson serializer.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: it colours the chat lines GuiNewChat (in scope) draws (the achievement name is green, Achievement.func_150951_e); getFormattingCode's codes reach the frame.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcomp.c",
+      "symbols": [
+        "resolve",
+        "chat_style_code",
+        "chat_style_empty",
+        "chat_set_color",
+        "chat_set_click",
+        "chat_set_hover",
+        "chat_copy",
+        "sj_expand"
+      ]
+    },
+    {
+      "file": "csrc/engine/chatcomp.h",
+      "symbols": [
+        "cc_style"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/chat-achieve-s1",
+    "out/java/snapshots/chat-bed-refuse-s1",
+    "out/java/snapshots/chat-deaths-s1",
+    "out/java/snapshots/chat-deaths2-s1",
+    "out/java/snapshots/chat-build-s1",
+    "out/java/snapshots/chat-climbfall-s1",
+    "out/java/snapshots/chat-edge-knock-s1",
+    "out/java/snapshots/chat-idx-blast-s1",
+    "out/java/snapshots/chat-fight-witch-s1",
+    "out/java/snapshots/chat-fight-enderman-s1",
+    "out/java/snapshots/chat-death-drown-s1",
+    "out/java/snapshots/chat-death-lava-s1",
+    "out/java/snapshots/chat-death-starve-s1",
+    "out/java/snapshots/chat-act2-s1",
+    "out/java/snapshots/chat-surv2-bed-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "parentStyle",
+      "sig": "ChatStyle",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact",
+      "note": "parent, a style slot (-1 null)"
+    },
+    {
+      "kind": "field",
+      "name": "color",
+      "sig": "EnumChatFormatting",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "bold",
+      "sig": "Boolean",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact",
+      "note": "-1 null, 0, 1"
+    },
+    {
+      "kind": "field",
+      "name": "italic",
+      "sig": "Boolean",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "underlined",
+      "sig": "Boolean",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "strikethrough",
+      "sig": "Boolean",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "obfuscated",
+      "sig": "Boolean",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "chatClickEvent",
+      "sig": "ClickEvent",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact",
+      "note": "click and click_value: SUGGEST_COMMAND, the only action the game's server lines carry"
+    },
+    {
+      "kind": "field",
+      "name": "chatHoverEvent",
+      "sig": "HoverEvent",
+      "native": "csrc/engine/chatcomp.h:cc_style",
+      "status": "exact",
+      "note": "hover and hover_value: SHOW_ACHIEVEMENT, the only one the game's server lines carry (SHOW_ITEM needs a named item, an anvil)"
+    },
+    {
+      "kind": "field",
+      "name": "rootStyle",
+      "sig": "ChatStyle (static, the empty root)",
+      "native": "csrc/engine/chatcomp.c:resolve",
+      "status": "exact",
+      "note": "a parent of -1 answers null and false"
+    },
+    {
+      "kind": "method",
+      "name": "getColor",
+      "sig": "()EnumChatFormatting",
+      "native": "csrc/engine/chatcomp.c:resolve",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getBold",
+      "sig": "()boolean",
+      "native": "csrc/engine/chatcomp.c:resolve",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getItalic",
+      "sig": "()boolean",
+      "native": "csrc/engine/chatcomp.c:resolve",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getStrikethrough",
+      "sig": "()boolean",
+      "native": "csrc/engine/chatcomp.c:resolve",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getUnderlined",
+      "sig": "()boolean",
+      "native": "csrc/engine/chatcomp.c:resolve",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getObfuscated",
+      "sig": "()boolean",
+      "native": "csrc/engine/chatcomp.c:resolve",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isEmpty",
+      "sig": "()boolean",
+      "native": "csrc/engine/chatcomp.c:chat_style_empty",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getChatClickEvent",
+      "sig": "()ClickEvent",
+      "native": null,
+      "status": "n/a",
+      "note": "read or set only by the chat screen's own input (GuiChat.mouseClicked and drawScreen over a chat line, its tab-completion list: GuiChat's record), commands (not_needed) and the F2 screenshot line"
+    },
+    {
+      "kind": "method",
+      "name": "getChatHoverEvent",
+      "sig": "()HoverEvent",
+      "native": null,
+      "status": "n/a",
+      "note": "read or set only by the chat screen's own input (GuiChat.mouseClicked and drawScreen over a chat line, its tab-completion list: GuiChat's record), commands (not_needed) and the F2 screenshot line"
+    },
+    {
+      "kind": "method",
+      "name": "setColor",
+      "sig": "(EnumChatFormatting)ChatStyle",
+      "native": "csrc/engine/chatcomp.c:chat_set_color",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBold",
+      "sig": "(Boolean)ChatStyle",
+      "native": null,
+      "status": "n/a",
+      "note": "no server line sets it; read or set only by the chat screen's own input (GuiChat.mouseClicked and drawScreen over a chat line, its tab-completion list: GuiChat's record), commands (not_needed) and the F2 screenshot line"
+    },
+    {
+      "kind": "method",
+      "name": "setItalic",
+      "sig": "(Boolean)ChatStyle",
+      "native": null,
+      "status": "n/a",
+      "note": "no server line sets it; read or set only by the chat screen's own input (GuiChat.mouseClicked and drawScreen over a chat line, its tab-completion list: GuiChat's record), commands (not_needed) and the F2 screenshot line"
+    },
+    {
+      "kind": "method",
+      "name": "setStrikethrough",
+      "sig": "(Boolean)ChatStyle",
+      "native": null,
+      "status": "n/a",
+      "note": "no server line sets it; read or set only by the chat screen's own input (GuiChat.mouseClicked and drawScreen over a chat line, its tab-completion list: GuiChat's record), commands (not_needed) and the F2 screenshot line"
+    },
+    {
+      "kind": "method",
+      "name": "setUnderlined",
+      "sig": "(Boolean)ChatStyle",
+      "native": null,
+      "status": "n/a",
+      "note": "no server line sets it; read or set only by the chat screen's own input (GuiChat.mouseClicked and drawScreen over a chat line, its tab-completion list: GuiChat's record), commands (not_needed) and the F2 screenshot line"
+    },
+    {
+      "kind": "method",
+      "name": "setObfuscated",
+      "sig": "(Boolean)ChatStyle",
+      "native": null,
+      "status": "n/a",
+      "note": "no server line sets it; read or set only by the chat screen's own input (GuiChat.mouseClicked and drawScreen over a chat line, its tab-completion list: GuiChat's record), commands (not_needed) and the F2 screenshot line"
+    },
+    {
+      "kind": "method",
+      "name": "setChatClickEvent",
+      "sig": "(ClickEvent)ChatStyle",
+      "native": "csrc/engine/chatcomp.c:chat_set_click",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setChatHoverEvent",
+      "sig": "(HoverEvent)ChatStyle",
+      "native": "csrc/engine/chatcomp.c:chat_set_hover",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setParentStyle",
+      "sig": "(ChatStyle)ChatStyle",
+      "native": "csrc/engine/chatcomp.c:chat_append",
+      "status": "exact",
+      "note": "also chat_arg and chat_set_style, where vanilla parents"
+    },
+    {
+      "kind": "method",
+      "name": "getFormattingCode",
+      "sig": "()String",
+      "native": "csrc/engine/chatcomp.c:chat_style_code",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getParent",
+      "sig": "()ChatStyle",
+      "native": "csrc/engine/chatcomp.c:resolve",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "logging only"
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Object)boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "the only caller is CombatTracker.func_151521_b's var6.equals(var4) in the fall branch, where var4 is the last (fall) entry's attacker name: CombatEntry.func_151522_h returns null for DamageSource.fall (it has no entity), so `var4 == null ||` short-circuits; ChatComponentTranslation.equals and HoverEvent.equals only recurse from it"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a",
+      "note": "no game path hashes a style"
+    },
+    {
+      "kind": "method",
+      "name": "createShallowCopy",
+      "sig": "()ChatStyle",
+      "native": "csrc/engine/chatcomp.c:chat_copy",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "createDeepCopy",
+      "sig": "()ChatStyle",
+      "native": "csrc/engine/chatcomp.c:chat_style_code",
+      "status": "exact",
+      "note": "the copy's only use is its resolved formatting code"
+    },
+    {
+      "kind": "method",
+      "name": "Serializer.deserialize",
+      "sig": "(JsonElement,Type,JsonDeserializationContext)ChatStyle",
+      "native": null,
+      "status": "n/a",
+      "note": "the integrated server's local channel passes packets as objects (NetworkManager.provideLocalClient adds no codec), so S02PacketChat.readPacketData never runs"
+    },
+    {
+      "kind": "method",
+      "name": "Serializer.serialize",
+      "sig": "(ChatStyle,Type,JsonSerializationContext)JsonElement",
+      "native": "csrc/engine/chatcomp.c:sj_expand",
+      "status": "exact",
+      "note": "the S02's wire form, what the row check compares"
+    },
+    {
+      "kind": "method",
+      "name": "Serializer.serialize",
+      "sig": "(Object,Type,JsonSerializationContext)JsonElement",
+      "native": "csrc/engine/chatcomp.c:sj_expand",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "ChatStyle$1.setColor / ChatStyle$1.setBold / ChatStyle$1.setItalic / ChatStyle$1.setStrikethrough / ChatStyle$1.setUnderlined / ChatStyle$1.setObfuscated / ChatStyle$1.setChatClickEvent / ChatStyle$1.setChatHoverEvent / ChatStyle$1.setParentStyle / ChatStyle$1.createShallowCopy / ChatStyle$1.createDeepCopy / ChatStyle$1.getFormattingCode / ChatStyle$1.toString",
+      "sig": "anonymous ChatStyle (rootStyle)",
+      "native": null,
+      "status": "n/a",
+      "note": "ChatStyle.rootStyle is reached only through the private ChatStyle.getParent(), whose callers read its getters (getColor, getBold, ...); nothing calls a setter, a copy or getFormattingCode on it (ChatStyle.getFormattingCode recurses through parentStyle, never getParent), and its setters throw UnsupportedOperationException by design"
+    }
+  ],
+  "missing": [],
+  "notes": "Every S02 the server sends is compared per row: the oracle's rows carry each tick's S02s (Rows.s02: the IChatComponent.Serializer JSON and GuiNewChat's iterated parts) and test_snapshots and play --check compare csrc/engine/chatcomp.c chat_s02_check against the queue (lane/idxchat, DEVLOG 2026-09-27). The colours the server's lines use: green and dark purple (achievements), grey (StatBase), red (build.tooHigh). idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

@@ -1,0 +1,60 @@
+{
+  "path": "oracle/src/dispenser/BehaviorDefaultDispenseItem.java",
+  "classes": [
+    "BehaviorDefaultDispenseItem"
+  ],
+  "lines": 72,
+  "side": "server",
+  "category": "block",
+  "role": "The default dispense behavior: splits one item off the stack, spawns it as an EntityItem at the dispenser's face with 0.2 upward motion plus the 6-speed jitter, and plays the 1000/2000 aux effects.",
+  "scope": "not_needed",
+  "scope_reason": "Never runs: dispensing is driven by redstone power and world.conf redstone = off (no block ever receives power), so BlockDispenser's dispense path is dead in the world both sides run; the dispenser window also has no native container yet (csrc/engine/survival.c:3169). The dispenser block and its tile entity do exist natively (csrc/engine/activate.c ID_DISPENSER, csrc/engine/tileentity.c TE_DISPENSER).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "dispense",
+      "sig": "(Lnet/minecraft/dispenser/IBlockSource;Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "dispenseStack",
+      "sig": "(Lnet/minecraft/dispenser/IBlockSource;Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "doDispense",
+      "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/item/ItemStack;ILnet/minecraft/util/EnumFacing;Lnet/minecraft/dispenser/IPosition;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "playDispenseSound",
+      "sig": "(Lnet/minecraft/dispenser/IBlockSource;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "spawnDispenseParticles",
+      "sig": "(Lnet/minecraft/dispenser/IBlockSource;Lnet/minecraft/util/EnumFacing;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_82488_a",
+      "sig": "(Lnet/minecraft/util/EnumFacing;)I",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": []
+}

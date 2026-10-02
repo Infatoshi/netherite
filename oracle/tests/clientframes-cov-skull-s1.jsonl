@@ -1,0 +1,13 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":8}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":150,"y0":89,"z0":240,"x1":172,"y1":89,"z1":264,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":150,"y0":90,"z0":240,"x1":172,"y1":99,"z1":264,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":161.5,"y":90.0,"z":250.5,"yaw":0.0,"pitch":30.0}
+{"cmd":"dev","op":"time","value":6000}
+{"cmd":"dev","op":"state","health":20.0,"food":20,"saturation":5.0}
+{"cmd":"dev","op":"setblock","x":160,"y":90,"z":253,"id":144,"meta":1,"tile":{"SkullType":0,"Rot":2}}
+{"cmd":"dev","op":"setblock","x":162,"y":90,"z":253,"id":144,"meta":1,"tile":{"SkullType":1,"Rot":7}}
+{"cmd":"dev","op":"setblock","x":161,"y":90,"z":254,"id":144,"meta":1,"tile":{"SkullType":2,"Rot":12}}
+{"cmd":"dev","op":"setblock","x":163,"y":90,"z":255,"id":144,"meta":1,"tile":{"SkullType":4,"Rot":5}}
+{"n":10,"act":{}}

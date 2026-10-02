@@ -1,0 +1,2149 @@
+{
+ "java_files": 1287,
+ "java_indexed": 1287,
+ "java_unindexed": [],
+ "native_files": 537,
+ "native_indexed": 430,
+ "native_unindexed": [
+  "csrc/cli/netherite.c",
+  "csrc/cuda/include/bits/floatn.h",
+  "csrc/cuda/include/bits/pthreadtypes-arch.h",
+  "csrc/cuda/include/bits/wordsize.h",
+  "csrc/cuda/include/gnu/stubs.h",
+  "csrc/cuda/include/pthread.h",
+  "csrc/cuda/lighting/cap.c",
+  "csrc/cuda/lighting/check.c",
+  "csrc/cuda/lighting/lighting.h",
+  "csrc/cuda/meshing/host.c",
+  "csrc/cuda/meshing/kernels.c",
+  "csrc/cuda/meshing/kernels.h",
+  "csrc/cuda/meshing/meshing.h",
+  "csrc/cuda/meshing/table.c",
+  "csrc/cuda/meshing/table.h",
+  "csrc/cuda/meshing/table_host.c",
+  "csrc/cuda/mirror.c",
+  "csrc/cuda/render/check.c",
+  "csrc/cuda/render/nomesher.c",
+  "csrc/cuda/render/render.h",
+  "csrc/cuda/tick/batch.c",
+  "csrc/cuda/tick/dev.c",
+  "csrc/cuda/tick/dev.h",
+  "csrc/cuda/tick/host.c",
+  "csrc/cuda/tick/host.h",
+  "csrc/cuda/tick/inl.c",
+  "csrc/cuda/worldgen/ahead.c",
+  "csrc/cuda/worldgen/bench.c",
+  "csrc/cuda/worldgen/built_check.c",
+  "csrc/cuda/worldgen/check.c",
+  "csrc/cuda/worldgen/dim_check.c",
+  "csrc/cuda/worldgen/ref.h",
+  "csrc/cuda/worldgen/tables.c",
+  "csrc/cuda/worldgen/worldgen.h",
+  "csrc/engine/biomes_table.c",
+  "csrc/engine/blocks_table.c",
+  "csrc/engine/chatcmd.c",
+  "csrc/engine/chatcmd.h",
+  "csrc/engine/comparator.c",
+  "csrc/engine/comparator.h",
+  "csrc/engine/cwrand.h",
+  "csrc/engine/firework.c",
+  "csrc/engine/firework.h",
+  "csrc/engine/font_cw.h",
+  "csrc/engine/gui_chat.c",
+  "csrc/engine/gui_chat.h",
+  "csrc/engine/items_table.c",
+  "csrc/engine/raster_tileent.h",
+  "csrc/play/framedev.h",
+  "csrc/play/playview.h",
+  "csrc/runtime/agent.c",
+  "csrc/runtime/agent.h",
+  "csrc/runtime/devbusy.c",
+  "csrc/runtime/devbusy.h",
+  "csrc/runtime/feed.c",
+  "csrc/runtime/feed.h",
+  "csrc/runtime/gensrv.c",
+  "csrc/runtime/gensrv.h",
+  "csrc/runtime/moveact.c",
+  "csrc/runtime/moveact.h",
+  "csrc/runtime/moveact_gate.c",
+  "csrc/runtime/pipe_bench.c",
+  "csrc/runtime/pipe_gate.c",
+  "csrc/runtime/pipeline.c",
+  "csrc/runtime/pipeline.h",
+  "csrc/runtime/pool.c",
+  "csrc/runtime/pool.h",
+  "csrc/runtime/pool_bench.c",
+  "csrc/runtime/pool_gate.c",
+  "csrc/runtime/rlact.c",
+  "csrc/runtime/rlact.h",
+  "csrc/runtime/rlact_int.h",
+  "csrc/runtime/rlbind.c",
+  "csrc/runtime/rlbind.h",
+  "csrc/runtime/rlgui.c",
+  "csrc/runtime/rlgui.h",
+  "csrc/runtime/rlgui_int.h",
+  "csrc/runtime/rlloop.c",
+  "csrc/runtime/rlloop.h",
+  "csrc/runtime/rlmove.c",
+  "csrc/runtime/rlmove.h",
+  "csrc/runtime/semcam.c",
+  "csrc/runtime/semcam.h",
+  "csrc/runtime/start_gate.c",
+  "csrc/runtime/view.c",
+  "csrc/runtime/view.h",
+  "csrc/tests/callgraph.c",
+  "csrc/tests/cwdigest.h",
+  "csrc/tests/fncov_recs.c",
+  "csrc/tests/fncov_rt.h",
+  "csrc/tests/fnkey.c",
+  "csrc/tests/play_check_sample.c",
+  "csrc/tests/playfuzz/agentgen.c",
+  "csrc/tests/playfuzz/coverage.c",
+  "csrc/tests/playfuzz/ends.c",
+  "csrc/tests/playfuzz/gen.c",
+  "csrc/tests/playfuzz/playgen.h",
+  "csrc/tests/rawfuzz/gen.c",
+  "csrc/tests/rowrec.h",
+  "csrc/tests/scratch_check.c",
+  "csrc/tests/smoke_select.c",
+  "csrc/tests/test_interleave.c",
+  "csrc/tests/test_jmath.c",
+  "csrc/tests/testmap.c",
+  "csrc/tests/testsel_history.c",
+  "csrc/tests/tool.h",
+  "csrc/tests/worldconf_check.c"
+ ],
+ "by_scope": {
+  "not_needed": 196,
+  "in_scope": 875,
+  "switched_off": 102,
+  "client_cosmetic": 114
+ },
+ "by_status": {
+  "not_applicable": 412,
+  "exact": 874,
+  "partial": 1
+ },
+ "by_category": {
+  "other": 17,
+  "block": 141,
+  "material": 6,
+  "util": 43,
+  "misc": 1,
+  "gui": 1,
+  "client_input": 7,
+  "client_audio": 16,
+  "client_resources": 50,
+  "player": 12,
+  "client_gui": 52,
+  "client_render": 115,
+  "client_model": 44,
+  "chunk": 18,
+  "world": 32,
+  "network": 128,
+  "particles": 33,
+  "commands": 64,
+  "item": 81,
+  "combat": 17,
+  "entity": 98,
+  "ai": 66,
+  "inventory": 27,
+  "crafting": 20,
+  "nbt": 18,
+  "pathfinding": 5,
+  "server": 18,
+  "stats": 12,
+  "tileentity": 22,
+  "math": 4,
+  "worldgen": 119
+ },
+ "by_package": {
+  "": {
+   "not_applicable": 1
+  },
+  "block": {
+   "exact": 131,
+   "not_applicable": 7
+  },
+  "block/material": {
+   "not_applicable": 1,
+   "exact": 5
+  },
+  "client": {
+   "not_applicable": 3,
+   "exact": 1
+  },
+  "client/audio": {
+   "not_applicable": 18
+  },
+  "client/entity": {
+   "not_applicable": 2,
+   "exact": 2
+  },
+  "client/gui": {
+   "exact": 15,
+   "not_applicable": 17
+  },
+  "client/gui/achievement": {
+   "exact": 1,
+   "not_applicable": 2
+  },
+  "client/gui/inventory": {
+   "not_applicable": 6,
+   "exact": 6
+  },
+  "client/main": {
+   "exact": 1
+  },
+  "client/model": {
+   "exact": 37,
+   "not_applicable": 7
+  },
+  "client/multiplayer": {
+   "exact": 3
+  },
+  "client/network": {
+   "not_applicable": 2,
+   "exact": 1
+  },
+  "client/particle": {
+   "exact": 26,
+   "not_applicable": 7
+  },
+  "client/renderer": {
+   "exact": 15,
+   "not_applicable": 6
+  },
+  "client/renderer/culling": {
+   "exact": 3,
+   "not_applicable": 1
+  },
+  "client/renderer/entity": {
+   "exact": 39,
+   "not_applicable": 12
+  },
+  "client/renderer/texture": {
+   "not_applicable": 10,
+   "exact": 5
+  },
+  "client/renderer/tileentity": {
+   "exact": 10,
+   "not_applicable": 4
+  },
+  "client/resources": {
+   "not_applicable": 20,
+   "exact": 2
+  },
+  "client/resources/data": {
+   "not_applicable": 15
+  },
+  "client/settings": {
+   "exact": 2
+  },
+  "client/shader": {
+   "not_applicable": 9
+  },
+  "client/util": {
+   "not_applicable": 4
+  },
+  "command": {
+   "not_applicable": 31,
+   "exact": 5
+  },
+  "command/server": {
+   "not_applicable": 25,
+   "exact": 2
+  },
+  "crash": {
+   "not_applicable": 2
+  },
+  "creativetab": {
+   "not_applicable": 1
+  },
+  "dispenser": {
+   "not_applicable": 8
+  },
+  "enchantment": {
+   "exact": 20
+  },
+  "entity": {
+   "exact": 23,
+   "not_applicable": 2
+  },
+  "entity/ai": {
+   "exact": 42,
+   "not_applicable": 11
+  },
+  "entity/ai/attributes": {
+   "exact": 8
+  },
+  "entity/boss": {
+   "exact": 4,
+   "not_applicable": 1
+  },
+  "entity/effect": {
+   "exact": 1,
+   "not_applicable": 1
+  },
+  "entity/item": {
+   "not_applicable": 8,
+   "exact": 11
+  },
+  "entity/monster": {
+   "exact": 17,
+   "not_applicable": 2
+  },
+  "entity/passive": {
+   "exact": 11,
+   "not_applicable": 5
+  },
+  "entity/player": {
+   "exact": 4
+  },
+  "entity/projectile": {
+   "exact": 8,
+   "not_applicable": 2
+  },
+  "event": {
+   "not_applicable": 2
+  },
+  "init": {
+   "exact": 3
+  },
+  "inventory": {
+   "not_applicable": 7,
+   "exact": 21
+  },
+  "item": {
+   "exact": 58,
+   "not_applicable": 12
+  },
+  "item/crafting": {
+   "exact": 15,
+   "not_applicable": 2
+  },
+  "nbt": {
+   "exact": 14,
+   "not_applicable": 4
+  },
+  "network": {
+   "not_applicable": 12,
+   "exact": 1
+  },
+  "network/handshake": {
+   "not_applicable": 1
+  },
+  "network/handshake/client": {
+   "not_applicable": 1
+  },
+  "network/login": {
+   "not_applicable": 2
+  },
+  "network/login/client": {
+   "not_applicable": 2
+  },
+  "network/login/server": {
+   "not_applicable": 3
+  },
+  "network/play": {
+   "exact": 2
+  },
+  "network/play/client": {
+   "not_applicable": 8,
+   "exact": 13
+  },
+  "network/play/server": {
+   "not_applicable": 16,
+   "exact": 46
+  },
+  "network/rcon": {
+   "not_applicable": 1
+  },
+  "network/status": {
+   "not_applicable": 2
+  },
+  "network/status/client": {
+   "not_applicable": 2
+  },
+  "network/status/server": {
+   "not_applicable": 2
+  },
+  "pathfinding": {
+   "exact": 5
+  },
+  "potion": {
+   "exact": 7
+  },
+  "profiler": {
+   "not_applicable": 1
+  },
+  "scoreboard": {
+   "not_applicable": 10
+  },
+  "server": {
+   "exact": 1
+  },
+  "server/gui": {
+   "not_applicable": 1
+  },
+  "server/integrated": {
+   "exact": 2
+  },
+  "server/management": {
+   "not_applicable": 14,
+   "exact": 4
+  },
+  "server/network": {
+   "not_applicable": 3
+  },
+  "stats": {
+   "exact": 9,
+   "not_applicable": 2
+  },
+  "tileentity": {
+   "not_applicable": 4,
+   "exact": 18
+  },
+  "util": {
+   "exact": 34,
+   "not_applicable": 28,
+   "partial": 1
+  },
+  "village": {
+   "exact": 6
+  },
+  "world": {
+   "exact": 24,
+   "not_applicable": 2
+  },
+  "world/biome": {
+   "exact": 24
+  },
+  "world/chunk": {
+   "exact": 4
+  },
+  "world/chunk/storage": {
+   "exact": 6,
+   "not_applicable": 3
+  },
+  "world/gen": {
+   "exact": 13,
+   "not_applicable": 3
+  },
+  "world/gen/feature": {
+   "exact": 40,
+   "not_applicable": 1
+  },
+  "world/gen/layer": {
+   "exact": 21
+  },
+  "world/gen/structure": {
+   "exact": 17
+  },
+  "world/storage": {
+   "exact": 5,
+   "not_applicable": 8
+  }
+ },
+ "open": [
+  {
+   "path": "oracle/src/util/StringTranslate.java",
+   "status": "partial",
+   "scope": "in_scope",
+   "missing": [
+    "Dynamic language reload and translation of keys outside the checked engine set are not implemented."
+   ],
+   "members_missing": [
+    "translateKey",
+    "containsTranslateKey"
+   ]
+  }
+ ],
+ "gpu_hazards": [
+  {
+   "path": "csrc/engine/activate.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 49-65, functions block_named and item_named: linear string searches of the registries, exit(2) on a missing name",
+    "lines 980-997, function act_live_block: saves, overwrites and restores the global blockcb_env (blockcb.c) around the call",
+    "line 326, function act_item_drop, and line 1066, function act_live_env_drop: calloc of an ie_ent per dropped item inside the tick",
+    "line 261, function act_spawn_item: ie_spawn_item allocates item entities in item_entity.c (not verified in that file)",
+    "line 221-235, function inv_player_add: do/while over the slots until the stack stops shrinking; bounded by the 36 slots in practice",
+    "line 562, function dragon_egg_teleport: bounded 1000-try loop",
+    "act_env carries function pointers (on_write, saved_write) and a struct world pointer"
+   ]
+  },
+  {
+   "path": "csrc/engine/activate.h",
+   "gpu": [
+    "line 143, struct act_env: fixed ACT_MAX_ENTS (512) array of act_ent inline in the env (fixed capacity, fine), but also function pointers at lines 153-156 and a struct world pointer"
+   ]
+  },
+  {
+   "path": "csrc/engine/ai.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "function nav_scratch_take: one environment-held finder and output buffer serve every search, the finder's point, heap and key arrays the arena's pf_store (PF_MAX_POINTS); a search inside another stops the program (none does) (lane/gpuarena, L3)",
+    "nav_path_of and the searches make paths in the environment's path pool (arena.c path_alloc); a path is a pathref handle shared by count (path_hold, path_drop) (lane/gpuarena, L3)",
+    "line 1041, function follow_parent_target: result order depends on an_entities_within_aabb's list order (container-order dependence, matches Java's entity list order)",
+    "line 459, function nav_direct_path: while (1) grid walk, terminates when the target cell is reached (bounded by distance, not by a constant)",
+    "line 330-340, function nav_pathable_y: do/while bounded at 17 steps",
+    "the task targets, mates and partners are lrefs and the paths pathrefs; l->an (the world container) stays an address (lane/gpuarena, L3)",
+    "19 trace() calls (e.g. lines 485, 507, 563, 886) write to the global trace FILE when tracing is on"
+   ]
+  },
+  {
+   "path": "csrc/engine/ai.h",
+   "gpu": [
+    "ai_creature_path_to_entity and ai_creature_path_to_xyz return a pathref into the environment's path pool the caller drops (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/animals.c",
+   "gpu": [
+    "line 278, function animal_on_living_update: chicken egg drop calls an_spawn_item, which calloc()s a new item entity in living.c (per-entity heap allocation inside the tick)",
+    "lines 294 and 301, functions drop_item and drop_item_damage: every drop goes through an_spawn_item (calloc in living.c)",
+    "line 417, function animal_create_child: an_spawn_living calloc()s the child struct living (living.c) and returns a pointer",
+    "lines 436-449, functions bat_write_kind_nbt and animal_write_kind_nbt: nbt_put/nbt_new_byte build a heap NBT tree (used for state hashing and saves, not needed by the GPU tick)",
+    "lines 266 and 743, functions animal_on_living_update and animal_get_block_path_weight: trace() writes to the global trace FILE in trace.c when a trace is open",
+    "struct living carries function pointers (kind_fall set at lines 114 and 137) and back pointers (l->an, l->world): a pointer graph the GPU cannot mirror as is"
+   ]
+  },
+  {
+   "path": "csrc/engine/arena.c",
+   "gpu": [
+    "the capacities are compile-time constants reserved as address space (committed as written); a GPU environment would size them by bytes per environment",
+    "live_arenas: a process-wide registry written when an environment is made or freed (the grave's scan reads it), never inside a tick",
+    "pool free chains are LIFO; ie_ent_release keeps the record (pool_give_keep) until the slot is taken again, because a stack_link may still read the count"
+   ]
+  },
+  {
+   "path": "csrc/engine/blockcb.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 1376, file scope: struct blockcb_env blockcb_env is a global the callers overwrite and restore around their calls (global mutable state, function pointer item_drop plus void *ctx)",
+    "lines 1010-1011, file scope: static wire_changed[256] and wire_nchanged, BlockRedstoneWire's position set as global scratch",
+    "line 1420-1449, function drop_item_spawn: each drop goes through blockcb_env.item_drop or place_item_drop, which build an item entity in the caller (allocation site is the caller's, e.g. activate.c calloc)",
+    "is_class (line 98) compares class name strings from the registry at runtime",
+    "the callbacks are worklist steps (blockwl.h, lane/gpuworklist L7): a nested write, flag-1 metadata write, notification or immediate schedule is emitted and runs after the step; a callback whose body goes on after such a call is split into a step or a continuation op (the door, the rail reshape, the tripwire runs, the torch, trapdoor and bed tails, the liquids after the lava check); no recursion",
+    "function tripwire_hooks_step: one run direction per step, the walk bounded by pos < 42",
+    "function hook_update emits up to 55 ops in one step (a 40-wire line); BWL_EMIT_CAP is 128"
+   ]
+  },
+  {
+   "path": "csrc/engine/blockcb.h",
+   "gpu": [
+    "line 45: extern struct blockcb_env blockcb_env, a process-global environment with a function pointer and void *ctx that callers swap around their calls"
+   ]
+  },
+  {
+   "path": "csrc/engine/blockwl.c",
+   "gpu": [
+    "the run loop is a while over the env's frame stack with a switch per op kind: no recursion, no allocation"
+   ]
+  },
+  {
+   "path": "csrc/engine/blockwl.h",
+   "gpu": [
+    "the stack is fixed (BWL_CAP 4096 frames, BWL_EMIT_CAP 128 ops per step) and overflow aborts; the deepest measured is 895 frames (make -C csrc worklist-depth)",
+    "ops carry a struct world pointer and a jrand pointer (the liquid tick's Random): a device copy needs them as indices"
+   ]
+  },
+  {
+   "path": "csrc/engine/carve.c",
+   "gpu": [
+    "line 128 and 131, function tunnel: recursive call for the two branch tunnels (depth bounded because branches get width <= 1.0 and do not branch again, but still recursion)",
+    "line 260, function carve_pass: source carver passed as a function pointer (cave_source or ravine_source)",
+    "line 202, function ravine: 256-float width profile on the stack per ravine"
+   ]
+  },
+  {
+   "path": "csrc/engine/chatcomp.c",
+   "gpu": [
+    "line 659, chat_s02_send: a 1536-byte local buffer for the JSON and parts before they are copied into the packet's side part (frame under 4 KB, make -C csrc stack)",
+    "lines 435 and 527, chat_json and chat_parts: the component walks run over bounded work lists (SJ_STACK 96, PW_STACK 64), not recursion",
+    "line 50, cc_fail: a tree past its fixed capacities (CC_MAX_COMP, CC_MAX_STYLE, CC_POOL) stops the program",
+    "chat_translate: a linear search over CHAT_KEYS, a const table"
+   ]
+  },
+  {
+   "path": "csrc/engine/chatmsg.c",
+   "gpu": [
+    "lines 123, 132, 161 and 218: each builder keeps one struct chat_comp (under 1 KB) on its frame",
+    "queue_for: opens the row's packet queue from the world pass as the other world-pass senders do (s2c_clear)"
+   ]
+  },
+  {
+   "path": "csrc/engine/chunkgen.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"
+   ]
+  },
+  {
+   "path": "csrc/engine/chunkload.c",
+   "gpu": [
+    "function cl_unload_step: the unload set is a chunkset (chunkset.c): the drain computes its order once (a sort by bin and list stamp) and walks it while no key is added (lane/gpuorder, L4)",
+    "line 1075, functions populate_chunk/load_chunk/populate: mutual recursion (load_chunk -> populate_chunk -> populate -> load_chunk for feed loads, bounded because feed loads pass a pop id and skip the populate rule)",
+    "struct cl fields emit, feed.pop_loads, load_cb, unload_cb, client: callbacks through function pointers",
+    "the popped list, the send queue, the watchers and the drain's scratch are fixed arrays made with the cl (fixed_array, CU_MAX_BINS, CU_MAX_NODES, CL_MAX_QUEUE, CL_MAX_WATCH, CL_MAX_POP); past one the program stops; is_popped reads a fixed open-addressing index over the popped list (popidx, CL_POP_INDEX, lane/longrun)"
+   ]
+  },
+  {
+   "path": "csrc/engine/chunkscan.h",
+   "gpu": [
+    "line 17, struct chunkscan: chunk pointers held for one scan only (a stack local), never across ticks"
+   ]
+  },
+  {
+   "path": "csrc/engine/chunkset.c",
+   "gpu": [
+    "the TreeBin's red-black tree stays, as index links in the slots: its shape decides the untreeify on remove; rebalancing loops are bounded by the tree height",
+    "function cs_put: a held key in a plain bin of 8 or more scans the live slots for its place (the treeify check); a treeify scans them for the bin's list (lane/gpuorder, L4)",
+    "a transfer rebuilds split TreeBins from the new table's order; CHM's transfer reverses the run before lastRun in a plain bin, which this port (as the one it replaces) does not (DEVLOG 2026-09-26, lane/gpuorder)"
+   ]
+  },
+  {
+   "path": "csrc/engine/chunkset.h",
+   "gpu": [
+    "the order is a sort of the live keys by (bin, stamp): a plain put appends (the next stamp up), a tree put prepends (the next down), and a transfer keeps order (lane/gpuorder, L4)"
+   ]
+  },
+  {
+   "path": "csrc/engine/clientworld.c",
+   "gpu": [
+    "lines 73-83, function clientworld_get_entity: linear id search per packet",
+    "lines 119-127 and 329-343, function clientworld_handle_packet: entity removal shifts the array (order-preserving memmove-style loop), entity order is the insertion order",
+    "line 97, function clientworld_add_entity: class name stored as a string (snprintf), and class_is (line 463) switches on BLOCKS class_name via strcmp",
+    "lines 17 and 400, fmod in mh_wrap_angle_to_180 (libm, a GPU port must match it bit for bit)",
+    "line 425, function clientworld_tick_entities: builds a temporary struct entity and runs entity_move_ex per living client entity"
+   ]
+  },
+  {
+   "path": "csrc/engine/collide.c",
+   "gpu": [
+    "lines 52 and 86-87, functions is_stairs/pane_connects: strcmp on BLOCKS class_name strings per neighbor test (string compare in the hot collision path)",
+    "function add_query: past COLLIDE_MAX_BOXES the list moves to a slab block that doubles (lane/capacity); a GPU port needs the slab"
+   ]
+  },
+  {
+   "path": "csrc/engine/combat.c",
+   "gpu": [
+    "line 109, function combat_bind: calloc of the combat state (once per run on bind, not per tick)",
+    "function combat_server_finish: the liveness check sorts the live ids (qsort into a static buffer grown as needed) and bsearches each tracker entry; tracker_remove changes the entry order",
+    "lines 217-224, function combat_server_attack: linear search of the living world's list (pool slots of an_ent) for the target id; the tracker packet queue is a fixed array made at the bind (COMBAT_MAX_PENDING) (lane/gpuarena, L3)",
+    "line 20, function track_one: tracker packets applied through clientworld_handle_packet, entity order is tracker insertion order",
+    "function combat_pick_entity: static arrays of CW_MAX_ENTITIES + 256 candidates (process-global scratch)",
+    "function combat_server_finish: the live-id list is sorted in place by heapsort (qsort could allocate) (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/combatench.c",
+   "gpu": [
+    "function thorns: calls living_attack_entity_from_attacker on the attacker from inside the attacker's own hit (a re-entrant damage call)",
+    "function damage_item: reads the process-global blockcb_env.world_rand for a broken item's sound draw",
+    "functions user_rng and user_rng_done: the player twin's Random is the server player's sv.erand, copied into the twin around each draw"
+   ]
+  },
+  {
+   "path": "csrc/engine/container.c",
+   "gpu": [
+    "lines 117-122, function stack_tags_equal: nbt_render allocates two strings per tag comparison and frees them (heap allocation inside the click path)",
+    "line 72, function tag_bool: nbt_render allocation per tag read",
+    "lines 127-131, function stack_copy: craft_stack_copy deep-copies an nbt tag through its canonical text (heap allocation) whenever a stack has a tag",
+    "lines 364-369, function player_add: do/while loop bounded by the stack count",
+    "struct container fields merchant_use, merchant_sound, furnace_xp, crafted: server-side callbacks through function pointers and void* contexts",
+    "struct craft_stack.tag: every stack owns a heap nbt tree (pointer graph)",
+    "line 1368, function drop_push: more than 16 drops in one click are dropped with a stderr message",
+    "function slot_click_inner: retrySlotClick runs as a loop after the click (the retry is the click's last act), no recursion"
+   ]
+  },
+  {
+   "path": "csrc/engine/crafting.c",
+   "gpu": [
+    "lines 46-61, function copy_tag: deep copy of an nbt tag through nbt_render and nbt_parse (heap allocation, abort on a tag the text cannot carry)",
+    "function give / tag_set and the dye, book, map and fireworks result builders: build nbt trees on the heap (pointer graphs) for results with tags",
+    "lines 889-951, function craft_find_matching: linear walk over all RECIPE_COUNT entries per grid change (bounded, but order-dependent by design: first match wins in list order)",
+    "line 951, function craft_find_matching: abort() on an unknown recipe kind"
+   ]
+  },
+  {
+   "path": "csrc/engine/decorator.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 21-22, file scope: global mutable test hooks decorator_negative_count and decorator_negative_muttree read in the populate path",
+    "lines 25-37, function leaves_mat: lazily initialized statics mat_init_done and leaves_i with a strcmp search of MATERIALS by name",
+    "line 761, function place_block_blob: for(;;) loop, bounded by y descending to 3",
+    "line 653, function decorator_body: while loop walking y down through air"
+   ]
+  },
+  {
+   "path": "csrc/engine/det.c",
+   "gpu": [
+    "line 318, function det_split_random: calloc of a det_split node; reached inside the tick when a caller registers a split lazily (dragon.c enchantment_damage_roll calls it on first use)",
+    "line 323-326, function det_split_random: splits are a singly linked list (pointer graph) appended at the tail by walking it",
+    "line 331-335, function det_split_find: linear strcmp search of the split list by name, order and length unbounded by data",
+    "line 342-344, function det_split_index: index found by walking the linked list",
+    "line 464-470, function det_split_state: digest walks the linked list; order free by construction (sum), so container order does not matter here",
+    "line 142-147, function det_rng_gaussian: rejection-sampling do/while with no fixed bound (as in java.util.Random.nextGaussian)"
+   ]
+  },
+  {
+   "path": "csrc/engine/det.h",
+   "gpu": [
+    "line 59-64, struct det_split: linked-list node (next pointer) with a 128-byte name; splits form a pointer graph owned by det_state",
+    "line 71, struct det_state: splits is a list head pointer, not a fixed-capacity array"
+   ]
+  },
+  {
+   "path": "csrc/engine/dev.c",
+   "gpu": [
+    "line 54, function dev_end: malloc of the dev_writes copy",
+    "line 245, function dev_set_blocks (setblock tile): malloc of the spawner's mob id string, free of the old one",
+    "line 268, 285, function dev_set_blocks (setblock tile): free of furnace slot tags and te->raw",
+    "line 87-94, 514-552, functions dev_summon and dev_apply (hanging): a copied det_state swapped in through pointers (the fake-det dance) so constructor draws land on the server streams",
+    "line 145-166, function dev_purge: frees and reinitializes whole entity worlds (ie_free, fh_free, an_free, spawner_free)",
+    "line 361, 371, function dev_apply: writes the global surv (keep_inventory, difficulty)",
+    "line 185-300, function dev_set_blocks (setblock/fill): saves and restores the global blockcb_env",
+    "line 408-422, function dev_apply (setblock/fill): swaps the global te_dispenser_random hook and place.c's case det around the writes",
+    "function dev_purge: the purged livings and the old player twin go to grave_bury (grave.c's global list; off unless the replay harness enables it)"
+   ]
+  },
+  {
+   "path": "csrc/engine/dig.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 37-38 and 49-50, functions block_named and item_named: exit(2) on a missing registry name",
+    "line 950-954, function dig_init: writes the global blockcb_env (world_rand, det, item_drop callback, ctx pointer to this dig_env)",
+    "line 124-125 in dig.h / line 97, function destroy_partial: progress rows go out through a function-pointer callback"
+   ]
+  },
+  {
+   "path": "csrc/engine/dig.h",
+   "gpu": [
+    "line 105, struct dig_env: holds pointers to the world and det_state",
+    "line 124-125, struct dig_env: partial is a function-pointer callback with an opaque context"
+   ]
+  },
+  {
+   "path": "csrc/engine/dragon.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 78-80, function enchantment_damage_roll: det_split_find by string, then det_split_random (calloc) on first use inside the tick",
+    "line 134-142, function set_target: do/while(1) rejection loop until the new target is over 10 blocks away (unbounded, as in Java setNewTarget)",
+    "line 112-115 and 359-362, functions player_bite and dragon_attack_part: knockback while loops that redraw Math.random until the offset is non-degenerate (unbounded, as in Java knockBack)",
+    "line 170-187, function update_parts: wing_push and head_bite are function-pointer hooks into the owning world",
+    "lines 429 and 439, function dragon_tick: spawn_xp callback; line 382, function dragon_crystal_attack: crystal_explode callback",
+    "line 457-468, function dragon_tick: nearest-crystal search walks the crystals array in index order (the order they were added, standing in for the world's entity list order)"
+   ]
+  },
+  {
+   "path": "csrc/engine/dragon.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 51-63, struct dragon_state: world and det pointers and four function-pointer hooks with opaque contexts"
+   ]
+  },
+  {
+   "path": "csrc/engine/drops.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 186-207, function emit_xp: while loop over the XP amount, bounded by amount since each split is at least 1"
+   ]
+  },
+  {
+   "path": "csrc/engine/drops.h",
+   "gpu": [
+    "line 57-58, struct drop_case: math and out_seed are pointers into the caller's state"
+   ]
+  },
+  {
+   "path": "csrc/engine/enchant.c",
+   "gpu": [
+    "functions hm_init, hm_put, hm_resize: the mapEnchantmentData HashMap holds its buckets and entries in fixed arrays (HM_MAX 64: one node per enchantment, at most 32 buckets reached) and allocates nothing (lane/querybounds, TM-06)",
+    "line 141-142 and 176-177, functions hm_put and hm_resize: linear chain walks to append at the tail (index-linked chains, container order reproduced deliberately)",
+    "line 305, function build_enchantment_list: the repeat loop runs while nextInt(50) <= var11 with var11 halving; once var11 is 0 it continues with probability 1/50 per step (unbounded in principle, as in Java)",
+    "line 349-374, functions book_tag, add_random_enchantment_book and add_random_enchantment_tag: nbt tree allocation and malloc'd rendered text"
+   ]
+  },
+  {
+   "path": "csrc/engine/end.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"
+   ]
+  },
+  {
+   "path": "csrc/engine/endfight.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 17-19 and 129-135, functions endfight_spawn_dragon and endfight_reload_dragon: copy the 64-crystal array to the stack and back around dragon_init (about 64 x 100 bytes of stack)",
+    "line 78-81, function endfight_dragon_nbt: builds an nbt tree (heap) for the digest"
+   ]
+  },
+  {
+   "path": "csrc/engine/endfight.h",
+   "gpu": [
+    "line 28, struct sr_end: shadow is a pointer to a living owned elsewhere"
+   ]
+  },
+  {
+   "path": "csrc/engine/entity.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 173-201, function entity_move_ex: the three sneak clamp while loops, bounded by |dx|/0.05 and |dz|/0.05 steps",
+    "line 207, 260, function entity_move_ex: extra_boxes callback (function pointer) adds entity boxes to the collide list",
+    "lines 330-471, function entity_move_ex: fall, swim_sound, walking_block, attack_from, fizz, set_in_portal and end_portal virtual-method callbacks through function pointers",
+    "line 428-431, function entity_move_ex: the end_portal callback can switch e->world mid-walk (travelToDimension inside moveEntity); the rest of the cell walk reads the new world",
+    "function entity_move_ex: its collision list comes from the environment's scratch stack (collide_scratch_begin, COLLIDE_SCRATCH_DEPTH 4), given back at scope exit, not a 24 KB frame (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/entity.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 17, struct entity: world pointer",
+    "line 52-71, struct entity: self pointer and eleven function-pointer virtual hooks (a vtable by pointer; a GPU port needs a kind switch instead)"
+   ]
+  },
+  {
+   "path": "csrc/engine/entityquery.c",
+   "gpu": [
+    "line 16-24, function chunk_at: linear search of the chunk table for each chunk coordinate",
+    "line 50, function entityquery_in_box: a section list holds ie pool slots (sec_items); results follow each section list's order (container-order dependence carried as data) (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/env.c",
+   "gpu": [
+    "env_first is a static struct env (.bss); env_init gives a zeroed environment its few non-zero starting values (the current tick set, the blockcb role, the fence bounds, the spill Randoms' born states, the scratch index, the null item tag)"
+   ]
+  },
+  {
+   "path": "csrc/engine/env.h",
+   "gpu": [
+    "about 15.6 MB per environment, most of it the item tag store (6.6 MB), the client particles (surv_fx, 7.8 MB) and the tick scratch; zeroed memory is untouched until used (the first environment is .bss, env_new callocs)",
+    "the installed values are pointers into worlds, pools and the replay (Randoms, Det states, callbacks with void * contexts): a device copy needs them as indices",
+    "nw_env is a thread-local pointer: one read per access; a device kernel would take the environment from its block index instead",
+    "struct bwl (blockwl.h), the block callbacks' frame stack: BWL_CAP 4096 frames of 192 bytes (786 KB, untouched past the deepest point: 895 in a populate spring cascade, 636 in a replay)",
+    "scratch.stack (envstack.h): the tick's big locals, ENVSTACK_CAP 256 KB, 105,536 bytes deepest over every test (make -C csrc worklist-depth); make -C csrc stack keeps every tick frame at most 4 KB and each tick root's worst chain under 32 KB"
+   ]
+  },
+  {
+   "path": "csrc/engine/envstack.h",
+   "gpu": [
+    "the stack is part of struct env (ENVSTACK_CAP 256 KB, untouched past the deepest point); make -C csrc worklist-depth names its high-water mark over every test: 105,536 bytes (cp-throw-s1: a region load's 64 KB NBT string buffer under the tick's lists), 40,000 in a steady tick (tick_updates' list); a row's own stack measured the same way (session.c's paint): 15,792 bytes deepest (gold-g26-s42)"
+   ]
+  },
+  {
+   "path": "csrc/engine/explosion.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 175, function expl_env_item_drop: calloc of a new ie_ent per dropped item inside the tick",
+    "function expl_run_extras: the affected set is jord_set3 over the frame (the rays' first adds are its keys, an open-addressed index, per-bin counts for the treeify guard); the HashSet order is a counting sort by JDK bin (lane/gpuorder, L4)",
+    "line 249, function expl_run_extras: ray march loop bounded only by the float power decrement (var14 > 0), terminates but has a data-dependent trip count",
+    "lines 84-101, function block_density: triple float-step loop whose trip count depends on the box size",
+    "line 340, function expl_run_extras: iew->blast_entities callback function pointer into the owner world; expl_extra callbacks at lines 392 and 414",
+    "lines 431-498, function expl_run_extras: saves and overwrites the global blockcb_env for the duration",
+    "lines 139-141 and 448, 458: fprintf to stderr when explosion_debug is set",
+    "function expl_run_extras: the entity frames, the affected set and the affected and first-add lists come from the environment's scratch, one frame per explosion in progress (EXPL_SCRATCH_DEPTH 8: a crystal's blast inside another's); only the probe's expl_result gets heap copies (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/explosion.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 78-85, struct expl_result: affected and affected_first are malloc'd arrays the caller frees",
+    "lines 93-102, struct expl_extra and expl_extra_query: function pointers and an opaque void* entity tag (pointer graph)"
+   ]
+  },
+  {
+   "path": "csrc/engine/fallhang.c",
+   "gpu": [
+    "line 38: global mutable fh_env hooks; line 41: static mutable fall_instantly",
+    "lines 238, 266, 326, 457, functions fh_spawn_falling, fh_adopt_falling, fh_spawn_falling_nbt, spawn_hanging: calloc per entity inside the tick (fallhang_update_tick spawns at line 1144)",
+    "function chunk_add: the chunk table and its section lists come from the arena's list slab (slab_table_room, sec_push; lists hold fh pool slots) (lane/gpuarena, L3)",
+    "lines 153-158, function chunk_find: linear scan over the chunk array (order of first insertion carried as data)",
+    "functions fh_tick_one and fh_tick: a dead entity goes back to the environment's fh pool (fh_ent_release); the list (pool slots) is compacted by memmove (lane/gpuarena, L3)",
+    "lines 296-320 and 442-444: nbt_render/strtoull string round trips with malloc/free for NBT scalars (load path)",
+    "line 1155, function fallhang_update_tick: while loop down the column bounded by y > 0",
+    "line 184, function chunk_add: increments the global entity_chunk_stamp",
+    "lines 822 and 847: draws from the per-entity det_rng in the anvil damage roll and the frame drop chance"
+   ]
+  },
+  {
+   "path": "csrc/engine/fallhang.h",
+   "gpu": [
+    "line 48: extern global mutable fh_env (function-pointer hooks)",
+    "lines 51-86, struct fh_ent: back pointer fw, nbt *tile_entity_data heap tree, embedded struct entity with function pointers",
+    "structs fh_chunk and fh_world: the list holds fh pool slots and each chunk section a slot-index list in the arena slab; fh_ent come from the pool (fh_ent_alloc) and a knot is named by fhref (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/features.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 43-88, function features_for: string-name dispatch through a chain of per-group lookups returning function-pointer tables",
+    "function feature_minable_target (lane/popfeat): struct vein_bands, the 2x2x2 (chunk, band) pointers a step's box reads, forgotten after every write and every read through world_get_block"
+   ]
+  },
+  {
+   "path": "csrc/engine/features.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 27, struct feature: generate is a function pointer (dispatch by table)"
+   ]
+  },
+  {
+   "path": "csrc/engine/features_dungeons.c",
+   "gpu": [
+    "line 58, function own_str: malloc of the spawner's mob id string inside population",
+    "lines 175 and 207, function feature_dungeons: free of chest slot NBT tags and the old spawner mob id (heap-owned tile entity data)",
+    "line 169 and 203: tile entities fetched by pointer via world_tile_entity (pointer into a heap structure)",
+    "lines 131-199, function feature_dungeons: chest-attempt loop bounded by 2 chests x 3 tries",
+    "line 212: fprintf to stderr when the spawner tile entity is missing"
+   ]
+  },
+  {
+   "path": "csrc/engine/features_lakes.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 165, function feature_lake: while loop down the column bounded by y > 5",
+    "lines 415, 473, 575: while loops down the column bounded by y > 2 (desert well, ice spike, ice path)",
+    "lines 537-562, function feature_icespike: for(;;) column fill bounded by var11 > 50",
+    "line 171, function feature_lake: 2 KB stack mask array"
+   ]
+  },
+  {
+   "path": "csrc/engine/features_nether.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 109-111, function feature_helllava: toggles the global ticks_set_immediate flag around liquid_update_tick (World.scheduledUpdatesAreImmediate)",
+    "lines 274-299, function features_nether_for: string-compare lookup table"
+   ]
+  },
+  {
+   "path": "csrc/engine/features_nether.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"
+   ]
+  },
+  {
+   "path": "csrc/engine/features_plants.c",
+   "gpu": [
+    "lines 38-41 and 74-86: material and block-class identity by strcmp on names on every check (cost, not state)",
+    "lines 209-216 and 243-250, functions feature_tallgrass and feature_deadbush: for(;;) walk down the column bounded by y <= 0",
+    "lines 578-608, function features_plants_for: string-compare lookup table"
+   ]
+  },
+  {
+   "path": "csrc/engine/features_springs.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 445-447, function feature_spring: toggles the global ticks_set_immediate flag",
+    "function flow_cost: an explicit stack of four frames (depth 1 to 4), no recursion",
+    "liquid_update_tick and liquid_static_update_tick are worklist entry points; liquid_step and static_step run BlockDynamicLiquid and BlockStaticLiquid.updateTick as frames, the immediate cascade on the worklist (deepest 895 frames, make -C csrc worklist-depth)",
+    "function best_directions_fast (lane/popfeat): func_149808_o over the loaded chunks' cells when every chunk within 5 is loaded: fcf_diamond classifies the 61 cells within 5 into a 121-byte grid, fast_cost searches breadth first (two 32-state layers and a 121-byte seen set on the stack); SP_CLASS, built before main with the material indices"
+   ]
+  },
+  {
+   "path": "csrc/engine/features_trees.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 352, function big_leaf_node_list: malloc of the node scratch array sized by heightLimit; line 410 malloc of b->nodes; lines 413 and 484 free (per-tree heap allocation, also on the sapling-growth path inside the tick)",
+    "lines 380-381, function big_leaf_node_list: libm sin/cos in place of StrictMath (fdlibm); header comment says they differ by up to one ulp on 3.3% of arguments, unobserved in 1200 recorded cases",
+    "line 364, function big_leaf_node_list: while loop bounded by dy >= 0",
+    "line 890, function feature_megajungle: branch loop stepping down by a random 2..5 until the trunk middle"
+   ]
+  },
+  {
+   "path": "csrc/engine/features_trees_small.c",
+   "gpu": [
+    "line 89, function grow_vines: for(;;) bounded by the 4-vine counter",
+    "line 343, function feature_swamp: while loop down through water, bounded only by terrain",
+    "line 454, function feature_shrub: while loop down through air and leaves, bounded by y > 0",
+    "lines 57-60, function mat_is: material identity by strcmp on names on every check"
+   ]
+  },
+  {
+   "path": "csrc/engine/fire.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 252-253: global mutable function pointer fire_tnt_prime and fire_tnt_prime_ctx",
+    "lines 163-168, function class_is: block class identity by strcmp on names"
+   ]
+  },
+  {
+   "path": "csrc/engine/fire.h",
+   "gpu": [
+    "lines 29-30: extern global mutable function pointer fire_tnt_prime and its void* context, installed by the server tick"
+   ]
+  },
+  {
+   "path": "csrc/engine/fortress.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 99 and 375, functions fortress_create and fortress_make_start: calloc per piece (pointer graph of pieces owned by the start)",
+    "line 141, function pending_add: realloc growth of the pending queue",
+    "lines 175-177 and 390-404: weight lists are arrays of pointers into the start piece's own store",
+    "lines 410-418, function fortress_make_start: pending-queue loop whose length depends on the layout (bounded in practice by the depth <= 30 cap and the 112-block reach)",
+    "lines 100 and 376: abort() on allocation failure"
+   ]
+  },
+  {
+   "path": "csrc/engine/fortress_blocks.c",
+   "gpu": [
+    "line 26, function dup_text: malloc of the spawner mob id string (line 373) during population",
+    "line 372, function throne_parts: free of the old spawner mob id (heap-owned tile entity data, fetched by pointer)",
+    "lines 502-504, function entrance_parts: toggles the global ticks_set_immediate flag around liquid_update_tick, whose immediate cascade recurses (features_springs.c)"
+   ]
+  },
+  {
+   "path": "csrc/engine/genahead.c",
+   "gpu": [
+    "line 226, function ga_take: inside the tick it removes the cache entry it hands over (open addressing, backward shift, no allocation); the chunk itself was allocated by the step, outside the tick",
+    "line 199, function ga_note_miss: a miss logs to the FILE genahead_log_misses set (a harness flag, NULL otherwise)",
+    "line 726, function genahead_step: runs between ticks and allocates (the table, the batch buffers, the constructed chunks)"
+   ]
+  },
+  {
+   "path": "csrc/engine/gencache.c",
+   "gpu": [
+    "function gc_lookup: inside the tick it takes a process-wide shard lock and may wait on another thread's generation of the same chunk (a pure function: the chunk and the state are the same either way)",
+    "function gc_generate_c: a stored result is allocated on the process's heap (proc_malloc), outside every environment's image"
+   ]
+  },
+  {
+   "path": "csrc/engine/ghasts.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 216, function gh_closest_vulnerable_player: reads the gh_world through an->user_data (a void pointer only tests/test_ghasts.c sets), so a ghast outside the probe dereferences NULL (DEVLOG notes the play client crash)",
+    "line 318, function ghast_fire_fireball: calloc of an an_ent for every fireball inside the tick",
+    "function ghast_fire_fireball: the fireball joins the lists as pool slots and its shooter is an lref; a ghast's target is a flag on its world's player (lane/gpuarena, L3)",
+    "lines 517-540, function gh_expl_query: damage dispatched through function pointers (attack_from, add_motion)",
+    "line 598, function gh_fireball_impact: O(n) scan of an->list per new explosion item, and calloc per new an_ent (line 611)",
+    "line 730, function gh_player_attack_entity_from: while loop redrawing Math.random until the offset is non-degenerate (unbounded in principle)",
+    "lines 836-873, function ghast_collide_with_nearby_entities: result depends on chunk-section insertion order (container-order dependence, deliberate to match Java's double-add order)",
+    "line 953, function gh_spawn_ghast: calloc of the living and the an_ent",
+    "line 1054, function gh_tick: memmove removal from the list, order-dependent iteration with --i"
+   ]
+  },
+  {
+   "path": "csrc/engine/ghasts.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 28, struct gh_world: holds a pointer to the an_world (pointer graph)"
+   ]
+  },
+  {
+   "path": "csrc/engine/harvest.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 28-33 and 70-74, functions material_named and harvest_block_id: linear strcmp scans of the MATERIALS and BLOCKS tables by name",
+    "lines 201 and 236, functions item_str_vs_block and item_can_harvest: dispatch on strcmp of the item's class_name string"
+   ]
+  },
+  {
+   "path": "csrc/engine/harvestdrops.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 38-50, functions item_named and material_named: linear strcmp scans over ITEMS and MATERIALS by name",
+    "lines 676-693, function item_on_block_destroyed: dispatch on strcmp of the item's class_name string",
+    "line 130, struct hd_state: holds pointers to the shared Math.random jrand and the caller's drop_ent array"
+   ]
+  },
+  {
+   "path": "csrc/engine/harvestdrops.h",
+   "gpu": [
+    "line 65, struct hd_case: carries a jrand pointer to the shared Math.random stream"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles.c",
+   "gpu": [
+    "line 278, function hostile_loot_update: fixed 32-entry item query; results depend on the entity query's container order",
+    "line 345, function hostile_loot_update: an_spawn_item heap-allocates the dropped entity inside the tick",
+    "function hostile_loot_update: the picked-up stack is shared by a stack_link (the item's pool slot, whose record the pool keeps after release, or a living's equipment slot by lref) (lane/gpuarena, L3)",
+    "line 432, function zombie_drop_few_items: an_spawn_item per drop (heap allocation in the tick)",
+    "line 459, function player_construct: on_living_update function pointer",
+    "lines 582 and 704, function hostile_spawn: calloc of the living and its an_ent",
+    "line 603, function hostile_spawn: an->player pointer to the stand-in player",
+    "line 780 and 808, function hostile_write_state: linear scans of the AI task list for the arrow-attack and attack-on-collide tasks"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles_blaze.c",
+   "gpu": [
+    "line 110, function blaze_clear_path: free() of the heap path inside the tick; paths are rebuilt by ai_creature_path_to_entity/xyz (heap) at lines 153, 395, 414",
+    "line 176, function blaze_spawn_small_fireball: calloc of the fireball ie_ent, and line 222 calloc of its an_ent",
+    "line 297, function blaze_construct: kind_fall function pointer",
+    "line 437, function blaze_update_entity_action_state: while loop advancing the path index, bounded by the path length",
+    "line 329, function blaze_drop_few_items: an_spawn_item heap allocation per rod",
+    "references to other livings (entity_to_attack, attack_target, last targets, a projectile's shooter) are lrefs read through lv_get, and the old AI's path a pathref (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles_creeper.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 49, function material_is_air: strcmp on the material name string per call",
+    "line 77, function creeper_construct: kind_fall function pointer",
+    "line 175, function creeper_drop_few_items: an_spawn_item heap allocation per gunpowder",
+    "lines 199-226, function creeper_absorb_items: O(n) scan of an->list per new item and calloc of each an_ent inside the tick",
+    "line 318, function creeper_explode: expl_run over the shared world and entity pool, whose damage order follows the entity lists (container-order dependence)"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles_enderman.c",
+   "gpu": [
+    "line 259, function enderman_clear_path: free() of the heap path inside the tick; ai_creature_path_to_entity/xyz allocate new ones (lines 307, 612, 634)",
+    "line 422, function teleport_to: while loop walking down until a solid block, bounded by y > 0",
+    "lines 521-524, function enderman_attack_entity_from: up to 64 teleport attempts (bounded, dead in the probe)",
+    "lines 754 and 767, function enderman_on_living_update: world_set_block writes the shared world from inside a mob's tick",
+    "line 907, function enderman_drop_few_items: an_spawn_item heap allocation per pearl",
+    "line 953, function enderman_write_extra: hashes the whole path point array (bounded by path length)",
+    "references to other livings (entity_to_attack, attack_target, last targets, a projectile's shooter) are lrefs read through lv_get, and the old AI's path a pathref (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles_pigman.c",
+   "gpu": [
+    "line 72, function pigman_clear_path: free() of the heap path inside the tick; ai_creature_path_to_entity/xyz allocate new ones (lines 108, 381, 403)",
+    "line 249, function pigman_attack_entity_from: an env scratch array of AN_MAX_ENTITIES pointers, and the anger spreads in the entity query's order (container-order dependence on the rand draws of each pigman)",
+    "line 236 and 213, functions become_angry_at and pigman_pre_on_update: entity_to_attack and pigman_last_entity_to_attack are living pointers",
+    "line 427, function pigman_update_entity_action_state: while loop advancing the path index, bounded by the path length",
+    "lines 266 and 269, function pigman_drop_few_items: an_spawn_item heap allocation per item"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles_silverfish.c",
+   "gpu": [
+    "line 34 and 40, function silverfish_spawn_from_egg: calloc of the new living and its an_ent inside the tick",
+    "line 43, function silverfish_spawn_from_egg: an->next_spawn_index is shared mutable counter state across the arena",
+    "line 153, function silverfish_clear_path: free() of the heap path; ai_creature_path_to_entity/xyz allocate new ones (lines 201, 314, 336)",
+    "line 360, function silverfish_update_entity_action_state: while loop advancing the path index, bounded by the path length",
+    "lines 426-435, function silverfish_update_entity_action_state: nested 11x21x21 block scan with world_set_block writes to the shared world",
+    "line 455, function silverfish_update_entity_action_state: world_set_block from inside a mob's tick"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles_skeleton.c",
+   "gpu": [
+    "line 209, function skeleton_attack_entity_with_ranged_attack: an_spawn_arrow heap-allocates the arrow entity inside the tick and returns a pointer",
+    "lines 248, 256 and 263, function skeleton_drop_few_items: an_spawn_item heap allocation per drop",
+    "lines 40-48, function skeleton_set_combat_task: removes and re-adds AI tasks, mutating the task list order at runtime"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles_spider.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 100, function spider_path_to_target: free of the old creature_path and a heap-allocated path from ai_creature_path_to_entity every repath inside the tick",
+    "line 131, function spider_update_wander_path: heap-allocated path from ai_creature_path_to_xyz inside the tick",
+    "line 341, function spider_update_entity_action_state: free of creature_path inside the tick",
+    "lines 280-297, function spider_update_entity_action_state: path-follow loop bounded only by the path length, trip count data-dependent",
+    "line 155, function spider_construct: set_in_web function pointer stored on the entity",
+    "line 455, function spider_jockey_check: calloc of an an_ent for the rider inside the tick",
+    "line 488, function spider_spawn_jockey_skeleton: calloc of the rider struct living inside the tick",
+    "line 453, function spider_jockey_check: living_mount links rider and vehicle by pointer",
+    "spider_spawn_jockey_skeleton runs the rider's onSpawnWithEgg through living_skeleton_on_spawn_with_egg, so the spider's onSpawnWithEgg does not re-enter the dispatch",
+    "references to other livings (entity_to_attack, attack_target, last targets, a projectile's shooter) are lrefs read through lv_get, and the old AI's path a pathref (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/hostiles_witch.c",
+   "gpu": [
+    "line 143, function witch_attack_entity_with_ranged_attack: calloc of the EntityPotion ie_ent per throw inside the tick",
+    "line 197, function witch_attack_entity_with_ranged_attack: calloc of an an_ent wrapper per throw inside the tick",
+    "lines 192 and 203, function witch_attack_entity_with_ranged_attack: appends to the ie_world and an_world pointer lists; entity order is list append order",
+    "references to other livings (entity_to_attack, attack_target, last targets, a projectile's shooter) are lrefs read through lv_get, and the old AI's path a pathref (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/image.c",
+   "gpu": [
+    "the heap's blocks and chains are offsets from the image; what the engine keeps in them is still C pointers, which image_relocate rebases by comparing with a twin run (tests/test_relocate.c prints how many per move)",
+    "env_malloc and env_calloc are on the tick's path (chunk provision, entity creation); off the image they are the C library's"
+   ]
+  },
+  {
+   "path": "csrc/engine/image.h",
+   "gpu": [
+    "img_dir: a kernel handed the image finds each world and dimension state from these offsets"
+   ]
+  },
+  {
+   "path": "csrc/engine/item_entity.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "each ie_ent comes from the environment's pool (ie_ent_alloc) (lane/gpuarena, L3)",
+    "functions ie_tick_one and ie_tick: a dead entity goes back to the pool (ie_ent_release keeps its record until the slot is taken again, for a stack_link that still names its count) (lane/gpuarena, L3)",
+    "function chunk_add: the chunk table comes from the arena's list slab (slab_table_room) (lane/gpuarena, L3)",
+    "lines 240-248, function chunk_find: linear scan over the chunk array on every add, remove and query",
+    "lines 1192 and 1237, function ie_tick: writes the global blockcb_env.world_rand",
+    "lines 345-346, 368, 399, 437, 550-552: function pointers attack_from, fizz and extra_boxes stored on each entity",
+    "line 948, function tnt_update: on_tnt_explode owner callback; line 1081 dispatch to projectile_update",
+    "function update_entity: the shooter is an lref read through lv_get (lane/gpuarena, L3)",
+    "line 739, function combine_items: recursion (depth at most 1, it swaps the pair once)",
+    "lines 1126, 1180, 1232: memmove compaction of the list (pool slots) keeps spawn order, the World.loadedEntityList order carried as array order (lane/gpuarena, L3)",
+    "lines 766-791 and 1322-1345: the merge search and AABB query walk chunk section lists in insertion order (Chunk.entityLists order, carried as array order)",
+    "function chunk_add: each section list holds ie pool slots in the arena slab, grown by size class up to the world's IE_MAX_ENTITIES (sec_push stops loudly past it) (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/item_entity.h",
+   "gpu": [
+    "line 43: ie_ent.iew back pointer to the owning pool",
+    "lines 66-67 and 101: owner_name and thrower string pointers, stack_count_link int pointer",
+    "shooting_entity and shooter are lrefs (living.h); stack_count_link a stack_link; the world's list holds pool slots (lane/gpuarena, L3)",
+    "line 122: ie_chunk holds 16 x 2048 ie_ent pointers per chunk (about 256 KB each)",
+    "ie_world.slot is a fixed array of IE_MAX_ENTITIES (8192) pool slots; ie_list_push stops the program with a message past it",
+    "line 162: ie_world.chunks is a heap array grown by realloc",
+    "lines 166-202: eleven owner callbacks (function pointers) the tick calls into",
+    "line 174 and 189: query_living and blast_entities callbacks return entities in the owner's container order"
+   ]
+  },
+  {
+   "path": "csrc/engine/itemtag.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "functions itag_from_tree, intern, open_tag, close_tag: a new tag renders and parses its canonical text on the heap (only when a stack's tag is written or first seen, never for a plain copy or compare)",
+    "function intern: the store never frees; a full store or arena stops the process"
+   ]
+  },
+  {
+   "path": "csrc/engine/itemuse.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 38-41, function item_sound_random: looks up or creates the Item.itemRand det_split stream by name (whether det_split_random allocates was not checked) inside the tick",
+    "lines 653-663, functions iu_install_rand and iu_restore_rand: save and overwrite the global blockcb_env.world_rand for the length of a use",
+    "line 601, function on_item_use: world_tile_entity returns a tile entity pointer that is written through"
+   ]
+  },
+  {
+   "path": "csrc/engine/jhashmap.c",
+   "gpu": [
+    "jhm64_init and jhm64_put: calloc of the table and malloc of one node per new key; chains of heap pointers. It serves worldgen's structure map (populate.c, populate_nether.c), outside L4's list; the explosion's ChunkPosition set moved to jorder.c (lane/gpuorder, L4)"
+   ]
+  },
+  {
+   "path": "csrc/engine/jhashmap.h",
+   "gpu": [
+    "jhm64_init and jhm64_put: calloc of the table and malloc of one node per new key; chains of heap pointers. It serves worldgen's structure map (populate.c, populate_nether.c), outside L4's list; the explosion's ChunkPosition set moved to jorder.c (lane/gpuorder, L4)"
+   ]
+  },
+  {
+   "path": "csrc/engine/jmath.h",
+   "gpu": [
+    "line 8: extern float MH_SIN[65536], a global table written once by jmath_init and read-only afterwards"
+   ]
+  },
+  {
+   "path": "csrc/engine/jorder.c",
+   "gpu": [
+    "function jord_set3_add: a key that would make a bin of 9 (a JDK 8 tree bin) or pass the caller's capacity aborts",
+    "function jord_ccp_window: the tree path takes about 30 KB of env scratch (1,089 nodes, two tables of 2,048 bins); two equal hashes in one tree bin are ordered as equal identity hashes, which a JVM's own identity hashes need not match",
+    "no allocation; storage is the caller's or the env scratch stack (lane/gpuorder, L4; lane/longrun)"
+   ]
+  },
+  {
+   "path": "csrc/engine/jorder.h",
+   "gpu": [
+    "no chains: a put-only JDK 8 map's order is a stable sort of its insertion sequence by bin; a bin that would treeify is kept in insertion order (the window) or stops the program (the set3) (lane/gpuorder, L4)"
+   ]
+  },
+  {
+   "path": "csrc/engine/jrand.h",
+   "gpu": [
+    "lines 32-36, function jr_int_n: Random.nextInt(n) rejection do-while for a non-power-of-two n, unbounded in principle (expected under two iterations)"
+   ]
+  },
+  {
+   "path": "csrc/engine/lang.c",
+   "gpu": [
+    "lang_text scans a generated pointer table; callers in the tick use only checked keys and do not allocate"
+   ]
+  },
+  {
+   "path": "csrc/engine/layers.c",
+   "gpu": [
+    "line 110, function area: malloc of the parent area on every layer call (IntCache is replaced by the heap)",
+    "line 133, function zoom: malloc of the zoom scratch buffer",
+    "line 635, function voronoi: malloc of the voronoi scratch buffer",
+    "lines 108-113 and 677-703, functions area and layer_ints: recursion through the parent layers (depth bounded by the stack, about 50 layers)",
+    "lines 728-741, function seed_world: recursion over the parent chain",
+    "lines 709-716, function mk: parent pointers p1 and p2 into g->node (pointer graph within a fixed array)"
+   ]
+  },
+  {
+   "path": "csrc/engine/layers.h",
+   "gpu": [
+    "line 24, struct layer: p1 and p2 are pointers into the same node array (a pointer graph, though inside one fixed array of LAYER_MAX 64)"
+   ]
+  },
+  {
+   "path": "csrc/engine/leash.c",
+   "gpu": [
+    "leash_sr: static global pointer to the replay (the player twin and the knot pool)",
+    "leash_knot: a living names its knot by fhref (generation-checked slot handle) (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/light.c",
+   "gpu": [
+    "lines 45-56, function height_map_of: per-column while loop from the top filled section down, bounded by 256",
+    "lines 81-90, function skylight_map: per-column do-while bounded by y > 0 and light > 0"
+   ]
+  },
+  {
+   "path": "csrc/engine/lightcap.c",
+   "gpu": [
+    "function lightcap_update: runs inside the tick only when a harness set nw_env->light.cap (test_snapshots --light-cap); it allocates nothing there (its buffers and the mirror's map are made by lightcap_new)"
+   ]
+  },
+  {
+   "path": "csrc/engine/lightning.c",
+   "gpu": [
+    "line 76, function lightning_tick: strike(ctx, bolt) callback through a function pointer into the owner (the entity damage and onStruckByLightning pass lives in the caller)"
+   ]
+  },
+  {
+   "path": "csrc/engine/lightning.h",
+   "gpu": [
+    "lines 20-21, lightning_tick: takes a strike callback function pointer and an opaque ctx"
+   ]
+  },
+  {
+   "path": "csrc/engine/living.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "livings and list entries come from the environment's slot pools (living_alloc, an_ent_alloc; arena.c) with generations; a living's parts (AI tasks, villager trades, player inventory) sit beside it in the arena (lane/gpuarena, L3)",
+    "function an_chunk_get: the chunk table comes from the arena's list slab (slab_table_room), found by linear scan (an_chunk_find) (lane/gpuarena, L3)",
+    "struct living holds lrefs to other livings (targets, riders, attackers, task partners) and function pointers per kind (on_living_update and the others set in living_init): the virtual dispatch stays (lane/gpuarena, L3)",
+    "lines 2892-2897, function an_tick_one: removal memmoves the whole entity list to keep spawn order; an_tick (line 2924) re-runs index i after a removal, so tick order is the container order",
+    "lines 655-715, function an_collect: query results follow chunk (cx, cz), section y and in-section insertion order (Java's order, carried by the container)",
+    "function an_chunk_add: a section holds as many as its world (AN_MAX_ENTITIES; sec_push stops loudly past it); each section list holds an_ent pool slots in the arena slab (sec_push) (lane/gpuarena, L3)",
+    "line 3885, function an_add_living_list: no bound check against AN_MAX_ENTITIES (4096)",
+    "lines 4017-4052, functions living_nbt_hash and item_entity_nbt_hash: build and render a heap NBT tree per entity per hash",
+    "line 2919, function an_tick: trace() writes to the global trace file when one is open; line 2920-2927 swap the global blockcb_env for the tick",
+    "line 614, function an_chunk_add: increments the global entity_chunk_stamp from entity.c",
+    "function an_tick_one: a removed dead living goes to grave_bury (grave.c's global list; off unless the replay harness enables it)",
+    "living_write_nbt walks the riding chain in a loop (RIDING_CHAIN 16, deepest 2) and puts each Riding tag afterwards, innermost first; block_light_value_do's neighbour reads go through block_light_value_raw; the setSize moveEntity (entity_size_apply -> living_move -> entity_move_ex) still closes a cycle through the move's collision and fall callbacks (attack_from, fall_state, end_portal: function pointers), see lane/gpuworklist's DEVLOG entry"
+   ]
+  },
+  {
+   "path": "csrc/engine/living.h",
+   "gpu": [
+    "struct living: a 4,216-byte hot record (was 23,440; 6,512 before lane/entmem named attribute modifiers by id) with every kind's fields; the AI task lists and door list (living_ai), the villager's trades (living_villager) and the probe player's inventory (living_player) are pools of their own, a slot taken when first reached (ai_part, villager_part, player_part); senses are one per env (env.h senses); references to other livings are lrefs; l->world, l->an and player_sp stay addresses of containers (lane/gpuarena, L3; lane/entmem)",
+    "struct ai_task: 120 bytes, the shared fields then each class's own in an anonymous union (lane/entmem); target, mate, golem and child are lrefs, the front door a door-pool slot + 1, the village an index + 1 in its collection, the paths pathrefs (lane/gpuarena, L3)",
+    "line 191-194, struct path_nav: pointers to a path, the path finder and a heap int buffer",
+    "struct an_world: the list holds an_ent pool slots; the chunk table comes from the arena slab (lane/gpuarena, L3)",
+    "struct an_chunk: 16 sec_list slot-index lists in the arena slab (lane/gpuarena, L3)",
+    "lines 536-561, struct an_world: several replay and probe callbacks as function pointers",
+    "line 544, struct an_world: jrand *shuf_rand pointer to an external Random"
+   ]
+  },
+  {
+   "path": "csrc/engine/loot.c",
+   "gpu": [
+    "line 76, function dup_str: malloc of each slot's tag text; called from put_entry (lines 91 and 102) for every placed stack whose entry is the enchanted book",
+    "line 142, function loot_book_build: add_random_enchantment_tag (enchant.c) returns a heap string held in struct loot_book",
+    "lines 19-20, function loot_table_by_name: linear strcmp lookup by name string"
+   ]
+  },
+  {
+   "path": "csrc/engine/loot.h",
+   "gpu": [
+    "lines 36-37, struct loot_table: const pointers to name and entries (read-only data, fine as a constant table)"
+   ]
+  },
+  {
+   "path": "csrc/engine/lzpack.c",
+   "gpu": [
+    "function lzp_decompress: runs inside the tick at a chunk's load (chunk_unpack_blob, rspill_take); allocates nothing, the output buffer carries LZP_SLACK bytes of room; read-only static tables only"
+   ]
+  },
+  {
+   "path": "csrc/engine/mineshaft.c",
+   "gpu": [
+    "line 20, function piece_new: calloc of every piece struct during structure start generation",
+    "line 34, function room_add_entrance: realloc-grown array of entrance boxes per room (roomsLinkedToTheRoom)",
+    "lines 168-181, function next_piece: mutual recursion with piece_build_component (structure.c) through corridor_build, crossing_build, room_build and stairs_build; bounded by the depth > 8 test (line 171) and the 80-block radius test (line 172)",
+    "lines 103, 125 and 143, functions corridor_find, crossing_find and stairs_find: start_find_intersecting scans the start's piece list, so placement depends on list insertion order (Java's List order, preserved)",
+    "pieces are linked into struct start (structure.c) as pointers: a pointer graph the GPU cannot mirror as is"
+   ]
+  },
+  {
+   "path": "csrc/engine/mineshaft_blocks.c",
+   "gpu": [
+    "line 18, function dup_text: malloc of the spawner's mob id string (\"CaveSpider\") stored in the tile entity",
+    "line 123, function corridor_parts: free of the spawner tile entity's previous mob_id, so tile entities hold owned heap strings",
+    "line 40, function corridor_cart: loot_table_by_name does a strcmp lookup per cart attempt",
+    "line 43, function corridor_cart: loot_book_build allocates the book tag string (freed at lines 48 and 60)",
+    "line 27, function material_is_air: strcmp on the material name for an air test"
+   ]
+  },
+  {
+   "path": "csrc/engine/nbtedit.c",
+   "gpu": [
+    "lines 55-56, function nbt_set_key: nbt_render allocates two text copies per edit",
+    "line 60, function nbt_set_key: malloc of the spliced text",
+    "line 118, function nbt_set_key: nbt_parse builds a whole new heap tree per edit",
+    "lines 8-45, function value_end: text scan with strchr, bounded by the string length",
+    "line 126, function nbt_set_key: abort() when the spliced text does not parse"
+   ]
+  },
+  {
+   "path": "csrc/engine/nbtjson.c",
+   "gpu": [
+    "functions pool_alloc_normal, pool_release, pool_realloc: every node, string, array, list and compound comes from static size-class free lists carved from 256 KB slabs (never returned), or malloc over 4 KB",
+    "functions scratch_alloc, nbt_scratch_begin and nbt_scratch_end: the scratch region's static slabs, rewound as a whole and the first slab re-zeroed per build (so nbt_scratch_bytes determines the tree); a scratch value must not outlive the end",
+    "function intern: keys and short string values interned in a static open-addressed table (never freed) behind a 4096-slot pointer cache verified by strcmp",
+    "struct nbt (nbtjson_tree.h): a pointer tree the GPU cannot mirror",
+    "function nbt_put: compounds keep insertion order, and nbtbin.c derives Java HashMap iteration order from it, so order is container state that must be preserved",
+    "function nbt_get: linear strcmp scan per key lookup",
+    "function key_order: insertion sort per render (quadratic in the key count) with a heap index array",
+    "function xmalloc: exits the process on allocation failure",
+    "functions nbt_free, render_value and parse_value: explicit stacks of NBT_WALK_DEPTH (64) open containers, deepest 9; diff_rec (a test tool) still recurses"
+   ]
+  },
+  {
+   "path": "csrc/engine/nbtjson.h",
+   "gpu": [
+    "nbt is an opaque pointer tree type; every caller that holds one holds a pointer graph",
+    "nbt_scratch_begin/nbt_scratch_end: trees built in between live in a region the end rewinds"
+   ]
+  },
+  {
+   "path": "csrc/engine/nbtjson_tree.h",
+   "gpu": [
+    "struct nbt: a pointer tree (nbt **v, struct nbt_field *f) the GPU cannot mirror",
+    "struct nbt_key: pointers into the process-lifetime intern table"
+   ]
+  },
+  {
+   "path": "csrc/engine/nether.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 348-411, function hell_tunnel: recursive (each branch point calls hell_tunnel twice); depth bounded in practice by width > 1.0f halving but not by a fixed limit",
+    "line 96, function nether_field: libm cos stands in for StrictMath.cos; exactness depends on the platform libm, which a GPU math library may not match"
+   ]
+  },
+  {
+   "path": "csrc/engine/noise.c",
+   "gpu": [
+    "lines 104-171, function improved_add: the 3D path caches corner gradients across iterations while the integer y cell repeats (last_y, c0..c3), a loop-carried dependence a per-cell GPU thread cannot split without recomputing; results must stay bit-identical",
+    "line 189 and line 335, functions octaves_3d and perlin_2d: out arrays are caller-owned; no allocation here, but sizes are unchecked (xs*ys*zs up to the caller)"
+   ]
+  },
+  {
+   "path": "csrc/engine/particles_live.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 209, function fx_add: a layer at 4000 drops its oldest FX by a memmove of the array tail (container order is the spawn order)",
+    "function particles_live_tick: FX spawned during the pass append to the array the loop walks (the bound pl->n grows), as the Java lists do",
+    "function particles_live_init: EffectRenderer.rand is seeded from a constant, not the oracle's unrecoverable stream, so live hit particle positions differ by design",
+    "struct particles_live holds 16000 FX inline (about 8 MB per instance)",
+    "new_crit runs EntityCritFX's onUpdate through crit_update, not fx_update's dispatch, so the crit emitters' spawns do not re-enter fx_update"
+   ]
+  },
+  {
+   "path": "csrc/engine/particles_live.h",
+   "gpu": [
+    "lines 59-61, struct particles_live: back pointers to world, det and the render mesher",
+    "line 63, struct particles_live: fixed-capacity array of PLIVE_CAP (4096) FX, flat (good), about several hundred bytes each"
+   ]
+  },
+  {
+   "path": "csrc/engine/pathfind.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 92-110, function pf_build_tables: block class and material identity resolved by strcmp on names",
+    "line 147-149, function is_material_in_bb: strcmp per block on the material name inside the tick",
+    "lines 172-173 and 200-202, functions pf_lookup and pf_add_key: malloc of the hash table and rehash growth inside the tick",
+    "lines 271-272, function open_point: realloc of the point pool inside the tick",
+    "lines 370-371, function heap_add: realloc of the heap inside the tick",
+    "lines 181-188, 212-224, 233-251: open-addressing probe loops bounded only by table load",
+    "lines 611-647, function search: A* loop bounded only by the number of reachable points within max_dist, not a fixed cap",
+    "lines 724-732, function chunk_cache_window: loads (and may generate) chunks through the world provider from inside the search"
+   ]
+  },
+  {
+   "path": "csrc/engine/pathfind.h",
+   "gpu": [
+    "struct pf: the point pool, heap and key table are the environment's pf_store arrays (PF_MAX_POINTS), bound at the first search; the table grows within them and refills from the points (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/phase.c",
+   "gpu": [
+    "harness only: runs when a test turns the tracer on; allocates (the written-chunk list, te_render, NBT trees) and walks every chunk slot per phase, which is why it stays out of the tick when off"
+   ]
+  },
+  {
+   "path": "csrc/engine/phase.h",
+   "gpu": [
+    "the kernel boundary contract: a kernel for phase P reproduces P's digest (phase.c class digests over P's declared writes) from the env state C leaves at P's start; off, a mark is one predictable branch on nw_env->phase.on",
+    "the profiler's sub-marks sit inside hot tick functions (update_light_by_type, the S6 chunk loop, the pathfinder, the chunk load path); off, each is one predictable branch on nw_env->phase.on & PHASE_PROF"
+   ]
+  },
+  {
+   "path": "csrc/engine/phaseprof.c",
+   "gpu": [
+    "harness only: on when a test turns it on; its rows live in one mmap made before the first row, so it allocates nothing inside a row"
+   ]
+  },
+  {
+   "path": "csrc/engine/pick.c",
+   "gpu": [
+    "function pick_order: O(n^2) selection of the next insertion stamp per chunk slice (bounded by the client entity cap)"
+   ]
+  },
+  {
+   "path": "csrc/engine/pickobj.c",
+   "gpu": [
+    "function send and spawn_copy: realloc of the packet queue and the copies array",
+    "function pickobj_bind: calloc of the state (once per run)",
+    "functions trk_find, obj_find: linear searches by id"
+   ]
+  },
+  {
+   "path": "csrc/engine/place.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 51-73, functions mat_named, is_block_class, is_item_class: material, block class and item class identity by strcmp on names, called per placement inside the tick",
+    "line 759, function portal_run: portal frame scan loop bounded by 21 cells",
+    "lines 371-377, struct rail: carries a struct world pointer; rails are stack values, no heap graph"
+   ]
+  },
+  {
+   "path": "csrc/engine/place.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"
+   ]
+  },
+  {
+   "path": "csrc/engine/player.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 51, function key_lookup: strcmp over key descriptions (load/parse time)",
+    "line 243, function liquid_flow_vector: strcmp on the material name \"ice\" inside the tick",
+    "lines 394-396, function scalar_text: nbt_render heap string then free (snapshot load, not the tick)",
+    "line 1241, function client_player_tick: particles_live_tick on a shared surv_fx particle state (client-side cosmetic work inside the client tick)",
+    "struct client_player and server_player (player.h) hold function pointers on_world_change and on_entity_update and pointers to combat, replay, open_container and iew: a pointer graph between per-player state"
+   ]
+  },
+  {
+   "path": "csrc/engine/player.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 146 and 238, struct client_player on_world_change and struct server_player on_entity_update: function pointers with void* contexts inside per-player state",
+    "struct client_player combat, open_container and struct server_player replay, iew, open_container, snapshot_tree: pointers into other structures (a pointer graph the GPU cannot mirror directly)"
+   ]
+  },
+  {
+   "path": "csrc/engine/populate.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 200-224, function populate_add_start: saves, nulls and restores the global populate_world_rand around the start build",
+    "lines 172 and 213, functions populate_offer_chunk and populate_add_start: realloc growth of each structure map's start array on chunk generation",
+    "line 319, function map_order: realloc of the order scratch",
+    "line 241, function populate_biome_spawn_search: malloc of the 129x129 biome grid (world creation)",
+    "lines 312-329, function map_order: container-order dependence carried deliberately as java.util.HashMap iteration order through jhm64_order",
+    "line 390, function populate_structures: sc_generate over structure pieces; sc_free_ents frees the per-call entity list (line 394)",
+    "line 448, function populate_precipitation_height: while loop bounded by y > 0",
+    "line 86, function chunk_at: world_load_chunk may generate neighbour chunks from inside populate",
+    "function start_reload: a mineshaft start's pieces read back from the environment's blob file (regionspill.c) and malloc'd inside the tick, when a population meets a start the park spilled",
+    "tables COLUMN_EMIT (light sources by an id's low byte) and PRECIP_STOP (the precipitation walk's stops by id), built before main (lane/popfeat)"
+   ]
+  },
+  {
+   "path": "csrc/engine/populate.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "struct pop_map: heap-grown starts array plus a jhm64 hash map whose iteration order is part of the semantics",
+    "struct populate: order scratch is heap-grown (order, cap_order)"
+   ]
+  },
+  {
+   "path": "csrc/engine/populate_nether.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 115, function populate_hell_offer_chunk: realloc growth of the fortress start array on chunk generation",
+    "lines 180 and 219, functions populate_hell_fortress_at and populate_hell_structures: realloc of the populate order scratch",
+    "lines 183 and 222: container-order dependence carried as java.util.HashMap iteration order via jhm64_order",
+    "line 52 and 477, functions hell_feature and populate_end_spike: feature rows looked up by name string (features_nether_for)",
+    "lines 203, 462, 493: globals populate_hell_negative_anystart, populate_negative_spike, end_dragon_last",
+    "line 406, function end_top_solid_or_liquid: world_load_chunk may generate a chunk from inside populate"
+   ]
+  },
+  {
+   "path": "csrc/engine/populate_nether.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"
+   ]
+  },
+  {
+   "path": "csrc/engine/portal.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 67 and 70, function portal_cache_init: calloc and malloc of the cache (at teleporter creation)",
+    "line 102, function portal_cache_grow: calloc rehash growth inside the tick when the cache fills",
+    "line 162, function portal_cache_put: realloc of the key list inside the tick",
+    "lines 109, 117, 147, 183: open-addressing probe while loops bounded only by table load",
+    "lines 212-228, function portal_cache_remove_stale: removal order carried by the keys array (mirrors destinationCoordinateKeys), with O(n) shifting per removal",
+    "line 296, function teleporter_place_in_existing_portal: while loop descending a portal column, bounded by the column",
+    "lines 464 and 529, function teleporter_make_portal: while loops dropping to the ground, bounded by y > 0",
+    "lines 492 and 550, function teleporter_make_portal: goto-based early exit from the site scan",
+    "line 264, function teleporter_place_in_existing_portal: 128-block radius scan (257x257 columns by height) on a cache miss"
+   ]
+  },
+  {
+   "path": "csrc/engine/portal.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "struct portal_cache: heap-grown entries and keys arrays (not fixed capacity)",
+    "struct teleporter: holds a struct world pointer"
+   ]
+  },
+  {
+   "path": "csrc/engine/potion.c",
+   "gpu": [
+    "lines 451, 464, 477, 496, 512, function potion_apply_attributes: snprintf of the modifier name inside the tick",
+    "lines 903 and 910, function potion_get_effects_for_damage: strlen and string parsing of the requirement table per call",
+    "function parse_potion_effects: the '|' and '&' splits evaluated on an explicit stack (at most 32 frames, deepest 5)",
+    "the potion map's order is data (potion_map_order over ids, stamps and the capacity); every walk, the update's expiring removal included, goes over that order (lane/gpuorder, L4)"
+   ]
+  },
+  {
+   "path": "csrc/engine/potion.h",
+   "gpu": [
+    "struct potion_map: effects in an array by id, a held bit mask and insertion stamps; the HashMap order is computed (bins ascending, a 16-bin table's pair by stamp), no chains, a plain copy (lane/gpuorder, L4)"
+   ]
+  },
+  {
+   "path": "csrc/engine/projectile.c",
+   "gpu": [
+    "lines 198, 229, 292, 379, 406, 442, functions proj_spawn_arrow, proj_spawn_arrow_target, proj_from_shooter, proj_spawn_throwable, proj_spawn_fireball, proj_spawn_ender_eye: calloc of each new projectile inside the tick, stored as a pointer in iew->list",
+    "shooting_entity and shooter are lrefs to the shooting living (lane/gpuarena, L3)",
+    "lines 826-855, 859-884, 888-908 (arrow), 1011-1092 (throwable), 1205-1305 (fireball): nearest-hit selection keeps the first candidate on a distance tie, so the result depends on the order entityquery_in_box and the query_living / query_other callbacks return candidates; fixed-size candidate buffers of 128 and 64 silently cap the scan",
+    "lines 738, 913, 922, 927, 1098, 1111, 1312, and egg/pearl paths 574, 603: behavior dispatched through ie_world function pointers (on_splash, on_arrow_hit, on_other_hit, on_fireball_impact, on_egg_chicken, on_pearl_impact, query_living, get_living_bb, spawn_item)",
+    "lines 119-122, function update_rotations and lines 519-522, function ender_eye_update: while loops wrapping prev angles by 360, unbounded in principle (bounded by the angle magnitude)",
+    "lines 486-488, function proj_throw_ender_eye: looks up Item.itemRand's det split stream by string name and may create it",
+    "line 1285, function projectile_update: the player's box comes through ghast_player_bb on iew->user_data, a ghasts.c coupling"
+   ]
+  },
+  {
+   "path": "csrc/engine/projectile.h",
+   "gpu": [
+    "the shooter is passed as a struct living pointer and kept on the projectile as an lref (lane/gpuarena, L3)"
+   ]
+  },
+  {
+   "path": "csrc/engine/randomtick.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 258-261: statics drop_det, drop_role, drop_sink (function pointer) and drop_sink_ctx, the drop environment published per tick",
+    "lines 1494-1495, function flower_pick: static perlin flower_noise lazily initialized on first bonemeal (lazy global init)",
+    "lines 64-72 and 83-98, functions mat_is, mat_id_is, rt_light_diffuse: material and class identity decided by strcmp on names inside the tick",
+    "line 108, function rt_chunk: world_load_chunk may load or generate a chunk from inside a light read",
+    "lines 960 and 1015, functions rt_cactus and rt_reed: while loops walking down the column, bounded only by world height",
+    "lines 1575-1620, function grass_bonemeal: a for(;;) random walk, bounded by n / 16 steps per try",
+    "lines 866-917, function sapling_grow: tree growth calls the features_* generators with their own globals (features_tree_notify, features_bigtree_reset)",
+    "function block_light_do: the five neighbour reads go through block_light_raw, no recursion"
+   ]
+  },
+  {
+   "path": "csrc/engine/randomtick.h",
+   "gpu": [
+    "lines 35-65: the API publishes per-tick state through setters into file-scope globals (World.rand pointer, Det state, drop sink function pointer and context), saved and restored for nested passes via struct randomtick_env"
+   ]
+  },
+  {
+   "path": "csrc/engine/raytrace.c",
+   "gpu": [
+    "line 40-41, function can_collide_check: strcmp of the block's class_name against three liquid class names per visited block",
+    "line 353, function raytrace_blocks: loop bounded at 201 iterations (var13 = 200), as in Java",
+    "function block_bounds: a switch on the block id per visited block (no strcmp; the torch branch is by id now)",
+    "global raytrace_negative_stairs_nearest: test_raypick's negative-check switch, read on every stairs trace"
+   ]
+  },
+  {
+   "path": "csrc/engine/regioncache.c",
+   "gpu": [
+    "function regioncache_begin/regioncache_capture: file I/O (open, mmap, flock, rename, readdir) inside the first chunk load of a tick, once per replay; host only, like the build it replaces",
+    "function regioncache_chunk: chunk_new, malloc of the packed blob and calloc of each tile entity in the tick (the build it replaces allocated 170,000 times)",
+    "function rc_mode: getenv(\"HOME\") for the default cache directory"
+   ]
+  },
+  {
+   "path": "csrc/engine/regionspill.c",
+   "gpu": [
+    "function rspill_take/rspill_blob_get: pread and lzp_decompress (lzpack.c, nothing allocated) inside the tick, when a load reaches a spilled chunk or a population a spilled start; host only, like the region cache",
+    "function rspill_put/rspill_blob_put/move_records: pwrite, mkstemp, unlink, lzp_compress and sync_file_range at the park, between rows",
+    "function file_new: getenv(\"HOME\") for the default directory"
+   ]
+  },
+  {
+   "path": "csrc/engine/riding.c",
+   "gpu": [
+    "the server player's vehicle is an lref (ridingh) (lane/gpuarena, L3)",
+    "open_s2c: the per-player s2c queue is opened from inside the entity pass (the rider's update), keyed on dev_prequeued and net_phase"
+   ]
+  },
+  {
+   "path": "csrc/engine/serverreplay.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 5530 and 5564, functions sr_tiles_loaded and sr_tiles_unloaded: getenv(\"NOTL\") and getenv(\"NOTU\") environment reads that skip the tile entity bookkeeping (against the AGENTS rule of no environment variables)",
+    "line 1617, function sr_on_block: realloc of the entity pass's extra writes inside the tick",
+    "function sr_order_push: the pass order is a fixed array made with the dimensions (SR_MAX_ORDER) (lane/gpuarena, L3)",
+    "line 2251, function sr_on_spawn: realloc of weatherEffects (bolts) inside the tick",
+    "line 1739, function sr_tile_construct, and line 2351, function serverreplay_lightning_strike: calloc of a new struct living per spawner attempt or pig-to-pigman conversion inside the tick",
+    "functions sr_restore_checkpoint_entity and sr_restore_saved_entities: calloc per reloaded entity on chunk load inside the tick",
+    "functions sr_end_save_entities, sr_save_item, sr_chunk_unload_cb and the checkpoint loads: saved_ents grows by one element per saved entity on chunk unload, in the arena's slab (slab_grow); the list is never compacted, so a long session grows it without bound (lane/querybounds, TM-06)",
+    "function sr_end_save_entities: the saved dragon_state copy is a slab block (slab_take) (lane/querybounds, TM-06)",
+    "line 4326, function sr_player_send_chunks: malloc of a full chunk copy per sent chunk (up to 5 per tick)",
+    "functions sr_save_chunk_ticks, sr_put_chunk_ticks, sr_save_seed_ticks, sr_saved_read_region: the chunk tick table and each chunk's saved ticks are slab blocks (slab_grow, slab_take, slab_give) (lane/querybounds, TM-06)",
+    "function sr_ensure_saved: lazily fills the region store from the first chunk load/unload callback inside a tick: the seed world from its region-cache image (regioncache.c; the whole seedworld build, 625 chunks, on a miss); a checkpoint start records the save's chunk coordinates (sr->lazy) and sr_saved_fetch reads one region chunk at its first load (sr_saved_read_region: cells, tile entities, pending ticks, entities)",
+    "lines 5553 and 5549-5551, function sr_tiles_loaded: realloc of the tile entity list and linear presence scans over it (O(n) per tile, O(n^2) per chunk)",
+    "lines 5890-5892, function sr_cl_event: three malloc'd pointer arrays per chunk unload event",
+    "realloc of the client chunk stream (line 466); the send queue grows in the slab (slab_grow) (lane/querybounds, TM-06)",
+    "the entity pass names its entities by pool slot (struct sr_ent pool + id, sr_ent_p); the region store's live instances are sr_ent or lref (pool 6), and the End dragon's saved state a heap copy (lane/gpuarena, L3)",
+    "function sr_active_set: the active chunk set's HashSet order from jorder.c's jord_ccp_window (the window sorted by JDK bin, a 2 KB count array) (lane/gpuorder, L4)",
+    "line 5427, function sr_ie_copy, and line 5584, function sr_ie_post_update: a portal traveller's copy and its dead old instance are malloc'd inside the entity pass",
+    "line 5505, function sr_ie_portal_travel: calloc'd an_ent wrappers for a mob-pool traveller inside the tick",
+    "line 5355, function sr_living_portal_travel: the destination dimension is swapped in mid-update (serverreplay_enter) and left entered until the traveller's post_update",
+    "functions sr_store_chunk, serverreplay_park, the seed-world build, sr_adopt_dim_snapshot: a chunk an unload parks in the region store keeps its bands through the tick and the row after (SR_PARK_WAIT, lane/spillfast: most reloads come within a row) and is packed between rows (serverreplay_park, the PARK sub-mark; chunk_pack, lzpack.c), a seed-world or adopted Nether/End region chunk as it enters the store, and unpacked at its next load (chunk_unpack in sr_chunk_load_cb, sr_hell_provide, sr_sky_provide) (lanes worldmem, gpumem2)",
+    "functions sr_chunk_load_cb, sr_hell_provide, sr_sky_provide: a stored chunk enters the live world through world_chunk_request (CREQ_STORED) (lane/gpuorder, L4)",
+    "functions sr_hell_restore_entities and sr_restore_saved_entities: the restore order is a slab block taken and given back per chunk load; sr_end_blast_query's list is a slab block taken once (lane/querybounds, TM-06)",
+    "function sr_saved_take: a region-store chunk, its tile entities, saved entities (NBT) and saved ticks read back from the environment's spill file (regionspill.c: pread and lzp_decompress) inside the tick"
+   ]
+  },
+  {
+   "path": "csrc/engine/serverreplay.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "struct sr_ent: a pool and the entity's slot in it (the crystal's index, 0 for the player and dragon); the pass order is an index list (lane/gpuarena, L3)",
+    "lines 383-385, struct sr_saved_entity: active pointer, heap NBT tag and strdup'd class string",
+    "lines 409, 448, 450, 453, 456, 465, 468, 476, 495, 507, struct serverreplay: heap arrays with count/capacity pairs (sent chunk copies, ents, bolts, extra, dev_writes, saved_ents, chunk_ticks, join_clock, send_queue, cchunks) grown at runtime",
+    "struct serverreplay dims[3], d: each dimension's sr_dimstate at a fixed place, entered by repointing d (serverreplay_enter); its pools and pass order hold pointer members (pointer graph)"
+   ]
+  },
+  {
+   "path": "csrc/engine/servertick.c",
+   "gpu": [
+    "function servertick_phase: S1, S2, S1T, S4, S5, S6 or SG alone, the device build's entry beside servertick_chunk_loop (cuda/tick dev.c chunkloop, tick_batch --phases; lane/gputick); S1T comes back to C on the device (its sky angle's cos is glibc's)",
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "function write_push: the tick's write and spawn lists are fixed arrays made with the world (servertick_reserve, ST_MAX_WRITES, ST_MAX_SPAWNS) (lane/gpuarena, L3)",
+    "line 399, function spawn_new: realloc grows the per-tick spawn list inside the tick; line 923 re-reads the element by index because the realloc can move it",
+    "function servertick_set_active: copies into the fixed active array (ST_MAX_ACTIVE) (lane/gpuarena, L3)",
+    "lines 987-1005 and 1028-1034, function servertick_tick: installs and clears process-global hooks (w->on_block, fire_tnt_prime, randomtick rand/det/drop sink, blockcb_env, ticks.c rand and total time); lines 307-313 swap w->on_block around wake_all",
+    "lines 588 and 605, function update_tick: while loop drops a falling block down the column, bounded by y > 0",
+    "lines 882-892, function tick_chunks: world_chunk lookup and possible world_load_chunk (generation and population) inside the tick; the active set order is a recorded HashSet order carried as data",
+    "lines 661-662, function update_tick: fprintf to stderr for the unported portal pigman spawn",
+    "lines 30-56 and 1109-1148, functions scalar_text/nbt_long/st_value_str: malloc and free per NBT scalar read (load time only, not in the tick)",
+    "struct servertick holds function-pointer callbacks and a struct world pointer: a pointer graph the GPU cannot mirror as is",
+    "function servertick_chunk_loop: S6 alone, the device kernel's entry (lane/gpus6, L17): cuda/tick/dev.c's chunkloop runs it per thread block on the engine's own C compiled for nvptx64 (cuda/tick/tick.mk); the callbacks it reaches that the device keeps are cuda/tick/tick.mk S6_CALLBACKS (st_on_block, st_drop_sink, st_tnt_prime, st_block_env_drop, sr_on_spawn), any other one (chunk provision, the plate and portal hooks) flags the run and C redoes it"
+   ]
+  },
+  {
+   "path": "csrc/engine/servertick.h",
+   "gpu": [
+    "struct servertick: active is a fixed ST_MAX_ACTIVE array holding the recorded JDK 8 HashSet order (container order carried as data) (lane/gpuarena, L3)",
+    "lines 119-122, struct servertick: writes and spawns are growable heap arrays (cap fields) filled inside the tick",
+    "line 54, struct st_spawn: cls is a string pointer, class identity by name",
+    "lines 127-163, struct servertick: function-pointer hooks (on_spawn, on_spawner, arrows_in, on_unload_step, on_sleep_check, on_wake_all) with void* contexts, a pointer graph the GPU cannot mirror"
+   ]
+  },
+  {
+   "path": "csrc/engine/session.c",
+   "gpu": [
+    "function client_world_change: frees and mallocs a new client world on a dimension change (handleRespawn), inside the client tick call chain",
+    "function client_take_chunks: takes heap-allocated chunks from the server each tick and frees the replaced ones",
+    "function open_server: callocs the serverreplay and copies every server chunk of an older snapshot into a separately malloc'd client chunk (setup, not per tick)",
+    "function session_tick: calls grave_collect between rows (a no-op unless the caller enabled grave.c)"
+   ]
+  },
+  {
+   "path": "csrc/engine/sleep.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "function monsters_near: the query list holds every match (AN_QUERY_LIST) (lane/querybounds, AI-02)",
+    "line 74, function monsters_near: the answer depends only on any match, so the entity-list order does not matter here",
+    "lines 105-113 and 173-179, functions set_player_location and sleep_in_bed_at: packets pushed to the player's s2c queue"
+   ]
+  },
+  {
+   "path": "csrc/engine/slimes.c",
+   "gpu": [
+    "line 602, function an_spawn_slime: calloc of a struct living per slime, reached inside the tick by slime_set_dead's split (line 265)",
+    "line 625, function an_spawn_player: calloc of the player living",
+    "function player_on_living_update: the collision query list holds every match (AN_QUERY_LIST); the collide order follows an_entities_excluding's list order (lane/querybounds, AI-02)",
+    "lines 746-748 and 779-781, function slime_write_state: heap NBT text per entity per record (probe recording, not simulation)",
+    "lines 44-46: difficulty pinned to NORMAL as compile-time constants; the EASY/HARD/PEACEFUL branches are dead code"
+   ]
+  },
+  {
+   "path": "csrc/engine/smelting.c",
+   "gpu": [
+    "lines 20-31 and 38-43: linear scans whose first-match result depends on the generated table's order (the Java HashMap order carried as data)"
+   ]
+  },
+  {
+   "path": "csrc/engine/snapshot_entities.c",
+   "gpu": [
+    "line 409, function sr_living_from_nbt: calloc of a struct living when a chunk loads inside the tick",
+    "line 356, function restore_living: calloc of a nav path",
+    "line 563, function sr_load_snapshot_entities: calloc of an an_ent for a loaded arrow",
+    "lines 65-83 and 87-105, functions kind_for_class and sr_kind_for_class: entity class dispatch by strcmp on class names",
+    "line 154, function restore_trade_stack: heap NBT text for a trade stack tag",
+    "lines 404-417, function sr_living_from_nbt: copies the server Det streams into a fake det_state and back (Det state shuffled through a struct copy)"
+   ]
+  },
+  {
+   "path": "csrc/engine/spawning.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "function find_chunks: the eligible set is jorder.c's jord_ccp_window, the 289 keys sorted by JDK bin from the player's chunk, no map (lane/gpuorder, L4)",
+    "line 972, function ench_tag: malloc of an enchantment NBT text per enchanted equipment stack",
+    "line 1651, function pack_walk: while (1) loop bounded only by the pack walk's own break conditions",
+    "line 2025, function spawner_world_gen: while (jr_float(walk) < 0.1F), a probabilistic loop with no fixed bound",
+    "lines 1574-1580, function sp_mat: material lookup by strcmp on names each call",
+    "struct spawner (spawning.h): ensure_chunk and possible_creatures function pointers with void* contexts",
+    "recs, boxes, out and the id index are fixed arrays made with the spawner (SP_MAX_RECS, SP_MAX_BOXES, SP_MAX_OUT); records are append-only, so a long run needs the cap (follow-up: recycle a dead mob's record) (lane/gpuarena, L3)",
+    "function block_light_do: the five neighbour reads go through block_light_raw, no recursion; egg_on_rider runs the jockeys' chicken and skeleton onSpawnWithEgg, so egg_on does not call itself"
+   ]
+  },
+  {
+   "path": "csrc/engine/spawning.h",
+   "gpu": [
+    "struct spawner: recs, rec_index, boxes and out are fixed arrays made at spawner_init; out holds pointers into recs (stable: the array never moves) (lane/gpuarena, L3)",
+    "struct sp_rec: eq_tag holds heap strings"
+   ]
+  },
+  {
+   "path": "csrc/engine/spill.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "function container_spill: while loop bounded by the slot's stack count; output through a function-pointer sink"
+   ]
+  },
+  {
+   "path": "csrc/engine/stronghold.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 74, function gen_box: malloc of the biome box",
+    "line 310, function sh_pending_add: realloc of the pending list",
+    "lines 331-332, function mk_empty: calloc of each piece and its sh_state (pointer graph of pieces)",
+    "lines 801-831, function stronghold_make_start: retry loop up to 2000 attempts, then abort()",
+    "line 822, function stronghold_make_start: pending list removal shifts the array by index (order-dependent, carried as data)"
+   ]
+  },
+  {
+   "path": "csrc/engine/stronghold_blocks.c",
+   "gpu": [
+    "line 33, function dup_text: malloc of a string copy",
+    "lines 141-153, function chest: loot_book_build/loot_book_free allocate per chest",
+    "line 106, function stones_select: selector passed as a callback with a void* context"
+   ]
+  },
+  {
+   "path": "csrc/engine/structure.c",
+   "gpu": [
+    "line 115, function start_add: realloc of the start's piece pointer array (pointer graph of heap pieces)",
+    "line 377, function start_list_add: realloc of the start list",
+    "line 413, function structure_walk: malloc of each start",
+    "line 420, function structure_walk: qsort of the found starts (order imposed after the walk)"
+   ]
+  },
+  {
+   "path": "csrc/engine/structure.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 124, struct piece: village pending_house/pending_road and fortress pending are heap arrays of piece pointers (pointer graph)",
+    "line 146, struct piece: void *owned, per-type heap state",
+    "line 155, struct start: pieces is a heap array of piece pointers"
+   ]
+  },
+  {
+   "path": "csrc/engine/structure_blocks.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 50, function sc_add_ent: realloc growth of the context's entity list (heap allocation during chunk population)",
+    "line 29, function sc_ent_free: free of heap-owned loot stack tags (loot_stack.tag pointers)",
+    "line 59, function sc_add_ent: calls the global function pointer populate_on_ent (global mutable callback state)",
+    "lines 648-663, function sc_generate: iterates s->pieces, an array of piece pointers, and compacts it in place when a piece returns false (pointer graph; the dropped piece is not freed here)",
+    "line 508, function sc_fill_down: while loop down a column, bounded by y > 1",
+    "line 522, function sc_clear_upwards: while loop up a column, bounded by y < 255",
+    "line 20 and line 192, functions class_of and is_directional: strcmp on block class-name strings per call (string compares in the hot fill path)"
+   ]
+  },
+  {
+   "path": "csrc/engine/structure_blocks.h",
+   "gpu": [
+    "line 65, struct sc_ctx: piece_fn is a function pointer and ents a heap array the context grows (pointer state the GPU cannot mirror as is)",
+    "line 50, struct sc_ent: slots are loot_stack values whose tag field is heap-owned (see structure_blocks.c sc_ent_free)"
+   ]
+  },
+  {
+   "path": "csrc/engine/surface.c",
+   "gpu": [
+    "line 258, function column: recursion for SURF_MUTATED into the base biome (depth 1 in practice, a mutated biome's base is not mutated)",
+    "line 270, 289, 302, function column: writes the per-biome topBlock back into struct surface (mutable per-world state carried across columns, mirroring Java's biome singletons)",
+    "line 159, function mesa_column: libm cos, whose sign only is used (the note says StrictMath.cos in Java)"
+   ]
+  },
+  {
+   "path": "csrc/engine/survival.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 2175-2179, surv_digenv, surv_digenv_ready, surv_dig_active, surv_dig_ticked, surv_dig_fork: static globals holding the one server player's dig machine",
+    "line 2197, surv_fx and line 4617, surv_mo: global client particle list and mouseover",
+    "line 2282, function surv_dig_adopt: calloc of a silverfish struct living inside the tick (per-entity heap allocation, adopted into the living world by pointer)",
+    "line 2342, function process_c07: getenv(\"NV2_SF_DEBUG\") read inside the tick (debug print only, but an environment read on the tick path)",
+    "line 664-667, function scalar_text: nbt_render allocates and frees a string (snapshot load, not per tick)",
+    "lines 2628, 2748, 2811, 3152, 3490, 4091, 4140, 4337, function gui_open_tile, gui_open_merchant, gui_open_ender and others: container_free of heap-backed containers on window open and close; lines 4327, 4473, 4518 craft_stack_free",
+    "lines 2716, 3475-3476: free of tile entity raw NBT pointers on close",
+    "line 1272, function surv_server_damage_by: while loop redrawing Math.random until the knockback direction is non-zero (unbounded in principle, as in Java)",
+    "line 2135, function surv_server_fresh: respawn push-up while loop until the box is free of collisions (bounded only by world height in practice)",
+    "function surv_client_base_tick: the client potion pass walks potion_map_order (the map's order as data; lane/gpuorder, L4)",
+    "lines 470-474, function stats_fill_dirty: the S37 map is emitted in enum order, while Java's HashMap order is unordered (documented as not observable)"
+   ]
+  },
+  {
+   "path": "csrc/engine/survival.h",
+   "gpu": [
+    "line 234-238, struct surv_stats: toast_title and toast_sub are const char pointers (client-only string pointers inside per-player state)",
+    "line 425-427, struct surv_world: det, iew, extra_iew, anw and world_rand are pointers to shared world objects",
+    "line 454, extern struct surv_world surv: one global world instance for the survival layer",
+    "struct s2c_ring (env.h survival.s2c): three 128-packet queues with a per-queue side store sized for 128 full S3F lists; only n packets and nside side bytes are live, the rest is never touched (an image export needs only those)"
+   ]
+  },
+  {
+   "path": "csrc/engine/temple.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 132, function temple_piece_new: calloc of each piece; start_add links it into the start's piece-pointer list (heap allocation and pointer graph)"
+   ]
+  },
+  {
+   "path": "csrc/engine/temple_blocks.c",
+   "gpu": [
+    "line 129-132, function temple_chest: loot_book_build and loot_book_free around each chest (loot.h says the book is a heap-held stack that must be released: allocation during population)",
+    "line 84, function top_solid_or_liquid: strcmp on the material name per column cell",
+    "line 76, function top_solid_or_liquid: world_load_chunk may load or generate a chunk from inside a population step",
+    "line 115, function feature_ground_level: mutates the shared piece (hpos and bounding box) the first step that covers it, so later steps depend on step order, as in Java"
+   ]
+  },
+  {
+   "path": "csrc/engine/texanim.c",
+   "gpu": [
+    "texanim_load: malloc of the whole anim.rgba (load time, not the tick)",
+    "the scene cache (scene_dir, scene_anim, scene_state) and the live pointers (live_anim, live_state): static mutable state behind a mutex, for the recorded renderer and the one live client"
+   ]
+  },
+  {
+   "path": "csrc/engine/throw.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 29-31, function item_rand_float: det_split_find by string name, then det_split_random creates the stream on first use (lookup by name and possible allocation inside the tick, depending on det.c)",
+    "lines 306-307, function throw_bind: installs function pointers into the living world (on_pearl_impact, spawn_item)",
+    "lines 113 and 159, functions spawn_throwable and throw_server_use: projectiles are ie_ent pointers adopted into the living world's pool (pointer graph; the pool's capacity is in projectile.c and living.c)"
+   ]
+  },
+  {
+   "path": "csrc/engine/ticks.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "function heap_push: growth of the pending heap by a quarter, in the arena's slab (slab_grow; ticks_pop gives room back the same way) (lane/querybounds, TM-06)",
+    "function set_resize: the doubled or halved hash table is a slab block, the old one given back after the rehash (lane/querybounds, TM-06)",
+    "function ticks_peek: a peek of up to TICKS_PEEK_MAX (16) candidates uses a stack array (the tick peeks one); a check that reads the whole set gets a heap (lane/gpuarena, L3)",
+    "function ticks_walk: a slab copy of the heap per call, qsorted (ticks_save's backup and ticks_peek's large candidate heap are slab blocks too) (lane/querybounds, TM-06)",
+    "line 379, function ticks_chunk_updates: qsort of the result",
+    "lines 216-223 and 234, set_contains/set_add: open-addressing probe loops bounded only by the load factor",
+    "line 100, function falling_update_now: while loop dropping the block down to the first non-passable block",
+    "line 43, world_rand: pointer to an external Random, installed by the server tick",
+    "ticks_schedule_block_update runs its immediate liquid and falling updates on the block worklist (blockwl.h): the SCHED op, liquid_step, the falling block's FALL_TAIL; set_grow reinserts through set_insert (no recursion)"
+   ]
+  },
+  {
+   "path": "csrc/engine/ticks.h",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "the entry id counter is one per environment shared by every world, as NextTickListEntry.nextTickEntryID is static",
+    "line 68, ticks_walk: callback over the set"
+   ]
+  },
+  {
+   "path": "csrc/engine/tileentity.c",
+   "gpu": [
+    "line 249, function te_new: calloc of one tile entity per creation (per-entity heap allocation, reachable from block placement in the tick)",
+    "line 278, function te_new: malloc of the spawner's mob id string",
+    "line 374, function te_put: realloc growth of the per-chunk pointer store",
+    "lines 191-195 of tileentity.h used here: the store is an array of pointers to separately allocated entities (pointer graph)",
+    "lines 343, 359-368, 389-399: linear scans of the store in creation order; iteration order is the insertion order, not Java's HashMap order",
+    "lines 526-852, the render_* functions: build and free an NBT tree and malloc a string per writeToNBT",
+    "lines 823-824: global mutable function pointer te_dispenser_random and its context, installed by the machine",
+    "lines 104-105, function put_stack: exit(2) on a slot tag that does not parse"
+   ]
+  },
+  {
+   "path": "csrc/engine/tileentity.h",
+   "gpu": [
+    "lines 192-195, struct te_store: an array of pointers to individually allocated tile entities (pointer graph)",
+    "lines 73 and 111: owned heap strings inside the entity (te_stack.tag, te_spawner.mob_id)",
+    "line 169: raw, an owned heap copy of the oracle's NBT text",
+    "lines 228-229: extern global mutable function pointer te_dispenser_random and its context"
+   ]
+  },
+  {
+   "path": "csrc/engine/tileticks.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 652, function tileticks_pass: realloc growth of the world's tile entity list inside the tick",
+    "line 689, function tileticks_pass: realloc growth of the chunk's tile entity store inside the tick",
+    "lines 608-629, function tileticks_pass: walks an array of pointers to heap tile entities; removal shifts the tail (O(n) per removal)",
+    "lines 644-645, function tileticks_pass: linear membership scan per added entity (O(n*m))",
+    "lines 470-477, function enchant_update: while loops wrapping angles, unbounded in principle",
+    "lines 37-70, function furnace_fuel_value: item identity by strcmp on names per call",
+    "lines 391 and 385: tt_env function pointer calls into the replay"
+   ]
+  },
+  {
+   "path": "csrc/engine/tileticks.h",
+   "gpu": [
+    "lines 66-70, struct tt_env: function pointers and a void* context installed into global state by tileticks_set_env",
+    "line 52: the cos table is passed as a pointer to recorded values (the oracle records cos because glibc differs from fdlibm)"
+   ]
+  },
+  {
+   "path": "csrc/engine/tnt.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 133-134 and 140-141, function tnt_replay_explode: writes the global explosion flags expl_exclude_ie and expl_placed_by_player around the call",
+    "function blast_query: the query list holds every match (AN_QUERY_LIST, AN_MAX_ENTITIES from the env scratch stack) (lane/querybounds, AI-02)",
+    "lines 80-121, function blast_query: the blast's entity pass is a callback table (expl_extra.attack_from / add_motion function pointers over void* entities)"
+   ]
+  },
+  {
+   "path": "csrc/engine/trace.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 15-28, function mkdir_parent: filesystem writes (mkdir) from trace_open",
+    "lines 52-86, function trace: file I/O from inside the tick when a trace is open (a no-op otherwise)"
+   ]
+  },
+  {
+   "path": "csrc/engine/tracker.c",
+   "gpu": [
+    "lines 43-66, tracker_find and tracker_remove: linear scans by id; tracker_remove swaps the last entry into the hole, so entry order depends on removal history rather than Java's tracked-entity set order",
+    "lines 94-130, function tracker_add: tracking range chosen by strcmp on the class name",
+    "function tracker_add: past TRACKER_MAX_ENTRIES (4096, the living list) the program stops with a message (list_full)"
+   ]
+  },
+  {
+   "path": "csrc/engine/tracker.h",
+   "gpu": [
+    "line 77: struct tracker holds a fixed 512 entries inline (flat, GPU-friendly, but a hard cap)",
+    "lines 40, 46-47, 50: fixed-size arrays inside every tracker_packet (64 ids, 512 chunk coordinates, 64 records), about 6 KB per packet"
+   ]
+  },
+  {
+   "path": "csrc/engine/trades.c",
+   "gpu": [
+    "lines 373-381 and 406-420, functions op_book and op_tools: build an NBT tree and malloc the rendered tag string inside the tick",
+    "lines 273, 311, 336, 351, 382, 423 and 461: list->r[list->n++] appends with no check against TRADES_MAX (32); add_with_check can overflow a list that grows past 32 recipes",
+    "line 432, function trades_add_default: a 32-recipe trade_list on the stack per call",
+    "lines 164-168: recipe stacks own heap tag strings (char* in a flat struct)"
+   ]
+  },
+  {
+   "path": "csrc/engine/trades.h",
+   "gpu": [
+    "line 18, trade_stack.tag: owned heap string inside an otherwise flat struct"
+   ]
+  },
+  {
+   "path": "csrc/engine/village.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 104, function are_biomes_viable: malloc of the biome buffer on every piece test",
+    "line 118, function vill_new: calloc of one piece per structure component (pointer graph of pieces in the start)",
+    "lines 164-165, function weights_add: realloc of the per-start weight list",
+    "line 309, function village_pending_add: realloc growth of the road and house queues",
+    "lines 776-796, function village_make_start: loop until both queues drain, bounded only by the depth (50 / 3) and distance (112) guards",
+    "lines 514 and 535: last_weight compared by pointer identity, including a pointer to removed_weight to mirror Java's reference to a removed list element",
+    "line 734, function village_can_spawn: reads the global populate_world_rand pointer and reseeds that stream when set"
+   ]
+  },
+  {
+   "path": "csrc/engine/village_blocks.c",
+   "gpu": [
+    "lines 40-55, function top_solid_or_liquid: world_load_chunk may load or generate a chunk from inside the piece builder, and the material test uses strcmp on the material name",
+    "line 196, function spawn_villagers: villager construction through sc_villager_new (entity creation during population)",
+    "lines 160-185, function place_door: raw world_set_block writes and neighbour notifications outside the piece's box guard for the upper half"
+   ]
+  },
+  {
+   "path": "csrc/engine/villagers.c",
+   "gpu": [
+    "line 157, function v_add_door: malloc of each door (village.doors is an array of pointers); doors removed at lines 186-188 are never freed",
+    "lines 323 and 332, function v_tick: calloc of a new iron golem and its an_ent inside the tick",
+    "lines 873 and 882, function villager_create_child: calloc of the child and its an_ent",
+    "lines 962 and 982, function vil_spawn_living: calloc per spawned living",
+    "lines 338, 888 and 988: append to the an_world list with no capacity check here",
+    "lines 538-539, function vc_tick: memmove of struct village entries when one is annihilated; living->village pointers into vc->villages (lines 757 and 934) can then point at a different or stale village",
+    "lines 222-229 and 245-252: villager and golem counts scan the whole an_world entity list",
+    "lines 256-260, function class_is: block class identity by strcmp on names",
+    "line 636, function calc_celestial_angle: libm cos (glibc, not fdlibm) in the siege's day test"
+   ]
+  },
+  {
+   "path": "csrc/engine/villagers.h",
+   "gpu": [
+    "village.doors holds door-pool slots (door_at); a villager's, a task's and the siege's village is an index + 1 in its collection (vc_village) and aggressors are lrefs (lane/gpuarena, L3)",
+    "lines 32, 37, 59, 70, 75: raw pointers to living, an_world and village objects inside the structs",
+    "the doors, aggressors, new doors and villages are slab tables that grow (villagers.c, lane/capacity); positions hold 128 where Java adds while 64 or fewer (never past 65); pointers into a slab table move when it grows"
+   ]
+  },
+  {
+   "path": "csrc/engine/world.c",
+   "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "function world_chunk_request: every chunk a server world gains (CREQ_GENERATE, CREQ_STORED, CREQ_SUPPLIED) and every generation (CREQ_OWED too) goes through it; it records the request (world.reqs: a count per kind, the last 256) and generates through the world's chunk_backend (chunk_backend_c: provide_chunk and load_dim_chunk), the seam for a batched generator (lane/gpuorder, L4)",
+    "function world_chunk_request (CREQ_GENERATE): chunk_new (calloc of the 2.8 KB chunk header) on demand; any world_get_block/world_get_meta through chunk_for (line 654) can generate a chunk inside the tick",
+    "lines 151-202: the chunk map is an open-addressing table of chunk pointers with calloc growth (line 180) and a 256-entry near-hit cache written from a const lookup (line 167)",
+    "line 227, function load_order_push: realloc growth of the load order; line 240, load_order_drop: memmove",
+    "lines 831-923, function update_light_by_type: queue loops bounded by the fixed 32768-entry w->light_list and the 17-block distance guard",
+    "lines 1879, 1926, 1936, 1959: realloc growth of the tile entity registry, added list, world list and chunk store",
+    "lines 1873-1874, 1910-1921, 1974-2010: linear scans and O(n) shifts over the tile entity lists; the registry dedupe is O(n) per add",
+    "lines 1383, 1392, 1398, 1408, 1414, 1365, 395, 451, 367: function pointer hooks (on_attempt, on_block, on_attempt_end, on_chunk, provide) installed by the harness",
+    "line 1635, function chunk_populate_column: loop ending on the sealed flag or y 0",
+    "function chunk_sec_make: a chunk's cells live in up to 16 bands (struct chunk_sec, 10 KB: the id's low byte, NibbleArrays for metadata, sky and block light, index x << 8 | z << 4 | y & 15, and an ids_hi nibble array made only for an id above 255), calloc'd on the first nonzero write to the band and freed with the chunk (chunk_free); a GPU mirror is a per-env band pool with a 16-entry index per chunk (lane worldmem, 2026-09-26)",
+    "functions world_insert_chunk, pay_owed: realloc growth of the owed list (world.owed); pay_owed replays the skipped overworld generations (each a CREQ_OWED request) into a heap scratch chunk at the next CREQ_GENERATE",
+    "functions chunk_pack, chunk_unpack: a chunk the region store parks keeps its bands as one blob compressed by lzpack.c (lane/spillfast; raw deflate at level 1 before) until it loads again; the env's pack scratch holds the raw form, the compressed form and the codec's table (lanes worldmem, gpumem2)",
+    "world_set_block, the flag-1 world_set_meta and world_notify_neighbors are worklist entry points (blockwl.h): set_block_step runs Chunk.func_150807_a in phases around breakBlock and onBlockAdded, notify_step one neighbour per step; no recursion (lane/gpuworklist L7)",
+    "function chunk_sec_make: a chunk's bands are slots of the environment's band pool (arena.h ARENA_BANDS), zeroed when taken and given back when the chunk drops them; no band allocates (lane/gpuarena, L3)",
+    "function world_light_update_raw: the light engine has a device port (csrc/cuda/lighting/replay.cu: one block per update, C's FIFO queue run a window at a time over chunks in the image layout), byte-equal to this function on every call of every snapshot recording (make -C csrc gpu-lighting-check, lane/gpulight)",
+    "function world_init_slab: a world made while the environment ticks (the replay's region store, sr_saved_init) keeps its chunk map and load order in the slab (chunk_map_grow, load_order_push, world_free follow slab_mem); other worlds still calloc and realloc them (lane/querybounds, TM-06)",
+    "function chunk_unpack: lzp_decompress into the env's pack scratch, allocating nothing (zlib's slab-allocated inflate state before lane/spillfast)",
+    "functions lw_chunk, lw_move, lw_near_exist, lp_pass (lane/chunkspeed): the light engine reads chunks through the world's window (struct world lwin: the refs of the 8x8 chunks around the pass's origin, each looked up once; map_ver, bumped by every map insertion and removal, drops it) and memoizes the last doChunksNearChunkExist box (lbox); lp_pass is updateLightByType specialized on the light type, reusing computeLightValue's neighbor reads for the spread and running a cell of a chunk a no_generate world lacks (the client's edge floods) without the general reads; the queue, its order and every write are unchanged",
+    "function chunk_construct (lane/chunkspeed): one pass per band (mask, storage, ids, metadata of non-air cells, the random-tick count from TICK_RANDOMLY, a table built before main); generate_skylight_map reads and stores through the band pointer",
+    "function lt_flood (lane/popspeed): a server world's light pass past its first cell (no_generate 0, not remote): its 4x4 chunk table is a local, its queue is w->light_list in its own coordinates, and the stamps that let it skip a re-light turn known to change nothing are struct env scratch lt_stamp (405 KB, numbered by light.flood_seq, zeroed when the number nears wrap); the column sweeps (sky_column) and func_147451_t's pair (light_pair) take their box test once and go around update_light_by_type only when no capture or profile is on",
+    "function world_set_block (lane/popfeat): set_block_plain runs set_block_step's calls without a worklist frame for a write with no flag 1 whose replaced and written blocks are both on SET_PLAIN (a table built before main) and whose chunk is in the near cache; every other write takes the worklist"
+   ]
+  },
+  {
+   "path": "csrc/engine/world.h",
+   "gpu": [
+    "line 58, struct world: chunks are individually heap-allocated and held through an open-addressing table of pointers (struct chunk **slot); a GPU mirror needs a fixed chunk pool indexed by slot, not a pointer graph",
+    "line 63, struct world: near[256] is a mutable direct-mapped pointer cache in front of the map",
+    "line 64, struct world: load_order is a growable heap array (lon/locap); iteration order is carried as data, which is GPU friendly, but its growth reallocates inside the tick",
+    "lines 73-91, struct world: te_list, te_added, te_reg and te_registry are growable arrays of pointers to individually allocated tile entities (a pointer graph, with allocation when a tile entity is created in the tick)",
+    "line 42, struct chunk: tes (struct te_store, chunkTileEntityMap) holds tile entity pointers per chunk",
+    "lines 105-141, struct world: function-pointer hooks (on_block, on_drop, provide, on_attempt, on_attempt_end, on_chunk) with void* contexts; the provide hook loads chunks from disk in the whole-server replay",
+    "lines 31-34, struct chunk: four CHUNK_CELLS arrays per chunk (ids is uint16), so per-chunk state is about 160 KiB whether or not sections exist",
+    "world_get_block and world_get_meta are static inline (lane/chunkspeed): a chunk in the map's near cache is read in place, anything else takes world_get_block_slow / world_get_meta_slow (world.c); struct world gains the light pass's chunk window (map_ver, lwin*, lbox*), a cache only"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/FeatureProbeNether.java",
+ "lines": 142,
+ "role": "The Nether and End lane's rows for the feature probe: ChunkProviderHell.populate's generators (hell lava, fire, glowstone, nether mushrooms, quartz) and BiomeEndDecorator's WorldGenSpikes, whose ender crystal it reports through FeatureProbe.recordEntity.",
+ "kind": "probe",
+ "used_by": [
+  "FeatureProbe.java (fe-helllava-*, fe-helllavahidden-*, fe-fire-*, fe-glowstone1/2-*, fe-nethermushrooms-*, fe-quartz-*, fe-spikes-*)",
+  "csrc/tests/test_feature.c",
+  "csrc/engine/features_nether.c cites it"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

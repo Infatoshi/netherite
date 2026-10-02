@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/util/MovementInputFromOptions.java",
+  "classes": ["MovementInputFromOptions"],
+  "lines": 49,
+  "side": "client",
+  "category": "client_input",
+  "role": "MovementInput driven by the key bindings: forward/back/left/right counts, jump and sneak, with sneak scaling both movement axes by 0.3.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/player.c", "symbols": ["cp_on_living_update", "K_FORWARD", "K_BACK", "K_LEFT", "K_RIGHT", "K_JUMP", "K_SNEAK"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/flow-walk-s1",
+    "out/java/snapshots/replay2-walk-s1",
+    "out/java/snapshots/replay2-sneak-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "gameSettings", "sig": "GameSettings", "native": null, "status": "n/a", "note": "replaced by the tape's held-key set"},
+    {"kind": "ctor", "name": "MovementInputFromOptions", "sig": "(GameSettings)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "updatePlayerMoveState", "sig": "()V", "native": "csrc/engine/player.c:cp_on_living_update", "status": "exact", "note": "player.c:962-988 is the verbatim port (the comment names MovementInputFromOptions.updatePlayerMoveState): key counts, jump/sneak from held keys, the 0.3 sneak scale; the itemInUse 0.2 slowdown from EntityPlayerSP follows it"}
+  ],
+  "missing": [],
+  "notes": "Key bindings are the tape's 'in' snapshot (held keys), applied in place of the vanilla mouse and keyboard loops per SPEC's input section."
+}

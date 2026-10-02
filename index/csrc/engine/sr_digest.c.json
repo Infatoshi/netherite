@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/sr_digest.c",
+ "lines": 91,
+ "role": "d.ents: the digest of every server entity's id and NBT across the overworld, Nether and End pass orders, shared by the snapshot gate and play --check.",
+ "layer": "io",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "sr_entry_nbt",
+  "sr_entity_digest"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "function sr_entity_digest: builds a tree per entity per call in the nbt scratch region (check path, not simulation); nbtbin_long_memo keeps a copy of its scratch bytes when it changed",
+  "function sr_entity_digest: switches the replay's current dimension (serverreplay_enter) as a side effect, skipping a dimension whose pass list is empty"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Mirrors the oracle's digest in oracle/harness/netherite/oracle/Rows.java (not a oracle/src file). Pools: 0 item/orb, 1 falling/hanging, 3 player, dragon and crystal pools, else an_ent living or projectile."
+}

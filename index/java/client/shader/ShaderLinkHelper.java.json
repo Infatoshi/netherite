@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/shader/ShaderLinkHelper.java",
+  "classes": ["ShaderLinkHelper"],
+  "lines": 58,
+  "side": "client",
+  "category": "client_render",
+  "role": "Static helper over the GL shader program lifecycle: create, link (attaching the vertex and fragment ShaderLoaders, logging the link log) and delete.",
+  "scope": "client_cosmetic",
+  "scope_reason": "GL shader program plumbing; the native renderer compiles no shader programs.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "setNewStaticShaderLinkHelper", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getStaticShaderLinkHelper", "sig": "()ShaderLinkHelper", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_148077_a", "sig": "(ShaderManager)V", "native": null, "status": "n/a", "note": "detach both shaders and delete the program"},
+    {"kind": "method", "name": "func_148078_c", "sig": "()I", "native": null, "status": "n/a", "note": "glCreateProgram"},
+    {"kind": "method", "name": "func_148075_b", "sig": "(ShaderManager)V", "native": null, "status": "n/a", "note": "attach, link, warn on the log"},
+    {"kind": "field", "name": "staticShaderLinkHelper", "sig": "ShaderLinkHelper", "native": null, "status": "n/a", "note": "static singleton"}
+  ],
+  "missing": [],
+  "notes": null
+}

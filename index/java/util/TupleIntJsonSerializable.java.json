@@ -1,0 +1,87 @@
+{
+  "path": "oracle/src/util/TupleIntJsonSerializable.java",
+  "classes": [
+    "TupleIntJsonSerializable"
+  ],
+  "lines": 40,
+  "side": "common",
+  "category": "stats",
+  "role": "An int plus an IJsonSerializable in one cell, used only by the statistics files (StatFileWriter, StatisticsFile) to serialize stat values.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: StatFileWriter keeps every stat's counter in one of these (server state, the rows' d.sstat digest); native ports the counters (survival.c surv_stats).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_add_stat",
+        "surv_explore_biome",
+        "stats_read_map",
+        "surv_stats_compare"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "surv_stats"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/stats-s1",
+    "out/java/snapshots/idx-blocks-s1",
+    "out/java/snapshots/creeper-fall-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "integerValue",
+      "sig": "int",
+      "native": "csrc/engine/survival.h:surv_stats",
+      "status": "exact",
+      "note": "v, with present for the map's entry"
+    },
+    {
+      "kind": "field",
+      "name": "jsonSerializableValue",
+      "sig": "IJsonSerializable",
+      "native": "csrc/engine/survival.h:surv_stats",
+      "status": "exact",
+      "note": "has_progress and explored: exploreAllBiomes' JsonSerializableSet, the only stat with one"
+    },
+    {
+      "kind": "method",
+      "name": "getIntegerValue",
+      "sig": "()I",
+      "native": "csrc/engine/survival.c:surv_add_stat",
+      "status": "exact",
+      "note": "StatFileWriter.writeStat's read"
+    },
+    {
+      "kind": "method",
+      "name": "setIntegerValue",
+      "sig": "(I)V",
+      "native": "csrc/engine/survival.c:surv_add_stat",
+      "status": "exact",
+      "note": "StatFileWriter.func_150873_a's store"
+    },
+    {
+      "kind": "method",
+      "name": "getJsonSerializableValue",
+      "sig": "()IJsonSerializable",
+      "native": "csrc/engine/survival.c:surv_explore_biome",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setJsonSerializableValue",
+      "sig": "(IJsonSerializable)V",
+      "native": "csrc/engine/survival.c:surv_explore_biome",
+      "status": "exact",
+      "note": "func_150872_a makes the entry's set (and stats_read_map on load)"
+    }
+  ],
+  "missing": [],
+  "notes": "Every counter and the progress set are compared with the oracle's StatisticsFile at each stats.jsonl dump (surv_stats_compare); the stats file's own JSON writing is a save file (see JsonSerializableSet). idxaudit 2026-09-27: was not_needed/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

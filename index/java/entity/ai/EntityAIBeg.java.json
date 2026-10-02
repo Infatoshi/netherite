@@ -1,0 +1,29 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIBeg.java",
+ "classes": ["EntityAIBeg"],
+ "lines": 78,
+ "side": "server",
+ "category": "ai",
+ "role": "The wolf's beg goal: stare at the nearest player holding a bone (or a breeding item) and beg for 40-80 ticks.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf: wolves = off, so EntityWolf never exists and nothing registers this goal.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {"kind": "field", "name": "theWolf", "sig": "EntityWolf", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "field", "name": "thePlayer", "sig": "EntityPlayer", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "field", "name": "worldObject", "sig": "World", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "field", "name": "minPlayerDistance", "sig": "float", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "field", "name": "field_75384_e", "sig": "int", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "ctor", "name": "EntityAIBeg", "sig": "(EntityWolfF)V", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "method", "name": "resetTask", "sig": "()V", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": null, "status": "n/a", "note": "switched off with wolves"},
+  {"kind": "method", "name": "hasPlayerGotBoneInHand", "sig": "(EntityPlayer)Z", "native": null, "status": "n/a", "note": "switched off with wolves"}
+ ],
+ "missing": [],
+ "notes": null
+}

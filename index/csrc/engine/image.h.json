@@ -1,0 +1,57 @@
+{
+ "path": "csrc/engine/image.h",
+ "lines": 132,
+ "role": "The image's types: struct env_image (size, heap state, the directory), struct img_dir (the session, snapshot, replay, worlds and dimension states as offsets from the environment), img_extent and img_reloc_stats; the heap and relocation calls.",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  {
+   "name": "env_image",
+   "java": null,
+   "fields": [
+    "size",
+    "heap_on",
+    "heap_off",
+    "heap_cap",
+    "heap_used",
+    "heap_free",
+    "heap_live",
+    "dir",
+    "track",
+    "track_fd",
+    "nzap",
+    "zap"
+   ]
+  },
+  {
+   "name": "img_dir",
+   "java": null,
+   "fields": [
+    "session",
+    "snapshot",
+    "sr",
+    "sr_world",
+    "world",
+    "dim",
+    "client_world"
+   ]
+  }
+ ],
+ "entry_points": [
+  "image_relocate",
+  "image_extents",
+  "image_alloc",
+  "image_free",
+  "image_heap_trim",
+  "image_slot_reserve",
+  "image_move"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "img_dir: a kernel handed the image finds each world and dimension state from these offsets"
+ ],
+ "tests": [
+  "csrc/tests/test_relocate.c"
+ ],
+ "notes": "lane/gpuimage. lane/gpuharness: track, track_fd and the zap log (IMG_ZAP_MAX)."
+}

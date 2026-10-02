@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/SlimeProbe.java",
+ "lines": 1262,
+ "role": "Slime probe: EntitySlime and EntityMagmaCube of sizes 1, 2 and 4 spawned the SpawnerAnimals way in a flattened raw region (overworld and Nether) next to a concrete probe player, ticked in World.updateEntities order with splits, drops and damage events; records per-tick canonical-NBT FNV-1a hashes plus non-NBT state, the player's record, removals and the final blocks.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=SlimeProbe (the generic {\"cmd\":\"run\",\"class\":\"SlimeProbe\"} reflection dispatch in Oracle.java)",
+  "csrc/tests/test_slimes.c",
+  "oracle/harness/netherite/oracle/HostileProbe.java (reuses its helpers)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output manifest.json, shapes.bin, spawns.bin, ticks.bin.gz, events.txt.gz, digest.txt.gz, nbt64.txt.gz, spawns.txt.gz, removals.txt.gz, start.txt, end.txt, final.bin.gz. Declares the nested ProbePlayer (an EntityPlayer subclass) and its own canon(Entity). No oracle/src hook."
+}

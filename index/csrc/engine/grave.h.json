@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/grave.h",
+ "lines": 46,
+ "role": "Declares the dead-living graveyard (grave.c): enable, bury, ignore a cache, collect.",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "grave_enable",
+  "grave_bury",
+  "grave_ignore",
+  "grave_collect"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header for grave.c."
+}

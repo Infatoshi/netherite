@@ -1,0 +1,123 @@
+{
+ "path": "oracle/src/network/play/server/S05PacketSpawnPosition.java",
+ "classes": [
+  "S05PacketSpawnPosition"
+ ],
+ "lines": 86,
+ "side": "server",
+ "category": "network",
+ "role": "Tells the client the world spawn point at join: handleSpawnPosition sets the client player's spawn chunk and the client world info's spawn position.",
+ "scope": "not_needed",
+ "scope_reason": "Sent at join and on respawn or dimension change with the current dimension's world spawn (ServerConfigurationManager.java:144, 453); its only client reader is TextureCompass, and the native compass reads the server world's spawn (csrc/play/play.c live_update_renderer: spawner.spawn_x/z), which is the value the packet carries.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149364_a",
+   "sig": "int",
+   "status": "missing"
+  },
+  {
+   "kind": "field",
+   "name": "field_149362_b",
+   "sig": "int",
+   "status": "missing"
+  },
+  {
+   "kind": "field",
+   "name": "field_149363_c",
+   "sig": "int",
+   "status": "missing"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,int)V",
+   "status": "missing"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "missing",
+   "note": "handleSpawnPosition: EntityPlayer.setSpawnChunk plus the client world info's spawn position"
+  },
+  {
+   "kind": "method",
+   "name": "hasPriority",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "queueing hint; the native channel delivers in the lockstep order"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_149360_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149359_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149358_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [
+  "The client's spawn-chunk mirror (EntityPlayer.setSpawnChunk) and the client world info's spawn position are not tracked natively; the server's spawn point lives only in the server's world info (csrc/engine/seedworld.c)."
+ ],
+ "notes": "Nothing in csrc/engine reads a client-side spawn point; the join flow (csrc/engine/serverreplay.c) never queues one. idxaudit 2026-09-27: scope reason rewritten."
+}

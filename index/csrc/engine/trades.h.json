@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/trades.h",
+ "lines": 81,
+ "role": "Declares the villager trade structures (trade_stack, trade_recipe, a fixed 32-recipe trade_list, the price rows) and the trade API: default recipe generation, the unlock boost, disable, same-ids, can-be-used, and NBT rendering.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/passive/EntityVillager.java", "members": ["addDefaultEquipmentAndRecipies", "villagersSellingList", "blacksmithSellingList", "updateAITick"]},
+  {"path": "oracle/src/village/MerchantRecipe.java", "members": ["itemToBuy", "secondItemToBuy", "itemToSell", "toolUses", "maxTradeUses", "hasSameIDsAs", "func_82785_h", "isRecipeDisabled"]},
+  {"path": "oracle/src/village/MerchantRecipeList.java", "members": ["canRecipeBeUsed", "getRecipiesAsTags"]}
+ ],
+ "structs": [
+  {"name": "trade_stack", "java": "ItemStack in a MerchantRecipe", "fields": ["item", "count", "damage", "tag"]},
+  {"name": "trade_recipe", "java": "MerchantRecipe", "fields": ["buy", "buy_b", "sell", "has_buy_b", "uses", "max_uses"]},
+  {"name": "trade_list", "java": "MerchantRecipeList as a fixed array of TRADES_MAX (32)", "fields": ["r", "n"]},
+  {"name": "trades_price_row", "java": "one entry of the villagersSellingList / blacksmithSellingList price maps", "fields": ["item", "min", "max"]}
+ ],
+ "entry_points": ["trades_villager_stock", "trades_blacksmith_stock", "trades_add_default", "trades_unlock_boost", "trades_disable", "trades_same_ids", "trades_is_disabled", "trades_can_be_used", "trades_nbt", "trades_render", "trades_free"],
+ "tick_path": true,
+ "gpu": [
+  "line 18, trade_stack.tag: owned heap string inside an otherwise flat struct"
+ ],
+ "tests": ["csrc/tests/test_trades.c", "csrc/tests/test_villagers.c"],
+ "notes": "trade_list is flat and fixed; the only non-flat part is the stack tag string."
+}

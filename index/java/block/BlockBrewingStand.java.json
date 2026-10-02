@@ -1,0 +1,260 @@
+{
+  "path": "oracle/src/block/BlockBrewingStand.java",
+  "classes": [
+    "BlockBrewingStand"
+  ],
+  "lines": 196,
+  "side": "common",
+  "category": "block",
+  "role": "The brewing stand: a tile-entity block with a 4-slot inventory, a brewing timer the GUI drives, and a comparator output from the filled-bottle mask.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: blaze rods from Nether fortresses make the stand craftable; placing it creates and ticks TileEntityBrewingStand (pickblock-s1), entities collide with its base and rod, and breaking it spills. world.conf brewing = off only closes the window (BlockBrewingStand.java:80) and stops the brew (TileEntityBrewingStand.java:100).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_kind_of_block",
+        "TE_BREWING_STAND"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "brewing_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "place_try"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks3.c",
+      "symbols": [
+        "rb3_render_brewing_stand"
+      ]
+    },
+    {
+      "file": "csrc/engine/spill.c",
+      "symbols": [
+        "container_spill",
+        "block_rand",
+        "block_rand_index"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes",
+        "collide_pool_box",
+        "brewing_base"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds"
+      ]
+    },
+    {
+      "file": "csrc/engine/particles_live.c",
+      "symbols": [
+        "particles_live_display_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/clientworld.c",
+      "symbols": [
+        "clientworld_random_display_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/comparator.c",
+      "symbols": [
+        "comparator_override",
+        "comparator_has_override"
+      ]
+    },
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "on_block_activated"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_drops.c",
+    "out/java/drops/s2",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/iu-off-s1",
+    "out/java/snapshots/rs-mach-s1",
+    "out/java/snapshots/rs-brew-s1",
+    "out/java/snapshots/rs-cmp-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/rendertick/fx_redstone",
+    "csrc/tests/test_rendertick.c",
+    "out/java/snapshots/pfc-brewbounds-f356"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockBrewingStand",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Entry 117: hardness 0.5, render type 25."
+    },
+    {
+      "kind": "field",
+      "name": "field_149961_a",
+      "sig": "Random (break spill)",
+      "native": "csrc/engine/spill.c:block_rand",
+      "status": "exact",
+      "note": "The Block singleton's own Random (brewing stand [BR_BREWING_STAND]): det.nbt records it (BlockRands.java), serverreplay_load sets it, a --from run restores it."
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "25; render_blocks3.c:3 names it."
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "false."
+    },
+    {
+      "kind": "method",
+      "name": "createNewTileEntity",
+      "sig": "(World,I)TileEntity",
+      "native": "csrc/engine/tileentity.c:te_kind_of_block",
+      "status": "exact",
+      "note": "tileentity.c:217 maps 117 to TE_BREWING_STAND with 4 fresh slots."
+    },
+    {
+      "kind": "method",
+      "name": "addCollisionBoxesToList",
+      "sig": "(World,IIIAxisAlignedBB,List,Entity)V",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "the centre rod, then the 1/8 base: rs-mach-s1 walks the player into a stand, up onto its base and against its rod (it failed at row 195 on a full cube); the client's own item and orb copies reach it through their onUpdate's func_145771_j query (pickobj.c copy_brewing_touch, pfc-brewbounds-f356)"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsForItemRender",
+      "sig": "()V",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "the base the collision query leaves as the one BlockBrewingStand object's bounds (collide.c brewing_base), which Block's getCollisionBoundingBoxFromPool (collide_pool_box) and the ray trace (raytrace.c block_bounds) read until the JVM ends; Snapshot.java records it in worldstate blockBounds and serverreplay.c restores it"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIIIIIIFFF)Z",
+      "native": "csrc/engine/activate.c:on_block_activated",
+      "status": "exact",
+      "note": "world.conf brewing = off: false, so the held stack's use runs (iu-off-s1: dirt placed against it, nothing opens)"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIIIEntityLivingBaseItemStack)V",
+      "native": null,
+      "status": "n/a",
+      "note": "only the display-name copy of an anvil-named stack; world.conf anvil = off"
+    },
+    {
+      "kind": "method",
+      "name": "randomDisplayTick",
+      "sig": "(World,IIIRandom)V",
+      "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+      "status": "exact",
+      "note": "the smoke over the rod with its three draws: test_rendertick matches every spawn and particle field per tick against the oracle's log in out/java/rendertick/fx_redstone (four stands); clientworld.c keeps the draws"
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(World,IIIBlockI)V",
+      "native": "csrc/engine/spill.c:container_spill",
+      "status": "exact",
+      "note": "the spill from the block's own Random (field_149961_a) and no func_147453_f: rs-mach-s1 and rs-brew-s1 dig loaded stands"
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(IRandomI)Item",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "The brewing stand item, drops.c:570."
+    },
+    {
+      "kind": "method",
+      "name": "getItem",
+      "sig": "(World,III)Item",
+      "native": "csrc/engine/pickblock.c:block_get_item",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "hasComparatorInputOverride",
+      "sig": "()Z",
+      "native": "csrc/engine/comparator.c:comparator_has_override",
+      "status": "exact",
+      "note": "true (rs-cmp-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "getComparatorInputOverride",
+      "sig": "(World,IIII)I",
+      "native": "csrc/engine/comparator.c:comparator_override",
+      "status": "exact",
+      "note": "calcRedstoneFromInventory over the four slots (a potion stacks to 1): rs-cmp-s1 reads a stand holding two bottles"
+    },
+    {
+      "kind": "method",
+      "name": "func_149959_e",
+      "sig": "(II)IIcon",
+      "native": null,
+      "status": "n/a",
+      "note": "Icon naming only."
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "atlas registration"
+    }
+  ],
+  "missing": [],
+  "notes": "The tile entity is present: NBT (BrewTime, Items) in tileentity.c:469, the update at tileticks.c:543, the renderer at render_blocks3.c:1228. The metadata mask write survives (tileticks.c:452). place.c:209 maps item 379 to the block for placement. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/itemuse: iu-off-s1 uses it with world.conf's switch off (right-clicked with dirt, empty-handed and sneaking: the dirt is placed against it, nothing opens). lane/idxredstone 2026-09-27: exact. The collision boxes and the shared bounds they leave, the display tick (fx_redstone, recorded with --particles 0), and the comparator override are new."
+}

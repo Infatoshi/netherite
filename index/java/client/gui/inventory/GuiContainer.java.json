@@ -1,0 +1,491 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiContainer.java",
+  "classes": [
+    "GuiContainer"
+  ],
+  "lines": 712,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The base class of every container screen: draws the container's background and slots, tracks the hovered slot and cursor stack, and turns mouse and keyboard input into PlayerControllerMP.windowClick calls (modes 0-6, including drag-splitting and double-click pickup-all).",
+  "scope": "in_scope",
+  "scope_reason": "Container screens are pixel-gated (out/java/render/gui_* scenes) and the click path changes real inventory state, so both halves are in scope.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/gui_screens.c",
+      "symbols": [
+        "gui_screen_layout",
+        "gui_screen_slot_xy",
+        "gui_screen_hit"
+      ]
+    },
+    {
+      "file": "csrc/engine/gui_input.c",
+      "symbols": [
+        "gui_input_run",
+        "mouse_clicked",
+        "mouse_click_move",
+        "mouse_moved_or_up",
+        "key_typed",
+        "slot_at",
+        "click",
+        "drag_code",
+        "gui_input_reset",
+        "gui_input_frame",
+        "gui_input_drawn"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_hud.c",
+      "symbols": [
+        "raster_gui_live",
+        "raster_hud_draw_item",
+        "draw_stack",
+        "screen_tooltip",
+        "tooltip_lines"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_client_click",
+        "surv_client_input",
+        "surv_client_pump"
+      ]
+    },
+    {
+      "file": "csrc/engine/container.c",
+      "symbols": [
+        "container_slot_click",
+        "container_close",
+        "container_stack_fits",
+        "container_slot_accepts",
+        "container_slot_collectable",
+        "container_slot_can_drag"
+      ]
+    },
+    {
+      "file": "csrc/play/play.c",
+      "symbols": [
+        "screen_event",
+        "live_screens"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/render/gui_inventory",
+    "out/java/render/gui_crafting",
+    "out/java/render/gui_chest",
+    "out/java/render/gui_merchant",
+    "out/java/snapshots/cat-clicks-s1",
+    "out/java/snapshots/cat-toss-full-s1",
+    "out/java/snapshots/flow-craft-s1",
+    "csrc/tests/test_containers.c",
+    "csrc/tests/test_crafting.c",
+    "out/java/render/gui_chest_mixed",
+    "out/java/snapshots/np-hudkeys-s1",
+    "csrc/tests/test_hudscreens.c",
+    "out/java/guijudge/inv-s1",
+    "out/java/guijudge/wb-s1",
+    "out/java/guijudge/furnace-s1",
+    "out/java/guijudge/chest-s1",
+    "out/java/clientframes/cr-game-s1",
+    "out/java/clientframes/cr-drops-s1",
+    "out/java/snapshots/idx-deadchest-s1",
+    "out/java/snapshots/idx-deadclose-s1",
+    "out/java/clientframes/idx-tipsword-s1",
+    "out/java/clientframes/idx-tippotion-s1",
+    "out/java/clientframes/idx-tiprecord-s1",
+    "out/java/clientframes/idx-tipweak-s1",
+    "out/java/guijudge/prune-s1",
+    "out/java/snapshots/respawn-alive-s1",
+    "out/java/snapshots/portal-inv-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_147001_a",
+      "sig": "static ResourceLocation",
+      "native": null,
+      "status": "n/a",
+      "note": "static texture constant"
+    },
+    {
+      "kind": "field",
+      "name": "field_146999_f",
+      "sig": "int",
+      "native": "csrc/engine/gui_screens.c:gui_screen_layout",
+      "status": "exact",
+      "note": "the 176 xSize is g.width"
+    },
+    {
+      "kind": "field",
+      "name": "field_147000_g",
+      "sig": "int",
+      "native": "csrc/engine/gui_screens.c:gui_screen_layout",
+      "status": "exact",
+      "note": "the 166 ySize is g.height (114 + chest rows for chests)"
+    },
+    {
+      "kind": "field",
+      "name": "field_147002_h",
+      "sig": "Container",
+      "native": "csrc/engine/container.c:container_init",
+      "status": "n/a",
+      "note": "the Container itself is inventory/Container.java, ported in container.c"
+    },
+    {
+      "kind": "field",
+      "name": "field_147003_i",
+      "sig": "int",
+      "native": "csrc/engine/gui_screens.c:gui_screen_layout",
+      "status": "exact",
+      "note": "guiLeft is g.left"
+    },
+    {
+      "kind": "field",
+      "name": "field_147009_r",
+      "sig": "int",
+      "native": "csrc/engine/gui_screens.c:gui_screen_layout",
+      "status": "exact",
+      "note": "guiTop is g.top"
+    },
+    {
+      "kind": "field",
+      "name": "field_147006_u",
+      "sig": "Slot",
+      "native": "csrc/engine/gui_input.c:gui_input_run",
+      "status": "exact",
+      "note": "the hovered slot the keys act on: the slot under the last drawn frame's pointer (gui_input_frame), as drawScreen leaves it"
+    },
+    {
+      "kind": "field",
+      "name": "field_147005_v",
+      "sig": "Slot",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode only (the option is off)"
+    },
+    {
+      "kind": "field",
+      "name": "field_147004_w",
+      "sig": "boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode only"
+    },
+    {
+      "kind": "field",
+      "name": "field_147012_x",
+      "sig": "ItemStack",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode only"
+    },
+    {
+      "kind": "field",
+      "name": "field_147011_y",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode's return animation"
+    },
+    {
+      "kind": "field",
+      "name": "field_147010_z",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode's return animation"
+    },
+    {
+      "kind": "field",
+      "name": "field_146989_A",
+      "sig": "Slot",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode's return animation"
+    },
+    {
+      "kind": "field",
+      "name": "field_146990_B",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode's return animation"
+    },
+    {
+      "kind": "field",
+      "name": "field_146991_C",
+      "sig": "ItemStack",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode's return animation"
+    },
+    {
+      "kind": "field",
+      "name": "field_146985_D",
+      "sig": "Slot",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode's drag-one timer"
+    },
+    {
+      "kind": "field",
+      "name": "field_146986_E",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "touchscreen mode's drag-one timer"
+    },
+    {
+      "kind": "field",
+      "name": "field_147008_s",
+      "sig": "Set",
+      "native": "csrc/engine/gui_input.c:mouse_click_move",
+      "status": "exact",
+      "note": "the drag's slots, in the order added (Java's HashSet order is identity-hash order; the server's result does not depend on it, the GUI judge compares them as a set)"
+    },
+    {
+      "kind": "field",
+      "name": "field_147007_t",
+      "sig": "boolean",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "gui_input.dragging"
+    },
+    {
+      "kind": "field",
+      "name": "field_146987_F",
+      "sig": "int",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "gui_input.drag_mode"
+    },
+    {
+      "kind": "field",
+      "name": "field_146988_G",
+      "sig": "int",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "gui_input.drag_button"
+    },
+    {
+      "kind": "field",
+      "name": "field_146995_H",
+      "sig": "boolean",
+      "native": "csrc/engine/gui_input.c:mouse_moved_or_up",
+      "status": "exact",
+      "note": "gui_input.ignore_release, true in a new screen (gui_input_reset)"
+    },
+    {
+      "kind": "field",
+      "name": "field_146996_I",
+      "sig": "int",
+      "native": "csrc/play/play.c:live_screens",
+      "status": "exact",
+      "note": "the cursor's remainder while a drag holds slots, drawn with its yellow 0 (raster_hud.c's cursor stack)"
+    },
+    {
+      "kind": "field",
+      "name": "field_146997_J",
+      "sig": "long",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "gui_input.last_time, the tick's time (tick * 50, as the oracle's agent mode pins getSystemTime)"
+    },
+    {
+      "kind": "field",
+      "name": "field_146998_K",
+      "sig": "Slot",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "gui_input.last_slot"
+    },
+    {
+      "kind": "field",
+      "name": "field_146992_L",
+      "sig": "int",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "gui_input.last_button"
+    },
+    {
+      "kind": "field",
+      "name": "field_146993_M",
+      "sig": "boolean",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "gui_input.double_click"
+    },
+    {
+      "kind": "field",
+      "name": "field_146994_N",
+      "sig": "ItemStack",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "gui_input.shift_stack: the shift click's stack, whose item and tags the shift double click matches"
+    },
+    {
+      "kind": "ctor",
+      "name": "GuiContainer",
+      "sig": "(Container)V",
+      "native": null,
+      "status": "n/a",
+      "note": "field assignment only; the container lives in container.c"
+    },
+    {
+      "kind": "method",
+      "name": "initGui",
+      "sig": "()V",
+      "native": "csrc/engine/gui_screens.c:gui_screen_layout",
+      "status": "exact",
+      "note": "guiLeft and guiTop from xSize and ySize; the slot grid gui_screen_slot_xy gives is each Container's Slot positions"
+    },
+    {
+      "kind": "method",
+      "name": "drawScreen",
+      "sig": "(int,int,float)V",
+      "native": "csrc/engine/raster_hud.c:raster_gui_live",
+      "status": "exact",
+      "note": "background sheet, slot items, hovered highlight, tooltip, cursor stack; the item/count draw is raster_hud_draw_item"
+    },
+    {
+      "kind": "method",
+      "name": "func_146982_a",
+      "sig": "(ItemStack,int,int,String)V",
+      "native": "csrc/engine/raster_hud.c:raster_hud_draw_item",
+      "status": "exact",
+      "note": "glyph plus the count string, comment names GuiContainer's slot draw"
+    },
+    {
+      "kind": "method",
+      "name": "func_146979_b",
+      "sig": "(int,int)V",
+      "native": null,
+      "status": "n/a",
+      "note": "empty in Java; subclasses override"
+    },
+    {
+      "kind": "method",
+      "name": "func_146976_a",
+      "sig": "(float,int,int)V",
+      "native": null,
+      "status": "n/a",
+      "note": "abstract in Java"
+    },
+    {
+      "kind": "method",
+      "name": "func_146977_a",
+      "sig": "(Slot)V",
+      "native": "csrc/engine/gui_input.c:gui_input_drawn",
+      "status": "exact",
+      "note": "the slot loop inside raster_gui_live draws (raster_hud_draw_item); its drag prune (a slot that stopped taking the cursor leaves a set of two or more) is gui_input_drawn at each drawn frame"
+    },
+    {
+      "kind": "method",
+      "name": "func_146980_g",
+      "sig": "()V",
+      "native": "csrc/play/play.c:live_screens",
+      "status": "exact",
+      "note": "each dragged slot's share (func_94525_a) and the remainder, capped by the stack and the slot limit"
+    },
+    {
+      "kind": "method",
+      "name": "func_146975_c",
+      "sig": "(int,int)Slot",
+      "native": "csrc/engine/gui_input.c:slot_at",
+      "status": "exact",
+      "note": "the first slot whose 18x18 box holds the point"
+    },
+    {
+      "kind": "method",
+      "name": "mouseClicked",
+      "sig": "(int,int,int)V",
+      "native": "csrc/engine/gui_input.c:mouse_clicked",
+      "status": "exact",
+      "note": "GuiMerchant's arrow buttons first (merchant_buttons), then the pickup, shift, outside-drop and middle clicks with an empty cursor, else the drag's start; the double-click test (out/java/guijudge/*)"
+    },
+    {
+      "kind": "method",
+      "name": "mouseClickMove",
+      "sig": "(int,int,int,long)V",
+      "native": "csrc/engine/gui_input.c:mouse_click_move",
+      "status": "exact",
+      "note": "a slot joins the drag when the cursor has more items than the drag has slots, it fits (func_94527_a), accepts the item and is draggable"
+    },
+    {
+      "kind": "method",
+      "name": "mouseMovedOrUp",
+      "sig": "(int,int,int)V",
+      "native": "csrc/engine/gui_input.c:mouse_moved_or_up",
+      "status": "exact",
+      "note": "the double-click collect (mode 6) and its shift form, the drag's cancel by another button, the ignored release, the mode-5 triple, the placing click"
+    },
+    {
+      "kind": "method",
+      "name": "func_146981_a",
+      "sig": "(Slot,int,int)Z",
+      "native": "csrc/engine/gui_screens.c:gui_screen_hit",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_146978_c",
+      "sig": "(int,int,int,int,int,int)Z",
+      "native": "csrc/engine/gui_screens.c:gui_screen_hit",
+      "status": "exact",
+      "note": "the one-pixel margin is in gui_screen_hit; the comment at gui_screens.c:3 names func_146978_c"
+    },
+    {
+      "kind": "method",
+      "name": "func_146984_a",
+      "sig": "(Slot,int,int,int)V",
+      "native": "csrc/engine/gui_input.c:click",
+      "status": "exact",
+      "note": "appends the op to the row and predicts it at once (surv_client_click)"
+    },
+    {
+      "kind": "method",
+      "name": "keyTyped",
+      "sig": "(char,int)V",
+      "native": "csrc/engine/gui_input.c:key_typed",
+      "status": "exact",
+      "note": "escape or the inventory key closes, the hotbar keys over the hovered slot, the drop key over a slot holding a stack (button 1 with control, Cmd on the Mac)"
+    },
+    {
+      "kind": "method",
+      "name": "func_146983_a",
+      "sig": "(int)Z",
+      "native": "csrc/engine/gui_input.c:key_typed",
+      "status": "exact",
+      "note": "checkHotbarKeys: a number key over the hovered slot with an empty cursor, mode 2"
+    },
+    {
+      "kind": "method",
+      "name": "onGuiClosed",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:surv_client_input",
+      "status": "exact",
+      "note": "the close (the [close] op, the dead player's auto-close, the portal and the S2E): the container's onContainerClosed on the client, the cursor emptied (client_close_screen)"
+    },
+    {
+      "kind": "method",
+      "name": "doesGuiPauseGame",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "returns false in Java; the native pause flag is driven only by the pause screen"
+    },
+    {
+      "kind": "method",
+      "name": "updateScreen",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:surv_client_input",
+      "status": "exact",
+      "note": "a dead player's container screen closes through closeScreen (the C0D, then the GuiGameOver): idx-deadchest-s1 (master fails it at row 87); GuiInventory overrides updateScreen without calling it, so its screen stays (idx-deadclose-s1)"
+    }
+  ],
+  "missing": [],
+  "notes": "Mode coverage verified by reading container.c slot_click_inner branches: modes 0/1 (1522), 2 (1671), 3 creative (1741), 4 (1753), 5 drag (1433), 6 pickup-all (1766). Input: csrc/engine/gui_input.c ports mouseClicked, mouseClickMove, mouseMovedOrUp and keyTyped as GuiScreen.handleInput runs them inside the client tick (every Mouse event, then every Keyboard event, each click predicted before the next event), judged against Java's own GuiContainer over the same raw events by csrc/tests/gui_judge.sh (lane/clientui). Events after a close key in the same tick are dropped (Java keeps feeding them to the closed screen). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records cat-toss-full-s1, whose native replay starts before the behaviour. lane/idxclient: the dead player's auto-close ported; func_146285_a's tooltip now carries getTooltip's lines (enchantments, records, potions and their When Applied block, Dyed, Sharpness in the attack damage): the idx-tip recordings at 0 px. The draw-time prune (func_146977_a's remove and func_146980_g) is gui_input_drawn, run where the client draws its screen (the live frame before live_screens, the judge's after each tick): guijudge/prune-s1 drags left over two empty slots and the emptied slot 9, a dev give lands dirt in slot 9 while the drag is held, and the release spreads over 18 and 19 alone as Java's rendered GuiContainer sent it (recorded with EVERY=1: the same raw events with no frames keep slot 9, since the prune runs only in drawScreen)."
+}

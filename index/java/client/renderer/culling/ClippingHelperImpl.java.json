@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/client/renderer/culling/ClippingHelperImpl.java",
+  "classes": ["ClippingHelperImpl"],
+  "lines": 95,
+  "side": "client",
+  "category": "client_render",
+  "role": "The singleton ClippingHelper: init() reads the GL projection and modelview matrices, multiplies them into clippingMatrix, derives and normalizes the six frustum planes from it.",
+  "scope": "in_scope",
+  "scope_reason": "Matrix plumbing for the frustum test; the native renderer reads its projection and modelview from renderstate and applies them directly.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster.c", "symbols": ["live_culled"]},
+    {"file": "csrc/engine/renderstate.c", "symbols": ["renderstate_compute"]},
+    {"file": "csrc/engine/raster_itemframe.c", "symbols": ["raster_itemframe_in_frustum"]}
+  ],
+  "evidence": [
+    "out/java/render/terrain1",
+    "out/java/renderstate/rs-gamma1",
+    "csrc/tests/test_render.c",
+    "out/java/rendertick/anim_dials"
+  ],
+  "members": [
+    {"kind": "field", "name": "instance", "sig": "static ClippingHelperImpl", "native": null, "status": "n/a", "note": "singleton; the native frame carries its matrices in struct frame"},
+    {"kind": "field", "name": "projectionMatrixBuffer", "sig": "FloatBuffer", "native": null, "status": "n/a", "note": "GL glGetFloat scratch; the native matrices come from renderstate_compute"},
+    {"kind": "field", "name": "modelviewMatrixBuffer", "sig": "FloatBuffer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_78564_h", "sig": "FloatBuffer", "native": null, "status": "n/a", "note": "unused GL scratch"},
+    {"kind": "method", "name": "getInstance", "sig": "()ClippingHelper", "native": null, "status": "n/a", "note": "the native cull reads the frame's matrices directly (raster.c live_culled)"},
+    {"kind": "method", "name": "normalize", "sig": "(float[][],int)V", "native": "csrc/engine/raster_itemframe.c:raster_itemframe_in_frustum", "status": "exact", "note": "the entity gate for item frames (RenderGlobal.renderEntities)"},
+    {"kind": "method", "name": "init", "sig": "()V", "native": "csrc/engine/raster.c:live_culled", "status": "partial", "note": "the plane derivation (clippingMatrix product, six plane rows) is replaced by testing each box corner through proj and mv in live_culled; the same six GL planes are implied"}
+  ],
+  "missing": [],
+  "notes": "This file exists to feed GL state into the frustum; the native engine's matrices are computed in renderstate.c renderstate_compute (matching EntityRenderer's own matrix code, not glGetFloat). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): GL plumbing: GL is the numerical oracle, not emitted (SPEC); atlases and meshes are consumed as data. Formerly listed as missing: The explicit plane derivation and normalization: never built in the native engine; live_culled decides in/out from the corner clip coordinates instead."
+}

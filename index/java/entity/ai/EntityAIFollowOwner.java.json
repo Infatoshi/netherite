@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIFollowOwner.java",
+  "classes": ["EntityAIFollowOwner"],
+  "lines": 128,
+  "side": "server",
+  "category": "ai",
+  "role": "Makes a tamed wolf or ocelot teleport-and-follow its owner: paths to the owner when far, and when 12 blocks away with no path, scans for a solid landing spot beside the owner and teleports there.",
+  "scope": "switched_off",
+  "scope_reason": "Only EntityWolf and EntityOcelot register this task (grep over oracle/src), and world.conf forces wolves = off and ocelots = off, so no tameable ever exists and the task is never constructed, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "thePet", "sig": "EntityTameable", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "theOwner", "sig": "EntityLivingBase", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "theWorld", "sig": "World", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_75336_f", "sig": "double", "native": null, "status": "n/a", "note": "the follow speed"},
+    {"kind": "field", "name": "petPathfinder", "sig": "PathNavigate", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_75343_h", "sig": "int", "native": null, "status": "n/a", "note": "the 10-tick re-path delay"},
+    {"kind": "field", "name": "maxDist", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "minDist", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_75344_i", "sig": "boolean", "native": null, "status": "n/a", "note": "saved avoidsWater"},
+    {"kind": "ctor", "name": "EntityAIFollowOwner", "sig": "(EntityTameable,double,float,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": null, "status": "n/a", "note": "holds the 5x5 teleport scan around the owner"}
+  ],
+  "missing": [],
+  "notes": "Unverified beyond the registration grep: the task would matter only after the wolves/ocelots switches turn on, which SPEC gates on the native engine having those entities first."
+}

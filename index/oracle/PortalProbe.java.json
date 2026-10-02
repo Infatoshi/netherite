@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/PortalProbe.java",
+ "lines": 639,
+ "role": "Portal reference: builds nether portal frames and drives Teleporter placement, search and creation, the portal cache (LongHashMap) and dimension transfer with a reseeded Teleporter Random, recording cases, block writes and cache state.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=PortalProbe (writes out/java/portals/<name>)",
+  "csrc/tests/test_portals.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output: manifest.json (kind netherite-portals), cases.bin, writes.bin, cache.bin. Reads Entity.portalCounter and inPortal and Teleporter internals by reflection. test_portals.c does not name the class; the link is by the out/java/portals data directory the native Makefile maps to test_portals."
+}

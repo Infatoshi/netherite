@@ -1,0 +1,78 @@
+{
+ "path": "oracle/src/client/network/NetHandlerHandshakeMemory.java",
+ "classes": [
+  "NetHandlerHandshakeMemory",
+  "NetHandlerHandshakeMemory.SwitchEnumConnectionState"
+ ],
+ "lines": 92,
+ "side": "server",
+ "category": "network",
+ "role": "The integrated server's handshake handler: it switches the in-memory connection's protocol state to LOGIN or STATUS and hands LOGIN to NetHandlerLoginServer.",
+ "scope": "not_needed",
+ "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "NetHandlerHandshakeMemory",
+   "sig": "(MinecraftServer,NetworkManager)V",
+   "native": null,
+   "status": "n/a",
+   "note": "no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "processHandshake",
+   "sig": "(C00Handshake)V",
+   "native": null,
+   "status": "n/a",
+   "note": "no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "onDisconnect",
+   "sig": "(IChatComponent)V",
+   "native": null,
+   "status": "n/a",
+   "note": "no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "onConnectionStateTransition",
+   "sig": "(EnumConnectionState,EnumConnectionState)V",
+   "native": null,
+   "status": "n/a",
+   "note": "no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "onNetworkTick",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "no native counterpart"
+  },
+  {
+   "kind": "field",
+   "name": "field_147385_a",
+   "sig": "MinecraftServer",
+   "native": null,
+   "status": "n/a",
+   "note": "no native counterpart"
+  },
+  {
+   "kind": "field",
+   "name": "field_147384_b",
+   "sig": "NetworkManager",
+   "native": null,
+   "status": "n/a",
+   "note": "no native counterpart"
+  }
+ ],
+ "missing": [
+  "The in-memory join handshake (the protocol state switch to LOGIN, then NetHandlerLoginServer) is not ported: the native replay reconstructs the join from the snapshot and never runs a protocol state machine."
+ ],
+ "notes": "Reached at every Java join (the client connects to the integrated server over the in-memory channel), but it carries no game state: its observable effect is the join itself, which the native replay produces through serverreplay.c's login replay."
+}

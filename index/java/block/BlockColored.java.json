@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/block/BlockColored.java",
+  "classes": ["BlockColored"],
+  "lines": 72,
+  "side": "common",
+  "category": "block",
+  "role": "The 16-color base (wool, id 35): picks its icon by metadata, keeps the damage on drop, and inverts the dye index for the icon names.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["table_icon"]}
+  ],
+  "evidence": ["csrc/tests/test_drops.c", "out/java/drops/s2", "csrc/tests/test_registry.c", "out/java/snapshots/cov-blkbreak-s1", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockColored", "sig": "(Material)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 35: wool, cloth material, hardness 0.8."},
+    {"kind": "field", "name": "field_150033_a", "sig": "IIcon[]", "native": null, "status": "n/a", "note": "The 16 atlas icons; the renderer resolves them from the recorded table."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": "csrc/engine/render_blocks.c:table_icon", "status": "exact", "note": "The per-meta icon sweep covers id 35's 16 metas."},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "The metadata itself, drops.c:361's shared case."},
+    {"kind": "method", "name": "func_150032_b", "sig": "(I)I", "native": null, "status": "n/a", "note": "A static alias of func_150031_c; trivial in C."},
+    {"kind": "method", "name": "func_150031_c", "sig": "(I)I", "native": null, "status": "n/a", "note": "~meta & 15, the icon-name index; inlined wherever the icon names are spelled."},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Item,CreativeTabs,List)V", "native": null, "status": "n/a", "note": "Creative inventory only."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only (wool_colored_* names)."},
+    {"kind": "method", "name": "getMapColor", "sig": "(I)MapColor", "native": null, "status": "n/a", "note": "only ItemMap.func_77872_a (drawing a filled map) calls getMapColor; world.conf maps = off"}
+  ],
+  "missing": [
+    "BlockColored.getMapColor's per-meta map colors are not ported; the map item is switched off in world.conf."
+  ],
+  "notes": "Everything the world touches (the icon sweep, the drop damage) is exact. The shears-dye interplay lives in the sheep, not here."
+}

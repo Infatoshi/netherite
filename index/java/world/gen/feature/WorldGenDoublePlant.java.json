@@ -1,0 +1,69 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenDoublePlant.java",
+ "classes": [
+  "WorldGenDoublePlant"
+ ],
+ "lines": 36,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Two-block plant patch (sunflower, lilac, tall grass, fern, rose bush, peony): 64 tries writing the lower and upper halves via BlockDoublePlant.func_149889_c.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_plants.c",
+   "symbols": [
+    "feature_double_plant"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "place_double_plant"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-doubleplant-2",
+  "out/java/probes/fe-doubleplant-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149549_a",
+   "sig": "int",
+   "native": "csrc/engine/features_plants.c:feature_double_plant",
+   "status": "exact",
+   "note": "The meta parameter."
+  },
+  {
+   "kind": "method",
+   "name": "func_150548_a",
+   "sig": "(int)V",
+   "native": "csrc/engine/decorator.c:place_double_plant",
+   "status": "exact",
+   "note": "The call site passes the meta directly."
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_plants.c:feature_double_plant",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

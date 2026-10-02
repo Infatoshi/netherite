@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/client/model/ModelBox.java",
+  "classes": ["ModelBox"],
+  "lines": 110,
+  "side": "client",
+  "category": "client_model",
+  "role": "One textured cuboid of a model: eight PositionTextureVertex corners, six TexturedQuad faces with the standard unwrapped UV layout, and the mirror handling ModelRenderer.mirror needs.",
+  "scope": "in_scope",
+  "scope_reason": "Every rendered box in the native engine (mobs, the first-person arm, the chest item model) is this object's math.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["emit_box_faces", "box", "model_vertex"]},
+    {"file": "csrc/engine/raster_hand.c", "symbols": ["model_box"]},
+    {"file": "csrc/engine/block_item_model.c", "symbols": ["chest_box", "chest_face"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs_zombie_f006",
+    "out/java/render/hand_sword",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "vertexPositions", "sig": "PositionTextureVertex[]", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the 8 corners are transformed and projected per face instead of stored"},
+    {"kind": "field", "name": "quadList", "sig": "TexturedQuad[]", "native": "csrc/engine/raster_mobs.c:emit_box_faces", "status": "exact", "note": "the six faces are emitted directly; the comment at raster_mobs.c:789 names ModelBox's six quads"},
+    {"kind": "field", "name": "posX1", "sig": "float", "native": "csrc/engine/raster_mobs.c:box", "status": "partial", "note": "the corner coordinates live in the mob_box struct (x,y,z,dx,dy,dz,grow)"},
+    {"kind": "field", "name": "posY1", "sig": "float", "native": "csrc/engine/raster_mobs.c:box", "status": "partial"},
+    {"kind": "field", "name": "posZ1", "sig": "float", "native": "csrc/engine/raster_mobs.c:box", "status": "partial"},
+    {"kind": "field", "name": "posX2", "sig": "float", "native": "csrc/engine/raster_mobs.c:box", "status": "partial"},
+    {"kind": "field", "name": "posY2", "sig": "float", "native": "csrc/engine/raster_mobs.c:box", "status": "partial"},
+    {"kind": "field", "name": "posZ2", "sig": "float", "native": "csrc/engine/raster_mobs.c:box", "status": "partial"},
+    {"kind": "field", "name": "field_78247_g", "sig": "String", "native": null, "status": "n/a", "note": "the box name, debugging only"},
+    {"kind": "ctor", "name": "ModelBox", "sig": "(ModelRenderer,int,int,float,float,float,int,int,int,float)V", "native": "csrc/engine/raster_mobs.c:box", "status": "exact", "note": "the grow inflate, the UV rectangles of the six quads, and the mirror swap (raster_mobs.c:828-833: x corners swapped, v flipped on the affected face)"},
+    {"kind": "method", "name": "render", "sig": "(Tessellator,float)V", "native": "csrc/engine/raster_mobs.c:emit_box_faces", "status": "exact", "note": "raster_hand.c:151 documents the same six-quad draw as ModelBox.render as a compiled display list"},
+    {"kind": "method", "name": "func_78244_a", "sig": "(String)ModelBox", "native": null, "status": "n/a", "note": "name setter"}
+  ],
+  "missing": [],
+  "notes": "The mirror behavior was the subtle part: the native comment (raster_mobs.c:828-833) records that the mirror swaps the x corners but keeps each corner's own v, flipping v inside the face."
+}

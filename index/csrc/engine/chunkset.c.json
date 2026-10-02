@@ -1,0 +1,38 @@
+{
+ "path": "csrc/engine/chunkset.c",
+ "lines": 780,
+ "role": "The chunksToUnload set of chunkset.h: puts and removes with ConcurrentHashMap's treeify, untreeify (by the tree's shape), addCount, tryPresize and transfer rules as ported before, over fixed arrays; cs_order computes the iteration order (a counting sort by bin, then each bin by stamp).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderServer.java",
+   "members": [
+    "chunksToUnload",
+    "unloadChunksIfNotNearSpawn",
+    "unloadQueuedChunks"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "cs_init",
+  "cs_free",
+  "cs_put",
+  "cs_take",
+  "cs_has",
+  "cs_order",
+  "cs_bytes"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "the TreeBin's red-black tree stays, as index links in the slots: its shape decides the untreeify on remove; rebalancing loops are bounded by the tree height",
+  "function cs_put: a held key in a plain bin of 8 or more scans the live slots for its place (the treeify check); a treeify scans them for the bin's list (lane/gpuorder, L4)",
+  "a transfer rebuilds split TreeBins from the new table's order; CHM's transfer reverses the run before lastRun in a plain bin, which this port (as the one it replaces) does not (DEVLOG 2026-09-26, lane/gpuorder)"
+ ],
+ "tests": [
+  "csrc/tests/order_test.c",
+  "csrc/tests/test_chunkload.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": ""
+}

@@ -1,0 +1,333 @@
+{
+ "classes": [
+  "EntityFX"
+ ],
+ "lines": 249,
+ "side": "client",
+ "category": "particles",
+ "role": "Base class of every client particle: texture index/jitter, age, scale, colour and alpha state, the shared 7-argument constructor's RNG draws, base onUpdate physics and the billboard renderParticle.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "fx_base4",
+    "fx_base7",
+    "fx_update",
+    "fx_multiply_velocity",
+    "fx_set_tex",
+    "fx_set_size"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "particle_quad",
+    "draw_list"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/dig/r2",
+  "out/java/render/particles_dig",
+  "out/java/render/particles_tnt",
+  "out/java/render/particles_tnt_t90",
+  "out/java/render/particles_tnt_t99",
+  "out/java/rendertick/fx_explode",
+  "out/java/rendertick/fx_rain",
+  "out/java/snapshots/surv2-tnt-s1",
+  "out/java/rendertick/fx_client",
+  "out/java/rendertick/fx_redstone",
+  "out/java/rendertick/fx_potion",
+  "out/java/clientframes/cov-fx-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "particleTextureIndexX",
+   "sig": "int",
+   "native": "csrc/engine/particles_live.h:tix",
+   "status": "exact",
+   "note": "fx_set_tex and each subclass's own index"
+  },
+  {
+   "kind": "field",
+   "name": "particleTextureIndexY",
+   "sig": "int",
+   "native": "csrc/engine/particles_live.h:tiy",
+   "status": "exact",
+   "note": "live: tiy"
+  },
+  {
+   "kind": "field",
+   "name": "particleTextureJitterX",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact",
+   "note": "rand.nextFloat() * 3.0F in the 4-arg ctor"
+  },
+  {
+   "kind": "field",
+   "name": "particleTextureJitterY",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "particleAge",
+   "sig": "int",
+   "native": "csrc/engine/particles_live.c:particles_live_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "particleMaxAge",
+   "sig": "int",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact",
+   "note": "the 4-arg ctor's (int)(4.0F / (nextFloat * 0.9F + 0.1F))"
+  },
+  {
+   "kind": "field",
+   "name": "particleScale",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "particleGravity",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.h:gravity",
+   "status": "exact",
+   "note": "the digging, breaking, rain and drop FX set it"
+  },
+  {
+   "kind": "field",
+   "name": "particleRed",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "particleGreen",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "particleBlue",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "particleAlpha",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact",
+   "note": "1.0F in the 4-arg ctor"
+  },
+  {
+   "kind": "field",
+   "name": "particleIcon",
+   "sig": "IIcon",
+   "native": "csrc/engine/particles_live.h:has_icon",
+   "status": "exact",
+   "note": "the block (block_id, block_meta) or item (item_id, item_meta) icon, its uv from the atlas at draw time"
+  },
+  {
+   "kind": "field",
+   "name": "interpPosX",
+   "sig": "double",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "exact",
+   "note": "static, recomputed in renderParticles/renderLitParticles"
+  },
+  {
+   "kind": "field",
+   "name": "interpPosY",
+   "sig": "double",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "interpPosZ",
+   "sig": "double",
+   "native": "csrc/engine/raster_particles.c:raster_particles_scene",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityFX",
+   "sig": "(World,double,double,double)",
+   "native": "csrc/engine/particles_live.c:fx_base4",
+   "status": "exact",
+   "note": "the Entity base draws plus jitter/scale/maxAge, in the vanilla order"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityFX",
+   "sig": "(World,double,double,double,double,double,double)",
+   "native": "csrc/engine/particles_live.c:fx_base7",
+   "status": "exact",
+   "note": "the five Det.mathRandom draws (four velocity spreads and the speed double)"
+  },
+  {
+   "kind": "method",
+   "name": "multiplyVelocity",
+   "sig": "(F)EntityFX",
+   "native": "csrc/engine/particles_live.c:fx_multiply_velocity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "multipleParticleScaleBy",
+   "sig": "(F)EntityFX",
+   "native": "csrc/engine/particles_live.c:particles_live_hit",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRBGColorF",
+   "sig": "(FFF)V",
+   "native": "csrc/engine/particles_live.c:particles_live_spawn",
+   "status": "exact",
+   "note": "inline where doSpawnParticle calls it (magicCrit, mobSpell, mobSpellAmbient, witchMagic, angryVillager, happyVillager) and playAuxSFX 2002's spells; EntityFireworkStarterFX and EntityFireworkSparkFX are switched off with fireworks"
+  },
+  {
+   "kind": "method",
+   "name": "setAlphaF",
+   "sig": "(F)V",
+   "native": "csrc/engine/particles_live.c:particles_live_spawn",
+   "status": "exact",
+   "note": "mobSpellAmbient's 0.15"
+  },
+  {
+   "kind": "method",
+   "name": "getRedColorF",
+   "sig": "()F",
+   "native": "csrc/engine/particles_live.h:red",
+   "status": "exact",
+   "note": "the struct's red, green, blue (magicCrit's 0.3 and 0.8 multiply them)"
+  },
+  {
+   "kind": "method",
+   "name": "getGreenColorF",
+   "sig": "()F",
+   "native": "csrc/engine/particles_live.h:red",
+   "status": "exact",
+   "note": "the struct's red, green, blue (magicCrit's 0.3 and 0.8 multiply them)"
+  },
+  {
+   "kind": "method",
+   "name": "getBlueColorF",
+   "sig": "()F",
+   "native": "csrc/engine/particles_live.h:red",
+   "status": "exact",
+   "note": "the struct's red, green, blue (magicCrit's 0.3 and 0.8 multiply them)"
+  },
+  {
+   "kind": "method",
+   "name": "canTriggerWalking",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/particles_live.c:fx_update",
+   "status": "exact",
+   "note": "age/maxAge death, gravity, moveEntity, 0.98 drag, ground friction"
+  },
+  {
+   "kind": "method",
+   "name": "renderParticle",
+   "sig": "(Tessellator,FFFFFFFF)V",
+   "native": "csrc/engine/raster_particles.c:particle_quad",
+   "status": "exact",
+   "note": "the iconless base quad; icon uv in particle_quad; live twin particle_quad"
+  },
+  {
+   "kind": "method",
+   "name": "getFXLayer",
+   "sig": "()I",
+   "native": "csrc/engine/particles_live.c:particles_live_explosion",
+   "status": "exact",
+   "note": "kind_layer at fx_add: 1 the digging, block dust and huge explosion, 2 the breaking, 3 the large explosion and the crit emitter, 0 the rest; EntityPickupFX's 3 in play.c's pickups"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setParticleIcon",
+   "sig": "(IIcon)V",
+   "native": "csrc/engine/particles_live.c:new_breaking",
+   "status": "exact",
+   "note": "EntityDiggingFX's and EntityBreakingFX's constructors keep the icon's block or item"
+  },
+  {
+   "kind": "method",
+   "name": "setParticleTextureIndex",
+   "sig": "(I)V",
+   "native": "csrc/engine/particles_live.c:fx_set_tex",
+   "status": "exact",
+   "note": "live sets tix/tiy directly per spawn"
+  },
+  {
+   "kind": "method",
+   "name": "nextTextureIndexX",
+   "sig": "()V",
+   "native": "csrc/engine/particles_live.c:new_splash",
+   "status": "exact",
+   "note": "EntitySplashFX's ++tix and magicCrit's"
+  },
+  {
+   "kind": "method",
+   "name": "canAttackWithItem",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "toString",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "crash-report text only"
+  }
+ ],
+ "missing": [],
+ "notes": "getBrightnessForRender is ported as fx_brf/particles_live_light (World.getLightBrightnessForSkyBlocks at the particle's box, once per tick) in particles_live.c. lane/particles2: the base constructor now spends exactly Entity's draws (entity ID, one seeder long, the UUID) and leaves prevPos at 0 (it sets lastTickPos); the old live code drew one seeder long too many and set prevPos. lane/idxlast 2026-09-27: every subclass with a spawner in reach is built live (particles_live.c); fx_client and the other fx_* scenes compare them field by field.",
+ "path": "oracle/src/client/particle/EntityFX.java"
+}

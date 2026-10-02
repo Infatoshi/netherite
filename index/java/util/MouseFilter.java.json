@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/util/MouseFilter.java",
+  "classes": ["MouseFilter"],
+  "lines": 27,
+  "side": "client",
+  "category": "client_input",
+  "role": "A small low-pass filter over mouse deltas used to smooth camera motion between frames.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Per-frame input smoothing is human-client presentation; SPEC records look input as per-tick effects and frames are a pure function of tick state, so the filter has no role in the gated path.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_76336_a", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_76334_b", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_76335_c", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "smooth", "sig": "(float,float)float", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Its user is the render-side smooth camera (EntityRenderer), outside the tick and not gated."
+}

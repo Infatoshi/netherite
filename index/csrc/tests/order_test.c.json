@@ -1,0 +1,13 @@
+{
+ "path": "csrc/tests/order_test.c",
+ "lines": 1656,
+ "role": "The unit test of the L4 containers: the spawner's eligible set, the active chunk set, the explosion's affected set, the potion map and chunksToUnload, each against the JDK 8 emulation it replaced (kept here as the reference) over randomised keys with hash collisions, resizes and treeified bins; make -C csrc order, run by make test.",
+ "layer": "test",
+ "java": [],
+ "structs": [],
+ "entry_points": [],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "The mutation checks run when it was written (a tree put appended, the untreeify shape check dropped, a kept TreeBin rebuilt, an explosion key swapped) each failed it."
+}

@@ -1,0 +1,135 @@
+{
+  "path": "csrc/play/clientents.c",
+  "lines": 917,
+  "role": "The live client's own copies of what it draws, beside the replay's (included by play.c; nothing here runs in the tick): the livings' client state (EntityLivingBase.onEntityUpdate and onUpdate on the combat client world's copies: hurt and death clocks from the server's statuses handled at the next client tick, prev angles, the S19 head, the body yaw by EntityBodyHelper or the 0.3 ease, the limb swing over the copy's own step, ticksExisted), the dragon's (lastTickPos, animTime over pickobj.c's copy's packet motion, the hurt clock), and the dropped items and XP orbs: EntityTracker's entries for them (range 64 and 160 capped at entityViewDistance, which WorldServer's constructor took at view 10: 144; every 20 ticks with velocity; the pass after the world tick, before the network tick, and trackEntity after the row for the network tick's spawns; the spawn, move, velocity, metadata and destroy packets) and each copy's EntityItem or EntityXPOrb update on the client world.",
+  "layer": "client",
+  "java": [
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "onEntityUpdate",
+        "onUpdate",
+        "func_110146_f",
+        "moveEntityWithHeading",
+        "handleHealthUpdate",
+        "performHurtAnimation"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityBodyHelper.java",
+      "members": [
+        "func_75664_a"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/boss/EntityDragon.java",
+      "members": [
+        "onLivingUpdate"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityTracker.java",
+      "members": [
+        "addEntityToTracker",
+        "func_85172_a"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityTrackerEntry.java",
+      "members": [
+        "tryStartWachingThis",
+        "sendLocationToAllClients",
+        "func_151260_c"
+      ]
+    },
+    {
+      "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+      "members": [
+        "handleSpawnObject",
+        "handleSpawnExperienceOrb",
+        "handleEntityMovement",
+        "handleEntityTeleport",
+        "handleEntityVelocity",
+        "handleDestroyEntities",
+        "handleEntityStatus"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityItem.java",
+      "members": [
+        "onUpdate"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityXPOrb.java",
+      "members": [
+        "onUpdate"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "setPositionAndRotation2",
+        "pushOutOfBlocks"
+      ]
+    }
+  ],
+  "entry_points": [
+    "cents_before_client_tick",
+    "cents_after_row",
+    "cents_world_changed",
+    "citem_fill"
+  ],
+  "structs": [
+    {
+      "name": "cent_living",
+      "java": "a living's client-side EntityLivingBase render state",
+      "fields": [
+        "prev_yaw",
+        "prev_pitch",
+        "head",
+        "prev_head",
+        "body",
+        "prev_body",
+        "limb",
+        "limb_amount",
+        "hurt",
+        "death",
+        "ticks"
+      ]
+    },
+    {
+      "name": "cent_dragon",
+      "java": "the client EntityDragon's lastTickPos, animTime and hurtTime",
+      "fields": [
+        "prev_x",
+        "x",
+        "anim",
+        "prev_anim",
+        "hurt",
+        "ticks"
+      ]
+    },
+    {
+      "name": "citem",
+      "java": "an EntityTrackerEntry for one item or orb, and the client's EntityItem or EntityXPOrb",
+      "fields": [
+        "te",
+        "has_copy",
+        "e",
+        "server_x",
+        "age",
+        "xp_color",
+        "hover"
+      ]
+    }
+  ],
+  "notes": "Render-only state kept out of the tick (AGENTS.md: the human client gets no work the GPU does not need). What remains inexact: an item's hoverStart (the client's Math.random), the squid's own client yaw (the server's stands in), a bat's hanging pin and an enderman's teleport burst in the replay's client world, the spawn head yaw of a fresh mob, the client swing (the server's stands in), the lead's holder (the server's leash). Checked by csrc/tests/frame_judge.sh over out/java/clientframes (hang-s1 draws a painting, a frame and a knot).",
+  "tests": [
+    "csrc/tests/frame_judge.sh"
+  ],
+  "gpu": [
+    "file scope: static tables (cents, cdragon, citems, cpkts) of the live client, outside the tick"
+  ],
+  "tick_path": false
+}

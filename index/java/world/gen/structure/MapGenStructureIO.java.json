@@ -1,0 +1,124 @@
+{
+ "path": "oracle/src/world/gen/structure/MapGenStructureIO.java",
+ "classes": [
+  "MapGenStructureIO"
+ ],
+ "lines": 116,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The registry between structure start and component classes and their NBT id strings (\"Mineshaft\", \"MSCorridor\", \"TeDP\", \"ViStart\", ...), and the loaders that rebuild a start or component from NBT.",
+ "scope": "in_scope",
+ "scope_reason": "Names every start and piece in the structure NBT the gates compare, and loads saved structures.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/structure.c",
+   "symbols": [
+    "structure_type_by_name",
+    "structure_types",
+    "piece_nbt",
+    "start_nbt"
+   ]
+  },
+  {
+   "file": "csrc/engine/fortress.c",
+   "symbols": [
+    "ids"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_structures.c",
+  "out/java/structures/s2",
+  "out/java/structures/vi-2",
+  "out/java/structures/nf-2"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "static Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_143040_a, field_143038_b",
+   "sig": "static Map (start name <-> class)",
+   "native": "csrc/engine/structure.c:structure_types",
+   "status": "exact",
+   "note": "structure_type.name doubles as the start id."
+  },
+  {
+   "kind": "field",
+   "name": "field_143039_c, field_143037_d",
+   "sig": "static Map (component name <-> class)",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact",
+   "note": "Each piece carries its id string (struct piece.id), set by the type file."
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_143034_b",
+   "sig": "static (Class,String)V",
+   "native": "csrc/engine/structure.c:structure_types",
+   "status": "exact",
+   "note": "Start registration is the structure_types table."
+  },
+  {
+   "kind": "method",
+   "name": "func_143031_a",
+   "sig": "static (Class,String)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact",
+   "note": "Component registration is the per-type id strings."
+  },
+  {
+   "kind": "method",
+   "name": "func_143033_a",
+   "sig": "static (StructureStart)String",
+   "native": "csrc/engine/structure.c:start_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_143036_a",
+   "sig": "static (StructureComponent)String",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_143035_a",
+   "sig": "static (NBTTagCompound,World)StructureStart",
+   "native": "csrc/engine/populate.c:populate_add_start",
+   "status": "exact",
+   "note": "the oracle builds the start from the file; native rebuilds it from its chunk and restores the saved component state (structures.json), which no constructor draw distinguishes"
+  },
+  {
+   "kind": "method",
+   "name": "func_143032_b",
+   "sig": "static (NBTTagCompound,World)StructureComponent",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "as above, per component"
+  },
+  {
+   "kind": "ctor",
+   "name": "MapGenStructureIO",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a class of static members only: nothing in oracle/src constructs it (no `new MapGenStructureIO`), so its implicit constructor never runs"
+  }
+ ],
+ "missing": [],
+ "notes": "The static initializer's registrations (the full name list) were not compared entry by entry against native ids; test_structures compares the id key of every start and piece it walks. Gate not re-run for this record. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

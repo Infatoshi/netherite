@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/client/resources/Locale.java",
+  "classes": ["Locale"],
+  "lines": 150,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The translation table: loads every domain's lang/<code>.lang key=value lines for the requested languages, normalises %d/%f format specifiers to %s, detects unicode-heavy locales, and formats translated strings.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_135032_a", "sig": "Map", "native": null, "status": "n/a", "note": "key to translated string"},
+    {"kind": "field", "name": "field_135029_d", "sig": "boolean", "native": null, "status": "n/a", "note": "unicode flag"},
+    {"kind": "method", "name": "loadLocaleDataFiles", "sig": "(IResourceManager,List)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isUnicode", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "checkUnicode", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadLocaleData", "sig": "(List)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadLocaleData", "sig": "(InputStream)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "translateKeyPrivate", "sig": "(String)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "formatMessage", "sig": "(String,Object[])String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The en_US table's strings surface in native only as pre-resolved text in the recorded render state (toast titles/descriptions); no translation happens in native. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "The .lang translation table; native draws the en_US strings it needs directly and never loads a table."
+}

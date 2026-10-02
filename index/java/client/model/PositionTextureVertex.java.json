@@ -1,0 +1,83 @@
+{
+ "path": "oracle/src/client/model/PositionTextureVertex.java",
+ "classes": [
+  "PositionTextureVertex"
+ ],
+ "lines": 35,
+ "side": "client",
+ "category": "client_model",
+ "role": "One model-box corner: its 3D position plus its texture coordinates.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "box",
+    "model_vertex",
+    "emit_box_faces"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "out/java/render/mobs2b_iron_golem_f011"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "vector3D",
+   "sig": "Vec3",
+   "native": "csrc/engine/raster_mobs.c:model_vertex",
+   "status": "exact",
+   "note": "the corner positions are transformed per part in model_vertex"
+  },
+  {
+   "kind": "field",
+   "name": "texturePositionX",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact",
+   "note": "the per-face UV rectangle"
+  },
+  {
+   "kind": "field",
+   "name": "texturePositionY",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "PositionTextureVertex",
+   "sig": "(float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact",
+   "note": "the eight corners per box come from the box definition"
+  },
+  {
+   "kind": "method",
+   "name": "setTexturePosition",
+   "sig": "(float,float)PositionTextureVertex",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "PositionTextureVertex",
+   "sig": "(PositionTextureVertex,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "copy form; the native pipeline builds each corner once"
+  },
+  {
+   "kind": "ctor",
+   "name": "PositionTextureVertex",
+   "sig": "(Vec3,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "same"
+  }
+ ],
+ "missing": []
+}

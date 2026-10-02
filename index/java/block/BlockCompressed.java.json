@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/block/BlockCompressed.java",
+  "classes": ["BlockCompressed"],
+  "lines": 23,
+  "side": "common",
+  "category": "block",
+  "role": "The compressed-storage base (lapis, gold, iron, diamond, emerald blocks): a full cube whose only own behavior is its map color.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c", "out/java/chunks/seed1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCompressed", "sig": "(Material,MapColor)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entries 22, 41, 42, 57 and 133 carry the class name BlockCompressed with their hardnesses and materials."},
+    {"kind": "method", "name": "getMapColor", "sig": "(I)MapColor", "native": null, "status": "n/a", "note": "The per-block map color; maps are switched off (world.conf maps = off) and no map renderer exists.; not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "Registry-only file: everything but the map color is exact by construction in blocks.h. The gold, iron, diamond and emerald blocks appear in worldgen and village structures through the same entries. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): reachable only through a world.conf switch that is off (maps). Formerly listed as missing: BlockCompressed.getMapColor's per-block map colors are not ported; the map item is switched off in world.conf."
+}

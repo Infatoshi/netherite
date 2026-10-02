@@ -1,0 +1,115 @@
+{
+ "path": "oracle/src/world/storage/ISaveHandler.java",
+ "classes": [
+  "ISaveHandler"
+ ],
+ "lines": 60,
+ "side": "server",
+ "category": "world",
+ "role": "Interface of a world's save directory (SaveHandler, AnvilSaveHandler): level.dat read and write, the session lock, the chunk loader for a dimension, player data and the data/ folder for MapStorage files.",
+ "scope": "in_scope",
+ "scope_reason": "Saving and reloading a world is part of the played game (checkpoints, play-reload tapes); the interface itself has no behavior. The save-writing side is deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain; triage 2026-09-25, out/plan/remaining-2026-09-25.md). The read side is a real item (B2).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/region.c",
+   "symbols": [
+    "region_load_chunk",
+    "region_enumerate"
+   ]
+  },
+  {
+   "file": "csrc/engine/snapshot.c",
+   "symbols": [
+    "snapshot_load"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/play-reload-s1",
+  "out/java/snapshots/play-reload2-s1",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "loadWorldInfo",
+   "sig": "()WorldInfo",
+   "native": "csrc/engine/snapshot.c:snapshot_load",
+   "status": "exact",
+   "note": "level.dat's compound (worldinfo.nbt)"
+  },
+  {
+   "kind": "method",
+   "name": "checkSessionLock",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "session.lock file guard; no concurrent writers in native."
+  },
+  {
+   "kind": "method",
+   "name": "getChunkLoader",
+   "sig": "(WorldProvider)IChunkLoader",
+   "native": "csrc/engine/region.c:region_load_chunk",
+   "status": "exact",
+   "note": "Read-only Anvil region reader for the save dir; no writer."
+  },
+  {
+   "kind": "method",
+   "name": "saveWorldInfoWithPlayer",
+   "sig": "(WorldInfo,NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "saveWorldInfo",
+   "sig": "(WorldInfo)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "getSaveHandler",
+   "sig": "()IPlayerFileData",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "flush",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Waits on the threaded chunk writer."
+  },
+  {
+   "kind": "method",
+   "name": "getWorldDirectory",
+   "sig": "()File",
+   "native": null,
+   "status": "n/a",
+   "note": "Native takes the save dir as a path argument."
+  },
+  {
+   "kind": "method",
+   "name": "getMapFileFromName",
+   "sig": "(String)File",
+   "native": null,
+   "status": "n/a",
+   "note": "data/<name>.dat's path: villages.dat's and the structure data's content reach native through the snapshot (villages.nbt, structures.json); n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldDirectoryName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Interface only; behavior lives in SaveHandler and AnvilSaveHandler. region.c's header says it serves the checkpoint --from start; serverreplay.c calls region_enumerate and region_load_chunk. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

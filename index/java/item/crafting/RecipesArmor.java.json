@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/item/crafting/RecipesArmor.java",
+  "classes": ["RecipesArmor"],
+  "lines": 35,
+  "side": "common",
+  "category": "crafting",
+  "role": "Registers the 20 armor recipes: four patterns (helmet, chestplate, leggings, boots) over the five materials (leather, chain via fire, iron, diamond, gold).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c", "out/java/snapshots/cat-wear-s1"],
+  "members": [
+    {"kind": "field", "name": "recipePatterns", "sig": "String[][]", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "baked into the shaped rows"},
+    {"kind": "field", "name": "recipeItems", "sig": "Object[][]", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "baked into the shaped rows and their ingredients"},
+    {"kind": "ctor", "name": "RecipesArmor", "sig": "()V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "bake time"},
+    {"kind": "method", "name": "addRecipes", "sig": "(Lnet/minecraft/item/crafting/CraftingManager;)V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the 4x5 loop unrolled into 20 shaped rows"}
+  ],
+  "missing": [],
+  "notes": null
+}

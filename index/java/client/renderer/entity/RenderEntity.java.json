@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderEntity.java",
+  "classes": ["RenderEntity"],
+  "lines": 31,
+  "side": "client",
+  "category": "client_render",
+  "role": "Fallback renderer registered for Entity.class in RenderManager: draws the entity's bounding box as an offset wireframe (renderOffsetAABB). Reached only when an entity class has no registered renderer.",
+  "scope": "not_needed",
+  "scope_reason": "Every entity class this game can spawn has its own renderer in RenderManager's entityRenderMap, so the fallback is never reached; and its output is a debug wireframe, not game content.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "unreachable fallback: RenderManager.java registers a renderer for every spawnable entity class; the box draw itself is Render.renderOffsetAABB"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "returns null by design"}
+  ],
+  "missing": [],
+  "notes": "Registered at RenderManager.java:158 (entityRenderMap.put(Entity.class, new RenderEntity())). If the native engine ever grows a fallback draw, it would be a wireframe in raster_overlay.c's line style."
+}

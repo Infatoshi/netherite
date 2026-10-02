@@ -1,0 +1,134 @@
+{
+ "path": "oracle/src/client/gui/GuiRepair.java",
+ "classes": [
+  "GuiRepair"
+ ],
+ "lines": 207,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The anvil GUI: the repair name text field, the cost string in the slot colour and the anvil sheet.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf: anvil = off; the anvil is a plain block, so its GUI is never opened (SPEC 'Unsupported features are world switches').",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_147093_u (static)",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147092_v",
+   "sig": "ContainerRepair",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147091_w",
+   "sig": "GuiTextField",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147094_x",
+   "sig": "InventoryPlayer",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiRepair",
+   "sig": "(InventoryPlayer,World,int,int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "initGui",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onGuiClosed",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146979_b",
+   "sig": "(int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "drawGuiContainerForegroundLayer"
+  },
+  {
+   "kind": "method",
+   "name": "keyTyped",
+   "sig": "(char,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147090_g",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the repair name update"
+  },
+  {
+   "kind": "method",
+   "name": "mouseClicked",
+   "sig": "(int,int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146976_a",
+   "sig": "(float,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "drawGuiContainerBackgroundLayer"
+  },
+  {
+   "kind": "method",
+   "name": "sendContainerAndContentsToPlayer",
+   "sig": "(Container,List)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "sendSlotContents",
+   "sig": "(Container,int,ItemStack)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "sendProgressBarUpdate",
+   "sig": "(Container,int,int)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

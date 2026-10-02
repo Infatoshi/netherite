@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/world/NextTickListEntry.java",
+  "classes": ["NextTickListEntry"],
+  "lines": 88,
+  "side": "common",
+  "category": "world",
+  "role": "One scheduled block update (position, block, time, priority) with the global static entry id that breaks ties in WorldServer's pending TreeSet, and the position+block equality its HashSet dedupes on.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ticks.h", "symbols": ["tick_entry", "ticks_next_entry_id", "ticks_set_next_entry_id"]},
+    {"file": "csrc/engine/ticks.c", "symbols": ["before", "heap_push", "heap_pop_root", "set_contains", "set_add", "ticks_schedule_block_update"]},
+    {"file": "csrc/engine/servertick.h", "symbols": ["next_tick_entry"]}
+  ],
+  "evidence": ["csrc/tests/test_ticks.c", "csrc/tests/test_tileticks.c", "csrc/tests/test_seedworld.c", "csrc/tests/test_snapshots.c", "out/java/snapshots/world-water-lava-s1", "out/java/snapshots/te-ticks-s1"],
+  "members": [
+    {"kind": "field", "name": "nextTickEntryID", "sig": "static long", "native": "csrc/engine/ticks.h:ticks_next_entry_id", "status": "exact", "note": "one static counter shared by every world, as in vanilla; test_seedworld checks it"},
+    {"kind": "field", "name": "field_151352_g", "sig": "Block", "native": "csrc/engine/ticks.h:tick_entry", "status": "exact", "note": "tick_entry.block"},
+    {"kind": "field", "name": "xCoord/yCoord/zCoord", "sig": "int", "native": "csrc/engine/ticks.h:tick_entry", "status": "exact"},
+    {"kind": "field", "name": "scheduledTime", "sig": "long", "native": "csrc/engine/ticks.h:tick_entry", "status": "exact", "note": "tick_entry.time"},
+    {"kind": "field", "name": "priority", "sig": "int", "native": "csrc/engine/ticks.h:tick_entry", "status": "exact"},
+    {"kind": "field", "name": "tickEntryID", "sig": "long", "native": "csrc/engine/ticks.h:tick_entry", "status": "exact", "note": "tick_entry.entry"},
+    {"kind": "ctor", "name": "NextTickListEntry", "sig": "(int,int,int,Block)", "native": "csrc/engine/ticks.c:ticks_schedule_block_update", "status": "exact", "note": "the id is taken before the dedupe check, as func_147454_a does"},
+    {"kind": "method", "name": "equals", "sig": "(Object)Z", "native": "csrc/engine/ticks.c:set_contains", "status": "exact", "note": "position + block"},
+    {"kind": "method", "name": "hashCode", "sig": "()I", "native": null, "status": "n/a", "note": "the C set is open addressing (slot_of_key); only membership matters, never HashSet iteration order"},
+    {"kind": "method", "name": "setScheduledTime", "sig": "(J)NextTickListEntry", "native": "csrc/engine/ticks.c:ticks_schedule_block_update", "status": "exact"},
+    {"kind": "method", "name": "setPriority", "sig": "(I)V", "native": "csrc/engine/ticks.c:ticks_load_chunk_entry", "status": "exact"},
+    {"kind": "method", "name": "compareTo", "sig": "(NextTickListEntry)I", "native": "csrc/engine/ticks.c:before", "status": "exact", "note": "time, then priority, then entry id; the TreeSet becomes a min-heap on the same order"},
+    {"kind": "method", "name": "func_151351_a", "sig": "()Block", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "ticks.c keeps the pending set in static file-scope arrays (a GPU-contract concern recorded on the native side)."
+}

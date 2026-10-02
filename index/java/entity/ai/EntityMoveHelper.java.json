@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/ai/EntityMoveHelper.java",
+  "classes": ["EntityMoveHelper"],
+  "lines": 96,
+  "side": "server",
+  "category": "ai",
+  "role": "Movement request buffer: tasks set a target point and speed, and onUpdate (called from the living tick) turns the body toward it at 30 degrees, sets the AI move speed scaled by the movementSpeed attribute, and requests a jump for upward moves.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["move_helper_set_move_to", "move_helper_update"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_update_rotation"]},
+    {"file": "csrc/engine/living.h", "symbols": ["living"]}
+  ],
+  "evidence": ["out/java/snapshots/mobspawn-final-s1", "out/java/snapshots/cp-mobs-s1", "out/java/villagers/vil-2", "csrc/tests/test_animals.c"],
+  "members": [
+    {"kind": "field", "name": "entity", "sig": "EntityLiving", "native": "csrc/engine/living.h:living", "status": "exact", "note": "folded: the helper is the move member of struct living"},
+    {"kind": "field", "name": "posX", "sig": "double", "native": "csrc/engine/living.h:living", "status": "exact", "note": "move.x"},
+    {"kind": "field", "name": "posY", "sig": "double", "native": "csrc/engine/living.h:living", "status": "exact", "note": "move.y"},
+    {"kind": "field", "name": "posZ", "sig": "double", "native": "csrc/engine/living.h:living", "status": "exact", "note": "move.z"},
+    {"kind": "field", "name": "speed", "sig": "double", "native": "csrc/engine/living.h:living", "status": "exact", "note": "move.speed"},
+    {"kind": "field", "name": "update", "sig": "boolean", "native": "csrc/engine/living.h:living", "status": "exact", "note": "move.update"},
+    {"kind": "ctor", "name": "EntityMoveHelper", "sig": "(EntityLiving)V", "native": "csrc/engine/living.h:living", "status": "exact", "note": "the struct member is zero-initialized (Java seeds posX/Y/Z with the entity's, but the first update clears update anyway)"},
+    {"kind": "method", "name": "isUpdating", "sig": "()Z", "native": "csrc/engine/living.h:living", "status": "n/a", "note": "n/a: its one caller is EntityOcelot.updateAITick (ocelots = off)"},
+    {"kind": "method", "name": "getSpeed", "sig": "()D", "native": "csrc/engine/living.h:living", "status": "n/a", "note": "n/a: its one caller is EntityOcelot.updateAITick (ocelots = off)"},
+    {"kind": "method", "name": "setMoveTo", "sig": "(DDDD)V", "native": "csrc/engine/ai.c:move_helper_set_move_to", "status": "exact"},
+    {"kind": "method", "name": "onUpdateMoveHelper", "sig": "()V", "native": "csrc/engine/ai.c:move_helper_update", "status": "exact", "note": "setMoveForward(0), the 2.5e-7 dead zone, the 30-degree turn (StrictMath.atan2 -> fd_atan2), the attribute-scaled AI move speed, and the jump request"},
+    {"kind": "method", "name": "limitAngle", "sig": "(FFF)F", "native": "csrc/engine/living.c:living_update_rotation", "status": "exact", "note": "the shared wrap-and-clamp helper, shared with EntityLookHelper.updateRotation"}
+  ],
+  "missing": [],
+  "notes": ""
+}

@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/item/ItemAnvilBlock.java",
+  "classes": ["ItemAnvilBlock"],
+  "lines": 22,
+  "side": "common",
+  "category": "item",
+  "role": "The anvil's ItemBlock: places the anvil block with its damage value shifted left two bits into the facing/damage metadata.",
+  "scope": "in_scope",
+  "scope_reason": "The anvil GUI is switched off (world.conf anvil = off), but the anvil is still a placeable plain block, so the item's placement behavior stays live.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_get_metadata", "item_block_on_item_use", "place_try"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemAnvilBlock", "sig": "(Block)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the generated row carries the class_name ItemAnvilBlock and the block id"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "place.c answers damage << 2 for class_name ItemAnvilBlock"},
+    {"kind": "method", "name": "onItemUse (inherited from ItemBlock)", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/place.c:item_block_on_item_use", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The anvil block's own GUI and repair behavior are out of scope (world.conf anvil = off); this file only places the block."
+}

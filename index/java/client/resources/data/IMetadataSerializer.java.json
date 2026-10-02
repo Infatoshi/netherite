@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/client/resources/data/IMetadataSerializer.java",
+  "classes": ["IMetadataSerializer", "IMetadataSerializer.Registration"],
+  "lines": 96,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Registry of section-name to deserializer/class pairs backed by a lazily built Gson instance, plus the IChatComponent/ChatStyle adapters; parseMetadataSection dispatches a .mcmeta object to the right section parser.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack metadata plumbing; the native engine never parses asset metadata JSON.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "IMetadataSerializer", "sig": "()V", "native": null, "status": "n/a", "note": "registers the IChatComponent and ChatStyle Gson adapters"},
+    {"kind": "method", "name": "registerMetadataSectionType", "sig": "(IMetadataSectionSerializer,Class)V", "native": null, "status": "n/a", "note": "invalidates the cached Gson"},
+    {"kind": "method", "name": "parseMetadataSection", "sig": "(String,JsonObject)IMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getGson", "sig": "()Gson", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "metadataSectionSerializerRegistry", "sig": "IRegistry", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "gsonBuilder", "sig": "GsonBuilder", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "gson", "sig": "Gson", "native": null, "status": "n/a", "note": "lazy, invalidated on registration"},
+    {"kind": "field", "name": "Registration.field_110502_a", "sig": "IMetadataSectionSerializer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "Registration.field_110500_b", "sig": "Class", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "Registration", "sig": "(IMetadataSectionSerializer,Class)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The second Registration ctor with a dummy Object parameter is a synthetic bridge and is not listed separately."
+}

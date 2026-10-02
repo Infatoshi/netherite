@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/resources/IResource.java",
+  "classes": ["IResource"],
+  "lines": 13,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Interface for one located resource: its InputStream plus optional metadata sections (SimpleResource implements it).",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getInputStream", "sig": "()InputStream", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasMetadata", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMetadata", "sig": "(String)IMetadataSection", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The metadata sections this feeds (texture blur/clamp, animation frames) are consumed by TextureMap/TextureUtil, whose records carry the render-relevant parts. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "One located resource and its metadata; native reads pre-converted files by path."
+}

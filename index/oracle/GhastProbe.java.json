@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/GhastProbe.java",
+ "lines": 1073,
+ "role": "Ghast probe: EntityGhast and its EntityLargeFireball in raw Nether chunks with an unticked probe player, ticked as World.updateEntities does, recording per-tick NBT hashes plus the non-NBT state (waypoint, attack counters, targeting, Random state), the reference for EntityFlying movement, ghast AI, fireballs and explosions.",
+ "kind": "probe",
+ "used_by": [
+  "oracle/Makefile run target (make run CLASS=GhastProbe), dispatched by Oracle.java's {\"cmd\":\"run\",\"class\":...}",
+  "csrc/tests/test_ghasts.c (out/java/ghasts/gh-b2, gh-b2r, gh-b2w, gh-b42 ...)",
+  "csrc/engine/ghasts.c cites it"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Its reflection helpers field and floatField are used by DragonProbe. No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

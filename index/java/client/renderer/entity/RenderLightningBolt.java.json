@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderLightningBolt.java",
+  "classes": ["RenderLightningBolt"],
+  "lines": 164,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders the lightning bolt: additive blended vertical quads whose jagged outline is seeded per bolt from EntityLightningBolt.boltVertex.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_things.c", "symbols": ["draw_bolt"]}
+  ],
+  "evidence": ["out/java/render-src/ent_bolt", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "method", "name": "doRender", "sig": "(EntityLightningBolt,double,double,double,float,float)V", "native": "csrc/engine/raster_things.c:draw_bolt", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityLightningBolt)ResourceLocation", "native": null, "status": "n/a", "note": "returns null; the bolt is untextured"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: the nested triangle-strip shells from Random(boltVertex), GL_SRC_ALPHA, GL_ONE with depth writes, the 8-bit product; ent_bolt 6 views within 30 px (master 13,190 to 13,579 px)."
+}

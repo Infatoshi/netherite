@@ -1,0 +1,85 @@
+{
+ "path": "csrc/tests/test_sblocks.c",
+ "lines": 1038,
+ "role": "Gate: the structure block half (StructureStart.generateStructure per population step) against StructureBlocksProbe recordings under out/java/sblocks/<name>/: every block write, tile entity, constructed entity and 3x3 chunk hash is compared in order per step for mineshafts, temples, strongholds, villages and fortresses.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/StructureStart.java",
+   "members": [
+    "generateStructure"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "populate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureMineshaftPieces.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/structure/ComponentScatteredFeaturePieces.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureStrongholdPieces.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureVillagePieces.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureNetherBridgePieces.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/StructureBlocksProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "step_rec",
+   "java": "one probe step: start chunk, step chunk, write count, 3x3 hash",
+   "fields": [
+    "start_cx",
+    "start_cz",
+    "cx",
+    "cz",
+    "writes"
+   ]
+  },
+  {
+   "name": "ent_rec",
+   "java": "an entity the step constructed (class, position, NBT)",
+   "fields": []
+  },
+  {
+   "name": "te",
+   "java": "tile entity snapshot row for the per-step diff",
+   "fields": []
+  },
+  {
+   "name": "block_half",
+   "java": "table row: structure type name to its native block dispatch",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 68: static diff_what buffer",
+  "line 124, read_ents: malloc per entity record",
+  "line 364, te_snapshot: realloc"
+ ],
+ "tests": [
+  "csrc/tests/test_sblocks.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Starts come from structure_walk (structure.c), blocks from sc_generate (structure_blocks.c) over mineshaft_blocks.c/temple_blocks.c etc. Struct field lists beyond step_rec not enumerated. Recordings: out/java/sblocks (fo-*, s2-*, s42*, sh-*, te*, vi*)."
+}

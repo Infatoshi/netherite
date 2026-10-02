@@ -1,0 +1,95 @@
+{
+  "path": "csrc/engine/snap_runtime.c",
+  "lines": 1036,
+  "role": "Applies a snapshot's per-entity runtime block (Snapshot.java's \"rt\", EntityState.java) to the loaded entities: every Entity/EntityLivingBase/EntityLiving/EntityCreature field NBT leaves out, the kinds' own counters, the data watcher, both AI task lists (tickCount, the executing entries in order, each task's fields, village door and village references) and the look, move, jump and body helpers and the navigator; the non-living pools' fields (items, orbs, projectiles, falling and hanging blocks); and the chunk slice order (Chunk.entityLists) from each entity's recorded index. A snapshot taken at any tick resumes mid-AI, mid-jump and mid-path.",
+  "layer": "io",
+  "java": [
+    {
+      "path": "oracle/src/entity/ai/EntityAITasks.java",
+      "members": [
+        "tickCount",
+        "taskEntries",
+        "executingTaskEntries"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/ai/EntityLookHelper.java",
+      "members": [
+        "deltaLookYaw",
+        "deltaLookPitch",
+        "isLooking",
+        "posX",
+        "posY",
+        "posZ"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/ai/EntityMoveHelper.java",
+      "members": [
+        "posX",
+        "posY",
+        "posZ",
+        "speed",
+        "update"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityBodyHelper.java",
+      "members": [
+        "field_75666_b",
+        "field_75667_c"
+      ]
+    },
+    {
+      "path": "oracle/src/pathfinding/PathNavigate.java",
+      "members": [
+        "currentPath",
+        "speed",
+        "totalTicks",
+        "ticksAtLastPos",
+        "lastPosCheck",
+        "noSunPathfind",
+        "avoidsWater",
+        "canSwim"
+      ]
+    },
+    {
+      "path": "oracle/src/world/chunk/Chunk.java",
+      "members": [
+        "entityLists"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "rt_field",
+      "java": null,
+      "fields": [
+        "name",
+        "type",
+        "off"
+      ]
+    },
+    {
+      "name": "rt_task_class",
+      "java": "one EntityAI* class's field rows",
+      "fields": [
+        "cls",
+        "f",
+        "n"
+      ]
+    }
+  ],
+  "entry_points": [
+    "sr_apply_runtime",
+    "sr_runtime_player_stamp"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "the load runs once per snapshot outside the tick; rt_living and rt_slice_stamp scan whole entity lists per lookup (quadratic in the entity count at load)"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "Driven by the any-tick sweep (oracle/tests/anytick.sh, make -C oracle anytick). Unmapped Java fields are ones the native engine derives, never reads or does not model; rows stay the gate. References to the player (an AI target, a projectile's shooter) are filled in by serverreplay_bind_player through sr->rt_player_refs (a slab table, every reference) / rt_player_vrefs. lane/anytick: a leashed creature's EntityAIMoveTowardsRestriction (field_110180_bt) and holder (leashedToEntity), a villager's buyingPlayer and lastBuyingPlayer, EntityAILookAtTradePlayer's lookTime, falling and hanging entities' isDead."
+}

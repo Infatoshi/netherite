@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntityChestRenderer.java",
+  "classes": ["TileEntityChestRenderer"],
+  "lines": 175,
+  "side": "client",
+  "category": "client_render",
+  "role": "TileEntitySpecialRenderer for TileEntityChest: draws the ModelChest or ModelLargeChest (single or double, normal/trapped/christmas textures), rotates by the block metadata facing, and opens the lid from the interpolated field_145989_m lid angle (cubic ease, taking the max over coupled double-chest halves).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_tileent.c", "symbols": ["render_chest", "model_chest", "lid_angle", "tex"]}
+  ],
+  "evidence": ["out/java/rendertick/te_chests", "out/java/rendertick/te_dungeon", "out/java/render/te_chests_o4", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "field_147507_b, field_147508_c, field_147505_d, field_147506_e, field_147503_f, field_147504_g", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_tileent.c:tex", "status": "exact", "note": "normal, normal_double, trapped and trapped_double as vanilla picks them; the christmas pair is field_147509_j's"},
+    {"kind": "field", "name": "field_147510_h, field_147511_i", "sig": "ModelChest", "native": "csrc/engine/raster_tileent.c:model_chest", "status": "exact"},
+    {"kind": "field", "name": "field_147509_j", "sig": "boolean", "native": null, "status": "n/a", "note": "the christmas flag reads the machine's wall clock when the renderer is made (Calendar.getInstance, not the oracle's calendar pin, which covers World.theCalendar only), so a golden's chest texture follows the day it was recorded, not the game; the native draws the normal textures, as every golden made outside Dec 24 to 26 does"},
+    {"kind": "ctor", "name": "TileEntityChestRenderer", "sig": "()", "native": null, "status": "exact", "note": "the models; the wall-clock flag is field_147509_j's"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntityChest,D,D,D,F)V", "native": "csrc/engine/raster_tileent.c:render_chest", "status": "exact"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,D,D,D,F)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [],
+  "notes": "raster_tileent.c ports the whole draw: the single or double model from the adjacent chests (a double chest draws once, from the half with no z- or x- neighbour), the facing rotation and the two double-chest offsets, the lid's cubic ease from lidAngle and prevLidAngle, GL_RESCALE_NORMAL. te_chests and te_dungeon record chests opened and closed by the player (the lid over frames with the GUI up and falling after), double and trapped chests at several facings: every view within its budget with no pxdiff cluster. The lid state itself steps natively (raster_tileents_lid_tick, test_rendertick section 6). lane/idxclient: the christmas flag is a wall-clock read outside the game state (see field_147509_j)."
+}

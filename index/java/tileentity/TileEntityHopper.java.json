@@ -1,0 +1,300 @@
+{
+  "path": "oracle/src/tileentity/TileEntityHopper.java",
+  "classes": [
+    "TileEntityHopper"
+  ],
+  "lines": 677,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The hopper block entity: five slots, the transfer cooldown, and the pull/push logic between inventories and item entities above (the static helpers are shared with the hopper minecart).",
+  "scope": "in_scope",
+  "scope_reason": "Hoppers are craftable and placeable; world.conf redstone = off makes func_145887_i return false (java hook), so a hopper only stores. The storage, cooldown and NBT stay in scope.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_hopper",
+        "TE_HOPPER"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "hopper_update"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_hopper",
+        "te_load"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "gui_can_interact"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/containers2-s42",
+    "out/java/snapshots/tiles-reload-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145900_a",
+      "sig": "ItemStack[5]",
+      "native": "csrc/engine/tileentity.h:te_hopper",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145902_i",
+      "sig": "String customName",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "field",
+      "name": "field_145901_j",
+      "sig": "int transferCooldown",
+      "native": "csrc/engine/tileentity.h:te_hopper",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "Items and TransferCooldown (a CustomName only an anvil writes)."
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_hopper",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "onInventoryChanged",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "only after a transfer, which is off"
+    },
+    {
+      "kind": "method",
+      "name": "getSizeInventory",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:te_hopper",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlot",
+      "sig": "(I)ItemStack",
+      "native": "csrc/engine/survival.c:gui_te_slot",
+      "status": "exact",
+      "note": "the window reads the tile slot through gui_te_slot"
+    },
+    {
+      "kind": "method",
+      "name": "decrStackSize",
+      "sig": "(II)ItemStack",
+      "native": "csrc/engine/survival.c:gui_tile_changed",
+      "status": "exact",
+      "note": "a click on the window writes the changed slot back to the tile"
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlotOnClosing",
+      "sig": "(I)ItemStack",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setInventorySlotContents",
+      "sig": "(ILItemStack)V",
+      "native": "csrc/engine/survival.c:gui_tile_changed",
+      "status": "exact",
+      "note": "the same write-back; markDirty drops the cached NBT (te->raw)"
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "Client window title text."
+    },
+    {
+      "kind": "method",
+      "name": "isInventoryNameLocalized",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "func_145886_a",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryStackLimit",
+      "sig": "()I",
+      "native": "csrc/engine/container.c:container_init",
+      "status": "exact",
+      "note": "64, the chest inventory limit the window uses"
+    },
+    {
+      "kind": "method",
+      "name": "isUseableByPlayer",
+      "sig": "(EntityPlayer)Z",
+      "native": "csrc/engine/survival.c:gui_can_interact",
+      "status": "exact",
+      "note": "the same tile and within 8"
+    },
+    {
+      "kind": "method",
+      "name": "isItemValidForSlot",
+      "sig": "(ILItemStack)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntity",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:hopper_update",
+      "status": "exact",
+      "note": "cooldown down, reset to 0; transfer returns false"
+    },
+    {
+      "kind": "method",
+      "name": "func_145887_i",
+      "sig": "()Z",
+      "native": "csrc/engine/tileticks.c:hopper_update",
+      "status": "exact",
+      "note": "the redstone-off early return"
+    },
+    {
+      "kind": "method",
+      "name": "func_152104_k, func_152105_l, func_145883_k, func_152102_a, func_152103_b",
+      "sig": "private transfer helpers",
+      "native": null,
+      "status": "n/a",
+      "note": "unreachable with redstone off"
+    },
+    {
+      "kind": "method",
+      "name": "func_145891_a",
+      "sig": "(IHopper)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "pull; unreachable"
+    },
+    {
+      "kind": "method",
+      "name": "func_145892_a",
+      "sig": "(IHopper,IInventory,int,int)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145898_a",
+      "sig": "(IInventory,EntityItem)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145889_a",
+      "sig": "(IInventory,ItemStack,int)ItemStack",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145885_a, func_145890_b, func_145899_c",
+      "sig": "private static",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145895_l",
+      "sig": "()IInventory",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145884_b",
+      "sig": "(IHopper)IInventory",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145897_a",
+      "sig": "(World,DDD)EntityItem",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145893_b",
+      "sig": "(World,DDD)IInventory",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145894_a",
+      "sig": "(ItemStack,ItemStack)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getXPos, getYPos, getZPos",
+      "sig": "()D",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145896_c",
+      "sig": "(I)V",
+      "native": "csrc/engine/tileticks.c:hopper_update",
+      "status": "exact",
+      "note": "set cooldown"
+    },
+    {
+      "kind": "method",
+      "name": "func_145888_j",
+      "sig": "()Z",
+      "native": "csrc/engine/tileticks.c:hopper_update",
+      "status": "exact",
+      "note": "cooldown > 0"
+    }
+  ],
+  "missing": [],
+  "notes": "Transfer logic is left n/a under redstone = off; it becomes in scope when redstone leaves the switch list. lane/idxblocks: the transfers are world.conf redstone = off (hoppers only store)."
+}

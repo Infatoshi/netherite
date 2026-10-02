@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/dig.h",
+ "lines": 152,
+ "role": "Declares the dig state machine: the ItemInWorldManager fields, the digging player, the spawned-entity record, a case's outputs and the dig environment, plus the drive ops (tick, cancel, finish) and the case begin/end calls.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/server/management/ItemInWorldManager.java", "members": ["isDestroyingBlock", "initialDamage", "partiallyDestroyedBlockX", "partiallyDestroyedBlockY", "partiallyDestroyedBlockZ", "curblockDamage", "receivedFinishDiggingPacket", "posX", "posY", "posZ", "initialBlockDamage", "durabilityRemainingOnBlock"]}
+ ],
+ "structs": [
+  {"name": "dig_mgr", "java": "ItemInWorldManager's dig fields (isDestroyingBlock, initialDamage, partiallyDestroyedBlockX/Y/Z, curblockDamage, receivedFinishDiggingPacket, posX/Y/Z, initialBlockDamage, durabilityRemainingOnBlock) plus the clicked block for the client-prediction case", "fields": ["is_destroying", "initial_damage", "part_x", "part_y", "part_z", "curblock_damage", "finish", "pos_x", "pos_y", "pos_z", "initial_block", "durability", "initial_id", "initial_meta"]},
+  {"name": "dig_player", "java": "the EntityPlayer state the dig reads: held ItemStack, enchant levels, onGround/inWater, haste and mining fatigue, FoodStats exhaustion, the entity Random, stats", "fields": ["held_item", "held_damage", "held_count", "held_was", "eff", "unbr", "silk", "fortune", "on_ground", "in_water", "haste", "fatigue", "exhaustion", "prand", "entity_id", "stat_mine", "stat_use", "stat_break"]},
+  {"name": "dig_ent", "java": "one spawned EntityItem, EntityXPOrb or silverfish as the dig probe records it", "fields": ["kind", "item", "damage", "count", "xp", "entity_id", "uuid_msb", "uuid_lsb", "rand_state", "hover", "x", "y", "z", "mx", "my", "mz", "yaw"]},
+  {"name": "dig_out", "java": null, "fields": ["held_item", "held_damage", "held_count", "exhaustion", "stat_mine", "stat_use", "stat_break", "wr_state", "math_state", "seeder_state", "chest_state", "next_id", "broke"]},
+  {"name": "dig_env", "java": "the world, Det role, world Random, BlockChest's static Random and the manager and player together", "fields": ["w", "role", "det", "wr", "chest", "p", "m", "x", "y", "z", "case_index", "ents", "nents", "broke", "partial", "partial_ctx"]}
+ ],
+ "entry_points": ["dig_init", "dig_case_begin", "dig_op", "dig_op_click", "dig_case_end"],
+ "tick_path": true,
+ "gpu": [
+  "line 105, struct dig_env: holds pointers to the world and det_state",
+  "line 124-125, struct dig_env: partial is a function-pointer callback with an opaque context"
+ ],
+ "tests": ["csrc/tests/test_dig.c", "csrc/tests/test_clientworld.c"],
+ "notes": "The Java field names in dig_mgr are mapped from the header comment and ItemInWorldManager's MCP names."
+}

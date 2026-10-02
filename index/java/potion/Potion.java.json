@@ -1,0 +1,240 @@
+{
+ "path": "oracle/src/potion/Potion.java",
+ "classes": [
+  "Potion"
+ ],
+ "lines": 369,
+ "side": "common",
+ "category": "entity",
+ "role": "The static potion registry: the 32 slots with each potion's id, bad flag, liquid color, effectiveness and its attribute modifiers, plus the per tick performEffect and isReady logic.",
+ "scope": "in_scope",
+ "scope_reason": "Potion effects run in this game: food effects, the witch's splashes, the skeleton's wither and the spider's poison.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/potion.c",
+   "symbols": [
+    "POT_BAD",
+    "POT_COLOR",
+    "POT_EFFECTIVENESS",
+    "potion_is_bad",
+    "potion_liquid_color",
+    "potion_is_instant",
+    "potion_effectiveness",
+    "potion_is_ready",
+    "potion_perform_effect",
+    "potion_affect_entity",
+    "potion_apply_attributes",
+    "potion_remove_attributes"
+   ]
+  },
+  {
+   "file": "csrc/engine/potion.h",
+   "symbols": [
+    "POT_MOVE_SPEED",
+    "POT_COUNT"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_potion_tick",
+    "client_potion_perform"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_hud.c",
+   "symbols": [
+    "draw_effects",
+    "POTIONS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/potions/seed2",
+  "out/java/potions/seed42",
+  "csrc/tests/test_potions.c",
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/surv_eat-s1",
+  "out/java/clientframes/idx-tippotion-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "potionTypes",
+   "sig": "Potion[] (static)",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:POT_COLOR",
+   "note": "the static registry is three tables (bad flag, liquid color, effectiveness) plus the POT_* id enum (potion.h)"
+  },
+  {
+   "kind": "field",
+   "name": "moveSpeed (the static potion instances, moveSlowdown through field_76408_G)",
+   "sig": "Potion[] (static)",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:POT_BAD",
+   "note": "each instance's id, isBadEffect, liquidColor and effectiveness live in the POT_* tables; the attribute modifier map is the per id switch in potion_apply_attributes"
+  },
+  {
+   "kind": "ctor",
+   "name": "Potion",
+   "sig": "(int,Z,int)V",
+   "status": "n/a",
+   "note": "the constructor's effects are baked into the static tables"
+  },
+  {
+   "kind": "method",
+   "name": "setIconIndex",
+   "sig": "(II)Potion",
+   "status": "n/a",
+   "note": "the inventory status icon, client GUI"
+  },
+  {
+   "kind": "method",
+   "name": "getId",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "the id is the table index"
+  },
+  {
+   "kind": "method",
+   "name": "performEffect",
+   "sig": "(EntityLivingBase,I)V",
+   "status": "partial",
+   "native": "csrc/engine/potion.c:potion_perform_effect",
+   "note": "the regen, poison, wither and heal/harm branches run on living entities; the hunger and saturation player branches run in the server player's tick (survival.c:surv_server_potion_tick) and the client half in survival.c:client_potion_perform"
+  },
+  {
+   "kind": "method",
+   "name": "affectEntity",
+   "sig": "(EntityLivingBase,EntityLivingBase,I,D)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_affect_entity",
+   "note": "the splash distance falloff and the undead heal/harm swap"
+  },
+  {
+   "kind": "method",
+   "name": "isInstant",
+   "sig": "()Z",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_is_instant"
+  },
+  {
+   "kind": "method",
+   "name": "isReady",
+   "sig": "(II)Z",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_is_ready"
+  },
+  {
+   "kind": "method",
+   "name": "setPotionName",
+   "sig": "(String)Potion",
+   "status": "n/a",
+   "note": "client GUI text"
+  },
+  {
+   "kind": "method",
+   "name": "getName",
+   "sig": "()String",
+   "status": "n/a",
+   "note": "client GUI text"
+  },
+  {
+   "kind": "method",
+   "name": "hasStatusIcon",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "client GUI"
+  },
+  {
+   "kind": "method",
+   "name": "getStatusIconIndex",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "client GUI"
+  },
+  {
+   "kind": "method",
+   "name": "isBadEffect",
+   "sig": "()Z",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_is_bad",
+   "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-idx-tippotion-s1 (ItemPotion.addInformation's red lines)"
+  },
+  {
+   "kind": "method",
+   "name": "getDurationString",
+   "sig": "(PotionEffect)String",
+   "status": "n/a",
+   "note": "client GUI text"
+  },
+  {
+   "kind": "method",
+   "name": "setEffectiveness",
+   "sig": "(D)Potion",
+   "status": "n/a",
+   "note": "baked into POT_EFFECTIVENESS"
+  },
+  {
+   "kind": "method",
+   "name": "getEffectiveness",
+   "sig": "()D",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_effectiveness"
+  },
+  {
+   "kind": "method",
+   "name": "isUsable",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "usable is false for every potion in the 1.7.10 registry, so getPotionEffects's filter is dead"
+  },
+  {
+   "kind": "method",
+   "name": "getLiquidColor",
+   "sig": "()I",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_liquid_color"
+  },
+  {
+   "kind": "method",
+   "name": "func_111184_a",
+   "sig": "(IAttribute,String,D,I)Potion",
+   "status": "partial",
+   "native": "csrc/engine/potion.c:potion_apply_attributes",
+   "note": "the per potion AttributeModifier objects and their UUIDs are folded into a per id switch"
+  },
+  {
+   "kind": "method",
+   "name": "func_111186_k",
+   "sig": "()java.util.Map",
+   "status": "n/a",
+   "note": "the modifier map is internal to the switch"
+  },
+  {
+   "kind": "method",
+   "name": "removeAttributesModifiersFromEntity",
+   "sig": "(EntityLivingBase,BaseAttributeMap,I)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_remove_attributes"
+  },
+  {
+   "kind": "method",
+   "name": "applyAttributesModifiersToEntity",
+   "sig": "(EntityLivingBase,BaseAttributeMap,I)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_apply_attributes"
+  },
+  {
+   "kind": "method",
+   "name": "func_111183_a",
+   "sig": "(I,AttributeModifier)D",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_apply_attributes",
+   "note": "the amplifier scaling runs per id in the switch"
+  }
+ ],
+ "missing": [],
+ "notes": "The hunger and saturation branches touch the FoodStats, so they live on the server player's twin path (survival.c:surv_server_potion_tick) rather than the generic living body; the client half never moves the client's own health (EntityClientPlayerMP's empty heal, survival.c:3673). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers; names and icons are GUI text. Formerly listed as missing: the attribute modifier map (field_111188_I): the modifiers' UUID strings and the generic map walk are replaced by a per id switch in potion.c:potion_apply_attributes and potion_remove_attributes; the saved NBT's modifier UUID is written by the attribute path (csrc/engine/entity_nbt.c) the name, icon index and duration string: client GUI only, never reached by the native client getDurationString and the names and status icons the effect column draws are raster_hud.c's draw_effects and POTIONS."
+}

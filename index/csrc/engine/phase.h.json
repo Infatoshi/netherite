@@ -1,0 +1,105 @@
+{
+ "path": "csrc/engine/phase.h",
+ "lines": 260,
+ "role": "The tick as phases (GPU audit L6): the phase ids in row order (R0 C1 C2 TP DV, per world S1 S2 S1T S3 S4 S5 S6 SG S9 S10 S11 S12 NT S13 or SE, then N1 N2 N1E N3 T, and VD when the client's render distance differs from the view distance), the twelve state classes a phase can write, the per-environment tracer state and the PHASE_RUN mark every phase call sits between. Also the profiler's declarations (phaseprof.c): the nested sub-marks (PS_LOAD, PS_GEN, PS_POP, PS_LIGHT, PS_LFLAGS, PS_RTICK, PS_PATH, PS_SEEDW, PS_GRAVE, PS_WBEGIN, PS_PARK, PS_S2CCOPY), PHASE_SUB and the per-row profile record; phase_env.on is a bit set (PHASE_TRACE, PHASE_PROF).",
+ "layer": "tick",
+ "java": [],
+ "structs": [
+  {
+   "name": "phase_desc",
+   "java": null,
+   "fields": [
+    "label",
+    "vanilla",
+    "native",
+    "reads",
+    "writes"
+   ]
+  },
+  {
+   "name": "phase_env",
+   "java": null,
+   "fields": [
+    "on",
+    "check",
+    "out",
+    "ss",
+    "co",
+    "world_dim",
+    "open",
+    "epoch",
+    "before",
+    "written",
+    "trace_hash",
+    "undeclared",
+    "observed",
+    "line",
+    "prof",
+    "kernel_mask",
+    "kernel"
+   ]
+  },
+  {
+   "name": "phase_prof_row",
+   "java": null,
+   "fields": [
+    "t",
+    "total",
+    "total_allocs",
+    "cyc",
+    "allocs"
+   ]
+  },
+  {
+   "name": "phase_prof",
+   "java": null,
+   "fields": [
+    "rows",
+    "cap",
+    "n",
+    "skipped",
+    "in_row",
+    "cur",
+    "runs",
+    "allocs",
+    "t0_cyc",
+    "t0_ns",
+    "first_row_cyc"
+   ]
+  }
+ ],
+ "entry_points": [
+  "PHASE_RUN",
+  "PHASE_WORLD",
+  "PHASE_ON",
+  "phase_begin_",
+  "phase_end_",
+  "phase_row_begin_",
+  "phase_row_end_",
+  "phase_trace_start",
+  "phase_trace_summary",
+  "PHASES",
+  "PHASE_CLASS_NAMES",
+  "PHASE_SUB",
+  "PHASE_PROF_ON",
+  "phase_profile_start",
+  "phase_profile_summary",
+  "phase_prof_begin_",
+  "phase_prof_end_",
+  "phase_prof_row_begin_",
+  "phase_prof_row_end_",
+  "phase_sub_begin_",
+  "phase_sub_end_",
+  "phase_prof_instructions"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "the kernel boundary contract: a kernel for phase P reproduces P's digest (phase.c class digests over P's declared writes) from the env state C leaves at P's start; off, a mark is one predictable branch on nw_env->phase.on",
+  "the profiler's sub-marks sit inside hot tick functions (update_light_by_type, the S6 chunk loop, the pathfinder, the chunk load path); off, each is one predictable branch on nw_env->phase.on & PHASE_PROF"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_interleave.c"
+ ],
+ "notes": "S6 is the audit's S6 to S8: vanilla interleaves the light flags, lightning, ice and snow and random ticks per chunk on one World.rand, so they cannot be separate sequential phases; S5 (the player light check before the loop) is separate. lane/gpuharness: kernel and kernel_mask, the per-phase kernel harness's hook (tests/phasekernel.h)."
+}

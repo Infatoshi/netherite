@@ -1,0 +1,17 @@
+{
+ "path": "csrc/engine/hostiles_spider.h",
+ "lines": 30,
+ "role": "Declares the spider and cave spider kind functions in hostiles_spider.c and the EntitySkeleton functions the spider jockey's rider uses (implemented in hostiles_skeleton.c).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntitySpider.java", "members": ["onLivingUpdate", "updateEntityActionState", "onUpdate", "setBesideClimbableBlock", "dropFewItems", "writeEntityToNBT", "isPotionApplicable", "onSpawnWithEgg"]},
+  {"path": "oracle/src/entity/monster/EntityCaveSpider.java", "members": ["attackEntityAsMob"]},
+  {"path": "oracle/src/entity/monster/EntitySkeleton.java", "members": ["EntitySkeleton", "setSkeletonType", "setCombatTask", "onSpawnWithEgg", "onLivingUpdate", "attackEntityAsMob", "attackEntityWithRangedAttack", "dropFewItems", "writeEntityToNBT"]}
+ ],
+ "structs": [],
+ "entry_points": ["spider_construct", "spider_on_living_update", "spider_update_entity_action_state", "spider_on_update_tail", "spider_set_beside_climbable_block", "spider_attack_entity_as_mob", "spider_drop_few_items", "spider_write_kind_nbt", "spider_is_potion_applicable", "spider_jockey_check", "egg_take_pending_partner", "egg_add_pending_partner", "spider_group_potion", "spider_spawn_jockey_skeleton", "skeleton_construct", "skeleton_set_type", "skeleton_set_combat_task", "skeleton_on_spawn_with_egg", "skeleton_on_living_update", "skeleton_attack_entity_as_mob", "skeleton_attack_entity_with_ranged_attack", "skeleton_drop_few_items", "skeleton_write_kind_nbt"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hostiles.c"],
+ "notes": "Header only; hazards are recorded on hostiles_spider.c. Included by ai.c, hostiles.c, living.c and serverreplay.c. The skeleton declarations duplicate what hostiles_skeleton.h may also declare (not checked)."
+}

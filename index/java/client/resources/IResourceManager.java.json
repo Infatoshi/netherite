@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/resources/IResourceManager.java",
+  "classes": ["IResourceManager"],
+  "lines": 15,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Interface for the resource lookup layer: domains, one resource, or all resources for a location across packs (FallbackResourceManager and SimpleReloadableResourceManager implement it).",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getResourceDomains", "sig": "()Set", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResource", "sig": "(ResourceLocation)IResource", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getAllResources", "sig": "(ResourceLocation)List", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Every texture, sound and lang file the game loads goes through this interface on the Java side; the native engine reads pre-converted files by path instead. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Resource lookup interface; native reads pre-converted files by path."
+}

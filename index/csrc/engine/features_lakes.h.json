@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/features_lakes.h",
+ "lines": 19,
+ "role": "Declares the lakes group's table lookup (WorldGenLakes, WorldGenBigMushroom, WorldGenDesertWells, WorldGenIceSpike, WorldGenIcePath rows) and two shared helpers: the biome at a column and BiomeGenBase.getFloatTemperature.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenLakes.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenBigMushroom.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenDesertWells.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenIceSpike.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenIcePath.java", "members": ["generate"]},
+  {"path": "oracle/src/world/World.java", "members": ["getBiomeGenForCoords"]},
+  {"path": "oracle/src/world/biome/BiomeGenBase.java", "members": ["getFloatTemperature"]}
+ ],
+ "structs": [],
+ "entry_points": ["features_lakes_for", "biome_at", "biome_temperature"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "biome_at and biome_temperature are also used by fire.c, randomtick.c, servertick.c, render_blocks.c and world.c (the server tick's ice, snow and lightning branches)."
+}

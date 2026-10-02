@@ -1,0 +1,74 @@
+{
+ "path": "csrc/engine/crafting.h",
+ "lines": 93,
+ "role": "Declares the crafting match: the ItemStack and InventoryCrafting grid shapes, CraftingManager.findMatchingRecipe over the generated RECIPES table, and the exception-as-status result.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/item/crafting/CraftingManager.java",
+   "members": [
+    "findMatchingRecipe",
+    "getRecipeList"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/InventoryCrafting.java",
+   "members": [
+    "getStackInSlot",
+    "getStackInRowAndColumn"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "craft_stack",
+   "java": "item.ItemStack (item id, stackSize, itemDamage, stackTagCompound)",
+   "fields": [
+    "item",
+    "count",
+    "damage",
+    "tag"
+   ]
+  },
+  {
+   "name": "craft_grid",
+   "java": "inventory.InventoryCrafting",
+   "fields": [
+    "side",
+    "slot"
+   ]
+  },
+  {
+   "name": "craft_world",
+   "java": "the World argument (only RecipesMapExtending reads MapData from it)",
+   "fields": [
+    "map_data",
+    "ctx"
+   ]
+  },
+  {
+   "name": "craft_result",
+   "java": "findMatchingRecipe's return (ItemStack, null, or a thrown exception)",
+   "fields": [
+    "status",
+    "out",
+    "threw"
+   ]
+  }
+ ],
+ "entry_points": [
+  "craft_grid_clear",
+  "craft_slot_empty",
+  "craft_stack_copy",
+  "craft_stack_free",
+  "craft_result_free",
+  "craft_find_matching",
+  "craft_armor_material"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_crafting.c",
+  "csrc/tests/test_containers.c"
+ ]
+}

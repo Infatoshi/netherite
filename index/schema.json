@@ -1,0 +1,52 @@
+{
+  "about": "The codebase index: one JSON record per source file, mapping vanilla 1.7.10 (oracle/src) to the native C engine (csrc/) and back, with what is left to port. Records live at index/<kind>/<source path with / kept>.json, e.g. index/java/entity/passive/EntityPig.java.json, index/csrc/engine/animals.c.json. tools/index_check.c (out/native/index_check) validates them; index/summary.json is built from them.",
+  "java": {
+    "path": "repo-relative source path, e.g. oracle/src/entity/passive/EntityPig.java",
+    "classes": ["every top-level and nested class, interface and enum declared in the file"],
+    "lines": "int, the file's line count",
+    "side": "server | client | common (runs on both, e.g. Entity, World, Block)",
+    "category": "one of: world, worldgen, chunk, block, tileentity, item, crafting, inventory, entity, ai, pathfinding, player, combat, network, nbt, server, client_render, client_model, client_gui, client_audio, client_resources, client_input, particles, stats, commands, util, math, other",
+    "role": "one or two sentences: what this file is in the game, in plain words",
+    "scope": "in_scope | switched_off | client_cosmetic | not_needed. switched_off = a world.conf feature forced off on both sides (SPEC 'Unsupported features are world switches'); client_cosmetic = client-only presentation the GPU/RL path does not need (audio, options screens, realms, stats screens); not_needed = never reached in this game (snooper, demo mode, realms, server GUI, commands not used)",
+    "scope_reason": "why, citing world.conf or SPEC when switched_off",
+    "status": "exact | partial | not_ported | not_applicable. exact = every in-scope behavior has a native counterpart proven by a recording or test; partial = some members ported; not_ported = nothing native; not_applicable = scope is not in_scope",
+    "native": [{"file": "csrc/engine/x.c", "symbols": ["C functions, structs or tables that implement this file, each present in that file"]}],
+    "evidence": ["recordings or tests that exercise it: out/java/snapshots/<name>, out/java/<area>/<name>, or csrc/tests/test_x.c; each path must exist"],
+    "members": [{
+      "kind": "method | ctor | field",
+      "name": "the member name as written in oracle/src (MCP name, or the func_/field_ SRG name where MCP left one)",
+      "sig": "short signature, e.g. (int,int,int)V or the field type",
+      "native": "csrc/engine/x.c:symbol where it is implemented, or null",
+      "status": "exact | partial | missing | n/a",
+      "note": "optional: what is partial or why n/a"
+    }],
+    "missing": ["each in-scope behavior with no native counterpart, one concrete sentence each"],
+    "notes": "optional free text"
+  },
+  "native": {
+    "path": "repo-relative, e.g. csrc/engine/animals.c",
+    "lines": "int",
+    "role": "one or two sentences: what this file does",
+    "layer": "tick | render | client | io | test | tool | util",
+    "java": [{"path": "oracle/src/... the vanilla file it ports", "members": ["the Java member names it implements"]}],
+    "structs": [{"name": "C struct or table name", "java": "the Java class/fields it mirrors, or null", "fields": ["field names"]}],
+    "entry_points": ["functions other files call"],
+    "tick_path": "bool: runs inside the server or client tick",
+    "gpu": ["GPU-contract hazards in this file (SPEC 'Java, then C, then the GPU'): heap allocation inside the tick, pointer graphs or linked lists, container-order dependence, recursion or unbounded loops, static or global mutable state, wall-clock or environment reads. Each: 'line N, function f: what'"],
+    "tests": ["csrc/tests/... files that exercise it"],
+    "notes": "optional"
+  },
+  "oracle": {
+    "path": "oracle/harness/netherite/oracle/X.java",
+    "lines": "int",
+    "role": "what this harness file does (recorder, probe, replay, dev op, snapshot, ...)",
+    "kind": "harness | probe | devop | snapshot | recorder | util",
+    "used_by": ["make targets or native tests that consume what it writes, e.g. oracle/Makefile target, csrc/tests/test_x.c"],
+    "vanilla_hooks": ["oracle/src files that call into it"],
+    "notes": "optional"
+  },
+  "assets": {
+    "path": "index/assets.json (one record for the whole asset tree)",
+    "groups": [{"name": "e.g. textures/blocks, shaders/post, sounds, lang, font", "files": "int", "used_natively": "yes | no | partly", "native": ["native files that load or embed them"], "notes": ""}]
+  }
+}

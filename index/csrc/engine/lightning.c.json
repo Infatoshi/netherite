@@ -1,0 +1,19 @@
+{
+ "path": "csrc/engine/lightning.c",
+ "lines": 77,
+ "role": "EntityLightningBolt: adopting a bolt the tick recorder constructed, the constructor's fire placement around the strike, and onUpdate's state countdown, re-strike with a new vertex and fire, and the per-tick strike callback that damages entities.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/effect/EntityLightningBolt.java", "members": ["EntityLightningBolt", "onUpdate", "lightningState", "boltLivingTime", "boltVertex"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["onUpdate", "ticksExisted"]},
+  {"path": "oracle/src/world/World.java", "members": ["doChunksNearChunkExist"]}
+ ],
+ "structs": [],
+ "entry_points": ["lightning_adopt", "lightning_constructor_fire", "lightning_tick"],
+ "tick_path": true,
+ "gpu": [
+  "line 76, function lightning_tick: strike(ctx, bolt) callback through a function pointer into the owner (the entity damage and onStruckByLightning pass lives in the caller)"
+ ],
+ "tests": ["csrc/tests/test_lightning.c"],
+ "notes": "The header comment says the constructor fire is in servertick.c, but lightning_constructor_fire is defined here and called from servertick.c. Difficulty gate is difficulty >= 2 and doFireTick. The Entity.onUpdate base draws two floats on the first tick (state 2) to keep the per-bolt Random in step. Ported against the oracle's LightningProbe."
+}

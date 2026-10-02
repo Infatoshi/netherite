@@ -1,0 +1,432 @@
+{
+  "path": "oracle/src/village/Village.java",
+  "classes": [
+    "Village",
+    "Village.VillageAgressor"
+  ],
+  "lines": 604,
+  "side": "server",
+  "category": "ai",
+  "role": "One village: its doors, center and radius, villager and iron-golem counts, per-player reputation, aggressor list and breeding cooldown; its tick ages out doors and may spawn an iron golem near the center.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/villagers.h",
+      "symbols": [
+        "village",
+        "village_player_rep",
+        "village_agressor",
+        "VILLAGE_DOOR_AGING_THRESHOLD",
+        "VILLAGE_GOLEM_SPAWN_CHANCE"
+      ]
+    },
+    {
+      "file": "csrc/engine/villagers.c",
+      "symbols": [
+        "v_init",
+        "v_tick",
+        "v_add_door",
+        "v_update_radius_and_center",
+        "v_remove_dead_and_out_of_range_doors",
+        "v_remove_dead_and_old_agressors",
+        "v_update_num_villagers",
+        "v_update_num_iron_golems",
+        "is_valid_iron_golem_spawning_location",
+        "v_find_nearest_door",
+        "v_find_nearest_door_unrestricted",
+        "v_get_door_at",
+        "v_is_in_range",
+        "v_get_reputation",
+        "v_set_reputation",
+        "v_set_default_player_reputation",
+        "v_is_mating_season",
+        "v_end_mating_season",
+        "v_is_annihilated",
+        "v_add_or_renew_agressor",
+        "v_find_nearest_aggressor",
+        "v_find_low_reputation_player",
+        "vc_load",
+        "vc_resolve_agressors"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_villagers.c",
+    "out/java/villagers/vil-2",
+    "out/java/villagers/vil-42",
+    "out/java/snapshots/golem-fight-s42",
+    "out/java/snapshots/village-cp-s42",
+    "out/java/snapshots/village-hurt-s42",
+    "out/java/snapshots/village-siege-s42",
+    "out/java/snapshots/village-life-s42",
+    "out/java/snapshots/idx-villageref-s1",
+    "out/java/snapshots/village-away-s42",
+    "out/java/snapshots/cov-villagerep-s42"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "worldObj",
+      "sig": "World",
+      "native": "csrc/engine/villagers.h:world",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "villageDoorInfoList",
+      "sig": "List<VillageDoorInfo>",
+      "native": "csrc/engine/villagers.h:doors",
+      "status": "exact",
+      "note": "door pool slots (arena.h door_alloc) in a slab table that grows as the ArrayList does (v_push_door, lane/capacity)"
+    },
+    {
+      "kind": "field",
+      "name": "centerHelper",
+      "sig": "ChunkCoordinates",
+      "native": "csrc/engine/villagers.h:center_helper_x",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "center",
+      "sig": "ChunkCoordinates",
+      "native": "csrc/engine/villagers.h:center_x",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "villageRadius",
+      "sig": "int",
+      "native": "csrc/engine/villagers.h:village_radius",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "lastAddDoorTimestamp",
+      "sig": "int",
+      "native": "csrc/engine/villagers.h:last_add_door_timestamp",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "tickCounter",
+      "sig": "int",
+      "native": "csrc/engine/villagers.h:tick_counter",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "numVillagers",
+      "sig": "int",
+      "native": "csrc/engine/villagers.h:num_villagers",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "noBreedTicks",
+      "sig": "int",
+      "native": "csrc/engine/villagers.h:no_breed_ticks",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "playerReputation",
+      "sig": "TreeMap<String,Integer>",
+      "native": "csrc/engine/villagers.h:player_rep",
+      "status": "exact",
+      "note": "kept in the TreeMap's name order (String.compareTo on ASCII names, v_set_reputation's sorted insert), which setDefaultPlayerReputation and the NBT walk; the one player's name is VILLAGE_PLAYER_NAME, and a ninth name would stop the run loudly"
+    },
+    {
+      "kind": "field",
+      "name": "villageAgressors",
+      "sig": "List<VillageAgressor>",
+      "native": "csrc/engine/villagers.h:agressors",
+      "status": "exact",
+      "note": "a slab table, filled by v_add_or_renew_agressor; grows as the ArrayList does (entries age out after 300 ticks)"
+    },
+    {
+      "kind": "field",
+      "name": "numIronGolems",
+      "sig": "int",
+      "native": "csrc/engine/villagers.h:num_iron_golems",
+      "status": "exact"
+    },
+    {
+      "kind": "ctor",
+      "name": "Village",
+      "sig": "()",
+      "native": "csrc/engine/villagers.c:v_init",
+      "status": "exact"
+    },
+    {
+      "kind": "ctor",
+      "name": "Village",
+      "sig": "(World)",
+      "native": "csrc/engine/villagers.c:v_init",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_82691_a",
+      "sig": "(World)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "tick",
+      "sig": "(int)V",
+      "native": "csrc/engine/villagers.c:v_tick",
+      "status": "exact",
+      "note": "the golem roll and spawn (new EntityIronGolem through the constructor hook, setPosition, spawnEntityInWorld ordered after the collection's tick); village-life-s42 spawns one at 40 doors and 13 villagers"
+    },
+    {
+      "kind": "method",
+      "name": "tryGetIronGolemSpawningLocation",
+      "sig": "(int,int,int,int,int,int)Vec3",
+      "native": "csrc/engine/villagers.c:v_tick",
+      "status": "exact",
+      "note": "inlined into v_tick"
+    },
+    {
+      "kind": "method",
+      "name": "isValidIronGolemSpawningLocation",
+      "sig": "(int,int,int,int,int,int)Z",
+      "native": "csrc/engine/villagers.c:is_valid_iron_golem_spawning_location",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateNumIronGolems",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:v_update_num_iron_golems",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateNumVillagers",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:v_update_num_villagers",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCenter",
+      "sig": "()ChunkCoordinates",
+      "native": null,
+      "status": "n/a",
+      "note": "field read"
+    },
+    {
+      "kind": "method",
+      "name": "getVillageRadius",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getNumVillageDoors",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "num_doors"
+    },
+    {
+      "kind": "method",
+      "name": "getTicksSinceLastDoorAdding",
+      "sig": "()I",
+      "native": "csrc/engine/villagers.c:vs_tick",
+      "status": "exact",
+      "note": "inline in the siege check"
+    },
+    {
+      "kind": "method",
+      "name": "getNumVillagers",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isInRange",
+      "sig": "(int,int,int)Z",
+      "native": "csrc/engine/villagers.c:v_is_in_range",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getVillageDoorInfoList",
+      "sig": "()List",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "findNearestDoor",
+      "sig": "(int,int,int)VillageDoorInfo",
+      "native": "csrc/engine/villagers.c:v_find_nearest_door",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "findNearestDoorUnrestricted",
+      "sig": "(int,int,int)VillageDoorInfo",
+      "native": "csrc/engine/villagers.c:v_find_nearest_door_unrestricted",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getVillageDoorAt",
+      "sig": "(int,int,int)VillageDoorInfo",
+      "native": "csrc/engine/villagers.c:v_get_door_at",
+      "status": "exact",
+      "note": "null only past the radius (a door on the rim is found)"
+    },
+    {
+      "kind": "method",
+      "name": "addVillageDoorInfo",
+      "sig": "(VillageDoorInfo)V",
+      "native": "csrc/engine/villagers.c:v_add_door",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isAnnihilated",
+      "sig": "()Z",
+      "native": "csrc/engine/villagers.c:v_is_annihilated",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "addOrRenewAgressor",
+      "sig": "(EntityLivingBase)V",
+      "native": "csrc/engine/villagers.c:v_add_or_renew_agressor",
+      "status": "exact",
+      "note": "from EntityVillager.setRevengeTarget (living_set_revenge_target)"
+    },
+    {
+      "kind": "method",
+      "name": "findNearestVillageAggressor",
+      "sig": "(EntityLivingBase)EntityLivingBase",
+      "native": "csrc/engine/villagers.c:v_find_nearest_aggressor",
+      "status": "exact",
+      "note": "the last of the nearest (<=)"
+    },
+    {
+      "kind": "method",
+      "name": "func_82685_c",
+      "sig": "(EntityLivingBase)EntityPlayer",
+      "native": "csrc/engine/villagers.c:v_find_low_reputation_player",
+      "status": "exact",
+      "note": "each too-low name in TreeMap order through getPlayerEntityByName: the one player (VILLAGE_PLAYER_NAME) when it is in this world"
+    },
+    {
+      "kind": "method",
+      "name": "removeDeadAndOldAgressors",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:v_remove_dead_and_old_agressors",
+      "status": "exact",
+      "note": "isEntityAlive (a dying aggressor leaves) or older than 300 ticks"
+    },
+    {
+      "kind": "method",
+      "name": "removeDeadAndOutOfRangeDoors",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:v_remove_dead_and_out_of_range_doors",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isBlockDoor",
+      "sig": "(int,int,int)Z",
+      "native": "csrc/engine/villagers.c:v_remove_dead_and_out_of_range_doors",
+      "status": "exact",
+      "note": "blk == 64 inline"
+    },
+    {
+      "kind": "method",
+      "name": "updateVillageRadiusAndCenter",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:v_update_radius_and_center",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getReputationForPlayer",
+      "sig": "(String)I",
+      "native": "csrc/engine/villagers.c:v_get_reputation",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setReputationForPlayer",
+      "sig": "(String,int)I",
+      "native": "csrc/engine/villagers.c:v_set_reputation",
+      "status": "exact",
+      "note": "clamped -30..10, a new name in sorted place; callers: villager_revenge_village (-1/-3), villager_death_village (-2), iron_golem_death_village (-5), the trade reward (+1)"
+    },
+    {
+      "kind": "method",
+      "name": "isPlayerReputationTooLow",
+      "sig": "(String)Z",
+      "native": "csrc/engine/villagers.c:v_find_low_reputation_player",
+      "status": "exact",
+      "note": "the <= -15 test inside func_82685_c (one player); cov-villagerep-s42: 16 hits on a villager, then a golem's EntityAIDefendVillage"
+    },
+    {
+      "kind": "method",
+      "name": "readVillageDataFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/villagers.c:vc_load",
+      "status": "exact",
+      "note": "a snapshot's villages.nbt: the keys readVillageDataFromNBT reads plus the doors' restriction counters and the aggressors (Snapshot.villages writes the live village)"
+    },
+    {
+      "kind": "method",
+      "name": "writeVillageDataToNBT",
+      "sig": "(NBTTagCompound)V",
+      "status": "n/a",
+      "note": "native never writes save files (product decision); Snapshot.java writes the live state"
+    },
+    {
+      "kind": "method",
+      "name": "endMatingSeason",
+      "sig": "()V",
+      "native": "csrc/engine/villagers.c:v_end_mating_season",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isMatingSeason",
+      "sig": "()Z",
+      "native": "csrc/engine/villagers.c:v_is_mating_season",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setDefaultPlayerReputation",
+      "sig": "(int)V",
+      "native": "csrc/engine/villagers.c:v_set_default_player_reputation",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "VillageAgressor.agressor/agressionTime",
+      "sig": "EntityLivingBase/int",
+      "native": "csrc/engine/villagers.h:village_agressor",
+      "status": "exact"
+    },
+    {
+      "kind": "ctor",
+      "name": "VillageAgressor",
+      "sig": "(EntityLivingBase,int)",
+      "native": "csrc/engine/villagers.h:village_agressor",
+      "status": "exact",
+      "note": "agressor_id names it in a snapshot until vc_resolve_agressors"
+    }
+  ],
+  "missing": [],
+  "notes": "Golem spawn in v_tick callocs a living and an an_ent inside the tick, and v_add_door mallocs each door (GPU-contract hazards). DEVLOG says no recording's village collection holds a village yet, so v_tick's golem branch is unexercised by snapshots; test_villagers against out/java/villagers/vil-2 and vil-42 is the evidence. lane/idxclient: the reputation list is name-sorted; every fixed capacity stops the run loudly (village_full) rather than dropping data; the GPU-contract hazards noted before (malloc'd doors, the golem calloc) were already gone (door pool, living pool). idx-villageref-s1 (seed 1, dev): village A is annihilated while its villager still names it; the villager is hit, and the stale Village object takes the aggressor as in Java, so village B's golem stays calm (master's native, whose later villages shifted under the old names, gave B the aggressor and failed at row 305). lane/reloadstate: village-away-s42 leaves the village for 3000 ticks and returns (the village ticks on, 7 doors kept; coverage)."
+}

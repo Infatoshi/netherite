@@ -1,0 +1,81 @@
+{
+ "path": "oracle/src/network/play/server/S3APacketTabComplete.java",
+ "classes": [
+  "S3APacketTabComplete"
+ ],
+ "lines": 73,
+ "side": "common",
+ "category": "network",
+ "role": "The command and player name candidates for the chat GUI's tab completion.",
+ "scope": "client_cosmetic",
+ "scope_reason": "The only consumer is the chat GUI's completion list, which the native client does not have; its command surface is the TCP control port.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S3APacketTabComplete",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S3APacketTabComplete",
+   "sig": "(String[])V",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149632_a",
+   "sig": "String[]",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149630_c",
+   "sig": "()String[]",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()String",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Sent in reply to the client's tab complete request (NetHandlerPlayServer.java:1103)."
+}

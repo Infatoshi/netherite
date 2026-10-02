@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/renderer/texture/AbstractTexture.java",
+  "classes": ["AbstractTexture"],
+  "lines": 26,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Base class for GL texture objects: lazily generates the GL texture id and deletes it on release.",
+  "scope": "client_cosmetic",
+  "scope_reason": "GL texture-object plumbing: the native engine loads PNG bytes straight into memory (csrc/engine/pngread.c, raster_mobs.c read_texture/ensure_assets, raster_entities.c live_entity_tex) and keeps no GL texture ids, so this lifecycle has nothing to mirror.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "glTextureId", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getGlTextureId", "sig": "()int", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147631_c", "sig": "()V", "native": null, "status": "n/a", "note": "the delete path"}
+  ],
+  "missing": [],
+  "notes": "The texture content the pixel gates need is ported (the atlas and mob PNGs); only the GL id lifecycle is not, by design."
+}

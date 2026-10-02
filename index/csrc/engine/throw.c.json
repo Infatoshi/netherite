@@ -1,0 +1,45 @@
+{
+ "path": "csrc/engine/throw.c",
+ "lines": 315,
+ "role": "The player's bow and throwables on both sides of the replay: the bow's use start and release (charge, arrow from the shooter, full-draw crit, durability, arrow consumed), snowball, egg, ender pearl, splash potion and experience bottle throws, Infinity and the Unbreaking roll on both sides, the eye of ender throw, the Item.itemRand pitch draws, and the pearl-impact teleport with its 5 fall damage and packets.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/item/ItemBow.java", "members": ["onItemRightClick", "onPlayerStoppedUsing", "getMaxItemUseDuration"]},
+  {"path": "oracle/src/item/ItemSnowball.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemEgg.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemEnderPearl.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemEnderEye.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/entity/item/EntityEnderPearl.java", "members": ["onImpact"]},
+  {"path": "oracle/src/item/Item.java", "members": ["itemRand", "getMovingObjectPositionFromPlayer"]},
+  {"path": "oracle/src/item/ItemStack.java", "members": ["damageItem"]},
+  {"path": "oracle/src/entity/player/InventoryPlayer.java", "members": ["hasItem", "consumeInventoryItem"]},
+  {"path": "oracle/src/entity/player/EntityPlayer.java", "members": ["setItemInUse"]},
+  {"path": "oracle/src/entity/projectile/EntityArrow.java", "members": ["EntityArrow(World,EntityLivingBase,float) (client-side construction draws only)"]},
+  {"path": "oracle/src/client/multiplayer/PlayerControllerMP.java", "members": ["sendUseItem", "onStoppedUsingItem"]},
+  {"path": "oracle/src/server/management/ItemInWorldManager.java", "members": ["tryUseItem"]},
+  {"path": "oracle/src/item/ItemPotion.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemExpBottle.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/enchantment/EnchantmentHelper.java", "members": ["getEnchantmentLevel (Infinity, Unbreaking)"]}
+ ],
+ "structs": [
+  {"name": "throw_sr (static pointer)", "java": "the WorldServer whose entity list the pearl and eye hooks reach", "fields": []}
+ ],
+ "entry_points": [
+  "throw_server_use",
+  "throw_server_release",
+  "throw_client_use",
+  "throw_client_release",
+  "throw_bind"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 29-31, function item_rand_float: det_split_find by string name, then det_split_random creates the stream on first use (lookup by name and possible allocation inside the tick, depending on det.c)",
+  "lines 306-307, function throw_bind: installs function pointers into the living world (on_pearl_impact, spawn_item)",
+  "lines 113 and 159, functions spawn_throwable and throw_server_use: projectiles are ie_ent pointers adopted into the living world's pool (pointer graph; the pool's capacity is in projectile.c and living.c)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Recordings out/java/snapshots/throw-bow-s1 and throw-items-s1 (DEVLOG 2026-09-25) cover it through test_snapshots. Not ported: bow enchantments (Power, Punch, Flame, Infinity) and creative mode in onPlayerStoppedUsing, and Unbreaking in damageItem (the comment says unenchanted). The eye's placement into an end portal frame is not here (the use just returns when the ray hits a frame). The client release spends an EntityArrow constructor's Det draws but builds no entity."
+}

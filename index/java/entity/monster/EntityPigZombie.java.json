@@ -1,0 +1,44 @@
+{
+  "path": "oracle/src/entity/monster/EntityPigZombie.java",
+  "classes": ["EntityPigZombie"],
+  "lines": 226,
+  "side": "common",
+  "category": "entity",
+  "role": "The zombie pigman: a neutral nether mob with the old (non-AI) tick; the pack anger mechanic where hitting one angers the whole group, a golden sword, and gold-ingot rare drops.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/hostiles_pigman.c", "symbols": ["pigman_construct", "pigman_pre_on_update", "pigman_update_entity_action_state", "pigman_attack_entity_from", "pigman_add_random_armor", "pigman_drop_few_items", "pigman_write_kind_nbt", "become_angry_at", "attacking_speed_boost", "pigman_anger_level", "pigman_random_sound_delay", "pigman_last_entity_to_attack"]},
+    {"file": "csrc/engine/hostiles.c", "symbols": ["hostile_spawn", "hostile_loot_update", "zombie_on_spawn_with_egg"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_on_spawn_with_egg", "zombie_is_villager", "living_on_death"]}
+  ],
+  "evidence": ["out/java/snapshots/nether-trip-s1", "out/java/snapshots/nether-trip2-s42", "csrc/tests/test_hostiles.c", "out/java/snapshots/rare-drops-s1"],
+  "members": [
+    {"kind": "field", "name": "field_110189_bq (static)", "sig": "UUID", "native": "csrc/engine/hostiles_pigman.c:attacking_speed_boost", "status": "exact", "note": "the 49455A49-... UUID of the attacking-speed modifier"},
+    {"kind": "field", "name": "field_110190_br (static)", "sig": "AttributeModifier", "native": "csrc/engine/hostiles_pigman.c:attacking_speed_boost", "status": "exact", "note": "Attacking speed boost +0.45, operation 0, unsaved (hostiles_pigman.c:162-169)"},
+    {"kind": "field", "name": "angerLevel", "sig": "int", "native": "csrc/engine/hostiles_pigman.c:pigman_anger_level", "status": "exact"},
+    {"kind": "field", "name": "randomSoundDelay", "sig": "int", "native": "csrc/engine/hostiles_pigman.c:pigman_random_sound_delay", "status": "exact"},
+    {"kind": "field", "name": "field_110191_bu", "sig": "Entity", "native": "csrc/engine/hostiles_pigman.c:pigman_last_entity_to_attack", "status": "exact", "note": "the cached attack target that drives the speed-modifier apply/remove"},
+    {"kind": "ctor", "name": "EntityPigZombie", "sig": "(World)V", "native": "csrc/engine/hostiles_pigman.c:pigman_construct", "status": "exact", "note": "calls zombie_construct then size 0.6x1.8, immune to fire, experienceValue 5"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": "csrc/engine/hostiles_pigman.c:pigman_construct", "status": "exact", "note": "movement 0.5, attack 5, spawnReinforcements 0"},
+    {"kind": "method", "name": "isAIEnabled", "sig": "()Z", "native": "csrc/engine/hostiles_pigman.c:pigman_construct", "status": "exact", "note": "false; the old-AI tick path is the pigman's whole body"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/engine/hostiles_pigman.c:pigman_pre_on_update", "status": "exact", "note": "the speed-modifier swap against pigman_last_entity_to_attack, the random-sound-delay tick-down with its two draws"},
+    {"kind": "method", "name": "getCanSpawnHere", "sig": "()Z", "native": "csrc/engine/spawning.c:can_spawn_here_monster", "status": "exact", "note": "difficulty > 0, the base body and the pigman's own: the natural spawn path runs it in the spawner (can_spawn_here_monster's pigman branch)"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/hostiles_pigman.c:pigman_write_kind_nbt", "status": "exact", "note": "Anger (hostiles_pigman.c:274); AngerTarget is the one player's UUID or none"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/serverreplay.c:cp_num", "status": "exact", "note": "the Anger/AngerTarget reads in the replay's kind switch"},
+    {"kind": "method", "name": "findPlayerToAttack", "sig": "()Lnet/minecraft/entity/Entity;", "native": "csrc/engine/hostiles_pigman.c:pigman_update_entity_action_state", "status": "exact", "note": "the anger UUID target lookup rides the old-AI action-state body"},
+    {"kind": "method", "name": "attackEntityFrom", "sig": "(Lnet/minecraft/util/DamageSource;F)Z", "native": "csrc/engine/hostiles_pigman.c:pigman_attack_entity_from", "status": "exact", "note": "super then becomeAngryAt on the attacker"},
+    {"kind": "method", "name": "becomeAngryAt", "sig": "(Lnet/minecraft/entity/Entity;)V", "native": "csrc/engine/hostiles_pigman.c:become_angry_at", "status": "exact", "note": "the 400+rand(400) anger roll, the target, the 32-block area broadcast to every pigman (hostiles_pigman.c:238-257)"},
+    {"kind": "method", "name": "getLivingSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getHurtSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getDeathSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "dropFewItems", "sig": "(ZI)V", "native": "csrc/engine/hostiles_pigman.c:pigman_drop_few_items", "status": "exact", "note": "0-1+looting rotten flesh and 0-1+looting gold nuggets, two nextInt(2+looting) rolls"},
+    {"kind": "method", "name": "interact", "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z", "native": null, "status": "n/a", "note": "always false in java; the probe player never right-clicks a pigman"},
+    {"kind": "method", "name": "dropRareDrop", "sig": "(I)V", "native": "csrc/engine/living.c:living_on_death", "status": "exact", "note": "the gold ingot (266) through func_145779_a at offset 0, no draw of its own: living_on_death's HK_PIGMAN branch after the shared nextInt(200) - looting < 5 roll (rare-drops-s1: the fifth pigman's roll lands)"},
+    {"kind": "method", "name": "addRandomArmor", "sig": "()V", "native": "csrc/engine/hostiles_pigman.c:pigman_add_random_armor", "status": "exact", "note": "the golden sword (283) with its +4 attack attribute modifier"},
+    {"kind": "method", "name": "onSpawnWithEgg", "sig": "(Lnet/minecraft/entity/IEntityLivingData;)Lnet/minecraft/entity/IEntityLivingData;", "native": "csrc/engine/living.c:living_on_spawn_with_egg", "status": "exact", "note": "super's path then setVillager(false): the pigman branch forces zombie_is_villager = 0 (living.c:2677); the armor call is hostiles.c's shared egg path (hostiles.c:129)"}
+  ],
+  "missing": [
+  ],
+  "notes": "isVillager is inherited from EntityZombie and always false for a pigman. test_hostiles.c covers HK_PIGMAN; nether-trip-s1 records the pack anger chain. lane/idxentity: the pigman is undead (getCreatureAttribute through EntityZombie): potion.c now asks combatench.c living_creature_attribute, so a splash of healing hurts it and poison or regeneration does not apply (ent-water-s1); its attackEntityFrom reaches EntityZombie's HARD reinforcement (living.c zombie_reinforce)."
+}

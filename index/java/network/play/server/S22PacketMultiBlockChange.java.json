@@ -1,0 +1,135 @@
+{
+ "path": "oracle/src/network/play/server/S22PacketMultiBlockChange.java",
+ "classes": [
+  "S22PacketMultiBlockChange"
+ ],
+ "lines": 128,
+ "side": "server",
+ "category": "network",
+ "role": "Up to 64 block changes within one chunk, sent when a bulk edit (explosion, world edit) touches many blocks at once.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_clientworld.c",
+  "out/java/clientworld/smoke-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148925_b",
+   "sig": "ChunkCoordIntPair",
+   "status": "partial",
+   "note": "the chunk, rides the record coordinates"
+  },
+  {
+   "kind": "field",
+   "name": "field_148926_c",
+   "sig": "byte[]",
+   "status": "partial",
+   "note": "the packed record array, rides tracker_packet.rx/ry/rz/rblock/rmeta"
+  },
+  {
+   "kind": "field",
+   "name": "field_148924_d",
+   "sig": "int",
+   "status": "partial",
+   "note": "the record count, rides tracker_packet.num_records"
+  },
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "Logger",
+   "status": "n/a",
+   "note": "static logger, no native counterpart"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,short[],Chunk)V",
+   "status": "n/a",
+   "note": "no live-flow emission; the shared world receives block writes directly; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "partial",
+   "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+   "note": "TRACKER_PKT_S22 case: world_set_block flag 3 per record"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_148920_c",
+   "sig": "()Lnet/minecraft/world/ChunkCoordIntPair;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148921_d",
+   "sig": "()[B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148922_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes). Formerly listed as missing: No live-flow emission: the server's multi-block broadcasts are not built; the native client world shares the server's blocks and the packet is exercised through the ClientWorldProbe recordings only."
+}

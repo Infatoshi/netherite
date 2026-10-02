@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/client/renderer/culling/ICamera.java",
+  "classes": ["ICamera"],
+  "lines": 13,
+  "side": "client",
+  "category": "client_render",
+  "role": "Interface for the frustum: isBoundingBoxInFrustum and setPosition, implemented by Frustrum and consumed by RenderGlobal and RenderManager.",
+  "scope": "not_needed",
+  "scope_reason": "Interface, marker or abstract base; its behavior lives in the subclasses' ports (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "isBoundingBoxInFrustum", "sig": "(AxisAlignedBB)Z", "native": "csrc/engine/raster.c:live_culled", "status": "missing", "note": "the behaviour exists behind the interface (raster.c live_culled at section level) but the interface itself has no native counterpart; the native pipeline has no camera abstraction at this call site"},
+    {"kind": "method", "name": "setPosition", "sig": "(DDD)V", "native": null, "status": "missing", "note": "the native cull works camera-relative and stores no position"}
+  ],
+  "missing": [
+    "No native counterpart for the interface itself; its contract is fulfilled ad hoc by raster.c live_culled for sections."
+  ],
+  "notes": "Interfaces carry no behaviour; the record exists so the culling chain (RenderGlobal, Frustrum, ClippingHelper) is traceable. No native file implements a named ICamera equivalent."
+}

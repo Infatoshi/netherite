@@ -1,0 +1,16 @@
+{
+  "path": "oracle/src/util/IObjectIntIterable.java",
+  "classes": ["IObjectIntIterable"],
+  "lines": 5,
+  "side": "common",
+  "category": "util",
+  "role": "Empty marker interface implemented by ObjectIntIdentityMap so id maps can be iterated as an Iterable.",
+  "scope": "not_needed",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [],
+  "missing": [],
+  "notes": "Marker only; the native id tables are plain arrays with order carried as data. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "A marker interface for the id maps; the maps themselves (ObjectIntIdentityMap, RegistryNamespaced) are indexed and native keeps them as id-indexed tables."
+}

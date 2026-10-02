@@ -1,0 +1,11 @@
+{
+  "path": "oracle/harness/netherite/oracle/PoolGl.java",
+  "lines": 395,
+  "role": "A pool member's GL state between jobs: at the pristine point it pushes every server and client attribute group, keeps the matrix tops, the GL_NV_fog_distance mode and every texture object's parameters and texels; between jobs it puts the textures back where a job changed them, pops and pushes the attribute groups, reloads the matrices and sets the fog distance mode (glPopAttrib does not restore it: setupFog's air path sets GL_EYE_RADIAL_NV, its water path never sets it, lane/poolleak). A fingerprint of the fixed-function state checks the restore; a member whose state differs after it ends.",
+  "kind": "harness",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Pool.java"
+  ],
+  "vanilla_hooks": [],
+  "notes": "Proofs: oracle/tests/pool-glproof.sh (a slime's GL_NORMALIZE, lane/covclient) and oracle/tests/pool-proof.sh render (every render recording's frames pooled against fresh; worldfx_underwater after an air scene, lane/poolleak). --pool-skip-reset gl is the negative control. Not restored: depth and stencil renderbuffers (every frame clears them), display lists (ModelRenderer's are kept and compiled once, like a fresh JVM's)."
+}

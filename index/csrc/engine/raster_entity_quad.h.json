@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/raster_entity_quad.h",
+ "lines": 76,
+ "role": "The shared entity rasterizer's interface: a clip-space vertex and the render target with the fixed-function GL modes each entity pass sets (overlay, blend, cull, depth func, alpha test, lighting, vertex colour).",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/entity/RendererLivingEntity.java", "members": ["doRender"]}
+ ],
+ "structs": [
+  {"name": "entity_clip_vertex", "java": null, "fields": ["clip", "x", "y", "sx", "sy", "z", "w", "depth", "fogcoord", "u", "v", "light", "diffuse", "color", "alpha"]},
+  {"name": "entity_raster_target", "java": "the GL state an entity renderer runs under (fog, lightmap, GL_CULL_FACE, glBlendFunc, GL_DEPTH_FUNC, GL_ALPHA_TEST, GL_LIGHTING)", "fields": ["w", "h", "proj", "mv", "cam", "fog", "fogs", "foge", "fogd", "fogm", "lm", "depth", "rgb", "triangles", "samples", "overlay", "overlay_brightness", "material", "blend", "alpha", "clamp_texture", "tex_u", "tex_v", "unlit", "linear_depth", "cull_front", "depth_equal", "alpha_ref", "vertex_color", "overlay_alpha", "two_sided", "no_light", "no_alpha", "vertex_alpha", "alpha_cut"]}
+ ],
+ "entry_points": ["raster_entity_quad"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_render.c"],
+ "notes": "raster_entity_quad is defined in raster_entities.c. Included by raster_entities.c, raster_hand.c, raster_particles.c and raster_worldfx.c; raster_mobs presumably uses it through raster_entities.h (not checked). lane/entrender: the blend modes 5 to 7, depth_lequal, tex_matrix, sample_tex."
+}

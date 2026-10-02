@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/model/ModelBook.java",
+  "classes": ["ModelBook"],
+  "lines": 71,
+  "side": "client",
+  "category": "client_model",
+  "role": "The enchanting table's floating book: two covers, two page stacks, two flipping pages and the spine, posed by setRotationAngles' page-flip math.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: RenderEnchantmentTable draws this model for every placed enchanting table (RenderEnchantmentTable.java:15).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_tileent.c", "symbols": ["render_enchant_table", "render_part", "model_box"]}
+  ],
+  "evidence": ["out/java/clientframes/idx-book-s1"],
+  "members": [
+    {"kind": "field", "name": "coverRight", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact", "note": "the part table in render_enchant_table, drawn in render order through render_part"},
+    {"kind": "field", "name": "coverLeft", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact", "note": "the part table in render_enchant_table, drawn in render order through render_part"},
+    {"kind": "field", "name": "pagesRight", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact", "note": "the part table in render_enchant_table, drawn in render order through render_part"},
+    {"kind": "field", "name": "pagesLeft", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact", "note": "the part table in render_enchant_table, drawn in render order through render_part"},
+    {"kind": "field", "name": "flippingPageRight", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact", "note": "the part table in render_enchant_table, drawn in render order through render_part"},
+    {"kind": "field", "name": "flippingPageLeft", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact", "note": "the part table in render_enchant_table, drawn in render order through render_part"},
+    {"kind": "field", "name": "bookSpine", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact", "note": "the part table in render_enchant_table, drawn in render order through render_part"},
+    {"kind": "ctor", "name": "ModelBook", "sig": "()V", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact"},
+    {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact", "note": "the part table in render_enchant_table, drawn in render order through render_part"},
+    {"kind": "method", "name": "setRotationAngles", "sig": "(float,float,float,float,float,float,Entity)V", "native": "csrc/engine/raster_tileent.c:render_enchant_table", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: render_enchant_table holds the seven ModelRenderers as te_part entries (box, texture offset, rotation point) posed by setRotationAngles' math (the cover spread from the tick count and the spread, the loose pages at the flip fractions, the page stacks' rotationPointX at sin of the spread) and draws them in render's order through render_part (ModelRenderer.render at 0.0625). idx-book-s1: the book closed, turning, opening with page flips and closing, 7 ticks at pt 0.5 and 1.0 within 14 to 59 px (edge noise, no pxdiff cluster)."
+}

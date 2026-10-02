@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/resources/IResourceManagerReloadListener.java",
+  "classes": ["IResourceManagerReloadListener"],
+  "lines": 6,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Interface for objects re-run on every resource reload: the texture manager, the language manager and the grass/foliage colour listeners register themselves.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "onResourceManagerReload", "sig": "(IResourceManager)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The colour-listener implementors have their own records (FoliageColorReloadListener, GrassColorReloadListener) because the buffers they fill are consumed by the native mesher. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Reload-listener interface; the colour listeners that implement it have their own records, and native has no reload."
+}

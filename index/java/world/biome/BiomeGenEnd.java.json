@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenEnd.java",
+  "classes": ["BiomeGenEnd"],
+  "lines": 30,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The End biome (9, Sky): only endermen spawn, dirt top and filler, a BiomeEndDecorator, and a black sky colour.",
+  "scope": "in_scope",
+  "scope_reason": "The End is vanilla and in scope (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/spawning.c", "symbols": ["end_monster", "spawning_list_for"]},
+    {"file": "csrc/engine/renderstate.c", "symbols": ["rs_dim"]},
+    {"file": "csrc/engine/populate_nether.h", "symbols": ["populate_end_ores", "populate_end_spike", "populate_end_dragon"]}
+  ],
+  "evidence": ["csrc/tests/test_spawning.c", "csrc/tests/test_populate.c", "csrc/tests/test_dragon.c", "out/java/populate/endsmoke", "out/java/snapshots/end-arrival-s1", "out/java/clientframes/idx-dragondeath-s42"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenEnd", "sig": "(int)", "native": "csrc/engine/spawning.c:end_monster", "status": "exact", "note": "enderman 10, 4-4; decorator is the End decorator (populate_end_*)"},
+    {"kind": "method", "name": "getSkyColorByTemp", "sig": "(F)I", "native": "csrc/engine/renderstate.c:rs_dim", "status": "exact", "note": "renderstate.c uses sky colour 0 when rs_dim == 1; idx-dragondeath-s42's End frames (a frame replay: lane/covframes' coverage of the frame recordings)"}
+  ],
+  "missing": [],
+  "notes": "The End's dirt top/filler never matters: the End surface pass only rewrites stone (end.h)."
+}

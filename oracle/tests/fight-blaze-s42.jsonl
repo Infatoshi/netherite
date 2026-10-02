@@ -1,0 +1,146 @@
+{"n": 16, "act": {}}
+{"cmd": "run", "class": "MobFree", "radius": 4, "mobs": true, "generateNether": true}
+{"cmd": "run", "class": "Snapshot"}
+{"cmd": "dev", "op": "fill", "x0": -253, "y0": 66, "z0": -135, "x1": -248, "y1": 66, "z1": -128, "id": 1, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -253, "y0": 67, "z0": -135, "x1": -248, "y1": 70, "z1": -128, "id": 0, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -252, "y0": 66, "z0": -130, "x1": -249, "y1": 66, "z1": -130, "id": 49, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -252, "y0": 67, "z0": -130, "x1": -252, "y1": 69, "z1": -130, "id": 49, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -249, "y0": 67, "z0": -130, "x1": -249, "y1": 69, "z1": -130, "id": 49, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -252, "y0": 70, "z0": -130, "x1": -249, "y1": 70, "z1": -130, "id": 49, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -251, "y0": 67, "z0": -130, "x1": -250, "y1": 69, "z1": -130, "id": 90, "meta": 1}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 67.0, "z": -133.5, "yaw": 0.0, "pitch": 0.0}
+{"cmd": "dev", "op": "slot", "slot": 0, "item": 267, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 39, "item": 306, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 38, "item": 307, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 37, "item": 308, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 36, "item": 309, "count": 1}
+{"n": 17, "act": {"hold": ["forward"]}}
+{"n": 85, "act": {}}
+{"cmd": "dev", "op": "fill", "x0": -72, "y0": 64, "z0": -42, "x1": -53, "y1": 82, "z1": -23, "id": 112, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -71, "y0": 66, "z0": -41, "x1": -54, "y1": 81, "z1": -24, "id": 0, "meta": 0}
+{"n": 3, "act": {}}
+{"cmd": "dev", "op": "tp", "x": -62.5, "y": 66.0, "z": -26.5, "yaw": 180.0, "pitch": 0.0}
+{"n": 5, "act": {}}
+{"cmd": "dev", "op": "summon", "name": "Blaze", "x": -62.5, "y": 66.0, "z": -36.5}
+{"n": 220, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 1, "act": {"aim": {"cls": "EntityBlaze", "range": 6}, "press": ["attack"]}}
+{"n": 3, "act": {"aim": {"cls": "EntityBlaze", "range": 16}, "hold": ["forward"]}}
+{"n": 8, "act": {"aim": {"cls": "EntityBlaze", "range": 16}}}
+{"n": 60, "act": {}}

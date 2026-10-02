@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/world/chunk/NibbleArray.java",
+  "classes": ["NibbleArray"],
+  "lines": 65,
+  "side": "common",
+  "category": "chunk",
+  "role": "A packed 4-bit array for per-block metadata, sky light, block light and the block-id high nibble in each ExtendedBlockStorage section, index y << 8 | z << 4 | x, two cells per byte.",
+  "scope": "in_scope",
+  "scope_reason": "Holds every section's metadata and light values.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.h", "symbols": ["chunk"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["sr_ensure_saved"]}
+  ],
+  "evidence": ["csrc/tests/test_snapshots.c", "csrc/tests/test_worldgen.c", "out/java/snapshots/cp-mobs-s1"],
+  "members": [
+    {"kind": "field", "name": "data", "sig": "byte[]", "native": "csrc/engine/world.h:chunk", "status": "exact", "note": "Unpacked: struct chunk holds metas, sky and blocklight as one byte per cell in the flat x << 12 | z << 8 | y layout."},
+    {"kind": "field", "name": "depthBits", "sig": "int", "native": null, "status": "n/a", "note": "Layout parameter; the C layout is fixed."},
+    {"kind": "field", "name": "depthBitsPlusFour", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "NibbleArray", "sig": "(int,int)", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "NibbleArray", "sig": "(byte[],int)", "native": "csrc/engine/serverreplay.c:sr_ensure_saved", "status": "exact", "note": "Wrapping saved NBT bytes: the checkpoint loader unpacks Data, SkyLight, BlockLight and Add inline."},
+    {"kind": "method", "name": "get", "sig": "(int,int,int)I", "native": "csrc/engine/serverreplay.c:sr_ensure_saved", "status": "exact", "note": "Low nibble for even index, high for odd (serverreplay.c 4703); direct byte reads elsewhere."},
+    {"kind": "method", "name": "set", "sig": "(int,int,int,int)V", "native": "csrc/engine/world.h:chunk", "status": "exact", "note": "Direct byte stores, values kept in 0..15."}
+  ],
+  "missing": [],
+  "notes": "The packing itself only matters at the NBT boundary (checkpoint load, snapshot I/O); I did not check snapshot.c's writers. Gates not re-run."
+}

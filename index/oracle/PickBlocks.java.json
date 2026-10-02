@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/PickBlocks.java",
+ "lines": 76,
+ "role": "Read-only aim helper for the pickaxe tapes: dumps id and meta of every non-air cell in a small box (x0..x1, z0..z1, y0..y1 default 55..90) on its own thread while the server is parked, so a script can stand beside a trunk and aim at a face centre.",
+ "kind": "util",
+ "used_by": [
+  "{\"cmd\":\"run\",\"class\":\"PickBlocks\"} (interactive/serve scripting; no checked-in script or native test references it)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No consumer found in oracle/tests, native or DEVLOG; it was used while authoring the pickaxe tapes."
+}

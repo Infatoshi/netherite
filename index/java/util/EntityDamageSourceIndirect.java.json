@@ -1,0 +1,74 @@
+{
+  "path": "oracle/src/util/EntityDamageSourceIndirect.java",
+  "classes": [
+    "EntityDamageSourceIndirect"
+  ],
+  "lines": 36,
+  "side": "server",
+  "category": "combat",
+  "role": "An EntityDamageSource where the damage comes from a projectile or thrower's target (arrows, fireballs, thrown items): the indirect entity is who gets the kill credit.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/living.h",
+      "symbols": [
+        "DMG_FIREBALL",
+        "DMG_THROWN",
+        "damage_attacker",
+        "DMG_ARROW",
+        "DMG_INDIRECT_MAGIC",
+        "dmg_is_indirect"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/throw-bow-s1",
+    "csrc/tests/test_projectiles.c",
+    "out/java/snapshots/dmg-sources-s1",
+    "out/java/snapshots/melee-mods-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "indirectEntity",
+      "sig": "Entity",
+      "native": null,
+      "status": "n/a",
+      "note": "Read apart from the shooter only when an arrow has no shooter (causeArrowDamage(this, this): the knockback from the arrow, EntityMob's entityToAttack on it). That needs a dispenser's arrow (world.conf redstone = off) or an arrow saved mid-flight (EntityArrow keeps no shooter in NBT), which takes a chunk unload within the second or two an arrow flies; not staged here, left as a follow-up. Every other indirect source passes its shooter or thrower as getEntity (dmg_is_indirect)."
+    },
+    {
+      "kind": "ctor",
+      "name": "EntityDamageSourceIndirect",
+      "sig": "(String,Entity,Entity)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getSourceOfDamage",
+      "sig": "()Entity",
+      "native": "csrc/engine/living.h:dmg_is_indirect",
+      "status": "exact",
+      "note": "The projectile's kind is the source kind (arrow, thrown, fireball, indirect magic) that the readers test; the skeleton's snipe test rides player_arrow_hit."
+    },
+    {
+      "kind": "method",
+      "name": "getEntity",
+      "sig": "()Entity",
+      "native": "csrc/engine/living.h:dmg_is_indirect",
+      "status": "exact",
+      "note": "every indirect source passes the shooter or thrower as the attacker; EntityEnderman branches on dmg_is_indirect"
+    },
+    {
+      "kind": "method",
+      "name": "func_151519_b",
+      "sig": "(EntityLivingBase)IChatComponent (death message)",
+      "native": null,
+      "status": "n/a",
+      "note": "chat only"
+    }
+  ],
+  "missing": [],
+  "notes": "Arrows (DMG_ARROW), thrown items (DMG_THROWN), fireballs (DMG_FIREBALL) and harming splashes with a thrower (DMG_INDIRECT_MAGIC) are the indirect kinds; the enderman teleports on each, and the shooter is the revenge target and the attacking player. lane/idxblocks: the shooterless arrow is the dispenser switch or a mid-flight unload."
+}

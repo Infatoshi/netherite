@@ -1,0 +1,103 @@
+{
+  "path": "csrc/tests/test_projectiles.c",
+  "lines": 745,
+  "role": "Gate: replays the oracle's ProjectileProbe dump (items, orbs, arrows, snowballs, eggs, ender pearls, potions, large and small fireballs spawned with the vanilla constructor draws) through csrc/engine/item_entity.c and projectile.c, including chicken hatching from eggs, and compares every entity field per tick.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/entity/projectile/EntityArrow.java",
+      "members": [
+        "<init>",
+        "onUpdate",
+        "setThrowableHeading"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntityThrowable.java",
+      "members": [
+        "<init>",
+        "onUpdate",
+        "setThrowableHeading"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntitySnowball.java",
+      "members": [
+        "onImpact"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntityEgg.java",
+      "members": [
+        "onImpact"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityEnderPearl.java",
+      "members": [
+        "onImpact"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntityPotion.java",
+      "members": [
+        "onImpact"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntityFireball.java",
+      "members": [
+        "onUpdate"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntityLargeFireball.java",
+      "members": [
+        "onImpact"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntitySmallFireball.java",
+      "members": [
+        "onImpact"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/passive/EntityChicken.java",
+      "members": [
+        "<init>",
+        "setGrowingAge"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "splitref",
+      "java": "one Det split stream (determinize.sh static RNG name) per role",
+      "fields": [
+        "name",
+        "state",
+        "used"
+      ]
+    },
+    {
+      "name": "ref",
+      "java": "the oracle's Det start.txt/end.txt snapshot (netherite.oracle.Det: world seed, per-role nextId, seeder/math digests, split streams)",
+      "fields": [
+        "world_seed",
+        "next_id",
+        "seeder",
+        "math",
+        "splits",
+        "nsplits"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/projectiles. Native calls: ie_init, ie_added_to_world, ie_tick, ie_free (csrc/engine/item_entity.h; projectile_update in projectile.c is reached through ie_tick), an_init, an_tick_one, an_egg_chicken (living.h), entity_init/entity_set_size/entity_set_position, det_* including the constructor draws (Math.random, nextGaussian/nextBoolean) replayed per kind. ie_fizz_stub and ie_attack_stub stand in for hooks. Skips a dump whose kind is not projectiles. In memslot.sh's big pool. Oracle side: oracle/harness/netherite/oracle/ProjectileProbe.java. Recordings: out/java/projectiles/proj-2, proj-42, eggs2-2, eggs2-42."
+}

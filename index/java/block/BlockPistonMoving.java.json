@@ -1,0 +1,211 @@
+{
+ "path": "oracle/src/block/BlockPistonMoving.java",
+ "classes": [
+  "BlockPistonMoving"
+ ],
+ "lines": 252,
+ "side": "common",
+ "category": "block",
+ "role": "The moving-piston placeholder block (36): holds a TileEntityPiston for the block in transit, drops that block's items, and computes the sliding collision box.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf redstone = off: the oracle's World power queries return 0, so a piston never extends (SPEC Decisions: 'pistons ... stay put'). The moving block (36) only exists during a push or pull.",
+ "status": "not_applicable",
+ "native": [
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "te_kind_of_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/collide.c",
+   "symbols": [
+    "collide_add_boxes"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_tileticks.c",
+  "out/java/snapshots/pickblock-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockPistonMoving",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 36: hardness -1, render_type -1"
+  },
+  {
+   "kind": "method",
+   "name": "createNewTileEntity",
+   "sig": "(World,I)TileEntity",
+   "native": null,
+   "status": "n/a",
+   "note": "returns null; tileentity.c maps 36 to no tile entity"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty"
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": null,
+   "status": "n/a",
+   "note": "TileEntityPiston.func_145866_f"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(World,III)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockOnSide",
+   "sig": "(World,IIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "-1"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIIEntityPlayer,IFFF)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "removes the orphan block"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 36: nothing without a piston TE"
+  },
+  {
+   "kind": "method",
+   "name": "dropBlockAsItemWithChance",
+   "sig": "(World,IIIIFI)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the carried block's drop"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": null,
+   "status": "n/a",
+   "note": "orphan check"
+  },
+  {
+   "kind": "method",
+   "name": "func_149962_a",
+   "sig": "(Block,IIZZ)TileEntity",
+   "native": null,
+   "status": "n/a",
+   "note": "TileEntityPiston factory"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)AxisAlignedBB",
+   "native": "csrc/engine/collide.c:collide_add_boxes",
+   "status": "partial",
+   "note": "listed in the no-box family; the sliding box is unreachable"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "unreachable: the piston never extends"
+  },
+  {
+   "kind": "method",
+   "name": "func_149964_a",
+   "sig": "(World,IIIBlockFI)AxisAlignedBB",
+   "native": null,
+   "status": "n/a",
+   "note": "the progress-offset box"
+  },
+  {
+   "kind": "method",
+   "name": "func_149963_e",
+   "sig": "(IBlockAccess,III)TileEntityPiston",
+   "native": null,
+   "status": "n/a",
+   "note": "unreachable: the piston never extends"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "piston_top_normal"
+  }
+ ],
+ "missing": [],
+ "notes": "test_tileticks.c mentions a BlockPistonMoving cell in a dump; no moving piston occurs in play."
+}

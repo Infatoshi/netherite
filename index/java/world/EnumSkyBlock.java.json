@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/world/EnumSkyBlock.java",
+  "classes": ["EnumSkyBlock"],
+  "lines": 14,
+  "side": "common",
+  "category": "world",
+  "role": "The two light channels, Sky (default 15) and Block (default 0), selecting which nibble array a light read or write touches.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.h", "symbols": ["LIGHT_SKY", "LIGHT_BLOCK", "LIGHT_DEFAULT_VALUE"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_seedworld.c"],
+  "members": [
+    {"kind": "field", "name": "Sky/Block", "sig": "enum constants", "native": "csrc/engine/world.h:LIGHT_SKY", "status": "exact", "note": "LIGHT_SKY 0, LIGHT_BLOCK 1"},
+    {"kind": "field", "name": "defaultLightValue", "sig": "int", "native": "csrc/engine/world.h:LIGHT_DEFAULT_VALUE", "status": "exact"},
+    {"kind": "ctor", "name": "EnumSkyBlock", "sig": "(int)", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The renderer (render_blocks.c) uses its own is_sky flag rather than these constants."
+}

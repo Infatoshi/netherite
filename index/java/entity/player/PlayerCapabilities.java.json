@@ -1,0 +1,39 @@
+{
+ "path": "oracle/src/entity/player/PlayerCapabilities.java",
+ "classes": ["PlayerCapabilities"],
+ "lines": 82,
+ "side": "common",
+ "category": "player",
+ "role": "The player's ability flags: invulnerable, flying, mayfly, creative instant-build, may-build, and the fly/walk speeds, plus their abilities NBT block.",
+ "scope": "in_scope",
+ "scope_reason": "The flags ride every player NBT round-trip and gate the placement and damage paths the replay exercises; the creative and flying modes themselves never turn on.",
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/entity_nbt.c", "symbols": ["player_abilities"]},
+  {"file": "csrc/engine/player.c", "symbols": ["server_player_load", "client_player_load"]},
+  {"file": "csrc/engine/slimes.c", "symbols": ["player_on_living_update"]},
+  {"file": "csrc/engine/container.h", "symbols": ["creative"]}
+ ],
+ "evidence": [
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/play-reload-s1"
+ ],
+ "members": [
+  {"kind": "field", "name": "disableDamage", "sig": "boolean", "native": "csrc/engine/entity_nbt.c:player_abilities", "status": "exact", "note": "round-trips as invulnerable; false for the survival player, checked in the damage chain"},
+  {"kind": "field", "name": "isFlying", "sig": "boolean", "native": "csrc/engine/entity_nbt.c:player_abilities", "status": "exact", "note": "round-trips as flying; never true in the replay"},
+  {"kind": "field", "name": "allowFlying", "sig": "boolean", "native": "csrc/engine/entity_nbt.c:player_abilities", "status": "exact", "note": "mayfly"},
+  {"kind": "field", "name": "isCreativeMode", "sig": "boolean", "native": "csrc/engine/container.h:creative", "status": "exact", "note": "instabuild; the container and itemuse paths read it (always false in the replay)"},
+  {"kind": "field", "name": "allowEdit", "sig": "boolean", "native": "csrc/engine/place.c:item_block_on_item_use", "status": "partial", "note": "mayBuild; read in the placement paths rather than a standalone predicate"},
+  {"kind": "field", "name": "flySpeed", "sig": "float", "native": "csrc/engine/entity_nbt.c:player_abilities", "status": "exact", "note": "0.05F, round-trips through the NBT"},
+  {"kind": "field", "name": "walkSpeed", "sig": "float", "native": "csrc/engine/slimes.c:player_on_living_update", "status": "exact", "note": "0.1F; the base movement-speed attribute is set from it"},
+  {"kind": "ctor", "name": "PlayerCapabilities", "sig": "()V", "native": null, "status": "n/a", "note": "the defaults are the NBT writer's constants"},
+  {"kind": "method", "name": "writeCapabilitiesToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/entity_nbt.c:player_abilities", "status": "exact", "note": "the seven keys in the writer's order (entity_nbt.c comment 114)"},
+  {"kind": "method", "name": "readCapabilitiesFromNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/player.c:server_player_load", "status": "exact", "note": "the abilities compound is read back on load (player.c nbt_get abilities)"},
+  {"kind": "method", "name": "getFlySpeed", "sig": "()F", "native": null, "status": "n/a", "note": "no replayed flying"},
+  {"kind": "method", "name": "setFlySpeed", "sig": "(F)V", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "getWalkSpeed", "sig": "()F", "native": "csrc/engine/slimes.c:player_on_living_update", "status": "exact"},
+  {"kind": "method", "name": "setPlayerWalkSpeed", "sig": "(F)V", "native": null, "status": "n/a"}
+ ],
+ "missing": [],
+ "notes": "The struct field that mirrors the flag set lives in server_player (survival.h) and client_player (player.h); container.h's creative comment names the isCreativeMode read. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): creative, adventure, hardcore or game-type path; the game is survival at the pinned difficulty. Formerly listed as missing: The flying and creative behaviours the flags would enable (fly movement, instant break, no item depletion) are not ported; the flags themselves round-trip and read as false."
+}

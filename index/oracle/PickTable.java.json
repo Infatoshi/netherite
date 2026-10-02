@@ -1,0 +1,9 @@
+{
+ "path": "oracle/harness/netherite/oracle/PickTable.java",
+ "lines": 53,
+ "role": "Generator: writes Block.damageDropped per block id and metadata as csrc/engine/pick_table.h, the default damage pick block reads.",
+ "kind": "util",
+ "used_by": ["make -C oracle pick-h (oracle/Makefile) -> csrc/engine/pick_table.h"],
+ "vanilla_hooks": [],
+ "notes": "pick_table.h is generated; do not edit it by hand."
+}

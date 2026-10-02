@@ -1,0 +1,47 @@
+{
+  "path": "oracle/src/entity/item/EntityXPOrb.java",
+  "classes": ["EntityXPOrb"],
+  "lines": 284,
+  "side": "common",
+  "category": "entity",
+  "role": "An XP orb: spawned by deaths, smelting and the dev orb op, attracted to the nearest player within 8 blocks, collected on contact for its xpValue.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/item_entity.c", "symbols": ["ie_spawn_orb", "ie_spawn_orb_state", "ie_adopt_orb", "orb_update", "ie_attack_from", "ie_water_accelerate", "xp_color", "xp_value", "ie_player_left"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["collide_with_player_pool", "xp_split", "surv_is_imob"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_xp_split"]},
+    {"file": "csrc/engine/living.c", "symbols": ["an_spawn_orb"]},
+    {"file": "csrc/engine/entity_nbt.c", "symbols": ["ent_nbt_ie"]}
+  ],
+  "evidence": ["out/java/snapshots/death-drops-s1", "csrc/tests/test_drops.c", "out/java/snapshots/orb-age-s1", "out/java/snapshots/respawn-loop-s1"],
+  "members": [
+    {"kind": "field", "name": "xpColor", "sig": "int", "native": "csrc/engine/item_entity.c:xp_color", "status": "exact", "note": "the render colour counter; its tick increment is server state"},
+    {"kind": "field", "name": "xpOrbAge", "sig": "int", "native": "csrc/engine/item_entity.c:age", "status": "exact", "note": "the shared EntityItem.age slot, 6000-tick despawn"},
+    {"kind": "field", "name": "field_70532_c", "sig": "int", "native": "csrc/engine/item_entity.c:delay", "status": "exact", "note": "the pickup delay slot shared with EntityItem.delayBeforeCanPickup"},
+    {"kind": "field", "name": "xpOrbHealth", "sig": "int", "native": "csrc/engine/item_entity.c:health", "status": "exact", "note": "the shared health slot, starts at 5"},
+    {"kind": "field", "name": "xpValue", "sig": "int", "native": "csrc/engine/item_entity.c:xp_value", "status": "exact"},
+    {"kind": "field", "name": "closestPlayer", "sig": "EntityPlayer", "native": "csrc/engine/item_entity.c:xp_has_target", "status": "partial", "note": "collapsed to a boolean cache over the one server player the pool holds, plus the frozen position of an old EntityPlayerMP respawnPlayer replaced (xp_target_left, ie_player_left): setPlayerLocation moved it to the fresh player's placement, and the orb pulls there until a rescan finds it over 8 blocks away (respawn-loop-s1)"},
+    {"kind": "field", "name": "xpTargetColor", "sig": "int", "native": "csrc/engine/item_entity.c:xp_target_color", "status": "exact"},
+    {"kind": "ctor", "name": "EntityXPOrb", "sig": "(World,DDDI)V", "native": "csrc/engine/item_entity.c:ie_spawn_orb", "status": "exact", "note": "size 0.5/0.5, the rotation and initial-motion draws from Det.mathRandom"},
+    {"kind": "ctor", "name": "EntityXPOrb", "sig": "(World)V", "native": "csrc/engine/item_entity.c:ie_adopt_orb", "status": "partial", "note": "the bare World constructor is the replay's NBT-adopt path (size 0.25/0.25)"},
+    {"kind": "method", "name": "canTriggerWalking", "sig": "()Z", "native": "csrc/engine/item_entity.c:ie_spawn_orb", "status": "exact", "note": "the spawn path clears entity.can_trigger_walking"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": null, "status": "n/a", "note": "empty body"},
+    {"kind": "method", "name": "getBrightnessForRender", "sig": "(F)I", "native": null, "status": "n/a", "note": "client light value for rendering; not part of the server state"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/engine/item_entity.c:orb_update", "status": "exact", "note": "gravity 0.03, the lava bounce and fizz draw, pushOutOfBlocks, the entity-id-mod-100 target refresh, the 8-block attraction, friction, the 6000-tick despawn"},
+    {"kind": "method", "name": "handleWaterMovement", "sig": "()Z", "native": "csrc/engine/item_entity.c:ie_water_accelerate", "status": "exact", "note": "the orb's unexpanded-box override of the water push"},
+    {"kind": "method", "name": "dealFireDamage", "sig": "(I)V", "native": "csrc/engine/item_entity.c:ie_attack_from", "status": "exact", "note": "folds into the shared attackEntityFrom body"},
+    {"kind": "method", "name": "attackEntityFrom", "sig": "(Lnet/minecraft/util/DamageSource;F)Z", "native": "csrc/engine/item_entity.c:ie_attack_from", "status": "exact", "note": "health down by the amount, dead at or below 0, always returns false"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/entity_nbt.c:ent_nbt_ie", "status": "exact", "note": "Health/Age/Value shorts, entity_nbt.c:261-263"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/item_entity.c:ie_adopt_orb", "status": "exact"},
+    {"kind": "method", "name": "onCollideWithPlayer", "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V", "native": "csrc/engine/survival.c:collide_with_player_pool", "status": "exact", "note": "the player's tick sweep calls it: xpCooldown 2, the orb sound draws, addExperience, setDead (survival.c:1525-1536)"},
+    {"kind": "method", "name": "getXpValue", "sig": "()I", "native": "csrc/engine/item_entity.c:xp_value", "status": "exact", "note": "a getter over the field"},
+    {"kind": "method", "name": "getTextureByXP", "sig": "()I", "native": null, "status": "n/a", "note": "RenderXPOrb's texture choice, client-only"},
+    {"kind": "method", "name": "getXPSplit", "sig": "(I)I", "native": "csrc/engine/survival.c:xp_split", "status": "exact", "note": "also drops.c:drops_xp_split for the block-break form"},
+    {"kind": "method", "name": "canAttackWithItem", "sig": "()Z", "native": null, "status": "n/a", "note": "n/a: EntityPlayer.attackTargetEntityWithCurrentItem is never handed an orb: NetHandlerPlayServer.processUseEntity refuses an attack on an EntityXPOrb, and the client cannot point at one (canBeCollidedWith is false)"}
+  ],
+  "missing": [
+    "canAttackWithItem: a player's melee swing damaging an orb (EntityXPOrb returns false, so the orb survives) has no native counterpart; the item-entity pool has no attack-with-item entry point."
+  ],
+  "notes": "Deaths spawn orbs through living.c:an_spawn_orb (EntityLivingBase's death XP), explosion.c:150 spawns the nether star's, survival.c:1373 the player-death split and survival.c:2527 the furnace's. dev.c:525 is the dev orb op. test_drops.c replays recorded item/orb entities including the xp value. lane/clientents: the live client's own EntityXPOrb copies (csrc/play/clientents.c citem_update: the pull toward the client player at its 0.12 eye height, xpColor from the copy's spawn) from its EntityTracker emulation, spawned where handleSpawnExperienceOrb puts them. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): cat-toss-s1."
+}

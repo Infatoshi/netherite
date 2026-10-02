@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/BlockTable.java",
+ "lines": 188,
+ "role": "Writes the block registry's static properties as the C header csrc/engine/blocks.h: a MATERIALS table (liquid, solid, blocks movement, burn, replaceable, opaque, tool, mobility), BLOCKS (opacity, light, class name, hardness, resistance, slipperiness, particle gravity, cube flags, random ticks and more) and FIRE_FLAM; read through the live Block objects, floats as hex literals.",
+ "kind": "util",
+ "used_by": [
+  "make -C oracle blocks-h (oracle/Makefile) -> csrc/engine/blocks.h",
+  "oracle/harness/netherite/oracle/HarvestProbe.java (reuses its helpers)"
+ ],
+ "vanilla_hooks": []
+}

@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/item/ItemRecord.java",
+  "classes": ["ItemRecord"],
+  "lines": 87,
+  "side": "common",
+  "category": "item",
+  "role": "The music disc (ids 2256 to 2266): inserts itself into a meta-0 jukebox on right click on it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/activate.c", "symbols": ["act_run"]},
+    {"file": "csrc/engine/itemuse.c", "symbols": ["on_item_use"]}
+  ],
+  "evidence": ["csrc/tests/test_activate.c", "csrc/tests/test_itemuse.c", "out/java/snapshots/iu-jukebox-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150928_b", "sig": "Map", "native": null, "status": "n/a", "note": "the name-to-record map for func_150926_b"},
+    {"kind": "field", "name": "field_150929_a", "sig": "String", "native": null, "status": "n/a", "note": "the record's sound name; the native plays no audio"},
+    {"kind": "ctor", "name": "ItemRecord", "sig": "(Ljava/lang/String;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "rows 2256..2266, stack 1"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": "csrc/engine/activate.c:act_run", "status": "exact", "note": "the ItemRecord branch of the activation replay (activate.c) and the item-use replay (itemuse.c:on_item_use): the tile entity's stack copy, the meta write and the stackSize decrement"},
+    {"kind": "method", "name": "addInformation", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Ljava/util/List;Z)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150927_i", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getRarity", "sig": "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/EnumRarity;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150926_b", "sig": "(Ljava/lang/String;)Lnet/minecraft/item/ItemRecord;", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The insert is ported; the disc playing is client audio the GPU path does not need. No dedicated recording was found for the jukebox insert, so it rests on the activation and item-use gates. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): nothing open in the record."
+}

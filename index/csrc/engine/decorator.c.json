@@ -1,0 +1,185 @@
+{
+ "path": "csrc/engine/decorator.c",
+ "lines": 1103,
+ "role": "BiomeDecorator and the per-biome decorate overrides: per-biome decorator counts read off the biome constructors, the ore bands and lapis, sand/clay/gravel patches, trees with each biome's tree choice, flowers, grass, dead bushes, mushrooms, reeds, pumpkins, cacti, lily pads, lakes and springs, plus the plains, taiga, snow spikes, savanna, forest, desert, jungle and hills pre/post steps.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/biome/BiomeDecorator.java",
+   "members": [
+    "func_150512_a",
+    "func_150513_a",
+    "genStandardOre1",
+    "genStandardOre2",
+    "generateOres",
+    "treesPerChunk",
+    "flowersPerChunk",
+    "grassPerChunk",
+    "deadBushPerChunk",
+    "mushroomsPerChunk",
+    "reedsPerChunk",
+    "cactiPerChunk",
+    "waterlilyPerChunk",
+    "bigMushroomsPerChunk",
+    "sandPerChunk",
+    "sandPerChunk2",
+    "clayPerChunk",
+    "generateLakes"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenBase.java",
+   "members": [
+    "decorate",
+    "func_150567_a",
+    "func_150572_a",
+    "getRandomWorldGenForGrass"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenPlains.java",
+   "members": [
+    "decorate",
+    "func_150572_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenTaiga.java",
+   "members": [
+    "decorate",
+    "func_150567_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenSnow.java",
+   "members": [
+    "decorate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenSavanna.java",
+   "members": [
+    "decorate",
+    "func_150567_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenForest.java",
+   "members": [
+    "decorate",
+    "func_150567_a",
+    "func_150572_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenDesert.java",
+   "members": [
+    "decorate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenJungle.java",
+   "members": [
+    "decorate",
+    "func_150567_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenHills.java",
+   "members": [
+    "decorate",
+    "func_150567_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenSwamp.java",
+   "members": [
+    "func_150567_a",
+    "func_150572_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenMutated.java",
+   "members": [
+    "decorate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenMinable.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenBlockBlob.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenDoublePlant.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenIceSpike.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenIcePath.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenBigTree.java",
+   "members": [
+    "heightLimit"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "deco",
+   "java": "one biome object's BiomeDecorator counts",
+   "fields": [
+    "trees",
+    "flowers",
+    "grass",
+    "deadbush",
+    "mushrooms",
+    "reeds",
+    "cacti",
+    "waterlily",
+    "bigmushrooms",
+    "sand",
+    "sand2",
+    "clay"
+   ]
+  },
+  {
+   "name": "bshape",
+   "java": "which BiomeGenBase subclass decorate override applies",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "decorator_decorate"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 21-22, file scope: global mutable test hooks decorator_negative_count and decorator_negative_muttree read in the populate path",
+  "lines 25-37, function leaves_mat: lazily initialized statics mat_init_done and leaves_i with a strcmp search of MATERIALS by name",
+  "line 761, function place_block_blob: for(;;) loop, bounded by y descending to 3",
+  "line 653, function decorator_body: while loop walking y down through air"
+ ],
+ "tests": [
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_spawning.c"
+ ],
+ "notes": "Called from populate paths in serverreplay.c and seedworld.c, so it runs in the tick when a chunk populates. The tree, lake, spring and plant features live in features*.c; this file only chooses and dispatches them. The bshape fields and the exact Java member names of the BiomeGen* choice helpers (func_150567_a trees, func_150572_a flowers) are cited from the code comments and MCP convention, not re-read in each Java file."
+}

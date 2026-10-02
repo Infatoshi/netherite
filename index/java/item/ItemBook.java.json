@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/item/ItemBook.java",
+  "classes": ["ItemBook"],
+  "lines": 22,
+  "side": "common",
+  "category": "item",
+  "role": "The plain book: enchantability 1 (it is the enchanting-table catalyst and the librarian trade stock) and an isItemTool of stackSize == 1.",
+  "scope": "in_scope",
+  "scope_reason": "The enchanting table is switched off (world.conf enchanting), but books still enter the world through the librarian's trades and chest loot, so the enchantability and the trade stock stay live.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/enchant.c", "symbols": ["item_enchantability"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_trades.c",
+    "csrc/tests/test_loot.c",
+    "out/java/snapshots/trade-full-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemBook", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 340"},
+    {"kind": "method", "name": "isItemTool", "sig": "(ItemStack)Z", "native": null, "status": "n/a", "note": "not modelled; it only affects enchanting-table slot filters, which are off; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getItemEnchantability", "sig": "()I", "native": "csrc/engine/enchant.c:item_enchantability", "status": "exact", "note": "enchant.c hardcodes ItemBook to 1"}
+  ],
+  "missing": [],
+  "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): isItemTool only gates the enchanting table (off). Formerly listed as missing: ItemBook.isItemTool is not modelled (enchanting table is switched off, so it gates nothing today). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

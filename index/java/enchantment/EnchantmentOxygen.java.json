@@ -1,0 +1,70 @@
+{
+ "path": "oracle/src/enchantment/EnchantmentOxygen.java",
+ "classes": [
+  "EnchantmentOxygen"
+ ],
+ "lines": 36,
+ "side": "server",
+ "category": "combat",
+ "role": "The Respiration enchantment (effect id 5, armor_head): level windows and max level in the shared registry.",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), but the enchantment registry itself is kept: loot books and mob equipment carry enchantments (DEVLOG 2026-09-25, 'Kept: enchantment data and effects').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "ENCHANTS",
+    "struct enchantment_def"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "map_enchantment_data"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_loot.c",
+  "out/java/loot/seed2",
+  "csrc/tests/test_trades.c",
+  "out/java/trades/seed2"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EnchantmentOxygen",
+   "sig": "(int,int)V",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "setName('oxygen') is the row's name field"
+  },
+  {
+   "kind": "method",
+   "name": "getMinEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row min_enchantability {10,20,30}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_enchantability {40,50,60}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxLevel",
+   "sig": "()I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_level 3"
+  }
+ ],
+ "missing": [],
+ "notes": "EnchantmentHelper.getRespiration is 0 over every ported entity (nothing wears armour): living.c comment at line 1670."
+}

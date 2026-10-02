@@ -1,0 +1,49 @@
+{
+ "path": "csrc/engine/combat.h",
+ "lines": 61,
+ "role": "Declares player entity targeting and C02 USE_ENTITY ATTACK for the whole-server tick: the client-side mirror of tracked living entities, the pick, and the server attack.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "attackTargetEntityWithCurrentItem"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/EntityRenderer.java",
+   "members": [
+    "getMouseOver"
+   ]
+  },
+  {
+   "path": "oracle/src/network/NetHandlerPlayServer.java",
+   "members": [
+    "processUseEntity"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "combat_state",
+   "java": "the client WorldClient entities plus the server EntityTracker entries for living mobs",
+   "fields": [
+    "client",
+    "tracker"
+   ]
+  }
+ ],
+ "entry_points": [
+  "combat_bind",
+  "combat_client_tick",
+  "combat_client_world_change",
+  "combat_pick_entity",
+  "combat_server_finish",
+  "combat_server_attack"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ]
+}

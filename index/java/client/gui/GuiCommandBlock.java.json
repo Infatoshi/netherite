@@ -1,0 +1,117 @@
+{
+ "path": "oracle/src/client/gui/GuiCommandBlock.java",
+ "classes": [
+  "GuiCommandBlock"
+ ],
+ "lines": 162,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The command block's editing GUI: the two text fields and the done/cancel/plus buttons over CommandBlockLogic.",
+ "scope": "not_needed",
+ "scope_reason": "Commands are not used in this game and command blocks are never given or placed, so the GUI is never reached.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146488_a (static)",
+   "sig": "Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146485_f",
+   "sig": "GuiTextField",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146486_g",
+   "sig": "GuiTextField",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146489_h",
+   "sig": "CommandBlockLogic",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146490_i",
+   "sig": "GuiButton",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146487_r",
+   "sig": "GuiButton",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiCommandBlock",
+   "sig": "(CommandBlockLogic)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateScreen",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "initGui",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onGuiClosed",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "actionPerformed",
+   "sig": "(GuiButton)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "keyTyped",
+   "sig": "(char,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "mouseClicked",
+   "sig": "(int,int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

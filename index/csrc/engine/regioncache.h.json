@@ -1,0 +1,42 @@
+{
+ "path": "csrc/engine/regioncache.h",
+ "lines": 127,
+ "role": "Declares the region cache (regioncache.c): the key, the image layout, the --region-cache switch.",
+ "layer": "io",
+ "java": [],
+ "structs": [
+  {
+   "name": "rc_image",
+   "java": null,
+   "fields": [
+    "key",
+    "mode",
+    "fresh",
+    "buf",
+    "nchunks",
+    "nents",
+    "njournal",
+    "tagmap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "regioncache_flag",
+  "regioncache_begin",
+  "regioncache_note_bigtree",
+  "regioncache_capture",
+  "regioncache_apply_env",
+  "regioncache_tags",
+  "regioncache_chunk_pos",
+  "regioncache_chunk",
+  "regioncache_ticks",
+  "regioncache_entity",
+  "regioncache_end"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header for regioncache.c."
+}

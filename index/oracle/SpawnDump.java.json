@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/SpawnDump.java",
+ "lines": 243,
+ "role": "Dumps the world the integrated server holds right after initialWorldChunkLoad and before its first tick, in Snapshot's format plus animals.jsonl (the worldgen-spawned entities reduced to class, id, uuid, pose, motion and Det Random state): the reference for the native seed-world build.",
+ "kind": "snapshot",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Main.java --spawndump DIR (called from Oracle.preTick at tick 0)",
+  "make -C oracle run CLASS=SpawnDump (the generic {\"cmd\":\"run\",\"class\":\"SpawnDump\"} reflection dispatch in Oracle.java)",
+  "csrc/engine/seedworld.h",
+  "csrc/tests/test_seedworld.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No oracle/src hook; the call site is Oracle.java's preTick in the harness."
+}

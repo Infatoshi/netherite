@@ -1,0 +1,196 @@
+{
+ "path": "oracle/src/world/biome/BiomeGenMesa.java",
+ "classes": [
+  "BiomeGenMesa"
+ ],
+ "lines": 372,
+ "side": "common",
+ "category": "worldgen",
+ "role": "Mesa biomes (37, 38, 39 and their mutations 165-167): no rain or passive mobs, stained clay bands built from the world seed, Bryce spires, a grassy plateau top on the F variants, and fixed grass and foliage colours.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/surface.c",
+   "symbols": [
+    "surface_init",
+    "mesa_band",
+    "mesa_column",
+    "jround",
+    "SURF_MESA"
+   ]
+  },
+  {
+   "file": "csrc/engine/surface.h",
+   "symbols": [
+    "surface",
+    "bands",
+    "band_shift",
+    "spire",
+    "spire_cap"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "deco_of",
+    "TR_MESA",
+    "place_tree"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "biome_color"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "biome_has_creatures"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_worldgen.c",
+  "csrc/tests/test_populate.c",
+  "out/java/chunks/mesa-123456789",
+  "out/java/chunks/light-mesa-123456789",
+  "out/java/populate",
+  "out/java/clientframes/cov-mesa-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150621_aC",
+   "sig": "byte[64] (clay bands)",
+   "native": "csrc/engine/surface.h:bands",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_150622_aD",
+   "sig": "long (seed the bands were built for)",
+   "native": "csrc/engine/surface.c:surface_init",
+   "status": "exact",
+   "note": "func_150573_a builds the spire noises from this field before first storing the seed, so they come from Random(0) for the first world a JVM generates; a second world generated in the same JVM would take the first's seed, but every world in this project is the first its process generates (each oracle run, checkpoint load and native environment), which the native reproduces"
+  },
+  {
+   "kind": "field",
+   "name": "field_150623_aE",
+   "sig": "NoiseGeneratorPerlin (4 octaves)",
+   "native": "csrc/engine/surface.h:spire",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_150624_aF",
+   "sig": "NoiseGeneratorPerlin (1 octave)",
+   "native": "csrc/engine/surface.h:spire_cap",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_150625_aG",
+   "sig": "NoiseGeneratorPerlin (band shift)",
+   "native": "csrc/engine/surface.h:band_shift",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_150626_aH",
+   "sig": "boolean (Bryce)",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "p1 column"
+  },
+  {
+   "kind": "field",
+   "name": "field_150620_aI",
+   "sig": "boolean (forest plateau)",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "p2 column; trees 5 in deco_of case 38"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a",
+   "note": "obfuscation id"
+  },
+  {
+   "kind": "ctor",
+   "name": "BiomeGenMesa",
+   "sig": "(int,boolean,boolean)",
+   "native": "csrc/engine/decorator.c:deco_of",
+   "status": "exact",
+   "note": "counts exact; 37-39 and the mutations 165-167 (fresh BiomeGenMesa objects that also clear the list) have no creatures in biome_has_creatures, checked by test_biome_spawn.c"
+  },
+  {
+   "kind": "method",
+   "name": "func_150567_a",
+   "sig": "(Random)WorldGenAbstractTree",
+   "native": "csrc/engine/decorator.c:place_tree",
+   "status": "exact",
+   "note": "TR_MESA, plain oak, no draw"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeFoliageColor",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact",
+   "note": "RB_KIND_CONST 10387789; cov-mesa-s1: Mesa Plateau F grass and placed oak leaves"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeGrassColor",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/render_blocks.c:biome_color",
+   "status": "exact",
+   "note": "RB_KIND_CONST 9470285; cov-mesa-s1: Mesa Plateau F grass and placed oak leaves"
+  },
+  {
+   "kind": "method",
+   "name": "decorate",
+   "sig": "(World,Random,int,int)V",
+   "native": "csrc/engine/decorator.c:decorator_decorate",
+   "status": "exact",
+   "note": "plain super call"
+  },
+  {
+   "kind": "method",
+   "name": "func_150573_a",
+   "sig": "(World,Random,Block[],byte[],int,int,double)V",
+   "native": "csrc/engine/surface.c:mesa_column",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150619_a",
+   "sig": "(long)V",
+   "native": "csrc/engine/surface.c:surface_init",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150618_d",
+   "sig": "(int,int,int)B",
+   "native": "csrc/engine/surface.c:mesa_band",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150566_k",
+   "sig": "()BiomeGenBase",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "rows 165 (Bryce), 166, 167"
+  }
+ ],
+ "missing": [],
+ "notes": "The Random(0) spire seeding reproduces a vanilla quirk (func_150573_a builds the noises from field_150622_aD before first storing the seed); it holds for the first world a JVM generates, which is how the oracle runs. The creature lists are checked by test_biome_spawn.c against BiomeSpawnProbe. Closed by lane/idxworld: the bands, pillars and spires are held by the mesa chunk dumps (out/java/chunks/mesa-123456789, light-mesa-123456789)."
+}

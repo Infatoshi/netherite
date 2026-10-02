@@ -1,0 +1,11 @@
+{
+  "path": "oracle/harness/netherite/oracle/Rewind.java",
+  "lines": 408,
+  "role": "The pool's heap rewind: records every object reachable from the static fields of the initialized net.minecraft and netherite classes (walking java.util collections and Randoms, atomics, guava collections, gson trees and arrays; threads, IO, NIO buffers, netty, LWJGL, locks and blocking queues are opaque) as flat per-object field values through sun.misc.Unsafe, and writes back every field that changed. KEEP names fields that are neither walked nor restored.",
+  "kind": "harness",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Pool.java"
+  ],
+  "vanilla_hooks": [],
+  "notes": "About 70k objects under 439 classes; capture about 110 ms once per pool, restore 6 to 16 ms per run on the dev host. JaCoCo's $jacocoData probe arrays (a coverage member) are never recorded or restored: its runtime holds the same arrays and Pool resets them per job."
+}

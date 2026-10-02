@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/item/ItemWritableBook.java",
+  "classes": ["ItemWritableBook"],
+  "lines": 68,
+  "side": "common",
+  "category": "item",
+  "role": "The book and quill (id 386): opens the book editing GUI on right click; also validates page NBT.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf book_editing = off: using the book does nothing; the Java onItemRightClick body starts with the WorldConf.book_editing gate and returns the stack unchanged.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": ["out/java/snapshots/iu-off-s1"],
+  "members": [
+    {"kind": "ctor", "name": "ItemWritableBook", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "n/a", "note": "row 386: stack 1"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;", "native": null, "status": "n/a", "note": "the world switch makes this a no-op; the native has no book GUI"},
+    {"kind": "method", "name": "getShareTag", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150930_a", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)Z", "native": null, "status": "n/a", "note": "the page-validation helper; never reached with editing off"}
+  ],
+  "missing": [],
+  "notes": "The item still exists as a crafting result (book + dye + feather) and in loot; only its use is switched off. lane/itemuse: iu-off-s1 uses it with world.conf's switch off (used on the ground and in the air: nothing happens)."
+}

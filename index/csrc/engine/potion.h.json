@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/potion.h",
+ "lines": 112,
+ "role": "Declares the potion port: the potion id enum, the PotionEffect record, activePotionsMap held by id with its Java 8 HashMap order computed, the Potion metadata and effect functions, the EntityLivingBase potion hooks, attribute modifier helpers, the PotionHelper damage parser and the food-effect entry. potion_effect.duration_max: the client's isPotionDurationMax.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/potion/Potion.java", "members": ["potionTypes", "isBadEffect", "getLiquidColor", "isInstant", "getEffectiveness", "isReady", "performEffect", "affectEntity", "applyAttributesModifiersToEntity", "removeAttributesModifiersFromEntity"]},
+  {"path": "oracle/src/potion/PotionEffect.java", "members": ["potionID", "duration", "amplifier", "isSplashPotion", "isAmbient", "isPotionDurationMax", "setPotionDurationMax"]},
+  {"path": "oracle/src/potion/PotionHelper.java", "members": ["getPotionEffects", "calcPotionLiquidColor", "func_82817_b"]},
+  {"path": "oracle/src/entity/EntityLivingBase.java", "members": ["activePotionsMap", "heal", "addPotionEffect", "removePotionEffect", "clearActivePotions", "isPotionActive", "getActivePotionEffect", "updatePotionEffects"]}
+ ],
+ "structs": [
+  {"name": "struct potion_effect", "java": "PotionEffect (potionID, amplifier, duration, isSplashPotion, isAmbient)", "fields": ["id", "amplifier", "duration", "is_splash", "is_ambient"]},
+  {"name": "struct potion_map", "java": "EntityLivingBase.activePotionsMap (Java 8 HashMap, capacity 16 then 32): the effects by id with their insertion stamps; potion_map_order computes the iteration order", "fields": ["size", "capacity", "held", "stamp", "seq", "eff"]}
+ ],
+ "entry_points": ["potion_map_init", "potion_map_clear", "potion_map_get", "potion_map_put", "potion_map_remove", "potion_map_order", "potion_is_bad", "potion_liquid_color", "potion_is_instant", "potion_effectiveness", "potion_is_ready", "potion_perform_effect", "potion_affect_entity", "living_heal", "living_add_potion_effect", "living_remove_potion_effect", "living_clear_active_potions", "living_is_potion_active", "living_get_potion_effect", "living_update_potion_effects", "potion_apply_attributes", "potion_remove_attributes", "potion_get_effects_for_damage", "potion_calc_liquid_color", "potion_all_ambient", "potion_apply_food"],
+ "tick_path": true,
+ "gpu": [
+  "struct potion_map: effects in an array by id, a held bit mask and insertion stamps; the HashMap order is computed (bins ascending, a 16-bin table's pair by stamp), no chains, a plain copy (lane/gpuorder, L4)"
+ ],
+ "tests": ["csrc/tests/test_potions.c", "csrc/tests/test_hudscreens.c"],
+ "notes": "living_heal is declared here but defined in living.c."
+}

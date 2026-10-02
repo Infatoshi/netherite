@@ -1,0 +1,33 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIBase.java",
+ "classes": ["EntityAIBase"],
+ "lines": 65,
+ "side": "server",
+ "category": "ai",
+ "role": "Abstract goal base: the mutex bitmask, the shouldExecute/continueExecuting contract and the empty start/reset/update defaults.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ai.c", "symbols": ["tasks_compatible", "ai_tasks_update", "ai_should_execute"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/rc-animals-s1",
+  "out/java/snapshots/fight-zombie-s1",
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_hostiles.c"
+ ],
+ "members": [
+  {"kind": "field", "name": "mutexBits", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.mutex"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a", "note": "abstract; every goal's case in ai.c's ai_should_execute"},
+  {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the default (shouldExecute again) is used by the tasks with no override, e.g. EntityAITradePlayer at ai.c:1883"},
+  {"kind": "method", "name": "isInterruptible", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:962: true for every task these kinds register"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": null, "status": "n/a", "note": "empty default; overrides per goal"},
+  {"kind": "method", "name": "resetTask", "sig": "()V", "native": null, "status": "n/a", "note": "empty default; overrides per goal"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": null, "status": "n/a", "note": "empty default; overrides per goal"},
+  {"kind": "method", "name": "setMutexBits", "sig": "(I)V", "native": null, "status": "n/a", "note": "set at registration"},
+  {"kind": "method", "name": "getMutexBits", "sig": "()I", "native": "csrc/engine/ai.c:tasks_compatible", "status": "exact", "note": "the bitwise-AND exclusivity test"}
+ ],
+ "missing": [],
+ "notes": "The EntityAITasks machinery around it (the two entry lists, the priority scan, the executing set) is ai_tasks_update in ai.c:2616."
+}

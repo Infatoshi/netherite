@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/tape.c",
+ "lines": 477,
+ "role": "A dependency-free JSON reader for the oracle's tapes and snapshots (values keep their raw text so canonical NBT members feed nbt_parse directly, and canonical \"i:\"/\"f:\"/\"d:\" scalars decode to ints and raw float bits), a growing line reader over FILE or gzFile, and the tape header-then-rows loop.",
+ "layer": "io",
+ "java": [],
+ "structs": [
+  {"name": "struct jval", "java": null, "fields": ["kind", "raw", "rawlen", "str", "num", "dbl", "has_num", "has_dbl", "boolean", "fields", "nfields", "items", "nitems", "owned"]},
+  {"name": "struct jfield", "java": null, "fields": ["key", "val"]},
+  {"name": "struct lines", "java": null, "fields": ["f", "g", "buf", "cap", "len", "pos", "eof", "failed"]},
+  {"name": "struct tape", "java": "the oracle's tape format (header line, one JSON row per tick) written by the netherite.oracle recorder", "fields": ["in", "header", "hdr", "row", "next_t", "failed"]},
+  {"name": "struct reader (static)", "java": null, "fields": ["p", "failed"]}
+ ],
+ "entry_points": ["json_parse", "json_free", "json_get", "json_at", "json_len", "json_str", "json_int", "json_double", "json_float", "json_raw", "lines_init", "lines_file", "lines_gz", "lines_next", "lines_free", "tape_open", "tape_next", "tape_close", "lines_gunzip"],
+ "tick_path": false,
+ "gpu": [
+  "line 128, function parse_value: recursive descent over nested objects and arrays (recursion depth follows the input)",
+  "lines 120, 140-173, functions new_value and parse_value: one malloc per value plus realloc-grown field and item arrays (a pointer tree per parsed row)",
+  "line 392, function lines_next: doubles the line buffer with realloc for a long line",
+  "line 443, function tape_next: allocates a copy of every row and parses it"
+ ],
+ "tests": ["csrc/tests/test_snapshots.c", "csrc/tests/test_chunkload.c", "csrc/tests/test_clientworld.c", "csrc/tests/test_servertick.c", "csrc/tests/test_seedworld.c"],
+ "notes": "Not a port of any Java file: it reads what the oracle (oracle/harness/netherite/oracle) writes. Used by the replay, the tests, dev ops and the renderer's tape-driven paths, outside the simulated tick; a GPU tick would get its inputs from here, host side. Possible leak seen while reading: tape_next (line 452) overwrites t->row without json_free of the previous row, and tape_close frees only the last one; test_snapshots.c's loop does not free rows itself. tape_open's failure paths after fopen also leave the line buffer allocated. Not verified by running anything. json_int truncates a J_NUM through double, so integers above 2^53 lose precision."
+}

@@ -1,0 +1,169 @@
+{
+ "path": "oracle/src/network/play/server/S10PacketSpawnPainting.java",
+ "classes": [
+  "S10PacketSpawnPainting"
+ ],
+ "lines": 105,
+ "side": "server",
+ "category": "network",
+ "role": "Spawns a painting entity on the client: position, facing and the art title.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/fallhang.c",
+   "symbols": [
+    "fh_spawn_painting"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/persist-hanging-full-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148973_a",
+   "sig": "int",
+   "status": "partial",
+   "note": "entity id"
+  },
+  {
+   "kind": "field",
+   "name": "field_148971_b",
+   "sig": "int",
+   "status": "partial",
+   "note": "x"
+  },
+  {
+   "kind": "field",
+   "name": "field_148972_c",
+   "sig": "int",
+   "status": "partial",
+   "note": "y"
+  },
+  {
+   "kind": "field",
+   "name": "field_148969_d",
+   "sig": "int",
+   "status": "partial",
+   "note": "z"
+  },
+  {
+   "kind": "field",
+   "name": "field_148970_e",
+   "sig": "int",
+   "status": "partial",
+   "note": "facing"
+  },
+  {
+   "kind": "field",
+   "name": "field_148968_f",
+   "sig": "String",
+   "status": "partial",
+   "note": "the art title, csrc/engine/fallhang.c keeps the art list"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(EntityPainting)V",
+   "status": "partial",
+   "native": "csrc/engine/fallhang.c:fh_spawn_painting",
+   "note": "the server-side painting exists (the dev hanging op); the S10 itself is never built"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a",
+   "note": "handleSpawnPainting: a client EntityPainting; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_148965_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148964_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148963_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148962_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148966_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148961_h",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "Paintings only enter a world through the dev hanging op in the current flows (persist-hanging-s1 records one). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the renderer draws paintings from server state (by design). Formerly listed as missing: No client mirror: the packet is never built or applied; the native renderer draws the painting from the server's own state (csrc/engine/raster_entities.c). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-hanging-full-s1, whose native replay starts before the behaviour."
+}

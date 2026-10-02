@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/Frames.java",
+ "lines": 94,
+ "role": "Framebuffer readback on the ScreenShotHelper path: reads the RGB pixels with glReadPixels, returns their SHA-1 for the tape's px field and optionally writes a PNG golden frame.",
+ "kind": "util",
+ "used_by": [
+  "Oracle.java (px field of every rendered tape row)",
+  "make replay (compares px), make script/replay FRAMES=dir (golden PNGs)",
+  "tools/pxdiff.c (out/native/pxdiff) consumes the PNGs as golden frames"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Client-thread GL readback; keeps a static reused IntBuffer and pixel array. No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

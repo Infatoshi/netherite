@@ -1,0 +1,14 @@
+{"cmd":"run","class":"MobFree","radius":16}
+{"cmd":"run","class":"Snapshot"}
+{"n":4,"act":{}}
+{"n":1,"act":{"dlook":[-90,0]}}
+{"n":42,"act":{"hold":["forward"]}}
+{"n":6,"act":{}}
+{"n":1,"act":{"dlook":[0,-6.0]}}
+{"n":1,"act":{"press":["attack"],"hold":["attack"]}}
+{"n":60,"act":{"hold":["attack"]}}
+{"n":4,"act":{}}
+{"n":1,"act":{"dlook":[0,26.0]}}
+{"n":1,"act":{"press":["attack"],"hold":["attack"]}}
+{"n":60,"act":{"hold":["attack"]}}
+{"n":60,"act":{}}

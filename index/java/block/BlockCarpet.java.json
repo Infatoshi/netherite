@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/block/BlockCarpet.java",
+  "classes": ["BlockCarpet"],
+  "lines": 131,
+  "side": "common",
+  "category": "block",
+  "role": "The carpet: a 1/16-thin wool slab that takes wool's 16 colors, pops with no floor, and burns.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blockcb.c", "symbols": ["carpet_can_stay", "block_on_neighbor_changed"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_add_boxes"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/raytrace.c", "symbols": ["block_bounds", "raytrace_collision"]}
+  ],
+  "evidence": ["out/java/place/big2", "out/java/drops/s2", "csrc/tests/test_registry.c", "out/java/raypick/rp-1", "csrc/tests/test_raypick.c", "out/java/snapshots/cov-blkbreak-s1", "out/java/snapshots/cov-blkplace-s1", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCarpet", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 171: 1/16 bounds, wool material, flammable."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": null, "status": "n/a", "note": "Wool's icons through the atlas; the standard renderer uses them."},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "exact", "note": "The flat box at the block's y, collide.c:654 and 875."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false."},
+    {"kind": "method", "name": "setBlockBoundsForItemRender", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "The registry bounds; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "setBlockBoundsBasedOnState", "sig": "(IBlockAccess,III)V", "native": "csrc/engine/raytrace.c:block_bounds", "status": "exact"},
+    {"kind": "method", "name": "func_150089_b", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/raytrace.c:block_bounds", "status": "exact"},
+    {"kind": "method", "name": "canPlaceBlockAt", "sig": "(World,III)Z", "native": "csrc/engine/place.c:place_try", "status": "exact", "note": "place.c's flammable-thin list includes 171 (place.c:116)."},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "The stay check and the pop, blockcb.c:2386."},
+    {"kind": "method", "name": "func_150090_e", "sig": "(World,III)boolean", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "The drop-then-clear, blockcb.c:2388."},
+    {"kind": "method", "name": "canBlockStay", "sig": "(World,III)Z", "native": "csrc/engine/blockcb.c:carpet_can_stay", "status": "exact", "note": "Any block below, not air, blockcb.c:281."},
+    {"kind": "method", "name": "shouldSideBeRendered", "sig": "(IBlockAccess,IIII)Z", "native": "csrc/engine/render_blocks.c:should_side_be_rendered", "status": "exact", "note": "The thin-block side rule through the renderer's bounds test; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "The color metadata, drops.c:357."},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Item,CreativeTabs,List)V", "native": null, "status": "n/a", "note": "Creative inventory only."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."}
+  ],
+  "missing": [],
+  "notes": "The color variants ride the metadata; no per-color code exists natively. The place probe's 40000-case sweep covers id 171."
+}

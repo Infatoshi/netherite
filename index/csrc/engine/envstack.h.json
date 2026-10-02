@@ -1,0 +1,13 @@
+{
+ "path": "csrc/engine/envstack.h",
+ "lines": 25,
+ "role": "The environment's scratch stack: a tick local over 4 KB (make -C csrc stack gates the frames) is taken from nw_env->scratch.stack when declared ENV_LOCAL and given back when it leaves scope, last in first out.",
+ "layer": "tick",
+ "java": [],
+ "structs": [],
+ "entry_points": ["ENVSTACK_CAP", "envstack_take", "envstack_zeroed", "envstack_give", "ENV_LOCAL"],
+ "tick_path": true,
+ "gpu": ["the stack is part of struct env (ENVSTACK_CAP 256 KB, untouched past the deepest point); make -C csrc worklist-depth names its high-water mark over every test: 105,536 bytes (cp-throw-s1: a region load's 64 KB NBT string buffer under the tick's lists), 40,000 in a steady tick (tick_updates' list); a row's own stack measured the same way (session.c's paint): 15,792 bytes deepest (gold-g26-s42)"],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "The takers (lane/gpustack, GPU audit L8): the s2c and tracker packets, the survival and respawn keeps (struct surv_clone), the active set's counting sort, tick_updates' list, the item merge and pigman query lists, the drop streams, the terrain, Nether and End noise fields, the dragon's crystal keep and checkpoint state. The s2c queue's packets are built in place (s2c_add) rather than on the stack."
+}

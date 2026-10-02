@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/client/resources/data/LanguageMetadataSectionSerializer.java",
+  "classes": ["LanguageMetadataSectionSerializer"],
+  "lines": 65,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Gson deserializer for the 'language' .mcmeta section: one Language per entry with region, name and bidirectional, rejecting empty values and duplicates.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack metadata plumbing the native engine never touches.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "deserialize", "sig": "(JsonElement,Type,JsonDeserializationContext)LanguageMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSectionName", "sig": "()String", "native": null, "status": "n/a", "note": "\"language\""}
+  ],
+  "missing": [],
+  "notes": null
+}

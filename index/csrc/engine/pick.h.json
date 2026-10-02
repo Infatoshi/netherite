@@ -1,0 +1,14 @@
+{
+ "path": "csrc/engine/pick.h",
+ "lines": 82,
+ "role": "Declarations for pick.c: the candidate, result and chunk-entry structs and the PK_ kinds.",
+ "layer": "client",
+ "java": [
+  {"path": "oracle/src/client/renderer/EntityRenderer.java", "members": ["getMouseOver"]}
+ ],
+ "structs": [],
+ "entry_points": ["pick_entity_pass", "pick_order"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_raypick.c", "csrc/tests/test_snapshots.c"]
+}

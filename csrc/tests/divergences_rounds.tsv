@@ -1,0 +1,56 @@
+# Fuzz rounds before the sweep (out/sweep/rate.tsv takes over from there), one
+# line per round as its lane's report or notes gave it. A fuzz lane adds its
+# rounds here as it runs them. Columns: date (the round's day), lane, fuzzer
+# (chainfuzz, playfuzz, rlfuzz, rawfuzz), round, sessions, rows checked,
+# failing sessions, new causes (distinct causes the round found, fixed or not),
+# source. "-" where the source does not say; divergences.sh computes new
+# causes per 1,000 sessions only where both are known.
+date	lane	fuzzer	round	sessions	rows	fail	new	source
+2026-09-26	lane/playfuzz	playfuzz	r1-r7	-	-	-	30	DEVLOG 2026-09-26 (lane/playfuzz): 30 fixes over rounds 1 to 7
+2026-09-26	lane/playfuzz	playfuzz	r8	244	-	0	0	DEVLOG 2026-09-26 (lane/playfuzz): round 8 the same as round 9
+2026-09-26	lane/playfuzz	playfuzz	r9	244	164700	0	0	DEVLOG 2026-09-26 (lane/playfuzz)
+2026-09-27	lane/chainfuzz	chainfuzz	r9	576	386569	0	0	reports/chainfuzz.md
+2026-09-27	lane/chainfuzz	chainfuzz	r10	576	386569	0	0	reports/chainfuzz.md
+2026-09-27	lane/chainfuzz	chainfuzz	r12	576	386569	0	0	reports/chainfuzz.md
+2026-09-27	lane/chainfuzz	chainfuzz	r13	576	386569	0	0	reports/chainfuzz.md
+2026-09-27	lane/chainfuzz	chainfuzz	r15	576	386569	0	0	reports/chainfuzz.md
+2026-09-27	lane/chainfuzz	chainfuzz	r16	576	386569	0	0	reports/chainfuzz.md
+2026-09-27	lane/chainfuzz	chainfuzz	r18	-	-	4	4	reports/chainfuzz.md: 68/72 chains
+2026-09-27	lane/chainfuzz	chainfuzz	r19	576	386569	0	0	reports/chainfuzz.md: 72/72 chains, client fields compared
+2026-09-27	lane/playfuzz2	playfuzz	r1	93	23404	21	-	reports/playfuzz2.md
+2026-09-27	lane/playfuzz2	playfuzz	r2	620	398376	60	-	reports/playfuzz2.md
+2026-09-27	lane/playfuzz2	playfuzz	r3	674	541816	48	-	reports/playfuzz2.md
+2026-09-27	lane/playfuzz2	playfuzz	r4	954	371124	14	-	reports/playfuzz2.md: 954 of 2,069 run
+2026-09-27	lane/playfuzz2	playfuzz	r5	1596	790762	30	-	reports/playfuzz2.md: 1,596 of 2,093 run
+2026-09-27	lane/playfuzz2	playfuzz	r6	365	182441	21	-	reports/playfuzz2.md: 365 of 2,108 run
+2026-09-27	lane/playfuzz2	playfuzz	r7	2110	1257991	28	-	reports/playfuzz2.md
+2026-09-27	lane/playfuzz2	playfuzz	s1	186	169118	15	-	reports/playfuzz2.md: after the client gate
+2026-09-28	lane/playfuzz2	playfuzz	r8	439	214410	4	-	reports/playfuzz2.md: 439 of 2,120 run
+2026-09-27	lane/rlfuzz	rlfuzz	batch 1	12	18001	7	-	reports/rlfuzz.md
+2026-09-27	lane/rlfuzz	rlfuzz	batch 3	46	95628	16	-	reports/rlfuzz.md
+2026-09-27	lane/rlfuzz	rlfuzz	batch 4	40	94262	14	-	reports/rlfuzz.md
+2026-09-27	lane/rlfuzz	rlfuzz	batch 5	40	114141	7	-	reports/rlfuzz.md
+2026-09-27	lane/rlfuzz	rlfuzz	batch 6	40	133884	4	-	reports/rlfuzz.md
+2026-09-27	lane/rlfuzz	rlfuzz	batch 7	100	316358	11	-	reports/rlfuzz.md
+2026-09-28	lane/rlfuzz	rlfuzz	batch 8	100	315464	6	-	reports/rlfuzz.md
+2026-09-28	lane/rlfuzz	rlfuzz	batch 9	100	335599	3	3	reports/rlfuzz.md: s1-718, g4-753, g18-767
+2026-09-28	lane/rlfuzz	rlfuzz	batch 10	100	328152	3	3	reports/rlfuzz.md: g17-886, s1-803, s1-814
+2026-09-28	lane/rawfuzz	rawfuzz	all	107	169626	20	11	reports/rawfuzz.md: rows are ticks
+2026-09-28	lane/chainfuzz2	chainfuzz	A	-	-	3	3	reports/chainfuzz2.md: 44/47 chains
+2026-09-28	lane/chainfuzz2	chainfuzz	B	-	-	1	1	reports/chainfuzz2.md: 39/48 chains, 8 harness failures
+2026-09-28	lane/chainfuzz2	chainfuzz	C	376	254540	0	0	reports/chainfuzz2.md
+2026-09-28	lane/chainfuzz2	chainfuzz	D	-	-	4	3	reports/chainfuzz2.md: 57/61 chains of 10 sessions
+2026-09-28	lane/chainfuzz2	chainfuzz	E	-	-	2	2	reports/chainfuzz2.md: 49/51 chains
+2026-09-28	lane/chainfuzz2	chainfuzz	F kits	155	-	17	7	reports/chainfuzz2.md: stopped after about 155 sessions
+2026-09-28	lane/chainfuzz2	chainfuzz	G kits	315	212555	8	8	reports/chainfuzz2.md
+2026-09-28	lane/chainfuzz2	chainfuzz	H kits	322	215555	4	4	reports/chainfuzz2.md: the 42 new chains
+2026-09-28	lane/chainfuzz3	chainfuzz	r1	318	208880	5	5	chainfuzz3 notes
+2026-09-28	lane/chainfuzz3	chainfuzz	r2	320	214558	3	2	chainfuzz3 notes
+2026-09-28	lane/chainfuzz3	chainfuzz	r3	321	211363	3	3	chainfuzz3 notes
+2026-09-28	lane/chainfuzz3	chainfuzz	r4	313	209365	6	5	chainfuzz3 notes
+2026-09-28	lane/chainfuzz3	chainfuzz	r5	326	218773	2	2	chainfuzz3 notes
+2026-09-28	lane/rlfuzz2	rlfuzz	r1	200	-	9	6	rlfuzz2 notes: 191/200, 3 infra failures
+2026-09-28	lane/rlfuzz2	rlfuzz	r2	200	-	18	6	rlfuzz2 notes: 12 more from a debug build
+2026-09-28	lane/rlfuzz2	rlfuzz	r3	200	694496	3	3	rlfuzz2 notes
+2026-09-28	lane/rlfuzz2	rlfuzz	r4	200	679777	4	4	rlfuzz2 notes
+2026-09-28	lane/rlfuzz2	rlfuzz	r5	200	700371	2	2	DEVLOG 2026-09-28 (lane/rlfuzz2): 198/200

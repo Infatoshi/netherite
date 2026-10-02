@@ -1,0 +1,46 @@
+{
+  "path": "oracle/src/network/play/client/C03PacketPlayer.java",
+  "classes": ["C03PacketPlayer", "C03PacketPlayer.C04PacketPlayerPosition", "C03PacketPlayer.C05PacketPlayerLook", "C03PacketPlayer.C06PacketPlayerPosLook"],
+  "lines": 235,
+  "side": "client",
+  "category": "network",
+  "role": "The player movement packet, sent every client tick by EntityClientPlayerMP.sendMotionUpdates as one of four subclasses: flying-only (C03), position (C04), look (C05) or position+look (C06). The server's processPlayer runs the full move-verification and anti-cheat chain on it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["c03", "C03_STOP", "C03_POS", "C03_LOOK", "C03_POSLOOK"]},
+    {"file": "csrc/engine/player.c", "symbols": ["cp_send_motion_updates", "sp_process_player", "server_player_tick", "entity_set_pos_rot"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/walk300-s1",
+    "out/java/snapshots/fresh-play-s1",
+    "out/java/snapshots/gen-walk-s42",
+    "csrc/tests/test_move.c",
+    "csrc/tests/test_servertick.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149479_a (x)", "sig": "D", "native": "csrc/engine/survival.h:c03", "status": "exact", "note": "struct c03 field c"},
+    {"kind": "field", "name": "field_149477_b (minY)", "sig": "D", "native": "csrc/engine/survival.h:c03", "status": "exact", "note": "struct c03 field d (the bounding-box bottom, called minY in survival.h)"},
+    {"kind": "field", "name": "field_149478_c (z)", "sig": "D", "native": "csrc/engine/survival.h:c03", "status": "exact", "note": "struct c03 field e"},
+    {"kind": "field", "name": "field_149475_d (posY/stance)", "sig": "D", "native": "csrc/engine/survival.h:c03", "status": "exact", "note": "struct c03 field f (the eye position)"},
+    {"kind": "field", "name": "field_149476_e (yaw)", "sig": "F", "native": "csrc/engine/survival.h:c03", "status": "exact"},
+    {"kind": "field", "name": "field_149473_f (pitch)", "sig": "F", "native": "csrc/engine/survival.h:c03", "status": "exact"},
+    {"kind": "field", "name": "field_149474_g (onGround)", "sig": "Z", "native": "csrc/engine/survival.h:c03", "status": "exact", "note": "struct c03 on_ground"},
+    {"kind": "field", "name": "field_149480_h (hasPos, set by C04/C06)", "sig": "Z", "native": "csrc/engine/survival.h:C03_POS", "status": "exact", "note": "the kind enum: C03_POS and C03_POSLOOK"},
+    {"kind": "field", "name": "field_149481_i (hasLook, set by C05/C06)", "sig": "Z", "native": "csrc/engine/survival.h:C03_LOOK", "status": "exact", "note": "the kind enum: C03_LOOK and C03_POSLOOK"},
+    {"kind": "ctor", "name": "C03PacketPlayer", "sig": "(Z)V", "native": "csrc/engine/player.c:cp_send_motion_updates", "status": "exact", "note": "cp_send_motion_updates builds the packet each client tick from the moved player state"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/player.c:sp_process_player", "status": "exact", "note": "NetHandlerPlayServer.processPlayer's port: hasMoved gate, illegal stance kick, floating kick counter, setPlayerLocation and the % 20 stationary S08 correction"},
+    {"kind": "method", "name": "func_149464_c through func_149466_j (the 7 getters)", "sig": "various", "native": "csrc/engine/survival.h:c03", "status": "exact", "note": "the struct's fields, grouped"},
+    {"kind": "method", "name": "C04PacketPlayerPosition members (2 ctors, read/write, processPacket)", "sig": "various", "native": "csrc/engine/survival.h:C03_POS", "status": "exact", "note": "the kind enum's C03_POS value"},
+    {"kind": "method", "name": "C05PacketPlayerLook members (2 ctors, read/write, processPacket)", "sig": "various", "native": "csrc/engine/survival.h:C03_LOOK", "status": "exact"},
+    {"kind": "method", "name": "C06PacketPlayerPosLook members (2 ctors, read/write, processPacket)", "sig": "various", "native": "csrc/engine/survival.h:C03_POSLOOK", "status": "exact", "note": "the acknowledgements the S08's handlePlayerPosLook sends ride client_out.confirm_c03 (survival.h) and are reprocessed by server_player_tick"},
+    {"kind": "method", "name": "func_149469_a", "sig": "(Z)V", "native": null, "status": "n/a", "note": "the setter only NetHandlerPlayServer.processPlayer calls, for a moving packet with y = stance = -999 reaching a player the server has not mounted. That packet is EntityClientPlayerMP.sendMotionUpdates' ridingEntity != null branch, but onUpdate calls sendMotionUpdates only when !isRiding() (Entity.isRiding: ridingEntity != null), so the vanilla client never sends it: a riding client sends C05 and C0C instead (ride-pig-s1, pf-deadmount-g16)"},
+    {"kind": "ctor", "name": "C04PacketPlayerPosition", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"},
+    {"kind": "ctor", "name": "C05PacketPlayerLook", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"},
+    {"kind": "ctor", "name": "C06PacketPlayerPosLook", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [],
+  "notes": "The C06 acknowledgements after an S08 correction are the confirm_c03/confirm2_c03 slots in survival.h's client_out, reprocessed at the start of player.c:server_player_tick."
+}

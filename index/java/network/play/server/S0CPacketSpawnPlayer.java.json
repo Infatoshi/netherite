@@ -1,0 +1,201 @@
+{
+ "path": "oracle/src/network/play/server/S0CPacketSpawnPlayer.java",
+ "classes": [
+  "S0CPacketSpawnPlayer"
+ ],
+ "lines": 172,
+ "side": "server",
+ "category": "network",
+ "role": "Spawns another player's entity on the client: never sent in this game, because the integrated server has exactly one player.",
+ "scope": "not_needed",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148957_a",
+   "sig": "int",
+   "status": "n/a",
+   "note": "entity id"
+  },
+  {
+   "kind": "field",
+   "name": "field_148955_b",
+   "sig": "GameProfile",
+   "status": "n/a",
+   "note": "the other player's profile"
+  },
+  {
+   "kind": "field",
+   "name": "field_148956_c",
+   "sig": "int",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148953_d",
+   "sig": "int",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148954_e",
+   "sig": "int",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148951_f",
+   "sig": "byte",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148952_g",
+   "sig": "byte",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148959_h",
+   "sig": "int",
+   "status": "n/a",
+   "note": "current item"
+  },
+  {
+   "kind": "field",
+   "name": "field_148960_i",
+   "sig": "DataWatcher",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148958_j",
+   "sig": "List",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(EntityPlayer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a",
+   "note": "handleSpawnPlayer"
+  },
+  {
+   "kind": "method",
+   "name": "func_148944_c",
+   "sig": "()Ljava/util/List;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_148943_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148948_e",
+   "sig": "()Lcom/mojang/authlib/GameProfile;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148942_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148949_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148946_h",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148941_i",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148945_j",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148947_k",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "scope_reason": "The integrated server's player list holds only the client player, so PlayerManager never builds an S0C and no recording can contain one.",
+ "notes": "No native counterpart by design; nothing to port."
+}

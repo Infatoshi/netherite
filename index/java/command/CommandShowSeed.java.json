@@ -1,0 +1,67 @@
+{
+  "path": "oracle/src/command/CommandShowSeed.java",
+  "classes": [
+    "CommandShowSeed"
+  ],
+  "lines": 43,
+  "side": "server",
+  "category": "commands",
+  "role": "The /seed command: prints the world seed to the sender.",
+  "scope": "in_scope",
+  "scope_reason": "In scope since lane/idxclient: the chat takes typed input (GuiChat, the live client's T and slash), so a player types commands; the integrated server without cheats answers each (only tell, me, help and seed are allowed) and its tab completion reads the command map (csrc/engine/chatcmd.c).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcmd.c",
+      "symbols": [
+        "cmd_seed",
+        "can_use"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/idx-chattype-s1",
+    "out/java/snapshots/idx-chatsleep-s1"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "canCommandSenderUseCommand",
+      "sig": "(ICommandSender)boolean",
+      "native": "csrc/engine/chatcmd.c:can_use",
+      "status": "exact",
+      "note": "isSinglePlayer"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": "csrc/engine/chatcmd.c:can_use",
+      "status": "n/a",
+      "note": "CommandShowSeed.canCommandSenderUseCommand returns MinecraftServer.isSinglePlayer() before CommandBase's permission test, and the integrated server always has an owner (isSinglePlayer true), so nothing in the client's game asks for the level"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": "csrc/engine/chatcmd.c:cmd_seed",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: commands.seed.success with the world's seed. idx-chattype-s1."
+}

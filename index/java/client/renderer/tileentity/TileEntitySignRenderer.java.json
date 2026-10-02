@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntitySignRenderer.java",
+  "classes": ["TileEntitySignRenderer"],
+  "lines": 95,
+  "side": "client",
+  "category": "client_render",
+  "role": "TileEntitySpecialRenderer for TileEntitySign: draws ModelSign (post for standing signs, wall-mounted otherwise) with sign.png, rotated by metadata, then draws the four text lines with the FontRenderer, highlighting the edited line with '> <'.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+   {
+    "file": "csrc/engine/raster_tileent.c",
+    "symbols": [
+     "render_sign",
+     "draw_string",
+     "glyph",
+     "render_part"
+    ]
+   },
+   {
+    "file": "csrc/engine/font.c",
+    "symbols": [
+     "font_string_width",
+     "font_char_index"
+    ]
+   }
+  ],
+  "evidence": [
+   "out/java/rendertick/te_signs",
+   "out/java/render/te_signs_f25",
+   "out/java/render/te_signs_left",
+   "csrc/tests/test_render.c",
+   "out/java/clientframes/cov-zoo-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_147513_b", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_tileent.c:tex", "status": "exact"},
+    {"kind": "field", "name": "field_147514_c", "sig": "ModelSign", "native": "csrc/engine/raster_tileent.c:render_sign", "status": "exact"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntitySign,D,D,D,F)V", "native": "csrc/engine/raster_tileent.c:render_sign", "status": "exact"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,D,D,D,F)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [],
+  "notes": "Standing (the stick shown, the 16 rotations) and wall signs (four facings), the board and stick without GL_RESCALE_NORMAL (the 2/3 scale lengthens the normals, as vanilla lights them), and the four lines through FontRenderer's glyph strips in black with the depth mask off, the edited line wrapped in '> <'. Placed signs stay blank in this world (sign editing is off); te_signs sets the lines through the dev setblock's tile."
+}

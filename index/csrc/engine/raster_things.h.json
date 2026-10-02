@@ -1,0 +1,37 @@
+{
+  "path": "csrc/engine/raster_things.h",
+  "lines": 65,
+  "role": "Declares the non-living entity pass, the held-item and block-as-item paths, the fire overlay and the per-scene texture cache.",
+  "layer": "render",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/ItemRenderer.java",
+      "members": [
+        "renderItem"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "thing_item",
+      "java": "an ItemStack as the item paths read it",
+      "fields": [
+        "id",
+        "meta",
+        "pass",
+        "eff"
+      ]
+    }
+  ],
+  "entry_points": [
+    "raster_things_scene",
+    "thing_render_item",
+    "thing_fire",
+    "raster_things_live"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_render.c"
+  ]
+}

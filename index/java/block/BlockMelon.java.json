@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/block/BlockMelon.java",
+  "classes": ["BlockMelon"],
+  "lines": 42,
+  "side": "common",
+  "category": "block",
+  "role": "The melon block: drops 3 to 7 melon slices, up to 9 with fortune.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/world-crops-s1",
+    "out/java/snapshots/cov-blkbreak-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150201_a", "sig": "IIcon", "native": null, "status": "n/a", "note": "client top texture"},
+    {"kind": "ctor", "name": "BlockMelon", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 103"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client texture selection"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "the melon slice"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "3 + nextInt(5)"},
+    {"kind": "method", "name": "quantityDroppedWithBonus", "sig": "(ILjava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "the fortune add and the 9 clamp"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client texture registration"}
+  ],
+  "missing": [],
+  "notes": "Grown by BlockStem (randomtick.c's RT_MELON_STEM lane); the drop math is the harvestdrops probe's case 103."
+}

@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/entity/ai/attributes/RangedAttribute.java",
+  "classes": ["RangedAttribute"],
+  "lines": 55,
+  "side": "server",
+  "category": "ai",
+  "role": "BaseAttribute with minimum and maximum bounds and an optional description string; every SharedMonsterAttributes definition is one of these.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/living.c", "symbols": ["ATTR_MIN", "ATTR_MAXV", "attrs_clamp"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/auditfix-attr-s1",
+    "csrc/tests/test_lightning.c",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "minimumValue", "sig": "double", "native": "csrc/engine/living.c:ATTR_MIN", "status": "exact", "note": "per-attribute lower bound in the const table"},
+    {"kind": "field", "name": "maximumValue", "sig": "double", "native": "csrc/engine/living.c:ATTR_MAXV", "status": "exact", "note": "e.g. knockbackResistance max 1.0, followRange max 2048.0"},
+    {"kind": "field", "name": "description", "sig": "String", "native": null, "status": "n/a", "note": "the description-to-instance lookup it feeds (ServersideAttributeMap) is also absent; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "__OBFID", "sig": "static final String (obfuscation id, grouped)", "native": null, "status": "n/a", "note": "decompiler artifact"},
+    {"kind": "ctor", "name": "RangedAttribute", "sig": "(String,double,double,double)V", "native": "csrc/engine/living.c:ATTR_MIN", "status": "partial", "note": "bounds are fixed table entries, not constructed objects; the constructor's min>max and default-out-of-range checks are compile-time facts of the tables"},
+    {"kind": "method", "name": "setDescription", "sig": "(String)RangedAttribute", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getDescription", "sig": "()String", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "clampValue", "sig": "(double)double", "native": "csrc/engine/living.c:attrs_clamp", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The clamp bounds for all six attributes live in the ATTR_MIN/ATTR_MAXV tables at living.c:113-114. I did not verify that every Java RangedAttribute definition's bounds match the tables entry for entry beyond maxHealth (0..MAX_DOUBLE), knockbackResistance (0..1), followRange (0..2048), attackDamage (0..2048), spawnReinforcements (0..1) and movementSpeed (0..MAX_DOUBLE). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers; the description is a lookup key only. Formerly listed as missing: the description field and setDescription/getDescription have no native counterpart: potion.c routes its modifiers straight to the ATTR_MOVEMENT_SPEED etc. enum entries instead of a description-keyed lookup."
+}

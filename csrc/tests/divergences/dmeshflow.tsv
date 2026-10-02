@@ -1,0 +1,3 @@
+id	found	by	area	field	cause	status	commit	pin	repro
+# dmeshflow: the device meshing path's transfer (engine/meshfeed.c, cuda/mesh/cumesh.c)
+dmeshflow-feed-twice	2026-09-29	lane/dmeshflow (audit)	cuda	-	a mesh feed carried over frames nobody took (play draws between its dumped shots) could hold two uploads into one band or chunk slot, and cumesh_copy runs one block an upload in parallel, so the slot kept whichever block wrote last (never seen to fail: the later upload is usually the only one a request reads); a later upload of a slot in the same feed now turns the earlier ones into MF_SKIP	fixed	791f2145	cuda-mesh-check (play's dumped feeds)	-

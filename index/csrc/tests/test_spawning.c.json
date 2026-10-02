@@ -1,0 +1,119 @@
+{
+ "path": "csrc/tests/test_spawning.c",
+ "lines": 1923,
+ "role": "Gate: the mob spawner (csrc/engine/spawning.c, SpawnerAnimals.findChunksForSpawning and worldgen performWorldGenSpawning) inside servertick against SpawnProbe recordings (out/java/spawning/<name>/): write rows, tick-body spawns, mob records (class, id, position, entity Random, UUID, onSpawnWithEgg equipment), world scalars, pending set and Det digests; also runs population stages (dungeons, lakes, decorator) for the worldgen-spawn path.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/SpawnerAnimals.java",
+   "members": [
+    "findChunksForSpawning",
+    "performWorldGenSpawning"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "tick"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "populate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenDungeons.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenLakes.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeDecorator.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityBat.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityChicken.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityCow.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityMooshroom.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityPig.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/passive/EntitySheep.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/passive/EntitySquid.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityCreeper.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityEnderman.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/monster/EntitySkeleton.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/monster/EntitySlime.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/monster/EntitySpider.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityWitch.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityZombie.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/SpawnProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "ps_ref",
+   "java": "reference records for the population-stage check",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 42-44: static fails, path, neg_cap, neg_pack",
+  "line 218-225: static ps_raw* buffers",
+  "line 348-358: static ps_stage_names, ps_marks[64]"
+ ],
+ "tests": [
+  "csrc/tests/test_spawning.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Exercises spawning.c, servertick.c, living.c, populate.c, decorator.c, randomtick.c, ticks.c, snapshot.c, det.c. Has negative checks (neg_cap, neg_pack) not read in detail."
+}

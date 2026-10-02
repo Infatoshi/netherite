@@ -1,0 +1,107 @@
+{
+ "path": "csrc/engine/chunkload.h",
+ "lines": 164,
+ "role": "Declares the chunk provider and player manager port: which chunk the server loads, populates, marks for unload or unloads next, the player's chunk send queue, and the event stream checked against ChunkLoadProbe recordings.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderServer.java",
+   "members": [
+    "loadChunk",
+    "unloadChunksIfNotNearSpawn",
+    "unloadQueuedChunks",
+    "populate",
+    "chunksToUnload",
+    "loadChunkOnProvideRequest"
+   ]
+  },
+  {
+   "path": "oracle/src/server/management/PlayerManager.java",
+   "members": [
+    "addPlayer",
+    "removePlayer",
+    "updateMountedMovingPlayer",
+    "filterChunkLoadQueue",
+    "func_152622_a"
+   ]
+  },
+  {
+   "path": "oracle/src/server/management/ServerConfigurationManager.java",
+   "members": [
+    "func_152611_a"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "cl_event",
+   "java": "one ChunkLoadProbe event (load, pop, mark, unmark, unload)",
+   "fields": [
+    "t",
+    "kind",
+    "cx",
+    "cz",
+    "pop",
+    "id",
+    "site"
+   ]
+  },
+  {
+   "name": "cl_feed",
+   "java": null,
+   "fields": [
+    "pop_loads",
+    "ctx"
+   ]
+  },
+  {
+   "name": "cl_load",
+   "java": null,
+   "fields": [
+    "cx",
+    "cz",
+    "site"
+   ]
+  }
+ ],
+ "entry_points": [
+  "cl_init",
+  "cl_free",
+  "cl_on_event",
+  "cl_set_feed",
+  "cl_set_chunk_io",
+  "cl_set_no_load",
+  "cl_clear_unload",
+  "cl_restore_unload",
+  "cl_spawn_area",
+  "cl_login",
+  "cl_c03",
+  "cl_send_chunks",
+  "cl_on_client_unload",
+  "cl_view_radius",
+  "cl_view_radius_at",
+  "cl_unload_step",
+  "cl_unload_order",
+  "cl_save_marks",
+  "cl_set_respawn",
+  "cl_set_radius",
+  "cl_radius",
+  "cl_logout",
+  "cl_send_order",
+  "cl_replay_load",
+  "cl_pop_load",
+  "cl_counts",
+  "cl_set_clock",
+  "cl_sweep",
+  "cl_set_mark",
+  "cl_digest",
+  "cl_bytes"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_chunkload.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "struct cl is opaque here and defined in chunkload.c."
+}

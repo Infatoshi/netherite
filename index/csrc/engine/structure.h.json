@@ -1,0 +1,150 @@
+{
+ "path": "csrc/engine/structure.h",
+ "lines": 234,
+ "role": "The shared structure types: bbox, struct piece with the per-kind union (mineshaft, temple, village, fortress, stronghold via owned), struct start, the structure_type seam, and the populate globals the pieces read.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/StructureBoundingBox.java",
+   "members": [
+    "minX",
+    "minY",
+    "minZ",
+    "maxX",
+    "maxY",
+    "maxZ"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureComponent.java",
+   "members": [
+    "boundingBox",
+    "coordBaseMode",
+    "componentType"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureStart.java",
+   "members": [
+    "components",
+    "boundingBox"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureVillagePieces.java",
+   "members": [
+    "PieceWeight"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureNetherBridgePieces.java",
+   "members": [
+    "PieceWeight"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "bbox",
+   "java": "StructureBoundingBox",
+   "fields": [
+    "minX",
+    "minY",
+    "minZ",
+    "maxX",
+    "maxY",
+    "maxZ"
+   ]
+  },
+  {
+   "name": "piece",
+   "java": "StructureComponent and its mineshaft, temple, village, stronghold and nether bridge subclasses' saved fields",
+   "fields": [
+    "id",
+    "kind",
+    "bb",
+    "coord_base_mode",
+    "component_type",
+    "u",
+    "owned"
+   ]
+  },
+  {
+   "name": "start",
+   "java": "StructureStart",
+   "fields": [
+    "id",
+    "chunk_x",
+    "chunk_z",
+    "bb",
+    "pieces",
+    "n",
+    "cap"
+   ]
+  },
+  {
+   "name": "village_weight",
+   "java": "StructureVillagePieces.PieceWeight",
+   "fields": [
+    "class_kind",
+    "weight",
+    "spawned",
+    "limit"
+   ]
+  },
+  {
+   "name": "fortress_weight",
+   "java": "StructureNetherBridgePieces.PieceWeight",
+   "fields": [
+    "kind",
+    "weight",
+    "spawned",
+    "limit",
+    "repeat"
+   ]
+  },
+  {
+   "name": "structure_type",
+   "java": "a MapGenStructure subclass (name, canSpawnStructureAtCoords, getStructureStart)",
+   "fields": [
+    "name",
+    "begin",
+    "can_spawn",
+    "make_start"
+   ]
+  },
+  {
+   "name": "start_list",
+   "java": null,
+   "fields": [
+    "v",
+    "n",
+    "cap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "bbox_make",
+  "bbox_component_to_add",
+  "start_init",
+  "start_add",
+  "start_nbt",
+  "piece_nbt",
+  "stronghold_piece_nbt",
+  "piece_build_component",
+  "structure_type_by_name",
+  "structure_walk",
+  "start_list_free"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 124, struct piece: village pending_house/pending_road and fortress pending are heap arrays of piece pointers (pointer graph)",
+  "line 146, struct piece: void *owned, per-type heap state",
+  "line 155, struct start: pieces is a heap array of piece pointers"
+ ],
+ "tests": [
+  "csrc/tests/test_structures.c"
+ ],
+ "notes": ""
+}

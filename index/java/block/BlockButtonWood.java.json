@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/block/BlockButtonWood.java",
+  "classes": ["BlockButtonWood"],
+  "lines": 22,
+  "side": "common",
+  "category": "block",
+  "role": "The wooden button subclass: passes wooden=true to BlockButton (30-tick pulse, arrows hold it down) and draws the planks texture.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/activate.c", "symbols": ["ID_BTN_WOOD"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["ticks_schedule_block_update"]}
+  ],
+  "evidence": ["out/java/snapshots/te-ticks-s1", "csrc/tests/test_activate.c", "csrc/tests/test_servertick.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockButtonWood", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 143, class BlockButtonWood; the wooden flag true drives the servertick.c:612 branch."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": null, "status": "n/a", "note": "Client texture pick (planks); icons are atlas lookups."}
+  ],
+  "missing": [],
+  "notes": "The arrow-hold release (func_150046_n) runs only for id 143 in servertick.c:612. All other mechanics live in BlockButton."
+}

@@ -1,0 +1,74 @@
+# chains, START:BASE[:K] (bash csrc/tests/playfuzz/chain.sh -j 8 csrc/tests/playfuzz/chains.txt)
+# fresh seed 1, and golden checkpoints: G3 G4 G9 G28 a furnace burning, G6 G7 the Nether, G29 the End, G30 after the End
+fresh:1
+fresh:2   # s6 row 131 d.ents: a start in water played an entry splash (pfc-inwater-fresh); s6 row 224 d.cseed: a dead player gets no S28 (pfc-deadfx-fresh)
+fresh:3   # s7 row 212 d.cw: a dead player gets no S28 (as pfc-deadfx-fresh)
+fresh:4
+fresh:5
+fresh:6
+fresh:7
+fresh:8
+fresh:9
+fresh:10
+fresh:11
+fresh:12
+g3:31
+g3:32
+g3:33
+g3:34     # s5 row 2 d.ents: the held tool's modifier seeded from the hand, not the attributes (pfc-heldattr-g3)
+g4:41
+g4:42
+g4:43
+g4:44
+g5:51
+g5:52     # s4 row 697 d.cseed: a dead player out of loadedEntityList still sent chunks and their entities (pfc-deadchunks-g5)
+g5:53
+g5:54
+g6:61     # s2 row 166 d.ents: a click at nothing with an empty hand synced the slot (pfc-useslot-g6)
+g6:62     # s2 row 514 w.bc: a mob through the portal loads the Nether on a lagging clock (pfc-netherclock-g6)
+g6:63
+g6:64     # s3 row 206 d.ents: a saved Nether item lost its Thrower (pfc-thrower-g6)
+g7:71     # s5 row 212 w.ents: an explosion killed arrows in the ground (pfc-blastarrow-g7)
+g7:72
+g7:73
+g7:74
+g9:91
+g9:92
+g9:93
+g9:94
+g10:101
+g10:102
+g10:103
+g10:104
+g12:121
+g12:122   # s6 row 239 d.cw: a client mob copy stepping on redstone ore ran no onEntityWalking (pfc-orewalk-g12)
+g12:123
+g12:124
+g16:161
+g16:162   # s7 row 141 w.bc: a flow washes a wire (pfc-washwire-g16); s8 row 1523/1606: a refused finish S23 and the delayed break count (pfc-digdelay-g16)
+g16:163
+g16:164
+g17:171
+g17:172
+g17:173
+g17:174
+g19:191   # s2 row 30 w.bc: no C08 for a torch that cannot go on that side (pfc-noplace-g19)
+g19:192   # s5 row 702 w.ents: the dead player spills its cursor at setDead (pfc-deathcursor-g19)
+g19:193
+g19:194   # s3 row 983 w.bc: ItemBlock.onItemUse excludes the placer (pfc-selfplace-g19)
+g22:221
+g22:222
+g22:223
+g22:224
+g28:281
+g28:282
+g28:283   # s5 row 45 d.ents: an eye after a rejoin flies to the staircase (pfc-eyestair-g28); s5 row 126 d.cw: a shattering eye sent no S28 2003 (pfc-eyeshatter-g28)
+g28:284
+g29:291   # s1 row 554 d.ents: flowing water pushes the dragon (pfc-dragonwater-g29)
+g29:292
+g29:293
+g29:294
+g30:301   # s5 row 1021 d.ents: a refused dig finish answers with its S23 (pfc-digresend-g30)
+g30:302
+g30:303
+g30:304

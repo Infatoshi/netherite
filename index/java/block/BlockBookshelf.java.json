@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/block/BlockBookshelf.java",
+  "classes": ["BlockBookshelf"],
+  "lines": 41,
+  "side": "common",
+  "category": "block",
+  "role": "The bookshelf: a decorative block that drops three books when broken.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/harvest.c", "symbols": ["block_hardness"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["block_on_neighbor_changed"]}
+  ],
+  "evidence": ["out/java/snapshots/cov-bookshelf-s1", "csrc/tests/test_drops.c", "out/java/drops/s2"],
+  "members": [
+    {"kind": "ctor", "name": "BlockBookshelf", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 47: hardness 1.5, flammable, wood sound."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": "csrc/engine/render_blocks.c:block_icon_world", "status": "partial", "note": "The side rule (books on the sides, planks top and bottom) is folded into the icon table and the standard renderer."},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Random)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "3, at drops.c:451."},
+    {"kind": "method", "name": "getItemDropped", "sig": "(IRandomI)Item", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "Items.book, drops.c:451."}
+  ],
+  "missing": [],
+  "notes": "Flammability (fire encouragement, blockcb.c:669) and the axe hardness set are in place. The fe-* probes cover the forest and plains scenes the shelf does not appear in natively, so the drop evidence is the drops probe (out/java/drops/s2) and test_drops.c."
+}

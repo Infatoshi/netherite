@@ -1,0 +1,38 @@
+{
+ "path": "csrc/engine/pathfind.c",
+ "lines": 761,
+ "role": "The A* pathfinder: World.getEntityPathToXYZ and getPathEntityToEntity over PathFinder (openPoint, getSafePoint, findPathOptions, getVerticalOffset with every block override it reaches), the Path binary heap and PathPoint's hash and distances, emitting the path as an int triple buffer.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/pathfinding/PathFinder.java", "members": ["createEntityPathTo", "addToPath", "findPathOptions", "getSafePoint", "openPoint", "getVerticalOffset", "func_82565_a", "createEntityPath", "isWoddenDoorAllowed", "isMovementBlockAllowed", "isPathingInWater", "canEntityDrown", "pointMap", "pathOptions"]},
+  {"path": "oracle/src/pathfinding/Path.java", "members": ["addPoint", "dequeue", "changeDistance", "sortBack", "sortForward", "clearPath", "isPathEmpty"]},
+  {"path": "oracle/src/pathfinding/PathPoint.java", "members": ["makeHash", "distanceTo", "distanceToSquared", "equals", "isAssigned", "isFirst", "xCoord", "yCoord", "zCoord", "hash"]},
+  {"path": "oracle/src/pathfinding/PathEntity.java", "members": ["PathEntity"]},
+  {"path": "oracle/src/world/World.java", "members": ["getEntityPathToXYZ", "getPathEntityToEntity", "isMaterialInBB"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["setPosition", "handleLavaMovement"]},
+  {"path": "oracle/src/block/BlockDoor.java", "members": ["getBlocksMovement"]},
+  {"path": "oracle/src/block/BlockFenceGate.java", "members": ["getBlocksMovement"]},
+  {"path": "oracle/src/block/BlockTrapDoor.java", "members": ["getBlocksMovement"]},
+  {"path": "oracle/src/block/BlockLiquid.java", "members": ["getBlocksMovement"]}
+ ],
+ "structs": [
+  {"name": "struct pf_point", "java": "PathPoint (xCoord, yCoord, zCoord, hash, index, totalPathDistance, distanceToNext, distanceToTarget, previous, isFirst)", "fields": ["x", "y", "z", "hash", "index", "total", "next", "target", "prev", "is_first"]},
+  {"name": "struct pf", "java": "PathFinder (flags, Path heap, IntHashMap pointMap, pathOptions[32]) plus the entity fields it reads", "fields": ["w", "wooden_door_allowed", "movement_block_allowed", "pathing_in_water", "can_entity_drown", "max_dist", "pos_x", "pos_y", "pos_z", "width", "height", "box", "in_water", "max_safe_tries", "size_x", "size_y", "size_z", "pts", "npts", "pcap", "heap", "nheap", "hcap", "keys", "vals", "mcap", "options", "out", "out_cap"]},
+  {"name": "pf_move_class", "java": "Block.getBlocksMovement overrides resolved per block id (BlockDoor, BlockFence/BlockWall, BlockFenceGate, BlockTrapDoor, BlockLiquid, pressure plates and signs)", "fields": []}
+ ],
+ "entry_points": ["pf_entity_set_position", "pf_init", "pf_free", "pf_get_entity_path_to_xyz", "pf_get_path_entity_to_entity"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 92-110, function pf_build_tables: block class and material identity resolved by strcmp on names",
+  "line 147-149, function is_material_in_bb: strcmp per block on the material name inside the tick",
+  "lines 172-173 and 200-202, functions pf_lookup and pf_add_key: malloc of the hash table and rehash growth inside the tick",
+  "lines 271-272, function open_point: realloc of the point pool inside the tick",
+  "lines 370-371, function heap_add: realloc of the heap inside the tick",
+  "lines 181-188, 212-224, 233-251: open-addressing probe loops bounded only by table load",
+  "lines 611-647, function search: A* loop bounded only by the number of reachable points within max_dist, not a fixed cap",
+  "lines 724-732, function chunk_cache_window: loads (and may generate) chunks through the world provider from inside the search"
+ ],
+ "tests": ["csrc/tests/test_paths.c"],
+ "notes": "Callers: ai.c, living.c, hostiles_spider.c. The IntHashMap is replaced by an open-addressing table keyed by makeHash only, which reproduces vanilla's hash-collision sharing of a PathPoint. PathEntity is not a struct: the path comes back as xyz triples in the caller's buffer, and PathEntity's index/isFinished/getPosition bookkeeping lives in the callers (not verified here). The canEntityDrown drowning start branch is ported (start_y); the comment says no 1.7.10 walker sets it."
+}

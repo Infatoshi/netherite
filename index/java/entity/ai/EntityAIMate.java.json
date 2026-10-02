@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIMate.java",
+  "classes": ["EntityAIMate"],
+  "lines": 161,
+  "side": "server",
+  "category": "ai",
+  "role": "Animal breeding: when two in-love animals of the same kind find each other they walk together, and after 60 ticks within 3 blocks a baby spawns with heart particles and an XP orb under doMobLoot.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["nearby_mate", "spawn_baby", "ai_should_execute", "ai_continue_executing", "ai_start", "ai_update", "ai_reset", "ai_setup_kind"]},
+    {"file": "csrc/engine/animals.c", "symbols": ["animal_create_child"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/rc-animals-s1", "csrc/tests/test_animals.c", "out/java/snapshots/stats-s1", "out/java/snapshots/stats-s1-pre"],
+  "members": [
+    {"kind": "field", "name": "theAnimal", "sig": "EntityAnimal", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "theWorld", "sig": "World", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the native task reaches the world through the owning an_world"},
+    {"kind": "field", "name": "targetMate", "sig": "EntityAnimal", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target"},
+    {"kind": "field", "name": "spawnBabyDelay", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.spawn_baby_delay"},
+    {"kind": "field", "name": "moveSpeed", "sig": "double", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "1.0 for every animal kind"},
+    {"kind": "ctor", "name": "EntityAIMate", "sig": "(EntityAnimal,double)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_MATE, priority 3, mutex 3"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "isInLove, then getNearbyMate -> nearby_mate"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "mate alive, in love, spawnBabyDelay < 60"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "look 10/verticalFaceSpeed, tryMoveToEntityLiving, ++spawnBabyDelay, spawnBaby at 60 ticks within dist^2 < 9"},
+    {"kind": "method", "name": "getNearbyMate", "sig": "()EntityAnimal", "native": "csrc/engine/ai.c:nearby_mate", "status": "exact", "note": "closest same-kind animal in the 8-block box; the native comment records canMateWith's strict class comparison (a cow never mates a mooshroom)"},
+    {"kind": "method", "name": "spawnBaby", "sig": "()V", "native": "csrc/engine/ai.c:spawn_baby", "status": "exact", "note": "createChild -> animal_create_child, the breeder credit (animalsBred, breedCow), both parents to age 6000, baby -24000"}
+  ],
+  "missing": [],
+  "notes": "The achievements (StatList.field_151186_x, AchievementList.field_150962_H for cows) are not part of the native tick: no player is credited because func_146083_cb (the breeder player) is not tracked. The heart particle draws are kept because they consume the parent's RNG."
+}

@@ -1,0 +1,19 @@
+{
+  "path": "csrc/tests/test_hudscreens.c",
+  "lines": 296,
+  "role": "Checks the hudscreens recordings' Java values against the native logic: every chat line of GuiNewChat's split, the credits' line list, the effect column's HashMap order, every item's max damage and block colour in the item table and hotbar, the dragon's boss name, and GuiContainer.keyTyped's key-to-click rule, with negative controls (a narrower split, another player name, an id-sorted effect list).",
+  "layer": "test",
+  "java": [
+    {"path": "oracle/src/client/gui/GuiNewChat.java", "members": ["func_146237_a"]},
+    {"path": "oracle/src/client/gui/GuiWinGame.java", "members": ["initGui"]},
+    {"path": "oracle/src/client/renderer/InventoryEffectRenderer.java", "members": ["func_147044_g"]},
+    {"path": "oracle/src/client/gui/inventory/GuiContainer.java", "members": ["keyTyped", "func_146983_a"]}
+  ],
+  "structs": [],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": []
+}

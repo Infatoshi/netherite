@@ -1,0 +1,82 @@
+{"cmd": "run", "class": "MobFree", "radius": 0}
+{"cmd": "run", "class": "Snapshot"}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["forward"]}}
+{"n": 20, "act": {}}
+{"n": 40, "act": {"hold": ["back"]}}
+{"n": 20, "act": {}}

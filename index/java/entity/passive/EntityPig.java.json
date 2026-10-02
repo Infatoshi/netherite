@@ -1,0 +1,223 @@
+{
+ "path": "oracle/src/entity/passive/EntityPig.java",
+ "classes": [
+  "EntityPig"
+ ],
+ "lines": 253,
+ "side": "server",
+ "category": "entity",
+ "role": "The pig: the saddle flag in dataWatcher 16, porkchop drops, carrot breeding, and the lightning strike that replaces it with a pigman holding a golden sword.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_construct",
+    "animal_attributes",
+    "animal_drop_few_items",
+    "animal_write_kind_nbt",
+    "animal_create_child",
+    "data_watcher_16"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "animal_breeding_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "serverreplay_lightning_strike"
+   ]
+  },
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_pig_interact",
+    "ride_pig_fly",
+    "pig_can_be_steered"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_animals.c",
+  "out/java/snapshots/cg-combat-pig-s1",
+  "out/java/snapshots/rc-animals-s1",
+  "out/java/render/mobs_pig_f006",
+  "out/java/snapshots/ride-pig-s1",
+    "out/java/snapshots/lightning-mobs-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "aiControlledByPlayer",
+   "sig": "EntityAIControlledByPlayer",
+   "native": "csrc/engine/ai.c:ai_setup_kind",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityPig",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_construct",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isAIEnabled",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityAttributes",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_attributes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateAITasks",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a",
+   "note": "the override only calls super"
+  },
+  {
+   "kind": "method",
+   "name": "canBeSteered",
+   "sig": "(0p)",
+   "native": "csrc/engine/riding.c:pig_can_be_steered",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_write_kind_nbt",
+   "status": "exact",
+   "note": "Saddle as a byte tag, as vanilla's boolean is"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_write_kind_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getLivingSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getHurtSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDeathSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145780_a",
+   "sig": "(4p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "interact",
+   "sig": "(1p)",
+   "native": "csrc/engine/riding.c:ride_pig_interact",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_146068_u",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "dropFewItems",
+   "sig": "(2p)",
+   "native": "csrc/engine/animals.c:animal_drop_few_items",
+   "status": "exact",
+   "note": "includes the saddle drop when saddled"
+  },
+  {
+   "kind": "method",
+   "name": "getSaddled",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setSaddled",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onStruckByLightning",
+   "sig": "(1p)",
+   "native": "csrc/engine/serverreplay.c:serverreplay_lightning_strike",
+   "status": "exact",
+   "note": "the pig-to-pigman conversion with the golden sword"
+  },
+  {
+   "kind": "method",
+   "name": "fall",
+   "sig": "(1p)",
+   "native": "csrc/engine/riding.c:ride_pig_fly",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "createChild",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_create_child",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isBreedingItem",
+   "sig": "(1p)",
+   "native": "csrc/engine/survival.c:animal_breeding_item",
+   "status": "exact",
+   "note": "the carrot"
+  },
+  {
+   "kind": "method",
+   "name": "getAIControlledByPlayer",
+   "sig": "(0p)",
+   "native": "csrc/engine/riding.c:controlled_task",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Saddling (ItemSaddle), the mount (EntityPig.interact through EntityPlayerMP.mountEntity), steering, the rider's fall and flyPig (living.c living_fall -> riding.c) are ported in lane/ride; ride-pig-s1 covers the saddle, the ride over a slab, a step and a 7-block drop, dismount, remount and a pearl thrown while riding."
+}

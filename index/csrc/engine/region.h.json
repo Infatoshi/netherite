@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/region.h",
+ "lines": 29,
+ "role": "Declares the read-only Anvil region reader: load one chunk's Level compound, read its TerrainPopulated flag, and enumerate every chunk in a save's region directory.",
+ "layer": "io",
+ "java": [
+  {"path": "oracle/src/world/chunk/storage/RegionFile.java", "members": ["getChunkDataInputStream"]},
+  {"path": "oracle/src/world/chunk/storage/AnvilChunkLoader.java", "members": ["readChunkFromNBT"]}
+ ],
+ "structs": [],
+ "entry_points": ["region_load_chunk", "region_level_terrain_populated", "region_enumerate"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Header only; implementation in region.c. The comment on region_level_terrain_populated mentions LastUpdate, which the function does not return."
+}

@@ -1,0 +1,56 @@
+{
+ "path": "csrc/engine/stronghold.h",
+ "lines": 60,
+ "role": "Declares the stronghold structure type, the nearest-stronghold queries, the piece kinds and doors, sh_state, and the block half's dispatch.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStronghold.java",
+   "members": [
+    "getCoordList"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureStrongholdPieces.java",
+   "members": [
+    "Stronghold.Door"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "sh_state",
+   "java": "the stronghold pieces' own saved fields",
+   "fields": [
+    "kind",
+    "door",
+    "left",
+    "right",
+    "steps",
+    "cross_ll",
+    "cross_lh",
+    "cross_rl",
+    "cross_rh",
+    "chest",
+    "room_type",
+    "tall",
+    "source",
+    "mob"
+   ]
+  }
+ ],
+ "entry_points": [
+  "stronghold_nearest",
+  "stronghold_nearest_loaded",
+  "stronghold_note_chunk",
+  "stronghold_state",
+  "stronghold_blocks"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c"
+ ],
+ "notes": "SHS_RIGHTTURN is only a weight key and NBT shape; its placement runs LeftTurn's."
+}

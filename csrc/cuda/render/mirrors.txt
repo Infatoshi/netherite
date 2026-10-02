@@ -1,0 +1,69 @@
+# The C functions csrc/cuda/render/host.cu ports operation for operation
+# (the world passes after the opaque terrain reach it as recorded primitives:
+# raster_obs.h's raster_rec, hooked into draw_quad, crack_triangle,
+# portal_triangle, line, raster_live_translucent, raster_live_overlays and
+# raster_hand_draw)
+# (SPEC's mirror rule, out/plan/gpu-design-2026-09-28.md part 6): a change to
+# any of them lands with its port in host.cu, and this gate passes:
+#   make -C csrc gpu-render-check RENDER_ARGS="cov-zoo-s1 pix-sky-s1 pix-fluid-s1 idx-dragondeath-s42"
+# (about 20 s; the full gate is make -C csrc gpu-render-check).
+# file                          function (host.cu's port)
+csrc/engine/raster.c             byte (byte_)
+csrc/engine/raster.c             clamp01
+csrc/engine/raster.c             edge (edge_xy)
+csrc/engine/raster.c             top_left (pixel's TL)
+csrc/engine/raster.c             light_sample
+csrc/engine/raster.c             light_sample_h, shade_h (light_sample_h, shade_h: raster_prec.h's float16 stages)
+csrc/engine/raster_prec.h        rp_h (hr, HM, HA, HS: __half operations, never contracted)
+csrc/engine/raster_entities.c    light_sample_h, interp_h, raster_triangle's RP_* branches (e_light_h, interp_h, e_pixel)
+csrc/engine/raster_tileent.c     portal_triangle's RP_EDGE (portal_pixel)
+csrc/engine/raster.c             triangle (pixel, write_sink's swap)
+csrc/engine/raster.c             screen_vertex (screen_vertex, screen_of)
+csrc/engine/raster.c             interpolate
+csrc/engine/raster.c             clip_triangle (clip_tri, classify)
+csrc/engine/raster.c             live_emit (emit_tri, fast_box)
+csrc/engine/raster.c             sky_vertex
+csrc/engine/raster.c             make_vertex (make_vertex, quad_pos, quads' attributes; RP_XFORM: cam_pos)
+csrc/engine/raster.c             draw_sky (sky_unit)
+csrc/engine/raster.c             draw_sunrise (sky_unit; sunrise_dir, sunrise_center, sunrise_rim feed raster_obs)
+csrc/engine/raster.c             celestial_quad (celestial)
+csrc/engine/raster.c             cloud_quad (sky_unit)
+csrc/engine/raster.c             draw_clouds (cloud_slot; cloud_origin feeds raster_obs)
+csrc/engine/raster.c             draw_end_sky (sky_unit)
+csrc/engine/raster.c             live_draw_section (quad_unit, quads)
+csrc/engine/raster.c             live_band_run (raster's clear to the fog colour)
+csrc/engine/raster.c             raster_live_frame (the sky's pass order: U_* in host.cu)
+csrc/engine/raster.c             raster_live_translucent (the water draws after the opaque ones)
+csrc/engine/raster.c             raster_live_obs (what the device is given)
+csrc/engine/raster_sky2.c        celestial_quad (celestial)
+csrc/engine/raster_sky2.c        raster_sky2_draw (U_SUN, U_MOON)
+csrc/engine/raster_sky2.c        raster_sky2_stars (sky_unit's stars)
+csrc/engine/raster_texture.c     texel (pixel, level 0)
+csrc/engine/raster_texture.c     raster_texture_sample (level 0 only: raster_live_obs refuses mip levels)
+csrc/engine/raster_entities.c    raster_triangle (e_tri's setup, e_pixel)
+csrc/engine/raster_entities.c    clip_and_draw (e_clip)
+csrc/engine/raster_entities.c    draw_quad (e_quad; record_quad feeds raster_obs)
+csrc/engine/raster_entities.c    interpolate (e_interpolate)
+csrc/engine/raster_entities.c    screen_vertex (e_screen)
+csrc/engine/raster_entities.c    light_sample (e_light)
+csrc/engine/raster_entities.c    edge, edge_exact, top_left, byte (edge_xy, edge_exact, tl, byte_)
+csrc/engine/raster_entities.c    raster_entity_quad (the state record_quad takes from its statics)
+csrc/engine/raster_overlay.c     crack_triangle (crack_setup, crack_pixel)
+csrc/engine/raster_overlay.c     texcoord, fog_factor, quant (crack_pixel, quant)
+csrc/engine/raster_tileent.c     portal_triangle (portal_setup, portal_pixel)
+csrc/engine/raster_tileent.c     pedge, pedge_exact, ptop_left, byte01 (edge_xy, edge_exact, tl, byte_)
+csrc/engine/raster.c             raster_live_overlays (the depth clear: TK_CLEAR)
+csrc/engine/raster_overlay.c     line (line_setup, line_pixel: the block outline, RASTER_CMD_LINE)
+csrc/engine/raster_hand.c        raster_hand_draw's own depth buffer (a recorded depth clear: TK_CLEAR)
+# and play's frame judges (cuda/render, play/framedev.h): RASTER_CMD_DEPTH_SNAP
+# (TK_SNAP) is where the returned depth buffer is taken (the world's, for
+# the drops check), and the one_trip tail (host.cu) runs the same kernels
+# with their sizes on the device. The judges' gate:
+#   make -C csrc gpu-render-judge-check JUDGE_ARGS="cov-zoo-s1 idx-hudfx-s1 pix-sky-s1 idx-dragondeath-s42"
+# (the full gate: make -C csrc gpu-render-judge-check, every frame judge's shot
+# at 854x480 and render distance 8). csrc/cuda/mirror.tsv's RENDER entry
+# runs both in the merge trial when a mirrored function changes.
+# and one libm function the C engine calls: glibc 2.43's expf, x86-64 FMA
+# variant (glibc_expf; exhaustive over the negative floats, the fog's inputs)
+csrc/engine/raster_obs.c         raster_ebox_quads (ebox; ebox_corner's corners, raster_ebox_diffuse as ebox_diffuse)
+csrc/engine/raster_obs.c         raster_eitem_quad (eitem)

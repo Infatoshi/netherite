@@ -1,0 +1,914 @@
+{
+ "path": "oracle/src/world/gen/structure/StructureStrongholdPieces.java",
+ "classes": [
+  "StructureStrongholdPieces",
+  "StructureStrongholdPieces.ChestCorridor",
+  "StructureStrongholdPieces.Corridor",
+  "StructureStrongholdPieces.Crossing",
+  "StructureStrongholdPieces.LeftTurn",
+  "StructureStrongholdPieces.Library",
+  "StructureStrongholdPieces.PieceWeight",
+  "StructureStrongholdPieces.PortalRoom",
+  "StructureStrongholdPieces.Prison",
+  "StructureStrongholdPieces.RightTurn",
+  "StructureStrongholdPieces.RoomCrossing",
+  "StructureStrongholdPieces.Stairs",
+  "StructureStrongholdPieces.Stairs2",
+  "StructureStrongholdPieces.StairsStraight",
+  "StructureStrongholdPieces.Stones",
+  "StructureStrongholdPieces.Straight",
+  "StructureStrongholdPieces.Stronghold",
+  "StructureStrongholdPieces.Stronghold.Door",
+  "StructureStrongholdPieces.SwitchDoor",
+  "two anonymous PieceWeight subclasses (Library, PortalRoom)"
+ ],
+ "lines": 1705,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The stronghold pieces: the weighted piece list and picker that grows a stronghold from its spiral staircase start, each piece's box, doors and children, and each piece's blocks (stone brick with the random Stones selector, library shelves and chests, the portal room's end portal frames, lava and silverfish spawner).",
+ "scope": "in_scope",
+ "scope_reason": "SPEC Decisions: strongholds are vanilla worldgen and in scope; the End is reached through the portal room.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/stronghold.c",
+   "symbols": [
+    "structure_stronghold",
+    "sh_weights",
+    "prepare_structure_pieces",
+    "can_add_structure_pieces",
+    "build_kind",
+    "get_next_component",
+    "get_next_valid",
+    "next_normal",
+    "next_x",
+    "next_z",
+    "build_component",
+    "stronghold_make_start",
+    "stronghold_piece_nbt",
+    "get_random_door",
+    "can_go_deeper",
+    "find_corridor_pre",
+    "stronghold_nearest_impl"
+   ]
+  },
+  {
+   "file": "csrc/engine/stronghold_blocks.c",
+   "symbols": [
+    "stronghold_blocks",
+    "place_door",
+    "stones_select",
+    "fill_randomized",
+    "chest",
+    "straight_parts",
+    "chestcorridor_parts",
+    "corridor_parts",
+    "crossing_parts",
+    "leftturn_parts",
+    "rightturn_parts",
+    "library_parts",
+    "portalroom_parts",
+    "prison_parts",
+    "roomcrossing_parts",
+    "stairs_parts",
+    "stairsstraight_parts"
+   ]
+  },
+  {
+   "file": "csrc/engine/stronghold.h",
+   "symbols": [
+    "sh_kind",
+    "sh_door",
+    "sh_state"
+   ]
+  },
+  {
+   "file": "csrc/engine/loot_tables.h",
+   "symbols": [
+    "LOOT_STRONGHOLD_CORRIDOR",
+    "LOOT_STRONGHOLD_LIBRARY",
+    "LOOT_STRONGHOLD_CROSSING"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/structures/s2-sh1",
+  "out/java/structures/s42-sh1",
+  "out/java/structures/shs-1-1",
+  "out/java/structures/sh-2-iso",
+  "out/java/eyes/eye2",
+  "out/java/snapshots/end-arrival-s1",
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_eyes.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "pieceWeightArray",
+   "sig": "static PieceWeight[11] (two anonymous subclasses: Library gd>4, PortalRoom gd>5)",
+   "native": "csrc/engine/stronghold.c:sh_weights",
+   "status": "exact",
+   "note": "type_gt carries the anonymous subclasses' extra guard."
+  },
+  {
+   "kind": "field",
+   "name": "structurePieceList",
+   "sig": "static List<PieceWeight>",
+   "native": "csrc/engine/stronghold.c:sh_active",
+   "status": "exact",
+   "note": "Process-global in both Java and C."
+  },
+  {
+   "kind": "field",
+   "name": "strongComponentType",
+   "sig": "static Class",
+   "native": "csrc/engine/stronghold.c:sh_strong_component",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "totalWeight",
+   "sig": "static int",
+   "native": "csrc/engine/stronghold.c:sh_total_weight",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "strongholdStones",
+   "sig": "static Stones",
+   "native": "csrc/engine/stronghold_blocks.c:stones_select",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_143046_a",
+   "sig": "()V (registers piece ids SHCC, SHFC, ...)",
+   "native": "csrc/engine/structure.c:stronghold_piece_nbt",
+   "status": "partial",
+   "note": "Id strings are set per piece in stronghold.c (mk_empty and callers); not traced id by id."
+  },
+  {
+   "kind": "method",
+   "name": "prepareStructurePieces",
+   "sig": "()V",
+   "native": "csrc/engine/stronghold.c:prepare_structure_pieces",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canAddStructurePieces",
+   "sig": "()Z",
+   "native": "csrc/engine/stronghold.c:can_add_structure_pieces",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStrongholdComponentFromWeightedPiece",
+   "sig": "(Class,List,Random,int,int,int,int,int)Stronghold",
+   "native": "csrc/engine/stronghold.c:build_kind",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getNextComponent",
+   "sig": "(Stairs2,List,Random,int,int,int,int,int)Stronghold",
+   "native": "csrc/engine/stronghold.c:get_next_component",
+   "status": "exact",
+   "note": "Weighted pick with the strongComponentType override and the Corridor fallback."
+  },
+  {
+   "kind": "method",
+   "name": "getNextValidComponent",
+   "sig": "(Stairs2,List,Random,int,int,int,int,int)StructureComponent",
+   "native": "csrc/engine/stronghold.c:get_next_valid",
+   "status": "exact",
+   "note": "Depth bound 50 and the 112-block reach."
+  },
+  {
+   "kind": "field",
+   "name": "ChestCorridor.hasMadeChest",
+   "sig": "boolean",
+   "native": "csrc/engine/stronghold.h:chest",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ChestCorridor",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_chestcorridor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "ChestCorridor.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "ChestCorridor.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "ChestCorridor.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "ChestCorridor.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)ChestCorridor",
+   "native": "csrc/engine/stronghold.c:find_chestcorridor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "ChestCorridor.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:chestcorridor_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Corridor.field_74993_a",
+   "sig": "int (steps)",
+   "native": "csrc/engine/stronghold.h:steps",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Corridor",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_corridor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:corridor_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Crossing.field_74996_b, field_74997_c, field_74995_d, field_74999_h",
+   "sig": "boolean x4",
+   "native": "csrc/engine/stronghold.h:cross_ll",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Crossing",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_crossing",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)Crossing",
+   "native": "csrc/engine/stronghold.c:find_crossing",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Crossing.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:crossing_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "LeftTurn",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_leftturn",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "LeftTurn.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "LeftTurn.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)LeftTurn",
+   "native": "csrc/engine/stronghold.c:find_leftturn",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "LeftTurn.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:leftturn_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Library.isLargeRoom",
+   "sig": "boolean",
+   "native": "csrc/engine/stronghold.h:tall",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Library",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_library",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Library.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Library.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Library.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)Library",
+   "native": "csrc/engine/stronghold.c:find_library",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Library.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:library_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "PortalRoom.hasSpawner",
+   "sig": "boolean",
+   "native": "csrc/engine/stronghold.h:mob",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "PortalRoom",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_portalroom",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PortalRoom.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PortalRoom.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "PortalRoom.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PortalRoom.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)PortalRoom",
+   "native": "csrc/engine/stronghold.c:find_portalroom",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PortalRoom.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:portalroom_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Prison",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_prison",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Prison.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Prison.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)Prison",
+   "native": "csrc/engine/stronghold.c:find_prison",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Prison.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:prison_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "RoomCrossing.roomType",
+   "sig": "int",
+   "native": "csrc/engine/stronghold.h:room_type",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "RoomCrossing",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_roomcrossing",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "RoomCrossing.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "RoomCrossing.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "RoomCrossing.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "RoomCrossing.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)RoomCrossing",
+   "native": "csrc/engine/stronghold.c:find_roomcrossing",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "RoomCrossing.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:roomcrossing_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Stairs.field_75024_a",
+   "sig": "boolean (Source)",
+   "native": "csrc/engine/stronghold.h:source",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Stairs",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_stairs",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stairs.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stairs.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Stairs.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stairs.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:stairs_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "StairsStraight",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_stairsstraight",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "StairsStraight.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "StairsStraight.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)StairsStraight",
+   "native": "csrc/engine/stronghold.c:find_stairsstraight",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "StairsStraight.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:stairsstraight_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Straight.expandsX, expandsZ",
+   "sig": "boolean x2 (Left, Right)",
+   "native": "csrc/engine/stronghold.h:left",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Straight",
+   "sig": "() / (int,Random,StructureBoundingBox,int)",
+   "native": "csrc/engine/stronghold.c:mk_straight",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Straight.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Straight.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Straight.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Straight.findValidPlacement",
+   "sig": "(List,Random,int,int,int,int,int)Straight",
+   "native": "csrc/engine/stronghold.c:find_straight",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Straight.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:straight_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "ChestCorridor.strongholdChestContents",
+   "sig": "static WeightedRandomChestContent[]",
+   "native": "csrc/engine/loot_tables.h:LOOT_STRONGHOLD_CORRIDOR",
+   "status": "exact",
+   "note": "Table with the book entry and count in its comment."
+  },
+  {
+   "kind": "field",
+   "name": "Library.strongholdLibraryChestContents",
+   "sig": "static WeightedRandomChestContent[]",
+   "native": "csrc/engine/loot_tables.h:LOOT_STRONGHOLD_LIBRARY",
+   "status": "exact",
+   "note": "Table with the book entry and count in its comment."
+  },
+  {
+   "kind": "field",
+   "name": "RoomCrossing.strongholdRoomCrossingChestContents",
+   "sig": "static WeightedRandomChestContent[]",
+   "native": "csrc/engine/loot_tables.h:LOOT_STRONGHOLD_CROSSING",
+   "status": "exact",
+   "note": "Table with the book entry and count in its comment."
+  },
+  {
+   "kind": "method",
+   "name": "Corridor.func_74992_a",
+   "sig": "(List,Random,int,int,int,int)StructureBoundingBox",
+   "native": "csrc/engine/stronghold.c:find_corridor_pre",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "RightTurn.buildComponent",
+   "sig": "(StructureComponent,List,Random)V",
+   "native": "csrc/engine/stronghold.c:build_component",
+   "status": "n/a",
+   "note": "no RightTurn object is ever built: pieceWeightArray's RightTurn entry calls RightTurn.findValidPlacement, which is LeftTurn's static (`new LeftTurn(...)`, StructureStrongholdPieces.java:573), and an SHRT piece is only read back from a save that holds one, which no stronghold can write; native mirrors it (stronghold.c:find_rightturn builds a LeftTurn), so stronghold_blocks.c:rightturn_parts is dead there too"
+  },
+  {
+   "kind": "method",
+   "name": "RightTurn.findValidPlacement (inherited LeftTurn's)",
+   "sig": "(List,Random,int,int,int,int,int)LeftTurn",
+   "native": "csrc/engine/stronghold.c:find_rightturn",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "RightTurn.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold_blocks.c:rightturn_parts",
+   "status": "n/a",
+   "note": "no RightTurn object is ever built: pieceWeightArray's RightTurn entry calls RightTurn.findValidPlacement, which is LeftTurn's static (`new LeftTurn(...)`, StructureStrongholdPieces.java:573), and an SHRT piece is only read back from a save that holds one, which no stronghold can write; native mirrors it (stronghold.c:find_rightturn builds a LeftTurn), so stronghold_blocks.c:rightturn_parts is dead there too"
+  },
+  {
+   "kind": "ctor",
+   "name": "Stairs",
+   "sig": "(int,Random,int,int) (the start's constructor)",
+   "native": "csrc/engine/stronghold.c:mk_stairs2",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stairs.getStrongholdStairsComponent",
+   "sig": "(List,Random,int,int,int,int,int)Stairs",
+   "native": "csrc/engine/stronghold.c:find_stairs",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Stairs2.strongholdPieceWeight",
+   "sig": "PieceWeight",
+   "native": "csrc/engine/stronghold.c:sh_current_weight",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Stairs2.strongholdPortalRoom",
+   "sig": "PortalRoom",
+   "native": "csrc/engine/stronghold.c:sh_portal_found",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Stairs2.field_75026_c",
+   "sig": "ArrayList (pending pieces)",
+   "native": "csrc/engine/stronghold.c:sh_pending",
+   "status": "exact",
+   "note": "A process-global realloc'd array in C, not a field of the start."
+  },
+  {
+   "kind": "ctor",
+   "name": "Stairs2",
+   "sig": "() / (int,Random,int,int)",
+   "native": "csrc/engine/stronghold.c:mk_stairs2",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stairs2.func_151553_a",
+   "sig": "()ChunkPosition",
+   "native": "csrc/engine/stronghold.c:stronghold_nearest_impl",
+   "status": "exact",
+   "note": "The portal room's centre, used by findClosestStructure (eyes of ender)."
+  },
+  {
+   "kind": "ctor",
+   "name": "Stones",
+   "sig": "()",
+   "native": "csrc/engine/stronghold_blocks.c:stones_select",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stones.selectBlocks",
+   "sig": "(Random,int,int,int,boolean)V",
+   "native": "csrc/engine/stronghold_blocks.c:stones_select",
+   "status": "exact",
+   "note": "nextFloat per face cell: cracked, mossy or plain stone brick, or silverfish-free cave air inside."
+  },
+  {
+   "kind": "field",
+   "name": "Stronghold.field_143013_d",
+   "sig": "Stronghold.Door",
+   "native": "csrc/engine/stronghold.h:door",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Stronghold",
+   "sig": "() / (int)",
+   "native": "csrc/engine/stronghold.c:finish",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stronghold.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/stronghold.c:stronghold_piece_nbt",
+   "status": "exact",
+   "note": "EntryDoor."
+  },
+  {
+   "kind": "method",
+   "name": "Stronghold.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Reads the kind's keys from saved NBT; native never loads piece NBT (starts are rebuilt from the seed).; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "Stronghold.placeDoor",
+   "sig": "(World,Random,StructureBoundingBox,Door,int,int,int)V",
+   "native": "csrc/engine/stronghold_blocks.c:place_door",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stronghold.getRandomDoor",
+   "sig": "(Random)Door",
+   "native": "csrc/engine/stronghold.c:get_random_door",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stronghold.getNextComponentNormal",
+   "sig": "(Stairs2,List,Random,int,int)StructureComponent",
+   "native": "csrc/engine/stronghold.c:next_normal",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stronghold.getNextComponentX",
+   "sig": "(Stairs2,List,Random,int,int)StructureComponent",
+   "native": "csrc/engine/stronghold.c:next_x",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stronghold.getNextComponentZ",
+   "sig": "(Stairs2,List,Random,int,int)StructureComponent",
+   "native": "csrc/engine/stronghold.c:next_z",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Stronghold.canStrongholdGoDeeper",
+   "sig": "(StructureBoundingBox)Z",
+   "native": "csrc/engine/stronghold.c:can_go_deeper",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Stronghold.Door (OPENING, WOOD_DOOR, GRATES, IRON_DOOR)",
+   "sig": "enum",
+   "native": "csrc/engine/stronghold.h:sh_door",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "PieceWeight.pieceClass, pieceWeight, instancesSpawned, instancesLimit",
+   "sig": "Class, int, int, int",
+   "native": "csrc/engine/stronghold.c:sh_weights",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "PieceWeight",
+   "sig": "(Class,int,int)",
+   "native": "csrc/engine/stronghold.c:sh_weights",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PieceWeight.canSpawnMoreStructuresOfType",
+   "sig": "(int)Z",
+   "native": "csrc/engine/stronghold.c:can_spawn_type",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "PieceWeight.canSpawnMoreStructures",
+   "sig": "()Z",
+   "native": "csrc/engine/stronghold.c:can_add_structure_pieces",
+   "status": "partial",
+   "note": "Inlined into the list pruning; not traced line by line."
+  },
+  {
+   "kind": "field",
+   "name": "SwitchDoor.doorEnum",
+   "sig": "static int[]",
+   "native": "csrc/engine/stronghold_blocks.c:place_door",
+   "status": "exact",
+   "note": "The switch map; the C switch on enum sh_door."
+  },
+  {
+   "kind": "ctor",
+   "name": "StructureStrongholdPieces",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a class of static members only: nothing in oracle/src constructs it (no `new StructureStrongholdPieces`), so its implicit constructor never runs"
+  },
+  {
+   "kind": "ctor",
+   "name": "SwitchDoor",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "javac's synthetic switch map (a static int[] filled by its static initializer, read by a switch on the enum); the class is never instantiated, so its implicit constructor never runs"
+  },
+  {
+   "kind": "ctor",
+   "name": "RightTurn",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "no RightTurn object is ever built: pieceWeightArray's RightTurn entry calls RightTurn.findValidPlacement, which is LeftTurn's static (`new LeftTurn(...)`, StructureStrongholdPieces.java:573), and an SHRT piece is only read back from a save that holds one, which no stronghold can write; native mirrors it (stronghold.c:find_rightturn builds a LeftTurn), so stronghold_blocks.c:rightturn_parts is dead there too"
+  }
+ ],
+ "missing": [],
+ "notes": "Draw order and class-by-class mapping come from the comments in stronghold.c and stronghold_blocks.c. The Java statics (piece list, counters, pending list) are file-scope mutable globals in C too (stronghold.c sh_weights, sh_active, sh_pending...), a GPU-contract hazard. I did not confirm that the sblocks dumps include stronghold starts (the populated-chunk tests may cover them instead). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the chest, spawner and door flags are read only while populating the chunk holding the target block, which already ran before any save. Formerly listed as missing: Reading a stronghold piece's saved NBT (func_143011_b: EntryDoor, Left/Right, Steps, the Crossing flags, Chest, Type, Tall, Source, Mob) has no native counterpart; native rebuilds strongholds from the seed, so a chest or spawner flag set in a saved world is not restored."
+}

@@ -1,0 +1,44 @@
+{
+ "path": "csrc/engine/raster_itemframe.h",
+ "lines": 49,
+ "role": "The item frame renderer's API (raster_itemframe.c) and raster_entity_diffuse, the standard item lighting raster_entities.c computes.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/tileentity/RenderItemFrame.java",
+   "members": [
+    "doRender"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "raster_itemframe",
+   "java": "EntityItemFrame",
+   "fields": [
+    "tile",
+    "dir",
+    "pos",
+    "yaw",
+    "item_id",
+    "item_damage",
+    "item_rot",
+    "box"
+   ]
+  }
+ ],
+ "entry_points": [
+  "raster_itemframe_parse",
+  "raster_itemframe_in_frustum",
+  "raster_itemframe_rendered",
+  "raster_itemframe_compass",
+  "raster_itemframe_compass_step",
+  "raster_itemframe_draw",
+  "raster_entity_diffuse"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_render.c"
+ ]
+}

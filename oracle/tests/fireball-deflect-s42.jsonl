@@ -1,0 +1,473 @@
+{"n": 16, "act": {}}
+{"cmd": "run", "class": "MobFree", "radius": 4}
+{"cmd": "run", "class": "Snapshot"}
+{"cmd": "dev", "op": "difficulty", "value": 2}
+{"cmd": "dev", "op": "time", "value": 6000}
+{"cmd": "dev", "op": "gamerule", "name": "doDaylightCycle", "value": "false"}
+{"cmd": "dev", "op": "weather", "type": "clear", "seconds": 100000}
+{"cmd": "dev", "op": "fill", "x0": -266, "y0": 99, "z0": -160, "x1": -235, "y1": 100, "z1": -115, "id": 112, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -266, "y0": 101, "z0": -160, "x1": -235, "y1": 116, "z1": -115, "id": 0, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -266, "y0": 117, "z0": -160, "x1": -235, "y1": 128, "z1": -115, "id": 0, "meta": 0}
+{"cmd": "dev", "op": "fill", "x0": -251, "y0": 101, "z0": -121, "x1": -251, "y1": 103, "z1": -121, "id": 112, "meta": 0}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 104.0, "z": -120.5, "yaw": 180.0, "pitch": -10.0}
+{"cmd": "dev", "op": "slot", "slot": 0, "item": 261, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 1, "item": 332, "count": 16}
+{"cmd": "dev", "op": "slot", "slot": 2, "item": 344, "count": 16}
+{"cmd": "dev", "op": "slot", "slot": 3, "item": 368, "count": 16}
+{"cmd": "dev", "op": "slot", "slot": 9, "item": 262, "count": 64}
+{"cmd": "dev", "op": "slot", "slot": 39, "item": 306, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 38, "item": 307, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 37, "item": 308, "count": 1}
+{"cmd": "dev", "op": "slot", "slot": 36, "item": 309, "count": 1}
+{"n": 4, "act": {}}
+{"cmd": "dev", "op": "purge"}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "fire": 0}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 104.0, "z": -120.5, "yaw": 180.0, "pitch": -10.0}
+{"cmd": "dev", "op": "summon", "name": "Ghast", "x": -250.5, "y": 102.9, "z": -138.5}
+{"n": 1, "act": {"look": [180.0, -10.0, 180.0, -10.0], "hotbar": 0}}
+{"n": 1, "act": {"press": ["use"], "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"look": [90.0, -45.0, 90.0, -45.0]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"cmd": "dev", "op": "purge"}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "fire": 0}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 104.0, "z": -120.5, "yaw": 180.0, "pitch": -10.0}
+{"cmd": "dev", "op": "summon", "name": "Ghast", "x": -250.5, "y": 102.9, "z": -138.5}
+{"n": 1, "act": {"look": [180.0, -10.0, 180.0, -10.0], "hotbar": 0}}
+{"n": 1, "act": {"press": ["use"], "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"look": [90.0, -45.0, 90.0, -45.0]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"cmd": "dev", "op": "purge"}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "fire": 0}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 104.0, "z": -120.5, "yaw": 180.0, "pitch": -10.0}
+{"cmd": "dev", "op": "summon", "name": "Ghast", "x": -250.5, "y": 102.9, "z": -138.5}
+{"n": 1, "act": {"look": [180.0, -10.0, 180.0, -10.0], "hotbar": 0}}
+{"n": 1, "act": {"press": ["use"], "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"look": [90.0, -45.0, 90.0, -45.0]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"cmd": "dev", "op": "purge"}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "fire": 0}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 104.0, "z": -120.5, "yaw": 180.0, "pitch": -10.0}
+{"cmd": "dev", "op": "summon", "name": "Ghast", "x": -250.5, "y": 102.9, "z": -138.5}
+{"n": 1, "act": {"look": [180.0, -10.0, 180.0, -10.0]}}
+{"n": 1, "act": {"hotbar": 1}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "press": ["use"]}}
+{"n": 1, "act": {"look": [90.0, -45.0, 90.0, -45.0]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"cmd": "dev", "op": "purge"}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "fire": 0}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 104.0, "z": -120.5, "yaw": 180.0, "pitch": -10.0}
+{"cmd": "dev", "op": "summon", "name": "Ghast", "x": -250.5, "y": 102.9, "z": -138.5}
+{"n": 1, "act": {"look": [180.0, -10.0, 180.0, -10.0]}}
+{"n": 1, "act": {"hotbar": 2}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "press": ["use"]}}
+{"n": 1, "act": {"look": [90.0, -45.0, 90.0, -45.0]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"cmd": "dev", "op": "purge"}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "fire": 0}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 104.0, "z": -120.5, "yaw": 180.0, "pitch": -10.0}
+{"cmd": "dev", "op": "summon", "name": "Ghast", "x": -250.5, "y": 102.9, "z": -138.5}
+{"n": 1, "act": {"look": [180.0, -10.0, 180.0, -10.0]}}
+{"n": 1, "act": {"hotbar": 3}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "press": ["use"]}}
+{"n": 1, "act": {"look": [90.0, -45.0, 90.0, -45.0]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {}}
+{"cmd": "dev", "op": "purge"}
+{"cmd": "dev", "op": "state", "health": 20.0, "food": 20, "saturation": 5.0, "fire": 0}
+{"cmd": "dev", "op": "tp", "x": -250.5, "y": 104.0, "z": -120.5, "yaw": 180.0, "pitch": -10.0}
+{"cmd": "dev", "op": "summon", "name": "Ghast", "x": -250.5, "y": 102.9, "z": -138.5}
+{"n": 1, "act": {"look": [180.0, -10.0, 180.0, -10.0], "hotbar": 0}}
+{"n": 1, "act": {"press": ["use"], "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}, "hold": ["use"]}}
+{"n": 1, "act": {"aim": {"cls": "EntityLargeFireball", "range": 30}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"n": 1, "act": {"aim": {"cls": "EntityGhast", "range": 40}}}
+{"cmd": "dev", "op": "purge"}
+{"n": 40, "act": {}}
+{"cmd": "run", "class": "Snapshot", "sub": "end"}

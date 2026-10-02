@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/client/gui/GuiHopper.java",
+  "classes": ["GuiHopper"],
+  "lines": 41,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The hopper GUI: the hopper sheet and the two inventory labels over ContainerHopper.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: right-clicking a placed hopper opens this screen (containers2-s42 constructed it); native opens the hopper container (survival.c gui_open_tile, func_146093_a) and gui_screens.c lays out GuiHopper's 133-pixel ySize.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_layout", "gui_screen_slot_xy"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["screen_texture", "raster_gui_live"]}
+  ],
+  "evidence": ["out/java/snapshots/container-break-s1", "out/java/snapshots/containers2-s42", "out/java/clientframes/idx-hopper-s1"],
+  "members": [
+    {"kind": "field", "name": "field_147085_u (static)", "sig": "ResourceLocation", "native": "csrc/engine/raster_hud.c:screen_texture", "status": "exact"},
+    {"kind": "field", "name": "field_147084_v", "sig": "IInventory", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact"},
+    {"kind": "field", "name": "field_147083_w", "sig": "IInventory", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact"},
+    {"kind": "ctor", "name": "GuiHopper", "sig": "(InventoryPlayer,IInventory)V", "native": "csrc/engine/gui_screens.c:gui_screen_layout", "status": "exact", "note": "also sets the inherited field_146291_p = false and the 133-pixel height field_147000_g"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the two labels"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the sheet"}
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: the hopper screen is drawn by raster_gui_live: the hopper sheet (csrc/Makefile GUI_SHEETS) at xSize by the 133 ySize, the Item Hopper title and Inventory at 8, ySize - 94; the slots at ContainerHopper's positions (gui_screen_slot_xy). idx-hopper-s1 (arrows shifted in, cobblestone picked up and placed) replays every row and its frames are within 0 px but the cursor's block item a fraction of a pixel off (33: 471 px, the residual screens-s1 names)."
+}

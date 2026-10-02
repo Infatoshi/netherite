@@ -1,0 +1,41 @@
+{
+ "path": "csrc/engine/act_agent.c",
+ "lines": 119,
+ "role": "The agent form of an act (player.h struct act_agent: holds, presses, hotbar, ctrl, gui ops), resolved inside the client tick where the oracle's agent mode runs Act.applyGui and Act.applyInput: act_agent_gui runs each gui op under the screen handleInput finds (a close takes the screen away, a dead player's close opens GuiGameOver) and drops the ones Act refuses, counting them; act_agent_input fills the tape-form keys, hotbar, focus, left click counter and ctrl when the input block runs (no screen, or GuiInventory over the player's own container). The env pool's acts (csrc/runtime) carry one; a tape's act does not.",
+ "layer": "client",
+ "java": [
+  {
+   "path": "oracle/harness/netherite/oracle/Act.java",
+   "members": [
+    "applyGui",
+    "applyInput",
+    "badClick"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "act_agent",
+   "java": "Act (agent form: hold, press, hb, ctrl, gui)",
+   "fields": [
+    "held",
+    "presses",
+    "hb",
+    "ctrl",
+    "nops",
+    "ops",
+    "refused"
+   ]
+  }
+ ],
+ "entry_points": [
+  "act_agent_gui",
+  "act_agent_input"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/runtime/pool_gate.c"
+ ],
+ "notes": "lane/envpool. Held to the oracle by pool_gate --agent oracle/tests: each recording's own script's agent acts replayed through the pool, every row against test_snapshots' records (25 of 27 gate recordings with scripts in the agent form; chest-chain-s1's script is not the one its tape was made with). The aim form and the chat ops are not in it (csrc/runtime/agent.c refuses no aim: it is absent from struct pool_act)."
+}

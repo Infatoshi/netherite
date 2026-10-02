@@ -1,0 +1,114 @@
+{
+ "path": "csrc/engine/hostiles.c",
+ "lines": 915,
+ "role": "The EntityZombie kind (constructor, child, onSpawnWithEgg with armour, weapon, enchantments and the spawn-bonus modifiers, daylight burning, attackEntityAsMob, drops), EntityLiving's canPickUpLoot pass shared by the hostiles, the probe's stand-in player (constructor, food stats, item pickup), hostile_spawn that constructs every hostile kind in the probe's list order, and hostile_write_state, the per-entity state record compared against the oracle's hostile dumps.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntityZombie.java",
+   "members": [
+    "EntityZombie",
+    "applyEntityAttributes",
+    "setChild",
+    "onSpawnWithEgg",
+    "addRandomArmor",
+    "onLivingUpdate",
+    "attackEntityAsMob",
+    "dropFewItems",
+    "isChild",
+    "isVillager"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMob.java",
+   "members": [
+    "EntityMob",
+    "experienceValue"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "onLivingUpdate",
+    "addRandomArmor",
+    "enchantEquipment",
+    "getArmorPosition",
+    "getArmorItemForSlot",
+    "canPickUpLoot",
+    "equipmentDropChances",
+    "persistenceRequired"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "EntityPlayer",
+    "onLivingUpdate",
+    "collideWithPlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/util/FoodStats.java",
+   "members": [
+    "onUpdate",
+    "addExhaustion"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/InventoryPlayer.java",
+   "members": [
+    "addItemStackToInventory"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "onCollideWithPlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntitySkeleton.java",
+   "members": [
+    "onLivingUpdate"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "zombie_construct",
+  "zombie_set_child",
+  "zombie_on_spawn_with_egg",
+  "living_add_random_armor",
+  "zombie_on_living_update",
+  "zombie_attack_entity_as_mob",
+  "zombie_drop_few_items",
+  "hostile_loot_update",
+  "player_construct",
+  "hostile_spawn",
+  "hostile_write_state",
+  "living_held_item_modifiers",
+  "mob_sun_helmet"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 278, function hostile_loot_update: fixed 32-entry item query; results depend on the entity query's container order",
+  "line 345, function hostile_loot_update: an_spawn_item heap-allocates the dropped entity inside the tick",
+  "function hostile_loot_update: the picked-up stack is shared by a stack_link (the item's pool slot, whose record the pool keeps after release, or a living's equipment slot by lref) (lane/gpuarena, L3)",
+  "line 432, function zombie_drop_few_items: an_spawn_item per drop (heap allocation in the tick)",
+  "line 459, function player_construct: on_living_update function pointer",
+  "lines 582 and 704, function hostile_spawn: calloc of the living and its an_ent",
+  "line 603, function hostile_spawn: an->player pointer to the stand-in player",
+  "line 780 and 808, function hostile_write_state: linear scans of the AI task list for the arrow-attack and attack-on-collide tasks"
+ ],
+ "tests": [
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_lightning.c"
+ ],
+ "notes": "The player here is a probe stand-in built as a living (HK_PLAYER), not the real EntityPlayerMP; its item pickup merges stacks into 36 slots without InventoryPlayer's exact slot order being verified. zombie_on_spawn_with_egg draws the chicken-jockey rolls but spawns no chicken jockey (lines 110-117 are empty branches). Zombie villager conversion state is carried elsewhere (living.c NBT, serverreplay.c), not here. hostile_loot_update is declared twice in hostiles.h. Java member names for EntityLiving and EntityPlayer were inferred from the C comments and structure, not checked one by one. Evidence recordings: out/java/hostiles, and the fight-zombie-s1 snapshot for the zombie. Possible divergence seen while reading, not tested: zombie_on_living_update draws nextInt(2) for any helmet, while Java's EntityZombie only draws when the helmet isItemStackDamageable. lane/idxentity: the loot pickup over both item pools with the held-item modifier and diamondsToYou; the sun helmet's isItemStackDamageable and renderBrokenItemStack (mob_sun_helmet, the zombie's and the skeleton's)."
+}

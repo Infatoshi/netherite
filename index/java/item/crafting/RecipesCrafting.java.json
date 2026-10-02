@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/item/crafting/RecipesCrafting.java",
+  "classes": ["RecipesCrafting"],
+  "lines": 33,
+  "side": "common",
+  "category": "crafting",
+  "role": "Registers the utility-block recipes: chest, trapped chest, ender chest, furnace, crafting table, sandstone, quartz, stonebrick, iron bars, glass pane, redstone lamp, beacon, nether brick.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "method", "name": "addRecipes", "sig": "(Lnet/minecraft/item/crafting/CraftingManager;)V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the 16 addRecipe calls unrolled into baked shaped rows"}
+  ],
+  "missing": [],
+  "notes": null
+}

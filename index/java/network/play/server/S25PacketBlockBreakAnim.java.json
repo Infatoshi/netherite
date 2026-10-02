@@ -1,0 +1,176 @@
+{
+ "path": "oracle/src/network/play/server/S25PacketBlockBreakAnim.java",
+ "classes": [
+  "S25PacketBlockBreakAnim"
+ ],
+ "lines": 87,
+ "side": "server",
+ "category": "network",
+ "role": "Another player's block-break progress (the destroy-stage overlay); the player manager sends it to everyone but the breaker.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/ai.c",
+   "symbols": [
+    "ai_block_break_event"
+   ]
+  },
+  {
+   "file": "csrc/engine/env.h",
+   "symbols": [
+    "block_break"
+   ]
+  },
+  {
+   "file": "csrc/play/play.c",
+   "symbols": [
+    "damaged_blocks_after_row",
+    "dmg_map"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_overlay.c",
+   "symbols": [
+    "crack"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/ent-door-s1",
+  "out/java/clientframes/idx-doorcrack-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148852_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "the breaker id: env.h block_break.e[].id, the key of play.c dmg_map (RenderGlobal.damagedBlocks)",
+   "native": "csrc/engine/env.h:block_break"
+  },
+  {
+   "kind": "field",
+   "name": "field_148850_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "x",
+   "native": "csrc/engine/env.h:block_break"
+  },
+  {
+   "kind": "field",
+   "name": "field_148851_c",
+   "sig": "int",
+   "status": "exact",
+   "note": "y",
+   "native": "csrc/engine/env.h:block_break"
+  },
+  {
+   "kind": "field",
+   "name": "field_148848_d",
+   "sig": "int",
+   "status": "exact",
+   "note": "z",
+   "native": "csrc/engine/env.h:block_break"
+  },
+  {
+   "kind": "field",
+   "name": "field_148849_e",
+   "sig": "int",
+   "status": "exact",
+   "note": "the destroy stage; -1 or 10 and over removes the entry",
+   "native": "csrc/engine/env.h:block_break"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,int,int,int)V",
+   "status": "exact",
+   "native": "csrc/engine/ai.c:ai_block_break_event",
+   "note": "World.destroyBlockInWorldPartially (EntityAIBreakDoor) queues the breaker, block and stage; WorldManager.destroyBlockPartially sends it to the players within 32 blocks other than the breaker (play.c damaged_blocks_after_row applies the distance)"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "note": "handleBlockBreakAnim, WorldClient.destroyBlockInWorldPartially, RenderGlobal.destroyBlockPartially: the entry by breaker id, moved when the block changes, dropped past stage 9; updateClouds drops entries older than 400 ticks every 20th tick; drawn under drawBlockDamageTexture with the player's own dig",
+   "native": "csrc/play/play.c:damaged_blocks_after_row"
+  },
+  {
+   "kind": "method",
+   "name": "func_148845_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148844_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148843_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148842_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148846_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "exact",
+   "note": "handleBlockBreakAnim, WorldClient.destroyBlockInWorldPartially, RenderGlobal.destroyBlockPartially: the entry by breaker id, moved when the block changes, dropped past stage 9; updateClouds drops entries older than 400 ticks every 20th tick; drawn under drawBlockDamageTexture with the player's own dig",
+   "native": "csrc/play/play.c:damaged_blocks_after_row"
+  },
+  {
+   "kind": "ctor",
+   "name": "S25PacketBlockBreakAnim",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"
+  }
+ ],
+ "missing": [],
+ "scope_reason": "In scope: on hard difficulty a zombie breaking a door (EntityAIBreakDoor) calls World.destroyBlockInWorldPartially, which sends S25 to the player; the client draws the door's crack stages from it (RenderGlobal.destroyBlockPartially). ent-door-s1 built and handled one.",
+ "notes": "The packet is still constructible by the vanilla server; nothing in the native engine needs it. idxaudit 2026-09-27: was not_needed/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxlast 2026-09-27: stale since lane/idxclient 9e69e227 (the zombie's door crack, idx-doorcrack-s1: 150 is 606 px against 1,075 without the crack). play.c keeps at most 16 entries and 16 pending S25s a row, where the HashMap is unbounded (more than 16 doors broken at once is not reached by any recording)."
+}

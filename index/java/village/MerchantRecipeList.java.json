@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/village/MerchantRecipeList.java",
+  "classes": ["MerchantRecipeList"],
+  "lines": 146,
+  "side": "common",
+  "category": "inventory",
+  "role": "A villager's ordered offer list: the recipe lookup the merchant slots use, the replace-if-cheaper insert, the S3F custom-payload wire form and the Recipes NBT list.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/trades.h", "symbols": ["trade_list", "TRADES_MAX"]},
+    {"file": "csrc/engine/trades.c", "symbols": ["trades_can_be_used", "add_with_check", "trades_nbt", "trades_render", "trades_free"]},
+    {"file": "csrc/engine/survival.c", "symbols": []},
+    {"file": "csrc/engine/trades.c", "symbols": ["trades_from_nbt"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_trades.c",
+    "csrc/tests/test_villagers.c",
+    "out/java/snapshots/trade-full-s1",
+    "out/java/clientframes/idx-tradelock-s1",
+    "out/java/snapshots/cov-tradelist-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "MerchantRecipeList", "sig": "()", "native": "csrc/engine/trades.h:trade_list", "status": "exact", "note": "fixed capacity TRADES_MAX 32 instead of an ArrayList"},
+    {"kind": "ctor", "name": "MerchantRecipeList", "sig": "(NBTTagCompound)", "native": "csrc/engine/trades.c:trades_from_nbt", "status": "exact", "note": "the Offers/Recipes read (trades_from_nbt: a villager's Offers, a snapshot's open trade window list)"},
+    {"kind": "method", "name": "canRecipeBeUsed", "sig": "(ItemStack,ItemStack,int)MerchantRecipe", "native": "csrc/engine/trades.c:trades_can_be_used", "status": "exact"},
+    {"kind": "method", "name": "addToListWithCheck", "sig": "(MerchantRecipe)V", "native": "csrc/engine/trades.c:add_with_check", "status": "exact"},
+    {"kind": "method", "name": "func_151391_a", "sig": "(PacketBuffer)V", "native": "csrc/engine/survival.c:client_recipes", "status": "exact", "note": "no byte encoding: the S3F carries each offer's stacks and its isRecipeDisabled boolean (survival.c s2c_trade.disabled, lane/idxlast)"},
+    {"kind": "method", "name": "func_151390_b", "sig": "(PacketBuffer)MerchantRecipeList", "native": "csrc/engine/survival.c:client_recipes", "status": "exact", "note": "the client's list from the S3F; the disabled flag becomes uses = max_uses as func_82785_h does; the red crosses in raster_hud.c; idx-tradelock-s1"},
+    {"kind": "method", "name": "readRecipiesFromTags", "sig": "(NBTTagCompound)V", "native": "csrc/engine/trades.c:trades_from_nbt", "status": "exact"},
+    {"kind": "method", "name": "getRecipiesAsTags", "sig": "()NBTTagCompound", "native": "csrc/engine/trades.c:trades_nbt", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "TRADES_MAX 32 bounds the list; vanilla's list is unbounded but addDefault tables stay under it (trades.h comment). I did not verify survival.c's decoding of the disabled flag line by line. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

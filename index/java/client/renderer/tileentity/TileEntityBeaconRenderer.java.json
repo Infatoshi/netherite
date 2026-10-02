@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntityBeaconRenderer.java",
+  "classes": ["TileEntityBeaconRenderer"],
+  "lines": 114,
+  "side": "client",
+  "category": "client_render",
+  "role": "TileEntitySpecialRenderer for TileEntityBeacon: draws the rotating beacon beam (two textured prism passes, additive blend for the core and alpha blend for the sheath) whose height is the beacon's func_146002_i signal level.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf beacon = off: the beacon is a plain block, TileEntityBeacon is never created, so this renderer is never reached in the oracle either.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_147523_b", "sig": "ResourceLocation (static)", "native": null, "status": "n/a", "note": "beacon_beam.png"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntityBeacon,D,D,D,F)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "renderTileEntityAt", "sig": "(TileEntity,D,D,D,F)V", "native": null, "status": "n/a", "note": "bridge overload"}
+  ],
+  "missing": [],
+  "notes": "The beam math scrolls its V coordinate with the world total time, which a future port would take from the tick clock, not the wall clock."
+}

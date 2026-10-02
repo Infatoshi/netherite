@@ -1,0 +1,154 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIControlledByPlayer.java",
+ "classes": [
+  "EntityAIControlledByPlayer"
+ ],
+ "lines": 222,
+ "side": "server",
+ "category": "ai",
+ "role": "The ridden-entity steering goal (pigs with a carrot on a stick): yaw from the rider, the speed ramp, the 1.15 speed boost sine envelope, the carrot damage roll and the jump-helper nudge.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_ai_should_execute",
+    "ride_ai_update",
+    "ride_carrot_right_click",
+    "PIG_MAX_SPEED"
+   ]
+  },
+  {
+   "file": "csrc/engine/ai.c",
+   "symbols": [
+    "ai_tasks_update",
+    "ai_start",
+    "ai_reset",
+    "ai_setup_kind"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.h",
+   "symbols": [
+    "ctl_current_speed",
+    "ctl_speed_boosted"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/rc-animals-s1",
+  "csrc/tests/test_animals.c",
+  "out/java/snapshots/ride-pig-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "thisEntity",
+   "sig": "EntityLiving",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "maxSpeed",
+   "sig": "float",
+   "native": "csrc/engine/riding.c:PIG_MAX_SPEED",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "currentSpeed",
+   "sig": "float",
+   "native": "csrc/engine/living.h:ctl_current_speed",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "speedBoosted",
+   "sig": "boolean",
+   "native": "csrc/engine/living.h:ctl_speed_boosted",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "speedBoostTime",
+   "sig": "int",
+   "native": "csrc/engine/living.h:ctl_speed_boost_time",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "maxSpeedBoostTime",
+   "sig": "int",
+   "native": "csrc/engine/living.h:ctl_max_speed_boost_time",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityAIControlledByPlayer",
+   "sig": "(EntityLivingF)V",
+   "native": "csrc/engine/ai.c:ai_setup_kind",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "startExecuting",
+   "sig": "()V",
+   "native": "csrc/engine/ai.c:ai_start",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "resetTask",
+   "sig": "()V",
+   "native": "csrc/engine/ai.c:ai_reset",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "shouldExecute",
+   "sig": "()Z",
+   "native": "csrc/engine/riding.c:ride_ai_should_execute",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateTask",
+   "sig": "()V",
+   "native": "csrc/engine/riding.c:ride_ai_update",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151498_a",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/riding.c:stair_or_slab",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isSpeedBoosted",
+   "sig": "()Z",
+   "native": "csrc/engine/living.h:ctl_speed_boosted",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "boostSpeed",
+   "sig": "()V",
+   "native": "csrc/engine/riding.c:ride_carrot_right_click",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isControlledByPlayer",
+   "sig": "()Z",
+   "native": "csrc/engine/riding.c:ride_carrot_right_click",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "The ridden pig's steering (riding.c, lane/ride): yaw toward the rider, the 1% speed ramp to 0.3, the boost sine, the step-up jump over func_82565_a (pathfind.c pf_vertical_offset_at), the 0.006 carrot wear roll and moveEntityWithHeading at landMovementFactor (which ai.c move_helper_update now leaves at the last speed set, as setMoveForward(0) does). continueExecuting is shouldExecute. ride-pig-s1 replays exactly."
+}

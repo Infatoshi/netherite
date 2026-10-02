@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/worldconf.h",
+ "lines": 95,
+ "role": "Declares config.yaml's C reader (worldconf.c): the registry's key indices (WC_*), struct wconf (one value per key and the file read), WCONF_KEYS, and the load, parse, set, get and start-match calls.",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  "struct wconf",
+  "struct wconf_key"
+ ],
+ "entry_points": [
+  "wconf_load",
+  "wconf_parse",
+  "wconf_set",
+  "wconf_match_start"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/worldconf_check.c"
+ ],
+ "notes": ""
+}

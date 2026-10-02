@@ -1,0 +1,175 @@
+{
+  "path": "oracle/src/block/BlockLadder.java",
+  "classes": [
+    "BlockLadder"
+  ],
+  "lines": 160,
+  "side": "common",
+  "category": "block",
+  "role": "The ladder: a climbable flat block hung on a wall face by its metadata; the climb is the movement code's ladder check.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/player.c",
+      "symbols": [
+        "is_on_ladder"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks2.c",
+      "symbols": [
+        "rb2_render_ladder"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "block_on_neighbor_changed",
+        "ID_LADDER",
+        "place_block_drop"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_move.c",
+    "out/java/snapshots/rc-blocks-s1",
+    "out/java/snapshots/scen-ladder-vine-s1",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/cov-blkbreak-s1",
+    "out/java/snapshots/cov-blkplace-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockLadder",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 65: circuits material, render_type 8"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(World,III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "case 65: the func_149797_b wall-face box by meta"
+    },
+    {
+      "kind": "method",
+      "name": "getSelectedBoundingBoxFromPool",
+      "sig": "(World,III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "the same func_149797_b box; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_149797_b",
+      "sig": "(I)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "opaque_cube 0"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "normal_block 0"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type 8 -> rb2_render_ladder"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockAt",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/place.c:func_150071_a",
+      "status": "exact",
+      "note": "the four-wall check; cov-blkplace-s1 places one on a wall"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlaced",
+      "sig": "(World,IIIFFFI)I",
+      "native": "csrc/engine/place.c:func_150071_a",
+      "status": "exact",
+      "note": "the facing meta; cov-blkplace-s1"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact",
+      "note": "case ID_LADDER: the meta wall check, the drop, setBlockToAir"
+    },
+    {
+      "kind": "method",
+      "name": "quantityDropped",
+      "sig": "(Ljava/util/Random;)I",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "case 65: 1"
+    },
+    {
+      "kind": "method",
+      "name": "isLadder",
+      "sig": "(IBlockAccess,IIILnet/minecraft/entity/EntityLivingBase;)Z",
+      "native": "csrc/engine/player.c:is_on_ladder",
+      "status": "exact",
+      "note": "the movement climb check (player.c), inherited from Block in 1.7.10 through the isLadder hook"
+    }
+  ],
+  "missing": [],
+  "notes": "Climbing is verified in the survival recordings (survival-parkour-s1); the mesh is the render_type 8 lane in render_blocks.c's dispatch."
+}

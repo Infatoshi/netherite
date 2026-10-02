@@ -1,0 +1,78 @@
+{
+ "path": "oracle/src/network/status/server/S00PacketServerInfo.java",
+ "classes": [
+  "S00PacketServerInfo"
+ ],
+ "lines": 67,
+ "side": "server",
+ "category": "network",
+ "role": "The ping's answer: ServerStatusResponse serialized to JSON with Gson.",
+ "scope": "not_needed",
+ "scope_reason": "Part of the server list ping protocol, never reached in this game; the Gson static also never loads.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149297_a",
+   "sig": "Gson (static)",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149296_b",
+   "sig": "ServerStatusResponse",
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "S00PacketServerInfo",
+   "sig": "()V",
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "S00PacketServerInfo",
+   "sig": "(ServerStatusResponse)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerStatusClient)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149294_c",
+   "sig": "()ServerStatusResponse",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "hasPriority",
+   "sig": "()Z",
+   "status": "n/a"
+  }
+ ],
+ "missing": []
+}

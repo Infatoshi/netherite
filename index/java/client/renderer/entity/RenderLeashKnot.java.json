@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderLeashKnot.java",
+  "classes": ["RenderLeashKnot"],
+  "lines": 62,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders the leash knot (EntityLeashKnot) hanging on a fence: the ModelLeashKnot box with culling off.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/raster_mobs.c", "symbols": ["knot_draw", "raster_mobs_draw"]}, {"file": "csrc/play/play.c", "symbols": ["draw_hitboxes"]}],
+  "evidence": ["out/java/clientframes/cr-hang-s1", "csrc/tests/frame_judge.sh"],
+  "members": [
+    {"kind": "field", "name": "leashKnotTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact", "note": "csrc/assets/mobs/lead_knot.rgba from the jar's textures/entity/lead_knot.png"},
+    {"kind": "field", "name": "leashKnotModel", "sig": "ModelLeashKnot", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact", "note": "ModelLeashKnot's one 6x8x6 box of a 32x32 sheet"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLeashKnot,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact", "note": "glScalef(-1,-1,1), culling off; the live client draws pickobj.c's client copy"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityLeashKnot)ResourceLocation", "native": "csrc/engine/raster_mobs.c:knot_draw", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/clientents: the live client draws each EntityLeashKnot copy pickobj.c keeps (the S0E type 77 at its tile) through raster_mobs' MOB_LEASH_KNOT; hang-s1 30/50/80 (a cow tied to a fence) within budget."
+}

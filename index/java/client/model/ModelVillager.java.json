@@ -1,0 +1,102 @@
+{
+ "path": "oracle/src/client/model/ModelVillager.java",
+ "classes": [
+  "ModelVillager"
+ ],
+ "lines": 87,
+ "side": "client",
+ "category": "client_model",
+ "role": "The villager's model: head with the child nose, folded arms, robe body and legs.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_villager",
+    "pose_model",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2b_villager_f006",
+  "out/java/render/mobs2b_villager_f011",
+  "out/java/render/mobs2b_professions_f006",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "villagerHead",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "villagerBody",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "villagerArms",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rightVillagerLeg",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "leftVillagerLeg",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "villagerNose",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelVillager",
+   "sig": "(float)V",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelVillager",
+   "sig": "(float,float,int,int)V",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:draw_model",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_villager",
+   "status": "exact",
+   "note": "the folded arms (-0.75) and the half leg swing are baked in"
+  }
+ ],
+ "missing": []
+}

@@ -1,0 +1,70 @@
+{
+ "path": "csrc/engine/entity.c",
+ "lines": 751,
+ "role": "Entity's collision physics: the constructor defaults, setSize, setPosition, setInWeb and the whole of Entity.moveEntity (web damping, the sneak ledge clamp, the Y/X/Z sweep against block and entity boxes, the step-up retry, collision flags, updateFallState, walking distance and step callbacks, the func_145775_I per-cell block callbacks for web, portal, end portal, soul sand and cactus, and the fire and wetness tail). Every mob, item and player moves through it.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "Entity",
+    "setSize",
+    "setPosition",
+    "setInWeb",
+    "moveEntity",
+    "updateFallState",
+    "isWet",
+    "func_145775_I",
+    "dealFireDamage",
+    "setFire",
+    "canTriggerWalking",
+    "fall"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getCollidingBoundingBoxes",
+    "canLightningStrikeAt",
+    "func_147470_e",
+    "checkChunksExist"
+   ]
+  },
+  {
+   "path": "oracle/src/util/MathHelper.java",
+   "members": [
+    "sqrt_double",
+    "floor_double"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "entity_init",
+  "entity_set_size",
+  "entity_set_position",
+  "entity_set_in_web",
+  "entity_move",
+  "entity_move_ex",
+  "entity_move_memo",
+  "cell_memo_hold",
+  "cell_memo_hold_at"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 173-201, function entity_move_ex: the three sneak clamp while loops, bounded by |dx|/0.05 and |dz|/0.05 steps",
+  "line 207, 260, function entity_move_ex: extra_boxes callback (function pointer) adds entity boxes to the collide list",
+  "lines 330-471, function entity_move_ex: fall, swim_sound, walking_block, attack_from, fizz, set_in_portal and end_portal virtual-method callbacks through function pointers",
+  "line 428-431, function entity_move_ex: the end_portal callback can switch e->world mid-walk (travelToDimension inside moveEntity); the rest of the cell walk reads the new world",
+  "function entity_move_ex: its collision list comes from the environment's scratch stack (collide_scratch_begin, COLLIDE_SCRATCH_DEPTH 4), given back at scope exit, not a 24 KB frame (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_move.c",
+  "csrc/tests/test_paths.c",
+  "csrc/tests/test_portals.c",
+  "csrc/tests/test_projectiles.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Rain is never on for canLightningStrikeAt here (returns 0), so isWet is only inWater; this is a documented simplification in the file and would need a change if rain reaches entity wetness (replay2-still-rain-s1 exists; not verified whether wetness under rain is exercised). Sounds and particles inside moveEntity are dropped, their Random draws kept through callbacks. The collide list is a fixed-capacity array (collide.h COLLIDE_MAX_BOXES). Recordings: out/java/moves (the move probe, test_move.c) and every snapshot tape through the whole-server replay. Since lane/mobtick a living and a client copy pass their struct cell_memo (entity.h): a still move (the same box, move and step inputs, map_ver and the summed wseq of the chunks within a block of the box, only pure blocks met: collide_list.impure) keeps its collision answer, its calm per-cell pass and its fire answer; cell_memo_hold keys the water, lava, wall and eye tests the same way. make -C csrc move-memo-check runs every skipped answer in full."
+}

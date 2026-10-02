@@ -1,0 +1,254 @@
+{
+ "classes": [
+  "EntityThrowable"
+ ],
+ "lines": 345,
+ "side": "common",
+ "category": "entity",
+ "role": "Abstract base of the thrown projectiles (snowball, egg, ender pearl, potion, experience bottle): the shooter constructor's eye offset and noised heading, the onUpdate flight loop (raytrace, entity interception, portal check, rotation smoothing, drag and gravity), and the xTile/ownerName NBT block.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/throw.c",
+   "symbols": [
+    "throw_server_use",
+    "throw_client_use",
+    "spawn_throwable",
+    "pearl_impact",
+    "throw_bind"
+   ]
+  },
+  {
+   "file": "csrc/engine/projectile.c",
+   "symbols": [
+    "proj_spawn_throwable",
+    "proj_spawn_throwable_shooter",
+    "proj_throwable_heading",
+    "projectile_update",
+    "egg_on_impact",
+    "pearl_on_impact",
+    "apply_block_hit"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "ent_nbt_ie"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_projectiles.c",
+  "out/java/projectiles",
+  "out/java/snapshots/throw-items-s1",
+  "out/java/snapshots/cp-throw-s1",
+  "out/java/snapshots/portal-mobs-s42",
+  "out/java/snapshots/portal-proj-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_145788_c",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.h:tile_x",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_145786_d",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.h:tile_y",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_145787_e",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.h:tile_z",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_145785_f",
+   "sig": "Block",
+   "native": "csrc/engine/item_entity.h:in_tile",
+   "status": "exact",
+   "note": "the block the throwable sits in, kept as its registry id (NBT inTile)"
+  },
+  {
+   "kind": "field",
+   "name": "inGround",
+   "sig": "boolean",
+   "native": "csrc/engine/item_entity.h:in_ground",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "throwableShake",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.h:shake",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "thrower",
+   "sig": "EntityLivingBase",
+   "native": "csrc/engine/item_entity.h:shooting_entity",
+   "status": "exact",
+   "note": "carried as a pointer; a throwable loaded from NBT resolves it from throwerName (owner_pending, snapshot_entities.c:sr_throwable_resolve)"
+  },
+  {
+   "kind": "field",
+   "name": "throwerName",
+   "sig": "String",
+   "native": "csrc/engine/item_entity.h:owner_name",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "ticksInGround",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.h:ticks_in_ground",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "ticksInAir",
+   "sig": "int",
+   "native": "csrc/engine/item_entity.h:ticks_in_air",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityThrowable(World)",
+   "sig": "(World)V",
+   "native": "csrc/engine/projectile.c:proj_spawn_throwable",
+   "status": "exact",
+   "note": "the position form; the potion and experience bottle spawns use it"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityThrowable(World,EntityLivingBase)",
+   "sig": "(World,EntityLivingBase)V",
+   "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter",
+   "status": "exact",
+   "note": "the 0.16 eye offset and the 0.4 initial motion, then proj_throwable_heading"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityThrowable(World,double,double,double)",
+   "sig": "(World,D,D,D)V",
+   "native": "csrc/engine/projectile.c:proj_spawn_throwable",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java; the native entity init zeroes"
+  },
+  {
+   "kind": "method",
+   "name": "isInRangeToRenderDist",
+   "sig": "(D)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the renderer's distance cull"
+  },
+  {
+   "kind": "method",
+   "name": "func_70182_d",
+   "sig": "()F",
+   "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter",
+   "status": "exact",
+   "note": "the 1.5F velocity, hardcoded at the spawn"
+  },
+  {
+   "kind": "method",
+   "name": "func_70183_g",
+   "sig": "()F",
+   "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter",
+   "status": "exact",
+   "note": "the 0.0F gravity offset, hardcoded at the spawn"
+  },
+  {
+   "kind": "method",
+   "name": "setThrowableHeading",
+   "sig": "(DDDF F)V",
+   "native": "csrc/engine/projectile.c:proj_throwable_heading",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setVelocity",
+   "sig": "(DDD)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the client copy's S12 handler; the replay's client keeps no throwable copy and the renderer draws the tracker's position"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/projectile.c:projectile_update",
+   "status": "exact",
+   "note": "the IE_SNOWBALL..IE_POTION branch: shake, in-ground block, raytrace, the 1.0-expanded entity interception with the 5-tick thrower grace, portal, rotation smoothing, drag 0.99/0.8 and gravity; a block hit on a portal is ie_set_in_portal, not onImpact"
+  },
+  {
+   "kind": "method",
+   "name": "getGravityVelocity",
+   "sig": "()F",
+   "native": "csrc/engine/projectile.c:projectile_update",
+   "status": "exact",
+   "note": "0.03F inline; the same branch carries the potion's 0.05F and the bottle's 0.07F"
+  },
+  {
+   "kind": "method",
+   "name": "onImpact",
+   "sig": "(Lnet/minecraft/util/MovingObjectPosition;)V",
+   "native": "csrc/engine/projectile.c:apply_block_hit",
+   "status": "exact",
+   "note": "the block half; the entity half dispatches per kind (egg_on_impact, pearl_on_impact, snowball damage, the splash hook)"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V",
+   "native": "csrc/engine/entity_nbt.c:ent_nbt_ie",
+   "status": "exact",
+   "note": "the shared default case: xTile/yTile/zTile, inTile, shake, inGround, ownerName"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V",
+   "native": "csrc/engine/snapshot_entities.c:sr_throwable_from_nbt",
+   "status": "exact",
+   "note": "xTile, yTile, zTile, inTile (an unregistered id reads as air), shake, inGround, ownerName; the snapshot load and the region reload (serverreplay.c:sr_restore_checkpoint_entity) both build through it"
+  },
+  {
+   "kind": "method",
+   "name": "getShadowSize",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a",
+   "note": "the renderer's shadow"
+  },
+  {
+   "kind": "method",
+   "name": "getThrower",
+   "sig": "()Lnet/minecraft/entity/EntityLivingBase;",
+   "native": "csrc/engine/snapshot_entities.c:sr_throwable_resolve",
+   "status": "exact",
+   "note": "a live throw carries the shooter from the spawn (throw.c:spawn_throwable); one loaded from NBT looks the named player up every tick until it is in the world (projectile.c:projectile_update through ie_world.resolve_thrower, throw.c:resolve_thrower)"
+  }
+ ],
+ "missing": [
+
+ ],
+ "notes": "Java never sets inGround during flight (only readEntityFromNBT can), and the C throwable branch never sets it either, so the C in-ground branch killing at the first tick instead of ticksInGround==1200 is unreachable in practice. The 0.03F/1.5F constants match the Java defaults; subclasses EntityPotion and EntityExpBottle override the gravity in the same C branch. lane/idxentity: the open members were client presentation. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): throw-bow-s1.",
+ "path": "oracle/src/entity/projectile/EntityThrowable.java"
+}

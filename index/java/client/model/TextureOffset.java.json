@@ -1,0 +1,50 @@
+{
+ "path": "oracle/src/client/model/TextureOffset.java",
+ "classes": [
+  "TextureOffset"
+ ],
+ "lines": 17,
+ "side": "client",
+ "category": "client_model",
+ "role": "A texture atlas offset pair handed to ModelRenderer.setTextureOffset.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "box"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "out/java/render/mobs2b_iron_golem_f011"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "textureOffsetX",
+   "sig": "int",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact",
+   "note": "box()'s u argument"
+  },
+  {
+   "kind": "field",
+   "name": "textureOffsetY",
+   "sig": "int",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact",
+   "note": "box()'s v argument"
+  },
+  {
+   "kind": "ctor",
+   "name": "TextureOffset",
+   "sig": "(int,int)V",
+   "native": "csrc/engine/raster_mobs.c:box",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

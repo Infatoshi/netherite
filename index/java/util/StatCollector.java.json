@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/util/StatCollector.java",
+  "classes": ["StatCollector"],
+  "lines": 54,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The static facade over StringTranslate: translateToLocal and friends turn translation keys like 'container.inventory' into display strings.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "localizedName", "sig": "StringTranslate", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "fallbackTranslator", "sig": "StringTranslate", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "translateToLocal", "sig": "(String)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "translateToLocalFormatted", "sig": "(String,Object...)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "translateToFallback", "sig": "(String)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "canTranslate", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getLastTranslationUpdateTimeInMilliseconds", "sig": "()J", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The native HUD and GUI screens draw hard-coded English strings (for example \"Inventory\" in csrc/engine/raster_hud.c:1590); no translation table exists. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Translates keys to display strings (item and entity names, achievement text, chat); no game state reads the result, and native draws the en_US strings it needs directly (raster_hud.c)."
+}

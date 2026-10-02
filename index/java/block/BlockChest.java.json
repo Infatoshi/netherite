@@ -1,0 +1,291 @@
+{
+ "path": "oracle/src/block/BlockChest.java",
+ "classes": [
+  "BlockChest"
+ ],
+ "lines": 537,
+ "side": "common",
+ "category": "block",
+ "role": "The chest (and its trapped variant): a container block that pairs into double chests, faces its neighbours, opens a 27-slot window on use, and spills its contents when broken.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/world.c",
+   "symbols": [
+    "chest_facing",
+    "chest_added_step"
+   ]
+  },
+  {
+   "file": "csrc/engine/dig.c",
+   "symbols": [
+    "container_drops"
+   ]
+  },
+  {
+   "file": "csrc/engine/activate.c",
+   "symbols": [
+    "act_run",
+    "chest_inventory",
+    "ocelot_on_chest"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "block_on_neighbor_changed"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "te_kind_of_block",
+    "TE_CHEST"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_set_chest"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "chest_occupied"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "render_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  },
+  {
+   "file": "csrc/engine/spill.c",
+   "symbols": [
+    "container_spill",
+    "block_rand",
+    "block_rand_index"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/cov-chest-s1",
+  "out/java/snapshots/te-chest-s1",
+  "out/java/snapshots/rc-blocks-s1",
+  "out/java/dig/r2",
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_activate.c",
+  "out/java/render/gui_chest",
+  "out/java/render/gui_double_chest",
+  "out/java/raypick/rp-1",
+  "csrc/tests/test_raypick.c",
+  "out/java/snapshots/chest-break-s1",
+  "out/java/snapshots/spill-boom-s1",
+  "out/java/snapshots/chest-chain-s1",
+  "out/java/snapshots/item-tags-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockChest",
+   "sig": "(I)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "The trapped flag separates entries 54 (BlockChest) and 146 (BlockChest, trapped); tileentity.h:46 carries BLK_TRAPPED_CHEST."
+  },
+  {
+   "kind": "field",
+   "name": "field_149956_a",
+   "sig": "int (trapped flag)",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "Two registry entries carry the two kinds."
+  },
+  {
+   "kind": "field",
+   "name": "field_149955_b",
+   "sig": "Random (break spill)",
+   "native": "csrc/engine/spill.c:block_rand",
+   "status": "exact",
+   "note": "One Random per Block singleton (chest, trapped chest: block_rand[BR_CHEST], [BR_TRAPPED_CHEST]); Snapshot writes both states and a cached Gaussian into det.nbt's chest list (BlockRands.java), serverreplay_load sets them, a --from run restores them from the checkpoint's pre/det.nbt, and the born states are the default. The dig probe still hands its own state over (dig_env.chest)."
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "false."
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "22: the dispatch (render_blocks.c:3131) draws nothing, a tile entity renderer does."
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/world.c:chest_added_step",
+   "status": "exact",
+   "note": "world.c:1153; world.c:1273 routes the write to it."
+  },
+  {
+   "kind": "method",
+   "name": "onBlockPlacedBy",
+   "sig": "(World,IIIIEntityLivingBaseItemStack)V",
+   "native": "csrc/engine/world.c:chest_facing",
+   "status": "exact",
+   "note": "The facing from yaw (func_149954_e's neighbour walk). The display-name transfer needs a named chest stack, which only an anvil makes: world.conf anvil = off: the rename and repair GUI never opens."
+  },
+  {
+   "kind": "method",
+   "name": "func_149954_e",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/world.c:chest_facing",
+   "status": "exact",
+   "note": "world.c:1101; the isOpaqueCube test at world.c:89."
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/place.c:place_try",
+   "status": "exact",
+   "note": "place.c:874 routes the chest classes through the adjacency test."
+  },
+  {
+   "kind": "method",
+   "name": "func_149952_n",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/place.c:chest_occupied",
+   "status": "exact",
+   "note": "place.c:359."
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+   "status": "exact",
+   "note": "The updateContainingBlockInfo invalidate, blockcb.c:2183."
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": "csrc/engine/spill.c:container_spill",
+   "status": "exact",
+   "note": "Three position floats per stack, nextInt(21)+10 splits, the EntityItem boilerplate and three Gaussians per split from the block's own Random, pickup delay 0. The dig spills before its write (dig.c:container_drops); every other write runs it from blockcb.c:bwl_on_broken where a sink is installed (explosions: explosion.c:expl_env_item_spill). chest-break-s1 (chest and trapped chest), spill-boom-s1 (TNT), chest-chain-s1 (across a checkpoint)."
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIIIIIIFFF)Z",
+   "native": "csrc/engine/activate.c:act_run",
+   "status": "exact",
+   "note": "The ocelot check, the double-chest scan, the open; the live path goes through act_live_block (survival.c:3106)."
+  },
+  {
+   "kind": "method",
+   "name": "func_149951_m",
+   "sig": "(World,III)boolean",
+   "native": "csrc/engine/activate.c:chest_inventory",
+   "status": "exact",
+   "note": "activate.c:389, the same-kind double scan (chest_inventory)."
+  },
+  {
+   "kind": "method",
+   "name": "createNewTileEntity",
+   "sig": "(World,I)TileEntity",
+   "native": "csrc/engine/tileentity.c:te_kind_of_block",
+   "status": "exact",
+   "note": "TE_CHEST with 27 slots (tileentity.c:318's arr path)."
+  },
+  {
+   "kind": "method",
+   "name": "canProvidePower",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "The trapped chest powers only redstone: world.conf redstone = off."
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingWeakPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "world.conf redstone = off."
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingStrongPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "world.conf redstone = off."
+  },
+  {
+   "kind": "method",
+   "name": "func_149953_o",
+   "sig": "(World,IIII)boolean",
+   "native": "csrc/engine/activate.c:ocelot_on_chest",
+   "status": "exact",
+   "note": "The ocelot check, activate.c:383 (the region holds no ocelots, so the machine answers from state)."
+  },
+  {
+   "kind": "method",
+   "name": "hasComparatorInputOverride",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "world.conf redstone = off."
+  },
+  {
+   "kind": "method",
+   "name": "getComparatorInputOverride",
+   "sig": "(World,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "world.conf redstone = off."
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Atlas naming only."
+  }
+ ],
+ "missing": [],
+ "notes": "The container machinery (container.c) and the GUI renders (out/java/render/gui_chest, gui_double_chest) carry the window. te-chest-s1 is the whole-server replay with a chest open. dig.c:613 notes the creative-only half handling. lane/idxblocks: the power and comparator members are the redstone switch, the naming the anvil switch."
+}

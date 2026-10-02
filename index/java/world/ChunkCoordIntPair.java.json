@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/world/ChunkCoordIntPair.java",
+  "classes": ["ChunkCoordIntPair"],
+  "lines": 69,
+  "side": "common",
+  "category": "chunk",
+  "role": "An immutable chunk (x, z) pair: the long key chunkXZ2Int every chunk map uses and the LCG hashCode that orders the spawner's eligible-chunk HashMap.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.c", "symbols": ["chunk_key"]},
+    {"file": "csrc/engine/jorder.h", "symbols": ["jord_ccp_hash"]},
+    {"file": "csrc/engine/jorder.c", "symbols": ["jord_ccp_window"]},
+    {"file": "csrc/engine/jhashmap.h", "symbols": ["jhm64_put", "jhm64_order"]}
+  ],
+  "evidence": ["csrc/tests/test_spawning.c", "csrc/tests/test_structures.c", "out/java/snapshots/mobspawn-final-s1"],
+  "members": [
+    {"kind": "field", "name": "chunkXPos", "sig": "int", "native": "csrc/engine/world.h:cx", "status": "exact"},
+    {"kind": "field", "name": "chunkZPos", "sig": "int", "native": "csrc/engine/world.h:cz", "status": "exact"},
+    {"kind": "ctor", "name": "ChunkCoordIntPair", "sig": "(int,int)", "native": null, "status": "n/a", "note": "plain (cx, cz) ints in C"},
+    {"kind": "method", "name": "chunkXZ2Int", "sig": "(int,int)J", "native": "csrc/engine/world.c:chunk_key", "status": "exact"},
+    {"kind": "method", "name": "hashCode", "sig": "()I", "native": "csrc/engine/jorder.h:jord_ccp_hash", "status": "exact", "note": "one copy: jord_ccp_window orders the spawner's eligible set and the active chunk set with it"},
+    {"kind": "method", "name": "equals", "sig": "(Object)Z", "native": null, "status": "n/a", "note": "inline cx/cz compares in the C maps"},
+    {"kind": "method", "name": "getCenterXPos", "sig": "()I", "native": null, "status": "missing", "note": "not found by name; callers may inline (cx << 4) + 8"},
+    {"kind": "method", "name": "getCenterZPosition", "sig": "()I", "native": null, "status": "missing", "note": "not found by name; callers may inline (cz << 4) + 8"},
+    {"kind": "method", "name": "func_151349_a", "sig": "(int)ChunkPosition", "native": null, "status": "missing", "note": "used by MapGenStructure / stronghold lookups; not found by name"},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The center helpers are trivial and likely inlined at their call sites; I did not trace every caller. jord_ccp_hash (jorder.h) is the one copy of hashCode."
+}

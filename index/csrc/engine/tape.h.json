@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/tape.h",
+ "lines": 102,
+ "role": "Declares the JSON value tree, the line reader and the tape row loop (tape.c) that every replay, test and dev tool uses to read oracle tapes and snapshots.",
+ "layer": "io",
+ "java": [],
+ "structs": [
+  {"name": "struct jval", "java": null, "fields": ["kind", "raw", "rawlen", "str", "num", "dbl", "has_num", "has_dbl", "boolean", "fields", "nfields", "items", "nitems", "owned"]},
+  {"name": "struct jfield", "java": null, "fields": ["key", "val"]},
+  {"name": "struct lines", "java": null, "fields": ["f", "g", "z", "buf", "cap", "len", "pos", "eof", "failed"]},
+  {"name": "struct tape", "java": "the oracle tape: header line then one row per tick", "fields": ["in", "header", "hdr", "row", "next_t", "failed"]},
+  {"name": "J_NULL..J_OBJ enum", "java": null, "fields": []}
+ ],
+ "entry_points": ["json_parse", "json_free", "json_get", "json_at", "json_len", "json_str", "json_int", "json_double", "json_float", "json_raw", "lines_init", "lines_file", "lines_gz", "lines_next", "lines_free", "tape_open", "tape_next", "tape_close", "lines_gunzip"],
+ "tick_path": false,
+ "gpu": [
+  "line 36-38, struct jval: fields and items are heap pointer arrays (a pointer tree), host-side only"
+ ],
+ "tests": ["csrc/tests/test_snapshots.c", "csrc/tests/test_chunkload.c", "csrc/tests/test_clientworld.c", "csrc/tests/test_servertick.c", "csrc/tests/test_seedworld.c", "csrc/tests/test_renderstate.c", "csrc/tests/test_fortress_spawn.c"],
+ "notes": "Header only. Nine test files include it directly."
+}

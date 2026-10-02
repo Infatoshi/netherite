@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/util/ResourceLocation.java",
+  "classes": ["ResourceLocation"],
+  "lines": 83,
+  "side": "common",
+  "category": "util",
+  "role": "A 'domain:path' name for an asset or a registry entry. In play the only values that matter are the 'minecraft:...' registry names of blocks and items.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": ["csrc/tests/test_registry.c"],
+  "members": [
+    {"kind": "field", "name": "resourceDomain", "sig": "String", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "the native tables store the whole 'minecraft:stone' string, domain and path together"},
+    {"kind": "field", "name": "resourcePath", "sig": "String", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial"},
+    {"kind": "ctor", "name": "ResourceLocation", "sig": "(String,String)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ResourceLocation", "sig": "(String)V", "native": null, "status": "n/a", "note": "the 'domain:path' split is baked into the generated names"},
+    {"kind": "method", "name": "getResourcePath", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResourceDomain", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "equals", "sig": "(Object)Z", "native": null, "status": "n/a", "note": "name comparison in C is strcmp on the full string"},
+    {"kind": "method", "name": "hashCode", "sig": "()I", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Texture atlas entries in the renderer are looked up by plain names (for example 'destroy_stage_0' in raster_overlay.c), not by ResourceLocation. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): runtime registry replaced by the generated blocks.h/items.h tables; nothing registers at runtime. Formerly listed as missing: No ResourceLocation type: registry names are plain 'minecraft:...' strings in the generated tables; the asset-loading side (textures, sounds, lang) is not part of the native engine."
+}

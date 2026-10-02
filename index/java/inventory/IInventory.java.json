@@ -1,0 +1,157 @@
+{
+ "classes": [
+  "IInventory"
+ ],
+ "lines": 68,
+ "side": "common",
+ "category": "inventory",
+ "role": "The inventory interface every GUI inventory, tile entity inventory and the player's inventory implements: size, get/set/decr, the stack limit, the change notification and useability.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "inv",
+    "container_slot",
+    "container_init"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "inv_set",
+    "inv_decr",
+    "inv_take",
+    "slot_put",
+    "slot_valid"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "TE_CHEST",
+    "TE_FURNACE",
+    "TE_DISPENSER",
+    "TE_HOPPER"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_can_interact"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/containers",
+  "out/java/snapshots/te-chest-s1",
+  "out/java/snapshots/te-furnace-s1",
+  "out/java/snapshots/containers2-s42"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "getSizeInventory",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact",
+   "note": "struct inv's size field"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlot",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.h:container_slot",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(II)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_decr",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlotOnClosing",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_take",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setInventorySlotContents",
+   "sig": "(ILnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact",
+   "note": "including the chest/furnace count clamp against the limit"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "client display strings"
+  },
+  {
+   "kind": "method",
+   "name": "isInventoryNameLocalized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact",
+   "note": "struct inv's limit field"
+  },
+  {
+   "kind": "method",
+   "name": "onInventoryChanged",
+   "sig": "()V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact",
+   "note": "Each implementation's side effects where vanilla has them (the crafting grid recompute, the merchant's recipe reset, a tile entity's markDirty with no state beyond the save); InventoryBasic's listener list serves only horses (world.conf horses = off)."
+  },
+  {
+   "kind": "method",
+   "name": "isUseableByPlayer",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "every block-backed inventory's test (same tile, within 8) in gui_can_interact"
+  },
+  {
+   "kind": "method",
+   "name": "openInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "most bodies are empty; the GUI opens live in survival.c's block-activation paths"
+  },
+  {
+   "kind": "method",
+   "name": "closeInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValidForSlot",
+   "sig": "(ILnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/container.c:slot_valid",
+   "status": "exact",
+   "note": "for the four ported slot kinds; the tile-entity inventories' answers are not individually verified"
+  }
+ ],
+ "missing": [],
+ "notes": "The tile entity inventories (chest, furnace, dispenser, hopper, ender chest) mirror the same interface with their own slot arrays in tileentity.c; the container-side port is struct inv. lane/idxblocks: the window titles are client GUI text, drawn by the screen renderer from the window kind (the gui_chest goldens), so the name members stay n/a.",
+ "path": "oracle/src/inventory/IInventory.java"
+}

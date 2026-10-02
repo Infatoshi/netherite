@@ -1,0 +1,87 @@
+{
+ "path": "oracle/src/enchantment/EnchantmentUntouching.java",
+ "classes": [
+  "EnchantmentUntouching"
+ ],
+ "lines": 52,
+ "side": "server",
+ "category": "combat",
+ "role": "The Silk Touch enchantment (effect 33, digger): registry row, its fortune conflict, and the shears special case in canApply.",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), but the enchantment registry itself is kept: loot books and mob equipment carry enchantments (DEVLOG 2026-09-25, 'Kept: enchantment data and effects').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "ENCHANTS",
+    "CAN_APPLY_TOGETHER"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "can_apply_together",
+    "can_enchant_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_loot.c",
+  "out/java/loot/seed2",
+  "csrc/tests/test_trades.c",
+  "out/java/trades/seed2"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EnchantmentUntouching",
+   "sig": "(int,int)V",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "setName('untouching') is the row's name field"
+  },
+  {
+   "kind": "method",
+   "name": "getMinEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row min_enchantability {15}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_enchantability {61}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxLevel",
+   "sig": "()I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_level 1"
+  },
+  {
+   "kind": "method",
+   "name": "canApplyTogether",
+   "sig": "(Enchantment)Z",
+   "native": "csrc/engine/enchant.c:can_apply_together",
+   "status": "exact",
+   "note": "silkTouch refuses fortune (bit table)"
+  },
+  {
+   "kind": "method",
+   "name": "canApply",
+   "sig": "(ItemStack)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the shears special case: items.h lists shears (id 359) as ITEM_PLAIN, so can_enchant_item(E_DIGGER, shears) is false and the override is absent; unreachable from the ported enchantment rolls; not a gap (triage 2026-09-25)"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): canApply(shears) only gates enchanting-table rolls (off). Formerly listed as missing: canApply(shears) is not ported; it only matters if an enchantment roll can target shears, which none can while the enchanting table is a plain block."
+}

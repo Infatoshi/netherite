@@ -1,0 +1,46 @@
+{
+ "path": "csrc/engine/collide.h",
+ "lines": 52,
+ "role": "Declares per-block collision boxes: Block.addCollisionBoxesToList, getCollisionBoundingBoxFromPool and onEntityCollidedWithBlock effects, with a fixed-capacity box list.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "addCollisionBoxesToList",
+    "getCollisionBoundingBoxFromPool",
+    "onEntityCollidedWithBlock",
+    "setBlockBoundsBasedOnState"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getCollidingBoundingBoxes",
+    "collidingBoundingBoxes"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "collide_list",
+   "java": "World.collidingBoundingBoxes",
+   "fields": [
+    "box",
+    "n"
+   ]
+  }
+ ],
+ "entry_points": [
+  "collide_list_clear",
+  "collide_add_boxes",
+  "collide_entity_effect",
+  "collide_pool_box"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_move.c"
+ ],
+ "notes": "COLLIDE_MAX_BOXES 512 in the list itself, then a slab block that doubles."
+}

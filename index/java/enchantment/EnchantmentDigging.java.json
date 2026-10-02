@@ -1,0 +1,74 @@
+{
+  "path": "oracle/src/enchantment/EnchantmentDigging.java",
+  "classes": [
+    "EnchantmentDigging"
+  ],
+  "lines": 44,
+  "side": "common",
+  "category": "item",
+  "role": "The efficiency enchantment: its metadata row plus the canApply special case for shears.",
+  "scope": "in_scope",
+  "scope_reason": "Enchantments reach the world through loot books and villager trades even with the enchanting table off (world.conf enchanting = off); the efficiency level's dig-speed bonus is live in the dig probe.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/enchants.h",
+      "symbols": [
+        "ENCHANTS"
+      ]
+    },
+    {
+      "file": "csrc/engine/harvest.c",
+      "symbols": [
+        "held_enchant"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_dig.c",
+    "csrc/tests/test_harvest.c",
+    "out/java/dig/r2",
+    "out/java/harvest/seed2"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "EnchantmentDigging",
+      "sig": "(II)V",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact",
+      "note": "row 32: weight 10, digger, min 1+10*(l-1), max +50, level 5"
+    },
+    {
+      "kind": "method",
+      "name": "getMinEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxEnchantability",
+      "sig": "(I)I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMaxLevel",
+      "sig": "()I",
+      "native": "csrc/engine/enchants.h:ENCHANTS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "canApply",
+      "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "the shears branch is not in enchant.c:can_enchant_item; canApply is only called by the switched-off enchanting table and anvil, and shears are neither traded nor looted enchanted"
+    }
+  ],
+  "missing": [],
+  "notes": "The level's effect (the eff*eff+1 dig-speed bonus, ItemTool.getStrVsBlock via EnchantmentHelper.getEfficiencyModifier) is applied in csrc/engine/harvest.c from the held_enchant the dig case carries (csrc/engine/dig.c sets hp.held_enchant from the case's eff)."
+}

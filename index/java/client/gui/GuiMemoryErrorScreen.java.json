@@ -1,0 +1,47 @@
+{
+ "path": "oracle/src/client/gui/GuiMemoryErrorScreen.java",
+ "classes": [
+  "GuiMemoryErrorScreen"
+ ],
+ "lines": 53,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The out-of-memory screen shown when the JVM cannot allocate, with the Back to menu and Quit buttons.",
+ "scope": "not_needed",
+ "scope_reason": "A JVM out-of-memory recovery screen; never reached in this game.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "method",
+   "name": "initGui",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "actionPerformed",
+   "sig": "(GuiButton)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "keyTyped",
+   "sig": "(char,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

@@ -1,0 +1,63 @@
+# The writable globals the tick may keep (tests/globals.sh). One line each:
+# FILE:SYMBOL (extended regexes over the object's base name and the symbol)
+# then the reason. Everything else the tick mutates lives in struct env
+# (engine/env.h), a world, or the replay's per-dimension states.
+#
+# The environment itself
+env:env_first                     the process's first environment, the storage every single-world tool ticks in
+env:nw_env                        the current environment (thread-local): a harness points it at the one it ticks
+env:nw_thread_scratch             the thread's own scratch (thread-local): a pool worker's, empty between calls (env.h struct env_scratch)
+#
+# Tables built once before main by a constructor and only read after, the
+# same for every environment
+activate:ids                      block, item and material ids by registry name
+dig:ids                           block and item ids by registry name
+harvest:ids                       block ids by registry name
+harvestdrops:ids                  block and item ids by registry name
+drops:(ITEM|BLOCK_ITEM)           Item.getItemFromBlock and the drop names' item ids
+container:wood_index              Material.wood's index
+decorator:leaves_i                Material.leaves' index
+features_lakes:MAT_(AIR|LEAVES|LAVA|WATER)   material indices
+features_nether:MAT_AIR           Material.air's index
+features_springs:MAT_(AIR|LAVA|PORTAL|WATER) material indices
+features_springs:SP_CLASS          func_149807_p and the liquid materials by id
+fire:fire_air                     Material.air's index
+pathfind:pf_mat_(air|lava)        material indices
+populate_nether:MAT_LEAVES        Material.leaves' index
+populate:PRECIP_STOP              the precipitation walk's stops by id
+world:COLUMN_EMIT                 light sources by an id's low byte (func_150811_f's walk)
+servertick:st_air_index           Material.air's index
+ticks:mat_air                     Material.air's index
+world:air_material_index          Material.air's index
+world:TICK_RANDOMLY               Block.getTickRandomly by id
+world:SET_PLAIN                   the blocks whose breakBlock and onBlockAdded are empty, by id
+blockcb:bc_(mat_air|mat_water|mat_lava|mat_leaves)   material indices
+blockcb:bc_rail                   the rail classes by block id
+blockcb:bc_cls                    the classes the callbacks test, a bit each, by block id
+(features_plants|features_trees_small|randomtick):MATI_(AIR|LEAVES|WATER)   material indices
+features_lakes:TEMP_NOISE         BiomeGenBase's temperature Perlin noise, Random(1234)
+particles_live:temp_noise         BiomeGenBase's temperature Perlin noise, Random(1234)
+randomtick:flower_noise           BiomeGenBase.field_150606_ad, Random(2345)
+randomtick:rt_diffuse             Block.field_149783_u (rt_light_diffuse) by block id
+jmath:MH_SIN                      MathHelper.SIN_TABLE
+living:(nether_)?light_brightness_table   WorldProvider.lightBrightnessTable, both providers
+pathfind:pf_move_class            the path finder's block classes
+spawning:(lists|jungle_creature|swamp_monster|mush_creature|empty_list|scattered_witch)   the biomes' spawn lists
+gunzip:fixed_(lit|dist)           DEFLATE's fixed Huffman tables
+gunzip:crc_fold_ok                the CPU's carry-less multiply support
+sha1:blocks                       the SHA-1 block function the CPU supports
+snapshot:pow_(lo|hi)              FNV-1a prime powers for the chunk hash
+#
+# Caches of pure functions, shared by every environment: a hit returns what a
+# miss computes, whichever environment filled it. Not thread-safe; one thread
+# per environment would need them per environment or locked.
+[a-z_0-9]+:nbt_put_site_\.[0-9]+  nbt_put's per call site key: the literal's interned key (nbtjson.h)
+[a-z_0-9]+:nbtw_site_\.[0-9]+  nbtw.h's per call site key, the same (NBTW_K)
+living:attr_name_site  each attribute name's interned key, the same (living.c attr_instance_w)
+nbtjson:key_(table|cap|count|cache|lock)   the interned keys and short strings: content-addressed, append-only, never freed; a miss takes the lock
+itemtab:tabs(_lock)?                the HUD's item tables by scene (the renderer's, never the tick's): append-only, never freed; a miss takes the lock
+rbshare:shares(_lock)?              the block renderer's tables by asset directory (the renderer's, never the tick's): append-only, never freed; a miss takes the lock
+#
+# Harness machinery, not game state
+grave:.*                          the dead-living reclaimer (grave.h): a conservative scan of the process between rows
+arena:live_arenas                 the arenas alive in the process, written when an environment is made or freed (the grave's scan reads their pools)

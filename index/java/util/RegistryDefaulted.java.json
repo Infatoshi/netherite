@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/util/RegistryDefaulted.java",
+  "classes": ["RegistryDefaulted"],
+  "lines": 21,
+  "side": "common",
+  "category": "util",
+  "role": "A RegistrySimple that returns a fixed default object when a key is missing. Its only user is BlockDispenser.dispenseBehaviorRegistry, whose default is BehaviorDefaultDispenseItem.",
+  "scope": "not_needed",
+  "scope_reason": "The dispenser behavior registry is only consulted when a dispenser fires, and dispensers need redstone power, which world.conf switches off (redstone = off, no block ever receives power); the native tile entity keeps the dispenser's slots but nothing dispenses.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "defaultObject", "sig": "Object", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "RegistryDefaulted", "sig": "(Object)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getObject", "sig": "(Object)Object", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Unreachable in this game: BlockDispenser.dispense runs only from TileEntityDispenser's powered dispense, and no block is ever powered."
+}

@@ -1,0 +1,152 @@
+{
+ "path": "oracle/src/client/audio/PositionedSound.java",
+ "classes": [
+  "PositionedSound"
+ ],
+ "lines": 68,
+ "side": "client",
+ "category": "client_audio",
+ "role": "Abstract ISound implementation holding the sound location, volume, pitch, position, repeat settings and attenuation.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_147664_a",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147662_b",
+   "sig": "float volume",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147663_c",
+   "sig": "float pitch",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147660_d",
+   "sig": "float x",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147661_e",
+   "sig": "float y",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147658_f",
+   "sig": "float z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147659_g",
+   "sig": "boolean repeat",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147665_h",
+   "sig": "int repeat delay",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147666_i",
+   "sig": "AttenuationType",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "PositionedSound",
+   "sig": "(ResourceLocation)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147650_b",
+   "sig": "()ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147657_c",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147652_d",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147653_e",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147655_f",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147649_g",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147654_h",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147651_i",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147656_j",
+   "sig": "()AttenuationType",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Plain value holder."
+}

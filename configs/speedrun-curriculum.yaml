@@ -1,0 +1,119 @@
+# One RL run with the curriculum of saved starts (lane/savestart): GRPO groups
+# start from their seed's fresh start or from a state an earlier episode of the
+# run reached when it first held a milestone (mcsr-speedrun mcsr/rl/curriculum.py:
+# pipeline.h pipe_start_from_env through the binding's nwrl_start_save). Seeds
+# 1 to 17 (lane/seedgen's starts, configs/speedrun-sN.yaml), one Env a seed
+# dealt over sim cards 1 and 2, 8 worlds a seed in one group; the policy (and
+# its learner) on card 1, from the overnight run (bigA); the full objective,
+# 180-second episodes. The smoke:
+#   NETHERITE=~/dev/netherite-v2 uv run python scripts/nw_grpo_async.py --loop fast \
+#       --run ~/dev/netherite-v2/configs/speedrun-curriculum.yaml
+# (a flag overrides its key; the resolved file goes to the run's out dir).
+
+sim:
+  world:
+    seed: 1
+    difficulty: normal       # hostiles spawn: blazes and endermen exist
+    render_distance: 4       # 64-block overworld fog (lane/headline)
+    daylight_cycle: on
+    keep_inventory: off
+    villages: on
+    horses: off
+    wolves: off
+    ocelots: off
+    built_golems: off
+    wither: off
+    minecarts: off
+    boats: off
+    redstone: off
+    enchanting: off
+    anvil: off
+    brewing: off
+    beacon: off
+    maps: off
+    fishing: off
+    fireworks: off
+    book_editing: off
+    sign_editing: off
+
+  client:
+    graphics: fast
+    particles: minimal
+    observation: 256x144     # the policy's frame (mcsr-speedrun SPEC.md: 256x144 at 20 fps)
+    ticks_per_step: 1        # the policy's 20 Hz; 4 is the headline's frame skip
+    hud: on                  # the training footage has it (rlsplit-hudframe fixed)
+    gamma: 1.0               # the 1.16 training renders' brightness (lane/versionprior: netherite at 0.0 is darker)
+
+  engine:
+    device_mesh: 1
+    device_generation: off
+    device_light: off
+
+  # seed 1's fresh world under this file (oracle/tests/speedrun-s1.jsonl)
+  pipeline:
+    kind: speedrun
+    start: out/java/snapshots/sr-speedrun-s1
+    worlds: 136            # 8 a seed (policy.curriculum.seeds), the seeds dealt over the sim cards
+    groups: 1              # with policy.curriculum.seeds: the groups of each seed's Env (one of 8 here)
+    cards: 1,2             # the sim cards
+    episode_seconds: 180
+
+  actions:                 # the engine-side action compiler (lanes guiact, moveact)
+    click_interval: 1
+    mask_close_grid: off
+    mask_noop_clicks: off
+    move_stack: off
+    item_select: off
+    recipes: off
+    hold_attack: off
+    look_target: off
+    look_ticks: 3
+
+policy:
+  model:
+    ckpt: data/nw_grpo/bigA/policy.pt   # the overnight run's (paths in policy: under the mcsr-speedrun checkout)
+    edits: version
+    mode: graph
+    compile: default
+    resume: none           # a run's out dir to continue (nw_grpo_async --resume: its policy.pt, optimizer, iteration)
+  placement:
+    cards: 1               # the policy card
+    learner: shared        # the policy card learns too
+  action:
+    gui: macro
+    gui_head: none
+    gui_pointer: slot
+    gui_decide: every_tick
+    ops_per_step: 1
+    camera: mulaw41          # lane/moveact: target (the distilled camera head) 0.91 logs closed loop against 1.17
+    attack: press
+    act_every: 1             # lane/moveact: 4 kept the imitation policy's logs and moved it 70% farther, GRPO no better
+  grpo:
+    objective: full
+    iters: 2
+    lr: 3e-05
+    beta: 0.04
+    clip: 0.2
+    epochs: 2
+    mb: 64                 # 16 contends for the interpreter (rlasync: 16,619 against 18,745)
+    stale: 1               # the update on t beside rollout t + 1 (rlasync: the curve held)
+    max_hours: 1.0
+    seed: 1                # the overlapped rollout is always seeded
+  reward:                  # objective: the weight mcsr.rl.reward.OBJECTIVES[grpo.objective] gives the term
+    items: objective
+    logs: objective
+    chest: objective
+    progress: objective
+    ach: objective
+    death: objective
+    milestone: objective
+    looted: objective
+  out:
+    dir: data/nw_grpo/savestart-smoke
+  curriculum:              # mcsr-speedrun mcsr/runconf.py Curriculum (lane/savestart)
+    starts: pool           # fresh: every group from its seed's start (as before)
+    seeds: 1-17            # one Env a seed a sim card (configs/speedrun-sN.yaml)
+    fresh: 0.5             # a group's chance of its seed's fresh start
+    mix: uniform           # uniform over the milestones held | latest | name:weight,...
+    keep: 4                # starts kept per milestone and seed
+    max_starts: 32         # starts one seed holds at most

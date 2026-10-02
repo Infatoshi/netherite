@@ -1,0 +1,22 @@
+{
+ "path": "csrc/engine/det.h",
+ "lines": 185,
+ "role": "Declares the determinism layer det.c implements: the four roles (client, server, other, render), the Random stream struct with its Gaussian cache, the split-Random list node, the per-world det_state, and every seeder, Math.random, UUID, entity-id, split and digest entry point.",
+ "layer": "util",
+ "java": [
+  {"path": "oracle/harness/netherite/oracle/Det.java", "members": ["role", "reset", "mix", "newRandom", "mathRandom", "uuid", "nextEntityId", "splitRandom", "state", "seederState", "mathState", "splitState"]}
+ ],
+ "structs": [
+  {"name": "det_rng", "java": "java.util.Random (seed plus haveNextNextGaussian/nextNextGaussian)", "fields": ["r", "have_next_next_gaussian", "next_next_gaussian"]},
+  {"name": "det_split", "java": "Det.SplitRandom (one Random per role, seeded by name)", "fields": ["name", "d", "used", "next"]},
+  {"name": "det_state", "java": "Det's statics: seeder[], math[], the per-role entity id counters, splits, plus the engine's current role replacing Java's thread identity", "fields": ["world_seed", "seeder", "math", "next_id", "splits", "role"]}
+ ],
+ "entry_points": ["det_init", "det_free", "det_set_role", "det_role", "det_reset", "det_mix", "det_name_hash", "det_rng_set_seed", "det_rng_state", "det_rng_next", "det_rng_int", "det_rng_int_n", "det_rng_long", "det_rng_double", "det_rng_float", "det_rng_bool", "det_rng_gaussian", "det_log", "det_sqrt", "det_seeder_next_long", "det_new_random", "det_new_random_role", "det_math_random", "det_math_random_role", "det_uuid", "det_uuid_role", "det_next_entity_id", "det_next_entity_id_role", "det_split_random", "det_split_find", "det_split_index", "det_split_reseed", "det_split_next", "det_split_int", "det_split_int_n", "det_split_long", "det_split_double", "det_split_float", "det_split_bool", "det_split_gaussian", "det_split_set_seed", "det_seeder_state", "det_math_state", "det_split_state", "det_load", "det_split_add", "det_pin_seed", "det_pin_init", "det_pin_at"],
+ "tick_path": true,
+ "gpu": [
+  "line 59-64, struct det_split: linked-list node (next pointer) with a 128-byte name; splits form a pointer graph owned by det_state",
+  "line 71, struct det_state: splits is a list head pointer, not a fixed-capacity array"
+ ],
+ "tests": ["csrc/tests/test_det.c"],
+ "notes": "The role enum is DET_CLIENT=0, DET_SERVER=1, DET_OTHER=2, DET_RENDER=3. The *_role forms exist because the native engine is single-threaded and must name the role Java infers from the calling thread."
+}

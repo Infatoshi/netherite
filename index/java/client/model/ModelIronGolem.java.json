@@ -1,0 +1,124 @@
+{
+ "path": "oracle/src/client/model/ModelIronGolem.java",
+ "classes": [
+  "ModelIronGolem"
+ ],
+ "lines": 129,
+ "side": "client",
+ "category": "client_model",
+ "role": "The iron golem's model: head, body, arms and legs, with the arm hold driven by the attack timer.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_iron_golem",
+    "golem_triangle",
+    "pose_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/clientframes/cov-zoo-s1",
+  "out/java/render/mobs2b_iron_golem_f006",
+  "out/java/render/mobs2b_iron_golem_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "ironGolemHead",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "ironGolemBody",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "ironGolemRightArm",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "ironGolemLeftArm",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "ironGolemLeftLeg",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "ironGolemRightLeg",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelIronGolem",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelIronGolem",
+   "sig": "(float)V",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelIronGolem",
+   "sig": "(float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact",
+   "note": "leg swing inside model_iron_golem"
+  },
+  {
+   "kind": "method",
+   "name": "setLivingAnimations",
+   "sig": "(EntityLivingBase,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_iron_golem",
+   "status": "exact",
+   "note": "the arm hold reads mob_render_input.attack_progress"
+  },
+  {
+   "kind": "method",
+   "name": "func_78172_a",
+   "sig": "(float,float)F",
+   "native": "csrc/engine/raster_mobs.c:golem_triangle",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

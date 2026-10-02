@@ -1,0 +1,8 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":263,"y0":110,"z0":245,"x1":265,"y1":110,"z1":247,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":263,"y0":111,"z0":245,"x1":265,"y1":114,"z1":247,"id":0,"meta":0}
+{"n":5,"act":{}}
+{"cmd":"dev","op":"tp","x":264.5,"y":111.0,"z":246.5,"yaw":0.0,"pitch":0.0}
+{"n":80,"act":{}}

@@ -1,0 +1,10 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"death","bare":true}
+{"n":2,"act":{}}
+{"cmd":"run","class":"MobFree","radius":16}
+{"cmd":"run","class":"Snapshot"}
+{"n":80,"act":{}}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":8,"act":{"hold":["forward"]}}
+{"n":35,"act":{}}
+{"n":1,"act":{"gui":[["respawn"]]}}

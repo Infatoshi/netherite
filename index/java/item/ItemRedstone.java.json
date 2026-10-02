@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/item/ItemRedstone.java",
+  "classes": ["ItemRedstone"],
+  "lines": 76,
+  "side": "common",
+  "category": "item",
+  "role": "The redstone dust item (id 331): places redstone_wire on the clicked cell (with the plain six-side shift and a snow-layer special case).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_redstone_on_item_use"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c"],
+  "members": [
+    {"kind": "ctor", "name": "ItemRedstone", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 331, stack 64"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": "csrc/engine/place.c:item_redstone_on_item_use", "status": "exact", "note": "the six-side shift, the snow-layer cell reuse, the canPlaceBlockAt check and the setBlock; with redstone = off the wire never carries power, which the native handles by never running power updates"}
+  ],
+  "missing": [],
+  "notes": "Placement is in scope and ported; power propagation is the world switch, owned by the block side, not this item."
+}

@@ -1,0 +1,202 @@
+{
+  "path": "oracle/src/client/multiplayer/ChunkProviderClient.java",
+  "classes": [
+    "ChunkProviderClient"
+  ],
+  "lines": 174,
+  "side": "client",
+  "category": "chunk",
+  "role": "The client's chunk provider: an in-memory map of the chunks the server sent, an always-true chunkExists, and a blank EmptyChunk for anything missing.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/clientworld.c",
+      "symbols": [
+        "clientworld_init",
+        "clientworld_handle_packet",
+        "clientworld_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "serverreplay_sync_client",
+        "serverreplay_sync_client_chunks"
+      ]
+    },
+    {
+      "file": "csrc/engine/session.c",
+      "symbols": [
+        "session_client"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "chunk_recheck_gaps",
+        "world_client_set_block"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/clientworld/smoke-s1",
+    "out/java/clientworld/walk300-s1",
+    "csrc/tests/test_clientworld.c"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "ChunkProviderClient",
+      "sig": "(World)V",
+      "native": "csrc/engine/clientworld.c:clientworld_init",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "chunkExists",
+      "sig": "(int,int)Z",
+      "native": "csrc/engine/world.c:chunks_exist_box",
+      "status": "exact",
+      "note": "vanilla's answer is always true; the client world (is_remote) answers true to the light engine's guards (chunks_exist_box), and its own chunk table holds what the client was sent"
+    },
+    {
+      "kind": "method",
+      "name": "unloadChunk",
+      "sig": "(int,int)V",
+      "native": "csrc/engine/serverreplay.c:serverreplay_sync_client_chunks",
+      "status": "exact",
+      "note": "the 'u' entries free the client's copy (serverreplay.h) and play.c's rw_on_chunk clears the render copy"
+    },
+    {
+      "kind": "method",
+      "name": "loadChunk",
+      "sig": "(int,int)Chunk",
+      "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+      "status": "exact",
+      "note": "the S26 copy into the client world runs in serverreplay_sync_client"
+    },
+    {
+      "kind": "method",
+      "name": "provideChunk",
+      "sig": "(int,int)Chunk",
+      "native": null,
+      "status": "n/a",
+      "note": "the blank-chunk fallback is folded into the native world's chunk lookup; a missing client chunk reads as air"
+    },
+    {
+      "kind": "method",
+      "name": "saveChunks",
+      "sig": "(boolean,IProgressUpdate)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla always returns true; the client never saves"
+    },
+    {
+      "kind": "method",
+      "name": "saveExtraData",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla no-op"
+    },
+    {
+      "kind": "method",
+      "name": "unloadQueuedChunks",
+      "sig": "()Z",
+      "native": "csrc/engine/session.c:session_client",
+      "status": "exact",
+      "note": "func_150804_b(false) over chunkListing (the world's load order) after the client tick: recheckGaps(isRemote) where the world has sky, one flagged column a chunk a tick (chunk_recheck_gaps); func_150809_p never runs (a received chunk is light-populated). Its relight feeds no row (recs 290/290 unchanged) and the falling blocks' brightness in idx-hudfx-s1"
+    },
+    {
+      "kind": "method",
+      "name": "canSave",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla returns false"
+    },
+    {
+      "kind": "method",
+      "name": "populate",
+      "sig": "(IChunkProvider,int,int)V",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla no-op"
+    },
+    {
+      "kind": "method",
+      "name": "makeString",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "debug string"
+    },
+    {
+      "kind": "method",
+      "name": "getPossibleCreatures",
+      "sig": "(EnumCreatureType,int,int,int)Ljava/util/List;",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla returns null"
+    },
+    {
+      "kind": "method",
+      "name": "func_147416_a",
+      "sig": "(World,String,int,int,int)ChunkPosition",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla returns null"
+    },
+    {
+      "kind": "method",
+      "name": "getLoadedChunkCount",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "debug/profiling only"
+    },
+    {
+      "kind": "method",
+      "name": "recreateStructures",
+      "sig": "(int,int)V",
+      "native": null,
+      "status": "n/a",
+      "note": "vanilla no-op"
+    },
+    {
+      "kind": "field",
+      "name": "blankChunk",
+      "sig": "Chunk",
+      "native": null,
+      "status": "n/a",
+      "note": "the empty-chunk fallback is folded into the chunk lookup"
+    },
+    {
+      "kind": "field",
+      "name": "chunkMapping",
+      "sig": "LongHashMap",
+      "native": "csrc/engine/world.c:world_chunk",
+      "status": "exact",
+      "note": "the client world's chunk map (world_chunk), filled by serverreplay_sync_client_chunks"
+    },
+    {
+      "kind": "field",
+      "name": "chunkListing",
+      "sig": "List",
+      "native": null,
+      "status": "n/a",
+      "note": "never actually added to in vanilla"
+    },
+    {
+      "kind": "field",
+      "name": "worldObj",
+      "sig": "World",
+      "native": "csrc/engine/clientworld.c:clientworld_init",
+      "status": "exact",
+      "note": "the client world pointer"
+    }
+  ],
+  "missing": [],
+  "notes": "The whole-server replay's client world is play.c's CW struct world filled by serverreplay_sync_client; clientworld.c is the combat lane's WorldClient. Both port this provider's behavior. lane/idxclient: the client world relights its block packets (world_client_set_block) and rechecks its gaps each tick."
+}

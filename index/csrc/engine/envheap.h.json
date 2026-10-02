@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/envheap.h",
+ "lines": 29,
+ "role": "Included ahead of every source by the Makefile (-include): malloc, calloc, realloc, free and strdup become env_malloc and friends (image.c), so the engine allocates in the current environment's image heap while it is on; proc_malloc/proc_free are the C library's for memory every environment shares (nbtjson.c's interned keys). Includes no system header.",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "env_malloc",
+  "env_calloc",
+  "env_realloc",
+  "env_free_mem",
+  "env_strdup",
+  "proc_malloc",
+  "proc_calloc",
+  "proc_free"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_relocate.c"
+ ],
+ "notes": "lane/gpuimage."
+}

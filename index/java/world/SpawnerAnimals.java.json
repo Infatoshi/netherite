@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/world/SpawnerAnimals.java",
+  "classes": ["SpawnerAnimals"],
+  "lines": 283,
+  "side": "server",
+  "category": "world",
+  "role": "Natural mob spawning: each server tick findChunksForSpawning picks the 17x17 chunk set around every player, caps each creature type by count, and walks packs of up to four attempts per chunk; performWorldGenSpawning places the initial animal groups when a chunk is populated.",
+  "scope": "in_scope",
+  "scope_reason": "Vanilla spawning is core survival behavior. The world.conf switches horses, wolves and ocelots only change the biome spawn lists this file reads (SPEC 'Unsupported features are world switches'), not the algorithm.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/spawning.c", "symbols": ["find_chunks", "spawn_position", "pack_walk", "can_spawn_at_location", "count_entities", "cap_of", "spawn_random_creature", "spawner_tick", "spawner_world_gen", "spawner_init"]},
+    {"file": "csrc/engine/jorder.c", "symbols": ["jord_ccp_window"]},
+    {"file": "csrc/engine/spawning.h", "symbols": ["spawner_tick", "spawner_world_gen"]},
+    {"file": "csrc/engine/seedworld.c", "symbols": ["sw_spawning", "sw_can_spawn_at", "sw_creature", "sw_top_solid_or_liquid"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["spawner_world_gen"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/peaceful-s1",
+    "out/java/snapshots/diff-switch-s1",
+    "out/java/snapshots/mobspawn-final-s1",
+    "out/java/snapshots/mobspawn-final-s42",
+    "out/java/snapshots/mobspawn-fast-s1",
+    "csrc/tests/test_spawning.c",
+    "csrc/tests/test_seedworld.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "eligibleChunksForSpawning", "sig": "HashMap<ChunkCoordIntPair,Boolean>", "native": "csrc/engine/jorder.c:jord_ccp_window", "status": "exact", "note": "No map: the 289 keys in the order a JDK 8 HashMap with a 512-bin table iterates them after clear(), computed from the player's chunk (jorder.c jord_ccp_window: a counting sort by bin, or, when a bin reaches 9 and JDK 8 treeifies it, the HashMap's tree bins themselves; tests/order_test.c checks it against the old emulation and Java's own orders, tree-spawn-s1 against the oracle). The very first fill after a world starts grows the table from 16 in Java; that growth is not modelled (a snapshot's map has filled before)."},
+    {"kind": "method", "name": "func_151350_a", "sig": "(World,int,int)ChunkPosition", "native": "csrc/engine/spawning.c:spawn_position", "status": "exact", "note": "getChunkFromChunkCoords first (a load can reseed World.rand), then three World.rand draws."},
+    {"kind": "method", "name": "findChunksForSpawning", "sig": "(WorldServer,boolean,boolean,boolean)I", "native": "csrc/engine/spawning.c:find_chunks", "status": "exact", "note": "Driven per tick by spawner_tick; the pack loop is pack_walk; per-type caps are count_entities and cap_of. A spawned record takes its chunk list stamp at spawnEntityInWorld (rec_spawn), and serverreplay's adoption after the pass puts it back there (living.c an_chunk_restamp): a chunk load later in the pass stamps its entities after it (explore-long-s1 row 18906)."},
+    {"kind": "method", "name": "canCreatureTypeSpawnAtLocation", "sig": "(EnumCreatureType,World,int,int,int)Z", "native": "csrc/engine/spawning.c:can_spawn_at_location", "status": "exact", "note": "A second copy for the creature type at seed time is seedworld.c:sw_can_spawn_at."},
+    {"kind": "method", "name": "performWorldGenSpawning", "sig": "(World,BiomeGenBase,int,int,int,int,Random)V", "native": "csrc/engine/spawning.c:spawner_world_gen", "status": "exact", "note": "Also ported separately for the fresh-world build as seedworld.c:sw_spawning."}
+  ],
+  "missing": [],
+  "notes": "The spawned mobs are records (class, position, Det draws spent, onSpawnWithEgg equipment); the mob lanes tick them elsewhere. Two ports of performWorldGenSpawning exist (spawning.c for live population during replay, seedworld.c for the seed-world build); they are not shared code. getCanSpawnHere per mob type and onSpawnWithEgg also live in spawning.c (can_spawn_here, egg_on) but belong to the entity classes' records. Exactness is claimed from the mobspawn recordings named in DEVLOG; I did not run the replays."
+}

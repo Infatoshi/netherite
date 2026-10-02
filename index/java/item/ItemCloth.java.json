@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/item/ItemCloth.java",
+  "classes": ["ItemCloth"],
+  "lines": 42,
+  "side": "common",
+  "category": "item",
+  "role": "The ItemBlock of wool and every stained block: places with the damage unchanged (the colour metadata) and names per colour.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_block_on_item_use", "item_get_metadata"]},
+    {"file": "csrc/engine/crafting.c", "symbols": ["dye_fleece"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/cov-place-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemCloth", "sig": "(Block)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "wool, stained hardened clay, stained glass, stained glass panes and carpet are registered as ItemCloth in registerItems"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon (colour-mapped)"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "cov-place-s1 places it (wool, leaves, a piston, snow layers through ItemSnow's super path)"},
+    {"kind": "method", "name": "getUnlocalizedName(ItemStack)", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "client naming"}
+  ],
+  "missing": [],
+  "notes": "crafting.c's dye_fleece carries the dye-damage-to-fleece-colour map the wool dyeing recipes use."
+}

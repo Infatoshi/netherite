@@ -1,0 +1,36 @@
+{
+  "path": "csrc/engine/harvestdrops.c",
+  "lines": 833,
+  "role": "The player-dependent half of one survival block break over a 3x3x3 cell context: ItemInWorldManager.tryHarvestBlock's order (onBlockHarvested, setBlockToAir with breakBlock and neighbour notify, canHarvestBlock, the held item's onBlockDestroyed and damage, harvestBlock), the harvestBlock overrides (shears, silk touch, ice to water, snow layers), the mineBlock/useItem/breakItem stats and the 0.025 exhaustion. The per-block drop table is delegated to drops.c. Checked against the oracle's HarvestDropsProbe.",
+  "layer": "tick",
+  "java": [
+    {"path": "oracle/src/server/management/ItemInWorldManager.java", "members": ["tryHarvestBlock", "removeBlock"]},
+    {"path": "oracle/src/block/Block.java", "members": ["harvestBlock", "canSilkHarvest", "createStackedBlock", "dropBlockAsItem", "dropBlockAsItem_do", "breakBlock", "onBlockHarvested"]},
+    {"path": "oracle/src/block/BlockDoublePlant.java", "members": ["harvestBlock", "func_149886_b", "onBlockHarvested", "func_149855_e"]},
+    {"path": "oracle/src/block/BlockLeaves.java", "members": ["harvestBlock"]},
+    {"path": "oracle/src/block/BlockTallGrass.java", "members": ["harvestBlock"]},
+    {"path": "oracle/src/block/BlockVine.java", "members": ["harvestBlock"]},
+    {"path": "oracle/src/block/BlockDeadBush.java", "members": ["harvestBlock"]},
+    {"path": "oracle/src/block/BlockIce.java", "members": ["harvestBlock"]},
+    {"path": "oracle/src/block/BlockSnow.java", "members": ["harvestBlock"]},
+    {"path": "oracle/src/block/BlockSkull.java", "members": ["breakBlock"]},
+    {"path": "oracle/src/block/BlockFlowerPot.java", "members": ["breakBlock", "createNewTileEntity"]},
+    {"path": "oracle/src/block/BlockTripWireHook.java", "members": ["breakBlock", "func_150136_a", "func_150135_a"]},
+    {"path": "oracle/src/block/BlockBush.java", "members": ["onNeighborBlockChange", "func_149854_a"]},
+    {"path": "oracle/src/world/World.java", "members": ["setBlockToAir", "setBlock", "notifyBlocksOfNeighborChange", "func_147480_a"]},
+    {"path": "oracle/src/item/ItemStack.java", "members": ["func_150999_a", "damageItem", "attemptDamageItem"]},
+    {"path": "oracle/src/util/FoodStats.java", "members": ["addExhaustion"]},
+    {"path": "oracle/src/stats/StatList.java", "members": ["mineBlockStatArray", "replaceAllSimilarBlocks"]},
+    {"path": "oracle/src/enchantment/EnchantmentHelper.java", "members": ["getSilkTouchModifier", "getFortuneModifier"]}
+  ],
+  "structs": [
+    {"name": "hd_ids (static ids)", "java": "the Blocks.*, Items.* and Material.leaves constants the overrides compare against", "fields": ["double_plant", "leaves", "leaves2", "tallgrass", "vine", "deadbush", "ice", "snow_layer", "skull", "web", "tripwire", "tripwire_hook", "shears", "snowball", "skull_item", "flowing_water", "material_leaves"]},
+    {"name": "hd_state", "java": "one break in progress: the world cells, the player's held ItemStack, FoodStats exhaustion, the world Random and Math.random", "fields": ["g", "x", "y", "z", "held_item", "held_damage", "held_count", "silk", "fortune", "exhaustion", "w", "math", "ents", "n", "cap", "bad", "stat_mine", "stat_use", "stat_break"]},
+    {"name": "hd_stack", "java": "ItemStack (item, stackSize, itemDamage) returned by createStackedBlock", "fields": ["item", "count", "damage"]}
+  ],
+  "entry_points": ["harvestdrops_break", "harvestdrops_has_mine_stat", "harvestdrops_create_stacked_block"],
+  "tick_path": true,
+  "gpu": ["its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left", "lines 38-50, functions item_named and material_named: linear strcmp scans over ITEMS and MATERIALS by name", "lines 676-693, function item_on_block_destroyed: dispatch on strcmp of the item's class_name string", "line 130, struct hd_state: holds pointers to the shared Math.random jrand and the caller's drop_ent array"],
+  "tests": ["csrc/tests/test_harvestdrops.c"],
+  "notes": "Called by dig.c. Only the 3x3x3 cells around the broken block are modelled; BlockTripWireHook's 41-block walk is reduced to its one sound draw, creative mode is out of scope, and onBlockDestroyedByPlayer is treated as empty (BlockSilverfish excluded). The in_water field of the local harvest_player in harvestdrops_break is left unset; can_harvest_block does not read it. Evidence recordings: out/java/harvestdrops (s2, s42). Java member names taken from this file's comments; the removeBlock, dropBlockAsItem_do and func_149855_e names were not checked against the Java files."
+}

@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/world/gen/NoiseGeneratorSimplex.java",
+  "classes": ["NoiseGeneratorSimplex"],
+  "lines": 218,
+  "side": "server",
+  "category": "worldgen",
+  "role": "2D simplex noise with its own permutation table and random offsets; one octave of NoiseGeneratorPerlin, which feeds the surface depth noise, Mesa bands and biome temperature and flower noise.",
+  "scope": "in_scope",
+  "scope_reason": "Surface depth (field_147430_m) and biome noises used by every overworld chunk.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/noise.c", "symbols": ["simplex_init", "simplex_add", "simplex_point", "sfloor", "sdot", "SG"]}, {"file": "csrc/engine/noise.h", "symbols": ["simplex"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "out/java/chunks/seed1", "out/java/chunks/mesa-123456789"],
+  "members": [
+    {"kind": "field", "name": "field_151611_e", "sig": "static int[12][3] gradients", "native": "csrc/engine/noise.c:SG", "status": "exact"},
+    {"kind": "field", "name": "field_151614_a, field_151609_g, field_151615_h", "sig": "static double sqrt(3) and skew constants", "native": "csrc/engine/noise.c:simplex_add", "status": "exact", "note": "Computed inline in the C functions."},
+    {"kind": "field", "name": "field_151608_f", "sig": "int[512]", "native": "csrc/engine/noise.h:simplex", "status": "exact", "note": "struct simplex.p"},
+    {"kind": "field", "name": "field_151612_b", "sig": "double", "native": "csrc/engine/noise.h:simplex", "status": "exact", "note": "xo"},
+    {"kind": "field", "name": "field_151613_c", "sig": "double", "native": "csrc/engine/noise.h:simplex", "status": "exact", "note": "yo"},
+    {"kind": "field", "name": "field_151610_d", "sig": "double", "native": "csrc/engine/noise.h:simplex", "status": "exact", "note": "zo, drawn but unused by the 2D methods"},
+    {"kind": "ctor", "name": "NoiseGeneratorSimplex", "sig": "()", "native": null, "status": "n/a", "note": "Det.newRandom() default; worldgen passes a Random."},
+    {"kind": "ctor", "name": "NoiseGeneratorSimplex", "sig": "(Random)", "native": "csrc/engine/noise.c:simplex_init", "status": "exact"},
+    {"kind": "method", "name": "func_151607_a", "sig": "(double)I", "native": "csrc/engine/noise.c:sfloor", "status": "exact"},
+    {"kind": "method", "name": "func_151604_a", "sig": "(int[],double,double)D", "native": "csrc/engine/noise.c:sdot", "status": "exact"},
+    {"kind": "method", "name": "func_151605_a", "sig": "(double,double)D", "native": "csrc/engine/noise.c:simplex_point", "status": "exact"},
+    {"kind": "method", "name": "func_151606_a", "sig": "(double[],double,double,int,int,double,double,double)V", "native": "csrc/engine/noise.c:simplex_add", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "Not re-verified by running the gate here."
+}

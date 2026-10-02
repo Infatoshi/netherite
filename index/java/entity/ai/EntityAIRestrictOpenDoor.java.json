@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIRestrictOpenDoor.java",
+  "classes": ["EntityAIRestrictOpenDoor"],
+  "lines": 78,
+  "side": "server",
+  "category": "ai",
+  "role": "Villager night task: when standing just inside a village door at night it closes the navigator's door flags (the villager will not open doors) and counts up the door's opening-restriction counter.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_update", "ai_setup_kind"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "out/java/villagers/vil-2", "csrc/tests/test_villagers.c"],
+  "members": [
+    {"kind": "field", "name": "entityObj", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the villager itself (struct living)"},
+    {"kind": "field", "name": "frontDoor", "sig": "VillageDoorInfo", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.front_door"},
+    {"kind": "ctor", "name": "EntityAIRestrictOpenDoor", "sig": "(EntityCreature)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_RESTRICT_OPEN_DOOR, priority 3; no mutex bits in Java either"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_RESTRICT_OPEN_DOOR case: isDaytime (skylight < 4) blocks, findNearestVillage(16), findNearestDoor, inside distance < 2.25"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "daytime blocks, !isDetachedFromVillageFlag, isInside(floor pos)"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "setBreakDoors(false) and setEnterDoors(false) -> can_pass_closed_doors and can_pass_open_doors = 0"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "restores both door flags, frontDoor = null"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "incrementDoorOpeningRestrictionCounter on the door info"}
+  ],
+  "missing": [],
+  "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

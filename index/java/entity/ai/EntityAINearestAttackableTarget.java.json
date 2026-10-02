@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/entity/ai/EntityAINearestAttackableTarget.java",
+  "classes": ["EntityAINearestAttackableTarget", "EntityAINearestAttackableTarget.Sorter"],
+  "lines": 112,
+  "side": "server",
+  "category": "ai",
+  "role": "Target task: on its chance draw it searches an AABB of followRange (+/-4 vertical) for the nearest entity of the watched class passing the selector and sets it as the attack target. The zombies, skeletons, creepers and witches watch the player; the golem watches every IMob.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_start", "ai_reset", "ai_is_suitable_target", "ai_setup_kind", "add_target_task_full"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-zombie-s1", "out/java/snapshots/fight-skeleton-s1", "out/java/snapshots/fight-witch-s1", "out/java/snapshots/fight-spider-s1", "csrc/tests/test_hostiles.c", "out/java/snapshots/golem-fight-s42"],
+  "members": [
+    {"kind": "field", "name": "targetClass", "sig": "Class", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target_class (HK_PLAYER, VK_VILLAGER); 0 means no filter in the attack-on-collide reuse"},
+    {"kind": "field", "name": "targetChance", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.watch_chance, reused as the chance; 0 for every registrant, so no draw"},
+    {"kind": "field", "name": "theNearestAttackableTargetSorter", "sig": "EntityAINearestAttackableTarget.Sorter", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "folded: the native scan keeps the minimum-distance candidate directly, which is the sort's first element"},
+    {"kind": "field", "name": "targetEntitySelector", "sig": "IEntitySelector", "native": "csrc/engine/ai.c:ai_is_suitable_target", "status": "exact", "note": "isSuitableTarget per candidate in list order; the golem's IMob.mobSelector is target_class -2 (is_imob_kind)"},
+    {"kind": "field", "name": "targetEntity", "sig": "EntityLivingBase", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target"},
+    {"kind": "ctor", "name": "EntityAINearestAttackableTarget", "sig": "(EntityCreature,Class,int,boolean)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact"},
+    {"kind": "ctor", "name": "EntityAINearestAttackableTarget", "sig": "(EntityCreature,Class,int,boolean,boolean)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact"},
+    {"kind": "ctor", "name": "EntityAINearestAttackableTarget", "sig": "(EntityCreature,Class,int,boolean,boolean,IEntitySelector)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered per kind by add_target_task_full"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "chance draw, the followRange box (+/-4 vertical), the kind-filtered query, isSuitableTarget with the nearbyOnly cache per candidate, then the nearest (stable sort: the first of equals)"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "attack_target = t.target, target_unseen_ticks = 0, then EntityAITarget.startExecuting"},
+    {"kind": "ctor", "name": "Sorter", "sig": "(Entity)V", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "folded into the minimum-distance scan"},
+    {"kind": "method", "name": "Sorter.compare", "sig": "(Entity,Entity)I", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "folded into the minimum-distance scan"}
+  ],
+  "missing": [],
+  "notes": "The nested Sorter and the IEntitySelector anonymous class are folded; the resetTask is EntityAITarget's (attack_target = NULL in ai_reset)."
+}

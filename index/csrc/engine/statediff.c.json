@@ -1,0 +1,31 @@
+{
+ "path": "csrc/engine/statediff.c",
+ "lines": 654,
+ "role": "The native replay's whole server state against an oracle snapshot of the same tick (a keyframe, or one the oracle wrote on demand), grouped as a divergence is read: world scalars and the server role's Det streams, entities by id (missing, extra, every differing NBT path), loaded chunks (cells per field, inhabitedTime, tile entities) and each world's pending block ticks.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/harness/netherite/oracle/Snapshot.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "statediff_sum",
+   "java": "the per-group counts of one comparison and the first differing entity's id",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "statediff_run",
+  "statediff_nbt"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "statediff_run: the compared snapshot is allocated per call; a tool outside the tick, no writable globals"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "lane/keyframes. test_snapshots --state-diff KDIR runs it after the last simulated row: the keyframe segments' round-trip at each keyframe, and the divergence report (csrc/tests/diverge.sh). Entities compare through sr_entry_nbt, the tree d.ents hashes; chunks through snapshot_chunk_bytes; tile entities through te_render; scalars through worlds.nbt's keys (time, total, rand, updateLCG, weather, ambientTickCountdown, difficulty, updateEntityTick, nextTickEntryID, blkHash) and det.nbt's SERVER role (the client's streams draw for particles the native replay does not model and no row checks them)."
+}

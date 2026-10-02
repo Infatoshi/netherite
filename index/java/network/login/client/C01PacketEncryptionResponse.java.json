@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/network/login/client/C01PacketEncryptionResponse.java",
+  "classes": ["C01PacketEncryptionResponse"],
+  "lines": 64,
+  "side": "client",
+  "category": "network",
+  "role": "The login phase's encryption reply: the shared secret and verify token, RSA-encrypted with the server's public key (CryptManager).",
+  "scope": "not_needed",
+  "scope_reason": "Encryption never engages in offline mode (NetHandlerLoginServer stays in OFFLINE mode), so the packet is never sent, and the native engine has no crypto layer.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149302_a (shared secret)", "sig": "byte[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149301_b (verify token)", "sig": "byte[]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "C01PacketEncryptionResponse", "sig": "(SecretKey,PublicKey,byte[])V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerLoginServer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149300_a", "sig": "(PrivateKey)SecretKey", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149299_b", "sig": "(PrivateKey)byte[]", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "static readBlob/writeBlob helpers live in Packet.java (not this file's member list)."
+}

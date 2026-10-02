@@ -1,0 +1,13 @@
+{
+  "path": "oracle/harness/netherite/oracle/RowHash.java",
+  "lines": 562,
+  "role": "The row's server entity digests (d.ents, d.sp) off the tick loop: the server thread starts a job at the end of each tick (Lockstep.serverDone) with its entity list; workers and the idle server thread serialize every entity's NBT (writeToNBT, then a direct writer that makes CompressedStreamTools.write's bytes) while the client drains, captures and runs its next tick; Lockstep waits for serialization before the next permit; the SHA-1 runs beside the server tick, reused when an entity's bytes equal its last job's; Rows.flush completes the held row.",
+  "kind": "recorder",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Rows.java (capture takes the tick's job, flush folds its digests; nbtLong)",
+    "oracle/harness/netherite/oracle/Lockstep.java (serverDone starts and helps a job; pair waits for serialization)",
+    "oracle/harness/netherite/oracle/Oracle.java (commands and replay setup wait for serialization)"
+  ],
+  "vanilla_hooks": [],
+  "notes": "Digests equal the serial SHA-1 of the uncompressed NBT: each lands at its list index and the fold in Rows.flush is the old loop. Nbt.verify writes the first entity of each class, and one entity in 2^18 after it, the vanilla way and stops the run on a difference. --detail and rows captured inside a command (ClientWorldProbe) stay synchronous. quiesce() waits for the last job's digests before a pool rewinds the statics."
+}

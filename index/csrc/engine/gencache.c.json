@@ -1,0 +1,88 @@
+{
+ "path": "csrc/engine/gencache.c",
+ "lines": 306,
+ "role": "Raw chunk generation shared by the environments of one process: a chunk_backend whose generate and owed look the chunk up by (seed, dimension, cx, cz) in a process-wide cache (64 locked shards of open addressing, the process's heap); a hit constructs the chunk from the stored ids, metadata and biomes and applies the provider state the generation left (world_gen_state, as genahead does), a miss runs the C provider (chunkgen_raw and chunkgen_construct, or world_dim_raw and world_dim_construct) and stores the result. The first thread to miss a chunk claims it; the others wait for its result.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "provideChunk",
+    "rand"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderHell.java",
+   "members": [
+    "provideChunk",
+    "hellRNG"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderEnd.java",
+   "members": [
+    "provideChunk",
+    "endRNG"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct gencache",
+   "java": null,
+   "fields": [
+    "sh",
+    "max_bytes",
+    "bytes",
+    "hits",
+    "misses",
+    "stored",
+    "owed_hits",
+    "full",
+    "entries"
+   ]
+  },
+  {
+   "name": "struct gc_entry",
+   "java": null,
+   "fields": [
+    "seed",
+    "cx",
+    "cz",
+    "dim",
+    "state",
+    "rand",
+    "biome",
+    "tops",
+    "data"
+   ]
+  },
+  {
+   "name": "struct gc_shard",
+   "java": null,
+   "fields": [
+    "mu",
+    "cv",
+    "t",
+    "cap",
+    "used"
+   ]
+  }
+ ],
+ "entry_points": [
+  "gencache_new",
+  "gencache_free",
+  "gencache_attach",
+  "gencache_stats"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function gc_lookup: inside the tick it takes a process-wide shard lock and may wait on another thread's generation of the same chunk (a pure function: the chunk and the state are the same either way)",
+  "function gc_generate_c: a stored result is allocated on the process's heap (proc_malloc), outside every environment's image"
+ ],
+ "tests": [
+  "csrc/runtime/pool_gate.c",
+  "csrc/runtime/pipe_gate.c"
+ ],
+ "notes": "The pool (csrc/runtime/pool.c) attaches it to the replay's server worlds for each step and takes it off at the step's end, so no image keeps a pointer to it; pool_config.gencache_mb sets its size (0: 1024 MB, negative: none). lane/perfhost, 2026-09-29: pool_gate EPISODES=80 (40 recordings, 266,560 rows equal, 14,411 chunks from the cache)."
+}

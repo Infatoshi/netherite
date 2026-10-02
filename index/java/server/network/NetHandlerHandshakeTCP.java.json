@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/server/network/NetHandlerHandshakeTCP.java",
+  "classes": ["NetHandlerHandshakeTCP", "NetHandlerHandshakeTCP.SwitchEnumConnectionState"],
+  "lines": 116,
+  "side": "server",
+  "category": "network",
+  "role": "The TCP handshake handler: routes a C00Handshake into the LOGIN or STATUS connection state and rejects wrong protocol versions.",
+  "scope": "not_needed",
+  "scope_reason": "Only registered for real TCP connections (NetworkSystem.addAndRegister's tcp path); the oracle's single client connects through the in-memory local channel and never sends a C00Handshake.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_147387_a", "sig": "MinecraftServer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_147386_b", "sig": "NetworkManager", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "NetHandlerHandshakeTCP", "sig": "(MinecraftServer,NetworkManager)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processHandshake", "sig": "(C00Handshake)V", "native": null, "status": "n/a", "note": "version check against 5, then LOGIN or STATUS"},
+    {"kind": "method", "name": "onDisconnect", "sig": "(IChatComponent)V", "native": null, "status": "n/a", "note": "empty"},
+    {"kind": "method", "name": "onConnectionStateTransition", "sig": "(EnumConnectionState,EnumConnectionState)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onNetworkTick", "sig": "()V", "native": null, "status": "n/a", "note": "empty"},
+    {"kind": "field", "name": "field_151291_a", "sig": "static int[] (SwitchEnumConnectionState, nested class)", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game: no TCP channel exists in the oracle's lockstep setup."
+}

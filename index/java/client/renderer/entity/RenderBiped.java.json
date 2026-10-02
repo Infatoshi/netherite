@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderBiped.java",
+  "classes": ["RenderBiped"],
+  "lines": 382,
+  "side": "client",
+  "category": "client_render",
+  "role": "Base renderer for the biped family (RenderZombie, RenderSkeleton, RenderPigZombie extend it; RenderPlayer is separate): armor layer passes over ModelBiped, armor texture lookup, and the held-item-in-hand render for zombies and skeletons.",
+  "scope": "in_scope",
+  "scope_reason": "Zombies, skeletons and zombie pigmen appear in gated recordings; the biped model draws are compared pixels.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_zombie", "model_skeleton", "raster_mobs_draw", "draw_armor", "draw_armor_model", "pose_armor", "draw_equipped", "draw_armor_overlay"]}
+  ],
+  "evidence": ["out/java/render/mobs_zombie_f006", "out/java/render/mobs2a_skeleton_f006", "out/java/render/mobs2a_skeleton_f011", "out/java/render/mobs2b_pigman_f006", "csrc/tests/test_render.c", "out/java/render-src/ent_held", "out/java/render-src/ent_armor", "out/java/clientframes/idx-skull-s1", "out/java/clientframes/idx-heldblock-s1"],
+  "members": [
+    {"kind": "field", "name": "modelBipedMain", "sig": "protected ModelBiped", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "field", "name": "field_77070_b", "sig": "protected float", "native": null, "status": "n/a", "note": "model scale constructor parameter, folded into the native models"},
+    {"kind": "field", "name": "field_82423_g", "sig": "protected ModelBiped", "native": "csrc/engine/raster_mobs.c:pose_armor", "status": "exact", "note": "ModelBiped(1.0), ModelZombie(1.0, true) for RenderZombie"},
+    {"kind": "field", "name": "field_82425_h", "sig": "protected ModelBiped", "native": "csrc/engine/raster_mobs.c:pose_armor", "status": "exact", "note": "the 0.5 leggings model"},
+    {"kind": "field", "name": "field_110859_k", "sig": "static Map", "native": null, "status": "n/a", "note": "a ResourceLocation cache"},
+    {"kind": "field", "name": "bipedArmorFilenamePrefix", "sig": "static String[]", "native": "csrc/engine/raster_mobs.c:armor_names", "status": "exact"},
+    {"kind": "ctor", "name": "RenderBiped", "sig": "(ModelBiped,F)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "RenderBiped", "sig": "(ModelBiped,F,F)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_82421_b", "sig": "()V", "native": null, "status": "n/a", "note": "sets the armor model fields"},
+    {"kind": "method", "name": "func_110857_a", "sig": "(ItemArmor,int)ResourceLocation", "native": "csrc/engine/raster_mobs.c:draw_armor", "status": "exact"},
+    {"kind": "method", "name": "func_110858_a", "sig": "(ItemArmor,int,String)ResourceLocation", "native": "csrc/engine/raster_mobs.c:draw_armor", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLiving,int,F)I", "native": "csrc/engine/raster_mobs.c:draw_armor", "status": "exact", "note": "the tinted leather pass, its overlay, the glint on an enchanted piece"},
+    {"kind": "method", "name": "func_82408_c", "sig": "(EntityLiving,int,F)V", "native": "csrc/engine/raster_mobs.c:draw_armor", "status": "exact"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,DDD FF)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityLiving)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "n/a", "note": "RenderManager registers no plain RenderBiped: RenderZombie and RenderSkeleton override it; their textures are raster_mobs_draw's per-kind selection (lane/covframes)"},
+    {"kind": "method", "name": "func_82420_a", "sig": "(EntityLiving,ItemStack)V", "native": "csrc/engine/raster_mobs.c:pose_armor", "status": "exact", "note": "heldItemRight; isSneak is not posed (no biped mob sneaks)"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLiving,F)V", "native": "csrc/engine/raster_mobs.c:draw_equipped", "status": "exact", "note": "the held item by path (block, bow, full 3D, flat), a helmet block and a worn skull (idx-skull-s1)"},
+    {"kind": "method", "name": "func_82422_c", "sig": "()V", "native": null, "status": "n/a", "note": "legacy hook, empty"},
+    {"kind": "method", "name": "func_82408_c", "sig": "(EntityLivingBase,int,F)V", "native": null, "status": "n/a", "note": "the bridge overload"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,F)I", "native": null, "status": "n/a", "note": "the bridge overload"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,F)V", "native": null, "status": "n/a", "note": "the bridge overload"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: armour through the mob model path (pose_armor, 64x32 models) and the held item through raster_glx with the doRender matrix (living_gl_base, gl_post_render). ent_held (sword, bow, golden sword, stone sword) within 26 px, ent_armor (iron, dyed leather with its overlay, enchanted diamond with the glint, gold on a zombie villager, a pumpkin) within 114 px; master 1,870 and 9,905 px up. lane/idxclient: the worn skull (the Items.skull branch: 1.0625 flipped, TileEntitySkullRenderer.func_152674_a's (-1, -1, 1) flip and the head turned 180, the zombie's 64x64): idx-skull-s1 within 13 px (the player's wither skull, a zombie's creeper head, a skeleton's zombie head). lane/idxclient (later): renderEquippedItems' renderItemIn3d branch had never run live (the live equipment carried no b3d, so a held block went down renderItemIn2D as a thin slab); the item entry's mode 1 (RenderItem's own renderItemIn3d test) now sets it (idx-heldblock-s1: a log, a chest, a slab, 13 px at most; a held log in front view went from 1,854 px to 10)."
+}

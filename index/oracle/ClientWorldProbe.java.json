@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/ClientWorldProbe.java",
+ "lines": 456,
+ "role": "Client world recorder: replays a snapshot's tape and records per tick the WorldClient rand and updateLCG, client entity interpolation state and the tracker packets (S0E, S0F, S11 to S1C and others) serialized from the client's receive queue; symlinks the snapshot files into its output.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=ClientWorldProbe",
+  "csrc/tests/test_clientworld.c (csrc/engine/clientworld.c)"
+ ],
+ "vanilla_hooks": []
+}

@@ -1,0 +1,17 @@
+{
+ "path": "csrc/engine/lightning.h",
+ "lines": 23,
+ "role": "The lightning bolt state (World.weatherEffects entry, not loadedEntityList) and the declarations of its adopt, constructor fire and tick functions.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/effect/EntityLightningBolt.java", "members": ["EntityLightningBolt", "onUpdate", "lightningState", "boltLivingTime", "boltVertex"]}
+ ],
+ "structs": [
+  {"name": "lightning_bolt", "java": "EntityLightningBolt (posX/Y/Z, rand, lightningState, boltLivingTime, isDead, ticksExisted, boltVertex)", "fields": ["x", "y", "z", "rand", "state", "living_time", "dead", "ticks_existed", "vertex"]}
+ ],
+ "entry_points": ["lightning_adopt", "lightning_constructor_fire", "lightning_tick"],
+ "tick_path": true,
+ "gpu": ["lines 20-21, lightning_tick: takes a strike callback function pointer and an opaque ctx"],
+ "tests": ["csrc/tests/test_lightning.c"],
+ "notes": "The struct is flat and fixed-size (no pointers), GPU-friendly."
+}

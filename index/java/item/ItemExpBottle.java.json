@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/item/ItemExpBottle.java",
+  "classes": [
+    "ItemExpBottle"
+  ],
+  "lines": 41,
+  "side": "server",
+  "category": "item",
+  "role": "The throwable experience bottle: consumes one (except creative), plays the itemRand pitch and spawns an EntityExpBottle that drops XP orbs on impact.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/projectile.c", "symbols": ["exp_bottle_on_impact"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/throw.c", "symbols": ["throw_server_use", "throw_client_use"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/use-kinds-s1",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemExpBottle", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 384"},
+    {"kind": "method", "name": "hasEffect", "sig": "(ItemStack)Z", "native": null, "status": "n/a", "note": "client glint"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/throw.c:throw_server_use", "status": "exact", "note": "the stack shrinks, the itemRand pitch, then an EntityExpBottle from the player (0.7 speed, -20 pitch offset); the client shrinks and draws its own itemRand (throw_client_use)"}
+  ],
+  "missing": [],
+  "notes": null
+}

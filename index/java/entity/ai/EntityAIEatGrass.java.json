@@ -1,0 +1,36 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIEatGrass.java",
+ "classes": ["EntityAIEatGrass"],
+ "lines": 106,
+ "side": "server",
+ "category": "ai",
+ "role": "The sheep's grazing goal: a 1-in-1000 (1-in-50 for children) roll, a 40-tick eat timer with the (byte)10 entity state, and at tick 4 eating the tall grass or turning the grass block to dirt with eatGrassBonus.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_tasks_update"]},
+  {"file": "csrc/engine/animals.c", "symbols": ["animal_eat_grass_bonus"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/sheep-s1",
+  "out/java/snapshots/cat-sheep-full-s1",
+  "out/java/snapshots/rc-animals-s1",
+  "out/java/snapshots/world-crops-s1",
+  "csrc/tests/test_animals.c"
+ ],
+ "members": [
+  {"kind": "field", "name": "field_151500_b", "sig": "EntityLiving", "native": null, "status": "n/a", "note": "the owning struct living"},
+  {"kind": "field", "name": "field_151501_c", "sig": "World", "native": null, "status": "n/a"},
+  {"kind": "field", "name": "field_151502_a", "sig": "int", "native": "csrc/engine/living.h:eat_grass_timer", "status": "exact", "note": "also mirrored onto living.sheep_timer by living_update_ai_tasks"},
+  {"kind": "ctor", "name": "EntityAIEatGrass", "sig": "(EntityLiving)V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the sheep's registration at priority 5, mutex 7 (ai.c:2774)"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:1639: the child-aware 50/1000 roll and the tallgrass(meta 1)/grass-block checks"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2017: timer 40, the empty setEntityState (World.setEntityState is a no-op) and clearPath"},
+  {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2207: timer 0"},
+  {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:1816: timer > 0"},
+  {"kind": "method", "name": "func_151499_f", "sig": "()I", "native": "csrc/engine/living.c:living_update_ai_tasks", "status": "exact", "note": "the sheep's head-down render reads it through sheep_timer"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2411: the tick-4 branch, the mobGriefing-gated block change and eatGrassBonus"}
+ ],
+ "missing": [],
+ "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records cat-sheep-full-s1, whose native replay starts before the behaviour."
+}

@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/RenderEnderCrystal.java",
+  "classes": ["RenderEnderCrystal"],
+  "lines": 68,
+  "side": "client",
+  "category": "client_render",
+  "role": "Entity renderer for EntityEnderCrystal: binds endercrystal.png and draws ModelEnderCrystal with the bobbing/rotation driven by innerRotation, shadow size 0.5. Despite the tileentity package it extends Render, not TileEntitySpecialRenderer.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/raster_mobs.c", "symbols": ["crystal_draw", "MOB_ENDER_CRYSTAL"]}],
+  "evidence": ["out/java/render/mobs2b_crystal_f006", "out/java/snapshots/end-crystals-s1", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "enderCrystalTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:crystal_draw", "status": "partial", "note": "the texture is loaded from csrc/assets/mobs/endercrystal.rgba (and endercrystal_beam.rgba for the beam), a pre-converted copy of the same PNG"},
+    {"kind": "field", "name": "field_76995_b", "sig": "ModelBase", "native": "csrc/engine/raster_mobs.c:crystal_draw", "status": "exact", "note": "ModelEnderCrystal's geometry is built in the raster_mobs.c crystal pass (its comment names RenderEnderCrystal.doRender and ModelEnderCrystal.render)"},
+    {"kind": "ctor", "name": "RenderEnderCrystal", "sig": "()", "native": "csrc/engine/raster_mobs.c:crystal_draw", "status": "partial", "note": "shadowSize 0.5 and the model are folded into the crystal pass"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityEnderCrystal,D,D,D,F,F)V", "native": "csrc/engine/raster_mobs.c:crystal_draw", "status": "exact", "note": "innerRotation bob (sin(var10*0.2)/2+0.5 plus its square) and var10*3.0 rotation, GL_CULL_FACE stays on"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityEnderCrystal)ResourceLocation", "native": null, "status": "n/a", "note": "doRender binds enderCrystalTextures itself (RenderEnderCrystal.java:35); nothing calls bindEntityTexture on this renderer (lane/covclient)"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,D,D,D,F,F)V", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "The beam to the crystal is drawn by the same native pass (raster_mobs.c endercrystal_beam texture; scene out/java/render/mobs2b_beam_f011). The ender-crystal explosion itself is EndDragonFight logic, not this renderer."
+}

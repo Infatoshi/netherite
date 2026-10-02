@@ -1,0 +1,372 @@
+{
+ "path": "csrc/engine/particles_live.c",
+ "lines": 1701,
+ "role": "The client EffectRenderer: every EntityFX subclass the recorded scenes reach (constructor draws, onUpdate, getBrightnessForRender), RenderGlobal.doSpawnParticle by name with the particleSetting and 16-block gates, and the spawn sites that feed it: the display-tick emitters, the crit emitter, playAuxSFX 2002/2003, the client explosion, the rain, the dig flow.",
+ "layer": "client",
+ "java": [
+  {
+   "path": "oracle/src/client/particle/EffectRenderer.java",
+   "members": [
+    "rand",
+    "fxLayers",
+    "addEffect",
+    "updateEffects",
+    "func_147215_a",
+    "addBlockHitEffects",
+    "clearEffects"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityFX.java",
+   "members": [
+    "EntityFX",
+    "onUpdate",
+    "multiplyVelocity",
+    "multipleParticleScaleBy",
+    "setParticleTextureIndex",
+    "nextTextureIndexX",
+    "getFXLayer"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "setSize",
+    "getBrightnessForRender"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getSkyBlockTypeBrightness",
+    "getLightBrightnessForSkyBlocks"
+   ]
+  },
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "func_149710_n"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntitySmokeFX.java",
+   "members": [
+    "EntitySmokeFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityFlameFX.java",
+   "members": [
+    "EntityFlameFX",
+    "onUpdate",
+    "getBrightnessForRender"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityReddustFX.java",
+   "members": [
+    "EntityReddustFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityPortalFX.java",
+   "members": [
+    "EntityPortalFX",
+    "onUpdate",
+    "getBrightnessForRender"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityAuraFX.java",
+   "members": [
+    "EntityAuraFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityRainFX.java",
+   "members": [
+    "EntityRainFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntitySplashFX.java",
+   "members": [
+    "EntitySplashFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityExplodeFX.java",
+   "members": [
+    "EntityExplodeFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityCritFX.java",
+   "members": [
+    "EntityCritFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityCrit2FX.java",
+   "members": [
+    "EntityCrit2FX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntitySpellParticleFX.java",
+   "members": [
+    "EntitySpellParticleFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityBreakingFX.java",
+   "members": [
+    "EntityBreakingFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityLavaFX.java",
+   "members": [
+    "EntityLavaFX",
+    "onUpdate",
+    "getBrightnessForRender"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityDropParticleFX.java",
+   "members": [
+    "EntityDropParticleFX",
+    "onUpdate",
+    "getBrightnessForRender"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntitySuspendFX.java",
+   "members": [
+    "EntitySuspendFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityHugeExplodeFX.java",
+   "members": [
+    "EntityHugeExplodeFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityLargeExplodeFX.java",
+   "members": [
+    "EntityLargeExplodeFX",
+    "onUpdate",
+    "getBrightnessForRender"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityDiggingFX.java",
+   "members": [
+    "EntityDiggingFX",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/RenderGlobal.java",
+   "members": [
+    "doSpawnParticle",
+    "spawnParticle",
+    "playAuxSFX"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/EntityRenderer.java",
+   "members": [
+    "addRainParticles"
+   ]
+  },
+  {
+   "path": "oracle/src/world/Explosion.java",
+   "members": [
+    "doExplosionB"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemPotion.java",
+   "members": [
+    "getColorFromDamage",
+    "isEffectInstant"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTorch.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockRedstoneTorch.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFurnace.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockRedstoneOre.java",
+   "members": [
+    "randomDisplayTick",
+    "func_150186_m"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockPortal.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockEndPortal.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockEnderChest.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockMycelium.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLiquid.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFire.java",
+   "members": [
+    "randomDisplayTick"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityNoteFX.java",
+   "members": [
+    "EntityNoteFX",
+    "onUpdate",
+    "noteParticleScale"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityHeartFX.java",
+   "members": [
+    "EntityHeartFX",
+    "onUpdate",
+    "particleScaleOverTime"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityBlockDustFX.java",
+   "members": [
+    "EntityBlockDustFX"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "live_fx",
+   "java": "EntityFX and its subclasses' fields",
+   "fields": [
+    "e",
+    "kind",
+    "layer",
+    "age",
+    "maxage",
+    "scale",
+    "gravity",
+    "red",
+    "green",
+    "blue",
+    "alpha",
+    "jitx",
+    "jity",
+    "tix",
+    "tiy",
+    "base_scale",
+    "home_x",
+    "spell_base",
+    "bob",
+    "lava",
+    "ent_id",
+    "life",
+    "mlife",
+    "magic",
+    "rand"
+   ]
+  },
+  {
+   "name": "particles_live",
+   "java": "EffectRenderer (fxLayers as one ordered array), GameSettings.particleSetting, the render view entity",
+   "fields": [
+    "fx",
+    "n",
+    "setting",
+    "view_x",
+    "world_rand",
+    "effect_rand",
+    "target",
+    "on_spawn"
+   ]
+  }
+ ],
+ "entry_points": [
+  "particles_live_init",
+  "particles_live_spawn",
+  "particles_live_display_tick",
+  "particles_live_crit",
+  "particles_live_aux",
+  "particles_live_explosion_b",
+  "particles_live_rain",
+  "particles_live_hit",
+  "particles_live_destroy",
+  "particles_live_explosion",
+  "particles_live_tick",
+  "particles_live_light_pt",
+  "particles_live_light",
+  "particles_live_kind",
+  "particles_live_class",
+  "particles_live_pin"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 209, function fx_add: a layer at 4000 drops its oldest FX by a memmove of the array tail (container order is the spawn order)",
+  "function particles_live_tick: FX spawned during the pass append to the array the loop walks (the bound pl->n grows), as the Java lists do",
+  "function particles_live_init: EffectRenderer.rand is seeded from a constant, not the oracle's unrecoverable stream, so live hit particle positions differ by design",
+  "struct particles_live holds 16000 FX inline (about 8 MB per instance)",
+  "new_crit runs EntityCritFX's onUpdate through crit_update, not fx_update's dispatch, so the crit emitters' spawns do not re-enter fx_update"
+ ],
+ "tests": [
+  "csrc/tests/test_rendertick.c",
+  "csrc/tests/test_render.c"
+ ],
+ "notes": "lane/particles2 rebuilt it from the dig/explosion-only version: the base constructor now draws exactly the Entity constructor's streams (the old one drew one seeder long too many) and leaves prevPos at 0; getBrightnessForRender uses Block.func_149710_n (useNeighborBrightness) as World.getSkyBlockTypeBrightness does, not isOpaqueCube. Not ported: bubble, note, heart, cloud, snowshovel, blockcrack/blockdust, footstep, wake, fireworks, enchantmenttable, the villager particles, EntityPickupFX (a name without a class constructs nothing and spends no draws). The live client keeps the pinned minimal setting (2), under which only the specials and directly added FX exist. particles_live_pin (lane/clientrand) turns on Det's client consumer pin for the playable client: mrand, the FX's own Random and EffectRenderer.rand come from det_pin streams at client tick pin_t (the shared streams still drawn); the recorded scenes keep it off. lane/idxlast 2026-09-27: EntityNoteFX, EntityHeartFX (and angryVillager), EntityBlockDustFX as its own kind, mobSpell, mobSpellAmbient, witchMagic, snowballpoof and slime; rendertick fx_client."
+}

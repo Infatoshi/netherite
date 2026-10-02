@@ -1,0 +1,64 @@
+{
+  "path": "oracle/src/command/server/CommandAchievement.java",
+  "classes": [
+    "CommandAchievement"
+  ],
+  "lines": 143,
+  "side": "server",
+  "category": "commands",
+  "role": "The /achievement give command: unlocks an achievement (walking up its parent chain first) or all achievements for a player.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [
+    "out/java/snapshots/achieve-s1"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": null,
+      "status": "n/a",
+      "note": "achievement state is ported for gameplay (the achieve-s1 recording exercises vanilla triggering); no native path grants achievements through this command"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,String[])List",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isUsernameIndex",
+      "sig": "(String[],int)boolean",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "achieve-s1 covers vanilla achievement triggering, not this command; cited as the achievement-state evidence. Static __OBFID constants are grouped out per the brief."
+}

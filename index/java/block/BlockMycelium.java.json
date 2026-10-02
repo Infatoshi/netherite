@@ -1,0 +1,123 @@
+{
+ "path": "oracle/src/block/BlockMycelium.java",
+ "classes": [
+  "BlockMycelium"
+ ],
+ "lines": 104,
+ "side": "common",
+ "category": "block",
+ "role": "Mycelium: the grass-like random tick (kills in the dark under an opaque block, spreads onto dirt in light 9) that drops dirt.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "grass_like",
+    "RT_MYCELIUM"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_rendertick.c",
+  "csrc/tests/test_tileticks.c",
+  "out/java/chunks",
+  "out/java/rendertick/fx_portal",
+  "out/java/snapshots/grass-s1",
+  "out/java/snapshots/cov-blkbreak-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150200_a",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client top texture"
+  },
+  {
+   "kind": "field",
+   "name": "field_150199_b",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client snowy side texture"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockMycelium",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 110: tick_randomly 1, grass material"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture selection"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(IBlockAccess,IIIII)Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture selection"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture registration"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/randomtick.c:grass_like",
+   "status": "exact",
+   "note": "dispatch case RT_MYCELIUM: the same light rules and four draws as grass"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_portal"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 110: dirt"
+  }
+ ],
+ "missing": [],
+ "notes": "The spread and kill share grass_like verbatim; verified by the tileticks census. Swamp and mushroom biomes place it in decoration (decorator.c)."
+}

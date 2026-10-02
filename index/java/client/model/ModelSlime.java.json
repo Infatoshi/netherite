@@ -1,0 +1,74 @@
+{
+ "path": "oracle/src/client/model/ModelSlime.java",
+ "classes": [
+  "ModelSlime"
+ ],
+ "lines": 53,
+ "side": "client",
+ "category": "client_model",
+ "role": "The slime's model: the inner body cube and, for size above one, the eyes and mouth; the renderer adds a translucent outer pass.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_slime",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/clientframes/cov-zoo-s1",
+  "out/java/render/mobs2a_slime_f006",
+  "out/java/render/mobs2a_slime_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "slimeBodies",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_slime",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "slimeRightEye",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_slime",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "slimeLeftEye",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_slime",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "slimeMouth",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_slime",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSlime",
+   "sig": "(int)V",
+   "native": "csrc/engine/raster_mobs.c:model_slime",
+   "status": "exact",
+   "note": "the outer parameter picks the two variants"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:draw_model",
+   "status": "exact",
+   "note": "RenderSlime's outer pass is draw_model's blend pass"
+  }
+ ],
+ "missing": []
+}

@@ -1,0 +1,81 @@
+{
+ "path": "csrc/engine/genahead.h",
+ "lines": 148,
+ "role": "Declares chunk generation ahead of the step (genahead.c): the batch generator interface (struct ga_gen, the C stand-in and the CUDA one), the per-environment cache, the step, hints, the statistics and the report.",
+ "layer": "tick",
+ "java": [],
+ "structs": [
+  {
+   "name": "struct ga_req",
+   "java": null,
+   "fields": [
+    "seed",
+    "dim",
+    "cx",
+    "cz"
+   ]
+  },
+  {
+   "name": "struct ga_gen",
+   "java": null,
+   "fields": [
+    "name",
+    "ctx",
+    "max_batch",
+    "run",
+    "free"
+   ]
+  },
+  {
+   "name": "struct ga_stats",
+   "java": null,
+   "fields": [
+    "hits",
+    "misses",
+    "owed_hits",
+    "owed_misses",
+    "generated",
+    "owed_generated",
+    "wasted",
+    "batches",
+    "steps",
+    "max_batch_seen",
+    "peak_entries",
+    "peak_bytes",
+    "miss_ring",
+    "miss_other_dim",
+    "ins_predict",
+    "ins_generate",
+    "ins_construct",
+    "wants",
+    "due_peeked",
+    "ns_generate",
+    "ns_construct"
+   ]
+  }
+ ],
+ "entry_points": [
+  "genahead_create",
+  "genahead_free",
+  "genahead_step",
+  "genahead_hint",
+  "genahead_log_misses",
+  "genahead_stats",
+  "genahead_report",
+  "ga_gen_c_create",
+  "ga_gen_cuda_create",
+  "ga_gen_free",
+  "genahead_predict",
+  "genahead_fill",
+  "genahead_fill_raw",
+  "genahead_release_raw",
+  "genahead_detach",
+  "ga_gen_cuda_local_create"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "ga_gen_cuda_create is defined by csrc/cuda/worldgen/ahead.c, linked only into out/native/cuda/worldgen/test_snapshots. lane/genphase: the step in two halves (genahead_predict; genahead_fill, and genahead_fill_raw, which keeps a result by reference and constructs its chunk when the tick takes it) for csrc/runtime/pool.c device generation; a dead player respawn square is predicted; ga_gen_cuda_local_create (csrc/cuda/worldgen/ahead.c) runs the generators in the calling process."
+}

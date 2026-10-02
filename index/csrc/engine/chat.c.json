@@ -1,0 +1,32 @@
+{
+  "path": "csrc/engine/chat.c",
+  "lines": 235,
+  "role": "GuiNewChat's message and line lists: func_146237_a's split of a message's parts into lines at the chat width (trimStringToWidth, the last space, the rest carried with its style), the lines' getFormattedText, the 100-entry caps, the width and height settings.",
+  "layer": "render",
+  "java": [
+    {"path": "oracle/src/client/gui/GuiNewChat.java", "members": ["func_146237_a", "func_146234_a", "func_146227_a", "func_146235_b", "func_146228_f", "func_146246_g", "func_146233_a", "func_146243_b"]},
+    {"path": "oracle/src/client/gui/ChatLine.java", "members": ["ChatLine"]},
+    {"path": "oracle/src/util/EnumChatFormatting.java", "members": ["getTextWithoutFormattingCodes"]}
+  ],
+  "structs": [
+    {"name": "chat_message", "java": "ChatLine over the whole message (field_146252_h)", "fields": ["counter", "id", "nparts", "fmt", "text"]},
+    {"name": "chat_line", "java": "ChatLine over a drawn line (field_146253_i)", "fields": ["counter", "id", "text"]},
+    {"name": "chat", "java": "GuiNewChat's two lists", "fields": ["msg", "nmsg", "line", "nline"]}
+  ],
+  "entry_points": [
+    "chat_width",
+    "chat_height",
+    "chat_split",
+    "chat_add",
+    "chat_push_message",
+    "chat_message_set",
+    "chat_free"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "chat_split and chat_add allocate strings per line (client presentation, not in the tick)"
+  ],
+  "tests": [
+    "csrc/tests/test_hudscreens.c"
+  ]
+}

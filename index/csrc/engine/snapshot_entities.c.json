@@ -1,0 +1,99 @@
+{
+  "path": "csrc/engine/snapshot_entities.c",
+  "lines": 906,
+  "role": "Rebuilds the server entity list from a snapshot (class, NBT, entity id, private Random, nav path, watch task; the End's dragon and crystals through endfight.c; the five EntityThrowable kinds, whose thrower is looked up by name) and builds a living from chunk NBT when the replay loads a chunk from disk (EntityList.createEntityFromNBT plus readFromNBT).",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/entity/EntityList.java",
+      "members": [
+        "createEntityFromNBT",
+        "getEntityString"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "readFromNBT",
+        "setRotation",
+        "setPosition",
+        "copyDataFrom"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "readEntityFromNBT"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLiving.java",
+      "members": [
+        "readEntityFromNBT"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/SharedMonsterAttributes.java",
+      "members": [
+        "func_151475_a"
+      ]
+    },
+    {
+      "path": "oracle/src/village/MerchantRecipeList.java",
+      "members": [
+        "readRecipiesFromTags"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntityArrow.java",
+      "members": [
+        "readEntityFromNBT"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityItem.java",
+      "members": [
+        "readEntityFromNBT"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityXPOrb.java",
+      "members": [
+        "readEntityFromNBT"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityEnderEye.java",
+      "members": [
+        "EntityEnderEye",
+        "readEntityFromNBT"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "sr_kind_for_class",
+    "sr_living_kind",
+    "sr_living_from_nbt",
+    "sr_load_snapshot_entities",
+    "sr_throwable_kind",
+    "sr_throwable_from_nbt",
+    "sr_throwable_resolve",
+    "sr_living_copy_nbt",
+    "sr_spawn_kind",
+    "sr_ender_eye_from_nbt"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "line 409, function sr_living_from_nbt: calloc of a struct living when a chunk loads inside the tick",
+    "line 356, function restore_living: calloc of a nav path",
+    "line 563, function sr_load_snapshot_entities: calloc of an an_ent for a loaded arrow",
+    "lines 65-83 and 87-105, functions kind_for_class and sr_kind_for_class: entity class dispatch by strcmp on class names",
+    "line 154, function restore_trade_stack: heap NBT text for a trade stack tag",
+    "lines 404-417, function sr_living_from_nbt: copies the server Det streams into a fake det_state and back (Det state shuffled through a struct copy)"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "Unsupported snapshot entities (anything not in the kind table, item, orb, falling block, painting, item frame, arrow, the End's dragon and crystals, the five throwables) fail the load with an error. Entities of every dimension are built into that dimension's pools (serverreplay_enter per dim group); EntityDragon and EntityEnderCrystal are refused by name until the End's replay state loads them. A falling block's recorded width 0.98 (entities.jsonl size) selects the positioned constructor's box. Evidence: every out/java/snapshots recording goes through sr_load_snapshot_entities; persist-village-s42 and persist-walkback-s1 likely exercise sr_living_from_nbt (inferred from names). SRG names SharedMonsterAttributes.func_151475_a and MerchantRecipeList.readRecipiesFromTags not checked against the Java. restore_living_nbt follows EntityZombie.func_146070_a (CanBreakDoors adds or removes EntityAIBreakDoor) and applies the held weapon's or tool's attackDamage modifier (EntityLivingBase.onUpdate's equipment pass after a load); sr_load_snapshot_entities ends with sr_apply_runtime (snap_runtime.c). lane/anytick: loads EntityLeashKnot, EntityTNTPrimed (Fuse, the igniter from tntPlacedBy), EntitySmallFireball and EntityLargeFireball (direction, tile, ExplosionPower; acceleration and shooter from rt) out of a mid-run snapshot; the villager offers go through trades_from_nbt."
+}

@@ -1,0 +1,29 @@
+{
+ "path": "csrc/engine/enchant.c",
+ "lines": 400,
+ "role": "EnchantmentHelper.buildEnchantmentList and addRandomEnchantment for loot books and enchanted trade and mob equipment items: the item's enchantability, the level draws, mapEnchantmentData rebuilt as a Java 8 HashMap so WeightedRandom walks its values in the same bucket order, the repeat loop with canApplyTogether, and ItemEnchantedBook's StoredEnchantments tag rendered as NBT.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/enchantment/EnchantmentHelper.java", "members": ["buildEnchantmentList", "mapEnchantmentData", "addRandomEnchantment"]},
+  {"path": "oracle/src/enchantment/EnumEnchantmentType.java", "members": ["canEnchantItem"]},
+  {"path": "oracle/src/enchantment/Enchantment.java", "members": ["canApplyTogether", "getWeight", "getMinEnchantability", "getMaxEnchantability"]},
+  {"path": "oracle/src/util/WeightedRandom.java", "members": ["getRandomItem", "getTotalWeight"]},
+  {"path": "oracle/src/item/ItemEnchantedBook.java", "members": ["addEnchantment", "func_92112_a"]},
+  {"path": "oracle/src/item/Item.java", "members": ["getItemEnchantability"]},
+  {"path": "oracle/src/item/ItemBook.java", "members": ["getItemEnchantability"]}
+ ],
+ "structs": [
+  {"name": "hashmap", "java": "java.util.HashMap<Integer, EnchantmentData> as mapEnchantmentData builds it (table size, threshold, tail-appended chains)", "fields": ["buckets", "n", "size", "threshold", "entries", "nentries", "capentries"]},
+  {"name": "hm_entry", "java": "HashMap.Node", "fields": ["key", "data", "next"]}
+ ],
+ "entry_points": ["build_enchantment_list", "add_random_enchantment_book", "add_random_enchantment_tag", "can_apply_together"],
+ "tick_path": true,
+ "gpu": [
+  "functions hm_init, hm_put, hm_resize: the mapEnchantmentData HashMap holds its buckets and entries in fixed arrays (HM_MAX 64: one node per enchantment, at most 32 buckets reached) and allocates nothing (lane/querybounds, TM-06)",
+  "line 141-142 and 176-177, functions hm_put and hm_resize: linear chain walks to append at the tail (index-linked chains, container order reproduced deliberately)",
+  "line 305, function build_enchantment_list: the repeat loop runs while nextInt(50) <= var11 with var11 halving; once var11 is 0 it continues with probability 1/50 per step (unbounded in principle, as in Java)",
+  "line 349-374, functions book_tag, add_random_enchantment_book and add_random_enchantment_tag: nbt tree allocation and malloc'd rendered text"
+ ],
+ "tests": ["csrc/tests/test_loot.c", "csrc/tests/test_trades.c", "csrc/tests/test_spawning.c"],
+ "notes": "The header comment says the HashMap lives in java_hashmap.c; in this file it is implemented inline (hm_*). Java removes conflicting entries from the map permanently each round; the port re-filters all candidates against every pick so far, which selects the same survivors in the same map order. Item enchantability for armor is a per-item-id switch (not in items.h). Callers: loot.c (chest books), trades.c (priest trades), hostiles.c, hostiles_skeleton.c, hostiles_spider.c and spawning.c (mob equipment). No test calls these functions directly; the listed tests were chosen because their subjects call enchant.c (not verified that each covers an enchanted path). The enchanting table itself is switched off (world.conf enchanting=off)."
+}

@@ -1,0 +1,75 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenForest.java",
+ "classes": [
+  "WorldGenForest"
+ ],
+ "lines": 133,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Birch tree for forests and birch forests; field_150531_a selects the tall birch variant that draws extra height.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_trees_small.c",
+   "symbols": [
+    "feature_forest"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "place_tree"
+   ]
+  },
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "feature_forest"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-forest-2",
+  "out/java/probes/fe-forest-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150531_a",
+   "sig": "boolean",
+   "native": "csrc/engine/features_trees_small.c:feature_forest",
+   "status": "exact",
+   "note": "The count argument is the tall flag."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenForest",
+   "sig": "(boolean,boolean)",
+   "native": null,
+   "status": "n/a",
+   "note": "notify flag via features_tree_notify; tall flag via count."
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_trees_small.c:feature_forest",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Sapling growth (birch) runs it from randomtick.c. Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

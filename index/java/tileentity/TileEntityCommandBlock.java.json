@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/tileentity/TileEntityCommandBlock.java",
+  "classes": ["TileEntityCommandBlock", "TileEntityCommandBlock$1"],
+  "lines": 72,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The command block entity: wraps a CommandBlockLogic (command text, custom name, success count) at its position.",
+  "scope": "not_needed",
+  "scope_reason": "Command blocks cannot be obtained or generated in survival and commands are not used in this game.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/tileentity.c", "symbols": ["render_command_block"]}
+  ],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_145994_a", "sig": "CommandBlockLogic (anonymous)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writeToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/tileentity.c:render_command_block", "status": "exact", "note": "fresh defaults only, for the placement probe"},
+    {"kind": "method", "name": "readFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getDescriptionPacket", "sig": "()Packet", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_145993_a", "sig": "()CommandBlockLogic", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The native store knows the kind (TE_COMMAND_BLOCK) only so the placement probe's fresh entity renders the same NBT."
+}

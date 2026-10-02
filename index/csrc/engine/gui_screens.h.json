@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/gui_screens.h",
+ "lines": 26,
+ "role": "Declares the container-screen layout struct and the three geometry functions of gui_screens.c the play client and HUD renderer use for drawing and mouse hit testing. Also gui_screen_effects_shift and gui_screen_key_click.",
+ "layer": "client",
+ "java": [
+  {"path": "oracle/src/client/gui/inventory/GuiContainer.java", "members": ["initGui", "guiLeft", "guiTop", "xSize", "ySize", "func_146975_c"]},
+  {"path": "oracle/src/client/gui/ScaledResolution.java", "members": ["ScaledResolution"]}
+ ],
+ "structs": [
+  {"name": "gui_screen_layout", "java": "ScaledResolution's scaled width/height and scale factor plus GuiContainer's guiLeft, guiTop, xSize, ySize", "fields": ["sw", "sh", "scale", "left", "top", "width", "height"]}
+ ],
+ "entry_points": ["gui_screen_layout", "gui_screen_slot_xy", "gui_screen_hit", "gui_screen_effects_shift", "gui_screen_key_click"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hudscreens.c"],
+ "notes": "Included by gui_screens.c, raster_hud.c and play/play.c."
+}

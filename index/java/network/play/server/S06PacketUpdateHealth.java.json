@@ -1,0 +1,124 @@
+{
+ "path": "oracle/src/network/play/server/S06PacketUpdateHealth.java",
+ "classes": [
+  "S06PacketUpdateHealth"
+ ],
+ "lines": 69,
+ "side": "server",
+ "category": "network",
+ "role": "The server's health, food and saturation push to the client player; handleUpdateHealth drives the client's health mirror and the low-health effects.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "queue_s06",
+    "surv_client_pump",
+    "client_set_sp_health"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/surv_fall12-s1",
+  "out/java/snapshots/surv_death-s1",
+  "out/java/snapshots/surv_starve-s1",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149336_a",
+   "sig": "float",
+   "status": "exact",
+   "note": "health, rides s2c_pkt.f0"
+  },
+  {
+   "kind": "field",
+   "name": "field_149334_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "food level, rides s2c_pkt.i0"
+  },
+  {
+   "kind": "field",
+   "name": "field_149335_c",
+   "sig": "float",
+   "status": "exact",
+   "note": "food saturation, rides s2c_pkt.f1"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(float,int,float)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:queue_s06"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "PK_S06 case: client_set_sp_health plus the food mirror"
+  },
+  {
+   "kind": "method",
+   "name": "func_149332_c",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149330_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149331_e",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": []
+}

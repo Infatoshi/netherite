@@ -1,0 +1,24 @@
+{
+ "path": "csrc/engine/seedworld_creatures.h",
+ "lines": 65,
+ "role": "Generated table of the biome creature spawn lists performWorldGenSpawning reads, taken from the live oracle biome objects after WorldConf.pruneSpawns removed horses, wolves and ocelots: the default four-entry list, the jungle's (with the extra chicken), the mushroom island's mooshroom list, and a biome id to list index map.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/biome/BiomeGenBase.java", "members": ["spawnableCreatureList", "SpawnListEntry"]},
+  {"path": "oracle/src/world/biome/BiomeGenJungle.java", "members": ["BiomeGenJungle"]},
+  {"path": "oracle/src/world/biome/BiomeGenMushroomIsland.java", "members": ["BiomeGenMushroomIsland"]},
+  {"path": "oracle/src/world/SpawnerAnimals.java", "members": ["performWorldGenSpawning"]}
+ ],
+ "structs": [
+  {"name": "sw_spawn_entry", "java": "BiomeGenBase.SpawnListEntry: itemWeight, minGroupCount, maxGroupCount, entityClass", "fields": ["weight", "min", "max", "cls"]},
+  {"name": "SW_LIST_DEFAULT", "java": "the four creature entries every BiomeGenBase constructor adds (sheep 12, pig 10, chicken 10, cow 8), after pruneSpawns removed the horse entries", "fields": []},
+  {"name": "SW_LIST_MOOSHROOM", "java": "BiomeGenMushroomIsland's creature list (mooshroom 8, 4..8)", "fields": []},
+  {"name": "SW_LIST_JUNGLE", "java": "BiomeGenJungle's creature list: the default four plus a chicken entry (the ocelot entry is pruned)", "fields": []},
+  {"name": "SW_BIOME_LIST", "java": "BiomeGenBase.biomeList id to creature-list index (0 empty, 1 default, 2 mooshroom, 3 jungle, -1 unregistered)", "fields": []}
+ ],
+ "entry_points": ["SW_LIST_DEFAULT", "SW_LIST_MOOSHROOM", "SW_LIST_JUNGLE", "SW_BIOME_LIST"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_seedworld.c"],
+ "notes": "Read-only static const tables, GPU-friendly. Only the creature type is covered; the monster, water and ambient lists live elsewhere (spawning.c, not verified). Included only by seedworld.c (sw_creatures); the test is indirect, through the seed-world build. The BiomeGenJungle and BiomeGenMushroomIsland member names are the constructors where those lists are filled, inferred rather than read line by line. Generated from the oracle's --spawndump creatures.jsonl, per the header comment; regenerate rather than hand-edit."
+}

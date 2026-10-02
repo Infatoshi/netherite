@@ -1,0 +1,23 @@
+{
+ "path": "oracle/src/entity/EnumCreatureAttribute.java",
+ "classes": ["EnumCreatureAttribute"],
+ "lines": 9,
+ "side": "server",
+ "category": "entity",
+ "role": "The three creature attributes (UNDEFINED, UNDEAD, ARTHROPOD) that potion applicability and some mob behaviour dispatch on.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [{"file": "csrc/engine/combatench.h", "symbols": ["CREATURE_UNDEFINED", "CREATURE_UNDEAD", "CREATURE_ARTHROPOD"]}, {"file": "csrc/engine/combatench.c", "symbols": ["living_creature_attribute"]}],
+ "evidence": [
+  "out/java/snapshots/pot-poison-s1",
+  "csrc/tests/test_potions.c",
+  "out/java/snapshots/dmg-sources-s1",
+  "out/java/snapshots/melee-mods-s1"
+ ],
+ "members": [
+  {"kind": "field", "name": "UNDEFINED, UNDEAD, ARTHROPOD (constants)", "sig": "EnumCreatureAttribute", "native": "csrc/engine/combatench.h:CREATURE_UNDEAD", "status": "exact"}
+ ],
+ "missing": [],
+ "notes": "living_creature_attribute is EntityLivingBase.getCreatureAttribute as the kinds override it (zombie and pigman, skeleton: UNDEAD; spider, cave spider, silverfish: ARTHROPOD). potion.c's potion_applicable_to still writes its UNDEAD refusals per kind."
+}

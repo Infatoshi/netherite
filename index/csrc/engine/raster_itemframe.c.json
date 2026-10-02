@@ -1,0 +1,85 @@
+{
+ "path": "csrc/engine/raster_itemframe.c",
+ "lines": 449,
+ "role": "RenderItemFrame over a recorded scene: the frame's five renderBlockAsItem boxes with forced sprites, the displayed item as RenderItem's in-frame flat quad, a compass's own needle and its animation step, gated by RenderGlobal.renderEntities' range and frustum test (ClippingHelperImpl ported).",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/tileentity/RenderItemFrame.java",
+   "members": [
+    "doRender",
+    "renderFrameItemAsBlock",
+    "func_147915_b",
+    "func_82402_b"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/culling/ClippingHelperImpl.java",
+   "members": [
+    "init",
+    "normalize"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/culling/ClippingHelper.java",
+   "members": [
+    "isBoxInFrustum"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/culling/Frustrum.java",
+   "members": [
+    "setPosition",
+    "isBoxInFrustum",
+    "isBoundingBoxInFrustum"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/entity/RenderItem.java",
+   "members": [
+    "doRender",
+    "renderDroppedItem"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityHanging.java",
+   "members": [
+    "setDirection"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "raster_itemframe",
+   "java": "EntityItemFrame's saved fields and EntityHanging.setDirection's bounding box",
+   "fields": [
+    "tile",
+    "dir",
+    "pos",
+    "yaw",
+    "item_id",
+    "item_damage",
+    "item_rot",
+    "box"
+   ]
+  }
+ ],
+ "entry_points": [
+  "raster_itemframe_parse",
+  "raster_itemframe_in_frustum",
+  "raster_itemframe_rendered",
+  "raster_itemframe_compass",
+  "raster_itemframe_compass_step",
+  "raster_itemframe_draw",
+  "raster_itemframe_draw_live"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "raster_itemframe_draw: reads and mallocs the scene's atlases per frame (the recorded path)"
+ ],
+ "tests": [
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_rendertick.c"
+ ],
+ "notes": "Not drawn: a filled map's contents, block items, the enchant glint, a named stack's label; the live client draws no item frames. raster_itemframe_draw_live: the frame over the live block atlas, the item from the HUD scene's table (lane/clientents); frame_draw is the shared geometry."
+}

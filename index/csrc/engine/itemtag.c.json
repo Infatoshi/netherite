@@ -1,0 +1,108 @@
+{
+ "path": "csrc/engine/itemtag.c",
+ "lines": 387,
+ "role": "The item tag store: every stack's ItemStack.stackTagCompound as an index into one fixed-capacity array of interned compounds (canonical NBT text in a text arena, an FNV hash index), with the keys the game reads decoded per entry (ench, StoredEnchantments, display color and Name, RepairCost, Unbreakable) and the tag writes (addEnchantment, ItemEnchantedBook.addEnchantment, the leather dye and removeColor, setStackDisplayName) as new interned entries.",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/item/ItemStack.java",
+   "members": [
+    "stackTagCompound",
+    "hasTagCompound",
+    "getTagCompound",
+    "setTagCompound",
+    "areItemStackTagsEqual",
+    "addEnchantment",
+    "isItemEnchanted",
+    "getEnchantmentTagList",
+    "hasDisplayName",
+    "setStackDisplayName",
+    "readFromNBT",
+    "writeToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemArmor.java",
+   "members": [
+    "hasColor",
+    "getColor",
+    "func_82813_b",
+    "removeColor"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemEnchantedBook.java",
+   "members": [
+    "func_92110_g",
+    "addEnchantment"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentHelper.java",
+   "members": [
+    "getEnchantmentLevel"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "itag",
+   "java": "one interned NBTTagCompound (the stack tag) with its read keys decoded",
+   "fields": [
+    "off",
+    "len",
+    "hash",
+    "next",
+    "has_ench",
+    "nench",
+    "ench",
+    "has_stored",
+    "nstored",
+    "stored",
+    "has_display",
+    "has_color",
+    "has_name",
+    "color",
+    "name_off",
+    "name_len",
+    "repair_cost",
+    "unbreakable"
+   ]
+  }
+ ],
+ "entry_points": [
+  "itag_from_tree",
+  "itag_from_text",
+  "itag_from_item",
+  "itag_get",
+  "itag_text",
+  "itag_tree",
+  "itag_put",
+  "itag_ench_level",
+  "itag_nench",
+  "itag_ench_at",
+  "itag_enchanted",
+  "itag_has_color",
+  "itag_color",
+  "itag_name",
+  "itag_add_ench",
+  "itag_add_stored",
+  "itag_set_color",
+  "itag_remove_color",
+  "itag_set_name"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "functions itag_from_tree, intern, open_tag, close_tag: a new tag renders and parses its canonical text on the heap (only when a stack's tag is written or first seen, never for a plain copy or compare)",
+  "function intern: the store never frees; a full store or arena stops the process"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_containers.c",
+  "csrc/tests/test_crafting.c",
+  "csrc/tests/test_loot.c",
+  "csrc/tests/test_spawning.c"
+ ],
+ "notes": "Chosen over a per-stack tree for the GPU contract: a stack is five ints, a copy is an assignment and areItemStackTagsEqual an int compare; the survival game reaches few distinct tags (enchanted loot, trades and mob gear, dyed leather). lane/itemtags. A lookup or intern notes the index in env.itemtag.journal while journal_on (regioncache.c captures a build's tags in first-use order)."
+}

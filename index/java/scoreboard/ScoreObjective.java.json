@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/scoreboard/ScoreObjective.java",
+  "classes": ["ScoreObjective"],
+  "lines": 46,
+  "side": "server",
+  "category": "other",
+  "role": "One scoreboard objective: its name, its criteria and its display name, with a back pointer to the owning Scoreboard.",
+  "scope": "not_needed",
+  "scope_reason": "Objectives exist only after a /scoreboard command; commands are off in our survival worlds (DEVLOG 2026-09-25) so no objective is ever constructed.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "theScoreboard", "sig": "Scoreboard", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "name", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "objectiveCriteria", "sig": "IScoreObjectiveCriteria", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "displayName", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ScoreObjective", "sig": "(Scoreboard,String,IScoreObjectiveCriteria)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getScoreboard", "sig": "()Scoreboard", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getName", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getCriteria", "sig": "()IScoreObjectiveCriteria", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getDisplayName", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setDisplayName", "sig": "(String)V", "native": null, "status": "n/a", "note": "calls theScoreboard.func_96532_b"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game; no native counterpart expected."
+}

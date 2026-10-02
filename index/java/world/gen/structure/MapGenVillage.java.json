@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/world/gen/structure/MapGenVillage.java",
+  "classes": ["MapGenVillage", "MapGenVillage.Start"],
+  "lines": 167,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The village generator: one candidate per 32-chunk grid cell (min spacing 8) seeded through World.setRandomSeed(salt 10387312), allowed in plains, desert and savanna; the Start builds the well, roads and houses and is only generated when it has more than two non-road pieces.",
+  "scope": "in_scope",
+  "scope_reason": "villages = on in world.conf; SPEC Decisions 'Villages are on'.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/village.c", "symbols": ["structure_village", "village_begin", "village_can_spawn", "village_make_start", "are_biomes_viable", "village_biomes", "VILLAGE_MAX_DISTANCE", "VILLAGE_MIN_DISTANCE", "VILLAGE_TERRAIN_TYPE"]}, {"file": "csrc/engine/populate.c", "symbols": ["start_sizeable", "populate_add_start", "populate_restore_pieces"]}, {"file": "csrc/engine/serverreplay.c", "symbols": ["serverreplay_load"]}, {"file": "csrc/engine/structure.c", "symbols": ["start_nbt"]}],
+  "evidence": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c", "csrc/tests/test_populate.c", "out/java/structures/vi-2", "out/java/structures/vi-42", "out/java/sblocks/vi2-a", "out/java/sblocks/vi42-a", "out/java/sblocks/vi2-des2", "out/java/snapshots/persist-village-full-s42", "out/java/snapshots/struct-cp-s42"],
+  "members": [
+    {"kind": "field", "name": "villageSpawnBiomes", "sig": "static List<BiomeGenBase>", "native": "csrc/engine/village.c:village_biomes", "status": "exact"},
+    {"kind": "field", "name": "terrainType", "sig": "int", "native": "csrc/engine/village.c:VILLAGE_TERRAIN_TYPE", "status": "exact", "note": "Fixed at 0; the superflat size option is not ported (n/a for default worlds)."},
+    {"kind": "field", "name": "field_82665_g", "sig": "int (spacing 32)", "native": "csrc/engine/village.c:VILLAGE_MAX_DISTANCE", "status": "exact"},
+    {"kind": "field", "name": "field_82666_h", "sig": "int (separation 8)", "native": "csrc/engine/village.c:VILLAGE_MIN_DISTANCE", "status": "exact"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "MapGenVillage", "sig": "()V", "native": "csrc/engine/village.c:structure_village", "status": "exact"},
+    {"kind": "ctor", "name": "MapGenVillage", "sig": "(Map)V", "native": null, "status": "n/a", "note": "Option-map constructor for superflat presets only."},
+    {"kind": "method", "name": "func_143025_a", "sig": "()String", "native": "csrc/engine/village.c:structure_village", "status": "exact", "note": "The name \"Village\"."},
+    {"kind": "method", "name": "canSpawnStructureAtCoords", "sig": "(int,int)Z", "native": "csrc/engine/village.c:village_can_spawn", "status": "exact", "note": "Reseeds World.rand when the caller installs populate_world_rand, as Java's setRandomSeed does."},
+    {"kind": "method", "name": "getStructureStart", "sig": "(int,int)StructureStart", "native": "csrc/engine/village.c:village_make_start", "status": "exact"},
+    {"kind": "field", "name": "Start.hasMoreThanTwoComponents", "sig": "boolean", "native": "csrc/engine/village.c:village_make_start", "status": "exact", "note": "piece.u.village.valid on the well."},
+    {"kind": "ctor", "name": "Start", "sig": "()V", "native": "csrc/engine/populate.c:populate_add_start", "status": "exact", "note": "The NBT-load constructor MapGenStructure.func_143027_a runs for each saved start: native rebuilds the start from its seeded candidate (the same pieces the saved Children were made from) and populate_restore_pieces overlays the saved state."},
+    {"kind": "ctor", "name": "Start", "sig": "(World,Random,int,int,int)V", "native": "csrc/engine/village.c:village_make_start", "status": "exact"},
+    {"kind": "method", "name": "Start.isSizeableStructure", "sig": "()Z", "native": "csrc/engine/populate.c:start_sizeable", "status": "exact"},
+    {"kind": "method", "name": "Start.func_143022_a", "sig": "(NBTTagCompound)V", "native": "csrc/engine/structure.c:start_nbt", "status": "exact", "note": "Writes the Valid byte."},
+    {"kind": "method", "name": "Start.func_143017_b", "sig": "(NBTTagCompound)V", "native": "csrc/engine/populate.c:start_sizeable", "status": "exact", "note": "Valid is written once, by the constructor (var10 > 2 over the non-road pieces), and never changes, so the rebuilt start's start_sizeable equals the saved Valid. The pieces' saved state (each box, HPos, VCount, the once-set chest flag) comes back from the snapshot's structures.json, which Snapshot.java writes from the live structure map after any reload (what data/Village.dat gave): populate_restore_pieces, from serverreplay_load."}
+  ],
+  "missing": [],
+  "notes": "lane/idxmisc 2026-09-27: the reload entries were stale. lane/villages (DEVLOG 2026-09-26) made structures.json carry each start's pieces (box, HPos, VCount) and flags as a reloaded start holds them, and native restores them onto the rebuilt start; struct-cp-s42 is the proof (a checkpoint leaves the x 663 house at HPos 68 VCount 0, the resumed run walks into it; without the restore native places it at HPos 66 and fails at row 23), OK in test_snapshots on this lane's tree. idxaudit 2026-09-27: was in_scope/exact: a reachable behaviour is not native (missing). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

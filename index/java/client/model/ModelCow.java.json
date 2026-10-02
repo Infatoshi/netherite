@@ -1,0 +1,38 @@
+{
+ "path": "oracle/src/client/model/ModelCow.java",
+ "classes": [
+  "ModelCow"
+ ],
+ "lines": 29,
+ "side": "client",
+ "category": "client_model",
+ "role": "The cow's model: the quadruped layout with horns, udder and the wider body.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_cow",
+    "quadruped"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs_cow_f006",
+  "out/java/render/mobs_cow_f012",
+  "out/java/render/mobs2b_mooshroom_f006",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ModelCow",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_cow",
+   "status": "exact",
+   "note": "the mooshroom reuses the same model_cow geometry"
+  }
+ ],
+ "missing": []
+}

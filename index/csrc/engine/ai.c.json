@@ -1,0 +1,486 @@
+{
+ "path": "csrc/engine/ai.c",
+ "lines": 3231,
+ "role": "The 1.7.10 new-AI stack for every AI-enabled mob the native engine has: EntityAITasks (tick rate 3, mutex bits, executing list), about 33 task classes (animal, villager, golem and hostile tasks), the look/move/jump/body helpers, EntitySenses, PathNavigate over pathfind.c, RandomPositionGenerator, the per-kind task lists (ai_setup_kind) and the per-kind constructor dispatch an_construct_kind.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/ai/EntityAITasks.java",
+   "members": [
+    "onUpdateTasks",
+    "addTask",
+    "removeTask",
+    "canUse",
+    "areTasksCompatible",
+    "canContinue",
+    "tickCount",
+    "tickRate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIBase.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "isInterruptible",
+    "startExecuting",
+    "resetTask",
+    "updateTask",
+    "getMutexBits"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAISwimming.java",
+   "members": [
+    "EntityAISwimming",
+    "shouldExecute",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIPanic.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting",
+    "continueExecuting"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIControlledByPlayer.java",
+   "members": [
+    "shouldExecute"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIMate.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "resetTask",
+    "updateTask",
+    "getNearbyMate",
+    "spawnBaby"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAITempt.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIFollowParent.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIWander.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIWatchClosest.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIWatchClosest2.java",
+   "members": [
+    "EntityAIWatchClosest2"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAILookIdle.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIEatGrass.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting",
+    "resetTask",
+    "continueExecuting",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAINearestAttackableTarget.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAITarget.java",
+   "members": [
+    "continueExecuting",
+    "isSuitableTarget",
+    "startExecuting",
+    "resetTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIHurtByTarget.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIAttackOnCollide.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIArrowAttack.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAICreeperSwell.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIAvoidEntity.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIBreakDoor.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIOpenDoor.java",
+   "members": [
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIDoorInteract.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIRestrictOpenDoor.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIRestrictSun.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting",
+    "resetTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIFleeSun.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIMoveIndoors.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIMoveThroughVillage.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIMoveTowardsRestriction.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIMoveTowardsTarget.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "resetTask",
+    "startExecuting"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIVillagerMate.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting",
+    "resetTask",
+    "continueExecuting",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIPlay.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAILookAtVillager.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIFollowGolem.java",
+   "members": [
+    "shouldExecute",
+    "continueExecuting",
+    "startExecuting",
+    "resetTask",
+    "updateTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAITradePlayer.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting",
+    "resetTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAILookAtTradePlayer.java",
+   "members": [
+    "shouldExecute"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityAIDefendVillage.java",
+   "members": [
+    "shouldExecute",
+    "startExecuting"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityLookHelper.java",
+   "members": [
+    "setLookPositionWithEntity",
+    "setLookPosition",
+    "onUpdateLook",
+    "updateRotation"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityMoveHelper.java",
+   "members": [
+    "setMoveTo",
+    "onUpdateMoveHelper",
+    "limitAngle"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityJumpHelper.java",
+   "members": [
+    "setJumping",
+    "doJump"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityBodyHelper.java",
+   "members": [
+    "func_75664_a",
+    "func_75665_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntitySenses.java",
+   "members": [
+    "clearSensingCache",
+    "canSee"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/RandomPositionGenerator.java",
+   "members": [
+    "findRandomTarget",
+    "findRandomTargetBlockTowards",
+    "findRandomTargetBlock",
+    "findRandomTargetBlockAwayFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/pathfinding/PathNavigate.java",
+   "members": [
+    "onUpdateNavigation",
+    "pathFollow",
+    "tryMoveToXYZ",
+    "tryMoveToEntityLiving",
+    "getPathToXYZ",
+    "getPathToEntityLiving",
+    "setPath",
+    "noPath",
+    "clearPathEntity",
+    "getPathableYPos",
+    "canNavigate",
+    "isDirectPathBetweenPoints",
+    "isPositionClear",
+    "isSafeToStandAt",
+    "getEntityPosition"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "isWithinHomeDistance"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getPathEntityToEntity",
+    "getEntityPathToXYZ"
+   ]
+  },
+  {
+   "path": "oracle/src/pathfinding/PathEntity.java",
+   "members": [
+    "isDestinationSame"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityIronGolem.java",
+   "members": [
+    "EntityIronGolem"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "fp_found",
+   "java": "the entity list EntityAIFollowParent.shouldExecute gets from World.getEntitiesWithinAABB (static scratch, 64 slots)",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "ai_setup_kind",
+  "ai_add_break_door",
+  "ai_tasks_update",
+  "ai_remove_task",
+  "ai_add_task_arrow_attack",
+  "ai_add_task_attack_on_collide",
+  "look_helper_update",
+  "look_set_position_with_entity",
+  "look_set_position",
+  "move_helper_set_move_to",
+  "move_helper_update",
+  "jump_helper_do",
+  "body_helper_update",
+  "body_helper_a",
+  "senses_clear",
+  "senses_can_see",
+  "ai_creature_path_to_entity",
+  "nav_scratch_take_world",
+  "ai_creature_path_to_xyz",
+  "nav_update",
+  "nav_try_move_to_xyz",
+  "nav_try_move_to_entity",
+  "nav_no_path",
+  "nav_clear_path",
+  "an_construct_kind",
+  "ai_is_imob_kind"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "function nav_scratch_take: one environment-held finder and output buffer serve every search, the finder's point, heap and key arrays the arena's pf_store (PF_MAX_POINTS); a search inside another stops the program (none does) (lane/gpuarena, L3)",
+  "nav_path_of and the searches make paths in the environment's path pool (arena.c path_alloc); a path is a pathref handle shared by count (path_hold, path_drop) (lane/gpuarena, L3)",
+  "line 1041, function follow_parent_target: result order depends on an_entities_within_aabb's list order (container-order dependence, matches Java's entity list order)",
+  "line 459, function nav_direct_path: while (1) grid walk, terminates when the target cell is reached (bounded by distance, not by a constant)",
+  "line 330-340, function nav_pathable_y: do/while bounded at 17 steps",
+  "the task targets, mates and partners are lrefs and the paths pathrefs; l->an (the world container) stays an address (lane/gpuarena, L3)",
+  "19 trace() calls (e.g. lines 485, 507, 563, 886) write to the global trace FILE when tracing is on"
+ ],
+ "tests": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_villagers.c",
+  "csrc/tests/test_paths.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "The header comment still says 'for the farm animals' but the file now covers villager, iron golem and hostile tasks (the AIC_* list includes VILLAGER_MATE, MOVE_THROUGH_VILLAGE, DEFEND_VILLAGE, CREEPER_SWELL, ARROW_ATTACK, BREAK_DOOR, FLEE_SUN and more). Not ported: tame-animal tasks (EntityAIBeg, Sit, FollowOwner, OwnerHurtByTarget, OwnerHurtTarget, TargetNonTamed, OcelotSit, OcelotAttack, LeapAtTarget, RunAroundLikeCrazy); their mobs (wolf, ocelot, horse) are switched off in world.conf. The per-task Java member lists are the standard EntityAIBase overrides each class has, inferred from the task switch structure (ai_should_execute, ai_continue_executing, ai_start, ai_reset, ai_update), not verified method by method. test_paths.c and test_villagers.c were not opened to confirm which ai.c functions they reach. Task lists hold AI_MAX_ENTRIES 16 (the villager's 15 plus the leash's move-towards-restriction; task_slot stops the program past it); EntityAIMoveThroughVillage's door list lives once per living (mtv_visited_doors), not in every task entry (lane worldmem). lane/idxentity: the iron golem's navigator never swims; EntityAIBreakDoor breaks the door on HARD at 240."
+}

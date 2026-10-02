@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/scoreboard/ScoreHealthCriteria.java",
+  "classes": ["ScoreHealthCriteria"],
+  "lines": 39,
+  "side": "server",
+  "category": "other",
+  "role": "The 'health' scoreboard criteria: the mean of the tracked players' health plus absorption, read-only.",
+  "scope": "not_needed",
+  "scope_reason": "Constructed only by IScoreObjectiveCriteria's static registry and used by a health objective on a display slot; objectives require /scoreboard commands, which are off in our survival worlds (DEVLOG 2026-09-25).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "ScoreHealthCriteria", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_96635_a", "sig": "(List)I", "native": null, "status": "n/a", "note": "mean of getHealth() + getAbsorptionAmount() over the tracked players, ceiling"},
+    {"kind": "method", "name": "isReadOnly", "sig": "()Z", "native": null, "status": "n/a", "note": "true"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

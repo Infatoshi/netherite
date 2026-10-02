@@ -1,0 +1,127 @@
+{
+ "path": "oracle/src/profiler/Profiler.java",
+ "classes": [
+  "Profiler",
+  "Profiler.Result"
+ ],
+ "lines": 214,
+ "side": "common",
+ "category": "util",
+ "role": "Tick instrumentation: startSection/endSection wrap the server's and client's tick phases with System.nanoTime and getProfilingData feeds the debug profiling screen.",
+ "scope": "not_needed",
+ "scope_reason": "Pure instrumentation that changes no game state the digests read (its only output is the debug screen and a log warn); the native engine has no profiler and no wall clock inside the tick (SPEC's GPU contract forbids one).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "sectionList",
+   "sig": "java.util.List",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "timestampList",
+   "sig": "java.util.List",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "profilingEnabled",
+   "sig": "boolean",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "profilingSection",
+   "sig": "String",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "profilingMap",
+   "sig": "java.util.Map",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "clearProfiling",
+   "sig": "()V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "startSection",
+   "sig": "(String)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "endSection",
+   "sig": "()V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getProfilingData",
+   "sig": "(String)java.util.List",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "endStartSection",
+   "sig": "(String)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getNameOfLastSection",
+   "sig": "()String",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Profiler.Result.field_76332_a",
+   "sig": "double",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Profiler.Result.field_76330_b",
+   "sig": "double",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Profiler.Result.field_76331_c",
+   "sig": "String",
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "Profiler.Result",
+   "sig": "(String,D,D)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Profiler.Result.compareTo",
+   "sig": "(Profiler.Result)I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Profiler.Result.func_76329_a",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Profiler.Result.compareTo",
+   "sig": "(Object)I",
+   "status": "n/a"
+  }
+ ],
+ "missing": []
+}

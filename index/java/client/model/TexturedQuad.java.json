@@ -1,0 +1,82 @@
+{
+ "path": "oracle/src/client/model/TexturedQuad.java",
+ "classes": [
+  "TexturedQuad"
+ ],
+ "lines": 66,
+ "side": "client",
+ "category": "client_model",
+ "role": "One textured quad of a model box: four corners, a computed normal and the UV rectangle.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "emit_box_faces",
+    "box"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "out/java/render/mobs2b_iron_golem_f011"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "vertexPositions",
+   "sig": "PositionTextureVertex[]",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "nVertices",
+   "sig": "int",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact",
+   "note": "always 4"
+  },
+  {
+   "kind": "field",
+   "name": "invertNormal",
+   "sig": "boolean",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact",
+   "note": "the flip_normal argument for the mirrored passes"
+  },
+  {
+   "kind": "ctor",
+   "name": "TexturedQuad",
+   "sig": "(PositionTextureVertex[])V",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "TexturedQuad",
+   "sig": "(PositionTextureVertex[],int,int,int,int,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact",
+   "note": "the UV rectangle from the box size and origin"
+  },
+  {
+   "kind": "method",
+   "name": "flipFace",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact",
+   "note": "ModelBox's mirrored quads; the native mirror argument reverses the winding"
+  },
+  {
+   "kind": "method",
+   "name": "draw",
+   "sig": "(Tessellator,float)V",
+   "native": "csrc/engine/raster_mobs.c:emit_box_faces",
+   "status": "exact",
+   "note": "the normal from the first three corners and the scale"
+  }
+ ],
+ "missing": []
+}

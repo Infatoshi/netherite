@@ -1,0 +1,85 @@
+{
+  "path": "csrc/engine/endfight.c",
+  "lines": 313,
+  "role": "The End's boss fight as the whole-server replay carries it: builds the dragon and crystals of a v2 snapshot (NBT plus Snapshot.java's unsaved dragon state, no constructor draws); constructs the EntityDragon at 0,128,0 and the WorldGenSpikes crystals (keeping the crystals across the dragon's init), tracks which chunk and section the 16-wide dragon was added to so entity searches find it the way vanilla does, reloads a saved dragon, counts the End's listed entities, and writes the dragon's and crystals' NBT for the entity digest.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/entity/boss/EntityDragon.java",
+      "members": [
+        "EntityDragon",
+        "applyEntityAttributes"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/item/EntityEnderCrystal.java",
+      "members": [
+        "EntityEnderCrystal"
+      ]
+    },
+    {
+      "path": "oracle/src/world/biome/BiomeEndDecorator.java",
+      "members": [
+        "func_150513_a"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "setLocationAndAngles",
+        "writeToNBT",
+        "readFromNBT"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "writeEntityToNBT"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityList.java",
+      "members": [
+        "createEntityFromNBT"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "updateEntityWithOptionalForce",
+        "getEntitiesWithinAABBExcludingEntity"
+      ]
+    },
+    {
+      "path": "oracle/src/world/chunk/Chunk.java",
+      "members": [
+        "addEntity",
+        "getEntitiesWithinAABBForEntity"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "endfight_snapshot_dragon",
+    "endfight_snapshot_crystal",
+    "endfight_resolve_heal",
+    "endfight_spawn_dragon",
+    "endfight_spawn_crystal",
+    "endfight_dragon_nbt",
+    "endfight_crystal_nbt",
+    "endfight_dragon_chunk",
+    "endfight_dragon_listed_near",
+    "endfight_reload_dragon",
+    "endfight_count"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "lines 17-19 and 129-135, functions endfight_spawn_dragon and endfight_reload_dragon: copy the 64-crystal array to the stack and back around dragon_init (about 64 x 100 bytes of stack)",
+    "line 78-81, function endfight_dragon_nbt: builds an nbt tree (heap) for the digest"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "Callers: serverreplay.c and sr_digest.c (pools SR_POOL_DRAGON 4 and SR_POOL_CRYSTAL 5); no test calls endfight_ directly. The dragon's NBT is produced by filling a throwaway living (kind 1000, attributes maxHealth 200) and calling living_write_nbt; the crystal's through ent_nbt_base. Recordings: out/java/snapshots/end-arrival-s1, end-crystals-s1, end-dragon-s1, end-exit-s1 (DEVLOG 2026-09-25 lane/theend). lane/anytick: endfight_snapshot_crystal takes the runtime isDead (a crystal destroyed in the tick before the snapshot leaves in the next entity pass)."
+}

@@ -1,0 +1,87 @@
+# The client randomness fields (d.cseed, d.cmath, d.cstat, d.cw) that
+# test_snapshots does not compare yet for a recording, each with its cause.
+# Every recording not named here is compared on all four. A line is
+# RECORDING FIELD[,FIELD...]; lane/clientgate made this list, and it should
+# only shrink: remove a line when its cause is fixed.
+
+# A client mob copy's death: S19 status 3, then onDeathUpdate's 20 explode FX
+# at particles 0. The native client keeps no health or death time for its
+# copies of other entities.
+cg-combat-pig-s1 d.cseed,d.cmath
+combat-mobs-s1 d.cseed,d.cmath
+
+# A client entity copy the native tracker never spawns (an S0F, an S11): the
+# mobs of an unloaded or foreign dimension's chunks, peaceful's ghast, a
+# dead player's orb.
+end-unload-kinds-s1 d.cseed,d.cw
+nether-unload-kinds-s1 d.cseed,d.cw
+peaceful-s1 d.cseed,d.cmath
+portal-foreign-s1 d.cseed,d.cmath
+plate-dead-s1 d.cseed,d.cmath
+
+
+# The client's Explosion.doExplosionB(true) over the S27's block list: the
+# particle places and the ores' and spawner's drop draws are native's now
+# (the S27 carries those blocks; struct-tnt-s42 compares), these two still
+# draw differently on WorldClient.rand after a blast (a ghast's and a bed's,
+# both flaming): not found yet.
+cb-blockghast-s1 d.cw
+end-bed-s42 d.cw
+
+# A client-only fire: the oracle's WorldClient keeps a fire cell the server
+# has cleared (doVoidFogParticles reads it), the native client world has
+# the server's air.
+endbot-s1 d.cw
+endbot-s42 d.cw
+gold-g30-s42 d.cw
+
+# The client's chunk set after a reload or a dimension change: the oracle's
+# WorldClient lacks a chunk (or a spawner's S35 entity) the native client
+# has at that tick.
+end-bed-exit-s1 d.cw
+liq-reload-s1 d.cw,d.cseed,d.cmath
+pearl-dims-s1 d.cw
+sh-bot-west-s42 d.cw
+sh-portal-s42 d.cw
+tiles-reload-s1 d.cw
+village-away-s42 d.cw,d.cseed,d.cmath
+
+# The void fog's thousand samples read other client blocks than the
+# oracle's (a few air cells more or fewer); the differing cells are not
+# isolated yet.
+end-return-s42 d.cw
+end-throw-s42 d.cw
+gold-g29-s42 d.cw
+sh-bot-s42 d.cw
+struct-dungeon-s42 d.cw
+# (lane/longrun) Rows 5721 to 5745 only, after the teleport to x 5961,
+# y 2, beside a lava lake whose still lava turns flowing: the oracle's
+# snapshot at 5722 has one client chunk whose ids differ from its server's
+# (clientworld.nbt differIds 1), native's client matches its server, and
+# the void fog reads the other block. Every server field matches on all
+# 30,100 rows.
+explore-long-s1 d.cw
+
+# A client mob copy walking on redstone ore (onEntityWalking's
+# func_150186_m on WorldClient.rand): native's copies do not trigger
+# walking.
+gold-g5-s42 d.cw
+
+# EffectRenderer.addBlockHitEffects: one FX the native dig flow does not
+# make (gold-g17), one it makes the tick after the break, on the broken cell
+# (break-place; its d.cw follows from that break).
+gold-g17-s42 d.cseed,d.cmath
+break-place-s1 d.cseed,d.cmath,d.cw
+
+# The client's playAuxSFX 2002 (a thrown potion's splash): its draw count
+# differs from the oracle's.
+throw-items-s1 d.cw
+
+# NetworkManager.processReceivedPackets handles at most 1001 packets a client
+# tick and leaves the rest queued: a burst of spawns (334 orbs, mobs or items
+# a tick in the oracle) reaches the client world over several ticks, each
+# copy's constructor draws with it. Native's client world takes a tick's
+# whole queue and does not count the packets it does not model.
+crowd-600-s42 d.cseed,d.cmath
+orb-heap-s1 d.cseed,d.cmath
+tnt-cannon-s1 d.cseed,d.cmath

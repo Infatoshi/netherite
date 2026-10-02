@@ -1,0 +1,109 @@
+# lane/rlfuzz's pinned agent-form cases: each script under agentpins/ found a divergence
+# (its whole recording is out/java/snapshots/rf-CASE, which make -C csrc test replays; the row is where it first diverged).
+# Re-record one from its start: bash csrc/tests/playfuzz/agentrun.sh START:@csrc/tests/playfuzz/agentpins/rf-CASE.jsonl
+g12:@csrc/tests/playfuzz/agentpins/rf-g12-131.jsonl  # row 295
+g10:@csrc/tests/playfuzz/agentpins/rf-g10-129.jsonl  # row 405
+g1:@csrc/tests/playfuzz/agentpins/rf-g1-330.jsonl  # row 1653
+g12:@csrc/tests/playfuzz/agentpins/rf-g12-4.jsonl  # row 2466
+cp-nether-s1:@csrc/tests/playfuzz/agentpins/rf-cp-nether-s1-9.jsonl  # row 464
+g10:@csrc/tests/playfuzz/agentpins/rf-g10-669.jsonl  # row 101
+g13:@csrc/tests/playfuzz/agentpins/rf-g13-462.jsonl  # row 627
+g13:@csrc/tests/playfuzz/agentpins/rf-g13-222.jsonl  # row 1771
+g17:@csrc/tests/playfuzz/agentpins/rf-g17-886.jsonl  # row 492
+g13:@csrc/tests/playfuzz/agentpins/rf-g13-672.jsonl  # row 3126
+g15:@csrc/tests/playfuzz/agentpins/rf-g15-134.jsonl  # row 2949
+g10:@csrc/tests/playfuzz/agentpins/rf-g10-339.jsonl  # row 412
+g2:@csrc/tests/playfuzz/agentpins/rf-g2-661.jsonl  # row 276
+g2:@csrc/tests/playfuzz/agentpins/rf-g2-331.jsonl  # row 500
+g19:@csrc/tests/playfuzz/agentpins/rf-g19-138.jsonl  # row 865
+g18:@csrc/tests/playfuzz/agentpins/rf-g18-467.jsonl  # row 2615
+g18:@csrc/tests/playfuzz/agentpins/rf-g18-137.jsonl  # row 2446
+g16:@csrc/tests/playfuzz/agentpins/rf-g16-435.jsonl  # row 710
+g19:@csrc/tests/playfuzz/agentpins/rf-g19-438.jsonl  # row 902
+g23:@csrc/tests/playfuzz/agentpins/rf-g23-232.jsonl  # row 2709
+g18:@csrc/tests/playfuzz/agentpins/rf-g18-767.jsonl  # row 2172
+g20:@csrc/tests/playfuzz/agentpins/rf-g20-139.jsonl  # row 216
+g24:@csrc/tests/playfuzz/agentpins/rf-g24-593.jsonl  # row 2778
+g19:@csrc/tests/playfuzz/agentpins/rf-g19-228.jsonl  # row 2175
+g27:@csrc/tests/playfuzz/agentpins/rf-g27-656.jsonl  # row 1930
+g26:@csrc/tests/playfuzz/agentpins/rf-g26-325.jsonl  # row 2398
+g16:@csrc/tests/playfuzz/agentpins/rf-g16-225.jsonl  # row 2128
+g4:@csrc/tests/playfuzz/agentpins/rf-g4-753.jsonl  # row 11
+g3:@csrc/tests/playfuzz/agentpins/rf-g3-422.jsonl  # row 2487
+g26:@csrc/tests/playfuzz/agentpins/rf-g26-235.jsonl  # row 1893
+g26:@csrc/tests/playfuzz/agentpins/rf-g26-475.jsonl  # row 925
+g29:@csrc/tests/playfuzz/agentpins/rf-g29-13.jsonl  # row 4618
+g4:@csrc/tests/playfuzz/agentpins/rf-g4-573.jsonl  # row 1400
+g22:@csrc/tests/playfuzz/agentpins/rf-g22-321.jsonl  # row 87
+g5:@csrc/tests/playfuzz/agentpins/rf-g5-3.jsonl  # row 188
+g28:@csrc/tests/playfuzz/agentpins/rf-g28-237.jsonl  # row 1068
+g30:@csrc/tests/playfuzz/agentpins/rf-g30-15.jsonl  # row 313
+g27:@csrc/tests/playfuzz/agentpins/rf-g27-596.jsonl  # row 1222
+g7:@csrc/tests/playfuzz/agentpins/rf-g7-12.jsonl  # row 63
+g7:@csrc/tests/playfuzz/agentpins/rf-g7-426.jsonl  # row 19
+g6:@csrc/tests/playfuzz/agentpins/rf-g6-11.jsonl  # row 1539
+g26:@csrc/tests/playfuzz/agentpins/rf-g26-565.jsonl  # row 2668
+g9:@csrc/tests/playfuzz/agentpins/rf-g9-338.jsonl  # row 25
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-208.jsonl  # row 389
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-116.jsonl  # row 212
+g7:@csrc/tests/playfuzz/agentpins/rf-g7-336.jsonl  # row 2602
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-113.jsonl  # row 1035
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-202.jsonl  # row 1832
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-206.jsonl  # row 389
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-115.jsonl  # row 389
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-211.jsonl  # row 2141
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-212.jsonl  # row 105
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-101.jsonl  # row 2240
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-301.jsonl  # row 38
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-118.jsonl  # row 612
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-209.jsonl  # row 389
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1.jsonl  # row 675
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-107.jsonl  # row 1519
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-446.jsonl  # row 665
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-318.jsonl  # row 257
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-308.jsonl  # row 1287
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-319.jsonl  # row 155
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-310.jsonl  # row 315
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-418.jsonl  # row 1035
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-517.jsonl  # row 306
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-413.jsonl  # row 932
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-512.jsonl  # row 302
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-406.jsonl  # row 2660
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-525.jsonl  # row 2988
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-311.jsonl  # row 2761
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-317.jsonl  # row 369
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-718.jsonl  # row 1610
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-643.jsonl  # row 2051
+# lane/rlfuzz2's pins: the open cases lane/rlfuzz left, each kept as the oracle's own recording
+# out/java/snapshots/rf-CASE (make -C csrc test replays it); their scripts came from older
+# agentgen versions and are not regenerated (row: where it first diverged before the fix).
+#   rf-s1-5 row 18 (Dev S08 queue full), rf-s1-509 row 1133 d.sw, rf-s1-644 row 1321 d.sw,
+#   rf-s1-803 row 2336 d.ents, rf-g16-135 row 2498 d.ents, rf-g25-234 row 3285 d.ents,
+#   rf-s1-520 row 1710 d.ents, rf-s1-508 row 52 w.bc, rf-cp-end-s1-10 row 178 w.bc,
+#   rf-s1-814 row 420 w.bc, rf-g14-583 row 1657 d.cseed
+# lane/rlfuzz2's round-1 finds (fixed; the recording is out/java/snapshots/rf-CASE):
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1025.jsonl  # row 3664
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1046.jsonl  # row 1540
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1069.jsonl  # row 738
+g25:@csrc/tests/playfuzz/agentpins/rf-g25-1104.jsonl  # row 48
+g7:@csrc/tests/playfuzz/agentpins/rf-g7-1116.jsonl  # row 85
+g25:@csrc/tests/playfuzz/agentpins/rf-g25-1134.jsonl  # row 1521
+# round 2:
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1222.jsonl  # row 2978
+g25:@csrc/tests/playfuzz/agentpins/rf-g25-1344.jsonl  # row 231
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1219.jsonl  # row 107
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1205.jsonl  # row 296
+g16:@csrc/tests/playfuzz/agentpins/rf-g16-1305.jsonl  # row 853
+g19:@csrc/tests/playfuzz/agentpins/rf-g19-1368.jsonl  # row 1321
+# round 3:
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1436.jsonl  # row 394
+g19:@csrc/tests/playfuzz/agentpins/rf-g19-1578.jsonl  # row 30
+g25:@csrc/tests/playfuzz/agentpins/rf-g25-1554.jsonl  # row 555
+# round 4:
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1604.jsonl  # row 1446
+g10:@csrc/tests/playfuzz/agentpins/rf-g10-1749.jsonl  # row 361
+g17:@csrc/tests/playfuzz/agentpins/rf-g17-1756.jsonl  # row 3818
+g21:@csrc/tests/playfuzz/agentpins/rf-g21-1760.jsonl  # row 1181
+# round 5:
+s1:@csrc/tests/playfuzz/agentpins/rf-s1-1823.jsonl  # row 765
+g16:@csrc/tests/playfuzz/agentpins/rf-g16-1995.jsonl  # row 49

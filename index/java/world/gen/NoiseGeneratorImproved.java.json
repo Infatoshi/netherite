@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/world/gen/NoiseGeneratorImproved.java",
+  "classes": ["NoiseGeneratorImproved"],
+  "lines": 214,
+  "side": "server",
+  "category": "worldgen",
+  "role": "One octave of improved Perlin noise: a 512-entry permutation table and a random offset drawn from a Random, filling a 3D (or ySize 1, 2D) noise array. NoiseGeneratorOctaves sums several of these for the terrain density and depth noises.",
+  "scope": "in_scope",
+  "scope_reason": "Drives overworld, Nether and End terrain density, which every generated chunk depends on.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/noise.c", "symbols": ["improved_init", "improved_add", "shuffle", "lerp", "grad3", "grad2", "fade", "GX", "GY", "GZ", "G2X", "G2Z"]}, {"file": "csrc/engine/noise.h", "symbols": ["improved"]}, {"file": "csrc/engine/jfloor.h", "symbols": ["mh_floor"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_dims.c", "out/java/chunks/seed1", "out/java/chunks/wide2"],
+  "members": [
+    {"kind": "field", "name": "permutations", "sig": "int[512]", "native": "csrc/engine/noise.h:improved", "status": "exact", "note": "struct improved.p"},
+    {"kind": "field", "name": "xCoord", "sig": "double", "native": "csrc/engine/noise.h:improved", "status": "exact", "note": "struct improved.xo"},
+    {"kind": "field", "name": "yCoord", "sig": "double", "native": "csrc/engine/noise.h:improved", "status": "exact", "note": "struct improved.yo"},
+    {"kind": "field", "name": "zCoord", "sig": "double", "native": "csrc/engine/noise.h:improved", "status": "exact", "note": "struct improved.zo"},
+    {"kind": "field", "name": "field_152381_e..field_152385_i", "sig": "static double[16] gradient tables", "native": "csrc/engine/noise.c:GX", "status": "exact", "note": "GX, GY, GZ (3D) and G2X, G2Z (2D)"},
+    {"kind": "ctor", "name": "NoiseGeneratorImproved", "sig": "()", "native": null, "status": "n/a", "note": "Det.newRandom() default constructor; the worldgen paths always pass a seeded Random."},
+    {"kind": "ctor", "name": "NoiseGeneratorImproved", "sig": "(Random)", "native": "csrc/engine/noise.c:improved_init", "status": "exact", "note": "Three nextDouble offsets then the Fisher-Yates shuffle (shuffle)."},
+    {"kind": "method", "name": "lerp", "sig": "(double,double,double)D", "native": "csrc/engine/noise.c:lerp", "status": "exact"},
+    {"kind": "method", "name": "func_76309_a", "sig": "(int,double,double)D", "native": "csrc/engine/noise.c:grad2", "status": "exact"},
+    {"kind": "method", "name": "grad", "sig": "(int,double,double,double)D", "native": "csrc/engine/noise.c:grad3", "status": "exact"},
+    {"kind": "method", "name": "populateNoiseArray", "sig": "(double[],double,double,double,int,int,int,double,double,double,double)V", "native": "csrc/engine/noise.c:improved_add", "status": "exact", "note": "Both the ySize == 1 branch and the 3D branch with its cached-y lattice reuse."}
+  ],
+  "missing": [],
+  "notes": "Exactness rests on the worldgen gate matching the oracle's density-stage dumps over several seeds; this record did not run the gate."
+}

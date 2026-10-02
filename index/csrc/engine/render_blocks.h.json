@@ -1,0 +1,33 @@
+{
+ "path": "csrc/engine/render_blocks.h",
+ "lines": 287,
+ "role": "Public contract of the C chunk mesher: the probe-directory formats (table.bin, atlas.json, chunks.bin, tileentities.bin, manifest.json), the mesher, tessellator and world structs, and the load, mesh and world-accessor functions render_blocks.c defines.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderBlocks.java", "members": ["renderBlockByRenderType", "renderBlockUsingTexture", "renderMinX", "renderMaxX", "renderAllFaces", "renderFromInside", "flipTexture", "enableAO", "overrideBlockTexture"]},
+  {"path": "oracle/src/client/renderer/Tessellator.java", "members": ["rawBuffer", "vertexCount", "startDrawingQuads", "setTranslation"]},
+  {"path": "oracle/src/client/renderer/WorldRenderer.java", "members": ["updateRenderer"]},
+  {"path": "oracle/src/world/ChunkCache.java", "members": ["getBlock", "getBlockMetadata", "getTileEntity"]},
+  {"path": "oracle/src/world/biome/BiomeGenBase.java", "members": ["getFloatTemperature"]},
+  {"path": "oracle/src/world/World.java", "members": ["getPrecipitationHeight"]}
+ ],
+ "structs": [
+  {"name": "rb_props", "java": "per-block render properties from table.bin (canBlockGrass, renderAsNormalBlock, useNeighborBrightness, getRenderBlockPass, isOpaqueCube, slab, light, getAmbientOcclusionLightValue)", "fields": ["can_block_grass", "render_as_normal", "neighbor", "render_pass", "opaque_cube", "is_slab", "light", "ao_light"]},
+  {"name": "rb_biome", "java": "BiomeGenBase colour inputs", "fields": ["temperature", "rainfall", "water", "grass_const", "foliage_const", "grass_kind", "foliage_kind", "base"]},
+  {"name": "rb_table", "java": "table.bin", "fields": ["fancy", "ao", "n_icons", "icon_name", "n_special", "special", "icon_index", "grass_map", "foliage_map", "props", "bounds", "biomes", "sin_table"]},
+  {"name": "rb_uv", "java": "IIcon getMinU/getMaxU/getMinV/getMaxV", "fields": ["min_u", "max_u", "min_v", "max_v"]},
+  {"name": "rb_atlas", "java": "TextureMap sprite list", "fields": ["n", "name", "uv"]},
+  {"name": "rb_world", "java": "ChunkCache", "fields": ["data", "chunks", "stride", "margin", "rows", "origin_cx", "origin_cz", "te", "te_n", "bands", "band_s0"]},
+  {"name": "rb_band", "java": "none: the device mesher's band table entry (cuda/meshing): a band of a chunk section and whether its chunk and mask hold it, where ChunkCache's getBlock, getBlockMetadata and getSavedLightValue chain ends", "fields": ["band", "kind", "pad"]},
+  {"name": "rb_tess", "java": "Tessellator", "fields": ["raw", "cap", "n", "vertex_count", "u", "v", "xoff", "yoff", "zoff", "color", "brightness", "normal", "has_texture", "has_color", "has_brightness", "has_normals", "dbg", "cur_id", "cur_meta", "cur_rt", "cur_x", "cur_y", "cur_z", "dropped"]},
+  {"name": "rb_mesher", "java": "RenderBlocks instance fields plus BlockAnvil.field_149833_b and BlockPistonBase stored bounds", "fields": ["tab", "atlas", "w", "t", "perlin_a", "perlin_b", "px", "py", "pz", "min_x", "max_x", "min_y", "max_y", "min_z", "max_z", "partial", "enable_ao", "render_all_faces", "render_from_inside", "flip_texture", "f152631f", "uv_east", "uv_west", "uv_south", "uv_north", "uv_top", "uv_bottom", "anvil_part", "piston_bounds", "mat_snow", "mat_crafted_snow", "special", "icon", "special2", "override", "special3"]}
+ ],
+ "entry_points": ["rb_table_load", "rb_table_free", "rb_atlas_load", "rb_atlas_free", "rb_world_load", "rb_world_free", "rb_manifest_load", "rb_mesher_init", "rb_mesher_free", "rb_mesh_section", "rb_mesh_override_block", "rb_biome_temperature", "rb_tess_init", "rb_tess_free", "rb_tess_start_quads", "rb_tess_set_translation", "rb_world_block", "rb_world_meta", "rb_world_sky", "rb_world_blocklight", "rb_world_biome", "rb_world_precipitation_height", "rb_world_tile_entity", "rb_block_pass"],
+ "tick_path": false,
+ "gpu": [
+  "struct rb_table, rb_atlas, rb_world, rb_tess: heap pointers (icon_name, props, bounds, data, te, raw) rather than fixed-capacity inline arrays; allocated once at load, not per frame",
+  "struct rb_mesher: holds pointers to table, atlas, world and tessellator (a small pointer graph a GPU port would flatten into indices)"
+ ],
+ "tests": ["csrc/tests/test_meshes.c", "csrc/tests/test_render.c"],
+ "notes": "Header only; definitions are in render_blocks.c. The render types it lists as ported (0, 1, 4, 31, 40) are out of date: render_blocks2.c and render_blocks3.c now cover every type RenderBlocks dispatches except 36 (renderBlockRedstoneDiode: BlockRedstoneDiode returns 36 but both concrete diodes override it to 15 and 37, so no 1.7.10 block reaches it; the native dispatch prints a not-ported notice for it). Type 22 (chest) draws nothing in RenderBlocks and nothing natively. rb_mesher's special, special2 and special3 are pointers into one block rb_mesher_init allocates (read-only after init, so a device lane's copy of the mesher is 576 bytes, not 1464: lane/meshkern). rb_world's bands and band_s0 are the device mesher's band table (NULL on the host; render_blocks.c band_of under __NVPTX__)."
+}

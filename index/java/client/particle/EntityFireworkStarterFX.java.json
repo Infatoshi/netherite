@@ -1,0 +1,29 @@
+{
+ "classes": [
+  "EntityFireworkStarterFX"
+ ],
+ "lines": 265,
+ "side": "client",
+ "category": "particles",
+ "role": "The firework rocket's client-side starter: reads the item NBT, plays the blast sounds and spawns the shaped spark sets.",
+ "scope": "switched_off",
+ "scope_reason": "Built only by EntityFireworkRocket's explosion, and world.conf fireworks = off stops every rocket from launching (ItemFirework.java:22).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  }
+ ],
+ "missing": [
+  "Fireworks are forced off by world.conf (fireworks = off); no native counterpart is needed."
+ ],
+ "notes": "world.conf fireworks = off with the SPEC 'Unsupported features are world switches' decision, so this class is never constructed in the oracle either. idxaudit 2026-09-27: scope reason rewritten and scope relabeled client_cosmetic -> switched_off.",
+ "path": "oracle/src/client/particle/EntityFireworkStarterFX.java"
+}

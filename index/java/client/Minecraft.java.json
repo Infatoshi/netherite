@@ -1,0 +1,1369 @@
+{
+  "path": "oracle/src/client/Minecraft.java",
+  "classes": [
+    "Minecraft",
+    "Minecraft.SwitchMovingObjectType"
+  ],
+  "lines": 2833,
+  "side": "client",
+  "category": "client_input",
+  "role": "The client main class: owns the display, resources, world, player and renderers, runs the frame loop (runGameLoop) and the 20 Hz client tick (runTick) that consumes keyboard and mouse input, ticks the client world and particles, and dispatches attack, use and dig clicks.",
+  "scope": "in_scope",
+  "scope_reason": "runTick's input handling and click dispatch decide every client packet a row produces; the oracle drives it through its hooks (ticksThisFrame, preTick/postTick, guiInput, gameInput) and the native client ports its order.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/player.c",
+      "symbols": [
+        "client_player_tick",
+        "client_player"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_client_tick_start",
+        "surv_client_input",
+        "surv_client_attack_pressed",
+        "surv_client_damage_block",
+        "surv_client_dig_tick",
+        "right_click_mouse",
+        "surv_client_use_pressed",
+        "surv_client_mouseover",
+        "surv_client_fresh",
+        "surv_client_pick_block"
+      ]
+    },
+    {
+      "file": "csrc/engine/clientworld.c",
+      "symbols": [
+        "clientworld_tick"
+      ]
+    },
+    {
+      "file": "csrc/play/play.c",
+      "symbols": [
+        "session_tick",
+        "recorded_fancy"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/flow-walk-s1",
+    "out/java/snapshots/pickaxe-complete-s1",
+    "out/java/snapshots/screens-drag-s1",
+    "out/java/snapshots/fight-zombie-s1",
+    "out/java/snapshots/rc-blocks-s1",
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_dig.c",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/idx-chat-s1",
+    "out/java/snapshots/pfc-deadrider-s6"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "logger",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "locationMojangPng",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "isRunningOnMac",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "memoryReserve",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "macDisplayModes",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "fileResourcepacks",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "field_152356_J",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "renderEngine",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "theMinecraft",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "fullscreen",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "hasCrashed",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "crashReporter",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "displayWidth",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "displayHeight",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "renderGlobal",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "renderViewEntity",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "pointedEntity",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "session",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "fontRenderer",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "standardGalacticFontRenderer",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "loadingScreen",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "entityRenderer",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "tempDisplayWidth",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "tempDisplayHeight",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "theIntegratedServer",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "guiAchievement",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "ingameGUI",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "skipRenderWorld",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "gameSettings",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mouseHelper",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcDataDir",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "fileAssets",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "launchedVersion",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "proxy",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "saveLoader",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "debugFPS",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "refreshTexturePacksScheduled",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "jvm64bit",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "myNetworkManager",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "integratedServerIsRunning",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcProfiler",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "field_83002_am",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcResourceManager",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "metadataSerializer_",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "defaultResourcePacks",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcDefaultResourcePack",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcResourcePackRepository",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcLanguageManager",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcFramebuffer",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "textureMapBlocks",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcSoundHandler",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "mcMusicTicker",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "field_152354_ay",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "field_152355_az",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "field_152350_aA",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "field_152351_aB",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "field_152352_aC",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "running",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "debug",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "debugProfilerName",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "systemTime",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "debugUpdateTime",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "fpsCounter",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "prevFrameTime",
+      "sig": "see source",
+      "native": null,
+      "status": "n/a",
+      "note": "engine plumbing, display, resources, profiler or debug state; no tick state"
+    },
+    {
+      "kind": "field",
+      "name": "playerController",
+      "sig": "PlayerControllerMP",
+      "native": "csrc/engine/player.h:client_player",
+      "status": "exact",
+      "note": "PlayerControllerMP's state is struct client_player's (the dig, the click sync, the held-item sync; see the PlayerControllerMP record)"
+    },
+    {
+      "kind": "field",
+      "name": "timer",
+      "sig": "Timer",
+      "native": null,
+      "status": "n/a",
+      "note": "the oracle pins ticks per frame (Oracle.ticksThisFrame) and renderPartialTicks = 1.0 in agent mode; native ticks one row at a time"
+    },
+    {
+      "kind": "field",
+      "name": "theWorld",
+      "sig": "WorldClient",
+      "native": "csrc/engine/clientworld.h:clientworld",
+      "status": "exact",
+      "note": "struct clientworld plus the play client's own copies (clientents.c); rows compare d.cw, cseed, cmath, cstat"
+    },
+    {
+      "kind": "field",
+      "name": "thePlayer",
+      "sig": "EntityClientPlayerMP",
+      "native": "csrc/engine/player.h:client_player",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "effectRenderer",
+      "sig": "EffectRenderer",
+      "native": "csrc/engine/player.c:client_player_tick",
+      "status": "exact",
+      "note": "particles_live_tick at runTick's place (the live particles, particles_live.c)"
+    },
+    {
+      "kind": "field",
+      "name": "isGamePaused",
+      "sig": "boolean",
+      "native": "csrc/engine/player.c:client_player_tick",
+      "status": "exact",
+      "note": "game_paused; set from screen_credits at the frame's end (player.c line 1245), only GuiWinGame pauses on these tapes"
+    },
+    {
+      "kind": "field",
+      "name": "currentScreen",
+      "sig": "GuiScreen",
+      "native": "csrc/engine/survival.c:surv_client_input",
+      "status": "exact",
+      "note": "the screen flags of struct client_player (screen_inventory with cp_gui_container, screen_gameover, screen_sleep, screen_credits, screen_chat); rows compare cp.gui"
+    },
+    {
+      "kind": "field",
+      "name": "leftClickCounter",
+      "sig": "int",
+      "native": "csrc/engine/survival.c:surv_client_input",
+      "status": "exact",
+      "note": "left_click_counter"
+    },
+    {
+      "kind": "field",
+      "name": "objectMouseOver",
+      "sig": "MovingObjectPosition",
+      "native": "csrc/engine/survival.c:surv_client_mouseover",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "rightClickDelayTimer",
+      "sig": "int",
+      "native": "csrc/engine/survival.c:surv_client_input",
+      "status": "exact",
+      "note": "right_click_delay"
+    },
+    {
+      "kind": "field",
+      "name": "inGameHasFocus",
+      "sig": "boolean",
+      "native": "csrc/engine/survival.c:surv_client_input",
+      "status": "exact",
+      "note": "in_game_has_focus: setIngameNotInFocus at every screen open (keys unpressed), setIngameFocus at every close (leftClickCounter 10000), the tape's focus in the input block"
+    },
+    {
+      "kind": "field",
+      "name": "joinPlayerCounter",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "every 30 ticks World.joinEntityInSurroundings(thePlayer): getChunkFromChunkCoords over the 5x5 chunks around (ChunkProviderClient.provideChunk answers the loaded or the blank chunk, no side effect), then adds the player to loadedEntityList only when absent. It is present whenever it ticks; a dead one re-added is removed again by the next updateEntities with nothing else changed, so no row or frame reads the counter"
+    },
+    {
+      "kind": "ctor",
+      "name": "Minecraft",
+      "sig": "(Session,I,I,Z,File,File,File,Proxy,String,Multimap,String)",
+      "native": null,
+      "status": "n/a",
+      "note": "launcher state"
+    },
+    {
+      "kind": "method",
+      "name": "isJvm64bit",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getFramebuffer",
+      "sig": "()Framebuffer",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "startTimerHackThread",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "crashed",
+      "sig": "(CrashReport)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "displayCrashReport",
+      "sig": "(CrashReport)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "startGame",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "display, resources, renderers; hooks Oracle.onStartGame"
+    },
+    {
+      "kind": "method",
+      "name": "func_152349_b",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "refreshResources",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addDefaultResourcePack",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_152340_a",
+      "sig": "(InputStream)ByteBuffer",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "updateDisplayMode",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "loadScreen",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "scaledTessellator",
+      "sig": "(IIIIII)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getSaveLoader",
+      "sig": "()ISaveFormat",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "displayGuiScreen",
+      "sig": "(GuiScreen)V",
+      "native": "csrc/engine/survival.c:surv_client_input",
+      "status": "exact",
+      "note": "each screen's open and close with setIngameNotInFocus/setIngameFocus (surv_client_open_chat, the S2D, S2E and portal closes, the game-over and sleep substitutions); the oracle's JoinScreen replaces the main menu before any row"
+    },
+    {
+      "kind": "method",
+      "name": "checkGLError",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "shutdownMinecraftApplet",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "run",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "outer loop"
+    },
+    {
+      "kind": "method",
+      "name": "runGameLoop",
+      "sig": "()V",
+      "native": "csrc/play/play.c:main",
+      "status": "exact",
+      "note": "one runTick per row, the frame at its partial tick; frame limiting, the profiler and the fps counter write no row or frame state (agent mode's pins)"
+    },
+    {
+      "kind": "method",
+      "name": "func_147120_f",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "buffer swap"
+    },
+    {
+      "kind": "method",
+      "name": "getLimitFramerate",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isFramerateLimitBelowMax",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "freeMemory",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "updateDebugProfilerName",
+      "sig": "(I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "displayDebugInfo",
+      "sig": "(J)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "shutdown",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setIngameFocus",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "mouse grab"
+    },
+    {
+      "kind": "method",
+      "name": "setIngameNotInFocus",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "displayInGameMenu",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "pause menu; agent tapes do not open it"
+    },
+    {
+      "kind": "method",
+      "name": "func_147115_a",
+      "sig": "(Z)V",
+      "native": "csrc/engine/survival.c:surv_client_damage_block",
+      "status": "exact",
+      "note": "sendClickBlockToController: the held-attack dig continuation"
+    },
+    {
+      "kind": "method",
+      "name": "func_147116_af",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:surv_client_attack_pressed",
+      "status": "exact",
+      "note": "clickMouse: swing, then attack entity or click block, leftClickCounter 10 on air; the attack presses run before the use presses (surv_client_input, lane/inputorder: input-chord-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "func_147121_ag",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:right_click_mouse",
+      "status": "exact",
+      "note": "rightClickMouse: entity interact, block activate/place, then use item; rightClickDelayTimer 4"
+    },
+    {
+      "kind": "method",
+      "name": "toggleFullscreen",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "resize",
+      "sig": "(II)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "updateFramebufferSize",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "runTick",
+      "sig": "()V",
+      "native": "csrc/engine/player.c:client_player_tick",
+      "status": "exact",
+      "note": "in vanilla's order: the right-click delay, updateTick, updateController's packets, the screen substitutions, the gui ops, the input block (hotbar, inventory, drop, chat and command, the using branch's stop, the attack presses, the use presses, the pick presses, the held use, the dig tick; their packets go out in that order through client_out's ordered list), the world's entities, the world tick, the particles; the tape's opts (F5, F1, F8, F3, rd) with the input snapshot"
+    },
+    {
+      "kind": "method",
+      "name": "launchIntegratedServer",
+      "sig": "(String,String,WorldSettings)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the oracle builds the world; native loads a snapshot"
+    },
+    {
+      "kind": "method",
+      "name": "loadWorld",
+      "sig": "(WorldClient)V",
+      "native": "csrc/engine/clientworld.c:clientworld_tick",
+      "status": "exact",
+      "note": "the client world is built from the snapshot's join (session.c) or the S07's world change (surv_client_fresh, on_world_change)"
+    },
+    {
+      "kind": "method",
+      "name": "loadWorld",
+      "sig": "(WorldClient,String)V",
+      "native": "csrc/engine/clientworld.c:clientworld_tick",
+      "status": "exact",
+      "note": "see loadWorld(WorldClient)"
+    },
+    {
+      "kind": "method",
+      "name": "debugInfoRenders",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getEntityDebug",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getWorldProviderName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "debugInfoEntities",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setDimensionAndSpawnPlayer",
+      "sig": "(I)V",
+      "native": "csrc/engine/survival.h:surv_client_fresh",
+      "status": "exact",
+      "note": "the fresh EntityClientPlayerMP after a respawn or a world change: hotbar 0, the dimension, the carried-over entity id; the fresh player rides nothing (survival.c surv_client_fresh, pfc-deadrider-s6)"
+    },
+    {
+      "kind": "method",
+      "name": "getNetHandler",
+      "sig": "()NetHandlerPlayClient",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isGuiEnabled",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isFancyGraphicsEnabled",
+      "sig": "()Z",
+      "native": "csrc/play/play.c:recorded_fancy",
+      "status": "exact",
+      "note": "the tape header's options.fancy (Main.optionsFor writes false for every play and script run)"
+    },
+    {
+      "kind": "method",
+      "name": "isAmbientOcclusionEnabled",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "render setting; see RenderBlocks record"
+    },
+    {
+      "kind": "method",
+      "name": "func_147112_ai",
+      "sig": "()V",
+      "native": "csrc/engine/survival.c:surv_client_pick_block",
+      "status": "exact",
+      "note": "survival: the block half (pickblock.c); the entity half is creative only"
+    },
+    {
+      "kind": "method",
+      "name": "addGraphicsAndWorldToCrashReport",
+      "sig": "(CrashReport)CrashReport",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getMinecraft",
+      "sig": "()Minecraft",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "scheduleResourcesRefresh",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getGLMaximumTextureSize",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isIntegratedServerRunning",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isSingleplayer",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "always true in this game"
+    },
+    {
+      "kind": "method",
+      "name": "getIntegratedServer",
+      "sig": "()IntegratedServer",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "stopIntegratedServer",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getSystemTime",
+      "sig": "()J",
+      "native": null,
+      "status": "n/a",
+      "note": "the oracle pins it to Oracle.tick * 50 in agent mode (Minecraft.java line 2661); native uses the tick counter (survival.c surv_stats_flush_now cites it)"
+    },
+    {
+      "kind": "method",
+      "name": "isFullScreen",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getSession",
+      "sig": "()Session",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_152341_N",
+      "sig": "()Multimap",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getProxy",
+      "sig": "()Proxy",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getTextureManager",
+      "sig": "()TextureManager",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getResourceManager",
+      "sig": "()IResourceManager",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getResourcePackRepository",
+      "sig": "()ResourcePackRepository",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getLanguageManager",
+      "sig": "()LanguageManager",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getTextureMapBlocks",
+      "sig": "()TextureMap",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isJava64bit",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147113_T",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "isGamePaused getter"
+    },
+    {
+      "kind": "method",
+      "name": "getSoundHandler",
+      "sig": "()SoundHandler",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147109_W",
+      "sig": "()MusicType",
+      "native": null,
+      "status": "n/a",
+      "note": "music choice; audio"
+    },
+    {
+      "kind": "method",
+      "name": "func_152348_aa",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "Twitch stream keys"
+    },
+    {
+      "kind": "method",
+      "name": "func_152343_a",
+      "sig": "(Callable)ListenableFuture",
+      "native": null,
+      "status": "n/a",
+      "note": "scheduled task queue"
+    },
+    {
+      "kind": "method",
+      "name": "func_152344_a",
+      "sig": "(Runnable)ListenableFuture",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_152345_ab",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_152347_ac",
+      "sig": "()MinecraftSessionService",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_152342_ad",
+      "sig": "()SkinManager",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "SwitchMovingObjectType.field_152390_a",
+      "sig": "static int[]",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$3",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$4",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$5",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$6",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$7",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$8",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$9",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$10",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$11",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$12",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$13",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$14",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "Minecraft$15",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (Minecraft.java:1692-2573: the screen, the version, LWJGL, OpenGL, GL caps, modded, type, resource packs, language, profiler, Vec3 pool and anisotropic filtering sections) (lane/covclient)"
+    },
+    {
+      "kind": "ctor",
+      "name": "Minecraft$SwitchMovingObjectType",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "javac's synthetic switch map for MovingObjectType: only its static initializer runs; nothing constructs it (lane/covclient)"
+    }
+  ],
+  "missing": [],
+  "notes": "Oracle hooks in this file: startGame (Oracle.onStartGame), displayGuiScreen (JoinScreen), shutdown, runGameLoop (ticksThisFrame, preTick, postTick, wantRender, Det.beginRender/endRender, renderPartialTicks = Oracle.framePt (1.0 by default) in agent mode), setIngameFocus, runTick (guiInput, gameInput, ctrlDown for the drop key), getSystemTime (tick * 50 in agent mode), launchIntegratedServer's wait poll (Oracle.launchWait: 5 ms in agent mode, where a pool prelaunch gives way). Most fields are display, resource, profiler or launcher plumbing with no native counterpart by design (grouped as n/a). The cited survival.c functions were identified by the Java names in their comments (func_147115_a, func_147116_af, func_147121_ag, leftClickCounter, setDimensionAndSpawnPlayer); their exactness rests on the snapshot suite, not on a line-by-line reread here. lane/idxclient: runTick's chat and command keys open GuiChat (key.chat, key.command with no screen up; GuiChat's allowUserInput is false so the input block stops, and no Act op closes it: S2D, S2E, a portal or a world change replaces it): idx-chat-s1 (59 rows, 0 mismatches, play_check 0). The perspective toggle is the tape's opts (idx-tpv-s1). The riding/horse inventory branch is unreachable (horses off, world.conf)."
+}

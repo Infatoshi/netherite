@@ -1,0 +1,356 @@
+{
+ "path": "oracle/src/world/storage/DerivedWorldInfo.java",
+ "classes": [
+  "DerivedWorldInfo"
+ ],
+ "lines": 271,
+ "side": "server",
+ "category": "world",
+ "role": "The WorldInfo of the Nether and the End (WorldServerMulti): every getter reads the overworld's WorldInfo and every setter is a no-op, so the other dimensions share the overworld's seed, spawn, clocks, weather and game rules.",
+ "scope": "in_scope",
+ "scope_reason": "The Nether and the End are vanilla and in scope (SPEC Decisions: all worldgen is vanilla, the Nether and the End included); their clock and weather reads go through this wrapper.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "servertick_tick_head"
+   ]
+  },
+  {
+   "file": "csrc/engine/sleep.c",
+   "symbols": [
+    "sleep_wake_all"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/nether-trip-s1",
+  "out/java/snapshots/nether-trip2-s42",
+  "out/java/snapshots/end-arrival-s1",
+  "out/java/snapshots/idx-clientview-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "theWorldInfo",
+   "sig": "WorldInfo",
+   "native": "csrc/engine/servertick.c:servertick_tick_head",
+   "status": "exact",
+   "note": "each world's servertick kept equal to the overworld's clock and rules"
+  },
+  {
+   "kind": "ctor",
+   "name": "DerivedWorldInfo",
+   "sig": "(WorldInfo)",
+   "native": null,
+   "status": "n/a",
+   "note": "Wrapper construction; no native object."
+  },
+  {
+   "kind": "method",
+   "name": "getNBTTagCompound",
+   "sig": "()NBTTagCompound",
+   "native": null,
+   "status": "n/a",
+   "note": "Save path only."
+  },
+  {
+   "kind": "method",
+   "name": "cloneNBTCompound",
+   "sig": "(NBTTagCompound)NBTTagCompound",
+   "native": null,
+   "status": "n/a",
+   "note": "Save path only."
+  },
+  {
+   "kind": "method",
+   "name": "getSeed",
+   "sig": "()J",
+   "native": "csrc/engine/snapshot.c:snapshot_load",
+   "status": "exact",
+   "note": "the one world seed every generator takes"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnX",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "read in a derived world only by unloadChunksIfNotNearSpawn behind canRespawnHere, false for the Nether and the End"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnY",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "as getSpawnX"
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnZ",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "as getSpawnX"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldTotalTime",
+   "sig": "()J",
+   "native": "csrc/engine/servertick.c:servertick_tick_head",
+   "status": "exact",
+   "note": "Mirrored by advancing the no-sky world's own total_time once per tick so it equals the overworld's."
+  },
+  {
+   "kind": "method",
+   "name": "getWorldTime",
+   "sig": "()J",
+   "native": "csrc/engine/sleep.c:sleep_wake_all",
+   "status": "exact",
+   "note": "Mirrored by per-dimension world_time, advanced in servertick_tick_head and copied from the overworld on the sleep skip."
+  },
+  {
+   "kind": "method",
+   "name": "getSizeOnDisk",
+   "sig": "()J",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerNBTTagCompound",
+   "sig": "()NBTTagCompound",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getVanillaDimension",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getSaveVersion",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getLastTimePlayed",
+   "sig": "()J",
+   "native": null,
+   "status": "n/a",
+   "note": "Wall-clock save metadata."
+  },
+  {
+   "kind": "method",
+   "name": "isThundering",
+   "sig": "()Z",
+   "native": "csrc/engine/servertick.c:servertick_load",
+   "status": "n/a",
+   "note": "as isRaining: calculateInitialWeather runs before the DerivedWorldInfo is set, and updateWeather is skipped in the Nether and the End (hasNoSky)"
+  },
+  {
+   "kind": "method",
+   "name": "getThunderTime",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "only updateWeather's sky branch reads it, which a hasNoSky world skips"
+  },
+  {
+   "kind": "method",
+   "name": "isRaining",
+   "sig": "()Z",
+   "native": "csrc/engine/servertick.c:servertick_load",
+   "status": "n/a",
+   "note": "callers: World.calculateInitialWeather, which runs in World's constructor before WorldServerMulti puts the DerivedWorldInfo in, and World.updateWeather, whose body is behind !provider.hasNoSky, true for the Nether and the End (the only WorldServerMulti dimensions)"
+  },
+  {
+   "kind": "method",
+   "name": "getRainTime",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "as getThunderTime"
+  },
+  {
+   "kind": "method",
+   "name": "getGameType",
+   "sig": "()WorldSettings.GameType",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnX",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnY",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnZ",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "incrementTotalWorldTime",
+   "sig": "(J)V",
+   "native": "csrc/engine/servertick.c:servertick_tick_head",
+   "status": "exact",
+   "note": "No-op in Java; native reproduces the observable effect (the derived world sees the overworld's already-advanced clock)."
+  },
+  {
+   "kind": "method",
+   "name": "setWorldTime",
+   "sig": "(J)V",
+   "native": "csrc/engine/servertick.c:servertick_tick_head",
+   "status": "exact",
+   "note": "No-op in Java; see incrementTotalWorldTime."
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnPosition",
+   "sig": "(III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "setWorldName",
+   "sig": "(String)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "setSaveVersion",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "setThundering",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "setThunderTime",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "setRaining",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "setRainTime",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "isMapFeaturesEnabled",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "Always true in this game."
+  },
+  {
+   "kind": "method",
+   "name": "isHardcoreModeEnabled",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getTerrainType",
+   "sig": "()WorldType",
+   "native": null,
+   "status": "n/a",
+   "note": "Default world type only."
+  },
+  {
+   "kind": "method",
+   "name": "setTerrainType",
+   "sig": "(WorldType)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "areCommandsAllowed",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInitialized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setServerInitialized",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No-op."
+  },
+  {
+   "kind": "method",
+   "name": "getGameRulesInstance",
+   "sig": "()GameRules",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "every world's copy of the rules set together (the load, dev.c's gamerule op)"
+  }
+ ],
+ "missing": [],
+ "notes": "Native models the shared WorldInfo as per-dimension copies kept in step (servertick.c comment at servertick_tick_head, sleep.c at sleep_wake_all) rather than one shared object. Evidence recordings cover dimension travel with the shared clock; I did not check which rows compare the derived clocks. Closed by lane/idxworld: the derived worlds' reads were traced. The weather flags and times are read at WorldServerMulti's construction (calculateInitialWeather), whose strengths the snapshot's worlds.nbt carries per world; a hasNoSky world's updateWeather does nothing and its isRaining reads its own strength. The spawn is read by unloadChunksIfNotNearSpawn only under canRespawnHere, false for the Nether and the End. The rules are the overworld's: the loader and the dev gamerule op set every world's copy. The clock is the overworld's: each derived world's total and day time follow it (servertick_tick_head, the sleep skip), and a Nether or End player's S03 carries the overworld's time after its tick (session.c). Closed by lane/idxworld: the derived worlds' reads were traced. The weather flags and times are read at WorldServerMulti's construction (calculateInitialWeather), whose strengths the snapshot's worlds.nbt carries per world; a hasNoSky world's updateWeather does nothing and its isRaining reads its own strength. The spawn is read by unloadChunksIfNotNearSpawn only under canRespawnHere, false for the Nether and the End. The rules are the overworld's: the loader and the dev gamerule op set every world's copy. The clock is the overworld's: each derived world's total and day time follow it (servertick_tick_head, the sleep skip), and a Nether or End player's S03 carries the overworld's time after its tick (session.c)."
+}

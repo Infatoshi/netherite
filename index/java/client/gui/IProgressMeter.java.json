@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/client/gui/IProgressMeter.java",
+  "classes": ["IProgressMeter"],
+  "lines": 8,
+  "side": "client",
+  "category": "client_gui",
+  "role": "Interface implemented by GuiStats and GuiAchievements: func_146509_g requests the full statistics file (the C16 STATS write) and the field_146510_b_ dots animate the loading line.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Client-only presentation: the statistics screens are never rendered natively and the GPU/RL path does not read stats.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_146510_b_", "sig": "static String[]", "native": null, "status": "n/a", "note": "static constant, grouped"},
+    {"kind": "method", "name": "func_146509_g", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": ""
+}

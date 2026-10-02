@@ -1,0 +1,107 @@
+{
+ "classes": [
+  "SlotCrafting"
+ ],
+ "lines": 156,
+ "side": "common",
+ "category": "crafting",
+ "role": "The crafting result slot: on pickup it consumes the grid, runs the container-item branch (dead in vanilla), and counts the craft for the stats and achievements.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "craft_out_on_pickup",
+    "slot_decr",
+    "slot_valid"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "amount_crafted",
+    "crafted"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/pickaxe-complete-s1",
+  "out/java/snapshots/pickaxe-complete-s42",
+  "out/java/snapshots/cat-recipes-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "craftMatrix",
+   "sig": "IInventory",
+   "native": "csrc/engine/container.h:grid",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "thePlayer",
+   "sig": "EntityPlayer",
+   "native": null,
+   "status": "n/a",
+   "note": "single player"
+  },
+  {
+   "kind": "field",
+   "name": "amountCrafted",
+   "sig": "int",
+   "native": "csrc/engine/container.h:amount_crafted",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "SlotCrafting",
+   "sig": "(EntityPlayer,IInventory,IInventory,III)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValid",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/container.c:slot_valid",
+   "status": "exact",
+   "note": "the out slot refuses everything"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:slot_decr",
+   "status": "exact",
+   "note": "counts into amountCrafted"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/item/ItemStack;I)V",
+   "native": "csrc/engine/container.h:crafted",
+   "status": "partial",
+   "note": "the craft-stat counter and the achievement chain run through the container's crafted callback"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:craft_out_on_pickup",
+   "status": "exact",
+   "note": "the grid consumption; the container-item branch is dead in vanilla (container.h)"
+  },
+  {
+   "kind": "method",
+   "name": "onPickupFromSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:craft_out_on_pickup",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/SlotCrafting.java"
+}

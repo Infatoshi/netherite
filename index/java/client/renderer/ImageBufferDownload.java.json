@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/ImageBufferDownload.java",
+  "classes": ["ImageBufferDownload"],
+  "lines": 92,
+  "side": "client",
+  "category": "client_render",
+  "role": "IImageBuffer for downloaded player skins: copies the 64x32 image, forces the opaque areas opaque and the hat layer transparent where it was fully opaque.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Player skin downloads never happen in this game; the native renderer draws the fixed steve skin already converted to rgba (csrc/engine/raster_hand.c reads mobs/steve.rgba).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "imageData", "sig": "int[]", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "imageWidth", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "imageHeight", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "parseUserSkin", "sig": "(BufferedImage)LBufferedImage;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152634_a", "sig": "()V", "native": null, "status": "n/a", "note": "empty in vanilla"},
+    {"kind": "method", "name": "setAreaTransparent", "sig": "(IIII)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setAreaOpaque", "sig": "(IIII)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasTransparency", "sig": "(IIII)Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Skin-processing only; reached from SkinManager via ThreadDownloadImageData."
+}

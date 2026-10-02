@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/world/storage/SaveHandlerMP.java",
+  "classes": ["SaveHandlerMP"],
+  "lines": 80,
+  "side": "client",
+  "category": "world",
+  "role": "The do-nothing ISaveHandler the client's WorldClient is built with: it loads no WorldInfo, saves nothing and returns null for every file.",
+  "scope": "not_needed",
+  "scope_reason": "Every method is an empty stub or returns null/\"none\"; the client world has no storage, and the native client world (csrc/engine/clientworld.c) has no save handler to mirror.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "loadWorldInfo", "sig": "()WorldInfo", "native": null, "status": "n/a", "note": "returns null"},
+    {"kind": "method", "name": "checkSessionLock", "sig": "()V", "native": null, "status": "n/a", "note": "empty"},
+    {"kind": "method", "name": "getChunkLoader", "sig": "(WorldProvider)IChunkLoader", "native": null, "status": "n/a", "note": "returns null"},
+    {"kind": "method", "name": "saveWorldInfoWithPlayer", "sig": "(WorldInfo,NBTTagCompound)V", "native": null, "status": "n/a", "note": "empty"},
+    {"kind": "method", "name": "saveWorldInfo", "sig": "(WorldInfo)V", "native": null, "status": "n/a", "note": "empty"},
+    {"kind": "method", "name": "getSaveHandler", "sig": "()IPlayerFileData", "native": null, "status": "n/a", "note": "returns null"},
+    {"kind": "method", "name": "flush", "sig": "()V", "native": null, "status": "n/a", "note": "empty"},
+    {"kind": "method", "name": "getMapFileFromName", "sig": "(String)File", "native": null, "status": "n/a", "note": "returns null"},
+    {"kind": "method", "name": "getWorldDirectoryName", "sig": "()String", "native": null, "status": "n/a", "note": "returns \"none\""},
+    {"kind": "method", "name": "getWorldDirectory", "sig": "()File", "native": null, "status": "n/a", "note": "returns null"}
+  ],
+  "missing": [],
+  "notes": "No behavior to port; no native reference found by grep."
+}

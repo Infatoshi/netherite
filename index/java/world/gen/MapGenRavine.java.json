@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/world/gen/MapGenRavine.java",
+  "classes": ["MapGenRavine"],
+  "lines": 227,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The overworld ravine carver: a 1-in-50 chance per source chunk of a long, tall, flattened tunnel with a per-height width profile, clearing stone, dirt and grass and placing flowing lava below y 10.",
+  "scope": "in_scope",
+  "scope_reason": "Part of ChunkProviderGenerate.provideChunk for every overworld chunk.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/carve.c", "symbols": ["ravines_pass", "ravine_source", "ravine", "carve"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "out/java/chunks/seed1", "out/java/chunks/wide2"],
+  "members": [
+    {"kind": "field", "name": "field_75046_d", "sig": "float[1024]", "native": "csrc/engine/carve.c:ravine", "status": "exact", "note": "A local float profile[256] in C; vanilla only writes the first 256 entries and rewrites them per ravine."},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151540_a", "sig": "(long,int,int,Block[],double,double,double,float,float,float,int,int,double)V", "native": "csrc/engine/carve.c:ravine", "status": "exact"},
+    {"kind": "method", "name": "func_151538_a", "sig": "(World,int,int,int,int,Block[])V", "native": "csrc/engine/carve.c:ravine_source", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "Gate not re-run for this record."
+}

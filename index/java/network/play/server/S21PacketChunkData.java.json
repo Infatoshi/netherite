@@ -1,0 +1,233 @@
+{
+ "path": "oracle/src/network/play/server/S21PacketChunkData.java",
+ "classes": [
+  "S21PacketChunkData",
+  "S21PacketChunkData.Extracted"
+ ],
+ "lines": 278,
+ "side": "server",
+ "category": "network",
+ "role": "One chunk's full data (or an unload marker when ground-up continuous is false): the compressed block, light and heightmap bytes.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_client_chunk",
+    "serverreplay_sync_client_chunks"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_clientworld.c",
+  "out/java/snapshots/replay2-crossing-far-s1",
+  "csrc/tests/test_chunkload.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149284_a",
+   "sig": "int",
+   "status": "partial",
+   "note": "chunk x, rides sr_client_chunk.cx / tracker_packet.x"
+  },
+  {
+   "kind": "field",
+   "name": "field_149282_b",
+   "sig": "int",
+   "status": "partial",
+   "note": "chunk z"
+  },
+  {
+   "kind": "field",
+   "name": "field_149283_c",
+   "sig": "int",
+   "status": "partial",
+   "note": "the includeInitialize flag: true is the unload form ('u')"
+  },
+  {
+   "kind": "field",
+   "name": "field_149280_d",
+   "sig": "int",
+   "status": "n/a",
+   "note": "the primary bit mask; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_149281_e",
+   "sig": "byte[]",
+   "status": "n/a",
+   "note": "the compressed data; native chunks move as structs, the client loads the server's own chunk; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_149278_f",
+   "sig": "byte[]",
+   "status": "n/a",
+   "note": "the deflate buffer; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_149279_g",
+   "sig": "boolean",
+   "status": "partial",
+   "note": "the unload flag"
+  },
+  {
+   "kind": "field",
+   "name": "field_149285_h",
+   "sig": "int",
+   "status": "n/a",
+   "note": "the extended-mask id; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_149286_i",
+   "sig": "byte[]",
+   "status": "n/a",
+   "note": "static deflate scratch"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(Chunk,boolean,int)V",
+   "status": "n/a",
+   "note": "the full-data form is never built; loads ride the S26 bulk entries; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149275_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "static size helper"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "partial",
+   "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+   "note": "the tracker sends no chunk packets to clientworld_handle_packet; test_clientworld.c adds the chunk to its loaded set (apply_packet)"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_149272_d",
+   "sig": "()[B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149269_a",
+   "sig": "(Chunk,boolean,int)Lnet/minecraft/network/play/server/S21PacketChunkData$Extracted;",
+   "status": "n/a",
+   "note": "the static byte extractor; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_149273_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149271_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149276_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149270_h",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149274_i",
+   "sig": "()Z",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  },
+  {
+   "kind": "field",
+   "name": "Extracted.field_150282_a",
+   "sig": "byte[]",
+   "status": "n/a",
+   "note": "nested Extracted's data"
+  },
+  {
+   "kind": "field",
+   "name": "Extracted.field_150280_b",
+   "sig": "int",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Extracted.field_150281_c",
+   "sig": "int",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "serverreplay.h's sr_client_chunk comment names the two forms: 'l' an S26 bulk entry, 'u' an S21 empty ground-up chunk (WorldClient.doPreChunk unloads it). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes). Formerly listed as missing: The full-data form (includeInitialize true, the chunk bytes) is never built natively: chunk loads reach the client as S26 bulk entries or through the shared world; only the unload form ('u') is modeled (serverreplay.c:sr_client_chunk)."
+}

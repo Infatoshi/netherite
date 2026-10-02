@@ -1,0 +1,40 @@
+{
+  "path": "oracle/src/block/BlockCrops.java",
+  "classes": ["BlockCrops"],
+  "lines": 219,
+  "side": "common",
+  "category": "block",
+  "role": "The wheat crop: grows stage by stage with light and neighbour weighting, drops wheat and seeds, and takes bonemeal.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["rt_crops", "growth_rate", "randomtick_is_igrowable", "randomtick_bonemeal_can", "randomtick_bonemeal_chance", "randomtick_bonemeal_grow", "crop_drop"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["bush_floor_ok", "bush_can_stay"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break", "crops"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/render_blocks2.c", "symbols": ["rb2_render_crops"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": ["out/java/snapshots/cov-bonecrop-s1", "out/java/snapshots/world-crops-s1", "out/java/ticks/ticks-s2", "out/java/ticks/ticks-s42", "csrc/tests/test_ticks.c", "out/java/place/big2", "out/java/snapshots/pickblock-s1", "out/java/snapshots/farmfall-s1", "out/java/snapshots/farmdry-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCrops", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 59, plant material, no collision."},
+    {"kind": "method", "name": "func_149854_a", "sig": "(World,III)Z", "native": "csrc/engine/blockcb.c:bush_floor_ok", "status": "exact", "note": "The farmland floor test through the bush family (blockcb.c bush_floor_ok); is_crops takes BlockCarrot and BlockPotato too."},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:rt_crops", "status": "exact", "note": "randomtick.c:679; the tick dispatch at randomtick.c:1315."},
+    {"kind": "method", "name": "func_149863_m", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_grow", "status": "exact", "note": "The +2..+5 meta step, randomtick.c:1713."},
+    {"kind": "method", "name": "func_149864_n", "sig": "(World,III)F", "native": "csrc/engine/randomtick.c:growth_rate", "status": "exact", "note": "The shared float loop, randomtick.c:637-639."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": "csrc/engine/render_blocks2.c:rb2_render_crops", "status": "partial", "note": "The age textures resolve inside the renderer."},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "6; the dispatch at render_blocks.c:3090."},
+    {"kind": "method", "name": "func_149866_i", "sig": "(IRandom)Item", "native": "csrc/engine/randomtick.c:rt_crops", "status": "exact", "note": "Wheat seeds at maturity, the same switch (randomtick.c:221)."},
+    {"kind": "method", "name": "func_149865_P", "sig": "(IRandom)Item", "native": "csrc/engine/randomtick.c:rt_crops", "status": "exact"},
+    {"kind": "method", "name": "dropBlockAsItemWithChance", "sig": "(World,IIIFII)V", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "The crops drop helper, drops.c:289, wheat at drops.c:478. A pop (BlockBush.func_149855_e) spawns through randomtick.c:crop_drop."},
+    {"kind": "method", "name": "getItemDropped", "sig": "(IRandomI)Item", "native": "csrc/engine/drops.c:drops_break", "status": "exact"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Random)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact"},
+    {"kind": "method", "name": "getItem", "sig": "(World,III)Item", "native": "csrc/engine/pickblock.c:block_get_item", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."},
+    {"kind": "method", "name": "func_149851_a", "sig": "(World,III)Z", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_can", "status": "exact", "note": "meta != 7, randomtick.c:1442."},
+    {"kind": "method", "name": "func_149852_a", "sig": "(World,IIIRandom)Z", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_chance", "status": "exact", "note": "The default 1 (no roll for crops), randomtick.c:1485."},
+    {"kind": "method", "name": "func_149853_b", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_grow", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "world-crops-s1 is the whole-server replay over a farm; the tick probe (out/java/ticks/ticks-s2, ticks-s42) sweeps the growth draws and test_ticks.c checks them."
+}

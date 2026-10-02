@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/item/ItemBucketMilk.java",
+  "classes": [
+    "ItemBucketMilk"
+  ],
+  "lines": 57,
+  "side": "server",
+  "category": "item",
+  "role": "The milk bucket: drinking it clears every potion effect and leaves an empty bucket; it is produced by milking a cow and consumed by the cake recipe.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["process_c02_interact", "server_drink_finish", "surv_item_use_duration", "server_air_use", "client_on_item_use_finish"]},
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/use-kinds-s1",
+    "out/java/snapshots/rc-animals-s1",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemBucketMilk", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 335, max stack 1"},
+    {"kind": "method", "name": "onEaten", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/survival.c:server_drink_finish", "status": "exact", "note": "the stack shrinks, clearActivePotions on the player twin (each onFinishedPotionEffect sends its S1E), the bucket in the held slot; the client finish swaps in the bucket (client_on_item_use_finish); the drink sound draws one World.rand float per updateItemUse"},
+    {"kind": "method", "name": "getMaxItemUseDuration", "sig": "(ItemStack)I", "native": "csrc/engine/survival.c:surv_item_use_duration", "status": "exact", "note": "32"},
+    {"kind": "method", "name": "getItemUseAction", "sig": "(ItemStack)EnumAction", "native": null, "status": "n/a", "note": "client animation"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/survival.c:server_air_use", "status": "exact", "note": "setItemInUse(stack, 32) on both sides"}
+  ],
+  "missing": [],
+  "notes": "rc-animals-s1 milks a cow; use-kinds-s1 drinks milk under a splash poison and the poison ends with the bucket back."
+}

@@ -1,0 +1,31 @@
+{
+ "path": "csrc/engine/decorator.h",
+ "lines": 15,
+ "role": "Declares decorator_decorate: BiomeDecorator.func_150512_a for one chunk with the per-biome decorate overrides, firing the populate probe's stage hooks.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/biome/BiomeDecorator.java",
+   "members": [
+    "func_150512_a",
+    "func_150513_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/BiomeGenBase.java",
+   "members": [
+    "decorate"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "decorator_decorate"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_spawning.c"
+ ]
+}

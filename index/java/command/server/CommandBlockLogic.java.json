@@ -1,0 +1,171 @@
+{
+  "path": "oracle/src/command/server/CommandBlockLogic.java",
+  "classes": [
+    "CommandBlockLogic"
+  ],
+  "lines": 150,
+  "side": "server",
+  "category": "commands",
+  "role": "Shared logic of the command block tile entity: stores the command string and CustomName, runs it on tick, and keeps SuccessCount and LastOutput in NBT.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_command_block",
+        "TE_COMMAND_BLOCK"
+      ]
+    }
+  ],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145766_a",
+      "sig": "SimpleDateFormat (static)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_145764_b",
+      "sig": "int (SuccessCount)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_145765_c",
+      "sig": "boolean (TrackOutput)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_145762_d",
+      "sig": "IChatComponent (LastOutput)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_145763_e",
+      "sig": "String (Command)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_145761_f",
+      "sig": "String (CustomName)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145760_g",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145749_h",
+      "sig": "()IChatComponent",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145758_a",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_command_block",
+      "status": "partial",
+      "note": "the native command-block TE renders the same NBT fields (Command, SuccessCount, CustomName, TrackOutput) with placeholder values, since nothing can change them"
+    },
+    {
+      "kind": "method",
+      "name": "func_145759_b",
+      "sig": "(NBTTagCompound)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "canCommandSenderUseCommand",
+      "sig": "(int,String)boolean",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145752_a",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145753_i",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145755_a",
+      "sig": "(World)V",
+      "native": null,
+      "status": "n/a",
+      "note": "execution needs the command system and redstone power, both absent in this game (world.conf redstone=off)"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandSenderName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145748_c_",
+      "sig": "()IChatComponent",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145754_b",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addChatMessage",
+      "sig": "(IChatComponent)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145756_e",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "abstract: the tile entity's NBT/markDirty callback"
+    },
+    {
+      "kind": "method",
+      "name": "func_145751_f",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "abstract: the tile entity's block callback"
+    }
+  ],
+  "missing": [],
+  "notes": "The command block block and TE exist natively (block id 137, TE_COMMAND_BLOCK in csrc/engine/tileentity.c) but only as a placeholder TE: no command execution, and redstone never powers anything. Static __OBFID constants are grouped out per the brief."
+}

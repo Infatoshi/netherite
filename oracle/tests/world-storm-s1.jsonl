@@ -1,0 +1,8 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":162,"y0":100,"z0":237,"x1":193,"y1":100,"z1":266,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":162,"y0":101,"z0":237,"x1":193,"y1":118,"z1":266,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":178.5,"y":101.0,"z":251.5,"yaw":0.0,"pitch":0.0}
+{"cmd":"dev","op":"weather","type":"thunder","seconds":2400}
+{"n":2400,"act":{}}

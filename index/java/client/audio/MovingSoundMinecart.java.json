@@ -1,0 +1,49 @@
+{
+ "path": "oracle/src/client/audio/MovingSoundMinecart.java",
+ "classes": [
+  "MovingSoundMinecart"
+ ],
+ "lines": 49,
+ "side": "client",
+ "category": "client_audio",
+ "role": "The rolling sound of a minecart heard from outside: follows the cart's position and scales volume with its horizontal speed.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_147670_k",
+   "sig": "EntityMinecart",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147669_l",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "pitch ramp"
+  },
+  {
+   "kind": "ctor",
+   "name": "MovingSoundMinecart",
+   "sig": "(EntityMinecart)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "update",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "reads cart position/motion only; draws no RNG"
+  }
+ ],
+ "missing": [],
+ "notes": "Also switched off in practice: world.conf minecarts = off, so no cart ever exists to be heard. Reads entity state but never writes it."
+}

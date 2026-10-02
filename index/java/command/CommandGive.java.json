@@ -1,0 +1,79 @@
+{
+  "path": "oracle/src/command/CommandGive.java",
+  "classes": [
+    "CommandGive"
+  ],
+  "lines": 111,
+  "side": "server",
+  "category": "commands",
+  "role": "The /give command: builds an ItemStack (count 1..64, optional meta and NBT data tag) and drops it at the target player.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [
+    {
+      "file": "csrc/engine/dev.c",
+      "symbols": [
+        "dev_apply"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/dev-give-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": "csrc/engine/dev.c:dev_apply",
+      "status": "partial",
+      "note": "the Dev 'give' op builds the stack and drops it at the player with delay 0 and owner \"Player\" (throw_item then delay/owner fields), matching dropPlayerItemWithRandomChoice + delayBeforeCanPickup + func_145797_a; the NBT dataTag branch has no native counterpart"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,String[])List",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getPlayers",
+      "sig": "()[Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "isUsernameIndex",
+      "sig": "(String[],int)boolean",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "item_entity.h names CommandGive for the Owner field the drop carries. Static __OBFID constants are grouped out per the brief."
+}

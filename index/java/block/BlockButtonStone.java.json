@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/block/BlockButtonStone.java",
+  "classes": ["BlockButtonStone"],
+  "lines": 22,
+  "side": "common",
+  "category": "block",
+  "role": "The stone button subclass: passes wooden=false to BlockButton and draws the stone texture.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/activate.c", "symbols": ["ID_BTN_STONE"]}
+  ],
+  "evidence": ["out/java/snapshots/te-ticks-s1", "csrc/tests/test_activate.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockButtonStone", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 77, class BlockButtonStone; the wooden flag false is the registry difference."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": null, "status": "n/a", "note": "Client texture pick (stone's top face); icons are atlas lookups and the renderer uses the standard path."}
+  ],
+  "missing": [],
+  "notes": "All mechanics live in BlockButton (see its record); the activate machine's ACT_BTN_STONE case maps to ids.btn_stone (activate.c:1134)."
+}

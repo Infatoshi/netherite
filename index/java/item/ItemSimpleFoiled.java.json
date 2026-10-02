@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/item/ItemSimpleFoiled.java",
+  "classes": ["ItemSimpleFoiled"],
+  "lines": 11,
+  "side": "client",
+  "category": "item",
+  "role": "Base of the nether star (id 399): always draws the enchanted-item glint on its icon.",
+  "scope": "switched_off",
+  "scope_reason": "Its only instance is the nether star (Item.java's registration), which only the wither drops, and world.conf wither = off means the wither is never built.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["draw_glint"]}
+  ],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "hasEffect", "sig": "(Lnet/minecraft/item/ItemStack;)Z", "native": "csrc/engine/raster_hud.c:draw_glint", "status": "partial", "note": "the HUD renderer draws the glint when the recorded GUI state flags the item; ItemStack.hasEffect is not consulted natively"}
+  ],
+  "missing": [],
+  "notes": "idxaudit 2026-09-27: scope reason rewritten and scope relabeled client_cosmetic -> switched_off."
+}

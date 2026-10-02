@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/item/ItemSeeds.java",
+  "classes": ["ItemSeeds"],
+  "lines": 51,
+  "side": "common",
+  "category": "item",
+  "role": "The plantable seeds (wheat, pumpkin, melon, nether wart): plant the crop block on their soil on right click on the top face.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_place_item_class"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_seeds_on_item_use", "seed_block", "seed_soil"]}
+  ],
+  "evidence": ["out/java/snapshots/cov-seeds-s1", "csrc/tests/test_place.c", "out/java/snapshots/world-crops-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150925_a", "sig": "Block", "native": "csrc/engine/place.c:seed_block", "status": "exact", "note": "the crop block, as a per-item switch shared with ItemSeedFood"},
+    {"kind": "field", "name": "soilBlockID", "sig": "Block", "native": "csrc/engine/place.c:seed_soil", "status": "exact", "note": "the soil block, as a per-item switch shared with ItemSeedFood"},
+    {"kind": "ctor", "name": "ItemSeeds", "sig": "(Lnet/minecraft/block/Block;Lnet/minecraft/block/Block;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "rows 295, 361, 362, 372"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": "csrc/engine/place.c:item_seeds_on_item_use", "status": "exact", "note": "the side-1 check, the two canPlayerEdit calls, the soil and air test, setBlock and the stack decrement"}
+  ],
+  "missing": [],
+  "notes": null
+}

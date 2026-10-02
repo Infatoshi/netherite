@@ -1,0 +1,3 @@
+id	found	by	area	field	cause	status	commit	pin	repro
+# meshtab: the table mode (--mesh-tab) against the C renderer
+meshtab-merge-redraw	2026-09-29	lane/meshtab (gate)	cuda	vertex 0 field 1	merged with lane/meshgpu, whose write pass copies (mesh_wcopy) and redraws only requests marked MESHING_RES_REDRAW: mesh_tab_place left a request whose vertices did not fit its buffers at voff -1 without the mark, so its mesh came out zeros (1111 of 2153 on the quick gate, the counts and flags equal); it now sets the mark as mesh_run does, and world_raw the band origins meshgpu's band_of reads; never on master	fixed	fcd4bec2	make -s -C csrc gpu-meshing-check MESH_ARGS="--mesh-tab pix-fluid-s1 cov-blkgallery-s1 cov-foliage-s1 cov-mesa-s1"	-

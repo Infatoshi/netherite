@@ -1,0 +1,180 @@
+{
+ "classes": [
+  "InventoryLargeChest"
+ ],
+ "lines": 153,
+ "side": "common",
+ "category": "inventory",
+ "role": "The 54-slot view over two chest tile entities that a double chest presents to ContainerChest.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_open_tile",
+    "gui_can_interact"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "chest_size"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "inv_set",
+    "inv_decr",
+    "inv_take"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/te-chest-s1",
+  "csrc/tests/test_containers.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "name",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "upperChest",
+   "sig": "IInventory",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact",
+   "note": "the pair is carried as chest_size 54 plus the pair coordinates"
+  },
+  {
+   "kind": "field",
+   "name": "lowerChest",
+   "sig": "IInventory",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "InventoryLargeChest",
+   "sig": "(String,IInventory,IInventory)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSizeInventory",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:chest_size",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isPartOfLargeChest",
+   "sig": "(Lnet/minecraft/inventory/IInventory;)Z",
+   "native": null,
+   "status": "exact",
+   "note": "Read by TileEntityChest.func_145978_a's 200-tick viewer recount; the native recount matches the two halves by position (the same two tile entities), te-chest-s1 holds a double chest open past a recount."
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInventoryNameLocalized",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlot",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact",
+   "note": "The i < 27 upper, lower beyond, split in the chest window sync."
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(II)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_decr",
+   "status": "exact",
+   "note": "same split"
+  },
+  {
+   "kind": "method",
+   "name": "getStackInSlotOnClosing",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:inv_take",
+   "status": "n/a",
+   "note": "n/a: ContainerChest.onContainerClosed only closes the inventory; no container calls it on a chest"
+  },
+  {
+   "kind": "method",
+   "name": "setInventorySlotContents",
+   "sig": "(ILnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact",
+   "note": "same split"
+  },
+  {
+   "kind": "method",
+   "name": "getInventoryStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/container.h:inv",
+   "status": "exact",
+   "note": "64"
+  },
+  {
+   "kind": "method",
+   "name": "onInventoryChanged",
+   "sig": "()V",
+   "native": "csrc/engine/container.c:inv_set",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isUseableByPlayer",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "both halves: each tile still at its position and the player within 8 of each"
+  },
+  {
+   "kind": "method",
+   "name": "openInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "closeInventory",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in Java"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValidForSlot",
+   "sig": "(ILnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "returns true unconditionally"
+  }
+ ],
+ "missing": [],
+ "notes": "te-chest-s1 is a double chest held open past a recount (321 rows, whole-server replay OK). lane/idxblocks: identity versus position picks the same halves. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): containers2-s42.",
+ "path": "oracle/src/inventory/InventoryLargeChest.java"
+}

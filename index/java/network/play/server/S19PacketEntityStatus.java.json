@@ -1,0 +1,110 @@
+{
+ "path": "oracle/src/network/play/server/S19PacketEntityStatus.java",
+ "classes": [
+  "S19PacketEntityStatus"
+ ],
+ "lines": 62,
+ "side": "server",
+ "category": "network",
+ "role": "A one-byte entity status: the living hurt (2) and death (3) animations and the player's item-use finish ride this packet.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_eat_tick",
+    "surv_client_pump",
+    "client_on_item_use_finish"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/surv_eat-s1",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149164_a",
+   "sig": "int",
+   "status": "partial",
+   "note": "entity id, rides s2c_pkt.i0"
+  },
+  {
+   "kind": "field",
+   "name": "field_149163_b",
+   "sig": "byte",
+   "status": "partial",
+   "note": "status byte, rides s2c_pkt.i1; only 2 is modeled"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(Entity,byte)V",
+   "status": "partial",
+   "native": "csrc/engine/survival.c:surv_server_eat_tick",
+   "note": "only the eat-finish status 2, from the eating flow"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "partial",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "PK_S19 case: status 2 runs survival.c:client_on_item_use_finish"
+  },
+  {
+   "kind": "method",
+   "name": "func_149161_a",
+   "sig": "(World)Lnet/minecraft/entity/Entity;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149160_c",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the renderer draws hurt and death from server state (by design). Formerly listed as missing: The living hurt (status 2) and death (status 3) animations EntityLivingBase.handleHealthUpdate runs on the client have no native half; the clientworld entity mirror carries no hurt or death state. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): surv_food-s1."
+}

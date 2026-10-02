@@ -1,0 +1,191 @@
+{
+ "path": "oracle/src/block/BlockTorch.java",
+ "classes": [
+  "BlockTorch"
+ ],
+ "lines": 282,
+ "side": "common",
+ "category": "block",
+ "role": "The torch (id 50): placed on any normal cube face or on a fence/glass top, its metadata says which face it hangs from, it drops itself when its support goes, and it emits light 14.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "torch_can_place",
+    "torch_stay",
+    "torch_on_added",
+    "torch_neighbor",
+    "block_torch_update_tick",
+    "place_torch_can_support",
+    "block_on_neighbor_changed",
+    "bwl_on_added"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "on_block_placed"
+   ]
+  },
+  {
+   "file": "csrc/engine/collide.c",
+   "symbols": [
+    "collide_pool_box"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "negative_check_skip_torch_draw"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "raytrace_block_bounds",
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_raypick.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/raypick/rp-1",
+  "out/java/rendertick/fx_rain",
+  "out/java/snapshots/fresh-play-s1",
+  "out/java/snapshots/walk300-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockTorch",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "id 50: Material.circuits row, light 14, tick_randomly, render_type 2"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;",
+   "native": "csrc/engine/collide.c:collide_pool_box",
+   "status": "exact",
+   "note": "case 50: null"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150107_m",
+   "sig": "(Lnet/minecraft/world/World;III)Z",
+   "native": "csrc/engine/blockcb.c:place_torch_can_support",
+   "status": "exact",
+   "note": "the solid-top or fence/glass/cobble-wall support test, exported for place.c"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(Lnet/minecraft/world/World;III)Z",
+   "native": "csrc/engine/blockcb.c:torch_can_place",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockPlaced",
+   "sig": "(Lnet/minecraft/world/World;IIIFFFFI)I",
+   "native": "csrc/engine/place.c:on_block_placed",
+   "status": "exact",
+   "note": "the facing metadata 1..5 from the clicked side"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(Lnet/minecraft/world/World;IIILjava/util/Random;)V",
+   "native": "csrc/engine/blockcb.c:block_torch_update_tick",
+   "status": "exact",
+   "note": "the scheduled tick that re-runs onBlockAdded when the meta is still 0 (also the redstone torch's, whose state machine writes nothing with redstone off)"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(Lnet/minecraft/world/World;III)V",
+   "native": "csrc/engine/blockcb.c:torch_on_added",
+   "status": "exact",
+   "note": "picks the facing from the first supporting side"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)V",
+   "native": "csrc/engine/blockcb.c:torch_neighbor",
+   "status": "exact",
+   "note": "drops the torch when its supporting side is gone"
+  },
+  {
+   "kind": "method",
+   "name": "func_150108_b",
+   "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)Z",
+   "native": "csrc/engine/blockcb.c:torch_neighbor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150109_e",
+   "sig": "(Lnet/minecraft/world/World;III)Z",
+   "native": "csrc/engine/blockcb.c:torch_stay",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "collisionRayTrace",
+   "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/util/Vec3;Lnet/minecraft/util/Vec3;)Lnet/minecraft/util/MovingObjectPosition;",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(Lnet/minecraft/world/World;IIILjava/util/Random;)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "exact",
+   "note": "the particles and every draw, checked per tick against the spawn log in fx_rain"
+  }
+ ],
+ "missing": [],
+ "notes": "The clientworld.c citation names the torch draw guard the client renderer uses; the torch itself appears in every played session, so fresh-play-s1 and walk300-s1 exercise placement and light."
+}

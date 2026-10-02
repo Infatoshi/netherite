@@ -1,0 +1,16 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":158,"y0":89,"z0":244,"x1":164,"y1":89,"z1":265,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":158,"y0":90,"z0":244,"x1":164,"y1":99,"z1":265,"id":0,"meta":0}
+{"n":3,"act":{}}
+{"cmd":"dev","op":"tp","x":161.5,"y":90,"z":251.5,"yaw":0,"pitch":-90}
+{"n":3,"act":{}}
+{"n":50,"act":{}}
+{"cmd":"dev","op":"setblock","x":161,"y":90,"z":251,"id":30,"meta":0}
+{"cmd":"dev","op":"setblock","x":161,"y":92,"z":251,"id":12,"meta":0}
+{"cmd":"dev","op":"setblock","x":161,"y":91,"z":251,"id":12,"meta":0}
+{"n":20,"act":{}}
+{"n":1,"act":{"dlook":[90,90]}}
+{"n":25,"act":{"hold":["attack"]}}
+{"n":10,"act":{}}

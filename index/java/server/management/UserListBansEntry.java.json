@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/server/management/UserListBansEntry.java",
+  "classes": ["UserListBansEntry"],
+  "lines": 60,
+  "side": "server",
+  "category": "server",
+  "role": "A BanEntry whose key is a GameProfile, serialized with the profile's uuid and name.",
+  "scope": "not_needed",
+  "scope_reason": "Only built by UserListBans when reading or writing banned-players.json; the list is never read or written in the oracle.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "UserListBansEntry", "sig": "(GameProfile)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "UserListBansEntry", "sig": "(GameProfile,Date,String,Date,String)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "UserListBansEntry", "sig": "(JsonObject)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152641_a", "sig": "(JsonObject)V", "native": null, "status": "n/a", "note": "write uuid and name then the ban fields"},
+    {"kind": "method", "name": "func_152648_b", "sig": "(JsonObject)GameProfile", "native": null, "status": "n/a", "note": "read uuid and name"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

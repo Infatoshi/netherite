@@ -1,0 +1,3 @@
+id	found	by	area	field	cause	status	commit	pin	repro
+# the orchestrator's rows: statuses a merged lane settled without a row of its own
+gpureview-L16	2026-09-28	lane/gpureview (audit)	cuda	light-check return value	the device light engine (L16) lacked the client world's box rule (4ab41c3b) and three more gaps (chunk stamps set, not maxed; self-aliased reads at y 256 and -1; section creation order); fixed by lane/gpumirror, whose mirror rule now gates such changes	fixed	78b65e5f	make -C csrc light-check (idx-cwlight-s1 in the quick gate)	-

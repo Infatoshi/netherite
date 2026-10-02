@@ -1,0 +1,75 @@
+{
+  "path": "oracle/src/command/server/CommandBanIp.java",
+  "classes": [
+    "CommandBanIp"
+  ],
+  "lines": 114,
+  "side": "server",
+  "category": "commands",
+  "role": "The /ban-ip command: bans an IP address (or the IP of a named player) with an optional reason.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_147211_a",
+      "sig": "Pattern (static)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "canCommandSenderUseCommand",
+      "sig": "(ICommandSender)boolean",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,String[])List",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147210_a",
+      "sig": "(ICommandSender,String,String)V",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "Registered only on a dedicated server; the oracle runs single player with one fixed session. Static __OBFID constants are grouped out per the brief."
+}

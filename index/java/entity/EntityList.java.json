@@ -1,0 +1,204 @@
+{
+ "path": "oracle/src/entity/EntityList.java",
+ "classes": [
+  "EntityList",
+  "EntityList.EntityEggInfo"
+ ],
+ "lines": 349,
+ "side": "common",
+ "category": "entity",
+ "role": "The entity registry: the name/id/class maps the static block fills, the factories createEntityByName/createEntityFromNBT/createEntityByID, and the spawn-egg colours.",
+ "scope": "in_scope",
+ "scope_reason": "Snapshot reload and the spawners both build entities from names and ids.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_kind_name"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_tile_mob_kind",
+    "sr_tile_construct"
+   ]
+  },
+  {
+   "file": "csrc/engine/ai.c",
+   "symbols": [
+    "an_construct_kind"
+   ]
+  },
+  {
+   "file": "csrc/engine/dev.c",
+   "symbols": [
+    "dev_summon"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/persist-hanging-full-s1",
+  "out/java/snapshots/mobspawn-final-s1",
+  "csrc/tests/test_hostiles.c",
+  "out/java/snapshots/portal-proj-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "stringToClassMapping",
+   "sig": "static Map",
+   "native": "csrc/engine/serverreplay.c:sr_tile_mob_kind",
+   "status": "partial",
+   "note": "name-to-kind as per-path tables (the spawner id list, the reload switch), not one global map"
+  },
+  {
+   "kind": "field",
+   "name": "classToStringMapping",
+   "sig": "static Map",
+   "native": "csrc/engine/living.c:living_kind_name",
+   "status": "partial",
+   "note": "kind-to-name in living.c's living_kind_name and the per-kind NBT writers"
+  },
+  {
+   "kind": "field",
+   "name": "IDtoClassMapping",
+   "sig": "static Map",
+   "native": "csrc/engine/serverreplay.c:sr_tile_mob_kind",
+   "status": "partial",
+   "note": "the spawner ids the port covers (zombie, skeleton, spider, cave spider, silverfish, blaze, creeper, enderman, witch, pigman and the four animals)"
+  },
+  {
+   "kind": "field",
+   "name": "classToIDMapping",
+   "sig": "static Map",
+   "native": null,
+   "status": "n/a",
+   "note": "getEntityID's class lookup: the native writers carry the numeric id directly; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "stringToIDMapping",
+   "sig": "static Map",
+   "native": null,
+   "status": "n/a",
+   "note": "unused by the ported paths; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "entityEggs",
+   "sig": "static HashMap",
+   "native": null,
+   "status": "n/a",
+   "note": "the creative spawn-egg colours; no spawn eggs in the ported scenarios; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "addMapping",
+   "sig": "(Class,String,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "static init; the native tables are generated and checked against the oracle"
+  },
+  {
+   "kind": "method",
+   "name": "addMapping",
+   "sig": "(Class,String,int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the egg-info overload"
+  },
+  {
+   "kind": "method",
+   "name": "createEntityByName",
+   "sig": "(String,World)Entity",
+   "native": "csrc/engine/serverreplay.c:sr_tile_construct",
+   "status": "partial",
+   "note": "the constructor side is exact for every ported kind (ai.c:an_construct_kind, the per-kind construct functions); the registry is per-path tables rather than one map; EntityEgg has no mapping, so a travelling egg gets no copy (serverreplay.c sr_ie_portal_travel, portal-proj-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "createEntityFromNBT",
+   "sig": "(NBTTagCompound,World)Entity",
+   "native": "csrc/engine/snapshot_entities.c:sr_living_from_nbt",
+   "status": "exact",
+   "note": "the Minecart Type switch is unreachable (minecarts off); the constructor + readFromNBT order and the Det draws are reproduced; the Nether's and the End's reloads take the overworld's path (nether-unload-kinds-s1, end-unload-kinds-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "createEntityByID",
+   "sig": "(int,World)Entity",
+   "native": "csrc/engine/serverreplay.c:sr_tile_mob_kind",
+   "status": "partial",
+   "note": "the spawner id path"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityID",
+   "sig": "(Entity)I",
+   "native": null,
+   "status": "n/a",
+   "note": "the class-to-id lookup; the native writers carry the id; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getClassFromID",
+   "sig": "(int)Class",
+   "native": "csrc/engine/serverreplay.c:sr_tile_mob_kind",
+   "status": "partial",
+   "note": "the spawner ids the port covers"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityString",
+   "sig": "(Entity)Ljava/lang/String;",
+   "native": "csrc/engine/living.c:living_kind_name",
+   "status": "exact",
+   "note": "per kind"
+  },
+  {
+   "kind": "method",
+   "name": "getStringFromID",
+   "sig": "(int)Ljava/lang/String;",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_151514_a",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty"
+  },
+  {
+   "kind": "method",
+   "name": "func_151515_b",
+   "sig": "()Ljava/util/Set;",
+   "native": null,
+   "status": "n/a",
+   "note": "unused"
+  },
+  {
+   "kind": "method",
+   "name": "EntityEggInfo.ctor",
+   "sig": "(III)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the spawn-egg colours and the two stats; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityList",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: a static-only class; nothing in oracle/src constructs it (no new EntityList())"
+  }
+ ],
+ "missing": [],
+ "notes": "'/summon refuses switched-off entities' lives in dev.c (the summon path), which is where createEntityByName's guard sits in this port. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): runtime registry replaced by the generated blocks.h/items.h tables; nothing registers at runtime. Formerly listed as missing: getEntityID, getStringFromID and entityEggs: no spawn-egg or numeric-id consumer exists in the ported paths. The registry itself is a set of per-path tables (spawner ids, reload switch, kind names) rather than one map; a new entity kind must touch each. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-hanging-full-s1, whose native replay starts before the behaviour."
+}

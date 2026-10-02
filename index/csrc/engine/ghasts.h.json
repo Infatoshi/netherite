@@ -1,0 +1,25 @@
+{
+ "path": "csrc/engine/ghasts.h",
+ "lines": 103,
+ "role": "Declares the ghast lane's API from ghasts.c: the probe player and world structs, the ghast construct/AI/damage/drop functions, the fireball impact and NBT, the natural spawn and the probe's tick pass with its removal record.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntityGhast.java", "members": ["EntityGhast", "updateEntityActionState", "attackEntityFrom", "dropFewItems"]},
+  {"path": "oracle/src/entity/projectile/EntityLargeFireball.java", "members": ["onImpact", "writeEntityToNBT"]},
+  {"path": "oracle/src/entity/player/EntityPlayer.java", "members": ["attackEntityFrom"]},
+  {"path": "oracle/src/world/World.java", "members": ["getClosestVulnerablePlayerToEntity", "updateEntities"]}
+ ],
+ "structs": [
+  {"name": "gh_player", "java": "a bare EntityPlayer: entityId, UUID, rand, posX/Y/Z, motionX/Y/Z, rotationYaw/Pitch, health, prevHealth, absorption, hurtTime, maxHurtTime, deathTime, hurtResistantTime, lastDamage, entityAge, isDead, velocityChanged", "fields": ["entity_id", "uuid_msb", "uuid_lsb", "rand", "pos_x", "pos_y", "pos_z", "motion_x", "motion_y", "motion_z", "rotation_yaw", "rotation_pitch", "health", "prev_health", "absorption", "hurt_time", "max_hurt_time", "death_time", "hurt_resistant_time", "last_damage", "entity_age", "is_dead", "velocity_changed"]},
+  {"name": "gh_world", "java": null, "fields": ["an", "player", "has_walls"]},
+  {"name": "gh_removal", "java": "the oracle GhastProbe removal row, not a vanilla class", "fields": ["tick", "si", "entity_id", "kind", "health", "fire"]}
+ ],
+ "entry_points": ["ghast_construct", "ghast_look_vec", "ghast_update_entity_action_state", "ghast_attack_entity_from", "ghast_drop_few_items", "ghast_collide_with_nearby_entities", "ghast_player_bb", "gh_closest_vulnerable_player", "gh_player_attack_entity_from", "living_dmg_unblockable", "gh_fireball_impact", "ghast_fireball_write_nbt", "ghast_fireball_nbt_hash", "ghast_fireball_nbt_text", "gh_spawn_ghast", "gh_tick"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 28, struct gh_world: holds a pointer to the an_world (pointer graph)"
+ ],
+ "tests": ["csrc/tests/test_ghasts.c"],
+ "notes": "living_dmg_unblockable is declared here but defined elsewhere (living.c per its comment); not verified which file defines it."
+}

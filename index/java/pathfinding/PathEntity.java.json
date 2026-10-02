@@ -1,0 +1,173 @@
+{
+  "path": "oracle/src/pathfinding/PathEntity.java",
+  "classes": [
+    "PathEntity"
+  ],
+  "lines": 130,
+  "side": "server",
+  "category": "pathfinding",
+  "role": "The finished path an entity walks: the point array, the cursor and the vector helpers the navigator and the AI read.",
+  "scope": "in_scope",
+  "scope_reason": "Mob pathfinding is vanilla behavior the mob AI depends on.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/living.h",
+      "symbols": [
+        "path_ent",
+        "path_alloc"
+      ]
+    },
+    {
+      "file": "csrc/engine/ai.c",
+      "symbols": [
+        "nav_set_path",
+        "nav_path_follow",
+        "nav_no_path",
+        "nav_update",
+        "nav_clear_path",
+        "target_nearby_ok",
+        "ai_should_execute"
+      ]
+    },
+    {
+      "file": "csrc/engine/hostiles_enderman.c",
+      "symbols": [
+        "path_position"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/paths/pf2-20k",
+    "out/java/paths/pf42-20k",
+    "csrc/tests/test_paths.c",
+    "out/java/snapshots/fight-zombie-s1",
+    "out/java/snapshots/villager-flee-s42",
+    "out/java/snapshots/golem-fight-s42"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "PathEntity",
+      "sig": "(PathPoint[])V",
+      "status": "exact",
+      "native": "csrc/engine/living.h:path_ent",
+      "note": "struct path_ent holds the points in a slab block sized by the search (path_alloc(n)), given back with the path"
+    },
+    {
+      "kind": "method",
+      "name": "incrementPathIndex",
+      "sig": "()V",
+      "status": "exact",
+      "native": "csrc/engine/ai.c:nav_path_follow",
+      "note": "the cursor advances inside path_follow"
+    },
+    {
+      "kind": "method",
+      "name": "isFinished",
+      "sig": "()Z",
+      "status": "exact",
+      "native": "csrc/engine/ai.c:nav_no_path"
+    },
+    {
+      "kind": "method",
+      "name": "getFinalPathPoint",
+      "sig": "()PathPoint",
+      "status": "exact",
+      "note": "pts[length - 1] in canEasilyReach and the avoid task",
+      "native": "csrc/engine/ai.c:target_nearby_ok"
+    },
+    {
+      "kind": "method",
+      "name": "getPathPointFromIndex",
+      "sig": "(I)PathPoint",
+      "status": "exact",
+      "native": "csrc/engine/ai.c:nav_path_follow",
+      "note": "points[index]: nav_path_follow and nav_update read pts[index], the same array element"
+    },
+    {
+      "kind": "method",
+      "name": "getCurrentPathLength",
+      "sig": "()I",
+      "status": "n/a",
+      "note": "the native code reads path->length directly"
+    },
+    {
+      "kind": "method",
+      "name": "setCurrentPathLength",
+      "sig": "(I)V",
+      "status": "exact",
+      "native": "csrc/engine/ai.c:nav_set_path",
+      "note": "removeSunnyPath's trim writes path->length inside set_path"
+    },
+    {
+      "kind": "method",
+      "name": "getCurrentPathIndex",
+      "sig": "()I",
+      "status": "n/a",
+      "note": "the native code reads path->index directly"
+    },
+    {
+      "kind": "method",
+      "name": "setCurrentPathIndex",
+      "sig": "(I)V",
+      "status": "exact",
+      "native": "csrc/engine/ai.c:nav_path_follow"
+    },
+    {
+      "kind": "method",
+      "name": "getVectorFromIndex",
+      "sig": "(Entity,I)Lnet/minecraft/util/Vec3;",
+      "status": "exact",
+      "native": "csrc/engine/hostiles_enderman.c:path_position",
+      "note": "the enderman's own copy; the navigator's copy is folded into nav_update (ai.c)"
+    },
+    {
+      "kind": "method",
+      "name": "getPosition",
+      "sig": "(Entity)Lnet/minecraft/util/Vec3;",
+      "status": "exact",
+      "native": "csrc/engine/ai.c:nav_update",
+      "note": "getMoveHelper().setMoveTo becomes move_helper_set_move_to"
+    },
+    {
+      "kind": "method",
+      "name": "isSamePath",
+      "sig": "(PathEntity)Z",
+      "status": "exact",
+      "native": "csrc/engine/ai.c:nav_set_path",
+      "note": "ported inline in set_path: same point count and every point equal"
+    },
+    {
+      "kind": "method",
+      "name": "isDestinationSame",
+      "sig": "(Lnet/minecraft/util/Vec3;)Z",
+      "status": "exact",
+      "note": "the AIC_AVOID_ENTITY case's final-point x and z test",
+      "native": "csrc/engine/ai.c:ai_should_execute"
+    },
+    {
+      "kind": "field",
+      "name": "points",
+      "sig": "PathPoint[]",
+      "status": "exact",
+      "native": "csrc/engine/living.h:path_ent"
+    },
+    {
+      "kind": "field",
+      "name": "currentPathIndex",
+      "sig": "int",
+      "status": "exact",
+      "native": "csrc/engine/living.h:path_ent"
+    },
+    {
+      "kind": "field",
+      "name": "pathLength",
+      "sig": "int",
+      "status": "exact",
+      "native": "csrc/engine/living.h:path_ent"
+    }
+  ],
+  "missing": [],
+  "notes": "Positions come back as doubles instead of Vec3 objects; the entity's width offset in getVectorFromIndex is kept exactly (hostiles_enderman.c:246). lane/idxclient: getPathPointFromIndex is an array read, ported as one; every member is exact (test_paths over pf2-20k and pf42-20k, the fight and village recordings)."
+}

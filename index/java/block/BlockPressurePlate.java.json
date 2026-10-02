@@ -1,0 +1,119 @@
+{
+ "path": "oracle/src/block/BlockPressurePlate.java",
+ "classes": [
+  "BlockPressurePlate",
+  "BlockPressurePlate.Sensitivity"
+ ],
+ "lines": 80,
+ "side": "common",
+ "category": "block",
+ "role": "The stone (70, mobs) and wooden (72, everything) pressure plates: which entities press the plate and the 0/15 power mapping.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: the stone and wooden plates' entity scan (func_150065_e by sensitivity) decides the pressed metadata the oracle writes with redstone = off; it ran in golem-fight-s42, village-rain-s42 and village-siege-s42.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "can_place_block_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "block_on_neighbor_changed"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/pathfind.c",
+   "symbols": [
+    "PFM_PLATE"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_plate_count",
+    "sr_box_count",
+    "sr_plate_func_150062_a",
+    "sr_plate_tick",
+    "sr_plate_collide"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/place/big2",
+  "csrc/tests/test_place.c",
+  "out/java/snapshots/village-rain-s42",
+  "out/java/snapshots/golem-fight-s42",
+  "out/java/snapshots/village-siege-s42",
+  "out/java/snapshots/plates-s1",
+  "out/java/snapshots/rs-wire-s1",
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/plate-dead-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150069_a",
+   "sig": "BlockPressurePlate.Sensitivity",
+   "native": "csrc/engine/serverreplay.c:sr_plate_count",
+   "status": "exact",
+   "note": "the sensitivity by block id: the stone plate (70, mobs) counts livings, the wooden plate (72, everything) every entity; no vanilla plate uses players"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockPressurePlate",
+   "sig": "(String,Material,Sensitivity)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 70 and 72"
+  },
+  {
+   "kind": "method",
+   "name": "func_150066_d",
+   "sig": "(I)I",
+   "native": "csrc/engine/serverreplay.c:sr_plate_func_150062_a",
+   "status": "exact",
+   "note": "power to metadata: 1 when pressed"
+  },
+  {
+   "kind": "method",
+   "name": "func_150060_c",
+   "sig": "(I)I",
+   "native": "csrc/engine/serverreplay.c:sr_plate_tick",
+   "status": "exact",
+   "note": "metadata 1 reads as 15 (sr_plate_tick, sr_plate_collide, blockcb.c bwl_on_broken)"
+  },
+  {
+   "kind": "method",
+   "name": "func_150065_e",
+   "sig": "(World,III)I",
+   "native": "csrc/engine/serverreplay.c:sr_box_count",
+   "status": "exact",
+   "note": "the scan by sensitivity with doesEntityNotTriggerPressurePlate (the bat): 15 or 0; rs-wire-s1 presses the stone plate with the player and the wooden one with a dropped stack and an XP orb; like Java's chunk-list read it counts entities already dead this tick (an item picked up earlier in the tick still presses the plate): plate-dead-s1"
+  },
+  {
+   "kind": "field",
+   "name": "Sensitivity",
+   "sig": "enum everything, mobs, players",
+   "native": null,
+   "status": "n/a",
+   "note": "the enum; the plate's id stands for it (sr_box_count)"
+  }
+ ],
+ "missing": [],
+ "notes": "Pathfinding treats plates as passable (pathfind.c). idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact on rs-wire-s1 (the player on a stone plate, a stack and an orb on a wooden one, the release, a pressed plate broken, a plate that lost its floor)."
+}

@@ -1,0 +1,22 @@
+{
+ "path": "csrc/engine/mineshaft_blocks.c",
+ "lines": 242,
+ "role": "The block half of the four mineshaft pieces (StructureMineshaftPieces addComponentParts): corridor air, webs, fences, planks, torches, rails, the cave spider spawner and the chest minecart with its loot; crossing clears and pillars; room dirt floor, entrance carves and dome; stairs steps.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/StructureMineshaftPieces.java", "members": ["Corridor.addComponentParts", "Corridor.generateStructureChestContents", "Cross.addComponentParts", "Room.addComponentParts", "Stairs.addComponentParts", "mineshaftChestContents"]},
+  {"path": "oracle/src/entity/item/EntityMinecartChest.java", "members": ["EntityMinecartChest"]}
+ ],
+ "structs": [],
+ "entry_points": ["mineshaft_blocks"],
+ "tick_path": true,
+ "gpu": [
+  "line 18, function dup_text: malloc of the spawner's mob id string (\"CaveSpider\") stored in the tile entity",
+  "line 123, function corridor_parts: free of the spawner tile entity's previous mob_id, so tile entities hold owned heap strings",
+  "line 40, function corridor_cart: loot_table_by_name does a strcmp lookup per cart attempt",
+  "line 43, function corridor_cart: loot_book_build allocates the book tag string (freed at lines 48 and 60)",
+  "line 27, function material_is_air: strcmp on the material name for an air test"
+ ],
+ "tests": ["csrc/tests/test_sblocks.c", "csrc/tests/test_structures.c", "csrc/tests/test_populate.c"],
+ "notes": "world.conf minecarts = off: the chest cart is still constructed and filled with the same RNG draws (sc_cart_new in structure_blocks.c) and seedworld.c drops SC_CART entities instead of spawning them, matching SPEC's switch. The Java args-before-body order is kept: the book and the count are drawn even when the cart position fails the box or air check."
+}

@@ -1,0 +1,69 @@
+{
+ "path": "oracle/src/entity/passive/EntityMooshroom.java",
+ "classes": [
+  "EntityMooshroom"
+ ],
+ "lines": 77,
+ "side": "server",
+ "category": "entity",
+ "role": "The mooshroom: a cow that fills a bowl with mushroom stew, is milked like a cow, and is sheared into a plain cow plus five red mushrooms.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_construct",
+    "animal_drop_few_items",
+    "animal_create_child"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "entity_interact",
+    "surv_damage_stack",
+    "client_damage_stack",
+    "surv_destroy_current_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_spawning.c",
+  "out/java/spawning/rec-s2-mushroom",
+  "out/java/render/mobs2b_mooshroom_f006",
+  "out/java/render/mobs2b_mooshroom_child_f006",
+  "out/java/snapshots/details-mobs-s1",
+  "out/java/snapshots/iu-milk-s1",
+  "out/java/snapshots/tools-break-s1",
+  "out/java/snapshots/cov-mobs-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EntityMooshroom",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_construct",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "interact",
+   "sig": "(1p)",
+   "native": "csrc/engine/survival.c:entity_interact",
+   "status": "exact",
+   "note": "the bowl, the bucket (EntityCow) and the shears: setDead, a plain cow with the mooshroom's position, angles, health and body yaw, five red mushrooms at posY + height with no pickup delay, the shears' wear; details-mobs-s1; the bowl into a free slot, a full inventory (nothing) and a last bowl: iu-milk-s1. The shears' damageItem(1, player) is surv_damage_stack (server only), and interactWith's destroyCurrentEquippedItem drops a worn-out pair (surv_destroy_current_item)."
+  },
+  {
+   "kind": "method",
+   "name": "createChild",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_create_child",
+   "status": "exact",
+   "note": "cov-mobs-s1: two mooshrooms fed wheat breed"
+  }
+ ],
+ "missing": [],
+ "notes": "The spawn tables put mooshrooms on mushroom islands only (seedworld_creatures.h's SW_LIST_MOOSHROOM)."
+}

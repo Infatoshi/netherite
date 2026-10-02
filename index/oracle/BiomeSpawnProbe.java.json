@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/BiomeSpawnProbe.java",
+ "lines": 74,
+ "role": "Biome spawn-list probe: for every registered biome slot, BiomeGenBase.getSpawnableList for the four EnumCreatureTypes after WorldConf.pruneSpawns (what ChunkProviderGenerate.getPossibleCreatures returns outside a swamp hut), plus MapGenScatteredFeature's witch list, as class, weight and group rows.",
+ "kind": "probe",
+ "used_by": [
+  "oracle/Makefile run target (make run CLASS=BiomeSpawnProbe), dispatched by Oracle.java's {\"cmd\":\"run\",\"class\":...}",
+  "csrc/tests/test_biome_spawn.c (out/java/biome_spawn/bs-1), checking csrc/engine/spawning.c's spawning_list_for and spawning_scattered_witch"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Reads the registry only; it loads nothing and draws nothing. Slot 161 holds a second object whose biomeID is 160 (a vanilla registry quirk), recorded under both slot and id."
+}

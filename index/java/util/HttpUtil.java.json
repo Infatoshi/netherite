@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/util/HttpUtil.java",
+  "classes": ["HttpUtil", "HttpUtil.DownloadListener"],
+  "lines": 333,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Background HTTP helper: POSTs for the server list and skins, the skin/cape download thread pool, and the spare-port probe used by the integrated server.",
+  "scope": "not_needed",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "downloadThreadsStarted", "sig": "AtomicInteger (static)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "buildPostString", "sig": "(Map)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151226_a", "sig": "(URL,Map,boolean)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151225_a", "sig": "(URL,String,boolean)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151223_a", "sig": "(File,String,DownloadListener,Map,int,IProgressUpdate,Proxy)V (download thread)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_76181_a", "sig": "()int (spare port)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152755_a", "sig": "(URL)String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No network in this game: the integrated server is a loopback channel and the agent path never fetches skins or pings servers. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "HTTP and spare-port helpers for skins, server lists and LAN; no network is used."
+}

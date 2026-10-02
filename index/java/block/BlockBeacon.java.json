@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/block/BlockBeacon.java",
+  "classes": ["BlockBeacon"],
+  "lines": 91,
+  "side": "common",
+  "category": "block",
+  "role": "The beacon: a tile-entity block whose GUI consumes effect payments, and whose tile entity recomputes the pyramid levels every 80 ticks and pushes a beam.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf beacon = off: WorldConf.beacon gates BlockBeacon.onBlockActivated, so no player ever opens the GUI or pays for effects. The block and its tile entity exist (SPEC keeps the block, using it does nothing).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/tileentity.h", "symbols": ["te_beacon"]},
+    {"file": "csrc/engine/tileentity.c", "symbols": ["TE_BEACON"]},
+    {"file": "csrc/engine/tileticks.c", "symbols": ["beacon_update"]},
+    {"file": "csrc/engine/render_blocks3.c", "symbols": ["rb3_render_beacon"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": ["csrc/tests/test_tileticks.c", "csrc/tests/test_registry.c", "out/java/snapshots/world-daynight-s1", "out/java/snapshots/iu-off-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockBeacon", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 138 carries hardness 3, the render type and the class name."},
+    {"kind": "method", "name": "createNewTileEntity", "sig": "(World,I)TileEntity", "native": "csrc/engine/tileentity.c:te_kind_of_block", "status": "exact", "note": "tileentity.c:215 maps id 138 to TE_BEACON with the levels = -1 fresh state (tileentity.c:302)."},
+    {"kind": "method", "name": "onBlockActivated", "sig": "(World,IIIIIIIFFF)Z", "native": null, "status": "missing", "note": "world.conf beacon = off; the GUI and the effect payments are not ported."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false."},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "34; render_blocks3.c:5 names it and rb3_render_beacon draws the tower."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Icon naming only."},
+    {"kind": "method", "name": "onBlockPlacedBy", "sig": "(World,IIIIEntityLivingBaseItemStack)V", "native": null, "status": "missing", "note": "The tile entity's display-name write from a named stack; no naming is ported."}
+  ],
+  "missing": [
+    "TileEntityBeacon.func_146000_x's GUI effects, the payment consumption and the beam effect application are not ported (world.conf beacon = off).",
+    "BlockBeacon.onBlockPlacedBy's display-name transfer is not ported."
+  ],
+  "notes": "The tile entity is fully present in the native engine: tileentity.c carries the NBT (Levels, Primary, Secondary), tileticks.c:389 runs func_146003_y's pyramid scan every 80th tick with world_can_block_see_the_sky, and render_blocks3.c:1983 draws the block. world-daynight-s1 covers the tile-entity tick family it belongs to. lane/itemuse: iu-off-s1 uses it with world.conf's switch off (right-clicked with dirt, empty-handed and sneaking: the dirt is placed against it, nothing opens)."
+}

@@ -1,0 +1,16 @@
+{
+ "path": "csrc/tests/test_raypick.c",
+ "lines": 374,
+ "role": "Gate: RayProbe's block cases (the 5x5x5 room written into empty chunks; the target's bounds, Block.collisionRayTrace, the pick walk and the arrow walk per seeded ray) and entity cases (each kind's box, canBeCollidedWith and border, the chunk-list order and getMouseOver's entity pass), bit for bit, with --negative=stairs-nearest and --negative=fireball-border.",
+ "layer": "test",
+ "java": [
+  {"path": "oracle/harness/netherite/oracle/RayProbe.java", "members": []},
+  {"path": "oracle/src/block/BlockStairs.java", "members": ["collisionRayTrace"]},
+  {"path": "oracle/src/client/renderer/EntityRenderer.java", "members": ["getMouseOver"]}
+ ],
+ "structs": [],
+ "entry_points": [],
+ "tick_path": false,
+ "gpu": [],
+ "tests": []
+}

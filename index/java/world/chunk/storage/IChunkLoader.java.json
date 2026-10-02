@@ -1,0 +1,79 @@
+{
+ "path": "oracle/src/world/chunk/storage/IChunkLoader.java",
+ "classes": [
+  "IChunkLoader"
+ ],
+ "lines": 33,
+ "side": "server",
+ "category": "chunk",
+ "role": "The chunk persistence interface (implemented by AnvilChunkLoader): load a chunk from disk, save one, plus per-tick and flush hooks.",
+ "scope": "in_scope",
+ "scope_reason": "Chunk unload and reload round-trips blocks, entities, tile entities and pending ticks, which the whole-server replay observes. Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_store_chunk",
+    "sr_hell_provide",
+    "sr_sky_provide",
+    "sr_ensure_saved"
+   ]
+  },
+  {
+   "file": "csrc/engine/region.c",
+   "symbols": [
+    "region_load_chunk"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/persist-walkback-s1",
+  "out/java/snapshots/cp-mobs-s1"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "loadChunk",
+   "sig": "(World,int,int)Chunk",
+   "native": "csrc/engine/serverreplay.c:sr_hell_provide",
+   "status": "exact",
+   "note": "From the in-memory region store during play; from .mca only at checkpoint start (region_load_chunk)."
+  },
+  {
+   "kind": "method",
+   "name": "saveChunk",
+   "sig": "(World,Chunk)V",
+   "native": "csrc/engine/serverreplay.c:sr_store_chunk",
+   "status": "exact",
+   "note": "into the region store; the bytes are the oracle's"
+  },
+  {
+   "kind": "method",
+   "name": "saveExtraChunkData",
+   "sig": "(World,Chunk)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty in AnvilChunkLoader."
+  },
+  {
+   "kind": "method",
+   "name": "chunkTick",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty in AnvilChunkLoader."
+  },
+  {
+   "kind": "method",
+   "name": "saveExtraData",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Flushes the async writer; no game state."
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

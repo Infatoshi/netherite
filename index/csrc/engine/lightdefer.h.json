@@ -1,0 +1,87 @@
+{
+ "path": "csrc/engine/lightdefer.h",
+ "lines": 102,
+ "role": "Declares the client world's deferred light (SPEC D8): the pending list of client light calls and relight checks, the executor interface (C or the device) and the sync points' causes and stats.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateLightByType",
+    "func_147451_t"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "enqueueRelightChecks"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "struct ld_op",
+   "java": null,
+   "fields": [
+    "what",
+    "type",
+    "x",
+    "y",
+    "z"
+   ]
+  },
+  {
+   "name": "struct lightdefer_exec",
+   "java": null,
+   "fields": [
+    "ctx",
+    "run",
+    "forget",
+    "free"
+   ]
+  },
+  {
+   "name": "struct lightdefer_stats",
+   "java": null,
+   "fields": [
+    "updates",
+    "relights",
+    "runs",
+    "ran",
+    "syncs",
+    "dropped",
+    "max_pending",
+    "failed"
+   ]
+  },
+  {
+   "name": "struct lightdefer",
+   "java": null,
+   "fields": [
+    "w",
+    "n",
+    "never",
+    "syncs",
+    "in_run",
+    "exec",
+    "st",
+    "ops"
+   ]
+  }
+ ],
+ "entry_points": [
+  "lightdefer_new",
+  "lightdefer_free",
+  "lightdefer_sync_cause",
+  "lightdefer_sync",
+  "lightdefer_report"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/cuda/lighting/client_check.sh",
+  "csrc/runtime/pipe_gate.c"
+ ],
+ "notes": "The syncs themselves are world.c's (cw_sync); the device executor is cuda/lighting/cap.c's over lightcap.c's deferred mode."
+}

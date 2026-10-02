@@ -1,0 +1,13 @@
+{
+  "path": "csrc/engine/lang.h",
+  "lines": 5,
+  "role": "Declares the generated language lookup used by engine chat and screen text.",
+  "layer": "util",
+  "java": [{"path": "oracle/src/util/StringTranslate.java", "members": ["translateKey"]}],
+  "structs": [],
+  "entry_points": ["lang_text"],
+  "tick_path": true,
+  "gpu": [],
+  "tests": ["csrc/tests/test_snapshots.c"],
+  "notes": "Only keys are tracked; tools/langgen.c creates the values from the user's jar."
+}

@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/block/BlockWood.java",
+  "classes": ["BlockWood"],
+  "lines": 63,
+  "side": "common",
+  "category": "block",
+  "role": "The planks block (id 5) in six wood types; drops itself with its meta.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["table_icon"]}
+  ],
+  "evidence": ["csrc/tests/test_drops.c", "out/java/rendertick/mv_variants", "out/java/render/mv_variants_sl", "out/java/render/mv_variants_pb", "csrc/tests/test_render.c", "csrc/tests/render_budget.txt"],
+  "members": [
+    {"kind": "field", "name": "field_150096_a", "sig": "static final String[]", "native": null, "status": "n/a", "note": "icon suffixes, client texture bookkeeping"},
+    {"kind": "field", "name": "field_150095_b", "sig": "IIcon[]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "BlockWood", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 5: Material.wood row, hardness 2.0, in the table"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks.c:table_icon", "status": "exact", "note": "Table-driven: RenderTable reads getIcon(side, meta) for every meta off the live block."},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 5: meta passthrough"},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a", "note": "creative menu listing"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The wood material's flammability (canBurn) is in the MATERIALS wood row, which fire.c and the burning paths read. Pinned by lane/meshvar's mesh scene (out/java/rendertick/mv_variants, 13 views mv_variants_*, each within its budget with no pxdiff cluster; the scene's sections match the oracle's sections.bin vertex for vertex): the six plank types (spruce drawn with oak's icon: 5,690 px over 25 against 55)."
+}

@@ -1,0 +1,92 @@
+{
+ "path": "oracle/src/block/BlockNote.java",
+ "classes": [
+  "BlockNote"
+ ],
+ "lines": 112,
+ "side": "common",
+ "category": "block",
+ "role": "The note block (id 25): right-click steps its TileEntityNote pitch and queues a block event that plays the note; redstone power would also play it.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/activate.c",
+   "symbols": [
+    "on_block_activated",
+    "ID_NOTEBLOCK",
+    "add_event"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "TE_NOTE",
+    "render_note"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/activate/full2",
+  "csrc/tests/test_activate.c",
+  "out/java/snapshots/idx-blocks-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockNote",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 25: wood material, tile entity flag"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": null,
+   "status": "n/a",
+   "note": "power edge detection; world.conf redstone = off makes isBlockIndirectlyGettingPowered always false, so field_145880_i never changes"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockActivated",
+   "sig": "(World,IIIEntityPlayer,IFFF)Z",
+   "native": "csrc/engine/activate.c:on_block_activated",
+   "status": "exact",
+   "note": "case ID_NOTEBLOCK: note = (note + 1) % 25, then func_145878_a's air-above test, the instrument from the material below and the block event"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockClicked",
+   "sig": "(World,IIIEntityPlayer)V",
+   "native": null,
+   "status": "n/a",
+   "note": "No state: TileEntityNote.func_145878_a queues a block event whose server half plays a sound and spawns a particle the server world drops, and whose client half does the same (no draws under the pinned minimal particles). idx-blocks-s1 left-clicks a note block (the dig starts and stops) with every row matching."
+  },
+  {
+   "kind": "method",
+   "name": "createNewTileEntity",
+   "sig": "(World,I)TileEntity",
+   "native": "csrc/engine/tileentity.c:TE_NOTE",
+   "status": "exact",
+   "note": "case 25 maps to TE_NOTE"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockEventReceived",
+   "sig": "(World,IIIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "The note sound and particle: no state on either side (see onBlockClicked)."
+  }
+ ],
+ "missing": [],
+ "notes": "TileEntityNote holds the pitch; its NBT round-trip is in tileentity.c. survival.c lists id 25 among the blocks whose activation the client answers true. The block event's sound and particle carry no state. lane/idxblocks: idx-blocks-s1 left-clicks and right-clicks a note block on a stone base."
+}

@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/projectile/EntitySmallFireball.java",
+  "classes": ["EntitySmallFireball"],
+  "lines": 102,
+  "side": "common",
+  "category": "entity",
+  "role": "The blaze's small fireball: 5.0 damage and 5 seconds of fire to a hit entity, or a fire block placed on the hit face, then it dies; it cannot be collided with or hit.",
+  "scope": "in_scope",
+  "scope_reason": "Fired by the replayed blazes; fire and the fire block are in scope (world-fire recordings).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/projectile.c", "symbols": ["proj_spawn_fireball", "apply_block_hit", "apply_entity_hit", "projectile_update"]},
+    {"file": "csrc/engine/hostiles_blaze.c", "symbols": ["blaze_spawn_small_fireball"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_attack_entity_from_attacker"]}
+  ],
+  "evidence": [
+    "out/java/projectiles/proj-42",
+    "csrc/tests/test_projectiles.c",
+    "out/java/snapshots/fireball-blast-s1",
+    "out/java/snapshots/cov-reload-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "EntitySmallFireball", "sig": "(World)", "native": "csrc/engine/snapshot_entities.c:sr_fireball_from_nbt", "status": "exact", "note": "EntityList's NBT constructor: cov-reload-s1 saves a blaze's fireball in flight and reads it back (no shooter; its S0E goes with its chunk, combat.c fireball_chunk_sent)"},
+    {"kind": "ctor", "name": "EntitySmallFireball", "sig": "(World,EntityLivingBase,DDD)", "native": "csrc/engine/hostiles_blaze.c:blaze_spawn_small_fireball", "status": "exact", "note": "the blaze's aim draws ride the shooter form"},
+    {"kind": "ctor", "name": "EntitySmallFireball", "sig": "(World,DDDDDD)", "native": "csrc/engine/projectile.c:proj_spawn_fireball", "status": "exact"},
+    {"kind": "method", "name": "onImpact", "sig": "(MovingObjectPosition)V", "native": "csrc/engine/projectile.c:apply_block_hit", "status": "exact", "note": "the entity half (5.0 damage plus setFire(5), the isImmuneToFire guard) is the fireball entity-hit branch; the block half places fire on the hit face's neighbour"},
+    {"kind": "method", "name": "canBeCollidedWith", "sig": "()Z", "native": "csrc/engine/projectile.c:projectile_update", "status": "exact", "note": "false: the intercept loop skips it"},
+    {"kind": "method", "name": "attackEntityFrom", "sig": "(DamageSource,F)Z", "native": "csrc/engine/explosion.c:attack_from_explosion", "status": "exact", "note": "constant false and nothing set (no setBeenAttacked): the blast's attack skips the small fireball (explosion.c attack_from_explosion, tnt.c ie_attack), and the tracker sends it no fire-tick velocity (combat.c track_fireball, large fireballs only); fireball-blast-s1 puts 14 in TNT blasts"}
+  ],
+  "missing": [],
+  "notes": "The entity-hit half of onImpact is living.c's fireball branch (living.c 394, the 5.0F fireball damage with setFire); the fire placement is projectile.c's block-hit branch."
+}

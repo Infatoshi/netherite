@@ -1,0 +1,47 @@
+{"n": 16, "act": {}}
+{"n": 1, "act": {"dlook": [0, 0]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 10, "act": {}}
+{"n": 1, "act": {"dlook": [180, 0]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 10, "act": {}}
+{"n": 1, "act": {"dlook": [0, 0]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 10, "act": {}}
+{"n": 1, "act": {"dlook": [180, 0]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 30, "act": {"hold": ["forward", "sprint", "jump"]}}
+{"n": 10, "act": {}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"n": 5, "act": {}}
+{"cmd":"dev","op":"purge"}
+{"n": 120, "act": {}}
+{"cmd": "run", "class": "Snapshot"}
+{"n": 30, "act": {}}

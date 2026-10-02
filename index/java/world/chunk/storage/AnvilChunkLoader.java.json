@@ -1,0 +1,206 @@
+{
+ "path": "oracle/src/world/chunk/storage/AnvilChunkLoader.java",
+ "classes": [
+  "AnvilChunkLoader",
+  "AnvilChunkLoader.PendingChunk"
+ ],
+ "lines": 461,
+ "side": "server",
+ "category": "chunk",
+ "role": "Reads and writes chunks in the Anvil NBT format: writeChunkToNBT serializes sections, height map, biomes, entities, tile entities and pending ticks into a queue the file-IO thread writes to region files; readChunkFromNBT rebuilds a Chunk (sections, entities with riders, tile entities, scheduled ticks) from a region file or from a still-pending save.",
+ "scope": "in_scope",
+ "scope_reason": "A chunk unloaded and reloaded must come back with its blocks, entities, tile entities and pending ticks; checkpoints start from a saved world. The save-writing side is deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain; triage 2026-09-25, out/plan/remaining-2026-09-25.md). The read side is a real item (A1).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/region.c",
+   "symbols": [
+    "region_load_chunk",
+    "region_level_terrain_populated",
+    "region_enumerate",
+    "inflate_zlib"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_ensure_saved",
+    "sr_store_chunk",
+    "sr_chunk_unload_cb",
+    "sr_hell_provide",
+    "sr_sky_provide",
+    "sr_save_chunk_ticks",
+    "sr_restore_chunk_ticks",
+    "sr_end_save_entities",
+    "sr_restore_saved_entities",
+    "cp_living_kind"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/cp-mobs-s1",
+  "out/java/snapshots/persist-walkback-s1",
+  "out/java/snapshots/persist-village-full-s42",
+  "out/java/snapshots/persist-hanging-full-s1",
+  "out/java/snapshots/play-reload-s1",
+  "out/java/snapshots/nether-trip-s1",
+  "out/java/snapshots/nether-fight-s1",
+  "out/java/snapshots/endportal-ents-s1",
+  "out/java/snapshots/nether-unload-kinds-s1",
+  "out/java/snapshots/nether-unload-tnt-s1",
+  "out/java/snapshots/end-unload-kinds-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "static Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "chunksToRemove",
+   "sig": "List<PendingChunk>",
+   "native": "csrc/engine/serverreplay.c:sr_store_chunk",
+   "status": "exact",
+   "note": "the pending queue and the file together: an unloaded chunk waits whole in the region store"
+  },
+  {
+   "kind": "field",
+   "name": "pendingAnvilChunksCoordinates",
+   "sig": "Set<ChunkCoordIntPair>",
+   "native": "csrc/engine/serverreplay.c:sr_store_chunk",
+   "status": "exact",
+   "note": "as above"
+  },
+  {
+   "kind": "field",
+   "name": "syncLockObject",
+   "sig": "Object",
+   "native": null,
+   "status": "n/a",
+   "note": "Threading only."
+  },
+  {
+   "kind": "field",
+   "name": "chunkSaveLocation",
+   "sig": "File",
+   "native": "csrc/engine/region.c:region_load_chunk",
+   "status": "exact",
+   "note": "the overworld's region folder; DIM-1 and DIM1 through the snapshot"
+  },
+  {
+   "kind": "ctor",
+   "name": "AnvilChunkLoader",
+   "sig": "(File)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "loadChunk",
+   "sig": "(World,int,int)Chunk",
+   "native": "csrc/engine/serverreplay.c:sr_hell_provide",
+   "status": "exact",
+   "note": "the region store's take (sr_hell_provide, sr_sky_provide, the overworld's sr_saved_fetch), a checkpoint's region file at a chunk's first load"
+  },
+  {
+   "kind": "method",
+   "name": "checkedReadChunkFromNBT",
+   "sig": "(World,int,int,NBTTagCompound)Chunk",
+   "native": "csrc/engine/serverreplay.c:sr_saved_read_region",
+   "status": "exact",
+   "note": "the checks answer a corrupt or relocated entry only"
+  },
+  {
+   "kind": "method",
+   "name": "saveChunk",
+   "sig": "(World,Chunk)V",
+   "native": "csrc/engine/serverreplay.c:sr_store_chunk",
+   "status": "exact",
+   "note": "the chunk, its entities and its pending ticks into the store; the NBT bytes are the oracle's to write"
+  },
+  {
+   "kind": "method",
+   "name": "addChunkToPending",
+   "sig": "(ChunkCoordIntPair,NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Async write queue."
+  },
+  {
+   "kind": "method",
+   "name": "writeNextIO",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "writeChunkNBTTags",
+   "sig": "(PendingChunk)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "saveExtraChunkData",
+   "sig": "(World,Chunk)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty."
+  },
+  {
+   "kind": "method",
+   "name": "chunkTick",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty."
+  },
+  {
+   "kind": "method",
+   "name": "saveExtraData",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Drains the IO queue."
+  },
+  {
+   "kind": "method",
+   "name": "writeChunkToNBT",
+   "sig": "(Chunk,World,NBTTagCompound)V",
+   "native": "csrc/engine/serverreplay.c:sr_chunk_unload_cb",
+   "status": "exact",
+   "note": "what the save keeps, in every dimension: each entity with an EntityList name by its NBT in section order (livings, items and orbs, projectiles, falling blocks, paintings, item frames, leash knots, primed TNT; sr_chunk_unload_cb), the End's crystals and dragon as their records (sr_end_save_entities), the pending ticks relative to the world time (sr_save_chunk_ticks); the bytes are the oracle's (nether-unload-kinds-s1, nether-unload-tnt-s1, end-unload-kinds-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "readChunkFromNBT",
+   "sig": "(World,NBTTagCompound)Chunk",
+   "native": "csrc/engine/serverreplay.c:sr_saved_read_region",
+   "status": "exact",
+   "note": "a checkpoint's region chunk (HeightMap, Sections with Add, Biomes, TileEntities, TileTicks, Entities with riders); a reload's entities with their constructors' draws"
+  },
+  {
+   "kind": "field",
+   "name": "PendingChunk.chunkCoordinate, PendingChunk.nbtTags",
+   "sig": "ChunkCoordIntPair, NBTTagCompound",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "PendingChunk",
+   "sig": "(ChunkCoordIntPair,NBTTagCompound)",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "loadChunk starts with an oracle hook, netherite.oracle.ChunkIO.loading(this, coord): a chunk still pending is read from a copy of its NBT, so the chunk built from it does not share arrays with the oracle writer's (lane/oracletick; it was ChunkIO.settle(), a wait for every queued write). Entity-reload fidelity (section order, constructor draws on reload, riders) is gated by the persist-* and play-reload recordings; which entity kinds round-trip through the store was not audited here. GPU note: region.c and sr_ensure_saved heap-allocate per chunk, but only at checkpoint start, outside the tick. Gates not re-run. saveChunk queues netherite.oracle.ChunkIO.detach(this, coord, nbt), a deep copy while the oracle runs (vanilla's NBT shares the live chunk's arrays, and the oracle's writer thread wrote later light into the file, lane/rerecaudit), which the oracle's writer writes in save order. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings). The Nether's and the End's saved chunks come through the snapshot (Snapshot.java writes the DIM-1 and DIM1 region chunks; snapshot.c hell_saved, end_saved), which lane A1 (2026-09-25) closed. checkedReadChunkFromNBT's missing-Level and relocation branches answer only a corrupt or moved file, which a 1.7.10 save never has. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, persist-hanging-full-s1, whose native replay starts before the behaviour. A reloaded mob keeps its saved Dimension, runs its kind's constructor (the zombie's reinforcement nextDouble, creeper, spider, witch, silverfish) and counts toward the mob cap by its kind (sr_reload_living, sr_hell_adopt_reloaded); a reloaded animal keeps Age, InLove and dataWatcher 16; a reloaded item joins its chunk's lists; throwables and fireballs are saved and reloaded like arrows (nether-fight-s1, endportal-ents-s1, pearl-dims-s1)."
+}

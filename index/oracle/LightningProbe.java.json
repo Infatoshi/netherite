@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/LightningProbe.java",
+ "lines": 197,
+ "role": "Weather-effects probe: isolated EntityLightningBolt strikes above raw ground and five entity classes (including a HostileProbe.ProbePlayer target), at a chosen difficulty and doFireTick; records the bolt, fire and struck-entity outcomes.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=LightningProbe",
+  "csrc/tests/test_lightning.c (reads manifests with kind lightning2)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "test_lightning.c does not name the class; the link is the manifest kind \"lightning2\" this probe writes (LightningProbe.java line 185)."
+}

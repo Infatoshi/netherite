@@ -1,0 +1,10 @@
+{
+ "path": "oracle/harness/netherite/oracle/BiomeTable.java",
+ "lines": 124,
+ "role": "Writes the biome registry as the C header csrc/engine/biomes.h (per id: name, biome class, temperature category, snow, mesa, lightning, mutation base, minHeight/maxHeight, temperature, rainfall, top/filler blocks and the surface routine kind with its type fields), read through the live biome objects; floats as hex literals.",
+ "kind": "util",
+ "used_by": [
+  "make -C oracle biomes-h (oracle/Makefile) -> csrc/engine/biomes.h"
+ ],
+ "vanilla_hooks": []
+}

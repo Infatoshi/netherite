@@ -1,0 +1,55 @@
+{
+ "path": "oracle/src/potion/PotionHealthBoost.java",
+ "classes": [
+  "PotionHealthBoost"
+ ],
+ "lines": 24,
+ "side": "common",
+ "category": "entity",
+ "role": "The health boost potion (id 21): raises max health through an attribute modifier and clamps health back down on removal.",
+ "scope": "in_scope",
+ "scope_reason": "The attribute modifier path and the clamp are ported with the rest of the potion system.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/potion.c",
+   "symbols": [
+    "potion_apply_attributes",
+    "potion_remove_attributes",
+    "POT_HEALTH_BOOST"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/potions/seed2",
+  "out/java/potions/seed42",
+  "csrc/tests/test_potions.c",
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/surv_eat-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "PotionHealthBoost",
+   "sig": "(int,Z,int)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "removeAttributesModifiersFromEntity",
+   "sig": "(EntityLivingBase,BaseAttributeMap,I)V",
+   "status": "n/a",
+   "native": "csrc/engine/potion.c:potion_remove_attributes",
+   "note": "n/a: no survival source gives health boost: no potion, food or beacon power of 1.7.10 carries it (only /effect)"
+  },
+  {
+   "kind": "method",
+   "name": "applyAttributesModifiersToEntity",
+   "sig": "(EntityLivingBase,BaseAttributeMap,I)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_apply_attributes"
+  }
+ ],
+ "missing": [],
+ "notes": "I did not verify which recording reaches a health boost removal; the branch is covered by the potion gate's NBT comparisons (test_potions.c)."
+}

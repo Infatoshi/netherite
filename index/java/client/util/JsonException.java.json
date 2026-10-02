@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/client/util/JsonException.java",
+  "classes": ["JsonException", "JsonException.Entry"],
+  "lines": 95,
+  "side": "client",
+  "category": "util",
+  "role": "IOException carrying a JSON parse path: Entry stacks of file and key segments (targets[2] -> name) that getMessage renders as 'Invalid <file> <path>: <reason>'.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Error reporting for shader/asset JSON parsing, which the native engine never does.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "JsonException", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "JsonException", "sig": "(String,Throwable)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151380_a", "sig": "(String)V", "native": null, "status": "n/a", "note": "push a key segment"},
+    {"kind": "method", "name": "func_151381_b", "sig": "(String)V", "native": null, "status": "n/a", "note": "set the file and start a new entry frame"},
+    {"kind": "method", "name": "getMessage", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151379_a", "sig": "(Exception)JsonException", "native": null, "status": "n/a", "note": "static: wrap, mapping FileNotFoundException to 'File not found'"},
+    {"kind": "field", "name": "field_151383_a", "sig": "List", "native": null, "status": "n/a", "note": "the entry stack"},
+    {"kind": "field", "name": "field_151382_b", "sig": "String", "native": null, "status": "n/a", "note": "the reason"},
+    {"kind": "method", "name": "Entry.func_151373_a", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Entry.func_151372_b", "sig": "()String", "native": null, "status": "n/a", "note": "the joined 'a->b' path"},
+    {"kind": "method", "name": "Entry.toString", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "Entry.field_151376_a", "sig": "String", "native": null, "status": "n/a", "note": "the file name"},
+    {"kind": "field", "name": "Entry.field_151375_b", "sig": "List", "native": null, "status": "n/a", "note": "the key segments"}
+  ],
+  "missing": [],
+  "notes": null
+}

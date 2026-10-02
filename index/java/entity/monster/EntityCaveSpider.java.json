@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/entity/monster/EntityCaveSpider.java",
+  "classes": ["EntityCaveSpider"],
+  "lines": 63,
+  "side": "common",
+  "category": "entity",
+  "role": "The cave spider: a smaller, faster spider variant (0.7x0.5, 12 health) whose melee hit adds poison for 7s on Normal / 15s on Hard.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/hostiles_spider.c", "symbols": ["spider_construct", "spider_attack_entity_as_mob"]},
+    {"file": "csrc/engine/hostiles.c", "symbols": ["hostile_spawn"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_on_spawn_with_egg"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-spider-s1", "csrc/tests/test_hostiles.c"],
+  "members": [
+    {"kind": "ctor", "name": "EntityCaveSpider", "sig": "(World)V", "native": "csrc/engine/hostiles_spider.c:spider_construct", "status": "exact", "note": "spider_construct branches on HK_CAVE_SPIDER for the 0.7x0.5 size"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": "csrc/engine/hostiles_spider.c:spider_construct", "status": "exact", "note": "maxHealth 12.0 for the cave kind; movement 0.8 is the spider's"},
+    {"kind": "method", "name": "attackEntityAsMob", "sig": "(Lnet/minecraft/entity/Entity;)Z", "native": "csrc/engine/hostiles_spider.c:spider_attack_entity_as_mob", "status": "exact", "note": "EntityMob's hit then poison for 7 s on NORMAL, 15 s on HARD, none below"},
+    {"kind": "method", "name": "onSpawnWithEgg", "sig": "(Lnet/minecraft/entity/IEntityLivingData;)Lnet/minecraft/entity/IEntityLivingData;", "native": "csrc/engine/living.c:living_on_spawn_with_egg", "status": "exact", "note": "the pass-through returns the argument unchanged"}
+  ],
+  "missing": [],
+  "notes": "hostiles_spider.c's header documents the shared spider port (EntitySpider, EntityCaveSpider, and the jockey rider skeleton). test_hostiles.c exercises HK_CAVE_SPIDER (kind 10) against the oracle's dumps. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): dmg-sources-s1, melee-mods-s1."
+}

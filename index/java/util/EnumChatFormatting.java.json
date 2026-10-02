@@ -1,0 +1,156 @@
+{
+  "path": "oracle/src/util/EnumChatFormatting.java",
+  "classes": [
+    "EnumChatFormatting"
+  ],
+  "lines": 160,
+  "side": "common",
+  "category": "util",
+  "role": "The 16 colours plus bold, strikethrough, underline, italic, obfuscated and reset as section-sign formatting codes, with lookup maps and a code-stripping helper.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: its formatting codes colour the chat lines and tooltips the native HUD draws (csrc/engine/chat.c splits coded parts; raster_hud.c tooltip_lines writes rarity codes).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcomp.c",
+      "symbols": [
+        "CF_CODE",
+        "CF_NAME",
+        "chat_fmt_code",
+        "chat_fmt_friendly",
+        "chat_fmt_string",
+        "chat_style_code"
+      ]
+    },
+    {
+      "file": "csrc/engine/chatcomp.h",
+      "symbols": [
+        "CF_BLACK",
+        "CF_RESET"
+      ]
+    },
+    {
+      "file": "csrc/engine/chat.c",
+      "symbols": [
+        "strip_codes"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/chat-achieve-s1",
+    "out/java/snapshots/chat-bed-refuse-s1",
+    "out/java/snapshots/chat-deaths-s1",
+    "out/java/snapshots/chat-deaths2-s1",
+    "out/java/snapshots/chat-build-s1",
+    "out/java/snapshots/chat-climbfall-s1",
+    "out/java/snapshots/chat-edge-knock-s1",
+    "out/java/snapshots/chat-idx-blast-s1",
+    "out/java/snapshots/chat-fight-witch-s1",
+    "out/java/snapshots/chat-fight-enderman-s1",
+    "out/java/snapshots/chat-death-drown-s1",
+    "out/java/snapshots/chat-death-lava-s1",
+    "out/java/snapshots/chat-death-starve-s1",
+    "out/java/snapshots/chat-act2-s1",
+    "out/java/snapshots/chat-surv2-bed-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "BLACK..RESET",
+      "sig": "the 22 enum constants, each with formattingCode, fancyStyling and controlString",
+      "native": "csrc/engine/chatcomp.c:CF_CODE",
+      "status": "exact",
+      "note": "static constants grouped: the enum (chatcomp.h CF_*), their codes (CF_CODE) and names (CF_NAME); controlString is chat_fmt_string"
+    },
+    {
+      "kind": "field",
+      "name": "formattingCodeMapping",
+      "sig": "Map (static)",
+      "native": null,
+      "status": "n/a",
+      "note": "filled but never read by any method"
+    },
+    {
+      "kind": "field",
+      "name": "nameMapping",
+      "sig": "Map (static)",
+      "native": null,
+      "status": "n/a",
+      "note": "read only by getValueByName"
+    },
+    {
+      "kind": "field",
+      "name": "formattingCodePattern",
+      "sig": "Pattern (static)",
+      "native": "csrc/engine/chat.c:strip_codes",
+      "status": "n/a",
+      "note": "ported (csrc/engine/chat.c strip_codes, chat_split's colours-off path) but reached only with the chatColours option off, which only the chat options screen sets (client_cosmetic), and by a name tag's text (RendererLivingEntity; custom names need a named name tag, an anvil: world.conf anvil = off)"
+    },
+    {
+      "kind": "method",
+      "name": "getFormattingCode",
+      "sig": "()char",
+      "native": "csrc/engine/chatcomp.c:chat_fmt_code",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isFancyStyling",
+      "sig": "()boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "called only by CommandScoreboard (commands: not_needed)"
+    },
+    {
+      "kind": "method",
+      "name": "isColor",
+      "sig": "()boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "called only inside the enum (getValidValues)"
+    },
+    {
+      "kind": "method",
+      "name": "getFriendlyName",
+      "sig": "()String",
+      "native": "csrc/engine/chatcomp.c:chat_fmt_friendly",
+      "status": "exact",
+      "note": "the Gson colour value (EnumTypeAdapterFactory writes the lower-case name)"
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()String",
+      "native": "csrc/engine/chatcomp.c:chat_fmt_string",
+      "status": "exact",
+      "note": "the codes getFormattingCode strings together (chat_style_code)"
+    },
+    {
+      "kind": "method",
+      "name": "getTextWithoutFormattingCodes",
+      "sig": "(String)String",
+      "native": "csrc/engine/chat.c:strip_codes",
+      "status": "n/a",
+      "note": "ported (csrc/engine/chat.c strip_codes, chat_split's colours-off path) but reached only with the chatColours option off, which only the chat options screen sets (client_cosmetic), and by a name tag's text (RendererLivingEntity; custom names need a named name tag, an anvil: world.conf anvil = off)"
+    },
+    {
+      "kind": "method",
+      "name": "getValueByName",
+      "sig": "(String)EnumChatFormatting",
+      "native": null,
+      "status": "n/a",
+      "note": "called only by CommandScoreboard (not_needed) and Gson's enum adapter on deserialize, which never runs (the local channel has no codec)"
+    },
+    {
+      "kind": "method",
+      "name": "getValidValues",
+      "sig": "(boolean,boolean)Collection",
+      "native": null,
+      "status": "n/a",
+      "note": "called only by CommandScoreboard (commands: not_needed)"
+    }
+  ],
+  "missing": [],
+  "notes": "Every S02 the server sends is compared per row: the oracle's rows carry each tick's S02s (Rows.s02: the IChatComponent.Serializer JSON and GuiNewChat's iterated parts) and test_snapshots and play --check compare csrc/engine/chatcomp.c chat_s02_check against the queue (lane/idxchat, DEVLOG 2026-09-27). The HUD's colour table for the codes is the font's (csrc/engine/font.c), the drawing GuiNewChat's and FontRenderer's records. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

@@ -1,0 +1,40 @@
+{
+  "path": "oracle/src/item/ItemBucket.java",
+  "classes": ["ItemBucket"],
+  "lines": 189,
+  "side": "server",
+  "category": "item",
+  "role": "The bucket: on an empty bucket the look ray fills from a source water or lava block (func_150910_a swaps the stack or adds the full bucket), on a full bucket tryPlaceContainedLiquid pours at the adjacent cell (with the Nether water fizz), and the empty bucket is every filled bucket's container item.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/itemuse.c", "symbols": ["bucket_rclick", "try_place_contained_liquid", "fill_result", "look_ray", "break_with_drops"]},
+    {"file": "csrc/engine/tileticks.c", "symbols": ["stack_container_item", "furnace_fuel_value"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["give_or_drop", "server_air_use"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["serverreplay_drop_env_begin", "serverreplay_drop_env_end"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/rc-items-s1",
+    "out/java/snapshots/te-furnace-s1",
+    "csrc/tests/test_itemuse.c",
+    "out/java/itemuse/seed2-v2",
+    "out/java/snapshots/iu-fill-s1",
+    "out/java/snapshots/iu-lava-s1",
+    "out/java/snapshots/sr3-cast-s1",
+    "out/java/snapshots/cpred-bucket1-s1",
+    "out/java/snapshots/cpred-bucket2-s1",
+    "out/java/snapshots/cpred-bucket3-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "isFull", "sig": "Block", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the three rows 325/326/327 carry the same class_name; the full block is itemuse.c's is_full argument"},
+    {"kind": "ctor", "name": "ItemBucket", "sig": "(Block)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/itemuse.c:bucket_rclick", "status": "exact", "note": "the canMineBlock, canPlayerEdit, material + metadata-0 source checks and the side offset are all in bucket_rclick"},
+    {"kind": "method", "name": "func_150910_a", "sig": "(ItemStack,EntityPlayer,Item)ItemStack", "native": "csrc/engine/itemuse.c:fill_result", "status": "exact", "note": "creative keeps the stack, last one swaps, otherwise the full bucket comes back as itemuse_try_use_item's give stack, which survival.c:give_or_drop adds to the inventory or drops (dropPlayerItemWithRandomChoice: throw_item on the server, the client EntityItem's draws on the client); iu-fill-s1"},
+    {"kind": "method", "name": "tryPlaceContainedLiquid", "sig": "(World,III)Z", "native": "csrc/engine/itemuse.c:try_place_contained_liquid", "status": "exact", "note": "the air/nonsolid check, the Nether fizz (Det.mathRandom draws), func_147480_a (the replaced plant's drop through the player's world drop sink, serverreplay_drop_env_begin; none on the client) and the setBlock; iu-lava-s1 (tall grass, a flower, a snow layer, into water, a flowing lava refused); a client's own pour notifies no neighbour (World.func_147460_e is server-only, world.c notify_step), so its lava stays lava until the server's block change (sr3-cast-s1)"},
+    {"kind": "method", "name": "getContainerItem (via setContainerItem)", "sig": "()Item", "native": "csrc/engine/tileticks.c:stack_container_item", "status": "exact", "note": "the furnace fuel slot gives back the empty bucket 325"}
+  ],
+  "missing": [],
+  "notes": "rc-items-s1 gates water and lava fill and pour; te-furnace-s1 gates the fuel-slot container item; test_itemuse.c compares both halves against the oracle's ItemUseProbe."
+}

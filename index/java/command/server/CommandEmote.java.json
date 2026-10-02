@@ -1,0 +1,67 @@
+{
+  "path": "oracle/src/command/server/CommandEmote.java",
+  "classes": [
+    "CommandEmote"
+  ],
+  "lines": 53,
+  "side": "server",
+  "category": "commands",
+  "role": "The /me command: broadcasts a chat.type.emote line from the sender.",
+  "scope": "in_scope",
+  "scope_reason": "In scope since lane/idxclient: the chat takes typed input (GuiChat, the live client's T and slash), so a player types commands; the integrated server without cheats answers each (only tell, me, help and seed are allowed) and its tab completion reads the command map (csrc/engine/chatcmd.c).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcmd.c",
+      "symbols": [
+        "cmd_me",
+        "command_tabs"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/idx-chattype-s1",
+    "out/java/snapshots/idx-chatsleep-s1",
+    "out/java/snapshots/cov-tabme-s1"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "getCommandName",
+      "sig": "()String",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getRequiredPermissionLevel",
+      "sig": "()int",
+      "native": "csrc/engine/chatcmd.c:can_use",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCommandUsage",
+      "sig": "(ICommandSender)String",
+      "native": "csrc/engine/chatcmd.c:CMD",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "processCommand",
+      "sig": "(ICommandSender,String[])V",
+      "native": "csrc/engine/chatcmd.c:cmd_me",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "addTabCompletionOptions",
+      "sig": "(ICommandSender,String[])List",
+      "native": "csrc/engine/chatcmd.c:command_tabs",
+      "status": "exact",
+      "note": "cov-tabme-s1: \"/me \" and \"/me waves at P\" then Tab"
+    }
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: chat.type.emote with each word a selector may stand for (func_147176_a with the sender allowed \"me\"). idx-chattype-s1."
+}

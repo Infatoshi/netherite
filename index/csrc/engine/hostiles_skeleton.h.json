@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/hostiles_skeleton.h",
+ "lines": 16,
+ "role": "Declares the EntitySkeleton kind functions of hostiles_skeleton.c that hostiles.c, ai.c, hostiles_spider.c and the replay code call.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntitySkeleton.java", "members": ["EntitySkeleton", "setSkeletonType", "setCombatTask", "onSpawnWithEgg", "onLivingUpdate", "attackEntityAsMob", "attackEntityWithRangedAttack", "dropFewItems", "writeEntityToNBT"]}
+ ],
+ "structs": [],
+ "entry_points": ["skeleton_construct", "skeleton_set_type", "skeleton_set_combat_task", "skeleton_on_spawn_with_egg", "skeleton_on_living_update", "skeleton_attack_entity_as_mob", "skeleton_attack_entity_with_ranged_attack", "skeleton_drop_few_items", "skeleton_write_kind_nbt"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hostiles.c", "csrc/tests/test_fortress_spawn.c"],
+ "notes": ""
+}

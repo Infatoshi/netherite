@@ -1,0 +1,16 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"time","value":6000}
+{"cmd":"dev","op":"gamerule","name":"doDaylightCycle","value":"false"}
+{"cmd":"dev","op":"weather","type":"clear","seconds":100000}
+{"cmd":"dev","op":"fill","x0":150,"y0":120,"z0":240,"x1":175,"y1":120,"z1":290,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":150,"y0":121,"z0":240,"x1":175,"y1":126,"z1":290,"id":0,"meta":0}
+{"cmd":"dev","op":"fill","x0":160,"y0":121,"z0":276,"x1":162,"y1":122,"z1":278,"id":46,"meta":0}
+{"cmd":"dev","op":"setblock","x":161,"y":121,"z":272,"id":46,"meta":0,"mode":"replace"}
+{"cmd":"dev","op":"setblock","x":161,"y":121,"z":274,"id":46,"meta":0,"mode":"replace"}
+{"cmd":"dev","op":"fill","x0":150,"y0":121,"z0":284,"x1":175,"y1":121,"z1":290,"id":5,"meta":0}
+{"cmd":"dev","op":"setblock","x":161,"y":121,"z":271,"id":51,"meta":0,"mode":"replace"}
+{"cmd":"dev","op":"tp","x":161.5,"y":121.0,"z":242.5,"yaw":0.0,"pitch":0.0}
+{"n":800,"act":{}}
+{"cmd":"run","class":"Snapshot","sub":"end"}

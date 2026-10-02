@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/world/gen/FlatGeneratorInfo.java",
+  "classes": ["FlatGeneratorInfo"],
+  "lines": 325,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The superflat preset: a list of FlatLayerInfo layers, a biome id and a map of world features, parsed from and serialized to the generator-options string (\"2;7,2x3,2;1;village\").",
+  "scope": "not_needed",
+  "scope_reason": "Only ChunkProviderFlat and the flat-world customize screens use it; the oracle always runs WorldType.DEFAULT (oracle/harness/netherite/oracle/Oracle.java).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "flatLayers", "sig": "List<FlatLayerInfo>", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "worldFeatures", "sig": "Map", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "biomeToUse", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getBiome", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setBiome", "sig": "(int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getWorldFeatures", "sig": "()Map", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFlatLayers", "sig": "()List", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_82645_d", "sig": "()V", "native": null, "status": "n/a", "note": "Recomputes each layer's min Y."},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_82646_a", "sig": "(String,int)FlatLayerInfo", "native": null, "status": "n/a", "note": "Parses one layer."},
+    {"kind": "method", "name": "func_82652_b", "sig": "(String)List", "native": null, "status": "n/a", "note": "Parses the layer list."},
+    {"kind": "method", "name": "createFlatGeneratorFromString", "sig": "(String)FlatGeneratorInfo", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getDefaultFlatGenerator", "sig": "()FlatGeneratorInfo", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Side is common because the client's flat-world screens also build it."
+}

@@ -1,0 +1,38 @@
+{
+  "path": "oracle/src/block/BlockLog.java",
+  "classes": ["BlockLog"],
+  "lines": 62,
+  "side": "common",
+  "category": "block",
+  "role": "Abstract logs: the axis metadata, the self drop with damage meta & 3, and the 4-radius leaf persistence mark on break.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.c", "symbols": ["block_break"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["render_block_log"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/leaves-chop-s1",
+    "out/java/snapshots/fire-forest-s1",
+    "out/java/snapshots/leaves-stale-s1",
+    "out/java/chunks",
+    "csrc/tests/test_populate.c",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/rc-blocks-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150167_a", "sig": "IIcon[]", "native": null, "status": "n/a", "note": "client side textures"},
+    {"kind": "field", "name": "field_150166_b", "sig": "IIcon[]", "native": null, "status": "n/a", "note": "client end textures"},
+    {"kind": "ctor", "name": "BlockLog", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "rows 17 (BlockOldLog) and 162 (BlockNewLog): wood material, hardness 2, render_type 31"},
+    {"kind": "method", "name": "func_150165_c", "sig": "(I)I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "n/a", "note": "meta & 3, folded into the meta handling"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 17/162: 1"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "the block's own item"},
+    {"kind": "method", "name": "breakBlock", "sig": "(World,IIIBlockI)V", "native": "csrc/engine/world.c:block_break", "status": "exact", "note": "the 4-radius sweep marking unmarked leaves with bit 8"},
+    {"kind": "method", "name": "func_150163_b", "sig": "(I)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client texture selection"},
+    {"kind": "method", "name": "func_150161_d", "sig": "(I)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client texture selection"}
+  ],
+  "missing": [],
+  "notes": "The rotated-pillar axis handling is shared with BlockRotatedPillar (render_type 31, render_block_log). Verified by the populate probe (tree placement) and the block records."
+}

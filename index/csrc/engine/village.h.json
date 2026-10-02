@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/village.h",
+ "lines": 21,
+ "role": "Declares the Village structure type, the well's and roads' buildComponent dispatch, and the village pieces' block half.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/MapGenVillage.java", "members": ["canSpawnStructureAtCoords", "getStructureStart"]},
+  {"path": "oracle/src/world/gen/structure/StructureVillagePieces.java", "members": ["buildComponent", "addComponentParts"]}
+ ],
+ "structs": [],
+ "entry_points": ["structure_village", "village_build_component", "village_blocks"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c"],
+ "notes": "village_begin is defined in village.c but not declared here; it is reached through the structure_village vtable."
+}

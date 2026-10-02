@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/raster_prec.h",
+ "lines": 99,
+ "role": "The renderer's precision (lane/renderprec): the mask of the stages drawn fast (RP_XFORM, RP_EDGE, RP_LIGHT, RP_COLOR, RP_FOG, RP_SHADE, RP_RCP; RP_EXACT 0, the default and the mode judged against Java; RP_FAST all), rp_h (a float rounded to float16, ties to even) and rp_parse (exact, fast, fast:STAGE,...). The C renderer and the device renderer (csrc/cuda/render) take the same mask.",
+ "layer": "render",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "rp_h",
+  "rp_parse"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/cuda/render/check.c"
+ ],
+ "notes": "No Java counterpart: exact is vanilla's arithmetic (the frames the judges hold to Java), fast a reduced-precision mode for the RL observation. rp_h equals gcc's _Float16 conversion on all 2^32 floats (checked once, lane/renderprec)."
+}

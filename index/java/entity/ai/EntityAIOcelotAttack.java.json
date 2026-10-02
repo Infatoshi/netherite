@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIOcelotAttack.java",
+  "classes": ["EntityAIOcelotAttack"],
+  "lines": 88,
+  "side": "server",
+  "category": "ai",
+  "role": "The ocelot's melee attack task: chases the target with a distance-dependent speed (0.6 to 1.33) and bites on a 20-tick countdown when within reach.",
+  "scope": "switched_off",
+  "scope_reason": "Only EntityOcelot registers this task (grep over oracle/src), and world.conf forces ocelots = off, so it is never constructed, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "theWorld", "sig": "World", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "theEntity", "sig": "EntityLiving", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "theVictim", "sig": "EntityLivingBase", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "attackCountdown", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityAIOcelotAttack", "sig": "(EntityLiving)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": ""
+}

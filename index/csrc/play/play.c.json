@@ -1,0 +1,235 @@
+{
+  "path": "csrc/play/play.c",
+  "lines": 7411,
+  "role": "The playable native client (out/native/play, SDL3): loads a whole-server snapshot, runs session.c's load and tick pair (the ones test_snapshots.c runs: client player tick, whole server tick, server player tick) at 20 Hz with keyboard and mouse as each tick's input, writes every tick's input as an oracle-form tape under out/native/tapes, and draws each frame with the C renderer (world, entities, particles, weather, hand, HUD, GUI screens, achievement toast). It also has headless modes: --check REF replays a Java tape through the same tick pair, --shot/--bench/--replay/--input-script for screenshots, timing and scripted input; play-dev (NETHERITE_DEV) folds a Dev sidecar into the tape header. The live chat (the achievement announcement), the effect column in the client map's order, the player preview, the credits clock, the S31 furnace, the merchant title, the dragon's boss health, and the container screens' raw input (SDL events into gui_input.c's queue, run inside the tick; the tape row is written after the tick). Headless judges: --gui-judge REF --gui-raw RAW (the screens' ops against Java's for the same raw events) and --shot-golden/--shot-budget/--shot-items/--shot-pt (a live frame against the oracle's, tests/frame_judge.sh). The screen's drag drawn as GuiContainer draws it, and the pickup animation (EntityPickupFX, read off the server's drops around each tick).",
+  "layer": "client",
+  "java": [
+    {
+      "path": "oracle/src/client/Minecraft.java",
+      "members": [
+        "runGameLoop",
+        "isGamePaused",
+        "setIngameNotInFocus"
+      ]
+    },
+    {
+      "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+      "members": [
+        "handleRespawn"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "updateCameraAndRender",
+        "updateRenderer",
+        "updateFovModifierHand",
+        "renderRainSnow",
+        "renderHand"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/ItemRenderer.java",
+      "members": [
+        "updateEquippedItem",
+        "resetEquippedProgress",
+        "renderOverlays"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/RenderGlobal.java",
+      "members": [
+        "updateClouds"
+      ]
+    },
+    {
+      "path": "oracle/src/world/WorldProvider.java",
+      "members": [
+        "generateLightBrightnessTable"
+      ]
+    },
+    {
+      "path": "oracle/src/world/WorldProviderHell.java",
+      "members": [
+        "generateLightBrightnessTable"
+      ]
+    },
+    {
+      "path": "oracle/src/world/biome/BiomeGenBase.java",
+      "members": [
+        "getSkyColorByTemp"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "setAngles",
+        "getBrightness",
+        "getBrightnessForRender"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/ActiveRenderInfo.java",
+      "members": [
+        "getBlockAtEntityViewpoint"
+      ]
+    },
+    {
+      "path": "oracle/src/client/gui/achievement/GuiAchievement.java",
+      "members": [
+        "func_146254_a"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/boss/EntityDragon.java",
+      "members": [
+        "getMovementOffsets"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/RenderDragon.java",
+      "members": [
+        "doRender"
+      ]
+    },
+    {
+      "path": "oracle/src/client/gui/inventory/GuiContainer.java",
+      "members": [
+        "keyTyped"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/tileentity/TileEntityRendererDispatcher.java",
+      "members": [
+        "func_147544_a"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/ActiveRenderInfo.java",
+      "members": [
+        "updateRenderInfo"
+      ]
+    },
+    {
+      "path": "oracle/src/client/gui/GuiIngame.java",
+      "members": [
+        "updateTick"
+      ]
+    },
+    {
+      "path": "oracle/src/client/multiplayer/WorldClient.java",
+      "members": [
+        "updateWeather"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "calculateInitialSkylight",
+        "getLightBrightness"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayer.java",
+      "members": [
+        "getEyeHeight"
+      ]
+    },
+    {
+      "path": "oracle/src/world/WorldProviderEnd.java",
+      "members": [
+        "doesXZShowFog"
+      ]
+    },
+    {
+      "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+      "members": [
+        "handleStatistics"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/RenderGlobal.java",
+      "members": [
+        "renderEntities"
+      ]
+    },
+    {
+      "path": "oracle/src/tileentity/TileEntityEnchantmentTable.java",
+      "members": [
+        "updateEntity"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/RenderSlime.java",
+      "members": [
+        "shouldRenderPass"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityBlaze.java",
+      "members": [
+        "isBurning",
+        "func_70845_n"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/entity/RenderManager.java",
+      "members": [
+        "func_147938_a"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "equip (anonymous static struct)",
+      "java": "ItemRenderer's itemToRender, equippedProgress and prevEquippedProgress",
+      "fields": [
+        "present",
+        "item",
+        "damage",
+        "gen",
+        "slot",
+        "eq",
+        "peq"
+      ]
+    },
+    {
+      "name": "RW (static struct rb_world, declared in render_blocks.h)",
+      "java": "the client chunks the oracle meshes (a flat window of chunk records around the camera)",
+      "fields": [
+        "origin_cx",
+        "origin_cz",
+        "margin",
+        "rows",
+        "stride",
+        "data"
+      ]
+    },
+    {
+      "name": "trselact (local struct)",
+      "java": "C10/trade select inputs from GuiMerchant's arrow buttons",
+      "fields": [
+        "window",
+        "index"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "lines 79-240, file scope: the snapshot S, the session SS (session.c: the two players, the serverreplay, the client world), the HUD and view state is static global mutable state; acceptable for a human client outside the tick, not a pattern for the GPU path",
+    "lines 924-1010, functions rw_recentre / rw_build: calloc the render world record grid when the streamed window moves (render side, per frame or tick)",
+    "line 594, function live_hud: reads SDL_GetTicks wall clock into the HUD's clock_ms (presentation only)",
+    "line 2031, function main: time(NULL) names the output tape",
+    "lines 2430-2700, function main: the live loop paces ticks from SDL_GetTicksNS wall clock and computes the frame's partial tick from it; the tick inputs themselves are recorded in the tape so replays do not depend on it",
+    "line 2633, function main: a double click (mode 6 window click) is detected by a 250 ms wall-clock window, so which click packet enters the tick depends on the wall clock (recorded in the tape)",
+    "line 1098, function rw_after_tick: function-static done[512] array"
+  ],
+  "tests": [
+    "csrc/tests/test_hudscreens.c",
+    "csrc/tests/play_check.sh"
+  ],
+  "notes": "Kept out of `all` (it links SDL3), but `make -C csrc test` builds play and play-dev and runs csrc/tests/play_check.sh (`play SNAPSHOT --check SNAPSHOT/tape.jsonl`, check_rows) on every snapshot recording; csrc/play/check.sh replays a play tape on the Java client and compares rows. It ports no server behavior of its own: the load and the tick pair are session.c's (lane playfix; the replay gate runs the same calls) through serverreplay, player, survival and combat, with hooks for the render world's chunk callback and the client bolts; this file owns input capture, tape writing, the render world streaming and the frame composition. The Java member list names what its comments cite; GuiAchievement.func_146254_a (line 75) is the toast draw the live_toast pass mirrors. Entity models for most mobs are drawn through raster_mobs; draw_hitboxes still falls back to F3+B style boxes for entities without a model, and stages the dragon and ender crystal models by hand under --shot-model. The live client ticks the animated sprites and dials (texanim_tick from a recording's anim dump) and the torch flicker in renderer_tick, both on SR.det's client stream, and uploads the sprites into the live atlases. draw_tileents: the live world's tile entities through raster_tileent.c after the entities (the world's list order, the server's chest lids and adjacency, sign lines, skulls, spawners with a client spin stepped in renderer_tick by tileents_tick, end portals), ActiveRenderInfo's object-space camera as gluUnProject of the screen centre from the frame's matrices, getSystemTime as tick time. lane/clientstate: renderer_tick takes getFOVMultiplier from clientstate.c (flying, the sprint speed, the speed and slowness effects, a bow's draw); the HUD's portal overlay and the camera's warp read the client player's portal timer; each bolt the server spawned is built as a client bolt at the next tick and lastLightningBolt counts down (the sky and lightmap flash); the world camera takes the client hurtTime. csrc/play/session.sh runs it for a whole game in sittings: each session from the start its previous check wrote (out/human/NAME), checked on Java and chained through a Java Save and Quit at the tape's end; csrc/tests/session-proof/run.sh drives it through --input-script (the SDL event loop on the dummy driver). lane/rawjudge: live_event (struct live) is the window loop's event handling; a frame-structured --input-script (csrc/play/raw2script.jq from a Java session's raw events, java RawRec) runs the recorded client's frames one for one (its ticks, then its camera motion through a second event drain), with each tick's screen clock (gin.has_clock); --judge REF holds every row's screen ops, act and state against the Java tape's (csrc/play/rawjudge.sh); a.ctrl is control on Linux, command on a Mac (--mac-keys); a screen opening unpresses every binding; a join snapshot starts with leftClickCounter 10000. lane/framesweep: --shots FILE (many judged shots over one replay, frame_judge.sh); the client's skylightSubtracted (0 under a sky, WorldClient never updates it), the eye's water check at EntityPlayer's 0.12, updateRenderer (FOV hand, fog brightness, flicker, equip) from the client player's update_renderer hook between the input loops and the living update, the translucent terrain after the entities (raster_live_translucent), the viewed dimension's world for render records and light, the join's hint toast, a legacy checkpoint's save/stats, livings at the client world's copies (combat.c), mob equipment, and the non-living renders (arrows, fireballs, thrown sprites, TNT, falling blocks, bolts) through raster_things_live. lane/clientents: every entity is drawn from the client's own copy (csrc/play/clientents.c, included here): the livings' angles, limbs and clocks, the dragon (pickobj.c's EntityDragon with its lastTickPos, animTime and hurt clock), the items and orbs of its EntityTracker emulation, the paintings, item frames and leash knots pickobj.c keeps, and the lead; ent_brightness (Entity.getBrightness: no sky under a hasNoSky provider); the pickup takes the client's copy; the drop check looks at the copies. lane/covframes: gl_normalize latches GL_NORMALIZE once a slime in range and in the frustum is drawn (RenderSlime.shouldRenderPass; nothing turns it off) and hands it to the tile entities; a blaze copy burns by its charging flag (watcher 16 bit 0, EntityBlaze.isBurning); every mob's fire quads turn by the view yaw (RenderManager.playerViewY; they faced yaw 0); a slime copy's squish is its own (clientworld.c). Recording out/java/clientframes/cov-zoo-s1. lane/covclient: draw_things draws the fireballs from WorldClient's copies (clientworld.c) as RenderFireball does, not from the server's entity; throwables, arrows and primed TNT still come from the server's (no client copies exist for them). lane/glowfix: mob_self_lit gives the Blaze and the magma cube their getBrightnessForRender 15728880 and getBrightness 1 (EntityBlaze, EntityMagmaCube) in place of the world light at their position."
+}

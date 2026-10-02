@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderOcelot.java",
+  "classes": ["RenderOcelot"],
+  "lines": 120,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for ocelots and tamed cats: one of four coat textures by the tamed skin id, and the sit/lying pre-render transform.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has ocelots = off: ocelots leave every spawn list, so EntityOcelot never exists in the game both sides run.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "blackOcelotTextures, ocelotTextures, redOcelotTextures, siameseOcelotTextures", "sig": "ResourceLocation (static)", "native": null, "status": "n/a", "note": "static constants, grouped"},
+    {"kind": "ctor", "name": "RenderOcelot", "sig": "(ModelBase,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityOcelot,double,double,double,float,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityOcelot)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityOcelot,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

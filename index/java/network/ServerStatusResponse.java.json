@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/network/ServerStatusResponse.java",
+  "classes": ["ServerStatusResponse", "ServerStatusResponse.MinecraftProtocolVersionIdentifier", "ServerStatusResponse.PlayerCountData", "ServerStatusResponse.Serializer"],
+  "lines": 271,
+  "side": "server",
+  "category": "network",
+  "role": "The server-list status payload (MOTD chat component, player count, protocol version, favicon string) plus the Gson serializer that formats it for the 0x00 status response.",
+  "scope": "not_needed",
+  "scope_reason": "Only the server-list ping path reads it (see PingResponseHandler); the oracle never serves a server list and the native engine has no sockets.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_151326_a (MOTD)", "sig": "IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_151324_b (player count)", "sig": "ServerStatusResponse.PlayerCountData", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_151325_c (protocol version)", "sig": "ServerStatusResponse.MinecraftProtocolVersionIdentifier", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_151323_d (favicon)", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151317_a", "sig": "()IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151315_a", "sig": "(IChatComponent)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151318_b", "sig": "()PlayerCountData", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151319_a", "sig": "(PlayerCountData)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151322_c", "sig": "()MinecraftProtocolVersionIdentifier", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151321_a", "sig": "(MinecraftProtocolVersionIdentifier)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151320_a", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151316_d", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "MinecraftProtocolVersionIdentifier members (getName, getVersion, getProtocol, setName, setVersion, setProtocol and ctor)", "sig": "various", "native": null, "status": "n/a", "note": "nested class, grouped"},
+    {"kind": "method", "name": "PlayerCountData members (func_151326_a/func_151325_b/func_151324_a/func_151321_a and ctor)", "sig": "various", "native": null, "status": "n/a", "note": "nested class, grouped"},
+    {"kind": "method", "name": "Serializer members (deserialize, serialize)", "sig": "various", "native": null, "status": "n/a", "note": "Gson adapter, grouped"}
+  ],
+  "missing": [],
+  "notes": "Not verified against any recording: never reached in oracle or native runs."
+}

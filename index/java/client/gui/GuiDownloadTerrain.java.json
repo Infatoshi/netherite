@@ -1,0 +1,77 @@
+{
+ "path": "oracle/src/client/gui/GuiDownloadTerrain.java",
+ "classes": [
+  "GuiDownloadTerrain"
+ ],
+ "lines": 66,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The downloading-terrain screen shown during a dimension change or respawn while chunks stream in; it sends keepalives and does not pause.",
+ "scope": "client_cosmetic",
+ "scope_reason": "The screen is client presentation; the native engine changes dimension synchronously with no screen (csrc/tests/test_dims.c, out/java/snapshots/end-arrival-s1) and the oracle pins the join to a non-pausing screen (SPEC determinism).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146594_a",
+   "sig": "NetHandlerPlayClient",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146593_f",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiDownloadTerrain",
+   "sig": "(NetHandlerPlayClient)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "keyTyped",
+   "sig": "(char,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "initGui",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateScreen",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the C00PacketKeepAlive every 20 ticks"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "doesGuiPauseGame",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false; the non-pausing behaviour is what the oracle's join pins"
+  }
+ ],
+ "missing": [],
+ "notes": "The screen is not drawn natively; its non-pausing behaviour matters to the lockstep and is pinned in the oracle's join (SPEC determinism)."
+}

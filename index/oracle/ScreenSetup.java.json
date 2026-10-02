@@ -1,0 +1,16 @@
+{
+ "path": "oracle/harness/netherite/oracle/ScreenSetup.java",
+ "lines": 318,
+ "role": "Stages a live GuiScreen (inventory, crafting, furnace, chest, double chest, merchant, death) over the current player for render goldens without changing the world: fills requested inventory slots, builds the screen (a detached TileEntityFurnace, an NpcMerchant with pinned recipes), sets hover and trade selection; capture() reads back the open screen's kind and state for RenderStateProbe. Adds credits (GuiWinGame) and the merchant's name; captures the effects in HashMap order, the preview inputs and stored mouse, the container origin and the credits' clock and lines. Declares MUTATES so a replay re-runs it.",
+ "kind": "devop",
+ "used_by": [
+  "make -C oracle run CLASS=ScreenSetup (the generic {\"cmd\":\"run\",\"class\":\"ScreenSetup\"} reflection dispatch in Oracle.java)",
+  "oracle/tests/trade-scene.jsonl",
+  "oracle/harness/netherite/oracle/RenderStateProbe.java (calls ScreenSetup.capture for the render-state dump)",
+  "csrc/engine/raster_hud.c and csrc/tests/hud_live_test.c read the captured guiScreen state (by field name, not by class name)",
+  "oracle/tests/hudscreens-s1.jsonl",
+  "csrc/tests/test_hudscreens.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Only the entry point run(server, cmd), stack() and capture(mc) are static methods; no oracle/src file calls it. The native raster_hud.c link is inferred from the guiScreen/screen fields in hud_live_test.c, not traced through RenderStateProbe's output layout."
+}

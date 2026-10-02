@@ -1,0 +1,26 @@
+{
+ "path": "oracle/src/entity/IRangedAttackMob.java",
+ "classes": ["IRangedAttackMob"],
+ "lines": 9,
+ "side": "server",
+ "category": "entity",
+ "role": "Interface for mobs with a ranged attack: attackEntityWithRangedAttack fires the mob's projectile, driven by EntityAIArrowAttack with a power factor.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/hostiles_witch.c", "symbols": ["witch_attack_entity_with_ranged_attack"]},
+  {"file": "csrc/engine/hostiles_skeleton.c", "symbols": ["skeleton_attack_entity_with_ranged_attack"]},
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_add_task_arrow_attack"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/fight-skeleton-s1",
+  "csrc/tests/test_hostiles.c"
+ ],
+ "members": [
+  {"kind": "method", "name": "attackEntityWithRangedAttack", "sig": "(EntityLivingBaseF)V", "native": "csrc/engine/hostiles_witch.c:witch_attack_entity_with_ranged_attack", "status": "exact", "note": "the witch's potion throw; the skeleton's arrow twin is skeleton_attack_entity_with_ranged_attack in hostiles_skeleton.c"}
+ ],
+ "missing": [],
+ "notes": "EntityAIArrowAttack's updateTask dispatches through this interface; the native AIC_ARROW_ATTACK update case calls the per-kind function with the clamped power factor (ai.c:2509)."
+}

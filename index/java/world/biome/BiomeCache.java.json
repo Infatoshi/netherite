@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/world/biome/BiomeCache.java",
+  "classes": ["BiomeCache", "BiomeCache.Block"],
+  "lines": 116,
+  "side": "common",
+  "category": "worldgen",
+  "role": "A per-WorldChunkManager memo of 16x16 biome and rainfall blocks from the voronoi (biomeIndexLayer) layer, evicted after 30 s of wall-clock idleness.",
+  "scope": "in_scope",
+  "scope_reason": "It serves getBiomeGenAt for structure placement and unloaded-chunk biome lookups.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/layers.c", "symbols": ["biomes_full"]},
+    {"file": "csrc/engine/world.c", "symbols": ["world_get_biome"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_structures.c", "out/java/chunks", "out/java/structures"],
+  "members": [
+    {"kind": "field", "name": "chunkManager", "sig": "final WorldChunkManager", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "lastCleanupTime", "sig": "long (wall clock)", "native": null, "status": "n/a", "note": "wall-clock eviction; no effect on results"},
+    {"kind": "field", "name": "cacheMap", "sig": "LongHashMap", "native": null, "status": "n/a", "note": "memo only"},
+    {"kind": "field", "name": "cache", "sig": "List", "native": null, "status": "n/a", "note": "memo only"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "BiomeCache", "sig": "(WorldChunkManager)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getBiomeCacheBlock", "sig": "(int,int)Block", "native": "csrc/engine/layers.c:biomes_full", "status": "exact", "note": "native computes the block's biomes directly"},
+    {"kind": "method", "name": "getBiomeGenAt", "sig": "(int,int)BiomeGenBase", "native": "csrc/engine/layers.c:biomes_full", "status": "exact", "note": "called with w=h=1 by temple.c, village.c and world.c world_get_biome"},
+    {"kind": "method", "name": "cleanupCache", "sig": "()V", "native": null, "status": "n/a", "note": "wall-clock eviction, result-neutral"},
+    {"kind": "method", "name": "getCachedBiomes", "sig": "(int,int)BiomeGenBase[]", "native": "csrc/engine/layers.c:biomes_full", "status": "exact"},
+    {"kind": "field", "name": "Block.rainfallValues", "sig": "float[256]", "native": null, "status": "n/a", "note": "read by nothing on the native path"},
+    {"kind": "field", "name": "Block.biomes", "sig": "BiomeGenBase[256]", "native": "csrc/engine/layers.c:biomes_full", "status": "exact"},
+    {"kind": "field", "name": "Block.xPosition/zPosition/lastAccessTime", "sig": "int,int,long", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "Block", "sig": "(int,int)", "native": "csrc/engine/layers.c:biomes_full", "status": "exact"},
+    {"kind": "method", "name": "Block.getBiomeGenAt", "sig": "(int,int)BiomeGenBase", "native": "csrc/engine/layers.c:biomes_full", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The cache is a pure memo of a seed-and-position function, so native skips it; its only observable effect in Java is wall-clock-driven memory. The layer stack is deterministic per cell (layers.h), so cache hits and misses agree."
+}

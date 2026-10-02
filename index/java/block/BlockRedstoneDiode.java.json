@@ -1,0 +1,369 @@
+{
+ "path": "oracle/src/block/BlockRedstoneDiode.java",
+ "classes": [
+  "BlockRedstoneDiode"
+ ],
+ "lines": 334,
+ "side": "common",
+ "category": "block",
+ "role": "Abstract repeater/comparator: the one-directional power gate on a slab, with the input and side-input reads, the delayed tick that switches powered and unpowered ids, placement facing and the faced-neighbour notification sweep.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: repeaters and comparators are craftable; placement, floor support, facing and the neighbour sweeps run in the oracle with redstone = off (onBlockAdded and func_149911_e ran in containers2-s42 and pickblock-s1).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "diode_notify",
+    "blockcb_diode_notify",
+    "diode_neighbor",
+    "bwl_on_added",
+    "bwl_on_broken"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "can_place_block_at",
+    "on_block_placed_by"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks3.c",
+   "symbols": [
+    "diode_side_input",
+    "diode_input",
+    "render_diode_slab"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "should_side_be_rendered"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure_blocks.c",
+   "symbols": [
+    "is_directional"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/comparator.c",
+   "symbols": [
+    "input",
+    "front_diode",
+    "is_diode",
+    "comparator_on_neighbor"
+   ]
+  },
+  {
+   "file": "csrc/engine/ticks.c",
+   "symbols": [
+    "block_equal",
+    "ticks_scheduled_this_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/activate/full2",
+  "csrc/tests/test_activate.c",
+  "csrc/tests/test_place.c",
+  "out/java/place/big2",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/snapshots/containers2-s42",
+  "out/java/snapshots/rs-diode-s1",
+  "out/java/snapshots/rs-cmp-s1",
+  "csrc/tests/test_snapshots.c",
+  "out/java/meshes/scene3-2",
+  "csrc/tests/test_meshes.c",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149914_a",
+   "sig": "boolean",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "powered-id flag: 94 and 150 rows"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRedstoneDiode",
+   "sig": "(Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "circuits, bounds 0..0.125"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/place.c:can_place_block_at",
+   "status": "exact",
+   "note": "solid top and the default test"
+  },
+  {
+   "kind": "method",
+   "name": "canBlockStay",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/blockcb.c:diode_neighbor",
+   "status": "exact",
+   "note": "solid top"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Never scheduled for a repeater in this game: func_149897_b and onBlockPlacedBy schedule only on an input above 0 or a powered repeater (94), and nothing powers one (World.java:3511, 3585); the comparator overrides it (its record)."
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it"
+  },
+  {
+   "kind": "method",
+   "name": "shouldSideBeRendered",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": "csrc/engine/render_blocks.c:should_side_be_rendered",
+   "status": "exact",
+   "note": "not top or bottom; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "n/a",
+   "note": "both subclasses override it (BlockRedstoneRepeater 15, BlockRedstoneComparator 37)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149905_c",
+   "sig": "(I)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the repeater's powered test (its id); the comparator's override is comparator.c comparator_on_neighbor"
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingStrongPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "power"
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingWeakPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "power"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:diode_neighbor",
+   "status": "exact",
+   "note": "support drop and six notifications; func_149897_b cannot change state"
+  },
+  {
+   "kind": "method",
+   "name": "func_149897_b",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:diode_neighbor",
+   "status": "exact",
+   "note": "the neighbour tail after canBlockStay: the comparator's override through comparator.c comparator_on_neighbor; a repeater's schedules only when its input disagrees with its powered state, and an unpowered repeater's input is always 0 (the powered repeater, 94, is never made in survival)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149910_g",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "locked test"
+  },
+  {
+   "kind": "method",
+   "name": "func_149900_a",
+   "sig": "(World,IIII)Z",
+   "native": "csrc/engine/place.c:on_block_placed_by",
+   "status": "exact",
+   "note": "input > 0: never for a repeater, so onBlockPlacedBy schedules no tick; the comparator overrides it (comparator.c comparator_should_power)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149903_h",
+   "sig": "(World,IIII)I",
+   "native": "csrc/engine/comparator.c:input",
+   "status": "exact",
+   "note": "World.getIndirectPowerLevelTo (0 with redstone off) or the wire's own strength: the first half of comparator.c input; a repeater's is always 0"
+  },
+  {
+   "kind": "method",
+   "name": "func_149902_h",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": "csrc/engine/render_blocks3.c:diode_input",
+   "status": "exact",
+   "note": "the side input: a wire's strength or World.isBlockProvidingPowerTo, both 0 in this game, so the lock bar never shows; the renderer's copy and the comparator's (comparator.c side_input) agree; repeater vertices match in out/java/meshes/scene3-2 (render type 15)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149913_i",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": "csrc/engine/render_blocks3.c:diode_side_input",
+   "status": "exact",
+   "note": "one side's input, as above"
+  },
+  {
+   "kind": "method",
+   "name": "canProvidePower",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockPlacedBy",
+   "sig": "(World,IIIEntityLivingBase,ItemStack)V",
+   "native": "csrc/engine/place.c:on_block_placed_by",
+   "status": "exact",
+   "note": "((yaw quad) + 2) % 4, flags 3; no scheduled tick"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:bwl_on_added",
+   "status": "exact",
+   "note": "cases 93/94/149/150: diode_notify"
+  },
+  {
+   "kind": "method",
+   "name": "func_149911_e",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:diode_notify",
+   "status": "exact",
+   "note": "faced neighbour then its six but the back"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockDestroyedByPlayer",
+   "sig": "(World,IIII)V",
+   "native": null,
+   "status": "n/a",
+   "note": "powered-id sweep; powered ids unreachable"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_149908_a",
+   "sig": "(Block)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "side-input source test"
+  },
+  {
+   "kind": "method",
+   "name": "func_149904_f",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "output 15"
+  },
+  {
+   "kind": "method",
+   "name": "func_149909_d",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/comparator.c:is_diode",
+   "status": "exact",
+   "note": "any repeater or comparator id"
+  },
+  {
+   "kind": "method",
+   "name": "func_149907_e",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/ticks.c:block_equal",
+   "status": "exact",
+   "note": "same diode type: Block.isEqualTo in NextTickListEntry.equals (ticks.c block_equal, the this-tick test)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149912_i",
+   "sig": "(World,IIII)Z",
+   "native": "csrc/engine/comparator.c:front_diode",
+   "status": "exact",
+   "note": "a diode in front not facing the same way: the -1 priority of the comparator's tick"
+  },
+  {
+   "kind": "method",
+   "name": "func_149899_k",
+   "sig": "(I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "delay"
+  },
+  {
+   "kind": "method",
+   "name": "func_149901_b",
+   "sig": "(I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract delay"
+  },
+  {
+   "kind": "method",
+   "name": "func_149906_e",
+   "sig": "()BlockRedstoneDiode",
+   "native": null,
+   "status": "n/a",
+   "note": "powered id"
+  },
+  {
+   "kind": "method",
+   "name": "func_149898_i",
+   "sig": "()BlockRedstoneDiode",
+   "native": null,
+   "status": "n/a",
+   "note": "unpowered id"
+  },
+  {
+   "kind": "method",
+   "name": "func_149667_c",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/ticks.c:block_equal",
+   "status": "n/a",
+   "note": "its only caller, Block.func_149680_a, is called nowhere in oracle/src"
+  }
+ ],
+ "missing": [],
+ "notes": "Structure pieces never place diodes in 1.7.10; structure_blocks.c lists the class for metadata rotation. Power propagation would need a full port if redstone comes back. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact. rs-diode-s1 places repeaters and comparators by hand on four yaws, cycles delays and modes, digs them and pulls their floors, and places, clicks and digs one of each facing a water pit that their func_149911_e rounds set flowing (a no-op diode_notify fails it at row 313)."
+}

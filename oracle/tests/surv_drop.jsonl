@@ -1,0 +1,14 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"drop"}
+{"n":2,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{"dlook":[0,0]}}
+{"n":1,"act":{"press":["drop"]}}
+{"n":1,"act":{"press":["drop"],"ctrl":1}}
+{"n":40,"act":{"hold":["forward"]}}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":40,"act":{"hold":["forward"]}}
+{"n":1,"act":{"hotbar":1}}
+{"n":1,"act":{"dlook":[90,0]}}
+{"n":80,"act":{"hold":["use","forward"]}}
+{"n":60,"act":{"hold":["forward"]}}

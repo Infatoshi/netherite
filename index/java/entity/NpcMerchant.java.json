@@ -1,0 +1,33 @@
+{
+ "path": "oracle/src/entity/NpcMerchant.java",
+ "classes": ["NpcMerchant"],
+ "lines": 47,
+ "side": "client",
+ "category": "entity",
+ "role": "The client-side IMerchant holder for the trading screen: wraps the InventoryMerchant, carries the S3F recipe list, and every trade-affecting method is a no-op on the client.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/container.c", "symbols": ["container_merchant_reset"]},
+  {"file": "csrc/engine/container.h", "symbols": ["client_recipes", "merchant_sound", "merchant_use"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/trade-full-s1",
+  "csrc/tests/test_containers.c"
+ ],
+ "members": [
+  {"kind": "field", "name": "theMerchantInventory", "sig": "InventoryMerchant", "native": "csrc/engine/container.h:merchant", "status": "exact", "note": "the container's 3-slot merchant inventory"},
+  {"kind": "field", "name": "customer", "sig": "EntityPlayer", "native": null, "status": "n/a", "note": "never read on the client"},
+  {"kind": "field", "name": "recipeList", "sig": "MerchantRecipeList", "native": "csrc/engine/container.h:client_recipes", "status": "exact", "note": "the S3F copy"},
+  {"kind": "ctor", "name": "NpcMerchant", "sig": "(EntityPlayer)V", "native": "csrc/engine/container.h:merchant", "status": "partial", "note": "the container construction carries the merchant inventory and the client recipes"},
+  {"kind": "method", "name": "getCustomer", "sig": "()EntityPlayer", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "setCustomer", "sig": "(EntityPlayer)V", "native": null, "status": "n/a", "note": "empty body"},
+  {"kind": "method", "name": "getRecipes", "sig": "(EntityPlayer)MerchantRecipeList", "native": "csrc/engine/container.c:container_merchant_reset", "status": "partial", "note": "resetRecipeAndSlots and the GUI read the recipes pointer; NULL until the S3F lands"},
+  {"kind": "method", "name": "setRecipes", "sig": "(MerchantRecipeList)V", "native": "csrc/engine/container.h:client_recipes", "status": "partial", "note": "the S3F write"},
+  {"kind": "method", "name": "useRecipe", "sig": "(MerchantRecipe)V", "native": null, "status": "n/a", "note": "empty body"},
+  {"kind": "method", "name": "func_110297_a_", "sig": "(ItemStack)V", "native": null, "status": "n/a", "note": "empty body; the container's merchant_sound callback is NULL on the client"}
+ ],
+ "missing": [],
+ "notes": "survival.c:4311 confirms the client's func_110297_a_ is the NpcMerchant no-op. The server side of trading is EntityVillager's and lives in villagers.c (see IMerchant). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): folded into the client container's merchant fields. Formerly listed as missing: No native object models the NpcMerchant itself; its role is folded into the client container's merchant fields (recipes copy, NULL sound/use callbacks). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/item/ItemReed.java",
+  "classes": ["ItemReed"],
+  "lines": 94,
+  "side": "common",
+  "category": "item",
+  "role": "Generic block-placing item for single-cell blocks (reeds, cake, cauldron, brewing stand, flower pot, repeater, comparator, tripwire): the ItemBlock placement path with its own target-cell adjust.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_reed_on_item_use", "reed_block", "item_target_adjust"]}
+  ],
+  "evidence": ["csrc/tests/test_place.c"],
+  "members": [
+    {"kind": "field", "name": "field_150935_a", "sig": "Block", "native": "csrc/engine/place.c:reed_block", "status": "exact", "note": "the constructor's block, as a per-item switch"},
+    {"kind": "ctor", "name": "ItemReed", "sig": "(Lnet/minecraft/block/Block;)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact"},
+    {"kind": "method", "name": "onItemUse", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z", "native": "csrc/engine/place.c:item_reed_on_item_use", "status": "exact", "note": "the snow/vine/tallgrass/deadbush adjust, canPlaceEntityOnSide, onBlockPlaced, setBlock flag 3, onBlockPlacedBy and onPostBlockPlaced, returning true even when refused"}
+  ],
+  "missing": [],
+  "notes": null
+}

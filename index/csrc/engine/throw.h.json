@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/throw.h",
+ "lines": 49,
+ "role": "Declares the bow and throwable item uses for the server and client halves of the replay (throw.c) and throw_bind, which hooks the pearl impact and the eye drop into the living world.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/item/ItemBow.java", "members": ["onItemRightClick", "onPlayerStoppedUsing"]},
+  {"path": "oracle/src/item/ItemSnowball.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemEgg.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemEnderPearl.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/item/ItemEnderEye.java", "members": ["onItemRightClick"]},
+  {"path": "oracle/src/entity/item/EntityEnderPearl.java", "members": ["onImpact"]}
+ ],
+ "structs": [],
+ "entry_points": ["throw_server_use", "throw_server_release", "throw_client_use", "throw_client_release", "throw_bind"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Header only; forward-declares server_player, client_player, serverreplay and surv_state."
+}

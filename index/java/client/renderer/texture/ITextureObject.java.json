@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/renderer/texture/ITextureObject.java",
+  "classes": ["ITextureObject"],
+  "lines": 11,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Interface for a loadable GL texture: load from the resource manager and expose the GL texture id.",
+  "scope": "client_cosmetic",
+  "scope_reason": "GL texture-object plumbing: the native engine loads PNG bytes directly (csrc/engine/pngread.c, raster_texture.c) and keeps no GL texture ids.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "loadTexture", "sig": "(IResourceManager)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getGlTextureId", "sig": "()int", "native": null, "status": "n/a"}
+  ],
+  "missing": []
+}

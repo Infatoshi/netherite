@@ -1,0 +1,38 @@
+{
+  "path": "oracle/src/block/BlockCactus.java",
+  "classes": ["BlockCactus"],
+  "lines": 156,
+  "side": "common",
+  "category": "block",
+  "role": "The cactus: a plant that grows one block at a time to three, damages entities touching it, needs sand or cactus below and nothing solid beside, and renders with inset sides.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["rt_cactus"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["cactus_can_stay", "block_on_neighbor_changed"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_add_boxes", "collide_entity_effect"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["sp_attack_from"]},
+    {"file": "csrc/engine/raytrace.c", "symbols": ["raytrace_block_bounds"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/render_blocks2.c", "symbols": ["rb2_render_cactus"]}
+  ],
+  "evidence": ["out/java/snapshots/plant-cactus-s1", "out/java/snapshots/scen-cactus-s1", "out/java/snapshots/surv_cactus-s1", "out/java/snapshots/surv_cactus-s42", "out/java/probes/fe-cactus-2", "out/java/probes/fe-cactus-desert-2", "csrc/tests/test_ticks.c", "out/java/snapshots/cov-blkbreak-s1", "out/java/snapshots/cov-blkplace-s1", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCactus", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 81: hardness 0.4, cactus material."},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:rt_cactus", "status": "exact", "note": "The age and the three-high growth, then the explicit onNeighborBlockChange on the new cell (a solid block beside it pops it at once; plant-cactus-s1)."},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "exact", "note": "The 1/16-inset box, collide.c:481 and 775."},
+    {"kind": "method", "name": "getSelectedBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/raytrace.c:raytrace_block_bounds", "status": "exact", "note": "The same inset bounds in the selection raytrace, raytrace.c:176; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": "csrc/engine/render_blocks2.c:rb2_render_cactus", "status": "partial", "note": "The side-dependent textures resolve inside the renderer."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "13; the dispatch at render_blocks.c:3096."},
+    {"kind": "method", "name": "canPlaceBlockAt", "sig": "(World,III)Z", "native": "csrc/engine/place.c:place_try", "status": "exact", "note": "blockcb_can_stay routes the cactus class to cactus_can_stay (blockcb.c:405)."},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "The stay check and the pop, blockcb.c:2350."},
+    {"kind": "method", "name": "canBlockStay", "sig": "(World,III)Z", "native": "csrc/engine/blockcb.c:cactus_can_stay", "status": "exact", "note": "blockcb.c:268."},
+    {"kind": "method", "name": "onEntityCollidedWithBlock", "sig": "(World,IIIIEntity)V", "native": "csrc/engine/collide.c:collide_entity_effect", "status": "exact", "note": "attackEntityFrom(cactus, 1.0), collide.c:688; the player path is survival.c:3572's sp_attack_from."},
+    {"kind": "method", "name": "setBlockBoundsForItemRender", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "partial", "note": "The full-cube item bounds; the registry carries the state bounds."}
+  ],
+  "missing": [],
+  "notes": "scen-cactus-s1 and the two surv_cactus snapshots exercise growth and contact damage; the desert feature probes cover worldgen placement."
+}

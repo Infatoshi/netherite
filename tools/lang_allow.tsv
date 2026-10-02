@@ -1,0 +1,872 @@
+# Tracked file<TAB>en_US value<TAB>expected occurrences<TAB>reason.
+# Exact counts make a new copied string fail even in a file already listed.
+csrc/cuda/mirror.c	%s %s	1	Generic two-field formatting pattern, not translated UI text
+csrc/engine/animals.c	Saddle	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/blocks_table.c	Portal	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/chatcmd.c	empty	1	Engine diagnostic or structural identifier, not translated UI text
+csrc/engine/chatmsg.c	Arrow	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/chatmsg.c	arrow	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/crafting.c	Colors	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/crafting.c	Trail	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/dev.c	Blaze	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Chicken	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Creeper	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Enderman	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Ghast	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Items	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/dev.c	Sheep	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Silverfish	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Skeleton	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Slime	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Spider	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Squid	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Villager	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Witch	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Wither	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/dev.c	Zombie	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/entity_nbt.c	Fire	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/entity_nbt.c	Inventory	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/entity_nbt.c	Item	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/entity_nbt.c	Potion	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/entity_nbt.c	Score	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/fallhang.c	Fire	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/fallhang.c	Item	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/fallhang.c	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/fallhang.c	Wither	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/features_dungeons.c	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/features_dungeons.c	Spider	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/features_dungeons.c	Zombie	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/features_springs.c	Portal	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/firework.c	Colors	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/firework.c	Trail	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/fortress_blocks.c	Blaze	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/ghasts.c	Fire	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/items_table.c	Item	33	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/itemtag.c	Unbreakable	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/living.c	Blaze	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Creeper	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Enderman	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Fire	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/living.c	Ghast	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Inventory	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/living.c	Item	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/living.c	Knockback Resistance	1	Canonical attribute name in serialized state, not a display label
+csrc/engine/living.c	Max Health	1	Canonical attribute name in serialized state, not a display label
+csrc/engine/living.c	Potion	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/living.c	Score	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/living.c	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Silverfish	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Slime	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Spider	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Squid	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Villager	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Witch	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/living.c	Zombie	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/nbtbin.c	Trail	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/randomtick.c	Portal	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/raster.c	empty	1	Engine diagnostic or structural identifier, not translated UI text
+csrc/engine/raster_entities.c	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_entities.c	Wither	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_hud.c	%s %s	1	Generic two-field formatting pattern, not translated UI text
+csrc/engine/raster_itemframe.c	Item	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/raster_things.c	arrow	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Blaze	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Creeper	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Enderman	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Ghast	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Silverfish	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Slime	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Spider	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Squid	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Villager	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Witch	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/raster_tileent.c	Zombie	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/regioncache.c	unknown	1	Engine diagnostic or structural identifier, not translated UI text
+csrc/engine/serverreplay.c	Arrow	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Blaze	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Blocks	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/serverreplay.c	Chicken	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Creeper	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Enderman	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Fire	5	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/serverreplay.c	Ghast	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Item	6	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/serverreplay.c	Saddle	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/serverreplay.c	Sheep	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Silverfish	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Skeleton	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Slime	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Spider	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Squid	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Villager	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Witch	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/serverreplay.c	Zombie	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Blaze	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Creeper	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Enderman	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Fire	8	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Ghast	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Item	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Potion	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Saddle	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Silverfish	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Slime	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Snowball	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Spider	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Squid	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Villager	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Witch	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/snapshot_entities.c	Zombie	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Blaze	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Creeper	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Enderman	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Ghast	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Silverfish	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Slime	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Spider	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Squid	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Villager	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Witch	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Wolf	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stats_table.h	Zombie	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/stronghold.c	Chest	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/stronghold_blocks.c	Silverfish	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/structure.c	Chest	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/structure.c	Height	1	Structured data field name, not a display label
+csrc/engine/structure.c	Width	1	Structured data field name, not a display label
+csrc/engine/structure.c	Witch	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/engine/survival.c	Fire	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/survival.c	Inventory	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/survival.c	Score	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Beacon	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Cauldron	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Chest	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Dropper	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Furnace	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Hopper	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Item	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Items	6	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Music	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Piston	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileentity.c	Sign	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/tileticks.c	Chest	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/engine/villagers.c	Players	1	Structured data field name, not a display label
+csrc/play/play.c	arrow	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/play/play.c	unknown	1	Engine diagnostic or structural identifier, not translated UI text
+csrc/runtime/pool.c	world	2	Engine diagnostic or structural identifier, not translated UI text
+csrc/tests/fnkey.c	%s %s	1	Generic two-field formatting pattern, not translated UI text
+csrc/tests/playfuzz/agentgen.c	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/agentgen.c	Creeper	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/agentgen.c	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/agentgen.c	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/agentgen.c	Spider	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/agentgen.c	Villager	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/agentgen.c	Zombie	2	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/playgen.h	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/playgen.h	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/playfuzz/playgen.h	Villager	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/smoke_select.c	%s %s	4	Generic two-field formatting pattern, not translated UI text
+csrc/tests/test_projectiles.c	arrow	1	Vanilla entity registry name or fixture identifier, not translated UI text
+csrc/tests/test_sblocks.c	Items	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_seedworld.c	Item	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_snapshots.c	Items	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_snapshots.c	empty	2	Engine diagnostic or structural identifier, not translated UI text
+csrc/tests/test_tileticks.c	Beacon	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_tileticks.c	Cauldron	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_tileticks.c	Chest	2	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_tileticks.c	Furnace	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_tileticks.c	Hopper	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_tileticks.c	Music	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/test_tileticks.c	Piston	1	NBT, block, inventory or fixture field identifier, not translated UI text
+csrc/tests/testmap.c	%s %s	3	Generic two-field formatting pattern, not translated UI text
+csrc/tests/testsel_history.c	%s %s	1	Generic two-field formatting pattern, not translated UI text
+csrc/tests/worldconf_check.c	%s %s	1	Generic two-field formatting pattern, not translated UI text
+csrc/tests/worldconf_check.c	world	3	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/AnimalProbe.java	Chicken	3	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/AnimalProbe.java	Sheep	3	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Checkpoint.java	Fireball	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Checkpoint.java	world	2	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/ContainersProbe.java	Unbreakable	1	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/CraftingProbe.java	Colors	1	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/CraftingProbe.java	Unbreakable	1	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Arrow	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Blaze	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Creeper	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Enderman	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Fireball	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Ghast	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Items	3	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Silverfish	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Slime	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Snowball	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Spider	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Squid	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Villager	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Witch	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Dev.java	Zombie	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/EntityRenderProbe.java	arrow	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/FallHangProbe.java	Anvil	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/FallHangProbe.java	Fire	1	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/GhastProbe.java	Ghast	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Blaze	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Creeper	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Enderman	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Silverfish	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Skeleton	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Spider	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Witch	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/HostileProbe.java	Zombie	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Oracle.java	world	1	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/ParticleLog.java	World	1	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/Pool.java	world	1	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/PotionProbe.java	Chicken	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/PotionProbe.java	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/ProjectileProbe.java	arrow	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/RayProbe.java	Skeleton	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/RecipeTable.java	empty	1	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/SlimeProbe.java	Slime	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/Snapshot.java	empty	1	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/Snapshot.java	world	1	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/SpawnDump.java	world	1	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/SpawnDumpDim.java	world	1	Engine diagnostic or structural identifier, not translated UI text
+oracle/harness/netherite/oracle/SpawnProbe.java	Squid	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/StructureBlocksProbe.java	Items	1	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/TileTickProbe.java	Chest	1	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/TileTickProbe.java	Sheep	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/VillageProbe.java	Item	1	NBT, block, inventory or fixture field identifier, not translated UI text
+oracle/harness/netherite/oracle/VillageProbe.java	Villager	2	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/WorldConf.java	Boat	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/WorldConf.java	Minecart	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/WorldConf.java	Wolf	1	Vanilla entity registry name or fixture identifier, not translated UI text
+oracle/harness/netherite/oracle/WorldConf.java	world	2	Engine diagnostic or structural identifier, not translated UI text
+index/csrc/engine/clientworld.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/dragon.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/entity.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/env.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/image.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/living.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/particles_live.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/populate.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/portal.c.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/portal.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/raster.c.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/raster_worldfx.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/seedworld.c.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/snapshot.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/texanim.c.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/villagers.h.json	world	3	Structured field or registry identifier in the codebase index, not translated UI text
+index/csrc/engine/world.h.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/block/Block.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/block/BlockFence.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/block/BlockPane.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/block/BlockPistonExtension.java.json	empty	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/block/BlockPistonMoving.java.json	empty	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/block/BlockPressurePlate.java.json	Sensitivity	1	Java type or enum name in the codebase index, not translated UI text
+index/java/block/BlockRailBase.java.json	Rail	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/client/audio/SoundCategory.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/audio/SoundList.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/entity/EntityClientPlayerMP.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiButton.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiChat.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiConfirmOpenLink.java.json	String	3	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiDisconnected.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiEnchantment.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiIngame.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiMerchant.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiPlayerInfo.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiScreenBook.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiScreenWorking.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiTextField.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/GuiYesNo.java.json	String	4	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/achievement/GuiAchievement.java.json	Achievement	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/achievement/GuiAchievement.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/achievement/GuiStats.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/gui/inventory/GuiBeacon.java.json	Button	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/model/ModelBox.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/model/ModelRenderer.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/multiplayer/ChunkProviderClient.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/client/multiplayer/WorldClient.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/client/particle/EffectRenderer.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/client/particle/EntityAuraFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityBlockDustFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityBreakingFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityBubbleFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityCloudFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityCrit2FX.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityCritFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityDropParticleFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityEnchantmentTableParticleFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityExplodeFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityFireworkOverlayFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityFireworkSparkFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityFireworkStarterFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityFishWakeFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityFlameFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityFootStepFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityHeartFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityLavaFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityNoteFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityPickupFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityPortalFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityRainFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntityReddustFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntitySmokeFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntitySnowShovelFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntitySpellParticleFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntitySplashFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/particle/EntitySuspendFX.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/renderer/WorldRenderer.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/client/renderer/entity/RenderManager.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/client/renderer/entity/RenderSnowball.java.json	Item	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/client/renderer/texture/TextureAtlasSprite.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/renderer/texture/TextureMap.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/renderer/tileentity/TileEntityRendererDispatcher.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/client/resources/Language.java.json	String	3	Java type or enum name in the codebase index, not translated UI text
+index/java/client/resources/LanguageManager.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/settings/GameSettings.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/client/settings/KeyBinding.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/client/shader/ShaderGroup.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/shader/ShaderLoader.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/shader/ShaderManager.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/shader/ShaderUniform.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/client/util/JsonException.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/Entity.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/Entity.java.json	empty	2	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/EntityHanging.java.json	empty	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/EntityList.java.json	empty	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/EntityLivingBase.java.json	empty	6	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAIAttackOnCollide.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAIBeg.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAIEatGrass.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAIFleeSun.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAIFollowOwner.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAIMate.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAIOcelotAttack.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAITempt.java.json	Item	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/EntityAIVillagerMate.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/entity/ai/attributes/AttributeModifier.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/ai/attributes/BaseAttribute.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/ai/attributes/RangedAttribute.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/boss/EntityDragonPart.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/effect/EntityLightningBolt.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/effect/EntityWeatherEffect.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/item/EntityItem.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/item/EntityMinecart.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/passive/EntityHorse.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/passive/EntityVillager.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/player/EntityPlayerMP.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/entity/projectile/EntityThrowable.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/event/ClickEvent.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/init/Blocks.java.json	Blocks	2	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/init/Items.java.json	Items	2	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/inventory/ContainerEnchantment.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/inventory/ContainerMerchant.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/inventory/ContainerRepair.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/inventory/ContainerRepair.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/inventory/ContainerWorkbench.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/inventory/InventoryBasic.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/inventory/InventoryLargeChest.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/item/EnumRarity.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/item/Item.java.json	Item	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/item/ItemRecord.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/item/ItemStack.java.json	Item	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/nbt/NBTTagString.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/PacketBuffer.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/ServerStatusResponse.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/handshake/client/C00Handshake.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/login/server/S01PacketEncryptionRequest.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/client/C01PacketChatMessage.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/client/C14PacketTabComplete.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/client/C15PacketClientSettings.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/client/C17PacketCustomPayload.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S05PacketSpawnPosition.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S06PacketUpdateHealth.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S07PacketRespawn.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S08PacketPlayerPosLook.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S09PacketHeldItemChange.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S0APacketUseBed.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S0BPacketAnimation.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S0CPacketSpawnPlayer.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S0DPacketCollectItem.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S0EPacketSpawnObject.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S0FPacketSpawnMob.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S10PacketSpawnPainting.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S11PacketSpawnExperienceOrb.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S12PacketEntityVelocity.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S13PacketDestroyEntities.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S14PacketEntity.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S18PacketEntityTeleport.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S19PacketEntityHeadLook.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S19PacketEntityStatus.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S1BPacketEntityAttach.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S1CPacketEntityMetadata.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S1DPacketEntityEffect.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S1EPacketRemoveEntityEffect.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S1FPacketSetExperience.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S20PacketEntityProperties.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S21PacketChunkData.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S22PacketMultiBlockChange.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S23PacketBlockChange.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S24PacketBlockAction.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S25PacketBlockBreakAnim.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S26PacketMapChunkBulk.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S27PacketExplosion.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S28PacketEffect.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S29PacketSoundEffect.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S2APacketParticles.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S2BPacketChangeGameState.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S2CPacketSpawnGlobalEntity.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S2DPacketOpenWindow.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S2EPacketCloseWindow.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S2FPacketSetSlot.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S38PacketPlayerListItem.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/network/play/server/S3FPacketCustomPayload.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/pathfinding/PathNavigate.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/potion/Potion.java.json	Potion	2	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/profiler/Profiler.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/scoreboard/Score.java.json	Score	2	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/scoreboard/Score.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/scoreboard/ScoreDummyCriteria.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/scoreboard/ScoreObjective.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/scoreboard/ScorePlayerTeam.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/server/MinecraftServer.java.json	String	7	Java type or enum name in the codebase index, not translated UI text
+index/java/server/management/BanEntry.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/server/management/ItemInWorldManager.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/server/network/NetHandlerHandshakeTCP.java.json	empty	2	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/server/network/NetHandlerLoginServer.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/stats/Achievement.java.json	Achievement	3	Java type or enum name in the codebase index, not translated UI text
+index/java/stats/Achievement.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/stats/StatBase.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/stats/StatCrafting.java.json	Item	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/tileentity/MobSpawnerBaseLogic.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/tileentity/TileEntity.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/tileentity/TileEntityFlowerPot.java.json	Item	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/util/ChatComponentText.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/util/ChatComponentTranslation.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/util/DamageSource.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/util/RegistryNamespacedDefaultedByKey.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/util/ResourceLocation.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/util/Session.java.json	String	3	Java type or enum name in the codebase index, not translated UI text
+index/java/util/WeightedRandom.java.json	Item	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/village/Village.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/village/VillageCollection.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/village/VillageSiege.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/ChunkCache.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/EnumDifficulty.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/world/EnumDifficulty.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/EnumSkyBlock.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/Explosion.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/Explosion.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/GameRules.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/IBlockAccess.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/IWorldAccess.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/NextTickListEntry.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/SpawnerAnimals.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/Teleporter.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/World.java.json	World	3	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/World.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldManager.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldProvider.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldProvider.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldProviderEnd.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldProviderHell.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldProviderSurface.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldSavedData.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/world/WorldSavedData.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldServer.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldServerMulti.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldSettings.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/WorldType.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/biome/BiomeDecorator.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/biome/BiomeGenBase.java.json	Height	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/biome/BiomeGenBase.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/world/chunk/Chunk.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/gen/ChunkProviderEnd.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/gen/ChunkProviderFlat.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/gen/ChunkProviderGenerate.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/gen/ChunkProviderHell.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/gen/MapGenBase.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/gen/feature/WorldGenBigTree.java.json	World	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/gen/structure/StructureVillagePieces.java.json	Torch	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/DerivedWorldInfo.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/IPlayerFileData.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/ISaveFormat.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/ISaveHandler.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/IThreadedFileIO.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/MapStorage.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/SaveFormatComparator.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/world/storage/SaveFormatComparator.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/SaveFormatOld.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/SaveHandler.java.json	String	1	Java type or enum name in the codebase index, not translated UI text
+index/java/world/storage/SaveHandler.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/SaveHandlerMP.java.json	empty	4	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/SaveHandlerMP.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/java/world/storage/WorldInfo.java.json	String	2	Java type or enum name in the codebase index, not translated UI text
+index/java/world/storage/WorldInfo.java.json	world	1	Structured field or registry identifier in the codebase index, not translated UI text
+index/summary.json	world	2	Structured field or registry identifier in the codebase index, not translated UI text
+csrc/tests/divergences/recheck/rc-villagetick-s42.jsonl	Villager	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g1-330.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-129.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-129.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-1749.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-339.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-339.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-669.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-669.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-669.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g10-669.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g13-462.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g13-672.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g16-1305.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g16-1995.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g16-1995.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g16-1995.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g16-435.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g19-1368.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g19-1368.jsonl	Villager	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g19-138.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g19-1578.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g19-1578.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g19-438.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g19-438.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g25-1104.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g25-1104.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g25-1104.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g25-1134.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g25-1344.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g25-1344.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g25-1554.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g28-237.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g28-237.jsonl	Skeleton	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g30-15.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g30-15.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g4-753.jsonl	Skeleton	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g5-3.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g5-3.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g7-1116.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g7-1116.jsonl	Villager	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g7-336.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g7-336.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-g7-336.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-101.jsonl	Villager	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-101.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1025.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1069.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1069.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-107.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-107.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-113.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-113.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-115.jsonl	Spider	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-115.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-116.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-118.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-118.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1205.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1205.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1205.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1219.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1219.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1436.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1436.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1436.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1823.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-1823.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-202.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-202.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-206.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-206.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-206.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-206.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-208.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-208.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-208.jsonl	Villager	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-209.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-209.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-209.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-211.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-211.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-212.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-212.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-301.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-301.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-308.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-308.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-311.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-317.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-317.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-319.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-319.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-406.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-406.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-406.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-413.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-413.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-446.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-446.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-512.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-512.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-517.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/agentpins/rf-s1-718.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/fresh-2.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/fresh-4011.kit.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/fresh-9058.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g1-4009.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g10-2.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g14-7027.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g15-6007.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g16-5007.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g16-9058.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g17-10002.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g19-7017.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g21-8004.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g22-7027.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g24-7044.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g4-4000.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g5-4009.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g6-2.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g7-4011.kit.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g7-7033.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+csrc/tests/playfuzz/pins/g9-4012.kit.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ach-route-s1.jsonl	Ghast	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/arrow-reload-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/auditfixa-easy-fight-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/bed-refuse-s1.jsonl	Slime	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/bed-refuse-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/blast-scale-s1.jsonl	Creeper	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/breed-sheep-s1.jsonl	Chicken	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/breed-sheep-s1.jsonl	Sheep	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cat-sheep-full-s1.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cat-sheep-s1.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cat-wear-s1.jsonl	Zombie	6	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cat-xp-s1.jsonl	Zombie	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cauldron-slime-s1.jsonl	Slime	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-arrowabove-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-block-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-block-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-blockghast-s1.jsonl	Ghast	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-mobfire-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-mobfire-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-mobthorns-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-projprot-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-projprot-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cb-skeldead-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/chase-edge-s1.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/chase-edge-s1.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/chat-deaths-s1.jsonl	Blaze	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/chat-deaths-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/chat-deaths2-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-cov-fx-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-cov-zoo-s1.jsonl	Blaze	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-cov-zoo-s1.jsonl	Silverfish	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-cov-zoo-s1.jsonl	Slime	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-cov-zoo-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-arrows-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-burn-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-burn-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-deathmsg-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-doorbreak-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-doorcrack-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-furnace-s1.jsonl	Items	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-hudfx-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-pickcap-s1.jsonl	Items	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-preview-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-skull-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-skull-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-tradelock-s1.jsonl	Villager	10	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-watch-s1.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/clientframes-idx-wither-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cont-furnace-s1.jsonl	Items	6	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cov-blkmisc-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cov-containers-s1.jsonl	Items	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cov-creeper-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cov-mobs-s1.jsonl	Blaze	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cov-mobs-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cov-reload-s1.jsonl	Blaze	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cov-tradelist-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cov-villagerep-s42.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cpred-mobplace-s1.jsonl	Zombie	21	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/creeper-disc-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/creeper-disc-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/creeper-fall-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/creeper-fall-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/crowd-breed-s42.jsonl	Sheep	70	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/crowd-pen-s42.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/crowd-target-s42.jsonl	Silverfish	300	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/cure-reload-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dawn-rain-s1.jsonl	Skeleton	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dawn-rain-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dawn-undead-s1.jsonl	Skeleton	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dawn-undead-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/details-mobs-s1.jsonl	Creeper	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/details-mobs-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/details-mobs-s1.jsonl	Squid	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dev-child-s1.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dev-child-s1.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dev-child-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dev-spill-s1.jsonl	Items	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/diff-switch-s1.jsonl	Zombie	8	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dmg-sources-s1.jsonl	Enderman	6	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/dmg-sources-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/easy-drop-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/easy-game-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/easy-game-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/easy-game-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/edge-knock-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/edge-push-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/eggs-s1.jsonl	Chicken	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/end-exit-mob-s1.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/end-unload-kinds-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/end-unload-kinds-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/end-unload-kinds-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ender-carry-s1.jsonl	Enderman	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ender-pumpkin-s1.jsonl	Enderman	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ender-rain-s1.jsonl	Enderman	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/endportal-ents-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/endportal-ents-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ent-arrow-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ent-door-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ent-kill-s1.jsonl	Zombie	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ent-loot-s42.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ent-reinforce-s1.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ent-water-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/ent-water-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/farmfall-s1.jsonl	Villager	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/farmfall-s1.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-blaze-s42.jsonl	Blaze	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-creeper-s1.jsonl	Creeper	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-enderman-s1.jsonl	Enderman	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-ghast-s42.jsonl	Ghast	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-skeleton-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-slime-s1.jsonl	Slime	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-spider-s1.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-witch-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-witherskel-s1.jsonl	Skeleton	5	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fight-zombie-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fireball-blast-s1.jsonl	Blaze	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fireball-deflect-s42.jsonl	Ghast	7	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fireball-through-s1.jsonl	Blaze	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/fireball-through-s1.jsonl	Ghast	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/furnace-reload-s1.jsonl	Items	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/golem-fight-s42.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/hard-drop-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/hard-spawners-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/hard-spawners-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/hard-spiders-s1.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-anvil-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-armorench-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-armorench-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-blast-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-clientview-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-killcredit-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-slowness-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-slowness2-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/idx-villageref-s1.jsonl	Villager	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/input-chord-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/item-tags-s1.jsonl	Villager	102	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/item-tags-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/iu-splash-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/lightning-mobs-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/lightning-mobs-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/liq-current-s1.jsonl	Chicken	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/liq-current-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/maze-path-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/melee-mods-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/melee-mods-s1.jsonl	Spider	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/melee-mods-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/melee-mods-s1.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/mobs-reload-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/mobs-reload-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/mobs-reload-s1.jsonl	Zombie	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nether-away-s1.jsonl	Chicken	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nether-away-s1.jsonl	Items	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nether-fight-s1.jsonl	Blaze	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nether-fight-s1.jsonl	Ghast	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nether-unload-kinds-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nether-unload-kinds-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nether-unload-kinds-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nf-mobs-s42.jsonl	Ghast	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/nf-mobs-s42.jsonl	Skeleton	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/night-fight-s1.jsonl	Skeleton	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/night-fight-s1.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/peaceful-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/peaceful-s1.jsonl	Ghast	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/peaceful-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/peaceful-s1.jsonl	Slime	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/peaceful-s1.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/peaceful-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/peaceful-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/pen-gates-s1.jsonl	Sheep	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/pen-gates-s1.jsonl	Villager	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/persist-village-full-s42.jsonl	Villager	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/persist-village-s42.jsonl	Villager	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/pick-shapes-s1.jsonl	Ghast	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/pix-mobs-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/pix-mobs-s1.jsonl	Enderman	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/pix-mobs-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/poolgl-slime.jsonl	Slime	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/portal-foreign-s1.jsonl	Chicken	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/portal-foreign-s1.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/pot-witch-s1.jsonl	Witch	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/press-count-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/rc-animals-s1.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/reinforce-baby-s1.jsonl	Zombie	12	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/rs-brew-s1.jsonl	Items	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/rs-cmp-s1.jsonl	Items	9	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/rs-mach-s1.jsonl	Items	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/sheep-s1.jsonl	Sheep	4	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/siege-aggressors-s42.jsonl	Villager	32	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/siege-aggressors-s42.jsonl	Zombie	40	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/skel-crossfire-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/skel-crossfire-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/skel-crossfire-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/spider-dawn-s1.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/squid-s1.jsonl	Squid	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/sr4-bridge-s1.jsonl	Ghast	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/sr5-blaze-s1.jsonl	Blaze	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/sr6-ender-s1.jsonl	Enderman	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/stats-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/stats-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/surv2-block-armor-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/te-spawner-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/te-spawner-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/thorns-s1.jsonl	Skeleton	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/thorns-s1.jsonl	Spider	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/thorns-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/throw-blaze-s1.jsonl	Blaze	2	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/throw-bow-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/throw-items-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/tiles-reload-s1.jsonl	Items	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/tiles-reload-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/tools-break-s1.jsonl	Creeper	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/tools-break-s1.jsonl	Sheep	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/trade-full-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/trade-prof-s1.jsonl	Villager	10	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/trade-s1.jsonl	Villager	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/village-hurt-s42.jsonl	Villager	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/village-hurt-s42.jsonl	Zombie	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/village-life-s42.jsonl	Villager	10	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/village-rain-s42.jsonl	Villager	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/village-siege-s42.jsonl	Villager	16	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/villager-flee-s42.jsonl	Villager	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/villager-flee-s42.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/witch-drink-s1.jsonl	Witch	3	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/zombie-spawner-jockey-s1.jsonl	Chicken	32	Scripted entity or NBT registry identifier in a test input, not translated UI text
+oracle/tests/zombie-spawner-jockey-s1.jsonl	Zombie	1	Scripted entity or NBT registry identifier in a test input, not translated UI text

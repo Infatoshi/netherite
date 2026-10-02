@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/server/management/UserListOps.java",
+  "classes": ["UserListOps"],
+  "lines": 64,
+  "side": "server",
+  "category": "server",
+  "role": "The ops.json list: a UserList keyed by the profile's UUID, with op-level entries and case-insensitive name lookup.",
+  "scope": "not_needed",
+  "scope_reason": "Written by /op and read by the canCommandSenderUseCommand checks; commands are off in our survival worlds (DEVLOG 2026-09-25) and the file is never written in the oracle.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "UserListOps", "sig": "(File)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152682_a", "sig": "(JsonObject)UserListEntry", "native": null, "status": "n/a", "note": "builds a UserListOpsEntry"},
+    {"kind": "method", "name": "func_152685_a", "sig": "()String[]", "native": null, "status": "n/a", "note": "op names"},
+    {"kind": "method", "name": "func_152699_b", "sig": "(GameProfile)String", "native": null, "status": "n/a", "note": "the UUID string as key"},
+    {"kind": "method", "name": "func_152700_a", "sig": "(String)GameProfile", "native": null, "status": "n/a", "note": "case-insensitive name lookup"},
+    {"kind": "method", "name": "func_152681_a", "sig": "(Object)String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

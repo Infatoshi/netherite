@@ -1,0 +1,49 @@
+{
+ "path": "csrc/engine/nbtw.h",
+ "lines": 249,
+ "role": "Declares nbtw, the one writer the entity NBT writers (living.c, entity_nbt.c, fallhang.c, endfight.c, the kinds', leash.c, trades.c, itemtag.c) write through, with two outputs implemented in nbtbin.c: the nbt tree (nbtw_tree) and the binary NBT the entity digest hashes (nbtw_bin_begin, nbtw_bin_end, nbtw_bin_order, nbtw_bin_long_memo), which puts each compound's fields into the JDK 8 HashMap order only when its bytes differ from the entity's last. The scalar writes are inline (nbtw_fast).",
+ "layer": "io",
+ "java": [
+  {
+   "path": "oracle/src/nbt/NBTTagCompound.java",
+   "members": [
+    "write"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagList.java",
+   "members": [
+    "write"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "nbtw",
+   "java": "an NBTTagCompound being filled by writeToNBT, as a tree or as the bytes its write gives",
+   "fields": [
+    "bin",
+    "b",
+    "depth",
+    "nf",
+    "st"
+   ]
+  }
+ ],
+ "entry_points": [
+  "nbtw_tree",
+  "nbtw_bin_begin",
+  "nbtw_bin_end",
+  "nbtw_bin_order",
+  "nbtw_bin_long_memo",
+  "nbtw_end"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "struct nbtw: a writer on the caller's stack pointing at heap-grown buffers (nbtbin, nw_env->nbtbin.wf)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "lane/harnessspeed"
+}

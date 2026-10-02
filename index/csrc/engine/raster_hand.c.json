@@ -1,0 +1,35 @@
+{
+ "path": "csrc/engine/raster_hand.c",
+ "lines": 868,
+ "role": "The first-person hand pass: EntityRenderer.renderHand and ItemRenderer.renderItemInFirstPerson with the bare arm (ModelBiped right arm box), flat items extruded by renderItemIn2D, held blocks via block_item_model, swing, equip, eat/drink, bow pull and sword block, lit by RenderHelper's two standard item lights and drawn through the entity rasterizer over a cleared depth buffer; for recorded scenes and for the live client.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/EntityRenderer.java", "members": ["renderHand"]},
+  {"path": "oracle/src/client/renderer/ItemRenderer.java", "members": ["renderItemInFirstPerson", "renderItemIn2D", "renderItem", "itemToRender", "equippedProgress"]},
+  {"path": "oracle/src/client/renderer/entity/RenderPlayer.java", "members": ["renderFirstPersonArm"]},
+  {"path": "oracle/src/client/model/ModelBiped.java", "members": ["setRotationAngles"]},
+  {"path": "oracle/src/client/model/ModelBox.java", "members": ["render"]},
+  {"path": "oracle/src/client/renderer/RenderHelper.java", "members": ["enableStandardItemLighting"]},
+  {"path": "oracle/src/client/renderer/RenderBlocks.java", "members": ["renderBlockAsItem"]},
+  {"path": "oracle/src/client/renderer/Tessellator.java", "members": ["setNormal"]},
+  {"path": "oracle/src/world/World.java", "members": ["getSkyBlockTypeBrightness", "getLightBrightnessForSkyBlocks"]},
+  {"path": "oracle/src/client/entity/EntityPlayerSP.java", "members": ["renderArmPitch", "renderArmYaw", "prevRenderArmPitch", "prevRenderArmYaw"]},
+  {"path": "oracle/src/entity/EntityLivingBase.java", "members": ["swingProgress", "prevSwingProgress", "getSwingProgress"]}
+ ],
+ "structs": [
+  {"name": "hand_ctx", "java": null, "fields": ["in", "mv", "light", "color", "target"]}
+ ],
+ "entry_points": [
+  "raster_hand_draw",
+  "raster_hand_scene",
+  "raster_hand_item_lookup",
+  "raster_hand_read_rgba"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 356, function raster_hand_draw: malloc of a full-frame depth buffer every frame",
+  "lines 523-575: file reads (read_all, last_line, raster_hand_read_rgba) with malloc on the frame path for recorded scenes"
+ ],
+ "tests": ["csrc/tests/test_render.c"],
+ "notes": "Called from raster.c's draw_worldfx for recorded scenes (raster_hand_scene) and from play/play.c for the live client (raster_hand_draw, raster_hand_item_lookup, raster_hand_read_rgba). The modelview is built with renderstate.c's rs_gl_rotate/rs_gl_translate in vanilla GL call order. The arm uses fixed idle ModelBiped angles (first_person_arm, lines 200-221). Recordings without a hand block fall back to an idle player holding the HUD's selected stack. EntityPlayerSP and EntityLivingBase member names were matched by grep and the struct fields in raster_hand.h, not traced through the source line by line. lane/entrender: the enchant glint on pass 0 (texture matrix, GL_EQUAL, unlit), the glint leaving its colour set. lane/rlasync: raster_hand_item_lookup reads its table through itemtab.c (one converted copy a process) instead of a static jval tree parsed per view."
+}

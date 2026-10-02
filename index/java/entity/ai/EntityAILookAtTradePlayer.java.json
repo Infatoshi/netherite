@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/entity/ai/EntityAILookAtTradePlayer.java",
+  "classes": ["EntityAILookAtTradePlayer"],
+  "lines": 32,
+  "side": "server",
+  "category": "ai",
+  "role": "While a villager is trading, looks at the customer instead of running the plain watch-player search: shouldExecute just takes the customer.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_update", "ai_setup_kind"]}
+  ],
+  "evidence": ["out/java/snapshots/trade-full-s1", "out/java/villagers/vil-2", "csrc/tests/test_villagers.c"],
+  "members": [
+    {"kind": "field", "name": "theMerchant", "sig": "EntityVillager", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the villager itself (struct living); the customer is its buying_player"},
+    {"kind": "ctor", "name": "EntityAILookAtTradePlayer", "sig": "(EntityVillager)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_LOOK_AT_TRADE_PLAYER, priority 1, mutex 2, 8.0f max distance"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_LOOK_AT_TRADE_PLAYER case: isTrading (buying_player), no RNG draw, unlike the parent's"}
+  ],
+  "missing": [],
+  "notes": "Everything else is inherited from EntityAIWatchClosest and implemented by the AIC_LOOK_AT_TRADE_PLAYER cases in ai.c: continueExecuting re-checks the 8-block distance and look_time, startExecuting draws lookTime = 40 + rand(40), updateTask looks at the player at eye height 1.62 with 10/40 speeds. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/client/resources/LanguageManager.java",
+  "classes": ["LanguageManager"],
+  "lines": 110,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Owns the current language and the shared Locale: parses packs' language metadata, reloads the locale's .lang data on every resource reload (en_US plus the current language) and pushes the table into StringTranslate, which the rest of the game reads for translations.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "currentLanguage", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "currentLocale", "sig": "Locale (static)", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "languageMap", "sig": "Map", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "LanguageManager", "sig": "(IMetadataSerializer,String)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "parseLanguageMetadata", "sig": "(List)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "onResourceManagerReload", "sig": "(IResourceManager)V", "native": null, "status": "n/a", "note": "loads locale data and calls StringTranslate.replaceWith"},
+    {"kind": "method", "name": "isCurrentLocaleUnicode", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isCurrentLanguageBidirectional", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setCurrentLanguage", "sig": "(Language)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getCurrentLanguage", "sig": "()Language", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getLanguages", "sig": "()SortedSet", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "StringTranslate.replaceWith also feeds server-side translation lookups (StatCollector consumers such as villager trade names in GUIs); in agent mode the client is the only consumer and the native engine receives resolved strings in the render-state dump. Not verified beyond that: no in-scope native path needs a translation table. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Language selection and .lang reload; the game runs en_US only and native draws the en_US strings directly."
+}

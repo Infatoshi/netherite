@@ -1,0 +1,34 @@
+{
+ "path": "csrc/engine/gencache.h",
+ "lines": 43,
+ "role": "Declares the process-wide raw chunk generation cache (gencache.c): its creation, attaching it to a replay's server worlds, its counts.",
+ "layer": "tick",
+ "java": [],
+ "structs": [
+  {
+   "name": "struct gencache_stats",
+   "java": null,
+   "fields": [
+    "hits",
+    "misses",
+    "stored",
+    "owed_hits",
+    "entries",
+    "bytes",
+    "full"
+   ]
+  }
+ ],
+ "entry_points": [
+  "gencache_new",
+  "gencache_free",
+  "gencache_attach",
+  "gencache_stats"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/runtime/pool_gate.c"
+ ],
+ "notes": ""
+}

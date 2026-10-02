@@ -1,0 +1,25 @@
+{
+ "path": "csrc/engine/ticks.h",
+ "lines": 114,
+ "role": "Declares the scheduled block update API: the immediate-updates and fallInstantly flags, scheduleBlockUpdate, the liquid tick rates, the NextTickListEntry struct and the pending set's reset, load, peek, pop, walk, chunk query and save/restore.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/WorldServer.java", "members": ["scheduleBlockUpdate", "func_147454_a", "func_147446_b", "getPendingBlockUpdates"]},
+  {"path": "oracle/src/world/NextTickListEntry.java", "members": ["nextTickEntryID", "tickEntryID"]},
+  {"path": "oracle/src/world/World.java", "members": ["scheduledUpdatesAreImmediate"]},
+  {"path": "oracle/src/block/BlockFalling.java", "members": ["field_149832_M"]},
+  {"path": "oracle/src/block/BlockLiquid.java", "members": ["func_149738_a"]}
+ ],
+ "structs": [
+  {"name": "tick_entry", "java": "NextTickListEntry", "fields": ["x", "y", "z", "block", "time", "priority", "entry"]}
+ ],
+ "entry_points": ["ticks_set_immediate", "ticks_set_fall_instantly", "ticks_schedule_block_update", "ticks_liquid_tick_rate", "ticks_liquid_tick_rate_world", "ticks_reset", "ticks_load_entry", "ticks_next_entry_id", "ticks_set_next_entry_id", "ticks_set_rand", "ticks_get_rand", "ticks_set_total_time", "ticks_pending_count", "ticks_peek", "ticks_pop", "ticks_walk", "ticks_load_chunk_entry", "ticks_chunk_updates", "ticks_save", "ticks_restore", "ticks_use", "ticks_set_free", "ticks_slot_size"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "the entry id counter is one per environment shared by every world, as NextTickListEntry.nextTickEntryID is static",
+  "line 68, ticks_walk: callback over the set"
+ ],
+ "tests": ["csrc/tests/test_servertick.c", "csrc/tests/test_populate.c", "csrc/tests/test_seedworld.c", "csrc/tests/test_snapshots.c"],
+ "notes": "struct ticks_set is one world's pending set with the world values func_147454_a reads (a replay keeps one per dimension, ticks_use picks the current); struct ticks_env is the environment's part (env.h): the current set, the nextTickEntryID counter and the probe Random."
+}

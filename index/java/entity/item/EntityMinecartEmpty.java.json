@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/entity/item/EntityMinecartEmpty.java",
+  "classes": ["EntityMinecartEmpty"],
+  "lines": 48,
+  "side": "common",
+  "category": "entity",
+  "role": "The plain rideable minecart: right-click mounts the player, no cargo.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf: minecarts = off; carts cannot be placed, so the empty cart never exists on either side (SPEC: unsupported features are world switches).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "static constants", "sig": "String __OBFID", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityMinecartEmpty", "sig": "(World)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "ctor", "name": "EntityMinecartEmpty", "sig": "(World,DDD)V", "native": null, "status": "n/a", "note": "feature switched off"},
+    {"kind": "method", "name": "interactFirst", "sig": "(EntityPlayer)Z", "native": null, "status": "n/a", "note": "the mount click; feature switched off"},
+    {"kind": "method", "name": "getMinecartType", "sig": "()I", "native": null, "status": "n/a", "note": "returns 0; feature switched off"}
+  ],
+  "missing": [],
+  "notes": "No native counterpart anywhere; grep of csrc/engine for minecart finds only the mineshaft chest cart record, never an empty cart."
+}

@@ -1,0 +1,3 @@
+{"cmd":"run","class":"MobFree","radius":0,"rain":true,"rainTime":300,"thunder":true,"thunderTime":400}
+{"cmd":"run","class":"Snapshot"}
+{"n":2400,"act":{}}

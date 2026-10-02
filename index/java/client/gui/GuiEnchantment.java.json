@@ -1,0 +1,156 @@
+{
+ "path": "oracle/src/client/gui/GuiEnchantment.java",
+ "classes": [
+  "GuiEnchantment"
+ ],
+ "lines": 262,
+ "side": "client",
+ "category": "client_gui",
+ "role": "The enchanting table GUI: the enchanting sheet, the book model, the three enchant buttons and the option strings.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf: enchanting = off; the enchanting table is a plain block, so its GUI is never opened (SPEC 'Unsupported features are world switches').",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_147078_C (static)",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147070_D (static)",
+   "sig": "ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147072_E (static)",
+   "sig": "ModelBook",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147074_F",
+   "sig": "Random",
+   "native": null,
+   "status": "n/a",
+   "note": "the Det-seeded RNG for the enchant offer seeds"
+  },
+  {
+   "kind": "field",
+   "name": "field_147075_G",
+   "sig": "ContainerEnchantment",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147073_u",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147071_v",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147069_w",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147082_x",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147081_y",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147080_z",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147076_A",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147079_H",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiEnchantment",
+   "sig": "(InventoryPlayer,World,int,int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146979_b",
+   "sig": "(int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "drawGuiContainerForegroundLayer"
+  },
+  {
+   "kind": "method",
+   "name": "updateScreen",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "mouseClicked",
+   "sig": "(int,int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146976_a",
+   "sig": "(float,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "drawGuiContainerBackgroundLayer"
+  },
+  {
+   "kind": "method",
+   "name": "func_147068_g",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the book's page flip tick"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

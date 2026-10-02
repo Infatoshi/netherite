@@ -1,0 +1,14 @@
+{
+ "path": "csrc/engine/pickobj.h",
+ "lines": 147,
+ "role": "Declarations for pickobj.c: the client copy, the packet and the state.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/EntityTrackerEntry.java", "members": []}
+ ],
+ "structs": [],
+ "entry_points": ["pickobj_bind", "pickobj_server_tick"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"]
+}

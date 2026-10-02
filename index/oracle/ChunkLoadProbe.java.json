@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/ChunkLoadProbe.java",
+ "lines": 389,
+ "role": "Records every ChunkProviderServer event (load, populate enter, mark, unmark, unload) with tick, populate call nesting and caller site to DIR/events.jsonl during a real run, the reference for csrc/engine/chunkload.c; on its run command writes manifest.json and a copy of the tape.",
+ "kind": "recorder",
+ "used_by": [
+  "--chunklog DIR flag (oracle/harness/netherite/oracle/Main.java)",
+  "oracle/tests/walksmoke.jsonl, walkchunk.jsonl, walkfar.jsonl (run class ChunkLoadProbe)",
+  "csrc/tests/test_chunkload.c (out/java/chunkload/<name>)"
+ ],
+ "vanilla_hooks": [
+  "oracle/src/world/gen/ChunkProviderServer.java"
+ ]
+}

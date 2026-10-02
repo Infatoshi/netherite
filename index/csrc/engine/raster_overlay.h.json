@@ -1,0 +1,17 @@
+{
+ "path": "csrc/engine/raster_overlay.h",
+ "lines": 22,
+ "role": "Declares raster_overlay_in, the frame buffers, camera matrices, block atlas, mesher and selection/damage inputs for the selection outline and crack overlay, and raster_overlay_draw.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/RenderGlobal.java", "members": ["drawSelectionBox", "drawBlockDamageTexture"]}
+ ],
+ "structs": [
+  {"name": "raster_overlay_in", "java": "RenderGlobal's inputs: the MovingObjectPosition target's box (selected, sx/sy/sz, box) and the damagedBlocks entry (stage, dx/dy/dz)", "fields": ["w", "h", "proj", "mv", "depth", "cam", "rgb", "texture", "mesher", "atlas", "selected", "sx", "sy", "sz", "box", "stage", "dx", "dy", "dz"]}
+ ],
+ "entry_points": ["raster_overlay_draw"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/raster.c", "csrc/tests/test_render.c"],
+ "notes": "Header only; the implementation is raster_overlay.c."
+}

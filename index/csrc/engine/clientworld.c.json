@@ -1,0 +1,175 @@
+{
+  "path": "csrc/engine/clientworld.c",
+  "lines": 1255,
+  "role": "Client world mirror for the client tick: applies tracker packets (S0D..S28) to a flat client entity table, interpolates living entities over new_pos_rotation_increments and optionally simulates their client-side motion, and reproduces WorldClient's per-tick RNG consumption (setActivePlayerChunksAndCheckLight, doVoidFogParticles with block randomDisplayTick draws, torch flicker, player dig, sprint and splash particles).",
+  "layer": "client",
+  "java": [
+    {
+      "path": "oracle/src/client/multiplayer/WorldClient.java",
+      "members": [
+        "tick",
+        "doVoidFogParticles",
+        "addEntityToWorld",
+        "removeEntityFromWorld",
+        "getEntityByID"
+      ]
+    },
+    {
+      "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+      "members": [
+        "handleSpawnMob",
+        "handleSpawnObject",
+        "handleCollectItem",
+        "handleEntityMovement",
+        "handleEntityTeleport",
+        "handleEntityVelocity",
+        "handleEntityHeadLook",
+        "handleDestroyEntities",
+        "handleBlockChange",
+        "handleMultiBlockChange",
+        "handleMapChunkBulk",
+        "handleChunkData",
+        "handleEffect"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "setPositionAndRotation2",
+        "onLivingUpdate",
+        "moveEntityWithHeading"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "onEntityUpdate",
+        "handleWaterMovement",
+        "moveEntity"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "setActivePlayerChunksAndCheckLight"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "updateTorchFlicker"
+      ]
+    },
+    {
+      "path": "oracle/src/client/particle/EffectRenderer.java",
+      "members": [
+        "addBlockHitEffects",
+        "addEffect"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockTorch.java",
+      "members": [
+        "randomDisplayTick"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockFire.java",
+      "members": [
+        "randomDisplayTick"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockLiquid.java",
+      "members": [
+        "randomDisplayTick"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockLeaves.java",
+      "members": [
+        "randomDisplayTick"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockFurnace.java",
+      "members": [
+        "randomDisplayTick"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockPortal.java",
+      "members": [
+        "randomDisplayTick"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockRedstoneTorch.java",
+      "members": [
+        "randomDisplayTick"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntitySlime.java",
+      "members": [
+        "onUpdate",
+        "alterSquishAmount"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityMagmaCube.java",
+      "members": [
+        "alterSquishAmount"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "client_entity",
+      "java": "client Entity (see clientworld.h)",
+      "fields": [
+        "id",
+        "cls",
+        "x",
+        "y",
+        "z",
+        "new_pos_rotation_increments"
+      ]
+    },
+    {
+      "name": "clientworld",
+      "java": "WorldClient",
+      "fields": [
+        "rand",
+        "update_lcg",
+        "ents",
+        "loaded_cx",
+        "loaded_cz"
+      ]
+    }
+  ],
+  "entry_points": [
+    "clientworld_init",
+    "clientworld_handle_packet",
+    "clientworld_get_entity",
+    "clientworld_add_entity",
+    "clientworld_tick_entities",
+    "clientworld_tick",
+    "clientworld_cw",
+    "clientworld_random_display_tick",
+    "clientworld_tick_input",
+    "clientworld_stamp_at_least"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "lines 73-83, function clientworld_get_entity: linear id search per packet",
+    "lines 119-127 and 329-343, function clientworld_handle_packet: entity removal shifts the array (order-preserving memmove-style loop), entity order is the insertion order",
+    "line 97, function clientworld_add_entity: class name stored as a string (snprintf), and class_is (line 463) switches on BLOCKS class_name via strcmp",
+    "lines 17 and 400, fmod in mh_wrap_angle_to_180 (libm, a GPU port must match it bit for bit)",
+    "line 425, function clientworld_tick_entities: builds a temporary struct entity and runs entity_move_ex per living client entity"
+  ],
+  "tests": [
+    "csrc/tests/test_clientworld.c"
+  ],
+  "notes": "No heap allocation; state lives in fixed arrays. The particle draws are counted (spawn_particle_draws) rather than simulated: only the RNG streams are kept in step. randomDisplayTick covers torch, fire, water, lava, leaves (clear weather), lit furnace, portal and redstone torch; other blocks with a randomDisplayTick are not dispatched here (not verified which ones matter). Java member names for NetHandlerPlayClient handlers were not checked one by one. lane/pick: each living copy carries its Chunk.entityLists membership (chunk_x/y/z, chunk_seq), set at the S0F and after its tick, for the pick's list order; the S0E objects carry it too. The large fireball's client tick takes inWater (with the flow push) from onEntityUpdate before the move, damps by the float 0.95F/0.8F, dies below y -64, and its acceleration divides by MathHelper.sqrt_double's float. clientworld_tick_input is runTick up to updateRenderer: the dials' draws off the surface (texanim_dials_tick), the dig particles, then updateTorchFlicker's value (renderstate_torch_flicker) into cw->flicker. clientworld_stamp_at_least keeps the chunk-list stamps past a restored client world's. lane/chainfuzz: a living copy's moveEntity keeps Entity.distanceWalkedModified, distanceWalkedOnStepModified and nextStepDistance across ticks (canTriggerWalking false for the squid, bat and silverfish), so a step on the redstone ore runs its func_150185_e on the client world (client_walking_block: the sparkle's 18 WorldClient.rand floats, the unlit ore's local light-up; pfc-orewalk-g12). lane/covframes: client_update_entity runs EntitySlime.onUpdate's squish on a slime or magma cube copy (squish_factor eases toward squish_amount before the update; a landing sets -0.5, a take-off 1.0, then 0.6 or the magma cube's 0.9): RenderSlime and ModelMagmaCube draw the copy's, not the server's (cov-zoo-s1 56 435 px, 2,300 before). A snapshot start begins the copy at 0. lane/covclient: a fireball copy starts at rest (handleSpawnObject zeroes the packet's data, NetHandlerPlayClient.java:345, 350: no setVelocity) with lastTickPos at its spawn, and an S18 places a non-living copy 1/64 above the packet's position (handleEntityTeleport), with no 1.8-style tolerance; cov-zoo-s1's fireball frames 93, 100, 104 went from 46,986, 1,232, 3,975 px to 2,966, 153, 184 at pt 1.0."
+}

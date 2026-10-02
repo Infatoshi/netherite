@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/util/IProgressUpdate.java",
+  "classes": ["IProgressUpdate"],
+  "lines": 27,
+  "side": "client",
+  "category": "client_gui",
+  "role": "Interface of the loading-screen progress bar (GuiScreenWorking, LoadingScreenRenderer) used while chunks, worlds and saves load.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Progress bars are client-only presentation the GPU/RL path does not need; chunk IO is synchronous and instant natively (SPEC determinism section).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "displayProgressMessage", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resetProgressAndMessage", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resetProgresAndWorkingMessage", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setLoadingProgress", "sig": "(int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146586_a", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not ported."
+}

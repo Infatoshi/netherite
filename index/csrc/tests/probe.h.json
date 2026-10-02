@@ -1,0 +1,63 @@
+{
+ "path": "csrc/tests/probe.h",
+ "lines": 413,
+ "role": "Shared header for the world-core probe gates: manifest int/string readers, LE readers, the chunk byte layout the oracle hashes (ids, metas, sky and block light, heightMap, precipitationHeightMap, heightMapMinimum, section mask), the 3x3 FNV-1a chunk hash, the loaded-chunk list, the per-chunk and whole-region (final.bin.gz) comparisons, and sampled hashing with --hash-all rerun. --cases N takes the first N cases only, without the end-of-run compares (probe_limit; make smoke).",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "heightMap",
+    "precipitationHeightMap",
+    "heightMapMinimum",
+    "updateSkylightColumns",
+    "isGapLightingUpdated"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/Probe.java",
+   "members": [
+    "chunk hash",
+    "loaded list",
+    "final.bin.gz"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "probe_args",
+  "probe_limit",
+  "probe_hash_due",
+  "probe_localize",
+  "manifest_int",
+  "manifest_str",
+  "chunk_bytes",
+  "hash_around",
+  "probe_loaded",
+  "cmp_chunk",
+  "cmp_final",
+  "probe_read_file",
+  "le32",
+  "le64",
+  "put_le32"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_activate.c",
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_fallhang.c",
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_itemuse.c",
+  "csrc/tests/test_paths.c",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_probe.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_ticks.c",
+  "csrc/tests/test_tileticks.c"
+ ],
+ "notes": "PROBE_HASH_EVERY=64: the 3x3 hash is checked every 64th case and on the last; probe_localize execl()s the test again with --hash-all after a failure. static int probe_hash_never is declared twice (lines 37 and 51, a legal tentative definition). hash_around loads missing rim chunks through world_chunk, so the native chunk load order must match the probe's. Test code, built only into out/native/test_*; not on the product or GPU path, so no GPU hazards are listed."
+}

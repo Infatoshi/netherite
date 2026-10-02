@@ -1,0 +1,152 @@
+{
+ "path": "csrc/engine/container.h",
+ "lines": 226,
+ "role": "Declares the inventory click engine: Container, Slot, the player, workbench, furnace, chest and merchant containers and their inventories, with fixed-capacity slot and drop arrays. The container carries the S2D title (GuiMerchant's name).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/inventory/Container.java",
+   "members": [
+    "slotClick",
+    "mergeItemStack",
+    "transferStackInSlot",
+    "onContainerClosed",
+    "field_94536_g",
+    "field_94535_f",
+    "field_94537_h"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/Slot.java",
+   "members": [
+    "isItemValid",
+    "getSlotStackLimit",
+    "putStack",
+    "decrStackSize",
+    "onPickupFromSlot"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/SlotCrafting.java",
+   "members": [
+    "onPickupFromSlot",
+    "amountCrafted",
+    "onCrafting"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/SlotFurnace.java",
+   "members": [
+    "onPickupFromSlot",
+    "field_75228_b",
+    "onCrafting"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/SlotMerchantResult.java",
+   "members": [
+    "onPickupFromSlot",
+    "field_75231_g"
+   ]
+  },
+  {
+   "path": "oracle/src/inventory/InventoryMerchant.java",
+   "members": [
+    "resetRecipeAndSlots",
+    "setCurrentRecipeIndex",
+    "currentRecipeIndex",
+    "currentRecipe"
+   ]
+  },
+  {
+   "path": "oracle/src/network/play/server/S2DPacketOpenWindow.java",
+   "members": [
+    "func_148902_e"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "inv",
+   "java": "IInventory (InventoryPlayer, chest, TileEntityFurnace slots, InventoryCrafting, InventoryCraftResult, InventoryMerchant)",
+   "fields": [
+    "kind",
+    "size",
+    "limit",
+    "slot",
+    "owner"
+   ]
+  },
+  {
+   "name": "slot",
+   "java": "inventory.Slot and subclasses",
+   "fields": [
+    "inv",
+    "index",
+    "number",
+    "kind",
+    "armor_type"
+   ]
+  },
+  {
+   "name": "container",
+   "java": "inventory.Container and its ContainerPlayer/Workbench/Furnace/Chest/Merchant subclasses",
+   "fields": [
+    "kind",
+    "nslots",
+    "window_id",
+    "slots",
+    "player",
+    "chest",
+    "furnace",
+    "grid",
+    "result",
+    "merchant",
+    "chest_size",
+    "grid_side",
+    "creative",
+    "current_recipe_index",
+    "current_recipe",
+    "merchant_use",
+    "merchant_sound",
+    "recipes",
+    "client_recipes",
+    "drag_state",
+    "drag_button",
+    "drag_slot",
+    "drag_count",
+    "amount_crafted",
+    "furnace_used",
+    "merchant_used",
+    "furnace_xp",
+    "crafted",
+    "cursor",
+    "drops",
+    "ndrops"
+   ]
+  }
+ ],
+ "entry_points": ["container_stack_fits", "container_slot_accepts", "container_slot_collectable", "container_slot_limit", 
+  "container_init",
+  "container_free",
+  "container_set_player",
+  "container_set_chest",
+  "container_set_furnace",
+  "container_set_merchant",
+  "container_set_grid",
+  "container_set_cursor",
+  "container_slot",
+  "container_slot_click",
+  "container_close",
+  "container_merchant_reset",
+  "container_merchant_set_recipe_index"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_containers.c",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_hudscreens.c"
+ ],
+ "notes": "CONTAINER_MAX_SLOTS 90, INV_MAX_SLOTS 54, CONTAINER_MAX_DROPS 16. Stacks carry an owned nbt tag pointer (struct craft_stack.tag)."
+}

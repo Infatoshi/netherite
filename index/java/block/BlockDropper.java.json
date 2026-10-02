@@ -1,0 +1,116 @@
+{
+  "path": "oracle/src/block/BlockDropper.java",
+  "classes": [
+    "BlockDropper"
+  ],
+  "lines": 93,
+  "side": "common",
+  "category": "block",
+  "role": "The dropper: a BlockDispenser subclass whose dispense pushes one item into the facing inventory or ejects it with the default behaviour; dead under world.conf redstone = off.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: droppers are craftable; placing one creates its TileEntityDropper (createNewTileEntity ran in containers2-s42), and it inherits the dispenser's window, facing and spill. Only the drop-on-power path is switched off by redstone = off.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "te_kind_of_block",
+        "TE_DISPENSER"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "bwl_on_added",
+        "dispenser_facing"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "client_block_activated"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "place_dispenser_seeder"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "out/java/snapshots/container-break-s1",
+    "out/java/snapshots/containers2-s42",
+    "out/java/snapshots/rs-mach-s1",
+    "out/java/snapshots/rs-cmp-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_149947_P",
+      "sig": "IBehaviorDispenseItem",
+      "native": null,
+      "status": "n/a",
+      "note": "Switched off by redstone = off: the drop runs only from BlockDispenser.updateTick, which only a powered onNeighborBlockChange schedules, and World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)."
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockDropper",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 158, the dispenser's block behaviour inherited"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture registration"
+    },
+    {
+      "kind": "method",
+      "name": "func_149940_a",
+      "sig": "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/dispenser/IBehaviorDispenseItem;",
+      "native": null,
+      "status": "n/a",
+      "note": "Switched off by redstone = off: the drop runs only from BlockDispenser.updateTick, which only a powered onNeighborBlockChange schedules, and World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)."
+    },
+    {
+      "kind": "method",
+      "name": "createNewTileEntity",
+      "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;",
+      "native": "csrc/engine/tileentity.c:te_kind_of_block",
+      "status": "exact",
+      "note": "case 158 returns TE_DISPENSER (the NBT id from the block)"
+    },
+    {
+      "kind": "method",
+      "name": "func_149941_e",
+      "sig": "(World,III)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Switched off by redstone = off: the drop runs only from BlockDispenser.updateTick, which only a powered onNeighborBlockChange schedules, and World.isBlockIndirectlyGettingPowered answers 0 with world.conf redstone = off (World.getIndirectPowerLevelTo, World.java:3585)."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockAdded/onNeighborBlockChange (inherited)",
+      "sig": "(World,III[B)V",
+      "native": "csrc/engine/blockcb.c:dispenser_facing",
+      "status": "exact",
+      "note": "case 158 shares the dispenser's facing metadata write"
+    }
+  ],
+  "missing": [],
+  "notes": "The tile entity and the placement metadata are verified by the tileticks census; world.c keeps the dropper's per-instance Random seeder so a placed dropper still consumes the constructor's draws. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact. rs-mach-s1 places droppers by hand (facing from BlockPistonBase.func_150071_a); rs-cmp-s1 reads one with a comparator."
+}

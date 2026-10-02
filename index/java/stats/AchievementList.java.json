@@ -1,0 +1,108 @@
+{
+  "path": "oracle/src/stats/AchievementList.java",
+  "classes": [
+    "AchievementList"
+  ],
+  "lines": 117,
+  "side": "common",
+  "category": "stats",
+  "role": "The static registry of all 33 vanilla achievements, each with its parent, grid position and icon, plus the GUI bounds and the achievementList.",
+  "scope": "in_scope",
+  "scope_reason": "The parent chain decides which awards count and the list drives the login S37 (StatisticsFile.func_150884_b).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "ACH_OPEN_INVENTORY",
+        "ACH_EXPLORE_ALL_BIOMES",
+        "ACH_COUNT",
+        "ACH_PARENT"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "ach_parent",
+        "ach_item",
+        "surv_ach_name",
+        "surv_stats_login"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/achieve-s1",
+    "out/java/render/toast",
+    "out/java/snapshots/stats-s1",
+    "out/java/snapshots/stats-s1-pre",
+    "out/java/snapshots/idx-flypig-s1",
+    "out/java/snapshots/ride-stats-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "minDisplayColumn/minDisplayRow/maxDisplayColumn/maxDisplayRow",
+      "sig": "static int",
+      "native": null,
+      "status": "n/a",
+      "note": "GuiAchievements bounds only"
+    },
+    {
+      "kind": "field",
+      "name": "achievementList",
+      "sig": "static List",
+      "native": "csrc/engine/survival.h:ACH_COUNT",
+      "status": "exact",
+      "note": "all 33"
+    },
+    {
+      "kind": "field",
+      "name": "openInventory..bookcase, field_150962_H..field_150961_L",
+      "sig": "static Achievement (33)",
+      "native": "csrc/engine/survival.c:ach_parent",
+      "status": "exact",
+      "note": "parents, names, descriptions and icons for all 33"
+    },
+    {
+      "kind": "field",
+      "name": "onARail",
+      "sig": "static Achievement",
+      "native": "csrc/engine/survival.h:ACH_ON_A_RAIL",
+      "status": "exact",
+      "note": "in the enum; its award needs minecarts, which world.conf switches off"
+    },
+    {
+      "kind": "field",
+      "name": "flyPig",
+      "sig": "static Achievement",
+      "native": "csrc/engine/riding.c:ride_pig_fly",
+      "status": "exact",
+      "note": "EntityPig.fall with a player rider past 5 blocks (riding.c:ride_pig_fly, lane/ride); idx-flypig-s1 starts from the stats-s1 checkpoint (killCow, its parent, unlocked), saddles a pig, mounts it and drops it ten blocks: the award and pigOneCm match the oracle's stats dump."
+    },
+    {
+      "kind": "field",
+      "name": "snipeSkeleton",
+      "sig": "static Achievement",
+      "native": "csrc/engine/survival.c:surv_skeleton_shot",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "init",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "static-initializer trigger; the native tables are const"
+    },
+    {
+      "kind": "ctor",
+      "name": "AchievementList",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: a static-only class; nothing in oracle/src constructs it (no new AchievementList())"
+    }
+  ],
+  "missing": [],
+  "notes": "Because native ids skip three achievements, a native ach index differs from the Java achievementList index after cookFish; the S37 ids are native-internal. lane/idxblocks: the riding lane had ported the award site; idx-flypig-s1 pins it."
+}

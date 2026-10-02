@@ -1,0 +1,126 @@
+{
+ "path": "oracle/src/network/play/server/S0DPacketCollectItem.java",
+ "classes": [
+  "S0DPacketCollectItem"
+ ],
+ "lines": 60,
+ "side": "server",
+ "category": "network",
+ "role": "Tells the client an item entity was collected by a living entity; the client removes the item and plays the pickup pop.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "collide_with_player_pool"
+   ]
+  },
+  {
+   "file": "csrc/play/play.c",
+   "symbols": [
+    "drops_after_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_clientworld.c",
+  "out/java/clientworld/smoke-s1",
+  "out/java/render-src/ent_pickup",
+  "out/java/snapshots/idx-pickup-s1",
+  "out/java/clientframes/cr-pickup-s1",
+  "out/java/clientframes/cr-pickup-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149357_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "the collected entity's id (s0d_ids)",
+   "native": "csrc/engine/survival.c:collide_with_player_pool"
+  },
+  {
+   "kind": "field",
+   "name": "field_149356_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "the collector: the one player",
+   "native": "csrc/play/play.c:drops_after_tick"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int)V",
+   "status": "exact",
+   "note": "onItemPickup for items, orbs and arrows",
+   "native": "csrc/engine/survival.c:collide_with_player_pool"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/play/play.c:drops_after_tick",
+   "note": "the pickup effect from the copy, the copy removed; clientworld.c's TRACKER_PKT_S0D case for the probe replay"
+  },
+  {
+   "kind": "method",
+   "name": "func_149354_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149353_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "EntityPlayerMP.onItemPickup sends an S0D (the collected entity, the collector) to every watcher of the collected item, orb or arrow whenever addItemStackToInventory took any of it: a partial take too, whose item stays on the server. Natively collide_with_player_pool records each onItemPickup of the network tick (server_player s0d_ids); the live client's handleCollectItem (play.c drops_after_tick) starts the EntityPickupFX from its copy and takes the copy out of the world at the next client tick. An orb spawned and taken in one row flies from its copy at the S11's raw (undivided) fields. The ClientWorldProbe replay (test_clientworld.c) covers the client half against recorded packets. idx-pickup-s1 (a partial take of a dirt stack, a dev orb) holds the client's items and pickup effects to the oracle client's at every frame."
+}

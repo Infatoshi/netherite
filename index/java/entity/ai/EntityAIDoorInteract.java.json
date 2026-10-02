@@ -1,0 +1,40 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIDoorInteract.java",
+ "classes": ["EntityAIDoorInteract"],
+ "lines": 118,
+ "side": "server",
+ "category": "ai",
+ "role": "Abstract door goal: find the wooden door the current path runs through (or at the entity's head), remember its block position and the direction to walk through it.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_tasks_update"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/fight-zombie-s1",
+  "out/java/snapshots/persist-village-full-s42",
+  "csrc/tests/test_villagers.c",
+  "out/java/snapshots/ent-door-s1"
+ ],
+ "members": [
+  {"kind": "field", "name": "theEntity", "sig": "EntityLiving", "native": null, "status": "n/a"},
+  {"kind": "field", "name": "entityPosX", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.door_x"},
+  {"kind": "field", "name": "entityPosY", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.door_y"},
+  {"kind": "field", "name": "entityPosZ", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.door_z"},
+  {"kind": "field", "name": "field_151504_e", "sig": "BlockDoor", "native": null, "status": "n/a", "note": "the door block id check is inline"},
+  {"kind": "field", "name": "hasStoppedDoorInteraction", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "has_stopped_door_interaction"},
+  {"kind": "field", "name": "entityPositionX", "sig": "float", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "door_pos_x"},
+  {"kind": "field", "name": "entityPositionZ", "sig": "float", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "door_pos_z"},
+  {"kind": "ctor", "name": "EntityAIDoorInteract", "sig": "(EntityLiving)V", "native": null, "status": "n/a", "note": "abstract"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the collided-horizontally gate, the path points up to getCurrentPathIndex() + 2 with the 2.25 squared horizontal distance at the point's y + 1, then the feet cell; checked line by line and pinned by ent-door-s1 (a door-breaking zombie on HARD)"},
+  {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "!hasStoppedDoorInteraction"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the direction vector to the door centre; ent-door-s1"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the dot-product stop (AIC_OPEN_DOOR's copy); EntityAIBreakDoor's own updateTask (the knock roll, the 240-tick break on HARD) is ai.c's AIC_BREAK_DOOR; ent-door-s1"},
+  {"kind": "method", "name": "func_151503_a", "sig": "(III)BlockDoor", "native": null, "status": "n/a", "note": "the wooden-door id check is inline"}
+ ],
+ "missing": [
+
+ ],
+ "notes": "The visited-door list in ai_task (visited_doors) belongs to EntityAIMoveIndoors' own bookkeeping, not this class. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port (the B3 door recording exercises it). It stays partial until a recording pins it. lane/idxentity: ent-door-s1 records a zombie with breakdoors on HARD pathing to the player through a wooden door: the door interaction starts at the path point, knocks for 240 ticks and breaks the door (the break at 240 on HARD was missing natively: ai.c AIC_BREAK_DOOR now calls world_set_block). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

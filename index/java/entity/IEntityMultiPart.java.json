@@ -1,0 +1,26 @@
+{
+ "path": "oracle/src/entity/IEntityMultiPart.java",
+ "classes": ["IEntityMultiPart"],
+ "lines": 12,
+ "side": "server",
+ "category": "entity",
+ "role": "Interface for multi-part boss entities: the world the parts live in and the damage route that routes a hit on an EntityDragonPart into the parent's attackEntityFromPart.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/dragon.c", "symbols": ["dragon_attack_part", "update_parts", "set_part"]},
+  {"file": "csrc/engine/dragon.h", "symbols": ["dragon_part_state", "dragon_attack_part"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/end-dragon-s1",
+  "out/java/snapshots/end-crystals-s1",
+  "csrc/tests/test_dragon.c"
+ ],
+ "members": [
+  {"kind": "method", "name": "func_82194_d", "sig": "()World", "native": null, "status": "n/a", "note": "the dragon state holds its struct world pointer directly"},
+  {"kind": "method", "name": "attackEntityFromPart", "sig": "(EntityDragonPartDamageSourceF)Z", "native": "csrc/engine/dragon.c:dragon_attack_part", "status": "exact", "note": "the part != 0 quarter damage and the head's direct route"}
+ ],
+ "missing": [],
+ "notes": "Only the dragon implements this interface in 1.7.10. The part positions are recomputed each tick in dragon.c's update_parts; the dev summon path reaches the same entry (dev.c cites EntityDragon.attackEntityFromPart). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): interface, marker or abstract base; its behavior lives in the subclasses' ports. Formerly listed as missing: func_82194_d has no method-shaped counterpart; the dragon_state carries its world pointer and the part structs live in dragon_state.part[7]."
+}

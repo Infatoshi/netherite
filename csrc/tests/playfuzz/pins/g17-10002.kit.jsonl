@@ -1,0 +1,16 @@
+{"tick":2,"class":"Dev","cmd":{"op":"tp","x":-3859.5,"y":43.0,"z":-1613.5}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":6,"item":420,"count":4}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":1,"item":379,"count":4}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":2,"item":333,"count":1}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":9,"item":388,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":10,"item":296,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":11,"item":339,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":12,"item":263,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":13,"item":367,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":14,"item":287,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":15,"item":365,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":16,"item":266,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":17,"item":265,"count":64}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-3859,"y0":43,"z0":-1615,"x1":-3857,"y1":45,"z1":-1613,"id":0,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-3859,"y0":42,"z0":-1615,"x1":-3857,"y1":42,"z1":-1613,"id":1,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"summon","name":"Villager","x":-3857.5,"y":43.0,"z":-1613.5}}

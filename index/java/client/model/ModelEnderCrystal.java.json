@@ -1,0 +1,64 @@
+{
+ "path": "oracle/src/client/model/ModelEnderCrystal.java",
+ "classes": [
+  "ModelEnderCrystal"
+ ],
+ "lines": 60,
+ "side": "client",
+ "category": "client_model",
+ "role": "The end crystal's model: the outer glass cube, the inner cube and the optional base, spun by the renderer.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "crystal_draw"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2b_crystal_f006",
+  "out/java/render/mobs2b_crystal_f046",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "cube",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:crystal_draw",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "glass",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:crystal_draw",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "base",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:crystal_draw",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelEnderCrystal",
+   "sig": "(float,boolean)V",
+   "native": "csrc/engine/raster_mobs.c:crystal_draw",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:crystal_draw",
+   "status": "exact",
+   "note": "the rotation and hover inputs ride in mob_render_input.crystal_rot"
+  }
+ ],
+ "missing": []
+}

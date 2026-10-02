@@ -1,0 +1,24 @@
+{
+  "path": "csrc/engine/renderstate_row.c",
+  "lines": 198,
+  "role": "A RenderStateProbe frame row as renderstate_compute's inputs (renderstate_in_from_row), bit for bit; shared by test_renderstate and test_rendertick's client-state camera check.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "renderWorld"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "renderstate_in_from_row"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_renderstate.c",
+    "csrc/tests/test_rendertick.c"
+  ]
+}

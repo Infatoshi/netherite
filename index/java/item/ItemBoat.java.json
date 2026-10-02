@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/item/ItemBoat.java",
+  "classes": ["ItemBoat"],
+  "lines": 117,
+  "side": "server",
+  "category": "item",
+  "role": "Places a boat entity on the look ray's hit block (snow layer stepped down), yaw-rotated, refused when the boat's box would collide.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf boats = off: 'boats cannot be placed'. ItemBoat.onItemRightClick begins with the WorldConf.boats hook and returns the stack, in the oracle as well.",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/iu-off-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemBoat", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "n/a", "note": "row 333 exists in the generated registry, max stack 1"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": null, "status": "n/a", "note": "the WorldConf.boats hook short-circuits it before the ray; boats are never placed in this game"}
+  ],
+  "missing": [],
+  "notes": "EntityBoat itself is likewise switched off; the ray and collision checks were not ported because the hook refuses first. lane/itemuse: iu-off-s1 uses it with world.conf's switch off (used on the ground and in the air: nothing happens)."
+}

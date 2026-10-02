@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/util/Tuple.java",
+  "classes": ["Tuple"],
+  "lines": 33,
+  "side": "common",
+  "category": "util",
+  "role": "A pair of Objects. Its only in-game use is EntityVillager's static price tables, where each row holds the min and max count of a trade.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/trades.h", "symbols": ["trades_price_row"]}
+  ],
+  "evidence": ["csrc/tests/test_trades.c", "out/java/snapshots/trade-full-s1"],
+  "members": [
+    {"kind": "field", "name": "first", "sig": "Object", "native": "csrc/engine/trades.h:trades_price_row", "status": "partial", "note": "villagersSellingList's Tuple(min, max) rows are trades_price_row's min/max fields"},
+    {"kind": "field", "name": "second", "sig": "Object", "native": "csrc/engine/trades.h:trades_price_row", "status": "partial"},
+    {"kind": "ctor", "name": "Tuple", "sig": "(Object,Object)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getFirst", "sig": "()Object", "native": null, "status": "n/a", "note": "the row's fields are read directly"},
+    {"kind": "method", "name": "getSecond", "sig": "()Object", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Tuple is also referenced by EntityVillager only for those two tables; nothing else in oracle/src uses it. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: No Tuple type: the two villager price tables it fed are trades.c's VILLAGER_STOCK and BLACKSMITH_STOCK row arrays. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records trade-full-s1, whose native replay starts before the behaviour."
+}

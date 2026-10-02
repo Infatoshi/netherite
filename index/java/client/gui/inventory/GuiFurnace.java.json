@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiFurnace.java",
+  "classes": ["GuiFurnace"],
+  "lines": 45,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The furnace's container screen: title, background, the 13-pixel flame and the 24-pixel cook progress arrows read from TileEntityFurnace.func_145955_e/func_145953_d.",
+  "scope": "in_scope",
+  "scope_reason": "Smelting is vanilla and in scope; the furnace screen is pixel-gated (out/java/render/gui_furnace).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_slot_xy", "gui_screen_layout"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["raster_gui_live"]}
+  ],
+  "evidence": [
+    "out/java/render/gui_furnace",
+    "csrc/tests/test_containers.c",
+    "out/java/render/gui_furnace_lit"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_147087_u", "sig": "static ResourceLocation", "native": null, "status": "n/a", "note": "static texture constant"},
+    {"kind": "field", "name": "field_147086_v", "sig": "TileEntityFurnace", "native": null, "status": "n/a", "note": "the furnace tile entity is ported in csrc/engine/tileentity.c; this field is just the screen's handle"},
+    {"kind": "ctor", "name": "GuiFurnace", "sig": "(InventoryPlayer,TileEntityFurnace)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "\"Furnace\" centered at x 88 and \"Inventory\" at (8, height-94), raster_hud.c:1570-1575"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "partial", "note": "the flame and progress arrows are drawn (raster_hud.c:1594-1599), but the native flame height is burn*12/burn_total where Java scales func_145955_e(13), a possible one-pixel difference at a full flame I did not verify against a recording"}
+  ],
+  "missing": [],
+  "notes": "Slot positions are gui_screen_slot_xy's CONTAINER_FURNACE branch (input 56,17, fuel 56,53, output 116,35), matching ContainerFurnace. The flame is func_145955_e(13) (a zero total read as 200) and the arrow func_145953_d(24), both only while burning (gui_furnace_lit, burn 1500 of 1600, cook 120; drawn at 12 the frame fails). The live client draws from its own S31-written progress (container.furnace_progress)."
+}

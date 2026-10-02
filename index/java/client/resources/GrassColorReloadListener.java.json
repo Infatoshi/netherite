@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/resources/GrassColorReloadListener.java",
+  "classes": ["GrassColorReloadListener"],
+  "lines": 24,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Resource-reload listener that reads textures/colormap/grass.png into ColorizerGrass's buffer, the 256x256 biome grass colour map that grass blocks, tall grass and leaves-tinted foliage sample.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/render_blocks.c", "symbols": ["colormap_lookup", "rb_table_load"]}],
+  "evidence": ["out/java/render/forest", "csrc/tests/test_meshes.c"],
+  "members": [
+    {"kind": "field", "name": "field_130078_a", "sig": "ResourceLocation (static)", "native": null, "status": "partial", "note": "grass.png; the same 65536-int buffer reaches native as the table.bin grass_map dumped by oracle/harness/netherite/oracle/RenderTable.java"},
+    {"kind": "method", "name": "onResourceManagerReload", "sig": "(IResourceManager)V", "native": "csrc/engine/render_blocks.c:colormap_lookup", "status": "partial", "note": "the downstream ColorizerGrass.getGrassColor sample is ported as colormap_lookup over tab->grass_map; the reload/listen path itself is not"}
+  ],
+  "missing": [],
+  "notes": "Biome-level grass overrides (the swamp/mushroom constant colours and the 3x3 smoothed biome average) are handled in the mesher's colour kinds (csrc/engine/render_blocks.h grass_kind/grass_const), which is the other half of what this listener feeds. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): resource-pack reload is not part of the game; the colour table is data. Formerly listed as missing: The resource-pack reload mechanism (listening on reload, reading the PNG through the resource manager): native consumes the buffer as fixed table.bin data instead of loading the PNG."
+}

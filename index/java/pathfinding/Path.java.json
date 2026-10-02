@@ -1,0 +1,111 @@
+{
+ "path": "oracle/src/pathfinding/Path.java",
+ "classes": [
+  "Path"
+ ],
+ "lines": 176,
+ "side": "server",
+ "category": "pathfinding",
+ "role": "The A* open set: a binary min heap of PathPoints keyed on distanceToTarget, with the grow, the dequeue and the changeDistance re-sort.",
+ "scope": "in_scope",
+ "scope_reason": "Mob pathfinding is vanilla behavior the mob AI depends on.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/pathfind.c",
+   "symbols": [
+    "heap_add",
+    "heap_dequeue",
+    "heap_change_distance",
+    "heap_sort_back",
+    "heap_sort_forward",
+    "setup",
+    "search"
+   ]
+  },
+  {
+   "file": "csrc/engine/pathfind.h",
+   "symbols": [
+    "pf"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/paths/pf2-20k",
+  "out/java/paths/pf42-20k",
+  "csrc/tests/test_paths.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "pathPoints",
+   "sig": "PathPoint[]",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf",
+   "note": "the heap and the point pool are flat arrays in struct pf; no grow is needed at the pool's fixed capacity"
+  },
+  {
+   "kind": "field",
+   "name": "count",
+   "sig": "int",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.h:pf",
+   "note": "struct pf's nheap"
+  },
+  {
+   "kind": "method",
+   "name": "addPoint",
+   "sig": "(PathPoint)PathPoint",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:heap_add"
+  },
+  {
+   "kind": "method",
+   "name": "clearPath",
+   "sig": "()V",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:setup",
+   "note": "each search resets the heap in setup()"
+  },
+  {
+   "kind": "method",
+   "name": "dequeue",
+   "sig": "()PathPoint",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:heap_dequeue"
+  },
+  {
+   "kind": "method",
+   "name": "changeDistance",
+   "sig": "(PathPoint,float)V",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:heap_change_distance"
+  },
+  {
+   "kind": "method",
+   "name": "sortBack",
+   "sig": "(int)V",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:heap_sort_back",
+   "note": "the tie behavior is kept: a child never rises on an equal key"
+  },
+  {
+   "kind": "method",
+   "name": "sortForward",
+   "sig": "(int)V",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:heap_sort_forward",
+   "note": "on a tie the left child wins, as in vanilla"
+  },
+  {
+   "kind": "method",
+   "name": "isPathEmpty",
+   "sig": "()Z",
+   "status": "exact",
+   "native": "csrc/engine/pathfind.c:search",
+   "note": "the predicate is the search loop's condition"
+  }
+ ],
+ "missing": [],
+ "notes": "The 1024 slot array and its doubling grow are replaced by struct pf's fixed capacity pool (pathfind.h header comment); the heap's tie quirks are spelled in pathfind.c's comments."
+}

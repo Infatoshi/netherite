@@ -1,0 +1,45 @@
+{
+ "classes": [
+  "EnumAction"
+ ],
+ "lines": 11,
+ "side": "common",
+ "category": "item",
+ "role": "The item-use action kind Item.getItemUseAction returns: none, eat, drink, block, bow; it decides the eating flow, sword blocking and bow drawing.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "server_blocking",
+    "process_c08"
+   ]
+  },
+  {
+   "file": "csrc/engine/throw.c",
+   "symbols": [
+    "throw_server_use"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/surv_eat-s1",
+  "out/java/snapshots/throw-bow-s1",
+  "csrc/tests/test_itemuse.c",
+  "out/java/snapshots/use-kinds-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "none, eat, drink, block, bow (5 constants)",
+   "sig": "enum constants",
+   "native": "csrc/engine/survival.c:surv_item_use_duration",
+   "status": "exact",
+   "note": "No enum object: getItemUseAction's answers live where each use runs (surv_item_use_duration: food, milk and potions 32, the sword's block and the bow 72000; the eat and drink finishes in surv_server_eat_tick, the particles and sounds of eat against drink by item). Every vanilla item that has an action is covered; the drink is use-kinds-s1's milk and potions."
+  }
+ ],
+ "missing": [],
+ "notes": " lane/idxblocks: the drink action (milk, fire resistance and instant health potions) replays in use-kinds-s1.",
+ "path": "oracle/src/item/EnumAction.java"
+}

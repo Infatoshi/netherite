@@ -1,0 +1,57 @@
+{
+ "path": "oracle/src/potion/PotionAbsoption.java",
+ "classes": [
+  "PotionAbsoption"
+ ],
+ "lines": 26,
+ "side": "common",
+ "category": "entity",
+ "role": "The absorption potion (id 22): applies and removes 4 absorption hearts per amplifier on top of the base class's modifier work.",
+ "scope": "in_scope",
+ "scope_reason": "Absorption is reachable: the golden apple's effect and the absorption stat ride the player state.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/potion.c",
+   "symbols": [
+    "potion_apply_attributes",
+    "potion_remove_attributes",
+    "POT_ABSORPTION"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/potions/seed2",
+  "out/java/potions/seed42",
+  "csrc/tests/test_potions.c",
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/surv_eat-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "PotionAbsoption",
+   "sig": "(int,Z,int)V",
+   "status": "n/a",
+   "note": "the registry tables carry the id"
+  },
+  {
+   "kind": "method",
+   "name": "removeAttributesModifiersFromEntity",
+   "sig": "(EntityLivingBase,BaseAttributeMap,I)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_remove_attributes",
+   "note": "the absorption subtraction at potion.c:552 runs before the generic modifier removal, as in Java"
+  },
+  {
+   "kind": "method",
+   "name": "applyAttributesModifiersToEntity",
+   "sig": "(EntityLivingBase,BaseAttributeMap,I)V",
+   "status": "exact",
+   "native": "csrc/engine/potion.c:potion_apply_attributes",
+   "note": "the absorption addition at potion.c:484"
+  }
+ ],
+ "missing": [],
+ "notes": "The server player's absorption value lives in the surv state and is carried out of the twin's addPotionEffect (survival.c:1837)."
+}

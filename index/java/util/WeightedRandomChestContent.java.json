@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/util/WeightedRandomChestContent.java",
+  "classes": ["WeightedRandomChestContent"],
+  "lines": 111,
+  "side": "server",
+  "category": "worldgen",
+  "role": "One weighted loot-table row (item stack, min and max count, weight) and the chest and dispenser fill loops every structure uses: pick a row, draw the count, then draw a slot per stack or per single item.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/loot.c", "symbols": ["loot_generate_contents", "loot_generate_dispenser", "pick_entry", "put_entry"]},
+    {"file": "csrc/engine/loot.h", "symbols": ["loot_entry", "loot_table", "loot_book"]},
+    {"file": "csrc/engine/loot_tables.h", "symbols": []}
+  ],
+  "evidence": ["csrc/tests/test_loot.c", "csrc/tests/test_structures.c"],
+  "members": [
+    {"kind": "field", "name": "theItemId", "sig": "ItemStack", "native": "csrc/engine/loot.h:loot_entry", "status": "exact", "note": "the row's id, meta and tag fields"},
+    {"kind": "field", "name": "theMinimumChanceToGenerateItem", "sig": "int", "native": "csrc/engine/loot.h:min_count", "status": "exact"},
+    {"kind": "field", "name": "theMaximumChanceToGenerateItem", "sig": "int", "native": "csrc/engine/loot.h:max_count", "status": "exact"},
+    {"kind": "ctor", "name": "WeightedRandomChestContent", "sig": "(Item,int,int,int,int)", "native": "csrc/engine/loot_tables.h:loot_table", "status": "exact", "note": "the tables are static initializers in loot_tables.h"},
+    {"kind": "ctor", "name": "WeightedRandomChestContent", "sig": "(ItemStack,int,int,int)", "native": "csrc/engine/loot_tables.h:loot_table", "status": "exact"},
+    {"kind": "method", "name": "generateChestContents", "sig": "(Random,WeightedRandomChestContent[],IInventory,int)V", "native": "csrc/engine/loot.c:loot_generate_contents", "status": "exact"},
+    {"kind": "method", "name": "func_150706_a", "sig": "(Random,WeightedRandomChestContent[],TileEntityDispenser,int)V", "native": "csrc/engine/loot.c:loot_generate_dispenser", "status": "exact", "note": "same body over the dispenser's 9 slots"},
+    {"kind": "method", "name": "func_92080_a", "sig": "(WeightedRandomChestContent[],WeightedRandomChestContent...)[LWeightedRandomChestContent;", "native": "csrc/engine/loot.h:loot_book", "status": "exact", "note": "the appended enchanted-book row is carried as the table's book entry plus a prebuilt loot_book rather than a concatenated array"}
+  ],
+  "missing": [],
+  "notes": "Status exact rests on test_loot.c comparing chest dumps and on the structure tests; I did not re-run them. loot_tables.h holds the arrays as data (no single named symbol cited). put_entry and pick_entry are static in loot.c."
+}

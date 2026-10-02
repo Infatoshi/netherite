@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenPlains.java",
+  "classes": ["BiomeGenPlains"],
+  "lines": 98,
+  "side": "common",
+  "category": "worldgen",
+  "role": "Plains (1) and Sunflower Plains (129): no trees, a noise-driven flower choice and flower/grass counts, seven double-plant grass patches and, on the sunflower variant, ten sunflower patches before the decorator.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions). The horse spawn row is switched off (world.conf horses = off).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of", "flower_choice", "plains_decorate", "place_double_plant", "shape_of"]},
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES"]},
+    {"file": "csrc/engine/randomtick.c", "symbols": ["flower_pick"]}
+  ],
+  "evidence": ["csrc/tests/test_populate.c", "out/java/populate", "out/java/snapshots/bonemeal-s1"],
+  "members": [
+    {"kind": "field", "name": "field_150628_aC", "sig": "boolean (sunflowers)", "native": "csrc/engine/decorator.c:shape_of", "status": "exact", "note": "aC set for id 129"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenPlains", "sig": "(int)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "trees -999, flowers 4, grass 10; horse row off by world.conf"},
+    {"kind": "method", "name": "func_150572_a", "sig": "(Random,int,int,int)String", "native": "csrc/engine/decorator.c:flower_choice", "status": "exact", "note": "the /200 noise branch; bone meal on grass: randomtick.c:flower_pick"},
+    {"kind": "method", "name": "decorate", "sig": "(World,Random,int,int)V", "native": "csrc/engine/decorator.c:plains_decorate", "status": "exact"},
+    {"kind": "method", "name": "func_150566_k", "sig": "()BiomeGenBase", "native": "csrc/engine/biomes.h:BIOMES", "status": "exact", "note": "row 129 Sunflower Plains"}
+  ],
+  "missing": [],
+  "notes": "The plains flower choice is also used by bonemeal (randomtick.c cites func_150572_a); not verified here."
+}

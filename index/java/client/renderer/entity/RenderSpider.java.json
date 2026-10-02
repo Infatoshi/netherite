@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderSpider.java",
+  "classes": ["RenderSpider"],
+  "lines": 90,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the spider: ModelSpider, the additive red-eye second pass, and a 180-degree death rotation.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_spider", "raster_mobs_draw", "texture_names", "death_max_rotation"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2a_spider_f006",
+    "out/java/render/mobs2a_spider_f011",
+    "csrc/tests/test_render.c",
+    "out/java/render-src/ent_death"
+  ],
+  "members": [
+    {"kind": "field", "name": "spiderEyesTextures, spiderTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constants, grouped; the TEX_SPIDER and TEX_SPIDER_EYES entries"},
+    {"kind": "ctor", "name": "RenderSpider", "sig": "()V (ModelSpider, shadow 1.0)", "native": "csrc/engine/raster_mobs.c:model_spider", "status": "exact"},
+    {"kind": "method", "name": "getDeathMaxRotation", "sig": "(EntitySpider)float", "native": "csrc/engine/raster_mobs.c:death_max_rotation", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntitySpider,int,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the eyes pass: additive GL_ONE/GL_ONE at full lightmap 61680, the TEX_SPIDER_EYES branch"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntitySpider)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "getDeathMaxRotation", "sig": "(EntityLivingBase)float (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: the 180-degree death roll (ent_death, deaths 3, 7, 12, 19 with a zombie's 90 beside); the red overlay on a dying spider adds twice (the eyes pass leaves GL_ONE, GL_ONE)."
+}

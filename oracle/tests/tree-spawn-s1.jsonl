@@ -1,0 +1,8 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"time","mode":"set","value":14000}
+{"cmd":"dev","op":"fill","x0":-314,"y0":119,"z0":614,"x1":-310,"y1":122,"z1":618,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":-313,"y0":120,"z0":615,"x1":-311,"y1":122,"z1":617,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":-311.5,"y":120.0,"z":616.5,"yaw":0.0,"pitch":0.0}
+{"n":1200,"act":{}}
+{"cmd":"run","class":"Snapshot","sub":"end"}

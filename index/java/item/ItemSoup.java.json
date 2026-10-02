@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/item/ItemSoup.java",
+  "classes": [
+    "ItemSoup"
+  ],
+  "lines": 22,
+  "side": "common",
+  "category": "item",
+  "role": "The mushroom stew (id 282): a one-shot ItemFood that returns an empty bowl when eaten.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_server_eat_tick", "client_on_item_use_finish"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/use-kinds-s1",
+    "out/java/snapshots/surv_eat-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemSoup", "sig": "(I)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 282: stack 1, heal 6, saturation 0.6"},
+    {"kind": "method", "name": "onEaten", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/survival.c:surv_server_eat_tick", "status": "exact", "note": "the eat finish (super.onEaten: the stack shrinks, food and saturation, the burp draw) and the returned bowl stored in the held slot, on the server and on the client S19 (client_on_item_use_finish)"}
+  ],
+  "missing": [],
+  "notes": "use-kinds-s1 eats a mushroom stew at food 14 and gets the bowl back on both sides."
+}

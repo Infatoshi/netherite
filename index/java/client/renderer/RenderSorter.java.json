@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/renderer/RenderSorter.java",
+  "classes": ["RenderSorter"],
+  "lines": 39,
+  "side": "client",
+  "category": "client_render",
+  "role": "Comparator that orders WorldRenderer sections for RenderGlobal.sortAndRender: in-frustum sections after out-of-frustum ones, then by descending squared distance to the camera entity, then by descending chunk index.",
+  "scope": "in_scope",
+  "scope_reason": "Draw order determines the compared pixels for overlapping translucent geometry.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster.c", "symbols": ["live_water_compare", "water_section_compare", "water_quad_compare"]}
+  ],
+  "evidence": ["out/java/render/water-fast", "out/java/render/terrain1", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "baseEntity", "sig": "EntityLivingBase", "native": null, "status": "n/a", "note": "the camera entity; the native sort measures from the camera position"},
+    {"kind": "ctor", "name": "RenderSorter", "sig": "(EntityLivingBase)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "compare", "sig": "(WorldRenderer,WorldRenderer)I", "native": "csrc/engine/raster.c:live_water_compare", "status": "exact", "note": "RenderSorter only orders RenderGlobal.updateRenderers' rebuild list (RenderGlobal.java:1623), which chunks rebuild first within the frame's budget; the oracle's agent frames rebuild every dirty chunk before drawing (EntityRenderer.java:1291, oracleSyncForCamera and the updateRenderers loop), as the native live pipeline remeshes every stale section, so the order leaves no trace in a frame. The draw order is EntitySorter's (live_water_compare for the translucent pass)"},
+    {"kind": "method", "name": "compare", "sig": "(Object,Object)I", "native": "csrc/engine/raster.c:live_water_compare", "status": "exact", "note": "RenderSorter only orders RenderGlobal.updateRenderers' rebuild list (RenderGlobal.java:1623), which chunks rebuild first within the frame's budget; the oracle's agent frames rebuild every dirty chunk before drawing (EntityRenderer.java:1291, oracleSyncForCamera and the updateRenderers loop), as the native live pipeline remeshes every stale section, so the order leaves no trace in a frame. The draw order is EntitySorter's (live_water_compare for the translucent pass)"}
+  ],
+  "missing": [],
+  "notes": "RenderSorter is used for the opaque sortAndRender path in vanilla; the live pipeline draws opaque sections in chunk order and applies the distance sort to the translucent (water) list, which is where order changes pixels. raster.c's comment at live_water_compare says 'Java sorts the translucent renderers with a stable sort: equal distances keep the square's own order'. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port (in-frustum priority order). It stays partial until a recording pins it. lane/idxclient: exact by the agent-frame pin (every dirty chunk rebuilt before the frame); the older note that it sorts the opaque sortAndRender path was wrong (that is EntitySorter)."
+}

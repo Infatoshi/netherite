@@ -1,0 +1,93 @@
+{
+ "path": "oracle/src/network/play/server/S34PacketMaps.java",
+ "classes": [
+  "S34PacketMaps"
+ ],
+ "lines": 70,
+ "side": "common",
+ "category": "network",
+ "role": "A map item's map data update: id plus the byte payload MapData.updateMPMapData applies.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf maps = off: an empty map stays empty and a filled map from loot never draws, so the map layer that builds this packet never runs.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S34PacketMaps",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S34PacketMaps",
+   "sig": "(int,byte[])V",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149191_a",
+   "sig": "int",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149190_b",
+   "sig": "byte[]",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()String",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149188_c",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149187_d",
+   "sig": "()byte[]",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "The only sender is ItemMap.getUpdatePacketData (ItemMap.java:263), part of the map layer world.conf switches off; the oracle never builds the packet either."
+}

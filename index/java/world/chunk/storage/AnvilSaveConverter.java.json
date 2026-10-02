@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/world/chunk/storage/AnvilSaveConverter.java",
+  "classes": ["AnvilSaveConverter"],
+  "lines": 299,
+  "side": "common",
+  "category": "chunk",
+  "role": "The save format for the saves directory: lists worlds for the world-select screen, hands out AnvilSaveHandlers, and converts McRegion worlds to Anvil.",
+  "scope": "not_needed",
+  "scope_reason": "World-format conversion. The oracle's server start runs convertMapFormat (it ran in 138 of 154 recordings), but it finds no McRegion files and converts nothing; native loads chunks from snapshots and has no save directory.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "logger", "sig": "static Logger", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "AnvilSaveConverter", "sig": "(File)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_154333_a", "sig": "()String", "native": null, "status": "n/a", "note": "Format name."},
+    {"kind": "method", "name": "getSaveList", "sig": "()List", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSaveVersion", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "flushCache", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSaveLoader", "sig": "(String,boolean)ISaveHandler", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_154334_a", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isOldMapFormat", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "convertMapFormat", "sig": "(String,IProgressUpdate)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "createFile", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "convertFile", "sig": "(File,Iterable,WorldChunkManager,int,int,IProgressUpdate)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "convertChunks", "sig": "(File,File,WorldChunkManager,int,int,IProgressUpdate)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "addRegionFilesToCollection", "sig": "(File,Collection)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "accept (anonymous FilenameFilter)", "sig": "(File,String)Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The oracle uses it through the integrated server to save; that is Java-side plumbing only. idxaudit 2026-09-27: scope reason rewritten."
+}

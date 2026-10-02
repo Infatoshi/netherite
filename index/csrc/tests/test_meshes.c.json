@@ -1,0 +1,51 @@
+{
+  "path": "csrc/tests/test_meshes.c",
+  "lines": 448,
+  "role": "Gate: rebuilds every section record of the oracle's MeshProbe/MeshScene dumps from chunks.bin through the native chunk mesher (render_blocks) and compares int for int; in scene mode sections with unported render types are reported as skipped by type.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/RenderBlocks.java",
+      "members": [
+        "renderBlockByRenderType",
+        "renderStandardBlock",
+        "renderBlockLiquid",
+        "renderCrossedSquares"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/WorldRenderer.java",
+      "members": [
+        "updateRenderer"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/Tessellator.java",
+      "members": [
+        "addVertexWithUV",
+        "setColorOpaque_F",
+        "setBrightness"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "record",
+      "java": "one sections.bin record: a chunk section's tessellated vertex ints for one render pass",
+      "fields": [
+        "cx",
+        "cz",
+        "section",
+        "pass",
+        "vertices"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/meshes. Native calls: rb_manifest_load, rb_table_load, rb_atlas_load, rb_world_load, rb_world_block, rb_mesher_init, rb_tess_init, rb_mesh_section and their _free (csrc/engine/render_blocks.h). Two modes: spawn radius walk (MeshProbe) and file-order scene walk (manifest scene:true). Directories without chunks.bin (old mp-s1/mp-s42) are skipped. Oracle side: oracle/harness/netherite/oracle/MeshProbe.java, MeshScene.java. Recordings: out/java/meshes/mesh-s1, mesh-s42, scene-2, scene-42, scene3-2, scene3-2-fast, scene3-42. RenderBlocks member names are representative, not an exhaustive list of what is ported; record field names summarised."
+}

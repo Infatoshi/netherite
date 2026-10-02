@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/fortress.h",
+ "lines": 21,
+ "role": "Declares the Nether fortress structure type (MapGenNetherBridge) for the shared structure layer, the per-piece buildComponent dispatch and the per-piece addComponentParts block dispatch.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/MapGenNetherBridge.java", "members": ["canSpawnStructureAtCoords", "getStructureStart"]},
+  {"path": "oracle/src/world/gen/structure/StructureNetherBridgePieces.java", "members": ["buildComponent", "addComponentParts"]}
+ ],
+ "structs": [],
+ "entry_points": ["structure_fortress", "fortress_build_component", "fortress_blocks"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c", "csrc/tests/test_fortress_spawn.c", "csrc/tests/test_populate.c"],
+ "notes": "The fortress piece kinds (F_*), struct piece and the fortress_weight type are declared in structure.h, not here. MapGenNetherBridge's spawnList (blaze, pig zombie, skeleton, magma cube) is not in this header; test_fortress_spawn.c suggests it lives elsewhere (not verified where)."
+}

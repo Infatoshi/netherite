@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/tileentity/TileEntityNote.java",
+  "classes": ["TileEntityNote"],
+  "lines": 72,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The note block's block entity: the pitch (0..24), cycled on right-click, and the note play as a block event whose instrument depends on the material below.",
+  "scope": "in_scope",
+  "scope_reason": "Note blocks are craftable; tuning and playing by hand works without redstone.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/tileentity.h", "symbols": ["te_note", "TE_NOTE"]},
+    {"file": "csrc/engine/tileentity.c", "symbols": ["render_note", "te_load"]},
+    {"file": "csrc/engine/activate.c", "symbols": ["on_block_activated", "add_event"]},
+    {"file": "csrc/engine/tileticks.c", "symbols": ["note_update"]}
+  ],
+  "evidence": ["csrc/tests/test_activate.c", "out/java/activate/full2", "out/java/tileticks/full2-v2", "csrc/tests/test_tileticks.c", "out/java/snapshots/cov-reload-s1"],
+  "members": [
+    {"kind": "field", "name": "field_145879_a", "sig": "byte note", "native": "csrc/engine/tileentity.h:te_note", "status": "exact"},
+    {"kind": "field", "name": "field_145880_i", "sig": "boolean previousRedstoneState", "native": null, "status": "n/a", "note": "redstone off"},
+    {"kind": "method", "name": "writeToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/tileentity.c:render_note", "status": "exact", "note": "cov-reload-s1 saves a tuned note block"},
+    {"kind": "method", "name": "readFromNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/tileentity.c:te_load", "status": "exact", "note": "cov-reload-s1 reads it back; the 0..24 clamp is not applied natively and never bites (changePitch keeps the note in 0..24, and only the game writes the tag)"},
+    {"kind": "method", "name": "func_145877_a", "sig": "()V", "native": "csrc/engine/activate.c:on_block_activated", "status": "exact", "note": "changePitch"},
+    {"kind": "method", "name": "func_145878_a", "sig": "(World,III)V", "native": "csrc/engine/activate.c:on_block_activated", "status": "exact", "note": "triggerNote: the air-above test, instrument from material below, the block event"}
+  ],
+  "missing": [],
+  "notes": "Left-click play (BlockNote.onBlockClicked) is outside this file. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the clamp only matters for an edited save. Formerly listed as missing: readFromNBT's clamp of the note byte to 0..24 (only matters for an edited save)."
+}

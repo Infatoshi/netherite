@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/server/management/PlayerPositionComparator.java",
+  "classes": ["PlayerPositionComparator"],
+  "lines": 28,
+  "side": "server",
+  "category": "server",
+  "role": "A Comparator over EntityPlayerMP by distance to a fixed ChunkCoordinates, used by the entity-selector's nearest-player sort.",
+  "scope": "not_needed",
+  "scope_reason": "Only used by ServerConfigurationManager.findPlayers, which is the @a/@p entity-selector parsing reached only from commands; commands are off in our survival worlds (DEVLOG 2026-09-25).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "theChunkCoordinates", "sig": "ChunkCoordinates", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "PlayerPositionComparator", "sig": "(ChunkCoordinates)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "compare", "sig": "(EntityPlayerMP,EntityPlayerMP)I", "native": null, "status": "n/a", "note": "getDistanceSq to the anchor"},
+    {"kind": "method", "name": "compare", "sig": "(Object,Object)I", "native": null, "status": "n/a", "note": "the raw Comparator bridge"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

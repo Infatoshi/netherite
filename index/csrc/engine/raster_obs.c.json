@@ -1,0 +1,65 @@
+{
+ "path": "csrc/engine/raster_obs.c",
+ "lines": 980,
+ "role": "A live frame's world passes as data for the device renderer (csrc/cuda/render): the recorder (raster_rec) that captures, in draw order, every quad of raster_entities.c's rasterizer with its state and a copy of its texture, the crack and end portal triangles, the block outline's lines, the translucent pass's place and the overlays' depth clear; the dump format (raster_obs_write, raster_obs_read) that stores a frame with the C renderer's bytes of it; and the texture key a device cache keys on.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/EntityRenderer.java",
+   "members": [
+    "renderWorld"
+   ]
+  }
+ ],
+ "structs": [
+  "raster_obs",
+  "raster_obs_draw",
+  "raster_obs_sky",
+  "raster_obs_cmd",
+  "raster_obs_estate",
+  "raster_obs_equad",
+  "raster_obs_tex",
+  "raster_obs_crack",
+  "raster_obs_portal",
+  "raster_rec",
+  "raster_obs_line"
+ ],
+ "entry_points": [
+  "raster_obs_write",
+  "raster_obs_read",
+  "raster_obs_free",
+  "raster_obs_tex_key",
+  "raster_rec_new",
+  "raster_rec_free",
+  "raster_rec_begin",
+  "raster_rec_end",
+  "raster_rec_attach",
+  "raster_rec_equad",
+  "raster_rec_crack",
+  "raster_rec_portal",
+  "raster_rec_marker",
+  "raster_rec_texture_changed",
+  "raster_rec_on",
+  "raster_obs_write_depth",
+  "raster_obs_read_depth",
+  "raster_rec_line",
+  "raster_rec_set_only",
+  "raster_rec_only",
+  "raster_rec_ebox",
+  "raster_rec_eitem",
+  "raster_rec_hold",
+  "raster_rec_restore",
+  "raster_ebox_quads",
+  "raster_ebox_diffuse",
+  "raster_eitem_quads",
+  "raster_eitem_quad"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/cuda/render/check.c",
+  "csrc/cuda/render/gate.sh",
+  "csrc/cuda/render/judge_gate.sh"
+ ],
+ "notes": "Not vanilla code: the device renderer's interface. raster_live_obs and raster_obs_render (the frame's lists out, and the C renderer over a dump) are in raster.c beside the passes they read. The recorder is renderer state (one static pointer), never the tick's; play --obs-dump drives it. Record only (raster_rec_set_only): the passes record and draw nothing; play's frame judges draw such recordings on the device (csrc/cuda/render, play/framedev.h). A dump may carry the C renderer's depth buffer (raster_obs_write_depth). Model boxes and flat items are recorded as one record each (raster_obs ebox, eitem; lane/dmeshflow): raster_ebox_quads and raster_eitem_quad make their quads for the live passes, the C replay and the file writer, and cuda/render/host.cu ports them (ebox, eitem)."
+}

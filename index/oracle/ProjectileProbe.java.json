@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/ProjectileProbe.java",
+ "lines": 859,
+ "role": "Projectile reference: a raw region with scattered collision shapes (slabs, fences, stairs, walls, glass, leaves, water, lava, wool, air) where projectiles are spawned and ticked, recording spawn records and per-tick state (TICK_BYTES 144) plus the final region.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=ProjectileProbe (writes out/java/projectiles/<name>)",
+  "csrc/tests/test_projectiles.c",
+  "oracle/harness/netherite/oracle/EyesProbe.java",
+  "oracle/harness/netherite/oracle/LightningProbe.java"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output: manifest.json (kind projectiles), shapes.bin, spawns.bin, ticks.bin.gz. Which projectile classes are covered was not enumerated here; see the probe's spawn list."
+}

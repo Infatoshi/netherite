@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/item/crafting/RecipesIngots.java",
+  "classes": ["RecipesIngots"],
+  "lines": 34,
+  "side": "common",
+  "category": "crafting",
+  "role": "Registers the storage-block recipes: 8 blocks to 9 items and back (gold, iron, diamond, emerald, lapis, redstone, coal, hay) plus the gold nugget pair.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "field", "name": "recipeItems", "sig": "Object[][]", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "baked into the rows"},
+    {"kind": "ctor", "name": "RecipesIngots", "sig": "()V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "bake time"},
+    {"kind": "method", "name": "addRecipes", "sig": "(Lnet/minecraft/item/crafting/CraftingManager;)V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the 8 two-way pairs and the nugget pair unrolled into baked rows"}
+  ],
+  "missing": [],
+  "notes": null
+}

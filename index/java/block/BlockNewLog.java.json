@@ -1,0 +1,73 @@
+{
+ "path": "oracle/src/block/BlockNewLog.java",
+ "classes": [
+  "BlockNewLog"
+ ],
+ "lines": 32,
+ "side": "common",
+ "category": "block",
+ "role": "The acacia and dark-oak logs (id 162): BlockLog with two wood variants; only the variant names and icons are its own.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "on_block_placed"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "render_block_log",
+    "table_icon"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/chunks",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_harvestdrops.c",
+  "csrc/tests/test_place.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150169_M",
+   "sig": "static String[] {acacia, big_oak}",
+   "native": null,
+   "status": "n/a",
+   "note": "texture suffixes"
+  },
+  {
+   "kind": "method",
+   "name": "getSubBlocks",
+   "sig": "(Item,CreativeTabs,List)V",
+   "native": null,
+   "status": "n/a",
+   "note": "creative tab listing, client only"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration; the native atlas is loaded from the same assets"
+  }
+ ],
+ "missing": [],
+ "notes": "Behavior lives in BlockLog and BlockRotatedPillar (see their records); row 162 of BLOCKS carries the material and hardness; drops.c case 162 drops the log with meta & 3; place.c on_block_placed names BlockNewLog for the axis bits."
+}

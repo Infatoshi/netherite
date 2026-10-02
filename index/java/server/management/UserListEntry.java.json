@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/server/management/UserListEntry.java",
+  "classes": ["UserListEntry"],
+  "lines": 31,
+  "side": "server",
+  "category": "server",
+  "role": "The abstract entry held by a UserList: the key value plus the hasBanExpired hook the ban subclasses override.",
+  "scope": "not_needed",
+  "scope_reason": "Abstract base of the ban, op and whitelist entries; all of those are only reached through operator commands or the TCP login checks, which the oracle never runs.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_152642_a", "sig": "Object (the key value)", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "UserListEntry", "sig": "(Object)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "UserListEntry", "sig": "(Object,JsonObject)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152640_f", "sig": "()Object", "native": null, "status": "n/a", "note": "package-private value getter"},
+    {"kind": "method", "name": "hasBanExpired", "sig": "()Z", "native": null, "status": "n/a", "note": "false here; BanEntry overrides"},
+    {"kind": "method", "name": "func_152641_a", "sig": "(JsonObject)V", "native": null, "status": "n/a", "note": "serialization hook, empty here"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

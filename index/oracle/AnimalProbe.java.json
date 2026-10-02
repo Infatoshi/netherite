@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/AnimalProbe.java",
+ "lines": 1094,
+ "role": "Animal probe: pigs, cows, mooshrooms, chickens and sheep ticking in a flattened raw region with water, lava, cactus and fences; records a per-tick FNV-1a hash of each entity's canonical NBT plus AI, path, move/look/jump helper and timer state, and the Det state, as the reference for EntityLivingBase, EntityLiving, EntityAnimal and the entity AI.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=AnimalProbe",
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_potions.c",
+  "oracle/harness/netherite/oracle/EyesProbe.java, LightningProbe.java, ProjectileProbe.java, SpawnProbe.java (reuse its helpers)"
+ ],
+ "vanilla_hooks": []
+}

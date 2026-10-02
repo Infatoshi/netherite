@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/util/MessageDeserializer.java",
+  "classes": ["MessageDeserializer"],
+  "lines": 65,
+  "side": "common",
+  "category": "network",
+  "role": "The netty ByteToMessageDecoder that reads a packet's varint id, instantiates the packet from the channel's receivable map, reads its body and feeds it to the handler.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_152499_c", "sig": "NetworkStatistics", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "MessageDeserializer", "sig": "(NetworkStatistics)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "decode", "sig": "(ChannelHandlerContext,ByteBuf,List)V", "native": null, "status": "missing", "note": "no byte channel exists natively; packet ids and bodies are handled as structs"}
+  ],
+  "missing": [
+    "The varint-id decode and packet instantiation from a byte buffer are not ported; csrc/engine/clientworld.c consumes packet structs directly (clientworld_handle_packet), and csrc/engine/tracker.h enumerates packet kinds as an enum instead of bytes."
+  ],
+  "notes": "The oracle's real netty channel is replaced by lockstep packet structs; SPEC's lockstep counts sends/receives, not wire bytes, so the framing codec has nothing to mirror."
+}

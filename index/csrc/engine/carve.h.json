@@ -1,0 +1,37 @@
+{
+ "path": "csrc/engine/carve.h",
+ "lines": 15,
+ "role": "Declares the two MapGenBase carver passes (caves and ravines) run by provide_chunk after the surface pass.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/MapGenBase.java",
+   "members": [
+    "func_151539_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenCaves.java",
+   "members": [
+    "func_151538_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenRavine.java",
+   "members": [
+    "func_151538_a"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "caves_pass",
+  "ravines_pass"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_worldgen.c"
+ ],
+ "notes": "tick_path true because provide_chunk runs when the server tick loads an ungenerated overworld chunk."
+}

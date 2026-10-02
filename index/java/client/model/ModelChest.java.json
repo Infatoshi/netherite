@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/client/model/ModelChest.java",
+  "classes": ["ModelChest"],
+  "lines": 43,
+  "side": "client",
+  "category": "client_model",
+  "role": "The chest model used by TileEntityChestRenderer and the item renderer: lid, knob and bottom boxes on a 64x64 texture.",
+  "scope": "in_scope",
+  "scope_reason": "Chests are in scope; their item/block model geometry is ported, but the in-world lid-angle renderer is not.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/block_item_model.c", "symbols": ["chest_box", "chest_face"]},
+    {"file": "csrc/engine/raster_tileent.c", "symbols": ["model_chest", "lid_angle"]}
+  ],
+  "evidence": [
+    "out/java/render/blockicons_hotbar_a",
+    "csrc/tests/test_render.c",
+    "out/java/rendertick/te_chests"
+  ],
+  "members": [
+    {"kind": "field", "name": "chestLid", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:model_chest", "status": "exact"},
+    {"kind": "field", "name": "chestBelow", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:model_chest", "status": "exact"},
+    {"kind": "field", "name": "chestKnob", "sig": "ModelRenderer", "native": "csrc/engine/raster_tileent.c:model_chest", "status": "exact"},
+    {"kind": "ctor", "name": "ModelChest", "sig": "()V", "native": "csrc/engine/block_item_model.c:chest_box", "status": "exact", "note": "the three boxes and their rotation points are unfolded into block coordinates (block_item_model.c:142-144)"},
+    {"kind": "method", "name": "renderAll", "sig": "()V", "native": "csrc/engine/raster_tileent.c:model_chest", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The world chest (raster_tileent.c model_chest: renderAll's lid, knob and bottom, the knob taking the lid's angle, each ModelRenderer.render with its translate and translate back) and the item icon (block_item_model.c chest_box)."
+}

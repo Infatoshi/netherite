@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIWander.java",
+  "classes": ["EntityAIWander"],
+  "lines": 68,
+  "side": "server",
+  "category": "ai",
+  "role": "Idle roaming: on a 1-in-120 draw (once the entity is past its first 100 ticks) the mob picks a random reachable spot within 10x7 and walks there at the kind's speed.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_setup_kind", "random_target"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/mobspawn-final-s1", "out/java/snapshots/cp-mobs-s1", "out/java/snapshots/gen-walk-s42", "csrc/tests/test_animals.c"],
+  "members": [
+    {"kind": "field", "name": "entity", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "xPosition", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.x"},
+    {"kind": "field", "name": "yPosition", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.y"},
+    {"kind": "field", "name": "zPosition", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.z"},
+    {"kind": "field", "name": "speed", "sig": "double", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered per kind (1.0 animals, 0.6 villager/golem, 0.8 creeper)"},
+    {"kind": "ctor", "name": "EntityAIWander", "sig": "(EntityCreature,double)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_WANDER, priority 6-9 by kind, mutex 1"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_WANDER case: entity_age >= 100 blocks, rand(120), then findRandomTarget(10,7) -> random_target"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "!noPath, shared with AIC_PANIC"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "tryMoveToXYZ(position, speed)"}
+  ],
+  "missing": [],
+  "notes": "Java has no resetTask; the native ai_reset has no AIC_WANDER case either."
+}

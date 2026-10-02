@@ -1,0 +1,116 @@
+{
+  "path": "csrc/engine/session.c",
+  "lines": 836,
+  "role": "The snapshot session the playable client (csrc/play/play.c) and the replay gate (csrc/tests/test_snapshots.c) both run: session_open builds the two players, the whole-server replay (a checkpoint start's own save and the join save resolved), the client's world, the survival module and the containers from a loaded snapshot and its tape header; session_tick runs one row (the header's setup entries, the client player's tick with the last server tick's packets and chunks, the whole server's tick, the server player's); session_parse_act reads a row's act; session_refuse_dev is the dev-tape gate.",
+  "layer": "client",
+  "java": [
+    {
+      "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+      "members": [
+        "handleRespawn",
+        "handleMapChunkBulk"
+      ]
+    },
+    {
+      "path": "oracle/src/client/Minecraft.java",
+      "members": [
+        "runTick",
+        "isGamePaused"
+      ]
+    },
+    {
+      "path": "oracle/src/server/MinecraftServer.java",
+      "members": [
+        "tick"
+      ]
+    },
+    {
+      "path": "oracle/src/client/settings/KeyBinding.java",
+      "members": [
+        "onTick",
+        "setKeyBindState"
+      ]
+    },
+    {
+      "path": "oracle/harness/netherite/oracle/Snapshot.java",
+      "members": []
+    },
+    {
+      "path": "oracle/harness/netherite/oracle/MobMove.java",
+      "members": []
+    },
+    {
+      "path": "oracle/src/client/multiplayer/WorldClient.java",
+      "members": [
+        "tick",
+        "func_147456_g"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "session",
+      "java": "the integrated server and the client player as a recording's rows drive them (Minecraft.thePlayer, its WorldClient, the server's EntityPlayerMP)",
+      "fields": [
+        "s",
+        "hdr",
+        "cp",
+        "sp",
+        "sr",
+        "client_world",
+        "server_rows",
+        "no_gen",
+        "det",
+        "iew",
+        "sv_px",
+        "sv_py",
+        "sv_pz",
+        "carry_c16",
+        "was_paused",
+        "setups",
+        "next_setup",
+        "extra",
+        "nextra",
+        "next_extra",
+        "dev_pending",
+        "ndev_pending",
+        "dev_apply",
+        "dev_end",
+        "hooks",
+        "err"
+      ]
+    },
+    {
+      "name": "session_hooks",
+      "java": null,
+      "fields": [
+        "ctx",
+        "on_chunk",
+        "world_changed",
+        "before_client_tick",
+        "after_world_tick",
+        "after_player_tick"
+      ]
+    }
+  ],
+  "entry_points": [
+    "session_refuse_dev",
+    "session_open",
+    "session_parse_act",
+    "session_tick",
+    "session_close",
+    "session_open_at"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "function client_world_change: frees and mallocs a new client world on a dimension change (handleRespawn), inside the client tick call chain",
+    "function client_take_chunks: takes heap-allocated chunks from the server each tick and frees the replaced ones",
+    "function open_server: callocs the serverreplay and copies every server chunk of an older snapshot into a separately malloc'd client chunk (setup, not per tick)",
+    "function session_tick: calls grave_collect between rows (a no-op unless the caller enabled grave.c)"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/play_check.sh"
+  ],
+  "notes": "lane/agentscreens: session_parse_act refuses a row whose hotbar is outside 0..8 or whose pitch is outside -90..90 (Act.java refuses the same), and session_row fails a row whose click surv_client_click refused (client_player.refused). Lane playfix (2026-09-26): play.c and test_snapshots.c each carried a copy of this path and the client's fell behind the gate's (keepInventory passed as 0, no weather or difficulty after the world tick, no trsel ops, legacy MobMove only in play-dev, no movement snapshots, no dead-living collection). Dev entries due at a paused row wait for the next server tick (Java runs them at the head of the next integrated server tick); a MobMove moves its mob at the head of its row. The dev ops (dev.c) are compiled only into NETHERITE_DEV builds, so the caller sets dev_apply and dev_end; without them a Dev entry fails the tick. make test runs out/native/play --check (csrc/tests/play_check.sh) beside test_snapshots on every snapshot recording. lane/keyframes: session_open_at opens a snapshot that is not the recording's own start (a keyframe): the snapshot's directory for its files and save overlay, the recording's for the checkpoint fallback. Lane gpuphase (GPU audit L6): session_tick is session_row between the tracer's row marks: R0 session_setup, C1 session_sync_client, C2 session_client, TP (the paused save), DV run_dev, the world phases, N1 session_player, N2 session_move, N1E serverreplay_action_end, N3 serverreplay_queue_packets, T serverreplay_save_marks. lane/harness2: VD, IntegratedServer.tick's tail: a row's opts rd is the client's render distance from then on (session.client_rd), and when it differs from sr->view serverreplay_set_view_distance runs (opts-rd-s1). session_client_blocks runs WorldClient's playerCheckLight at the cell cp_world_tick drew from WorldClient.rand, before the relight rotation (lane/idxclient)."
+}

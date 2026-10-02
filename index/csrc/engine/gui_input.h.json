@@ -1,0 +1,60 @@
+{
+ "path": "csrc/engine/gui_input.h",
+ "lines": 112,
+ "role": "Declares the container screens' raw input queue (struct gui_input, struct gui_event, the LWJGL key codes) and the functions play.c and the client tick call.",
+ "layer": "client",
+ "java": [
+  {
+   "path": "oracle/src/client/gui/inventory/GuiContainer.java",
+   "members": [
+    "mouseClicked",
+    "mouseClickMove",
+    "mouseMovedOrUp",
+    "keyTyped"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "gui_input",
+   "java": "GuiScreen and GuiContainer input fields",
+   "fields": [
+    "ev",
+    "n",
+    "frame_x",
+    "frame_y",
+    "frame_shift",
+    "frame_ctrl",
+    "dragging",
+    "drag",
+    "ndrag"
+   ]
+  },
+  {
+   "name": "gui_event",
+   "java": "one LWJGL Mouse or Keyboard event",
+   "fields": [
+    "kind",
+    "x",
+    "y",
+    "button",
+    "key"
+   ]
+  }
+ ],
+ "entry_points": [
+  "gui_input_reset",
+  "gui_input_push",
+  "gui_input_modifier",
+  "gui_input_frame",
+  "gui_input_layout",
+  "gui_input_run",
+  "gui_input_drag"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/gui_judge.sh"
+ ],
+ "notes": "Included by gui_input.c, survival.c and play/play.c."
+}

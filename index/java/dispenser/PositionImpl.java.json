@@ -1,0 +1,67 @@
+{
+  "path": "oracle/src/dispenser/PositionImpl.java",
+  "classes": [
+    "PositionImpl"
+  ],
+  "lines": 31,
+  "side": "server",
+  "category": "util",
+  "role": "The plain immutable IPosition: three doubles.",
+  "scope": "not_needed",
+  "scope_reason": "Never runs: dispensing is driven by redstone power and world.conf redstone = off (no block ever receives power), so BlockDispenser's dispense path is dead in the world both sides run; the dispenser window also has no native container yet (csrc/engine/survival.c:3169). The dispenser block and its tile entity do exist natively (csrc/engine/activate.c ID_DISPENSER, csrc/engine/tileentity.c TE_DISPENSER).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "x",
+      "sig": "D",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "y",
+      "sig": "D",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "z",
+      "sig": "D",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "PositionImpl",
+      "sig": "(DDD)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getX",
+      "sig": "()D",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getY",
+      "sig": "()D",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getZ",
+      "sig": "()D",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": []
+}

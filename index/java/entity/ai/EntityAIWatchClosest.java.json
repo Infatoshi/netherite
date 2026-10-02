@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIWatchClosest.java",
+  "classes": ["EntityAIWatchClosest"],
+  "lines": 100,
+  "side": "server",
+  "category": "ai",
+  "role": "Staring task: on a small chance draw the mob finds the nearest watched entity (the player, or a class query) within maxDistance and turns its head toward it for 40-80 ticks.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_update", "ai_setup_kind"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/mobspawn-final-s1", "out/java/snapshots/cp-mobs-s1", "out/java/snapshots/persist-village-full-s42", "csrc/tests/test_villagers.c", "out/java/snapshots/trade-full-s1",
+    "out/java/snapshots/skel-crossfire-s1"],
+  "members": [
+    {"kind": "field", "name": "theWatcher", "sig": "EntityLiving", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "closestEntity", "sig": "Entity", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target; the player case is folded (is_watching_player) because the engine's single player is not a struct living"},
+    {"kind": "field", "name": "maxDistanceForPlayer", "sig": "float", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.max_watch_dist"},
+    {"kind": "field", "name": "lookTime", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.look_time"},
+    {"kind": "field", "name": "field_75331_e", "sig": "float", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.watch_chance, 0.02 by default"},
+    {"kind": "field", "name": "watchedClass", "sig": "Class", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.watch_class: 0 player, 1 villager, 2 any living"},
+    {"kind": "ctor", "name": "EntityAIWatchClosest", "sig": "(EntityLiving,Class,float)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_WATCH_CLOSEST, mutex 2"},
+    {"kind": "ctor", "name": "EntityAIWatchClosest", "sig": "(EntityLiving,Class,float,float)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "vanilla's attack-target shortcut is a dead store: the class query overwrites closestEntity on the next line, so skipping it is exact; getClosestPlayer's distance test is strict (a player at exactly maxDistance is not found; trade-full-s1 row 21, lane/villagetrade)"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "lookTime > 0 and the target (or player) within maxDistance; the aliveness check covers the non-player cases"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "lookTime = 40 + rand(40)"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "closestEntity = null, is_watching_player = 0"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "looks at the target (its eye height) or the player (1.62) at 10/40, --lookTime"}
+  ],
+  "missing": [],
+  "notes": "The villager's watch-other-living entry (watch_class 2) queries any living with kind -1; EntityAIWatchClosest2 shares the same case under AIC_WATCH_CLOSEST2. Corrected by the triage 2026-09-25, out/plan/remaining-2026-09-25.md: the attack-target shortcut is a dead store in vanilla. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/network/play/client/C0EPacketClickWindow.java",
+  "classes": ["C0EPacketClickWindow"],
+  "lines": 106,
+  "side": "client",
+  "category": "network",
+  "role": "A container window click: window id, slot, button, click mode (pickup/quick-move/swap etc.) and the client's predicted cursor stack.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_client_click", "surv_server_click"]},
+    {"file": "csrc/engine/container.c", "symbols": ["container_merchant_set_recipe_index"]}
+  ],
+  "evidence": [
+    "out/java/containers/seed2",
+    "out/java/containers/seed42",
+    "out/java/snapshots/cat-clicks-s1",
+    "out/java/snapshots/cat-recipes-s1",
+    "csrc/tests/test_containers.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149554_a (window id)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "the act's click rows carry (window, slot, button, mode); survival.h's client_out notes the C0E the client mirror queues"},
+    {"kind": "field", "name": "field_149552_b (slot)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "field", "name": "field_149553_c (button)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "field", "name": "field_149550_d (transaction id)", "sig": "S", "native": null, "status": "n/a", "note": "pairs with the S32 confirm, which changes nothing the rows read (survival.c:4497)"},
+    {"kind": "field", "name": "field_149551_e (predicted stack)", "sig": "ItemStack", "native": null, "status": "n/a", "note": "the server ignores it in vanilla (used only by the creative check); the native server applies its own container state"},
+    {"kind": "field", "name": "field_149549_f (mode)", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "ctor", "name": "C0EPacketClickWindow", "sig": "(IIIIIS)V", "native": "csrc/engine/survival.c:surv_client_click", "status": "exact", "note": "the act's click rows are applied by surv_client_click (PlayerControllerMP.windowClick's client half) and forwarded to surv_server_click in the same tick"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/survival.c:surv_server_click", "status": "exact", "note": "processClickWindow's server half over the open container, then the S2F slots detectAndSendChanges queues"},
+    {"kind": "method", "name": "func_149548_c", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149544_d", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149543_e", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "func_149547_f", "sig": "()S", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149546_g", "sig": "()ItemStack", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149542_h", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "method", "name": "serialize", "sig": "()String", "native": null, "status": "n/a", "note": "logging only"},
+    {"kind": "ctor", "name": "C0EPacketClickWindow", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [],
+  "notes": "container.c holds the actual click machine (pickup, quick-move, swap, the craft-result useRecipe path); survival.c only dispatches and mirrors."
+}

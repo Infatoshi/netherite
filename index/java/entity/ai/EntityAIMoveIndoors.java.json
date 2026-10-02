@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIMoveIndoors.java",
+  "classes": ["EntityAIMoveIndoors"],
+  "lines": 102,
+  "side": "server",
+  "category": "ai",
+  "role": "Villager weather shelter: at night (or when a storm is due) a villager in a village picks the nearest unrestricted door and walks to its inside point.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_setup_kind"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["sr_tick_world"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "out/java/villagers/vil-2", "csrc/tests/test_villagers.c", "out/java/snapshots/village-rain-s42"],
+  "members": [
+    {"kind": "field", "name": "entityObj", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the villager itself (struct living)"},
+    {"kind": "field", "name": "doorInfo", "sig": "VillageDoorInfo", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.front_door (void* to village_door_info)"},
+    {"kind": "field", "name": "insidePosX", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.inside_pos_x, initialized -1"},
+    {"kind": "field", "name": "insidePosZ", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.inside_pos_z"},
+    {"kind": "ctor", "name": "EntityAIMoveIndoors", "sig": "(EntityCreature)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_MOVE_INDOORS, priority 2, mutex 1, speed 1.0"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "(!isDaytime || isRaining || !canSpawnLightningBolt) gate with an_world.raining (World.isRaining, set per world pass); hasNoSky has no villager to read it (villagers do not reach the Nether or the End)"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "!noPath, shared with AIC_MOVE_TOWARDS_RESTRICTION"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "insidePos = -1; beyond 16 blocks it walks to a findRandomTargetBlockTowards(14,3) point, otherwise straight to the door inside point + 0.5"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "saves the door's inside X/Z, clears doorInfo"}
+  ],
+  "missing": [],
+  "notes": "The findNearestVillage(14) and findNearestDoorUnrestricted calls go through village.c's vc_find_nearest_village and v_find_nearest_door_unrestricted; the 1-in-50 draw matches. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

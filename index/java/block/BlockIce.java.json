@@ -1,0 +1,38 @@
+{
+  "path": "oracle/src/block/BlockIce.java",
+  "classes": ["BlockIce"],
+  "lines": 103,
+  "side": "common",
+  "category": "block",
+  "role": "Ice: slippery, melts to water above block light 11, drops nothing without silk touch and turns to flowing water when broken.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["rt_ice", "RT_ICE"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["can_silk_harvest", "create_stacked_block", "break_block"]},
+    {"file": "csrc/engine/dig.c", "symbols": ["harvest_block"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["ID_ICE"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/phys-ice-s1",
+    "out/java/snapshots/ice-melt-s1",
+    "out/java/snapshots/ice-nether-s1",
+    "out/java/snapshots/snow-cold-s1",
+    "out/java/snapshots/world-storm-s1",
+    "csrc/tests/test_harvestdrops.c",
+    "csrc/tests/test_tileticks.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockIce", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 79: slipperiness 0.98, tick_randomly 1, light opacity 3"},
+    {"kind": "method", "name": "getRenderBlockPass", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "pass 1, the translucent pass; the mesher's pass assignment"},
+    {"kind": "method", "name": "shouldSideBeRendered", "sig": "(IBlockAccess,IIII)Z", "native": "csrc/engine/render_blocks.c:rb_mesh_section", "status": "partial", "note": "the mirrored-side call (1 - side) is folded into the ice mesh path; the render gate covers it"},
+    {"kind": "method", "name": "harvestBlock", "sig": "(World,IIIIILnet/minecraft/entity/player/EntityPlayer;)V", "native": "csrc/engine/harvestdrops.c:break_block", "status": "exact", "note": "the ice case (dig.c harvest_block live, harvestdrops.c break_block the overworld probe): the stat, the 0.025 exhaustion, the silk stack, in the Nether nothing more (the cell is already air), else the drop and the water conversion when the block below can hold it"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 79 drops nothing"},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:rt_ice", "status": "exact", "note": "melt above block light 11 minus the opacity: to air in the Nether (isHellWorld), else to Blocks.water (the static form)"},
+    {"kind": "method", "name": "getMobilityFlag", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "n/a", "note": "only BlockPistonBase calls getMobilityFlag, when a piston extends or retracts; with world.conf redstone = off no piston ever moves"}
+  ],
+  "missing": [],
+  "notes": "Ice forms through the freeze path (servertick.c's world_can_block_freeze) and melts through rt_ice, both exercised by world-storm-s1. The slipperiness rides the generated table into the movement code (player.c)."
+}

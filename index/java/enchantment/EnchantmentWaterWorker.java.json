@@ -1,0 +1,70 @@
+{
+ "path": "oracle/src/enchantment/EnchantmentWaterWorker.java",
+ "classes": [
+  "EnchantmentWaterWorker"
+ ],
+ "lines": 36,
+ "side": "server",
+ "category": "combat",
+ "role": "The Aqua Affinity enchantment (effect id 6, armor_head): level window and max level in the shared registry.",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), but the enchantment registry itself is kept: loot books and mob equipment carry enchantments (DEVLOG 2026-09-25, 'Kept: enchantment data and effects').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "ENCHANTS",
+    "struct enchantment_def"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "map_enchantment_data"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_loot.c",
+  "out/java/loot/seed2",
+  "csrc/tests/test_trades.c",
+  "out/java/trades/seed2"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EnchantmentWaterWorker",
+   "sig": "(int,int)V",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "setName('waterWorker') is the row's name field"
+  },
+  {
+   "kind": "method",
+   "name": "getMinEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row min_enchantability {1}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_enchantability {41}"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxLevel",
+   "sig": "()I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "row max_level 1"
+  }
+ ],
+ "missing": [],
+ "notes": "getAquaAffinityModifier's underwater dig-speed branch has no native counterpart (nothing wears armour); see the EnchantmentHelper record."
+}

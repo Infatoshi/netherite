@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderIronGolem.java",
+  "classes": ["RenderIronGolem"],
+  "lines": 136,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the village iron golem: ModelIronGolem, the arm-swing corpse rotation while walking, and the held rose drawn from the right arm when holdRoseTick is set.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_iron_golem", "golem_triangle", "model_vertex", "raster_mobs_draw", "draw_equipped", "living_gl_base"]}
+  ],
+  "evidence": [
+    "out/java/clientframes/cov-zoo-s1",
+    "out/java/render/mobs2b_iron_golem_f006",
+    "out/java/render/mobs2b_iron_golem_f011",
+    "csrc/tests/test_render.c",
+    "out/java/render-src/ent_held2"
+  ],
+  "members": [
+    {"kind": "field", "name": "ironGolemTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constant, grouped; the TEX_IRON_GOLEM entry"},
+    {"kind": "field", "name": "ironGolemModel", "sig": "ModelIronGolem", "native": "csrc/engine/raster_mobs.c:model_iron_golem", "status": "exact"},
+    {"kind": "ctor", "name": "RenderIronGolem", "sig": "()V", "native": "csrc/engine/raster_mobs.c:model_iron_golem", "status": "exact"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityIronGolem,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "via the shared living path; the MOB_IRON_GOLEM kind"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityIronGolem)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityIronGolem,float,float,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the MOB_IRON_GOLEM branch applies golem_triangle's 6.5-degree z roll when limb_amount >= 0.01"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityIronGolem,float)V", "native": "csrc/engine/raster_mobs.c:draw_equipped", "status": "exact", "note": "the rose: renderBlockAsItem type 1, drawCrossedSquares with one normal"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityLivingBase,float,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: the rose at the right arm's angle, with rotateCorpse's sway in the GL matrix; ent_held2."
+}

@@ -1,0 +1,43 @@
+{
+ "path": "csrc/engine/envmem.h",
+ "lines": 59,
+ "role": "Declares the environment's bytes by owner (envmem.c): the owners, the per-owner parts, the session walk and the print.",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  {
+   "name": "envmem",
+   "java": null,
+   "fields": [
+    "b",
+    "chunks",
+    "items",
+    "nitems",
+    "seen"
+   ]
+  },
+  {
+   "name": "envmem_item",
+   "java": null,
+   "fields": [
+    "owner",
+    "what",
+    "bytes"
+   ]
+  }
+ ],
+ "entry_points": [
+  "envmem_session",
+  "envmem_chunk",
+  "envmem_add",
+  "envmem_total",
+  "envmem_print",
+  "envmem_name"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Header for envmem.c."
+}

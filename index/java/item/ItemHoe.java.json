@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/item/ItemHoe.java",
+  "classes": ["ItemHoe"],
+  "lines": 76,
+  "side": "server",
+  "category": "item",
+  "role": "The hoe: tills grass or dirt into farmland when the side is not down and the cell above is air, with the farmland place sound and damageItem 1; carries its ToolMaterial durability and is furnace fuel as a wooden item.",
+  "scope": "in_scope",
+  "scope_reason": "Crops grow (villages are on, farming is vanilla); redstone is off but tilling needs no power.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_hoe_on_item_use", "place_try"]},
+    {"file": "csrc/engine/tileticks.c", "symbols": ["furnace_fuel_value"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "max_damage"]},
+    {"file": "csrc/engine/itemuse.c", "symbols": ["hoe_use", "on_item_use"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_server_use_packet", "surv_damage_stack"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/world-crops-s1",
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/iu-hoe-s1",
+    "out/java/snapshots/cov-containers-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "theToolMaterial", "sig": "Item.ToolMaterial", "native": "csrc/engine/items.h:TOOL_MATERIALS", "status": "exact", "note": "the ITEMS rows carry tool_material and max_damage (getMaxUses)"},
+    {"kind": "ctor", "name": "ItemHoe", "sig": "(ToolMaterial)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/itemuse.c:hoe_use", "status": "exact", "note": "the live use (server and client prediction) is itemuse.c:hoe_use: the canPlayerEdit gate, the side != 0 and air-above checks, the grass/dirt test; the client returns true untouched, the server writes the farmland and survival.c runs damageItem 1 through surv_damage_stack (the break draws, the break stat, the emptied slot). place.c:item_hoe_on_item_use is the placement probe's copy. iu-hoe-s1 (grass, dirt, a side face, under a block, from below, a worn-out hoe)"},
+    {"kind": "method", "name": "isFull3D", "sig": "()Z", "native": null, "status": "n/a", "note": "client render"},
+    {"kind": "method", "name": "getMaterialName", "sig": "()String", "native": "csrc/engine/items.h:TOOL_MATERIALS", "status": "exact", "note": "TileEntityFurnace.getItemBurnTime's wooden hoe (200): cov-containers-s1 shift-clicks one into a furnace"}
+  ],
+  "missing": [],
+  "notes": "world-crops-s1 covers farmland being worked; the wooden hoe's 200-tick fuel value is tileticks.c's furnace_fuel_value. lane/itemuse: until iu-hoe-s1 the live server path sent the hoe to itemuse.c, which had no ItemHoe, so no till happened natively; world-crops-s1 never tilled."
+}

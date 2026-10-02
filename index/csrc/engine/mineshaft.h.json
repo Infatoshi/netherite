@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/mineshaft.h",
+ "lines": 17,
+ "role": "Declares the mineshaft structure type and its two per-piece hooks: buildComponent (mineshaft.c) and the block half addComponentParts (mineshaft_blocks.c).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/structure/MapGenMineshaft.java", "members": ["canSpawnStructureAtCoords", "getStructureStart"]},
+  {"path": "oracle/src/world/gen/structure/StructureMineshaftPieces.java", "members": ["buildComponent", "addComponentParts"]}
+ ],
+ "structs": [],
+ "entry_points": ["structure_mineshaft", "mineshaft_build_component", "mineshaft_blocks"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_structures.c", "csrc/tests/test_sblocks.c"],
+ "notes": "The piece state (corridor, crossing, room fields) lives in struct piece in structure.h, not here."
+}

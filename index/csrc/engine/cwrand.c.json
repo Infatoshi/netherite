@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/cwrand.c",
+ "lines": 76,
+ "role": "WorldClient.rand from the recording: a row's d.cw is the client world Random's seed * 31 + World.updateLCG (Rows.java), and the client never steps updateLCG, so two rows of one client world differ by 31 times the seed's advance; cwrand_recover solves step^K(s0) - s0 for the one seed and step count whose LCG value is an int, confirmed by a third row. test_snapshots seeds the client player's world Random with it at the bind (no snapshot carries it).",
+ "layer": "util",
+ "java": [
+  {"path": "oracle/harness/netherite/oracle/Rows.java", "members": ["updateLCG"]}
+ ],
+ "structs": [],
+ "entry_points": ["cwrand_recover", "cwrand_digest"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Only the replay gate uses it (before the first tick); every recording under out/java/snapshots recovers its seed from rows t0-1..t0+1. A new WorldClient's Random (a dimension change) comes from its two seeder longs instead (player.c client_player_new_world_rand)."
+}

@@ -1,0 +1,53 @@
+{
+  "path": "oracle/src/dispenser/BehaviorProjectileDispense.java",
+  "classes": [
+    "BehaviorProjectileDispense"
+  ],
+  "lines": 51,
+  "side": "server",
+  "category": "block",
+  "role": "The abstract projectile dispense behavior: spawns the subclass's IProjectile (arrow, egg, snowball, potion, ...) aimed along the dispenser's facing with 1.1 speed and 6.0 inaccuracy, aux 1002.",
+  "scope": "not_needed",
+  "scope_reason": "Never runs: dispensing is driven by redstone power and world.conf redstone = off (no block ever receives power), so BlockDispenser's dispense path is dead in the world both sides run; the dispenser window also has no native container yet (csrc/engine/survival.c:3169). The dispenser block and its tile entity do exist natively (csrc/engine/activate.c ID_DISPENSER, csrc/engine/tileentity.c TE_DISPENSER).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "method",
+      "name": "dispenseStack",
+      "sig": "(Lnet/minecraft/dispenser/IBlockSource;Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "playDispenseSound",
+      "sig": "(Lnet/minecraft/dispenser/IBlockSource;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getProjectileEntity",
+      "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/dispenser/IPosition;)Lnet/minecraft/entity/IProjectile;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_82498_a",
+      "sig": "()F",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_82500_b",
+      "sig": "()F",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": []
+}

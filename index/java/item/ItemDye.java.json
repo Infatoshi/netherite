@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/item/ItemDye.java",
+  "classes": ["ItemDye"],
+  "lines": 227,
+  "side": "server",
+  "category": "item",
+  "role": "The 16 dyes: bonemeal (damage 15) grows IGrowable blocks, cocoa beans (damage 3) plant on jungle log sides, right-click dyes an unsheared sheep, and the dyes feed the wool and armor dyeing recipes and the firework charge colours.",
+  "scope": "in_scope",
+  "scope_reason": "Fireworks are switched off (world.conf fireworks), but bonemeal, cocoa planting, sheep dyeing and the dye recipes stay vanilla.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/itemuse.c", "symbols": ["bonemeal", "dye_use", "cocoa_on_block_placed"]},
+    {"file": "csrc/engine/place.c", "symbols": ["item_dye_on_item_use"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["process_c02_interact"]},
+    {"file": "csrc/engine/crafting.c", "symbols": ["dye_matches", "dye_result", "firework_dye_color"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/particles_live.c", "symbols": ["particles_live_aux_sfx"]},
+    {"file": "csrc/engine/firework.c", "symbols": ["DYE_KEYS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/rc-items-s1",
+    "out/java/snapshots/cat-sheep-full-s1",
+    "csrc/tests/test_itemuse.c",
+    "out/java/itemuse/seed2-v2",
+    "out/java/snapshots/bonemeal-s1",
+    "out/java/snapshots/bonemeal-ff-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "statics: field_150923_a, field_150921_b, field_150922_c", "sig": "String[] / int[]", "native": "csrc/engine/crafting.c:firework_dye_color", "status": "exact", "note": "field_150922_c's firework colours (crafting.c CRAFT_DYE_COLORS through firework_dye_color), field_150923_a's names in a star's tooltip (firework.c DYE_KEYS resolved through lang_text); field_150921_b names icons only"},
+    {"kind": "field", "name": "field_150920_d", "sig": "IIcon[]", "native": null, "status": "n/a", "note": "client icons"},
+    {"kind": "ctor", "name": "ItemDye", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 351, has_subtypes"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "method", "name": "getUnlocalizedName(ItemStack)", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "client naming"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/itemuse.c:dye_use", "status": "exact", "note": "bonemeal (itemuse.c bonemeal), the cocoa branch (itemuse.c cocoa_on_block_placed, place.c item_dye_on_item_use) and the canPlayerEdit gate"},
+    {"kind": "method", "name": "func_150919_a", "sig": "(ItemStack,World,III)Z", "native": "csrc/engine/itemuse.c:bonemeal", "status": "exact", "note": "the IGrowable canGrow/grow/done draw chain on World.rand"},
+    {"kind": "method", "name": "func_150918_a", "sig": "(World,IIII)V", "native": "csrc/engine/particles_live.c:particles_live_aux_sfx", "status": "exact", "note": "playAuxSFX 2005 on the client: over a block that is not air, per particle three nextGaussian and three nextFloat of Item.itemRand (Det's split on the client role), then the happyVillager spawn (gated by the particle setting); rc-items-s1 and bonemeal-s1 compare d.cstat and d.cmath"},
+    {"kind": "method", "name": "itemInteractionForEntity", "sig": "(ItemStack,EntityPlayer,EntityLivingBase)Z", "native": "csrc/engine/survival.c:process_c02_interact", "status": "exact", "note": "the C02 interact path dyes an unsheared sheep of a different colour (BlockColored.func_150032_b, ~damage & 15) and consumes one dye; the client's call changes only its stack (the replay's sheep is the server's); cat-sheep-full-s1 row 25"},
+    {"kind": "method", "name": "getSubItems", "sig": "(Item,CreativeTabs,List)V", "native": null, "status": "n/a", "note": "creative menu"},
+    {"kind": "method", "name": "registerIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client icons"}
+  ],
+  "missing": [],
+  "notes": "rc-items-s1 gates bonemeal on a sapling and grass; cat-sheep-s1 gates the dye-sheep interact branch. idxaudit 2026-09-27: was in_scope/exact: a reachable behaviour is not native (missing). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records cat-sheep-full-s1, whose native replay starts before the behaviour. lane/idxlast 2026-09-27: stale since lane/clientgate (effect 2005's itemRand draws)."
+}

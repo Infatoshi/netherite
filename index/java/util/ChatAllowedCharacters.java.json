@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/util/ChatAllowedCharacters.java",
+  "classes": ["ChatAllowedCharacters"],
+  "lines": 37,
+  "side": "common",
+  "category": "util",
+  "role": "Which characters typed text may contain (no section sign, no control characters, no DEL) and a filter that strips the rest; plus the characters forbidden in file names.",
+  "scope": "not_needed",
+  "scope_reason": "Only reached by typed text: chat, GuiTextField, world names, sign editing (world.conf sign_editing = off) and anvil renaming (anvil = off). The agent never types text.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "allowedCharacters", "sig": "static char[]", "native": null, "status": "n/a", "note": "despite the name, the characters disallowed in file names"},
+    {"kind": "method", "name": "isAllowedCharacter", "sig": "(C)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "filerAllowedCharacters", "sig": "(String)String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No native reference found in csrc/engine or csrc/play. If chat input is ever added to the native client, this filter comes with it."
+}

@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/util/EnumTypeAdapterFactory.java",
+  "classes": ["EnumTypeAdapterFactory"],
+  "lines": 72,
+  "side": "client",
+  "category": "util",
+  "role": "A Gson TypeAdapterFactory that serializes enums as their lowercase names; registered in the IChatComponent/ChatStyle pings and the resource-pack metadata serializer.",
+  "scope": "not_needed",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "create", "sig": "(Gson,TypeToken)TypeAdapter", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151232_a", "sig": "(Object)String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Its users are the server-list ping JSON (S00PacketServerInfo), the resource-pack metadata serializer (IMetadataSerializer) and the chat Gson in IChatComponent; none of these run in this game's loopback channel, and there is no JSON layer natively. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "A Gson adapter for the server-list ping, resource-pack metadata and chat JSON; none of those is parsed in this game's state path, and native reads no JSON of that kind."
+}

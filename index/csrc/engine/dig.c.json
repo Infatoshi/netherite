@@ -1,0 +1,163 @@
+{
+ "path": "csrc/engine/dig.c",
+ "lines": 955,
+ "role": "The server-side block-breaking state machine of ItemInWorldManager (onBlockClicked, updateBlockRemoving, the delayed finish, cancel, tryHarvestBlock) against the native world, with what a survival break does: onBlockHarvested of the double plant, the chest's content drops, the silverfish spawn, the held tool's damage and breaking, harvestBlock's stat, exhaustion, silk-touch and drop paths, and the ice-to-water rule.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/server/management/ItemInWorldManager.java",
+   "members": [
+    "onBlockClicked",
+    "updateBlockRemoving",
+    "cancelDestroyingBlock",
+    "uncheckedTryHarvestBlock",
+    "tryHarvestBlock",
+    "removeBlock",
+    "initialDamage",
+    "curblockDamage",
+    "isDestroyingBlock",
+    "partiallyDestroyedBlockX",
+    "receivedFinishDiggingPacket",
+    "durabilityRemainingOnBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "harvestBlock",
+    "canSilkHarvest",
+    "createStackedBlock",
+    "onBlockClicked",
+    "dropBlockAsItem_do"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockChest.java",
+   "members": [
+    "breakBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFurnace.java",
+   "members": [
+    "breakBlock",
+    "field_149933_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDoublePlant.java",
+   "members": [
+    "onBlockHarvested",
+    "harvestBlock",
+    "func_149886_b"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLeaves.java",
+   "members": [
+    "harvestBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTallGrass.java",
+   "members": [
+    "harvestBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockIce.java",
+   "members": [
+    "harvestBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockRedstoneOre.java",
+   "members": [
+    "onBlockClicked"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockSilverfish.java",
+   "members": [
+    "onBlockDestroyedByPlayer",
+    "dropBlockAsItemWithChance"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDragonEgg.java",
+   "members": [
+    "onBlockClicked"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemStack.java",
+   "members": [
+    "attemptDamageItem",
+    "damageItem",
+    "func_150999_a"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemShears.java",
+   "members": [
+    "onBlockDestroyed"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSword.java",
+   "members": [
+    "onBlockDestroyed"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemTool.java",
+   "members": [
+    "onBlockDestroyed"
+   ]
+  },
+  {
+   "path": "oracle/src/util/FoodStats.java",
+   "members": [
+    "addExhaustion"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "renderBrokenItemStack"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "EntityItem"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockHopper.java",
+   "members": [
+    "breakBlock"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "dig_init",
+  "dig_case_begin",
+  "dig_op",
+  "dig_op_click",
+  "dig_case_end"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 37-38 and 49-50, functions block_named and item_named: exit(2) on a missing registry name",
+  "line 950-954, function dig_init: writes the global blockcb_env (world_rand, det, item_drop callback, ctx pointer to this dig_env)",
+  "line 124-125 in dig.h / line 97, function destroy_partial: progress rows go out through a function-pointer callback"
+ ],
+ "tests": [
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_clientworld.c"
+ ],
+ "notes": "Drops of a normal break go through drops.c (drops_break with the world Random handed over as a seed and written back). Spawned entities are recorded into dig_env.ents (fixed array of DROPS_MAX_ENTS), not ticked; survival.c adopts them in the tape replay (role DET_SERVER) while the dig probe runs on DET_OTHER. Creative and adventure modes and extinguishFire are out of scope (dig.h). Recordings: out/java/dig (DigProbe dump for test_dig.c), and the pickaxe-complete-s1/s42 and screens-pickaxe-s1 snapshots exercise it through survival.c (not re-verified here). Every container's breakBlock spill (chest, trapped chest, furnaces, dispenser, dropper, hopper, brewing stand) runs through spill.c:container_spill before the write (container_drops), recorded with dig_ent.spill set so the adopt keeps pickup delay 0; the live replay (block_rands) draws the Block singletons' own block_rand, the dig probe its handed-over chest state. The silk-touch stack is harvestdrops.c's harvestdrops_create_stacked_block (podzol's meta, the double slabs' two halves, the side pillar's damage 2; lane/covblock)."
+}

@@ -1,0 +1,285 @@
+{
+ "path": "oracle/src/entity/passive/EntitySheep.java",
+ "classes": [
+  "EntitySheep"
+ ],
+ "lines": 338,
+ "side": "server",
+ "category": "entity",
+ "role": "The sheep: fleece colour and sheared flag in dataWatcher 16, the eat-grass AI that regrows wool and speeds growth, shearing and dyeing through the player's hand, and breeding whose child colour runs two dyes through the crafting recipes.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_construct",
+    "animal_on_living_update",
+    "animal_drop_few_items",
+    "animal_write_kind_nbt",
+    "animal_eat_grass_bonus",
+    "animal_on_spawn_with_egg",
+    "animal_create_child",
+    "sheep_mix_colour",
+    "dye_recipe"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "entity_interact",
+    "surv_damage_stack",
+    "client_damage_stack",
+    "surv_destroy_current_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/ai.c",
+   "symbols": [
+    "AIC_EAT_GRASS"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_animals.c",
+  "out/java/snapshots/cat-sheep-full-s1",
+  "out/java/snapshots/rc-animals-s1",
+  "out/java/render/mobs_sheep_f006",
+  "out/java/snapshots/sheep-s1",
+  "out/java/snapshots/breed-sheep-s1",
+  "out/java/snapshots/pen-gates-s1",
+  "out/java/snapshots/tools-break-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "sheepTimer",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "only the client's head-lean rendering reads it"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntitySheep",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_construct",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isAIEnabled",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateAITasks",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a",
+   "note": "the only own work is the client-side sheepTimer copy"
+  },
+  {
+   "kind": "method",
+   "name": "onLivingUpdate",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_on_living_update",
+   "status": "exact",
+   "note": "the client half is dead on the server, as the port notes"
+  },
+  {
+   "kind": "method",
+   "name": "applyEntityAttributes",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_attributes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "dropFewItems",
+   "sig": "(2p)",
+   "native": "csrc/engine/animals.c:animal_drop_few_items",
+   "status": "exact",
+   "note": "one wool of the fleece colour when unsheared"
+  },
+  {
+   "kind": "method",
+   "name": "func_146068_u",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "handleHealthUpdate",
+   "sig": "(1p)",
+   "native": "csrc/engine/ai.c:AIC_EAT_GRASS",
+   "status": "exact",
+   "note": "the eat-grass tick the state byte 10 mirrors"
+  },
+  {
+   "kind": "method",
+   "name": "func_70894_j",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a",
+   "note": "client render helper"
+  },
+  {
+   "kind": "method",
+   "name": "func_70890_k",
+   "sig": "(1p)",
+   "native": null,
+   "status": "n/a",
+   "note": "client render helper"
+  },
+  {
+   "kind": "method",
+   "name": "interact",
+   "sig": "(1p)",
+   "native": "csrc/engine/survival.c:entity_interact",
+   "status": "exact",
+   "note": "the shears branch with the motion-jittered wool drops, plus the dye branch. The shears' damageItem(1, player) runs on both sides: surv_damage_stack on the server, client_damage_stack on the client (the break draws); interact answers false, so a worn-out pair stays in the slot at size 0 until the in-air C08's tail drops it."
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_write_kind_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_write_kind_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getLivingSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getHurtSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getDeathSound",
+   "sig": "(0p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145780_a",
+   "sig": "(4p)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getFleeceColor",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setFleeceColor",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSheared",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setSheared",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:data_watcher_16",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getRandomFleeceColor",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_on_spawn_with_egg",
+   "status": "exact",
+   "note": "the spawn-path colour off World.rand"
+  },
+  {
+   "kind": "method",
+   "name": "createChild",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_create_child",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "eatGrassBonus",
+   "sig": "(0p)",
+   "native": "csrc/engine/animals.c:animal_eat_grass_bonus",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onSpawnWithEgg",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:animal_on_spawn_with_egg",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_90014_a",
+   "sig": "(2p)",
+   "native": "csrc/engine/animals.c:sheep_mix_colour",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_90013_b",
+   "sig": "(1p)",
+   "native": "csrc/engine/animals.c:sheep_mix_colour",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_90016_e",
+   "sig": "InventoryCrafting",
+   "native": "csrc/engine/animals.c:dye_recipe",
+   "status": "exact",
+   "note": "the two-slot dye inventory folded into the RecipesDyes pair table"
+  },
+  {
+   "kind": "method",
+   "name": "EntitySheep$1.canInteractWith",
+   "sig": "(EntityPlayer)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the dye-mix crafting grid's own Container (EntitySheep.java:35); no player opens it, so nothing asks it"
+  }
+ ],
+ "missing": [],
+ "notes": "The child fleece colour's CraftingManager.findMatchingRecipe detour is folded into animals.c's dye_recipe table (RecipesDyes' nine two-ingredient recipes), else World.rand.nextBoolean. The static fleeceColorTable is client render data. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records cat-sheep-full-s1, whose native replay starts before the behaviour."
+}

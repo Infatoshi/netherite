@@ -1,0 +1,29 @@
+{
+ "classes": [
+  "EntityFishWakeFX"
+ ],
+ "lines": 50,
+ "side": "client",
+ "category": "particles",
+ "role": "The wake particle behind a fishing bobber.",
+ "scope": "switched_off",
+ "scope_reason": "Its only spawner is EntityFishHook (EntityFishHook.java:391), and world.conf fishing = off means no hook is ever cast.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  }
+ ],
+ "missing": [
+  "Fishing is forced off by world.conf (fishing = off); no native counterpart is needed."
+ ],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: scope reason rewritten and scope relabeled client_cosmetic -> switched_off.",
+ "path": "oracle/src/client/particle/EntityFishWakeFX.java"
+}

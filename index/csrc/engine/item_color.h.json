@@ -1,0 +1,16 @@
+{
+  "path": "csrc/engine/item_color.h",
+  "lines": 17,
+  "role": "Declares ColorizerFoliage's fixed colours (FOLIAGE_PINE, FOLIAGE_BIRCH, FOLIAGE_BASIC) and item_block_color.",
+  "layer": "render",
+  "java": [
+    {"path": "oracle/src/world/ColorizerFoliage.java", "members": ["getFoliageColorPine", "getFoliageColorBirch", "getFoliageColorBasic"]}
+  ],
+  "structs": [],
+  "entry_points": [],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_hudscreens.c"
+  ]
+}

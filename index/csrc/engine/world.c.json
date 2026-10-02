@@ -1,0 +1,282 @@
+{
+ "path": "csrc/engine/world.c",
+ "lines": 5235,
+ "role": "The native world core: the chunk map and load order, chunk construction and Nether/End raw chunks, World.setBlock/setBlockMetadataWithNotify over Chunk.func_150807_a with height maps, the sky and block light engine, breakBlock/onBlockAdded hooks, neighbour notification, the tile entity lookup, world lists and registry, and the server tick's world reads (biome, precipitation height, freeze, snow, rain fill).",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "setBlock",
+    "setBlockMetadataWithNotify",
+    "getBlock",
+    "getBlockMetadata",
+    "getSavedLightValue",
+    "setLightValue",
+    "computeLightValue",
+    "updateLightByType",
+    "func_147451_t",
+    "lightUpdateBlockList",
+    "checkChunksExist",
+    "doChunksNearChunkExist",
+    "blockExists",
+    "getCollidingBoundingBoxes",
+    "func_147470_e",
+    "getHeightValue",
+    "canBlockSeeTheSky",
+    "getFullBlockLightValue",
+    "markBlocksDirtyVertical",
+    "notifyBlockChange",
+    "notifyBlocksOfNeighborChange",
+    "getBiomeGenForCoords",
+    "getChunkHeightMapMinimum",
+    "getPrecipitationHeight",
+    "canBlockFreeze",
+    "func_147478_e",
+    "getTileEntity",
+    "setTileEntity",
+    "removeTileEntity",
+    "func_147457_a",
+    "field_147482_g",
+    "field_147484_a",
+    "field_147481_N"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "func_150807_a",
+    "setBlockMetadata",
+    "relightBlock",
+    "propagateSkylightOcclusion",
+    "updateSkylightNeighborHeight",
+    "checkSkylightNeighborHeight",
+    "recheckGaps",
+    "enqueueRelightChecks",
+    "func_150811_f",
+    "func_150801_a",
+    "func_150809_p",
+    "func_150804_b",
+    "generateSkylightMap",
+    "getSavedLightValue",
+    "setLightValue",
+    "canBlockSeeTheSky",
+    "func_150808_b",
+    "getTopFilledSegment",
+    "getPrecipitationHeight",
+    "func_150806_e",
+    "func_150812_a",
+    "getBlockLightValue",
+    "queuedLightChecks",
+    "heightMap",
+    "heightMapMinimum",
+    "precipitationHeightMap",
+    "updateSkylightColumns",
+    "isGapLightingUpdated",
+    "isTerrainPopulated",
+    "isLightPopulated",
+    "generateHeightMap",
+    "fillChunk"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderServer.java",
+   "members": [
+    "loadChunk",
+    "loadedChunks"
+   ]
+  },
+  {
+   "path": "oracle/src/world/ChunkCoordIntPair.java",
+   "members": [
+    "chunkXZ2Int"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockChest.java",
+   "members": [
+    "func_149954_e",
+    "onBlockAdded"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLeaves.java",
+   "members": [
+    "breakBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLog.java",
+   "members": [
+    "breakBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockSkull.java",
+   "members": [
+    "breakBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockSnow.java",
+   "members": [
+    "canPlaceBlockAt"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockCauldron.java",
+   "members": [
+    "fillWithRain"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFlowerPot.java",
+   "members": [
+    "createNewTileEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/client/multiplayer/ChunkProviderClient.java",
+   "members": [
+    "chunkExists"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "func_147452_c",
+    "func_147488_Z"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "world_init",
+  "world_free",
+  "chunk_key",
+  "world_chunk",
+  "world_chunk_loaded",
+  "world_load_chunk",
+  "world_generate_chunk",
+  "world_chunk_request",
+  "chunk_backend_c",
+  "world_take_chunk",
+  "world_put_chunk",
+  "world_unload_chunk",
+  "chunk_construct",
+  "generate_skylight_map",
+  "world_do_chunks_near_chunk_exist",
+  "world_check_chunks_exist",
+  "world_get_colliding_bounding_boxes",
+  "world_colliding_boxes_empty",
+  "world_is_in_fire",
+  "world_get_height_value",
+  "world_get_block",
+  "world_column_find_down",
+  "world_get_meta",
+  "world_get_light",
+  "world_can_block_see_the_sky",
+  "world_full_block_light_value",
+  "world_notify_neighbors",
+  "world_set_meta",
+  "world_set_block",
+  "world_get_biome",
+  "world_get_height_map_minimum",
+  "world_get_precipitation_height",
+  "world_get_full_block_light_value",
+  "world_check_light_at",
+  "chunk_recheck_gaps",
+  "chunk_enqueue_relight_checks",
+  "chunk_tick_flags",
+  "world_can_block_freeze",
+  "world_can_snow_at",
+  "world_fill_with_rain",
+  "world_tile_entity",
+  "world_set_tile_entity",
+  "world_remove_tile_entity",
+  "world_mark_tile_entity_gone",
+  "world_insert_chunk",
+  "world_owed_last",
+  "world_chunk_generated_meta",
+  "chunk_count_ticking",
+  "world_insert_chunk_at",
+  "chunk_new",
+  "chunk_free",
+  "chunk_clear",
+  "chunk_copy",
+  "chunk_sec_make",
+  "chunk_cells_in",
+  "chunk_cells_out",
+  "chunk_bytes_resident",
+  "chunk_clear_cells",
+  "chunk_value_range",
+  "chunk_sec_set_id_hi",
+  "chunk_sec_column_out",
+  "chunk_sec_column_in",
+  "chunk_pack",
+  "chunk_unpack",
+  "world_set_meta_quiet",
+  "world_bwl_step",
+  "chunk_sec_own",
+  "chunk_share",
+  "chunk_share_band",
+  "world_gen_state",
+  "world_dim_provider",
+  "world_dim_raw",
+  "world_dim_construct",
+  "world_light_update_raw",
+  "world_block_event",
+  "world_block_events_run",
+  "world_light_sync",
+  "world_light_defer_run_c",
+  "chunk_unpack_blob",
+  "world_te_register",
+  "world_te_unregister",
+  "world_te_listed",
+  "world_gen"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "function world_chunk_request: every chunk a server world gains (CREQ_GENERATE, CREQ_STORED, CREQ_SUPPLIED) and every generation (CREQ_OWED too) goes through it; it records the request (world.reqs: a count per kind, the last 256) and generates through the world's chunk_backend (chunk_backend_c: provide_chunk and load_dim_chunk), the seam for a batched generator (lane/gpuorder, L4)",
+  "function world_chunk_request (CREQ_GENERATE): chunk_new (calloc of the 2.8 KB chunk header) on demand; any world_get_block/world_get_meta through chunk_for (line 654) can generate a chunk inside the tick",
+  "lines 151-202: the chunk map is an open-addressing table of chunk pointers with calloc growth (line 180) and a 256-entry near-hit cache written from a const lookup (line 167)",
+  "line 227, function load_order_push: realloc growth of the load order; line 240, load_order_drop: memmove",
+  "lines 831-923, function update_light_by_type: queue loops bounded by the fixed 32768-entry w->light_list and the 17-block distance guard",
+  "lines 1879, 1926, 1936, 1959: realloc growth of the tile entity registry, added list, world list and chunk store",
+  "lines 1873-1874, 1910-1921, 1974-2010: linear scans and O(n) shifts over the tile entity lists; the registry dedupe is O(n) per add",
+  "lines 1383, 1392, 1398, 1408, 1414, 1365, 395, 451, 367: function pointer hooks (on_attempt, on_block, on_attempt_end, on_chunk, provide) installed by the harness",
+  "line 1635, function chunk_populate_column: loop ending on the sealed flag or y 0",
+  "function chunk_sec_make: a chunk's cells live in up to 16 bands (struct chunk_sec, 10 KB: the id's low byte, NibbleArrays for metadata, sky and block light, index x << 8 | z << 4 | y & 15, and an ids_hi nibble array made only for an id above 255), calloc'd on the first nonzero write to the band and freed with the chunk (chunk_free); a GPU mirror is a per-env band pool with a 16-entry index per chunk (lane worldmem, 2026-09-26)",
+  "functions world_insert_chunk, pay_owed: realloc growth of the owed list (world.owed); pay_owed replays the skipped overworld generations (each a CREQ_OWED request) into a heap scratch chunk at the next CREQ_GENERATE",
+  "functions chunk_pack, chunk_unpack: a chunk the region store parks keeps its bands as one blob compressed by lzpack.c (lane/spillfast; raw deflate at level 1 before) until it loads again; the env's pack scratch holds the raw form, the compressed form and the codec's table (lanes worldmem, gpumem2)",
+  "world_set_block, the flag-1 world_set_meta and world_notify_neighbors are worklist entry points (blockwl.h): set_block_step runs Chunk.func_150807_a in phases around breakBlock and onBlockAdded, notify_step one neighbour per step; no recursion (lane/gpuworklist L7)",
+  "function chunk_sec_make: a chunk's bands are slots of the environment's band pool (arena.h ARENA_BANDS), zeroed when taken and given back when the chunk drops them; no band allocates (lane/gpuarena, L3)",
+  "function world_light_update_raw: the light engine has a device port (csrc/cuda/lighting/replay.cu: one block per update, C's FIFO queue run a window at a time over chunks in the image layout), byte-equal to this function on every call of every snapshot recording (make -C csrc gpu-lighting-check, lane/gpulight)",
+  "function world_init_slab: a world made while the environment ticks (the replay's region store, sr_saved_init) keeps its chunk map and load order in the slab (chunk_map_grow, load_order_push, world_free follow slab_mem); other worlds still calloc and realloc them (lane/querybounds, TM-06)",
+  "function chunk_unpack: lzp_decompress into the env's pack scratch, allocating nothing (zlib's slab-allocated inflate state before lane/spillfast)",
+  "functions lw_chunk, lw_move, lw_near_exist, lp_pass (lane/chunkspeed): the light engine reads chunks through the world's window (struct world lwin: the refs of the 8x8 chunks around the pass's origin, each looked up once; map_ver, bumped by every map insertion and removal, drops it) and memoizes the last doChunksNearChunkExist box (lbox); lp_pass is updateLightByType specialized on the light type, reusing computeLightValue's neighbor reads for the spread and running a cell of a chunk a no_generate world lacks (the client's edge floods) without the general reads; the queue, its order and every write are unchanged",
+  "function chunk_construct (lane/chunkspeed): one pass per band (mask, storage, ids, metadata of non-air cells, the random-tick count from TICK_RANDOMLY, a table built before main); generate_skylight_map reads and stores through the band pointer",
+  "function lt_flood (lane/popspeed): a server world's light pass past its first cell (no_generate 0, not remote): its 4x4 chunk table is a local, its queue is w->light_list in its own coordinates, and the stamps that let it skip a re-light turn known to change nothing are struct env scratch lt_stamp (405 KB, numbered by light.flood_seq, zeroed when the number nears wrap); the column sweeps (sky_column) and func_147451_t's pair (light_pair) take their box test once and go around update_light_by_type only when no capture or profile is on",
+  "function world_set_block (lane/popfeat): set_block_plain runs set_block_step's calls without a worklist frame for a write with no flag 1 whose replaced and written blocks are both on SET_PLAIN (a table built before main) and whose chunk is in the near cache; every other write takes the worklist"
+ ],
+ "tests": [
+  "csrc/tests/test_probe.c",
+  "csrc/tests/test_fallhang.c",
+  "csrc/tests/test_lightning.c",
+  "csrc/tests/test_move.c",
+  "csrc/tests/test_paths.c",
+  "csrc/tests/test_tileticks.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_chunkload.c",
+  "csrc/tests/test_villagers.c",
+  "csrc/tests/test_explosions.c",
+  "csrc/tests/light_check.sh"
+ ],
+ "notes": "The chunk structure, light_list[32768] (World.lightUpdateBlockList) and the tile entity list fields live in world.h. breakBlock is ported here only for leaves, logs and skulls (plus block_on_broken in blockcb.c for rails); onBlockAdded and onNeighborBlockChange are in blockcb.c except the chest's facing. world_check_light_at runs the sky pass in every dimension while world_check_light (the setBlock path) skips it outside the overworld; not verified whether any caller of world_check_light_at runs in the Nether or End. The flag-2 client mark and flag-4 render half of setBlock are not ported (no server effect). world_get_colliding_bounding_boxes scans blocks only; the entity half of getCollidingBoundingBoxes is elsewhere or absent. Tests listed are a subset of the many that link world.c, chosen by include and by what they gate (light, block writes, tile entities, chunk load); not exhaustive. world_insert_chunk inserts a chunk whose bytes the caller supplies (snapshot load, test start chunks, populate raw chunks) with generation's bookkeeping; the overworld provider's cross-chunk state (surface.h topBlock) stays exact by replaying the skipped generations before the next real one (pay_owed, while gen.owed says chunkgen_init has not run since), the Nether's or End's by generating the last one (world_owed_last) (lane suitestart, 2026-09-25). Cells are stored in bands made on demand (world.h struct chunk_sec; lane worldmem, 2026-09-26): storage is independent of the section mask and holds every nonzero cell, so a band with no storage reads 0 as the flat arrays did; chunk_cell_* and chunk_set_* are the accessors, chunk_cells_in and chunk_cells_out convert the flat x << 12 | z << 8 | y layout. generate_skylight_map runs light.c's skylight_map over the bands. The band layout is ExtendedBlockStorage's (byte ids plus an optional high nibble, nibble metadata and light); a store past a field's range stops the program (chunk_value_range). generate_skylight_map skips a band with no storage in the height scan (air to its bottom). Lane gpuphase (GPU audit L6): chunk_touch and chunk_set_meta move the chunk's wseq (world.h). A band (struct chunk_sec) carries shared, the chunks holding it besides one: chunk_share makes a copy that shares the source's bands (the client's copy of a server chunk, a chunk packet in flight, play's render records), and a store of a different value into a shared band first makes it the chunk's own (chunk_sec_own), so each chunk reads what it would with bands of its own (lane/gpumem, L9). chunk_backend has take and owed (lane/gpugen): world_chunk_request takes a chunk made ahead before it generates, and an owed generation applies a backend's held provider state (world_gen_state); load_dim_chunk is world_dim_raw then world_dim_construct. lane/envmem: chunk_unpack_blob decompresses a blob held outside the chunk (the region spill file); world_te_register/unregister move a spilled chunk's tile entities out of and back into a registry. world_set_block's plain path (set_block_plain, SET_PLAIN, lane/popfeat): the ids on SET_PLAIN were checked against blockcb.c's bwl_on_broken and bwl_on_added (both empty for them) and are neither chests nor tile entities; an id added to either callback must leave the list. lane/coldaudit: chunk_sec_own keeps the chunk's rtick_mask for the copy (the same cells). world_gen builds the overworld provider at its first use (world_init no longer does). The light pass's queue is nw_scratch->light_list.",
+ "evidence": []
+}

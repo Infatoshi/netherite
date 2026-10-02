@@ -1,0 +1,41 @@
+{
+ "path": "csrc/tests/test_explosions.c",
+ "lines": 1042,
+ "role": "Gate: replays ExplosionProbe's 3000 explosions over a scattered region (shapes.bin) through expl_run: chooser draws, affected positions in HashSet order, block writes, drops, entity state after, region hash and RNG states per case. --cases N (make smoke): the first N cases, without the end Det compare.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/Explosion.java",
+   "members": [
+    "doExplosionA",
+    "doExplosionB"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "newExplosion"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/item/EntityXPOrb.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/ExplosionProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": "Data: out/java/explosions/*. Carries its own small JSON parser (jv_*). Prints destroyed, fire, drop, damaged and affected counts. Test code, built only into out/native/test_*; not on the product or GPU path, so no GPU hazards are listed."
+}

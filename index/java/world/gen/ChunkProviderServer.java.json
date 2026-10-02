@@ -1,0 +1,316 @@
+{
+ "path": "oracle/src/world/gen/ChunkProviderServer.java",
+ "classes": [
+  "ChunkProviderServer"
+ ],
+ "lines": 388,
+ "side": "server",
+ "category": "chunk",
+ "role": "The server's chunk cache for one WorldServer: loads a chunk from disk or the generator, runs the populate four-neighbour rule, queues chunks for unload (the ConcurrentHashMap-backed chunksToUnload set), unloads up to 100 per tick with a save, and forwards creature-list and structure queries to the generator.",
+ "scope": "in_scope",
+ "scope_reason": "Which chunks exist, when they populate and when they unload drive worldgen, entity loading and the whole-server replay. Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain); the in-memory region store covers unload and reload (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/chunkload.c",
+   "symbols": [
+    "cl_init",
+    "load_chunk",
+    "populate_chunk",
+    "populate",
+    "mark",
+    "cl_unload_step",
+    "cl_unload_order",
+    "cl_set_no_load",
+    "cl_replay_load",
+    "cl_pop_load",
+    "cl_spawn_area",
+    "cl_clear_unload",
+    "cs_put",
+    "cs_take",
+    "cs_order",
+    "chunkset"
+   ]
+  },
+  {
+   "file": "csrc/engine/world.c",
+   "symbols": [
+    "world_load_chunk",
+    "world_generate_chunk",
+    "world_unload_chunk",
+    "world_chunk_loaded",
+    "chunk_find",
+    "load_order_push",
+    "load_order_drop",
+    "load_dim_chunk"
+   ]
+  },
+  {
+   "file": "csrc/engine/world.h",
+   "symbols": [
+    "load_order"
+   ]
+  },
+  {
+   "file": "csrc/engine/seedworld.c",
+   "symbols": [
+    "sw_load",
+    "sw_populate",
+    "sw_populate_chunk"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_unload_step",
+    "sr_hell_provide",
+    "sr_sky_provide",
+    "sr_store_chunk",
+    "sr_chunk_unload_cb",
+    "sr_save_chunk_ticks",
+    "sr_restore_chunk_ticks"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_chunkload.c",
+  "csrc/tests/test_seedworld.c",
+  "csrc/tests/test_snapshots.c",
+  "out/java/chunkload/seed1",
+  "out/java/chunkload/s42-walk",
+  "out/java/seedworld/seed1",
+  "out/java/snapshots/persist-walkback-s1",
+  "out/java/snapshots/persist-village-full-s42",
+  "out/java/snapshots/play-reload-s1",
+  "out/java/snapshots/fresh-s42"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "static Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "chunksToUnload",
+   "sig": "Set<Long> (ConcurrentHashMap)",
+   "native": "csrc/engine/chunkload.c:chunkset",
+   "status": "exact",
+   "note": "A reimplementation of JDK 8 ConcurrentHashMap's bins, resize and tree bins so iterator().next() yields the same key."
+  },
+  {
+   "kind": "field",
+   "name": "defaultEmptyChunk",
+   "sig": "Chunk (EmptyChunk)",
+   "native": "csrc/engine/world.c:world_load_chunk",
+   "status": "exact",
+   "note": "No object: absent-chunk reads return air, light 0 (world.c get paths, servertick.c, randomtick.c)."
+  },
+  {
+   "kind": "field",
+   "name": "currentChunkProvider",
+   "sig": "IChunkProvider",
+   "native": "csrc/engine/world.c:load_dim_chunk",
+   "status": "exact",
+   "note": "Dispatch by dimension: chunkgen provide_chunk for the overworld, load_dim_chunk for the Nether and the End."
+  },
+  {
+   "kind": "field",
+   "name": "currentChunkLoader",
+   "sig": "IChunkLoader",
+   "native": "csrc/engine/serverreplay.c:sr_store_chunk",
+   "status": "exact",
+   "note": "the in-memory region store, a checkpoint's region files at first load"
+  },
+  {
+   "kind": "field",
+   "name": "loadChunkOnProvideRequest",
+   "sig": "boolean",
+   "native": "csrc/engine/chunkload.c:cl_set_no_load",
+   "status": "exact",
+   "note": "The oracle's agent mode sets it false; the replay mirrors it."
+  },
+  {
+   "kind": "field",
+   "name": "loadedChunkHashMap",
+   "sig": "LongHashMap",
+   "native": "csrc/engine/world.c:chunk_find",
+   "status": "exact",
+   "note": "Open-addressed chunk map plus a 256-slot direct cache; its iteration order is never observed."
+  },
+  {
+   "kind": "field",
+   "name": "loadedChunks",
+   "sig": "List<Chunk>",
+   "native": "csrc/engine/world.h:load_order",
+   "status": "exact",
+   "note": "world.load_order keeps the load order that saveAllChunks and entity passes read."
+  },
+  {
+   "kind": "field",
+   "name": "worldObj",
+   "sig": "WorldServer",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ChunkProviderServer",
+   "sig": "(WorldServer,IChunkLoader,IChunkProvider)",
+   "native": "csrc/engine/chunkload.c:cl_init",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "chunkExists",
+   "sig": "(int,int)Z",
+   "native": "csrc/engine/world.c:world_chunk_loaded",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_152380_a",
+   "sig": "()List",
+   "native": "csrc/engine/world.h:load_order",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "unloadChunksIfNotNearSpawn",
+   "sig": "(int,int)V",
+   "native": "csrc/engine/chunkload.c:mark",
+   "status": "exact",
+   "note": "The 128-block spawn square, and every chunk when the provider cannot respawn (cl_set_respawn)."
+  },
+  {
+   "kind": "method",
+   "name": "unloadAllChunks",
+   "sig": "()V",
+   "native": "csrc/engine/chunkload.c:cl_save_marks",
+   "status": "exact",
+   "note": "PlayerManager.updatePlayerInstances' call for a Nether or End with no player queues every loaded chunk (the same walk as saveAllChunks' marks)"
+  },
+  {
+   "kind": "method",
+   "name": "loadChunk",
+   "sig": "(int,int)Chunk",
+   "native": "csrc/engine/chunkload.c:load_chunk",
+   "status": "exact",
+   "note": "Unload-set removal, provide, load order, then the populate rule; seedworld.c sw_load is the world-start path."
+  },
+  {
+   "kind": "method",
+   "name": "provideChunk",
+   "sig": "(int,int)Chunk",
+   "native": "csrc/engine/world.c:world_load_chunk",
+   "status": "exact",
+   "note": "A miss with loadChunkOnProvideRequest off reads as EmptyChunk."
+  },
+  {
+   "kind": "method",
+   "name": "safeLoadChunk",
+   "sig": "(int,int)Chunk",
+   "native": "csrc/engine/serverreplay.c:sr_hell_provide",
+   "status": "exact",
+   "note": "the store's take with its pending ticks (sr_restore_chunk_ticks)"
+  },
+  {
+   "kind": "method",
+   "name": "safeSaveExtraChunkData",
+   "sig": "(Chunk)V",
+   "native": null,
+   "status": "n/a",
+   "note": "AnvilChunkLoader.saveExtraChunkData is empty."
+  },
+  {
+   "kind": "method",
+   "name": "safeSaveChunk",
+   "sig": "(Chunk)V",
+   "native": "csrc/engine/serverreplay.c:sr_store_chunk",
+   "status": "exact",
+   "note": "lastSaveTime and the store; the bytes are the oracle's"
+  },
+  {
+   "kind": "method",
+   "name": "populate",
+   "sig": "(IChunkProvider,int,int)V",
+   "native": "csrc/engine/seedworld.c:sw_populate",
+   "status": "exact",
+   "note": "func_150809_p then the generator populate; chunkload.c populate models the event side."
+  },
+  {
+   "kind": "method",
+   "name": "saveChunks",
+   "sig": "(boolean,IProgressUpdate)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the 900-tick autosave and the quit save write bytes only (the unload marks the same pass makes are cl_save_marks); n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "saveExtraData",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Forwards to the chunk loader's no-op flush."
+  },
+  {
+   "kind": "method",
+   "name": "unloadQueuedChunks",
+   "sig": "()Z",
+   "native": "csrc/engine/chunkload.c:cl_unload_step",
+   "status": "exact",
+   "note": "Up to 100 per call in ConcurrentHashMap iterator order; serverreplay.c sr_unload_step runs it at the head of WorldServer.tick."
+  },
+  {
+   "kind": "method",
+   "name": "canSave",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "makeString",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "Debug string."
+  },
+  {
+   "kind": "method",
+   "name": "getPossibleCreatures",
+   "sig": "(EnumCreatureType,int,int,int)List",
+   "native": "csrc/engine/serverreplay.c:sr_possible_creatures",
+   "status": "exact",
+   "note": "Forwarded per dimension (sr_hell_possible_creatures for the Nether)."
+  },
+  {
+   "kind": "method",
+   "name": "func_147416_a",
+   "sig": "(World,String,int,int,int)ChunkPosition",
+   "native": "csrc/engine/stronghold.c:stronghold_nearest_loaded",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getLoadedChunkCount",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "Debug/UI only."
+  },
+  {
+   "kind": "method",
+   "name": "recreateStructures",
+   "sig": "(int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty."
+  }
+ ],
+ "missing": [],
+ "notes": "GPU hazards in the port: cl_unload_step mallocs an order array on every iteration inside the tick (chunkload.c), and the chunk map is a pointer-per-chunk open-addressed table. Status is partial only because disk saving is not ported; the load, populate and unload order is gated by test_chunkload against ChunkLoadProbe recordings. Gates not re-run for this record. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings). lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

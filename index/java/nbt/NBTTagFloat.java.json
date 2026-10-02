@@ -1,0 +1,158 @@
+{
+  "path": "oracle/src/nbt/NBTTagFloat.java",
+  "classes": [
+    "NBTTagFloat"
+  ],
+  "lines": 103,
+  "side": "common",
+  "category": "nbt",
+  "role": "The float tag, type id 5: motion components, heal amounts, drop chances. The cross-type getters floor the value for integer reads.",
+  "scope": "in_scope",
+  "scope_reason": "Part of the NBT layer behind snapshots and digests.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/nbtjson.h",
+      "symbols": [
+        "nbt_new_float",
+        "nbt_float_bits"
+      ]
+    },
+    {
+      "file": "csrc/engine/nbtbin.c",
+      "symbols": [
+        "write_payload"
+      ]
+    },
+    {
+      "file": "csrc/engine/region.c",
+      "symbols": [
+        "nbt_bin_value"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/fresh-play-s1",
+    "out/java/snapshots/dev-give-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "data",
+      "sig": "float",
+      "native": "csrc/engine/nbtjson.h:nbt_new_float",
+      "status": "exact",
+      "note": "Canonical text carries the 8 hex digits of the raw bits: f:+...."
+    },
+    {
+      "kind": "ctor",
+      "name": "NBTTagFloat",
+      "sig": "(F)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_float",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "write",
+      "sig": "(LDataOutput;)V",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_152446_a",
+      "sig": "(LDataInput;ILNBTSizeTracker;)V",
+      "native": "csrc/engine/region.c:nbt_bin_value",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getId",
+      "sig": "()B",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "exact",
+      "note": "5; NBT_FLOAT."
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "Java's text form: built only by ItemStack.func_151000_E (the item hover in a chat line), CommandGive (chat commands are not agent input) and logging. func_151000_E runs at StatList's init on tagless stacks (id, Count, Damage: a short and a byte) and in a death message only for an item with hasDisplayName (EntityDamageSource, EntityDamageSourceIndirect, CombatTracker), and only the anvil names an item (world.conf anvil = off)"
+    },
+    {
+      "kind": "method",
+      "name": "copy",
+      "sig": "()LNBTBase;",
+      "native": "csrc/engine/crafting.c:copy_tag",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Ljava/lang/Object;)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "NBTTagCompound.equals compares tag values only for ItemStack tags (ItemStack.areItemStackTagsEqual, isItemStackEqual) and a HoverEvent's value; no survival item's tag holds a float (ench and StoredEnchantments hold shorts, display.color an int, display.Name and Lore strings, RepairCost an int, Fireworks bytes and int arrays), so it is never compared"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "Only feeds Java's HashMap."
+    },
+    {
+      "kind": "method",
+      "name": "func_150291_c",
+      "sig": "()J",
+      "native": null,
+      "status": "n/a",
+      "note": "Java truncates the float for a long read; not reached on engine data."
+    },
+    {
+      "kind": "method",
+      "name": "func_150287_d",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "MathHelper.floor_float for an int read; not reached."
+    },
+    {
+      "kind": "method",
+      "name": "func_150289_e",
+      "sig": "()S",
+      "native": null,
+      "status": "n/a",
+      "note": "Masked floor; not reached."
+    },
+    {
+      "kind": "method",
+      "name": "func_150290_f",
+      "sig": "()B",
+      "native": null,
+      "status": "n/a",
+      "note": "Masked floor; not reached."
+    },
+    {
+      "kind": "method",
+      "name": "func_150286_g",
+      "sig": "()D",
+      "native": null,
+      "status": "n/a",
+      "note": "a cross-type read: NBTTagCompound.getByte/getShort/getInteger/getLong/getFloat/getDouble (and NBTTagList.func_150309_d/func_150308_e) call it only when the key holds a tag of this type but is read as another; the game reads every key with the type it wrote it (EntityLivingBase.readEntityFromNBT checks HealF/Health's type first) and a survival player writes no NBT of their own (no chat commands in the agent input; anvil, book_editing and sign_editing are off). The same-type getter runs in every recording"
+    },
+    {
+      "kind": "method",
+      "name": "func_150288_h",
+      "sig": "()F",
+      "native": "csrc/engine/nbtjson.h:nbt_float_bits",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "The four floor-and-mask getters are left uncited on purpose: no native code reads a float tag as a byte/short/int/long. If a future port adds one, it must reproduce MathHelper.floor_float and the masks."
+}

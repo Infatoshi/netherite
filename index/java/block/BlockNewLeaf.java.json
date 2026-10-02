@@ -1,0 +1,142 @@
+{
+  "path": "oracle/src/block/BlockNewLeaf.java",
+  "classes": [
+    "BlockNewLeaf"
+  ],
+  "lines": 73,
+  "side": "common",
+  "category": "block",
+  "role": "The acacia and dark-oak leaves (161): the BlockLeaves behaviour with the apple roll on the dark-oak variant and sapling damage offset by 4.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/randomtick.c",
+      "symbols": [
+        "rt_leaves",
+        "leaves_drop",
+        "LEAF_NEAR",
+        "RT_LEAVES"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break",
+        "leaves"
+      ]
+    },
+    {
+      "file": "csrc/engine/features_trees.c",
+      "symbols": [
+        "feature_savanna"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_feature.c",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/chunks",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/leaves-chop-s1",
+    "out/java/snapshots/fire-forest-s1",
+    "out/java/snapshots/leaves-stale-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_150132_N",
+      "sig": "String[][]",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture names"
+    },
+    {
+      "kind": "field",
+      "name": "field_150133_O",
+      "sig": "String[]",
+      "native": null,
+      "status": "n/a",
+      "note": "client sapling names"
+    },
+    {
+      "kind": "ctor",
+      "name": "BlockNewLeaf",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 161, BlockLeaves's behaviour"
+    },
+    {
+      "kind": "method",
+      "name": "func_150124_c",
+      "sig": "(World,IIIII)V",
+      "native": "csrc/engine/randomtick.c:leaves_drop",
+      "status": "exact",
+      "note": "the dark-oak apple roll (meta & 3 == 1, nextInt(chance) == 0)"
+    },
+    {
+      "kind": "method",
+      "name": "damageDropped",
+      "sig": "(I)I",
+      "native": "csrc/engine/drops.c:leaves",
+      "status": "exact",
+      "note": "case 161: the sapling damage is (meta & 3) + 4"
+    },
+    {
+      "kind": "method",
+      "name": "getDamageValue",
+      "sig": "(World,III)I",
+      "native": "csrc/engine/pickblock.c:block_get_damage",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)Lnet/minecraft/util/IIcon;",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture selection"
+    },
+    {
+      "kind": "method",
+      "name": "getSubBlocks",
+      "sig": "(ILnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "creative inventory only"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "client texture registration"
+    },
+    {
+      "kind": "method",
+      "name": "func_150125_e",
+      "sig": "()[Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "client sapling wood names"
+    }
+  ],
+  "missing": [],
+  "notes": "The decay BFS, drop rolls and shears harvest run through the BlockLeaves paths (randomtick.c's rt_leaves and leaves_drop; drops.c's case 161 calls the shared leaves helper). Placed by the savanna and dark-oac tree features (features_trees.c)."
+}

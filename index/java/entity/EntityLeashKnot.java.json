@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/entity/EntityLeashKnot.java",
+  "classes": ["EntityLeashKnot"],
+  "lines": 178,
+  "side": "server",
+  "category": "entity",
+  "role": "The fence-post leash knot: placed when a lead is tied, unties leashed mobs on right-click, breaks with the fence, and is never saved to disk.",
+  "scope": "in_scope",
+  "scope_reason": "Leads are vanilla 1.7.10 content and not on the world.conf switch list.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/fallhang.c", "symbols": ["fh_spawn_knot", "fh_valid_surface", "fh_write_nbt", "FH_KNOT"]},
+    {"file": "csrc/engine/leash.c", "symbols": ["leash_knot_interact", "spawn_knot", "knot_for_block"]},
+    {"file": "csrc/engine/pickobj.c", "symbols": ["PK_KNOT"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/lead-s1",
+    "out/java/snapshots/leash-reload-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "EntityLeashKnot", "sig": "(World)V", "native": null, "status": "n/a", "note": "the NBT constructor: a knot is never saved, so none is ever read back"},
+    {"kind": "ctor", "name": "EntityLeashKnot", "sig": "(World,III)V", "native": "csrc/engine/fallhang.c:fh_spawn_knot", "status": "exact", "note": "the tile position and the centered placement"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": null, "status": "n/a", "note": "EntityHanging's empty body"},
+    {"kind": "method", "name": "setDirection", "sig": "(int)V", "native": "csrc/engine/fallhang.c:fh_spawn_knot", "status": "n/a", "note": "n/a: the empty override; its callers are EntityHanging.readEntityFromNBT (a knot is never saved: writeToNBTOptional returns false) and the painting and frame constructors"},
+    {"kind": "method", "name": "getWidthPixels", "sig": "()I", "native": null, "status": "n/a", "note": "the renderer's"},
+    {"kind": "method", "name": "getHeightPixels", "sig": "()I", "native": null, "status": "n/a", "note": "the renderer's"},
+    {"kind": "method", "name": "isInRangeToRenderDist", "sig": "(D)Z", "native": null, "status": "n/a", "note": "the renderer's"},
+    {"kind": "method", "name": "onBroken", "sig": "(Entity)V", "native": "csrc/engine/fallhang.c:on_broken", "status": "exact", "note": "empty: a knot drops nothing"},
+    {"kind": "method", "name": "writeToNBTOptional", "sig": "(NBTTagCompound)Z", "native": "csrc/engine/serverreplay.c:sr_chunk_unload_cb", "status": "exact", "note": "false: the unload saves no knot"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/fallhang.c:fh_write_nbt", "status": "exact", "note": "empty: the base Entity tags only"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "empty; no knot is read back"},
+    {"kind": "method", "name": "interactFirst", "sig": "(EntityPlayer)Z", "native": "csrc/engine/leash.c:leash_knot_interact", "status": "exact", "note": "the lead retie and the survival untie; the creative clear (capabilities.isCreativeMode) is never taken: the replayed game type is survival (setGameType is n/a in EntityPlayerMP's record)"},
+    {"kind": "method", "name": "onValidSurface", "sig": "()Z", "native": "csrc/engine/fallhang.c:fh_valid_surface", "status": "exact", "note": "the fence render-type test"},
+    {"kind": "method", "name": "func_110129_a", "sig": "(World,III)EntityLeashKnot", "native": "csrc/engine/leash.c:spawn_knot", "status": "exact", "note": "the static spawner ItemLead uses"},
+    {"kind": "method", "name": "getKnotForBlock", "sig": "(World,III)EntityLeashKnot", "native": "csrc/engine/leash.c:knot_for_block", "status": "exact", "note": "the 1-block search ItemLead and BlockFence use"}
+  ],
+  "missing": [],
+  "notes": "A hanging entity of the fall/hang pool (FH_KNOT, lane/ride): spawned at a fence by ItemLead or by a reloaded mob's recreateLeash, tracked to the client as S0E type 77 (pickobj.c PK_KNOT), dropped at chunk unload. lead-s1: tie, unload, reload (the knot is rebuilt from the cow's Leash tag), untie. lane/idxentity: interactFirst's creative branch is not reachable in survival play, so the record is exact over what play reaches. lane/reloadstate: leash-reload-s1 unloads a cow tied to a knot and relinks it (coverage, passed on master)."
+}

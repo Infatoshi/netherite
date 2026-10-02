@@ -1,0 +1,42 @@
+{
+ "path": "oracle/src/entity/EntityTracker.java",
+ "classes": ["EntityTracker"],
+ "lines": 341,
+ "side": "server",
+ "category": "network",
+ "role": "The server-side entity tracker: one EntityTrackerEntry per tracked entity, the per-class tracking range and update-frequency table, and the add/remove/lookup plumbing the world tick and player manager drive.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/tracker.c", "symbols": ["tracker_init", "tracker_add", "tracker_find", "tracker_remove", "tracker_entry_tick", "tracker_multiply_by_32_and_round"]},
+  {"file": "csrc/engine/combat.c", "symbols": ["track_one", "combat_server_finish", "combat_player_removed", "living_tracker_params", "track_fireball"]},
+  {"file": "csrc/engine/pickobj.c", "symbols": ["entry_params", "destroy_later"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/combat-mobs-s1",
+  "out/java/snapshots/walk300-s1",
+  "out/java/snapshots/fresh-play-s1",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_probe.c",
+  "out/java/snapshots/pf-twinrand-g13"
+ ],
+ "members": [
+  {"kind": "field", "name": "theWorld", "sig": "WorldServer", "native": null, "status": "n/a", "note": "the native tracker is handed the replay's world context instead"},
+  {"kind": "field", "name": "trackedEntities", "sig": "Set", "native": "csrc/engine/tracker.h:tracker", "status": "exact", "note": "struct tracker.entries, an array in add order"},
+  {"kind": "field", "name": "trackedEntityIDs", "sig": "IntHashMap", "native": "csrc/engine/tracker.h:tracker", "status": "exact", "note": "folded into the same array, looked up by id"},
+  {"kind": "field", "name": "entityViewDistance", "sig": "int", "native": "csrc/engine/serverreplay.h:tracker_view", "status": "exact", "note": "144: the EntityTrackers take IntegratedPlayerList's view 10 at the worlds' creation (serverreplay.c sets tracker_view 10; pickobj.c entry_params clamps each range to tracker_view * 16 - 16; the livings' 80 and 64 are under it)"},
+  {"kind": "ctor", "name": "EntityTracker", "sig": "(WorldServer)V", "native": "csrc/engine/tracker.c:tracker_init", "status": "exact"},
+  {"kind": "method", "name": "addEntityToTracker", "sig": "(Entity)V", "native": "csrc/engine/tracker.c:tracker_add", "status": "exact", "note": "every branch in reach as vanilla: players, arrows 64/20/false, fireballs 64/10/false (combat.c track_fireball), snowballs, pearls, eggs, potions and bottles 64/10 (PK_THROWN), eyes 64/4, items 64/20, squid 64/3, the IAnimals default 80/3 (the dragon takes it: an IMob), TNT 160/10, falling blocks 160/20, hanging entities and knots 160/max/false, orbs 160/20, crystals 256/max/false, all clamped to 144 (pickobj.c entry_params, combat.c living_tracker_params), and the bat's 80/3/false (combat.c living_tracker_params, pinned by pf-twinrand-g13)"},
+  {"kind": "method", "name": "addEntityToTracker", "sig": "(EntityII)V", "native": "csrc/engine/tracker.c:tracker_add", "status": "exact", "note": "every branch in reach as vanilla: players, arrows 64/20/false, fireballs 64/10/false (combat.c track_fireball), snowballs, pearls, eggs, potions and bottles 64/10 (PK_THROWN), eyes 64/4, items 64/20, squid 64/3, the IAnimals default 80/3 (the dragon takes it: an IMob), TNT 160/10, falling blocks 160/20, hanging entities and knots 160/max/false, orbs 160/20, crystals 256/max/false, all clamped to 144 (pickobj.c entry_params, combat.c living_tracker_params), and the bat's 80/3/false (combat.c living_tracker_params, pinned by pf-twinrand-g13)"},
+  {"kind": "method", "name": "addEntityToTracker", "sig": "(EntityIIZ)V", "native": "csrc/engine/tracker.c:tracker_add", "status": "exact", "note": "every branch in reach as vanilla: players, arrows 64/20/false, fireballs 64/10/false (combat.c track_fireball), snowballs, pearls, eggs, potions and bottles 64/10 (PK_THROWN), eyes 64/4, items 64/20, squid 64/3, the IAnimals default 80/3 (the dragon takes it: an IMob), TNT 160/10, falling blocks 160/20, hanging entities and knots 160/max/false, orbs 160/20, crystals 256/max/false, all clamped to 144 (pickobj.c entry_params, combat.c living_tracker_params), and the bat's 80/3/false (combat.c living_tracker_params, pinned by pf-twinrand-g13)"},
+  {"kind": "method", "name": "removeEntityFromAllTrackingPlayers", "sig": "(Entity)V", "native": "csrc/engine/combat.c:combat_player_removed", "status": "exact", "note": "the player taken off every entry at once (lane/clientgate's exit-portal fix); the entities' removal sends their S13 (pickobj.c destroy_later, tracker_remove)"},
+  {"kind": "method", "name": "updateTrackedEntities", "sig": "()V", "native": "csrc/engine/combat.c:combat_server_finish", "status": "exact", "note": "combat.c ticks one entry per living entity (track_one), then the second loop: when the player's entry moved four blocks since its last check every other entry tries the player (combat.c:286-306)"},
+  {"kind": "method", "name": "func_151247_a", "sig": "(EntityPacket)V", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+  {"kind": "method", "name": "func_151248_b", "sig": "(EntityPacket)V", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+  {"kind": "method", "name": "removePlayerFromTrackers", "sig": "(EntityPlayerMP)V", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+  {"kind": "method", "name": "func_85172_a", "sig": "(EntityPlayerMPChunk)V", "native": null, "status": "n/a", "note": "the chunk-load watch start; not a gap (triage 2026-09-25)"}
+ ],
+ "missing": [],
+ "notes": "The native tracker lives in tracker.c as a flat 512-entry array keyed by entity id; combat.c and the servertick's mob lanes decide when entries are created (tracker_add with class string \"EntityLivingBase\") and clientworld.c consumes the emitted packets. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): the re-watch loop is ported (DEVLOG 2026-09-25 lane/bot, the second loop on a four-block move); the rest is multiplayer; record is wrong. Formerly listed as missing: func_151247_a, func_151248_b, removePlayerFromTrackers and func_85172_a (the chunk-watch start for players entering a chunk) are missing. The per-class addEntityToTracker table is incomplete beyond the player/fishhook/arrow/item/falling-block/orb/mob rows. idxaudit 2026-09-27: was in_scope/exact: a reachable behaviour is not native (missing). lane/idxlast 2026-09-27: the per-class table was completed by lane/clientgate (items, orbs, arrows, thrown, eyes, squid) and lane/harness2 (the 144 clamp); only the bat is left, on lane/seed1chain."
+}

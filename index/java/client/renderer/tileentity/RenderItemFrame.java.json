@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/RenderItemFrame.java",
+  "classes": ["RenderItemFrame"],
+  "lines": 337,
+  "side": "client",
+  "category": "client_render",
+  "role": "Entity renderer for EntityItemFrame: draws the frame as a shrunken planks block with the itemframe_background icon (via RenderBlocks.renderBlockAsItem with overridden bounds), the displayed item as a flat EntityItem quad rotated by the frame's rotation, a filled map as a stretched map_background, and the name tag.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_itemframe.c", "symbols": ["raster_itemframe_draw", "frame_box", "raster_itemframe_parse", "raster_itemframe_rendered", "raster_itemframe_draw_live", "frame_draw"]},
+    {"file": "csrc/engine/block_item_model.c", "symbols": ["block_item_model_override_box"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-hanging-full-s1", "out/java/rendertick/anim_dials", "out/java/clientframes/cr-hang-s1", "out/java/clientframes/idx-frames-s1", "out/java/clientframes/cov-blocks-s1"],
+  "members": [
+    {"kind": "field", "name": "mapBackgroundTextures", "sig": "ResourceLocation (static)", "native": null, "status": "n/a", "note": "the filled map's background: maps = off (world.conf) makes ItemEmptyMap.onItemRightClick return first and no loot holds a filled map"},
+    {"kind": "field", "name": "field_147916_f", "sig": "RenderBlocks", "native": "csrc/engine/block_item_model.c:block_item_model_override_box", "status": "exact"},
+    {"kind": "field", "name": "field_147917_g", "sig": "Minecraft", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_94147_f", "sig": "IIcon", "native": "csrc/engine/raster_itemframe.c:raster_itemframe_draw", "status": "exact", "note": "the itemframe_background sprite by name"},
+    {"kind": "method", "name": "updateIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "sprites come from the atlas dump"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityItemFrame,D,D,D,F,F)V", "native": "csrc/engine/raster_itemframe.c:raster_itemframe_draw", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityItemFrame)ResourceLocation", "native": null, "status": "n/a", "note": "returns null (RenderItemFrame.java:77)"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "func_147915_b", "sig": "(EntityItemFrame)V", "native": "csrc/engine/raster_itemframe.c:raster_itemframe_draw", "status": "n/a", "note": "the full-size frame is drawn only around a filled map; maps = off makes ItemEmptyMap.onItemRightClick return first (ItemEmptyMap.java:23) and no 1.7.10 loot or trade holds a filled map (lane/covclient)"},
+    {"kind": "method", "name": "renderFrameItemAsBlock", "sig": "(EntityItemFrame)V", "native": "csrc/engine/raster_itemframe.c:frame_box", "status": "exact"},
+    {"kind": "method", "name": "func_82402_b", "sig": "(EntityItemFrame)V", "native": "csrc/engine/raster_itemframe.c:frame_draw", "status": "exact", "note": "flat items (RenderItem.doRender's fast path with renderInFrame), the compass's own needle, and block items through the 3D path (the 1.25 scale, 0.05 lift, -90 turn and 0.25 scale, renderBlockAsItem at brightness 1): idx-frames-s1 within 4 px. The glint on a framed item is renderDroppedItem's fancy branch only (fancyGraphics false in every oracle run); a filled map is unreachable (maps off)"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,D,D,D,F,F)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The filled-map branch is dead in this world: maps are switched off (world.conf maps = off), so getDisplayedItem is never Items.filled_map here. persist-hanging-s1 is the DEVLOG recording of a painting and an item frame placed and persisted; it exercises the Java renderer every recorded frame. lane/clientents: raster_itemframe_draw_live draws pickobj.c's frame copies in the live client over the live block atlas, the item and its rotation from the server frame (no compass needle live); hang-s1. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-hanging-full-s1, whose native replay starts before the behaviour. lane/idxclient: the map branch and the name label are unreachable (maps off; a display name needs the anvil, off); the framed block item and the framed glint remain. lane/idxclient: block items drawn in frames (idx-frames-s1)."
+}

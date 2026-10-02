@@ -1,0 +1,99 @@
+{
+ "path": "oracle/src/network/play/server/S36PacketSignEditorOpen.java",
+ "classes": [
+  "S36PacketSignEditorOpen"
+ ],
+ "lines": 69,
+ "side": "common",
+ "category": "network",
+ "role": "Opens the client's sign edit GUI at a sign's position.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf sign_editing = off: signs are placed blank and the editor never opens.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S36PacketSignEditorOpen",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S36PacketSignEditorOpen",
+   "sig": "(int,int,int)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149133_a",
+   "sig": "int",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149131_b",
+   "sig": "int",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149132_c",
+   "sig": "int",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149129_c",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149128_d",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149127_e",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "The only sender is ItemSign.onItemUse through EntityPlayerMP.displayGUUpdateSignEditor (ItemSign.java:88, EntityPlayerMP.java:670), gated on netherite.oracle.WorldConf.signEditing."
+}

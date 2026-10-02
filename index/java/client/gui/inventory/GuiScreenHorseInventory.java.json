@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiScreenHorseInventory.java",
+  "classes": ["GuiScreenHorseInventory"],
+  "lines": 65,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The horse's inventory screen (opened by shift-right-click on a tamed horse): the horse's chest slots beside the player inventory, with the EntityHorse drawn in the background.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf horses = off: horses, donkeys and mules leave every spawn list (SPEC Decisions), so this screen is never opened on the oracle side either.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_147031_u", "sig": "static ResourceLocation", "native": null, "status": "n/a", "note": "static texture constant"},
+    {"kind": "field", "name": "field_147030_v", "sig": "IInventory", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_147029_w", "sig": "IInventory", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_147034_x", "sig": "EntityHorse", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_147033_y", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_147032_z", "sig": "float", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "GuiScreenHorseInventory", "sig": "(IInventory,IInventory,EntityHorse)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "drawScreen", "sig": "(int,int,float)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No native grep hit for GuiScreenHorseInventory."
+}

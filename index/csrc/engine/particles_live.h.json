@@ -1,0 +1,119 @@
+{
+ "path": "csrc/engine/particles_live.h",
+ "lines": 197,
+ "role": "Declares the live client particle list (a fixed array of FX records mirroring EntityFX and its digging and explosion subclasses) and its spawn, tick, light and read functions, and documents the Det draw contract each spawn follows.",
+ "layer": "client",
+ "java": [
+  {
+   "path": "oracle/src/client/particle/EffectRenderer.java",
+   "members": [
+    "fxLayers",
+    "rand",
+    "addBlockHitEffects",
+    "func_147215_a",
+    "updateEffects"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityFX.java",
+   "members": [
+    "particleAge",
+    "particleMaxAge",
+    "particleScale",
+    "particleGravity",
+    "particleRed",
+    "particleGreen",
+    "particleBlue",
+    "particleAlpha",
+    "particleTextureJitterX",
+    "particleTextureJitterY",
+    "particleTextureIndexX",
+    "particleTextureIndexY",
+    "particleIcon"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityLargeExplodeFX.java",
+   "members": [
+    "field_70581_a",
+    "field_70584_aq",
+    "field_70582_as"
+   ]
+  },
+  {
+   "path": "oracle/src/client/particle/EntityHugeExplodeFX.java",
+   "members": [
+    "timeSinceStart",
+    "maximumTime"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "live_fx",
+   "java": "EntityFX (with its Entity base as struct entity) plus EntityDiggingFX's block icon and the explode subclasses' fields, and the FX's own Random",
+   "fields": [
+    "e",
+    "kind",
+    "layer",
+    "age",
+    "maxage",
+    "scale",
+    "gravity",
+    "red",
+    "green",
+    "blue",
+    "alpha",
+    "jitx",
+    "jity",
+    "tix",
+    "tiy",
+    "has_icon",
+    "block_id",
+    "block_meta",
+    "min_u",
+    "max_u",
+    "min_v",
+    "max_v",
+    "brf",
+    "vx",
+    "vq",
+    "vs",
+    "tstart",
+    "tmax",
+    "dead",
+    "rand"
+   ]
+  },
+  {
+   "name": "particles_live",
+   "java": "EffectRenderer: worldObj, rand, fxLayers flattened into one array",
+   "fields": [
+    "world",
+    "det",
+    "mesher",
+    "effect_rand",
+    "fx",
+    "n"
+   ]
+  }
+ ],
+ "entry_points": [
+  "particles_live_init",
+  "particles_live_hit",
+  "particles_live_destroy",
+  "particles_live_explosion",
+  "particles_live_tick",
+  "particles_live_light",
+  "particles_live_count",
+  "particles_live_get",
+  "particles_live_pin"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "lines 59-61, struct particles_live: back pointers to world, det and the render mesher",
+  "line 63, struct particles_live: fixed-capacity array of PLIVE_CAP (4096) FX, flat (good), about several hundred bytes each"
+ ],
+ "tests": [],
+ "notes": "The FX record embeds a full struct entity, so the array is large; size per record not measured."
+}

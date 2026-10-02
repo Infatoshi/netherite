@@ -1,0 +1,147 @@
+{
+ "path": "oracle/src/enchantment/EnchantmentProtection.java",
+ "classes": [
+  "EnchantmentProtection"
+ ],
+ "lines": 136,
+ "side": "server",
+ "category": "combat",
+ "role": "The five Protection enchantments (all, fire, fall, explosion, projectile): the per-type level windows plus calcModifierDamage, the formula EntityLivingBase.applyPotionDamageCalculations sums over the armour, and the two static fire/blast reducers.",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), but the enchantment registry itself is kept: loot books and mob equipment carry enchantments (DEVLOG 2026-09-25, 'Kept: enchantment data and effects').",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "ENCHANTS",
+    "CAN_APPLY_TOGETHER"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_enchantment_modifier_damage",
+    "living_set_fire"
+   ]
+  },
+  {
+   "file": "csrc/engine/explosion.c",
+   "symbols": [
+    "expl_run_extras"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "can_apply_together"
+   ]
+  },
+  {
+   "file": "csrc/engine/combatench.c",
+   "symbols": [
+    "ench_fire_time"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_explosions.c",
+  "out/java/explosions",
+  "out/java/snapshots/surv_lava-s1",
+  "out/java/snapshots/surv_fall20-s1",
+  "out/java/snapshots/dmg-sources-s1",
+  "out/java/snapshots/melee-mods-s1",
+  "out/java/snapshots/idx-armorench-s1",
+  "out/java/clientframes/cov-tipprot-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "protectionType",
+   "sig": "int",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "which of the five rows (effect ids 0..4) the instance is"
+  },
+  {
+   "kind": "field",
+   "name": "baseEnchantability, levelEnchantability, thresholdEnchantability, protectionName",
+   "sig": "static int[]/String[]",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "folded into the rows' min_enchantability/max_enchantability/name per effect id"
+  },
+  {
+   "kind": "ctor",
+   "name": "EnchantmentProtection",
+   "sig": "(int,int,int)V",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "protectionType 2 (fall) switches the type to armor_feet; rows 0-4 carry the per-type EnumEnchantmentType"
+  },
+  {
+   "kind": "method",
+   "name": "getMinEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxEnchantability",
+   "sig": "(int)I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxLevel",
+   "sig": "()I",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "all five rows max_level 4"
+  },
+  {
+   "kind": "method",
+   "name": "calcModifierDamage",
+   "sig": "(int,DamageSource)I",
+   "native": "csrc/engine/living.c:living_enchantment_modifier_damage",
+   "status": "exact",
+   "note": "the (6+lvl*lvl)/3 formula, the per-type source tests (fire, fall, explosion, projectile) and the canHarmInCreative guard (outOfWorld only) are reproduced; only the DamageSource kinds the port reaches are exercised"
+  },
+  {
+   "kind": "method",
+   "name": "getName",
+   "sig": "()Ljava/lang/String;",
+   "native": "csrc/engine/enchants.h:ENCHANTS",
+   "status": "exact",
+   "note": "runs only when a frame is drawn: clientframes cov-tipprot-s1 hovers a Protection IV, Fire Protection II chestplate in a large chest (frame judge 0 px over 25)"
+  },
+  {
+   "kind": "method",
+   "name": "canApplyTogether",
+   "sig": "(Enchantment)Z",
+   "native": "csrc/engine/enchant.c:can_apply_together",
+   "status": "exact",
+   "note": "two protections of the same type refuse each other; fall pairs with everything (CAN_APPLY_TOGETHER rows 0-4)"
+  },
+  {
+   "kind": "method",
+   "name": "getFireTimeForEntity",
+   "sig": "(Entity,int)I",
+   "native": "csrc/engine/combatench.c:ench_fire_time",
+   "status": "exact",
+   "note": "living_set_fire reads it for mobs (equipment) and the player twin (armour, on the server player's fire)"
+  },
+  {
+   "kind": "method",
+   "name": "func_92092_a",
+   "sig": "(Entity,D)D",
+   "native": "csrc/engine/combatench.c:ench_blast_protection",
+   "status": "exact",
+   "note": "getMaxEnchantmentLevel(blastProtection) over the entity's last active items, then v - floor(v * level * 0.15) (explosion.c's push for every living and the player; the S27 keeps var35). v is at most 1 and level at most 4, so the floor is always 0 and the push never changes in 1.7.10; ported as written. idx-armorench-s1 blows a creeper beside a Blast Protection IV chestplate."
+  }
+ ],
+ "missing": [],
+ "notes": "getFireTimeForEntity and func_92092_a would diverge the moment an entity wears enchanted armour; both call sites are marked partial rather than exact for that reason. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port. It stays partial until a recording pins it. lane/idxblocks: getFireTimeForEntity now reaches the player's lava, fire-block and lightning fires and a mob's fire-block fire (survival.c:sp_set_fire, entity.c's fire_time hook)."
+}

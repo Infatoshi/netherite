@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/raster_entities.h",
+ "lines": 62,
+ "role": "Declares the recorded-scene entity pass (paintings, items, orbs) and the live item/orb pass, with struct worldfx_entity, the playable client's per-entity input.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/entity/RenderItem.java", "members": ["doRender"]},
+  {"path": "oracle/src/client/renderer/entity/RenderXPOrb.java", "members": ["doRender"]},
+  {"path": "oracle/src/entity/item/EntityItem.java", "members": ["hoverStart", "age"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["getBrightnessForRender"]}
+ ],
+ "structs": [
+  {"name": "worldfx_entity", "java": "an EntityItem or EntityXPOrb as the renderer reads it: stack, age, hoverStart, position, getBrightnessForRender, xpColor", "fields": ["orb", "id", "meta", "count", "age", "hover", "x", "y", "z", "light", "color"]}
+ ],
+ "entry_points": ["raster_entities_draw", "raster_entities_live"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_render.c"],
+ "notes": "Included by raster.c (recorded path) and play/play.c (live path). lane/entrender: raster_orb_quad and raster_world_item_at."
+}

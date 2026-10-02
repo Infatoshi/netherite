@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/util/MovingObjectPosition.java",
+  "classes": ["MovingObjectPosition", "MovingObjectPosition.MovingObjectType"],
+  "lines": 75,
+  "side": "common",
+  "category": "util",
+  "role": "The result of a ray trace against the world: which block face or entity a ray hit, and where. Used by block targeting, projectiles, the explosion's block-density walk and mob AI.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raytrace.h", "symbols": ["rt_mop"]},
+    {"file": "csrc/engine/raytrace.c", "symbols": ["rt_mop", "raytrace_blocks", "raytrace_trace", "collision_ray_trace"]}
+  ],
+  "evidence": ["csrc/tests/test_explosions.c", "out/java/snapshots/pickaxe-complete-s1"],
+  "members": [
+    {"kind": "field", "name": "typeOfHit", "sig": "MovingObjectType", "native": "csrc/engine/raytrace.h:rt_mop", "status": "partial", "note": "rt_mop.type carries the block form (0..5 face or RT_MISS); the ENTITY form is resolved inline by each caller, no shared C field"},
+    {"kind": "field", "name": "blockX", "sig": "int", "native": "csrc/engine/raytrace.h:rt_mop", "status": "exact"},
+    {"kind": "field", "name": "blockY", "sig": "int", "native": "csrc/engine/raytrace.h:rt_mop", "status": "exact"},
+    {"kind": "field", "name": "blockZ", "sig": "int", "native": "csrc/engine/raytrace.h:rt_mop", "status": "exact"},
+    {"kind": "field", "name": "sideHit", "sig": "int", "native": "csrc/engine/raytrace.h:rt_mop", "status": "exact", "note": "rt_mop.type is the face hit, 0..5"},
+    {"kind": "field", "name": "hitVec", "sig": "Vec3", "native": "csrc/engine/raytrace.h:rt_mop", "status": "exact", "note": "rt_mop.hx/hy/hz, world coordinates"},
+    {"kind": "field", "name": "entityHit", "sig": "Entity", "native": null, "status": "n/a", "note": "entity ray hits are resolved per caller in the AI files; no shared C struct carries them; not a gap (triage 2026-09-25)"},
+    {"kind": "ctor", "name": "MovingObjectPosition", "sig": "(int,int,int,int,Vec3)V", "native": "csrc/engine/raytrace.c:raytrace_blocks", "status": "partial", "note": "the block-form ctor's fields are filled into an rt_mop by the ray walk"},
+    {"kind": "ctor", "name": "MovingObjectPosition", "sig": "(int,int,int,int,Vec3,boolean)V", "native": "csrc/engine/raytrace.c:raytrace_blocks", "status": "partial", "note": "the boolean is the MISS/BLOCK branch, rt_mop.type's RT_MISS"},
+    {"kind": "ctor", "name": "MovingObjectPosition", "sig": "(Entity)V", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "ctor", "name": "MovingObjectPosition", "sig": "(Entity,Vec3)V", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "toString", "sig": "()String", "native": null, "status": "n/a", "note": "debug output only"},
+    {"kind": "field", "name": "MovingObjectType", "sig": "enum", "native": "csrc/engine/raytrace.h:RT_MISS", "status": "partial", "note": "MISS/BLOCK/ENTITY as ints: RT_MISS or 0..5 for block faces; entity hits carry no enum"}
+  ],
+  "missing": [],
+  "notes": "raytrace.h documents the mapping (MovingObjectPosition's block form). Exercised by the explosion gate (getBlockDensity's ray) and by block targeting in the survival replay recordings. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: The entity form (ctor (Entity)V / (Entity,Vec3)V and field entityHit): every native caller that ray-traces against entities resolves the hit inline, no shared MovingObjectPosition port."
+}

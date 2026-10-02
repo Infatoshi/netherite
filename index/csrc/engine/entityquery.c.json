@@ -1,0 +1,34 @@
+{
+ "path": "csrc/engine/entityquery.c",
+ "lines": 63,
+ "role": "World.getEntitiesWithinAABBExcludingEntity over the item-entity world: visits the loaded chunks two blocks past the box and their sections two blocks past it (clamped), and collects every entity whose box intersects, in chunk-x, chunk-z, section, list order.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getEntitiesWithinAABBExcludingEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "getEntitiesWithinAABBForEntity"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "entityquery_in_box"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 16-24, function chunk_at: linear search of the chunk table for each chunk coordinate",
+  "line 50, function entityquery_in_box: a section list holds ie pool slots (sec_items); results follow each section list's order (container-order dependence carried as data) (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_explosions.c",
+  "csrc/tests/test_projectiles.c"
+ ],
+ "notes": "Returns the total count even when it exceeds cap (only the first cap are written). The optional IEntitySelector argument of Chunk.getEntitiesWithinAABBForEntity is not ported (no selector). Callers: explosion.c and projectile.c. The listed tests exercise it through those callers (not checked that each hits it)."
+}

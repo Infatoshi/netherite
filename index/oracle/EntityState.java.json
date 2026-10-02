@@ -1,0 +1,15 @@
+{
+ "path": "oracle/harness/netherite/oracle/EntityState.java",
+ "lines": 305,
+ "role": "Serializes an entity's runtime state for a snapshot: every instance field of its class chain by reflection (canonical scalars, entity references by id, paths, boxes, vectors, village doors), its DataWatcher entries and dirty flags, each attribute's value, and for an EntityLiving the two AI task lists (tickCount, executing entries, each task's fields) and the look, move, jump and body helpers and the navigator. Snapshot.java also uses it for the players, the net handler, PlayerControllerMP, ItemInWorldManager, tracker entries, client entities, tile entities and pending packets.",
+ "kind": "snapshot",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Snapshot.java",
+  "csrc/engine/snap_runtime.c",
+  "csrc/engine/combat.c",
+  "csrc/engine/player.c",
+  "csrc/engine/survival.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Non-scalar forms ride as canonical \"str:\" strings so the player files still parse as canonical NBT. lane/keyframes: fields() reads each class's instance fields from a cache (declared), not getDeclaredFields on every call. lane/snapdet: WALLCLOCK names the wall-clock fields fields() writes as 0 (EntityPlayerMP.field_143005_bX and ping, NetHandlerPlayServer.field_147378_h and field_147379_i), as Snapshot pins worldinfo's LastPlayed; no native load reads them."
+}

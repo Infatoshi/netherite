@@ -1,0 +1,128 @@
+{
+  "path": "csrc/tests/test_hostiles.c",
+  "lines": 1229,
+  "role": "Gate: replays the oracle's HostileProbe dump (zombie, skeleton, creeper, spider, enderman, witch, silverfish, pigman, blaze, cave spider, plus a probe player) through csrc/engine/hostiles*.c and living.c and compares every entity field, Random, NBT, removal and Det digest after each tick.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/entity/monster/EntityMob.java",
+      "members": [
+        "attackEntityAsMob",
+        "findPlayerToAttack",
+        "getCanSpawnHere"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityZombie.java",
+      "members": [
+        "onLivingUpdate",
+        "attackEntityFrom"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntitySkeleton.java",
+      "members": [
+        "attackEntityWithRangedAttack",
+        "onLivingUpdate"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityCreeper.java",
+      "members": [
+        "onUpdate",
+        "onStruckByLightning"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntitySpider.java",
+      "members": [
+        "attackEntity",
+        "findPlayerToAttack"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityEnderman.java",
+      "members": [
+        "onLivingUpdate",
+        "teleportRandomly",
+        "shouldAttackPlayer"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityWitch.java",
+      "members": [
+        "onLivingUpdate",
+        "attackEntityWithRangedAttack"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntitySilverfish.java",
+      "members": [
+        "updateEntityActionState"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityPigZombie.java",
+      "members": [
+        "attackEntityFrom",
+        "becomeAngryAt"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityBlaze.java",
+      "members": [
+        "attackEntity",
+        "onLivingUpdate"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/monster/EntityCaveSpider.java",
+      "members": [
+        "attackEntityAsMob"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "attackEntityFrom",
+        "onUpdate"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "updateEntities"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "splitref",
+      "java": "one Det split stream (determinize.sh static RNG name) per role",
+      "fields": [
+        "name",
+        "state",
+        "used"
+      ]
+    },
+    {
+      "name": "ref",
+      "java": "the oracle's Det start.txt/end.txt snapshot (netherite.oracle.Det: world seed, per-role nextId, seeder/math digests, split streams)",
+      "fields": [
+        "world_seed",
+        "next_id",
+        "seeder",
+        "math",
+        "splits",
+        "nsplits"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/hostiles. Native calls: hostile_spawn, hostile_write_state (csrc/engine/hostiles.h), pigman_attack_entity_from (hostiles_pigman.h), an_init/an_tick/an_free, living_attack_entity_from, living_nbt_text, item_entity_nbt_text, world_*, det_*, nbt_parse/nbt_diff. native_kind maps the dump's kind 0..10 to HK_*; the record layout follows the manifest's ent_state_layout (pre-enderman dumps are 272+332 bytes). Oracle side: oracle/harness/netherite/oracle/HostileProbe.java. Recordings under out/java/hostiles (b-2, b-42, c-2, c-42, c-charged, e-2 and more). Per-class Java member lists are the behaviors the probe drives, not verified member by member."
+}

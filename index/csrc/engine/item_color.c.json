@@ -1,0 +1,25 @@
+{
+  "path": "csrc/engine/item_color.c",
+  "lines": 20,
+  "role": "Item.getColorFromItemStack for the block-coloured items: leaves (BlockOldLeaf's spruce and birch by meta, else ColorizerFoliage's basic), the new leaves, vines and lily pads, tall grass on the grass colormap.",
+  "layer": "render",
+  "java": [
+    {"path": "oracle/src/world/ColorizerFoliage.java", "members": ["getFoliageColorPine", "getFoliageColorBirch", "getFoliageColorBasic"]},
+    {"path": "oracle/src/item/ItemLeaves.java", "members": ["getColorFromItemStack"]},
+    {"path": "oracle/src/item/ItemColored.java", "members": ["getColorFromItemStack"]},
+    {"path": "oracle/src/block/BlockOldLeaf.java", "members": ["getRenderColor"]},
+    {"path": "oracle/src/block/BlockLeaves.java", "members": ["getRenderColor"]},
+    {"path": "oracle/src/block/BlockVine.java", "members": ["getRenderColor"]},
+    {"path": "oracle/src/block/BlockLilyPad.java", "members": ["getRenderColor"]},
+    {"path": "oracle/src/block/BlockTallGrass.java", "members": ["getRenderColor"]}
+  ],
+  "structs": [],
+  "entry_points": [
+    "item_block_color"
+  ],
+  "tick_path": false,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_hudscreens.c"
+  ]
+}

@@ -1,0 +1,74 @@
+{
+ "path": "oracle/src/client/model/ModelWither.java",
+ "classes": [
+  "ModelWither"
+ ],
+ "lines": 103,
+ "side": "client",
+ "category": "client_model",
+ "role": "The wither boss model: the ribcage spine sections and the three skulls.",
+ "scope": "switched_off",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_82905_a",
+   "sig": "ModelRenderer[]",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "field_82904_b",
+   "sig": "ModelRenderer[]",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelWither",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "method",
+   "name": "func_82903_a",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "method",
+   "name": "setLivingAnimations",
+   "sig": "(EntityLivingBase,float,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  }
+ ],
+ "missing": [],
+ "scope_reason": "world.conf: wither = off; the wither is never built from skulls and soul sand, so the model is never drawn."
+}

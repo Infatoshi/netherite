@@ -1,0 +1,9 @@
+{"tick":2,"class":"Dev","cmd":{"op":"tp","x":-417.5,"y":60.0,"z":-947.5}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":0,"item":328,"count":1}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":1,"item":333,"count":1}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":7,"item":259,"count":1}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":2,"item":381,"count":16}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":27,"item":373,"count":1,"meta":16385}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-417,"y0":60,"z0":-949,"x1":-415,"y1":62,"z1":-947,"id":0,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-417,"y0":59,"z0":-949,"x1":-415,"y1":59,"z1":-947,"id":1,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"setblock","x":-416,"y":60,"z":-948,"id":66,"meta":0}}

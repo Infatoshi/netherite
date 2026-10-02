@@ -1,0 +1,60 @@
+{
+ "path": "csrc/engine/texanim.h",
+ "lines": 117,
+ "role": "The animated-sprite API (texanim.c): the dumped sources, the per-moment state, the dial inputs, the tick and the atlas patch.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/texture/TextureAtlasSprite.java",
+   "members": [
+    "frameCounter",
+    "tickCounter"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/texture/TextureClock.java",
+   "members": [
+    "field_94239_h",
+    "field_94240_i"
+   ]
+  },
+  {
+   "path": "oracle/src/client/renderer/texture/TextureCompass.java",
+   "members": [
+    "currentAngle",
+    "angleDelta"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "texanim_state",
+   "java": "the sprites' counters and the dials' doubles",
+   "fields": [
+    "fc",
+    "tc",
+    "clock_h",
+    "clock_i",
+    "compass_a",
+    "compass_d"
+   ]
+  }
+ ],
+ "entry_points": [
+  "texanim_load",
+  "texanim_tick",
+  "texanim_dials_tick",
+  "texanim_apply",
+  "texanim_patch_scene",
+  "texanim_open",
+  "texanim_live_set",
+  "texanim_scene",
+  "texanim_compass_render_step",
+  "texanim_compass_frame"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_rendertick.c"
+ ]
+}

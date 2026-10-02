@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntityRendererChestHelper.java",
+  "classes": ["TileEntityRendererChestHelper"],
+  "lines": 31,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders a chest item's inventory/HUD icon by drawing a TileEntityChest (or trapped/ender variant) through TileEntityRendererDispatcher at the origin, since chest items have no 2D sprite.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/block_item_model.c", "symbols": ["chest_box", "chest_texture"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["block_item_icon", "chest_ender", "chest_trapped"]}
+  ],
+  "evidence": ["out/java/render/gui_chest_mixed", "out/java/render/blockicons_hotbar_b"],
+  "members": [
+    {"kind": "field", "name": "instance", "sig": "TileEntityRendererChestHelper (static)", "native": "csrc/engine/block_item_model.c:chest_box", "status": "exact"},
+    {"kind": "field", "name": "field_147717_b, field_147718_c, field_147716_d", "sig": "TileEntityChest, TileEntityChest, TileEntityEnderChest", "native": "csrc/engine/block_item_model.c:chest_box", "status": "exact", "note": "the three reusable preview tile entities"},
+    {"kind": "method", "name": "func_147715_a", "sig": "(Block,I,F)V", "native": "csrc/engine/block_item_model.c:chest_box", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The chest, ender chest and trapped chest items draw ModelChest with their own textures (gui_chest_mixed). TileEntityChestRenderer's Christmas texture (24 to 26 December, from the wall clock) is not modelled."
+}

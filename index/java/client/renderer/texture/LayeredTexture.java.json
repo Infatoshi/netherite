@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/renderer/texture/LayeredTexture.java",
+  "classes": ["LayeredTexture"],
+  "lines": 62,
+  "side": "client",
+  "category": "client_render",
+  "role": "An AbstractTexture that layers several textures on top of each other with ImageIO/BufferedImage and uploads the result as one GL texture.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "layeredTextureNames", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "LayeredTexture", "sig": "(String...)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadTexture", "sig": "(IResourceManager)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not reached by any in-game path the native engine mirrors; the native renderer loads textures as pre-converted RGBA dumps from csrc/assets instead of through the GL texture-object system. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "GL texture plumbing that composites layers with ImageIO; used only for the horse armour layers (horses = off) and never on a path the native renderer mirrors."
+}

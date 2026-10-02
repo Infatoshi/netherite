@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/ItemUseProbe.java",
+ "lines": 948,
+ "role": "Item-use probe: poses the server's own EntityPlayerMP in rebuilt block scenes and drives tryUseItem / activateBlockOrUseItem for buckets, dye (bonemeal, cocoa), flint and steel, fire charge, lily pad, glass bottle and eye of ender; records every block write, return value, held stack, pending scheduled ticks and World.rand state per case.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=ItemUseProbe",
+  "csrc/tests/test_itemuse.c",
+  "csrc/engine/itemuse.h (cites it)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output DIR/manifest.json, scenes.bin, cases.bin, writes.bin, sched.bin. Runs on its own OTHER-role thread while the server is parked."
+}

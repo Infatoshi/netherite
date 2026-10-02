@@ -1,0 +1,187 @@
+{
+ "path": "oracle/src/network/play/server/S2APacketParticles.java",
+ "classes": [
+  "S2APacketParticles"
+ ],
+ "lines": 123,
+ "side": "server",
+ "category": "network",
+ "role": "A server-spawned particle burst: name, position, offsets, speed and count, delivered to the client's EffectRenderer.",
+ "scope": "switched_off",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149236_a",
+   "sig": "String",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "field_149234_b",
+   "sig": "float",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "field_149235_c",
+   "sig": "float",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "field_149232_d",
+   "sig": "float",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "field_149233_e",
+   "sig": "float",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "field_149230_f",
+   "sig": "float",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "field_149231_g",
+   "sig": "float",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "field_149237_h",
+   "sig": "float",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "field_149238_i",
+   "sig": "int",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(String,float,float,float,float,float,float,float,int)V",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "func_149228_c",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149220_d",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149226_e",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149225_f",
+   "sig": "()D",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149221_g",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149224_h",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149223_i",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149227_j",
+   "sig": "()F",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149222_k",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "n/a",
+   "note": "only the fishing hook sends"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "Unverified: whether the oracle's recorded frames contain server-spawned particles the pixel gate would catch; no recording was inspected for this record.",
+ "scope_reason": "WorldServer.func_147487_a (the S2A fan-out) has one caller in 1.7.10, EntityFishHook (the bubble, wake and splash of a bite), and fishing is off in world.conf; /particle needs cheats, which a survival world has not."
+}

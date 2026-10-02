@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/world/gen/feature/WorldGenAbstractTree.java",
+  "classes": ["WorldGenAbstractTree"],
+  "lines": 24,
+  "side": "server",
+  "category": "worldgen",
+  "role": "Abstract base of every tree generator: func_150523_a says which blocks a growing tree may replace (air, leaves, grass, dirt, logs, saplings, vines), and func_150524_b is an empty post-grow hook the mega pine overrides.",
+  "scope": "in_scope",
+  "scope_reason": "Trees generate in decoration and grow from saplings; all overworld decoration is vanilla and in scope.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/features_trees.c", "symbols": ["tree_replaceable"]},
+    {"file": "csrc/engine/features_trees_small.c", "symbols": ["tree_replaceable"]},
+    {"file": "csrc/engine/decorator.c", "symbols": ["place_tree"]}
+  ],
+  "evidence": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c", "csrc/tests/test_seedworld.c", "out/java/seedworld/seed1"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "WorldGenAbstractTree", "sig": "(boolean)", "native": null, "status": "n/a", "note": "Passes the block-notify flag to WorldGenerator; the C tree writers pick the setBlock flag directly."},
+    {"kind": "method", "name": "func_150523_a", "sig": "(Block)Z", "native": "csrc/engine/features_trees.c:tree_replaceable", "status": "exact", "note": "Duplicated as a static in csrc/engine/features_trees_small.c."},
+    {"kind": "method", "name": "func_150524_b", "sig": "(World,Random,int,int,int)V", "native": "csrc/engine/decorator.c:place_tree", "status": "exact", "note": "Empty in the base; place_tree runs the mega pine's override (features_trees.c) after a grow and nothing for the others."}
+  ],
+  "missing": [],
+  "notes": "Two copies of tree_replaceable exist (features_trees.c and features_trees_small.c); a GPU port should keep one. Gates not re-run for this record."
+}

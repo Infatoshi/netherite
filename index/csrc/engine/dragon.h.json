@@ -1,0 +1,177 @@
+{
+ "path": "csrc/engine/dragon.h",
+ "lines": 84,
+ "role": "Declares the Ender Dragon and End crystal state the dragon tick owns (flight, health, the movement ring, the seven parts, up to 64 crystals, the probe player and the world hooks) and the dragon and crystal entry points.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/boss/EntityDragon.java",
+   "members": [
+    "ringBuffer",
+    "ringBufferIndex",
+    "dragonPartArray",
+    "targetX",
+    "targetY",
+    "targetZ",
+    "prevAnimTime",
+    "animTime",
+    "forceNewTarget",
+    "slowed",
+    "deathTicks",
+    "healingEnderCrystal",
+    "target"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/boss/EntityDragonPart.java",
+   "members": [
+    "width",
+    "height"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderCrystal.java",
+   "members": [
+    "innerRotation",
+    "health"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "dragon_part_state",
+   "java": "EntityDragonPart: its entity id, position and size",
+   "fields": [
+    "entity_id",
+    "x",
+    "y",
+    "z",
+    "width",
+    "height"
+   ]
+  },
+  {
+   "name": "dragon_crystal_state",
+   "java": "EntityEnderCrystal: id, UUID, position, yaw, motion, Random, innerRotation, health, plus liveness and the chunk-list stamp",
+   "fields": [
+    "entity_id",
+    "uuid_msb",
+    "uuid_lsb",
+    "x",
+    "y",
+    "z",
+    "yaw",
+    "mx",
+    "my",
+    "mz",
+    "rand",
+    "inner_rotation",
+    "health",
+    "dead",
+    "in_world",
+    "chunk_stamp"
+   ]
+  },
+  {
+   "name": "dragon_state",
+   "java": "EntityDragon with the EntityLivingBase fields it uses (health, hurtTime, hurtResistantTime, lastDamage, prevHealth, livingSoundTime, deathTime), the ring buffer, targets, parts, crystals, a probe player's state, and world hooks",
+   "fields": [
+    "entity_id",
+    "uuid_msb",
+    "uuid_lsb",
+    "x",
+    "y",
+    "z",
+    "prev_x",
+    "prev_y",
+    "prev_z",
+    "bb_min_x",
+    "bb_max_x",
+    "bb_min_y",
+    "bb_min_z",
+    "bb_max_z",
+    "mx",
+    "my",
+    "mz",
+    "yaw",
+    "prev_yaw",
+    "anim",
+    "prev_anim",
+    "yaw_velocity",
+    "render_yaw",
+    "tx",
+    "ty",
+    "tz",
+    "force_target",
+    "slowed",
+    "ring_index",
+    "ticks",
+    "hurt_time",
+    "death_time",
+    "death_ticks",
+    "health",
+    "hurt_resistant_time",
+    "dead_flag",
+    "last_damage",
+    "prev_health",
+    "rand",
+    "has_target",
+    "living_sound_time",
+    "dead",
+    "has_player",
+    "player_x",
+    "player_y",
+    "player_z",
+    "player_min_y",
+    "player_mx",
+    "player_my",
+    "player_mz",
+    "player_health",
+    "player_last_damage",
+    "player_hurt_time",
+    "player_hurt_resistant_time",
+    "player_rand",
+    "crystals",
+    "n_crystals",
+    "healing_crystal_index",
+    "mob_griefing",
+    "world",
+    "det",
+    "spawn_xp",
+    "spawn_xp_ctx",
+    "crystal_explode",
+    "crystal_explode_ctx",
+    "wing_push",
+    "head_bite",
+    "world_ctx",
+    "ring",
+    "part",
+    "chunk_x",
+    "chunk_y",
+    "chunk_z",
+    "chunk_stamp"
+   ]
+  }
+ ],
+ "entry_points": [
+  "dragon_tick",
+  "dragon_init",
+  "dragon_adopt",
+  "dragon_crystal_init",
+  "dragon_crystal_adopt",
+  "dragon_crystal_tick",
+  "dragon_attack_part",
+  "dragon_crystal_attack",
+  "dragon_negative_draw"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 51-63, struct dragon_state: world and det pointers and four function-pointer hooks with opaque contexts"
+ ],
+ "tests": [
+  "csrc/tests/test_dragon.c",
+  "csrc/tests/test_populate.c"
+ ],
+ "notes": "The java members are EntityDragon's and EntityEnderCrystal's field names (grepped). Fixed capacity: 64 crystals, 64 ring entries, 7 parts; no heap."
+}

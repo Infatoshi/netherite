@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/block/material/MaterialLiquid.java",
+  "classes": ["MaterialLiquid"],
+  "lines": 40,
+  "side": "common",
+  "category": "material",
+  "role": "The liquid material (water, lava): not solid, blocks light, no tool required, blocks movement.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["MATERIALS"]}
+  ],
+  "evidence": ["out/java/snapshots/world-water-lava-s1"],
+  "members": [
+    {"kind": "ctor", "name": "MaterialLiquid", "sig": "(Lnet/minecraft/block/material/MapColor;)V", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "the water and lava rows: isLiquid true, isSolid false, opaque true, blocksMovement true, no tool required"},
+    {"kind": "method", "name": "isSolid", "sig": "()Z", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "false, in the water/lava rows"},
+    {"kind": "method", "name": "isLiquid", "sig": "()Z", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "true"},
+    {"kind": "method", "name": "blocksMovement", "sig": "()Z", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "true: the liquid buoyancy and drag read this through the block"},
+    {"kind": "method", "name": "isToolNotRequired", "sig": "(Lnet/minecraft/block/material/Material;)Z", "native": "csrc/engine/harvest.c:item_can_harvest", "status": "exact", "note": "true: liquids never require a tool"}
+  ],
+  "missing": [],
+  "notes": "world-water-lava-s1 (DEVLOG 2026-09-25, the water/lava world-tick check) exercises the liquid family end to end."
+}

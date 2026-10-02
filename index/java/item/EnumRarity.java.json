@@ -1,0 +1,63 @@
+{
+ "classes": [
+  "EnumRarity"
+ ],
+ "lines": 27,
+ "side": "common",
+ "category": "other",
+ "role": "The item rarity (common to epic) with its chat-formatting color and display name, used only when the GUIs draw an item's name.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: the native GUI draws the hovered slot's tooltip with the item name in its rarity colour (raster_hud.c tooltip_lines, raster_hud.c:1610-1622), so the rarity rules are frame content.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_hud.c",
+   "symbols": [
+    "tooltip_lines"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/clientframes/idx-tipsword-s1",
+  "out/java/clientframes/idx-tiprecord-s1",
+  "out/java/clientframes/idx-tipapple-s1",
+  "out/java/clientframes/idx-tipbook-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "common, uncommon, rare, epic (4 constants)",
+   "sig": "enum constants",
+   "native": "csrc/engine/raster_hud.c:tooltip_lines",
+   "status": "exact",
+   "note": "the four colour codes tooltip_lines writes: white, yellow (a stored-enchantment book), aqua (an enchanted stack, the records, the golden apple), light purple (the enchanted golden apple)"
+  },
+  {
+   "kind": "field",
+   "name": "rarityColor",
+   "sig": "EnumChatFormatting",
+   "native": "csrc/engine/raster_hud.c:tooltip_lines",
+   "status": "exact",
+   "note": "the section-sign code in front of the tooltip name"
+  },
+  {
+   "kind": "field",
+   "name": "rarityName",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "unused by the game's drawing"
+  },
+  {
+   "kind": "ctor",
+   "name": "EnumRarity",
+   "sig": "(EnumChatFormatting,String)V",
+   "native": "csrc/engine/raster_hud.c:tooltip_lines",
+   "status": "exact",
+   "note": null
+  }
+ ],
+ "missing": [],
+ "notes": "idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxlast 2026-09-27: stale since lane/idxclient d4352f71 (tooltip_lines has every getRarity override); each colour judged: rare by idx-tipsword-s1 (enchanted) and idx-tiprecord-s1, epic by idx-tipapple-s1, uncommon by idx-tipbook-s1 (the seed's dungeon book), common by the plain stacks of idx-tip*-s1's inventory.",
+ "path": "oracle/src/item/EnumRarity.java"
+}

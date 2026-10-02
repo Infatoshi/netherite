@@ -1,0 +1,93 @@
+{
+ "path": "csrc/engine/dragon.c",
+ "lines": 555,
+ "role": "The Ender Dragon's server-side behavior: construction with the seven EntityDragonPart constructor draws, onLivingUpdate's flight (target picking, turn, the 64-entry movement ring, part placement), wing push and head bite (against one probe player or through world hooks), block destruction, crystal healing and the nearest-crystal search, attackEntityFromPart, the 200-tick death with XP and the exit portal, and the End crystal's own tick and death.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/boss/EntityDragon.java",
+   "members": [
+    "EntityDragon",
+    "getMovementOffsets",
+    "onLivingUpdate",
+    "updateDragonEnderCrystal",
+    "collideWithEntities",
+    "attackEntitiesInList",
+    "setNewTarget",
+    "simplifyAngle",
+    "destroyBlocksInAABB",
+    "attackEntityFromPart",
+    "func_82195_e",
+    "onDeathUpdate",
+    "createEnderPortal",
+    "onDeathUpdate (client)"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/boss/EntityDragonPart.java",
+   "members": [
+    "EntityDragonPart"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderCrystal.java",
+   "members": [
+    "EntityEnderCrystal",
+    "onUpdate",
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "attackEntityFrom",
+    "knockBack",
+    "setBeenAttacked",
+    "func_110146_f",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "onEntityUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentHelper.java",
+   "members": [
+    "enchantmentRand"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "dragon_tick",
+  "dragon_init",
+  "dragon_adopt",
+  "dragon_crystal_init",
+  "dragon_crystal_adopt",
+  "dragon_crystal_tick",
+  "dragon_attack_part",
+  "dragon_crystal_attack",
+  "dragon_negative_draw",
+  "dragon_client_tick",
+  "dragon_update_parts"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 78-80, function enchantment_damage_roll: det_split_find by string, then det_split_random (calloc) on first use inside the tick",
+  "line 134-142, function set_target: do/while(1) rejection loop until the new target is over 10 blocks away (unbounded, as in Java setNewTarget)",
+  "line 112-115 and 359-362, functions player_bite and dragon_attack_part: knockback while loops that redraw Math.random until the offset is non-degenerate (unbounded, as in Java knockBack)",
+  "line 170-187, function update_parts: wing_push and head_bite are function-pointer hooks into the owning world",
+  "lines 429 and 439, function dragon_tick: spawn_xp callback; line 382, function dragon_crystal_attack: crystal_explode callback",
+  "line 457-468, function dragon_tick: nearest-crystal search walks the crystals array in index order (the order they were added, standing in for the world's entity list order)"
+ ],
+ "tests": [
+  "csrc/tests/test_dragon.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Line numbers in gpu are file lines of dragon.c. Crystals live in the dragon's fixed array (DRAGON_MAX_CRYSTALS 64). Without world hooks the dragon interacts with one probe player whose state is carried in dragon_state (player_x..player_rand). EntityEnderCrystal.onUpdate places fire under the crystal (block 51). Recordings: out/java/dragon (DragonProbe, test_dragon.c) and out/java/snapshots/end-arrival-s1, end-crystals-s1, end-dragon-s1, end-exit-s1 (DEVLOG 2026-09-25, the End in the whole-server replay). Not seen here: the client-side render interpolation and sounds (sound draws are consumed but no sound is made)."
+}

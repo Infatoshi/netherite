@@ -1,0 +1,43 @@
+{
+ "path": "csrc/engine/image.c",
+ "lines": 484,
+ "role": "The environment's image (GPU plan L12): env_new's one mapping in a fixed address window (a 128 GB slot each, 512 slots from 16 TB: the env pool holds one per env and two per start) holding struct env, its arena and a heap; the heap's power-of-two blocks (named by offsets, zeroed when freed, big ones decommitted); env_malloc/env_calloc/env_realloc/env_free_mem/env_strdup, which envheap.h puts behind malloc and friends; image_extents (the live bytes) and image_relocate (copy to another slot, rebase the words that point into the image and differ from a twin's). image_slot_reserve and image_move (mremap to another slot, the vacated one held) for the kernel harness's swap; under a write tracker (img.track) a freed block's pages go in the zap log after the tracker's protection is lifted (past the log's room, its present pages are cleared by writes).",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "image_env_new",
+  "image_env_free",
+  "image_arena_base",
+  "image_holds",
+  "image_owner",
+  "image_alloc",
+  "image_free",
+  "image_block_size",
+  "image_heap_trim",
+  "image_heap_set",
+  "env_malloc",
+  "env_calloc",
+  "env_realloc",
+  "env_free_mem",
+  "env_strdup",
+  "proc_malloc",
+  "proc_calloc",
+  "proc_free",
+  "image_extents",
+  "image_relocate",
+  "image_slot_reserve",
+  "image_move"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "the heap's blocks and chains are offsets from the image; what the engine keeps in them is still C pointers, which image_relocate rebases by comparing with a twin run (tests/test_relocate.c prints how many per move)",
+  "env_malloc and env_calloc are on the tick's path (chunk provision, entity creation); off the image they are the C library's"
+ ],
+ "tests": [
+  "csrc/tests/test_interleave.c",
+  "csrc/tests/test_relocate.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "lane/gpuimage. The first environment (env.c env_first) is not an image. lane/gpuharness: the tracker's zap log and image_move."
+}

@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderSlime.java",
+  "classes": ["RenderSlime"],
+  "lines": 95,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the slime: ModelSlime body and the outer layer (ModelSlime(0)) drawn as an alpha-blended second pass, with the slime-size squish scale.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_slime", "model_vertex", "raster_mobs_draw", "texture_names"]}
+  ],
+  "evidence": ["out/java/clientframes/cov-zoo-s1", "out/java/render/mobs2a_slime_f006", "out/java/render/mobs2a_slime_f011", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "slimeTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constant, grouped; the TEX_SLIME entry"},
+    {"kind": "field", "name": "scaleAmount", "sig": "ModelBase", "native": "csrc/engine/raster_mobs.c:model_slime", "status": "exact", "note": "the outer layer model; model_slime(outer) builds it"},
+    {"kind": "ctor", "name": "RenderSlime", "sig": "(ModelBase,ModelBase,float)V", "native": "csrc/engine/raster_mobs.c:model_slime", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntitySlime,int,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the outer pass: alpha blend with the depth mask still on and culling off (the outer.blend = 3 branch); invisibility skips everything"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntitySlime,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the shared MOB_SLIME/MOB_MAGMA_CUBE squish branch"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntitySlime)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

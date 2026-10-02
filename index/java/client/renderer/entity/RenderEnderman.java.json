@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderEnderman.java",
+  "classes": ["RenderEnderman"],
+  "lines": 178,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityEnderman: the enderman model (with the screaming mouth offset), the glowing eyes overlay, and the carried block in its hands rendered as a 3D block.",
+  "scope": "in_scope",
+  "scope_reason": "Endermen are gated content (fight-enderman-s1 and the mob scenes).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_enderman", "draw_carried_block", "raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs2a_enderman_f006",
+    "out/java/render/mobs2a_enderman_f011",
+    "out/java/snapshots/fight-enderman-s1",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "endermanEyesTexture", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_ENDERMAN_EYES, the additive eyes overlay pass in raster_mobs_draw"},
+    {"kind": "field", "name": "endermanTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_ENDERMAN"},
+    {"kind": "field", "name": "endermanModel", "sig": "private ModelEnderman", "native": "csrc/engine/raster_mobs.c:model_enderman", "status": "exact", "note": "model_enderman carries the geometry including the screaming mouth offset (screaming ? 5 : 0)"},
+    {"kind": "field", "name": "rnd", "sig": "private Random", "native": null, "status": "n/a", "note": "a determinized RNG (netherite.oracle.Det.newRandom) from the oracle's determinism pass; the native render path consumes recorded state instead of re-rolling"},
+    {"kind": "ctor", "name": "RenderEnderman", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityEnderman,DDD FF)V", "native": "csrc/engine/raster_mobs.c:model_enderman", "status": "exact", "note": "the model plus the carried block and eyes layers, drawn through raster_mobs_draw"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityEnderman)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityEnderman,F)V", "native": "csrc/engine/raster_mobs.c:draw_carried_block", "status": "exact", "note": "draw_carried_block's comment names RenderEnderman.renderEquippedItems and renders the carried block through the block atlas icons at the carried rotation"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityEnderman,int,F)I", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the additive eyes layer (TEX_ENDERMAN_EYES), no depth write, drawn in raster_mobs_draw's shared layer pass"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,F)I", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,F)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,DDD FF)V", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The carried block's id and meta and the screaming flag arrive as dump fields (carried_id, screaming) on mob_render_input (raster_mobs.h). fight-enderman-s1 covers the teleport/fight behaviour; the render scenes gate the pixels."
+}

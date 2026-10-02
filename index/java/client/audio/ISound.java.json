@@ -1,0 +1,111 @@
+{
+ "path": "oracle/src/client/audio/ISound.java",
+ "classes": [
+  "ISound",
+  "ISound.AttenuationType"
+ ],
+ "lines": 44,
+ "side": "client",
+ "category": "client_audio",
+ "role": "Interface for a playable sound: its event location, repeat flag and delay, volume, pitch, position and attenuation type (NONE or LINEAR).",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "method",
+   "name": "func_147650_b",
+   "sig": "()ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147657_c",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147652_d",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147653_e",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147655_f",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147649_g",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147654_h",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147651_i",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147656_j",
+   "sig": "()AttenuationType",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "AttenuationType.NONE/LINEAR",
+   "sig": "enum constants",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "AttenuationType.field_148589_c",
+   "sig": "int (paulscode attenuation model id)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "AttenuationType",
+   "sig": "(String,int,int)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "AttenuationType.func_148586_a",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Pure interface; no game state and no RNG."
+}

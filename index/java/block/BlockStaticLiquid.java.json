@@ -1,0 +1,84 @@
+{
+  "path": "oracle/src/block/BlockStaticLiquid.java",
+  "classes": [
+    "BlockStaticLiquid"
+  ],
+  "lines": 94,
+  "side": "common",
+  "category": "block",
+  "role": "The still form of water and lava (ids 9 and 11): a neighbor change flips it to its dynamic form (id - 1) with a scheduled tick, and still lava's random tick starts fires around it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS",
+        "MATERIALS"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "static_liquid_neighbor",
+        "block_on_neighbor_changed",
+        "fire_can_catch"
+      ]
+    },
+    {
+      "file": "csrc/engine/randomtick.c",
+      "symbols": [
+        "randomtick_update_tick"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/world-water-lava-s1",
+    "out/java/snapshots/world-fire-s1",
+    "out/java/snapshots/world-obsidian-cast-s1",
+    "out/java/snapshots/idx-randomtick-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockStaticLiquid",
+      "sig": "(Lnet/minecraft/block/material/Material;)V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "ids 9 and 11: Material water/lava rows; tick_randomly is false for water and true for lava, matching the constructor"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)V",
+      "native": "csrc/engine/blockcb.c:static_liquid_neighbor",
+      "status": "exact",
+      "note": "the lava-water check, then the still-to-dynamic switch (id - 1, flags 2) plus the scheduled tick"
+    },
+    {
+      "kind": "method",
+      "name": "setNotStationary",
+      "sig": "(Lnet/minecraft/world/World;III)V",
+      "native": "csrc/engine/blockcb.c:static_liquid_neighbor",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(Lnet/minecraft/world/World;IIILjava/util/Random;)V",
+      "native": "csrc/engine/randomtick.c:randomtick_update_tick",
+      "status": "exact",
+      "note": "The still-lava fire walk (the nextInt(3) steps up, the flammable-neighbour test, the three surface tries); idx-randomtick-s1 lights planks from a lava pool and every row matches."
+    },
+    {
+      "kind": "method",
+      "name": "isFlammable",
+      "sig": "(Lnet/minecraft/world/World;III)Z",
+      "native": "csrc/engine/blockcb.c:fire_can_catch",
+      "status": "exact",
+      "note": "the material's canBurn test is folded into blockcb.c's fire support checks"
+    }
+  ],
+  "missing": [],
+  "notes": "The lava updateTick walks call World.setBlock of fire through the same paths the fire ticks use. Evidence recordings were named in DEVLOG 2026-09-25 as the water/lava and fire world-tick checks. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port (lava fire-start rolls). It stays partial until a recording pins it. lane/idxblocks: idx-randomtick-s1 pins the fire-start rolls."
+}

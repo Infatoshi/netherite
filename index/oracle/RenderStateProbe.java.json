@@ -1,0 +1,18 @@
+{
+  "path": "oracle/harness/netherite/oracle/RenderStateProbe.java",
+  "lines": 1478,
+  "role": "Per-frame render state recorder (--renderstate DIR during a replay): one frames.jsonl line per frame with renderer inputs and outputs (lightmap, fog color, projection and modelview matrices, camera, sky/fog/cloud/sunrise colors, celestial angle, GL fog, HUD, toast, hand, mobs, crystals, particles) as raw-bit hex, plus gui.json, mobs.json and hand.json texture dumps. The hud dump carries the chat (messages as parts, the Java lines), each item's max damage, the dragon's hp, max health and boss name, and the credits, merchant, furnace, effects and preview screen state; dumps the options background, the title logo and the ender and trapped chest textures.",
+  "kind": "recorder",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Main.java (--renderstate)",
+    "oracle/tests/rs.sh",
+    "csrc/tests/test_renderstate.c",
+    "csrc/engine/raster.c, raster_hud.c, raster_hand.c, raster_particles.c, hud_live.c (read its dumps)",
+    "csrc/tests/test_hudscreens.c",
+    "csrc/engine/raster_tileent.c (the tes block)"
+  ],
+  "vanilla_hooks": [
+    "oracle/src/client/renderer/EntityRenderer.java"
+  ],
+  "notes": "Hooks: fog(er, pt), camera(er, pt), fogGL() in EntityRenderer.renderWorld; they do nothing when the recorder is off. Its item() and fld() helpers are reused by ItemTable, MeshProbe and ScreenSetup. lane/skytex: each row's anim block (every animated sprite's frameCounter and tickCounter per atlas in listAnimatedSprites order, the clock's and compass's doubles, the spawn point, isSurfaceWorld), er.tfdx/tfdy and er.cm0 (the client Math.random stream at the tick's start, set by tickStart from Oracle.preTick); state/anim.json and anim.rgba once (animFrames: each animated sprite's frame list and level-0 frames). New fields use primitive puts: a boxed Float or Double picks put(..., Number) and prints a decimal. lane/particles2: each fx entry also carries the FX's own Random state, its box, size, offsets, onGround, noClip and each subclass's fields (scales, the portal home, the spell base, the drip timer and material, the crit emitter's target and life); each frame row carries ParticleLog's spawn log for its tick (\"spawns\") and the client streams at the tick's start (\"tick0\"). lane/entrender: rows carry \"ents\" and each mob's equip/zvil/conv/fdy (EntityRenderProbe), fx pickups their entity, the hand item its bounds and effect. lane/terender: doFogGL adds the row's tes block and dumps the tile-entity textures once (TileEntityRenderProbe). lane/clientstate: doFog adds the cs block and doCamera/doFogGL the inside list (ClientStateProbe.java); tickStart reads the receive queue for the cs block."
+}

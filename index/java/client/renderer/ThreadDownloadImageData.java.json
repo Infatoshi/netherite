@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/renderer/ThreadDownloadImageData.java",
+  "classes": ["ThreadDownloadImageData", "ThreadDownloadImageData.1"],
+  "lines": 164,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Texture image that downloads its pixels from a URL in a background thread (player skins and capes), caching to disk and uploading when the download finishes.",
+  "scope": "not_needed",
+  "scope_reason": "The native engine renders no other players and no third-person player model (raster_entities.c skips player entities; only the first-person hand draws), and the oracle runs without network access, so no downloaded image is ever displayed.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "logger", "sig": "static Logger", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_147643_d", "sig": "static AtomicInteger", "native": null, "status": "n/a", "note": "thread naming counter"},
+    {"kind": "field", "name": "field_152434_e", "sig": "final File", "native": null, "status": "n/a", "note": "disk cache location"},
+    {"kind": "field", "name": "imageUrl", "sig": "final String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "imageBuffer", "sig": "final IImageBuffer", "native": null, "status": "n/a", "note": "skin post-processing hook"},
+    {"kind": "field", "name": "bufferedImage", "sig": "BufferedImage", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "imageThread", "sig": "Thread", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "textureUploaded", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ThreadDownloadImageData", "sig": "(File,String,ResourceLocation,IImageBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147640_e", "sig": "()V", "native": null, "status": "n/a", "note": "starts the download thread"},
+    {"kind": "method", "name": "getGlTextureId", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147641_a", "sig": "(BufferedImage)V", "native": null, "status": "n/a", "note": "uploads the downloaded image"},
+    {"kind": "method", "name": "loadTexture", "sig": "(IResourceManager)V", "native": null, "status": "n/a", "note": "falls back to the local ResourceLocation while the download runs"},
+    {"kind": "method", "name": "func_152433_a", "sig": "()V", "native": null, "status": "n/a", "note": "the download Runnable"}
+  ],
+  "missing": [],
+  "notes": "Network-and-skin plumbing. The oracle's determinism pass pins the client render RNG streams, not this class; no recording exercises a downloaded texture."
+}

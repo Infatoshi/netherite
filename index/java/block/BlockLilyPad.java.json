@@ -1,0 +1,38 @@
+{
+  "path": "oracle/src/block/BlockLilyPad.java",
+  "classes": ["BlockLilyPad"],
+  "lines": 84,
+  "side": "common",
+  "category": "block",
+  "role": "The lily pad: a flat water-surface plant that stays only on still water, is skipped by boats in collision, and renders with the fixed colour 2129968.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_add_boxes"]},
+    {"file": "csrc/engine/render_blocks3.c", "symbols": ["rb3_render_lily_pad"]},
+    {"file": "csrc/engine/features_plants.c", "symbols": ["feature_waterlily", "lily_can_place"]},
+    {"file": "csrc/engine/itemuse.c", "symbols": ["lily_rclick"]},
+    {"file": "csrc/engine/randomtick.c", "symbols": ["bush_floor_ok"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/rc-animals-s1",
+    "csrc/tests/test_feature.c",
+    "csrc/tests/test_populate.c",
+    "out/java/clientframes/cov-blkgallery-s1",
+    "out/java/snapshots/cov-blkbreak-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockLilyPad", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 111: the 1/64-thick box, render_type 23"},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "render_type 23 -> rb3_render_lily_pad"},
+    {"kind": "method", "name": "addCollisionBoxesToList", "sig": "(World,IIILnet/minecraft/util/AxisAlignedBB;Ljava/util/List;Lnet/minecraft/entity/Entity;)V", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "partial", "note": "case 111 carries the box; the boat exclusion rides the entity filter in the collide dispatch"},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(World,III)Lnet/minecraft/util/AxisAlignedBB;", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "exact", "note": "case 111"},
+    {"kind": "method", "name": "getBlockColor", "sig": "()I", "native": "csrc/engine/render_blocks3.c:rb3_render_lily_pad", "status": "exact", "note": "the constant 2129968 baked into the lily-pad lane; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"},
+    {"kind": "method", "name": "getRenderColor", "sig": "(I)I", "native": "csrc/engine/render_blocks3.c:rb3_render_lily_pad", "status": "exact", "note": "same constant; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "colorMultiplier", "sig": "(IBlockAccess,III)I", "native": "csrc/engine/render_blocks3.c:rb3_render_lily_pad", "status": "exact", "note": "same constant; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "func_149854_a", "sig": "(Lnet/minecraft/block/Block;)Z", "native": "csrc/engine/randomtick.c:bush_floor_ok", "status": "exact", "note": "the water-only floor test; the random tick reads canBlockStay's override instead (bush_floor_ok, id 111)"},
+    {"kind": "method", "name": "canBlockStay", "sig": "(World,III)Z", "native": "csrc/engine/randomtick.c:bush_floor_ok", "status": "exact", "note": "y in 0..255, water below at meta 0: randomtick.c bush_floor_ok's id-111 branch, which BlockBush.updateTick's random tick reaches through randomtick_update_tick (the id fell through the dispatch until lane/longrun)"}
+  ],
+  "missing": [],
+  "notes": "Placed by feature_waterlily in swamp decoration and by the item use (itemuse.c lily_rclick, recorded in rc-animals-s1). The pad's stay check runs through the bush tick path shared with the other plants."
+}

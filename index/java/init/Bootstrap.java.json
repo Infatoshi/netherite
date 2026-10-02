@@ -1,0 +1,187 @@
+{
+ "classes": [
+  "Bootstrap"
+ ],
+ "lines": 404,
+ "side": "common",
+ "category": "other",
+ "role": "The one-shot static registration the game runs before anything else: func_151354_b registers every block, item, potion effect, enchantment, stat and sound, and func_151353_a fills BlockDispenser's behavior registry.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/items.h",
+   "symbols": [
+    "ITEMS"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_registry.c",
+  "csrc/tests/test_items.c",
+  "out/java/snapshots/pickaxe-complete-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_151355_a",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "the already-registered guard; static"
+  },
+  {
+   "kind": "method",
+   "name": "func_151353_a",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the dispenser behavior registry: dispensers never dispense (world.conf redstone = off) and the boat and firework behaviors are switched-off features, so the whole registry is unreachable; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_151354_b",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "partial",
+   "note": "the block and item registrations are the generated BLOCKS/ITEMS tables; potions, enchantments, stats and sounds are only covered where each system's port reads them (for example the achievement table in survival.c), not verified object by object"
+  },
+  {
+   "kind": "ctor",
+   "name": "Bootstrap",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "a holder of static members: oracle/src has no `new Bootstrap(` anywhere, so the implicit ctor never runs"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$1.getProjectileEntity",
+   "sig": "anonymous BehaviorProjectileDispense",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for arrows; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$2.getProjectileEntity",
+   "sig": "anonymous BehaviorProjectileDispense",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for eggs; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$3.getProjectileEntity",
+   "sig": "anonymous BehaviorProjectileDispense",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for snowballs; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$4.getProjectileEntity / Bootstrap$4.func_82498_a / Bootstrap$4.func_82500_b",
+   "sig": "anonymous BehaviorProjectileDispense",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for bottles o' enchanting; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$5.dispense",
+   "sig": "anonymous IBehaviorDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for potions; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$5$1.getProjectileEntity / Bootstrap$5$1.func_82498_a / Bootstrap$5$1.func_82500_b",
+   "sig": "anonymous BehaviorProjectileDispense",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for splash potions (the projectile behavior Bootstrap$5 builds); a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$6.dispenseStack",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for spawn eggs; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$7.dispenseStack / Bootstrap$7.playDispenseSound",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for fireworks; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$8.dispenseStack / Bootstrap$8.playDispenseSound",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for fire charges; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$9.dispenseStack / Bootstrap$9.playDispenseSound",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for boats; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$10.dispenseStack",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for lava and water buckets; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$11.dispenseStack",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for empty buckets; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$12.dispenseStack / Bootstrap$12.playDispenseSound",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for flint and steel; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$13.dispenseStack / Bootstrap$13.playDispenseSound",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for bone meal; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  },
+  {
+   "kind": "method",
+   "name": "Bootstrap$14.dispenseStack",
+   "sig": "anonymous BehaviorDefaultDispenseItem",
+   "native": null,
+   "status": "n/a",
+   "note": "the behavior for TNT; a dispenser behavior (Bootstrap.func_151353_a registers it): it runs only from BlockDispenser.func_149941_e, reached from updateTick, which onNeighborBlockChange schedules only while isBlockIndirectlyGettingPowered; with world.conf redstone = off World.getIndirectPowerLevelTo and isBlockProvidingPowerTo return 0, so no dispenser ever fires"
+  }
+ ],
+ "missing": [],
+ "notes": "The registries themselves are generated from the oracle (make -C oracle blocks-h / items-h), so the registration ordering and values come from the live Java objects rather than a re-reading of this file. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): reachable only through a world.conf switch that is off (the dispenser registry, redstone). Formerly listed as missing: func_151353_a: the dispenser behavior registry has no native counterpart and is unreachable in this game. The stats, sounds and potion-effect registrations of func_151354_b are not individually verified against the native tables.",
+ "path": "oracle/src/init/Bootstrap.java"
+}

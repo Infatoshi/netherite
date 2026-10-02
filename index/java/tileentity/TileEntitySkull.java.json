@@ -1,0 +1,151 @@
+{
+  "path": "oracle/src/tileentity/TileEntitySkull.java",
+  "classes": [
+    "TileEntitySkull"
+  ],
+  "lines": 121,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The mob head's block entity: skull type, rotation and, for player heads, the owner GameProfile (resolved through the profile cache).",
+  "scope": "in_scope",
+  "scope_reason": "Skeleton, wither skeleton, zombie and creeper heads can be obtained (charged creeper kills, wither skeleton drops) and placed.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "TE_SKULL",
+        "tile_entity"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_skull",
+        "te_load"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "item_skull_on_item_use"
+      ]
+    },
+    {
+      "file": "csrc/engine/world.c",
+      "symbols": [
+        "place_skull_break_drop"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "out/java/place/big2",
+    "out/java/snapshots/details-blocks-s1",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/clientframes/cov-skull-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145908_a",
+      "sig": "int skullType",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "skull_type"
+    },
+    {
+      "kind": "field",
+      "name": "field_145910_i",
+      "sig": "int rotation",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "skull_rot"
+    },
+    {
+      "kind": "field",
+      "name": "field_152110_j",
+      "sig": "GameProfile owner",
+      "native": null,
+      "status": "n/a",
+      "note": "player heads are not obtainable in survival"
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_skull",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "SkullType and Rot. A player head's Owner or ExtraType profile needs a player head, which survival never makes in 1.7.10 (only the wither skeleton skull and the charged creeper's zombie, skeleton and creeper heads drop)."
+    },
+    {
+      "kind": "method",
+      "name": "func_152108_a",
+      "sig": "()GameProfile",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getDescriptionPacket",
+      "sig": "()Packet",
+      "native": null,
+      "status": "n/a",
+      "note": "The playable client draws each tile entity from the server's copy (one process: play.c, raster_tileent.c), so the description packet's content, sent whenever the server copy changes, is what it already reads; no row carries the client copy."
+    },
+    {
+      "kind": "method",
+      "name": "func_152107_a",
+      "sig": "(I)V",
+      "native": "csrc/engine/place.c:item_skull_on_item_use",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_152106_a",
+      "sig": "(GameProfile)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_152109_d",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "online profile lookup"
+    },
+    {
+      "kind": "method",
+      "name": "func_145904_a",
+      "sig": "()I",
+      "native": "csrc/engine/world.c:place_skull_break_drop",
+      "status": "exact",
+      "note": "the drop reads the type"
+    },
+    {
+      "kind": "method",
+      "name": "func_145906_b",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "runs only when a frame is drawn (TileEntitySkullRenderer): clientframes cov-skull-s1 draws four floor skulls at four rotations"
+    },
+    {
+      "kind": "method",
+      "name": "func_145903_a",
+      "sig": "(I)V",
+      "native": "csrc/engine/place.c:item_skull_on_item_use",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": " lane/idxblocks: reviewed."
+}

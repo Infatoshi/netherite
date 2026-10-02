@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/entity/item/EntityPainting.java",
+  "classes": ["EntityPainting", "EntityPainting.EnumArt"],
+  "lines": 180,
+  "side": "common",
+  "category": "entity",
+  "role": "A hanging painting: placed on a wall by ItemHangingEntity, picks one of the 26 EnumArt motives that fits the wall, drops itself when broken.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/fallhang.c", "symbols": ["fh_spawn_painting", "fh_spawn_hanging_nbt", "fh_set_direction", "fh_valid_surface", "fh_write_nbt", "on_broken", "ARTS"]},
+    {"file": "csrc/engine/raster_entities.c", "symbols": ["ARTS"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-hanging-full-s1", "csrc/tests/test_fallhang.c"],
+  "members": [
+    {"kind": "field", "name": "art", "sig": "EntityPainting.EnumArt", "native": "csrc/engine/fallhang.c:art", "status": "exact", "note": "fh_ent.art holds the EnumArt ordinal"},
+    {"kind": "ctor", "name": "EntityPainting", "sig": "(World)V", "native": "csrc/engine/fallhang.c:fh_spawn_hanging_nbt", "status": "exact", "note": "the NBT constructor, reached through the replay's EntityList.createEntityFromNBT path; it draws nothing"},
+    {"kind": "ctor", "name": "EntityPainting", "sig": "(World,IIII)V", "native": "csrc/engine/fallhang.c:fh_spawn_painting", "status": "exact", "note": "the candidate loop over all 26 arts and the entity-Random pick of a fitting one"},
+    {"kind": "ctor", "name": "EntityPainting", "sig": "(World,IIII,String)V", "native": "csrc/engine/fallhang.c:fh_spawn_hanging_nbt", "status": "exact", "note": "the art-by-title lookup with the Kebab fallback lives in the NBT load path (EntityPainting.readEntityFromNBT's body)"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/fallhang.c:fh_write_nbt", "status": "exact", "note": "the Motive tag"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V", "native": "csrc/engine/fallhang.c:fh_spawn_hanging_nbt", "status": "exact", "note": "Motive lookup, Kebab when none matches"},
+    {"kind": "method", "name": "getWidthPixels", "sig": "()I", "native": "csrc/engine/fallhang.c:ARTS", "status": "exact"},
+    {"kind": "method", "name": "getHeightPixels", "sig": "()I", "native": "csrc/engine/fallhang.c:ARTS", "status": "exact"},
+    {"kind": "method", "name": "onBroken", "sig": "(Lnet/minecraft/entity/Entity;)V", "native": "csrc/engine/fallhang.c:on_broken", "status": "exact", "note": "the creative-player early return cannot fire on the probe's player; the painting item drop is built"},
+    {"kind": "field", "name": "EnumArt", "sig": "enum (title,sizeX,sizeY,offsetX,offsetY)", "native": "csrc/engine/raster_entities.c:ARTS", "status": "exact", "note": "the 26 arts: titles and sizes in fallhang.c ARTS (the box and the wall check), the texture offsets in the renderer's raster_entities.c ARTS"}
+  ],
+  "missing": [
+
+  ],
+  "notes": "fallhang.c carries EntityHanging's shared machinery (setDirection, onValidSurface, the 100-tick validity check) for paintings and item frames together; the painting item itself is placed through fh_place_hanging (ItemHangingEntity.onItemUse). persist-hanging-s1 records a placed painting surviving. lane/idxentity: EnumArt's offsets are the renderer's table. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-hanging-full-s1, whose native replay starts before the behaviour."
+}

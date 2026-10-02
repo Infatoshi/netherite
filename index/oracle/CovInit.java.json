@@ -1,0 +1,13 @@
+{
+  "path": "oracle/harness/netherite/oracle/CovInit.java",
+  "lines": 439,
+  "role": "A coverage pool member's class initializers. PoolAgent installs its transformer when JaCoCo's agent is on the JVM (after JaCoCo's, so JaCoCo names classes by their own bytes as in a fresh JVM): every new, getstatic, putstatic and invokestatic site in the vanilla and harness classes marks its target (touch, a member reference resolved to its declaring class, JVMS 5.4.3), and every <clinit> marks its entry and exit. While Pool.init forces every initializer, each one's own JaCoCo probes (between its entry and exit, less nested initializers') and the references it touched are kept. forJob: the classes a fresh JVM would have initialized by a job's end (touched by the job, run by it, their superclasses, and what their initializers touched, to closure) and their initializers' probes as one JaCoCo dump. Also a reader and writer of JaCoCo's execution data format (0x1007). It also keeps each static Gson's type adapter cache as at the pristine point and puts it back between jobs (Rewind leaves a Gson opaque, so an earlier job's adapters stayed cached and EnumTypeAdapterFactory.create did not run where a fresh JVM runs it).",
+  "kind": "harness",
+  "used_by": [
+    "oracle/harness/netherite/oracle/PoolAgent.java (install)",
+    "oracle/harness/netherite/oracle/Pool.java (begin, end, clear)",
+    "oracle/harness/netherite/oracle/Coverage.java (forJob)"
+  ],
+  "vanilla_hooks": [],
+  "notes": "Only coverage members load it (tests/poolauto.sh COV); fresh JVMs and other members never do. Without it a member's job data lacked the initializers a fresh JVM runs mid-run, and the clinit probes. Proof (lane/covcache): 14 recordings pooled against fresh, covered-method sets equal but for NetHandlerPlayServer.onConnectionStateTransition (a netty event-loop race: it differs between two fresh JVMs in 7 of 14) and the NBT double and float readers of a chunk read back from its region file (AnvilChunkLoader.loadChunk takes ChunkIO's in-flight save instead when the writer has not finished: the member's warm server thread outruns the writer)."
+}

@@ -1,0 +1,15 @@
+{
+ "path": "oracle/harness/netherite/oracle/Act.java",
+ "lines": 511,
+ "role": "One tick of input in tape form (look, ordered GUI effects, post-input key snapshot, hotbar, focus, changed render options) and agent form (hold/press short key names, look or dlook, hotbar, gui); parses both, resolves agent form into tape form at the input point and captures the player's look.",
+ "kind": "harness",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Oracle.java (replay and agent loop: Act.parseTape per row)",
+  "oracle/harness/netherite/oracle/Rows.java (writes the act field of every tape row)",
+  "oracle/harness/netherite/oracle/ClientWorldProbe.java",
+  "csrc/play/play.c (reads the act field of tape rows)",
+  "csrc/engine/act_agent.c and csrc/runtime/agent.c (the env pool's agent form: applyGui and applyInput in the tick, parseAgent's refusals and applyLook before it)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No oracle/src file references Act; it is reached through Oracle.java. Whether csrc/play/play.c parses every Act field was not verified member by member. lane/harness2: copyAgent copies ctrl, so an agent step's \"ctrl\":1 drop throws the whole stack (Oracle.ctrlDown), cat-toss-ctrl-s1; applyOpts' rd reaches IntegratedServer.tick's view distance, opts-rd-s1. lane/agentscreens: the agent-input semantics in the class comment. Under a screen that lets the input block run (GuiInventory) an agent act changes no binding and no hotbar (applyInput), as the screen's handleInput drains a person's keys; a gui op runs only under its screen (respawn: GuiGameOver or GuiWinGame; wake: GuiSleepMP; trsel: its GuiMerchant; click and close: a GuiContainer, the click on the open window with a slot Container.slotClick takes, badClick) and is otherwise refused (ORACLE REFUSE, not recorded), as are the ops of a tick no screen took (toJson, guiRaw); a hotbar outside 0..8 or a pitch outside -90..90 refuses the agent step (parseAgent: an error reply, no tick) or ends a replay (parseTape). Native session_parse_act and surv_client_click refuse the same tape rows. inv-presses-s1, respawn-alive-s1, agent-values-s1, csrc/tests/agent_values.sh. lane/rlscenes: the agent has no perspective key (keyName refuses perspective and key.togglePerspective; third-person views are not ported, RL-08); an aim's \"at\" is the aimed height as a fraction of the target's height (0.5 by default; sr6-ender-s1 hits an enderman's legs at 0.25)."
+}

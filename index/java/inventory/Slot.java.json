@@ -1,0 +1,205 @@
+{
+ "classes": [
+  "Slot"
+ ],
+ "lines": 155,
+ "side": "common",
+ "category": "inventory",
+ "role": "One container slot: which inventory and index it fronts, its number in the container, the put/take/limit rules, and the pickup hooks the subclasses override.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "slot"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "slot_put",
+    "slot_limit",
+    "slot_valid",
+    "slot_decr",
+    "slot_on_pickup",
+    "slot_stack",
+    "slot_has",
+    "slot_can_take",
+    "container_init"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/containers"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "slotIndex",
+   "sig": "int",
+   "native": "csrc/engine/container.h:slot",
+   "status": "exact",
+   "note": "the struct's index field"
+  },
+  {
+   "kind": "field",
+   "name": "inventory",
+   "sig": "IInventory",
+   "native": "csrc/engine/container.h:slot",
+   "status": "exact",
+   "note": "the struct's inv pointer"
+  },
+  {
+   "kind": "field",
+   "name": "slotNumber",
+   "sig": "int",
+   "native": "csrc/engine/container.h:slot",
+   "status": "exact",
+   "note": "the struct's number field"
+  },
+  {
+   "kind": "field",
+   "name": "xDisplayPosition",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "client GUI layout"
+  },
+  {
+   "kind": "field",
+   "name": "yDisplayPosition",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "client GUI layout"
+  },
+  {
+   "kind": "ctor",
+   "name": "Slot",
+   "sig": "(Lnet/minecraft/inventory/IInventory;III)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact",
+   "note": "the layout strings test_containers.c compares"
+  },
+  {
+   "kind": "method",
+   "name": "onSlotChange",
+   "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;)V",
+   "native": null,
+   "status": "n/a",
+   "note": "only reaches the onCrafting hooks, which the subclasses own"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/item/ItemStack;I)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in the base class"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/item/ItemStack;)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in the base class"
+  },
+  {
+   "kind": "method",
+   "name": "onPickupFromSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:slot_on_pickup",
+   "status": "exact",
+   "note": "dispatches to the craft, furnace and merchant out slots"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValid",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/container.c:slot_valid",
+   "status": "exact",
+   "note": "the four ported slot kinds"
+  },
+  {
+   "kind": "method",
+   "name": "getStack",
+   "sig": "()Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:slot_stack",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getHasStack",
+   "sig": "()Z",
+   "native": "csrc/engine/container.c:slot_has",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "putStack",
+   "sig": "(Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:slot_put",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onSlotChanged",
+   "sig": "()V",
+   "native": "csrc/engine/container.c:slot_put",
+   "status": "partial",
+   "note": "the notify is folded into inv_set"
+  },
+  {
+   "kind": "method",
+   "name": "getSlotStackLimit",
+   "sig": "()I",
+   "native": "csrc/engine/container.c:slot_limit",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBackgroundIconIndex",
+   "sig": "()Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:slot_decr",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isSlotInInventory",
+   "sig": "(Lnet/minecraft/inventory/IInventory;I)Z",
+   "native": "csrc/engine/container.h:slot",
+   "status": "exact",
+   "note": "the inv plus index compare"
+  },
+  {
+   "kind": "method",
+   "name": "canTakeStack",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/container.c:slot_can_take",
+   "status": "exact",
+   "note": "no ported slot overrides it"
+  },
+  {
+   "kind": "method",
+   "name": "func_111238_b",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "returns false; only the horse GUI's slots override it"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/Slot.java"
+}

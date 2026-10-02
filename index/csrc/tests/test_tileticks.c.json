@@ -1,0 +1,88 @@
+{
+ "path": "csrc/tests/test_tileticks.c",
+ "lines": 822,
+ "role": "Gate: the tile entity half of World.updateEntities (tileticks_pass, csrc/engine/tileticks.c) against TileTickProbe recordings (out/java/tileticks/<name>/): per tick the write stream, changed-NBT lines, walk order, chunk hashes and final region for furnace, chest, ender chest, hopper, daylight detector, enchant table, beacon, cauldron, mob spawner, note block and piston tile entities.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateEntities"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntity.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityFurnace.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityChest.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityEnchantmentTable.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityMobSpawner.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityBrewingStand.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/tileentity/TileEntityPiston.java",
+   "members": [
+    "updateEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockPistonMoving.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/TileTickProbe.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/EnchantTable.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "writes",
+   "java": "the per-tick block write stream being compared",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 37: static diff_what",
+  "line 49: static cur writes",
+  "line 157-159: static lid_g gzFile, lid_buf, lid_pending"
+ ],
+ "tests": [
+  "csrc/tests/test_tileticks.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Brewing stand listed from the probe census assumption; not confirmed in the test's type strings (Beacon, Cauldron, Chest, DLDetector, EnchantTable, EnderChest, Furnace, Hopper, MobSpawner, Music, Piston were seen)."
+}

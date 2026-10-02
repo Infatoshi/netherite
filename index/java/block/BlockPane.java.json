@@ -1,0 +1,221 @@
+{
+ "path": "oracle/src/block/BlockPane.java",
+ "classes": [
+  "BlockPane"
+ ],
+ "lines": 193,
+ "side": "common",
+ "category": "block",
+ "role": "Glass panes (102) and iron bars (101), plus the stained pane subclass: the connection rule to neighbours, the cross-shaped collision boxes, the pane mesher, and the no-drop glass pane.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/collide.c",
+   "symbols": [
+    "pane_connects",
+    "collide_add_boxes"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks3.c",
+   "symbols": [
+    "rb3_render_pane"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "should_side_be_rendered"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvestdrops.c",
+   "symbols": [
+    "create_stacked_block",
+    "harvestdrops_create_stacked_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "block_bounds",
+    "raytrace_collision"
+   ]
+  },
+  {
+   "file": "csrc/engine/dig.c",
+   "symbols": [
+    "can_silk_harvest"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_move.c",
+  "csrc/tests/test_meshes.c",
+  "csrc/tests/test_harvestdrops.c",
+  "out/java/snapshots/scen-fences-s1",
+  "out/java/raypick/rp-1",
+  "csrc/tests/test_raypick.c",
+  "out/java/snapshots/details-blocks-s1",
+  "out/java/meshes/scene3-42",
+  "out/java/snapshots/cov-blkbreak-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150100_a",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "top texture name"
+  },
+  {
+   "kind": "field",
+   "name": "field_150099_b",
+   "sig": "boolean",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "drops-itself flag: 101 drops itself (default path), 102 drops nothing (case 102)"
+  },
+  {
+   "kind": "field",
+   "name": "field_150101_M",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "texture name"
+  },
+  {
+   "kind": "field",
+   "name": "field_150102_N",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockPane",
+   "sig": "(String,String,Material,Z)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 101 (iron) and 102 (glass)"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "102 in the null-drop case"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "18 iron bars, 41 glass pane"
+  },
+  {
+   "kind": "method",
+   "name": "shouldSideBeRendered",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": "csrc/engine/render_blocks.c:should_side_be_rendered",
+   "status": "exact",
+   "note": "nothing against its own block; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+  },
+  {
+   "kind": "method",
+   "name": "addCollisionBoxesToList",
+   "sig": "(World,IIIAxisAlignedBB,List,Entity)V",
+   "native": "csrc/engine/collide.c:collide_add_boxes",
+   "status": "exact",
+   "note": "case 101/102/160, verbatim"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsForItemRender",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "item render"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockBoundsBasedOnState",
+   "sig": "(IBlockAccess,III)V",
+   "native": "csrc/engine/raytrace.c:block_bounds",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150097_e",
+   "sig": "()IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "top icon, resolved inside rb3_render_pane"
+  },
+  {
+   "kind": "method",
+   "name": "func_150098_a",
+   "sig": "(Block)Z",
+   "native": "csrc/engine/raytrace.c:pane_connects",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canSilkHarvest",
+   "sig": "()Z",
+   "native": "csrc/engine/dig.c:can_silk_harvest",
+   "status": "exact",
+   "note": "True outright (glass pane, stained pane, iron bars) in the live dig path too."
+  },
+  {
+   "kind": "method",
+   "name": "createStackedBlock",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/harvestdrops.c:harvestdrops_create_stacked_block",
+   "status": "exact",
+   "note": "The pane with its metadata."
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration"
+  }
+ ],
+ "missing": [],
+ "notes": "Panes appear in villages (glass_pane windows) and strongholds (iron bars). scen-fences-s1 was chosen as a movement scene; whether it contains a pane was not checked. lane/idxblocks: every member was already exact or n/a (panes and bars in the mesh scenes, the silk harvest in details-blocks-s1)."
+}

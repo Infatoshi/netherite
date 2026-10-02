@@ -1,0 +1,8 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"suffocate"}
+{"n":2,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":280,"act":{}}
+{"n":30,"act":{}}
+{"n":1,"act":{"gui":[["respawn"]]}}
+{"n":40,"act":{"hold":["forward"]}}

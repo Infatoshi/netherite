@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/renderer/texture/SimpleTexture.java",
+  "classes": ["SimpleTexture"],
+  "lines": 66,
+  "side": "client",
+  "category": "client_render",
+  "role": "An AbstractTexture that loads one PNG through the resource manager (honouring blur/clamp metadata) and uploads it as a GL texture. TextureManager.bindTexture creates these on demand for every plain texture location.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": ["out/java/render/gui_inventory"],
+  "members": [
+    {"kind": "field", "name": "textureLocation", "sig": "ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "SimpleTexture", "sig": "(ResourceLocation)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "loadTexture", "sig": "(IResourceManager)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The client textures this class loads (GUI sheets, mob skins) reach the native renderer as pre-converted dumps (state/gui_*.rgba, csrc/assets/mobs/*.rgba); the GL upload path itself is not ported. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "GL texture plumbing: loads one PNG and uploads it. The pixels it loads reach the native renderer as pre-converted dumps (state/gui_*.rgba, csrc/assets); no GL texture objects exist natively."
+}

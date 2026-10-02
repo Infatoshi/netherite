@@ -1,0 +1,170 @@
+{
+ "path": "oracle/src/entity/EntityAgeable.java",
+ "classes": [
+  "EntityAgeable"
+ ],
+ "lines": 196,
+ "side": "server",
+ "category": "entity",
+ "role": "The ageing half of the breedable mobs: the dataWatcher-12 age counter, its per-tick advance, the child/adult scale, and the spawn-egg interaction.",
+ "scope": "in_scope",
+ "scope_reason": "Villages are on and the farm animals are in the spawn lists, so breeding ages matter to the digests.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_set_growing_age"
+   ]
+  },
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_create_child",
+    "animal_get_block_path_weight"
+   ]
+  },
+  {
+   "file": "csrc/engine/villagers.c",
+   "symbols": [
+    "living_set_growing_age"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_villagers.c",
+  "out/java/snapshots/persist-village-full-s42",
+  "csrc/tests/test_animals.c",
+  "out/java/animals",
+  "out/java/snapshots/breed-sheep-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_98056_d",
+   "sig": "float",
+   "native": null,
+   "status": "n/a",
+   "note": "the pre-scale width cache; the native kinds set their sizes directly"
+  },
+  {
+   "kind": "field",
+   "name": "field_98057_e",
+   "sig": "float",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityAgeable",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "chained to EntityCreature's"
+  },
+  {
+   "kind": "method",
+   "name": "createChild",
+   "sig": "(EntityAgeable)EntityAgeable",
+   "native": "csrc/engine/animals.c:animal_create_child",
+   "status": "exact",
+   "note": "per kind; the animals' child spawn (age -24000, position, the sheep colour) is in one place"
+  },
+  {
+   "kind": "method",
+   "name": "interact",
+   "sig": "(EntityPlayer)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the spawn-egg use on a mob (createChild + the creative stack decrement): no player can hold a spawn egg in the ported scenarios; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": "csrc/engine/living.c:living_init",
+   "status": "exact",
+   "note": "dataWatcher 12 (age) starts at 0 (living.c:4308)"
+  },
+  {
+   "kind": "method",
+   "name": "getGrowingAge",
+   "sig": "()I",
+   "native": "csrc/engine/living.h:growing_age",
+   "status": "exact",
+   "note": "dataWatcher 12"
+  },
+  {
+   "kind": "method",
+   "name": "addGrowth",
+   "sig": "(int)V",
+   "native": "csrc/engine/animals.c:animal_create_child",
+   "status": "partial",
+   "note": "the wheat-fed child's 60-second growth (animals.c:165) is the only call site"
+  },
+  {
+   "kind": "method",
+   "name": "setGrowingAge",
+   "sig": "(int)V",
+   "native": "csrc/engine/living.c:living_set_growing_age",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/living.c:living_write_nbt",
+   "status": "exact",
+   "note": "the Age tag (living.c:3672)"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/snapshot_entities.c:sr_living_from_nbt",
+   "status": "exact",
+   "note": "Age is read back through living_set_growing_age"
+  },
+  {
+   "kind": "method",
+   "name": "onLivingUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/animals.c:animal_create_child",
+   "status": "partial",
+   "note": "the per-tick age advance lives in each kind's living update (animals.c:211 for the animals, villagers.c:724 for villagers); the client setScaleForAge half is render-side"
+  },
+  {
+   "kind": "method",
+   "name": "isChild",
+   "sig": "()Z",
+   "native": "csrc/engine/living.h:growing_age",
+   "status": "exact",
+   "note": "age < 0, read directly"
+  },
+  {
+   "kind": "method",
+   "name": "setScaleForAge",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the 0.5 child scale is a render/model concern; the server state is the age value"
+  },
+  {
+   "kind": "method",
+   "name": "setSize",
+   "sig": "(FF)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the scale cache; native kinds apply their sizes at construct time"
+  },
+  {
+   "kind": "method",
+   "name": "setScale",
+   "sig": "(F)V",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): spawn eggs are creative-only. Formerly listed as missing: interact's spawn-egg branch: createChild on right-click with an egg and the survival-mode stack decrement. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

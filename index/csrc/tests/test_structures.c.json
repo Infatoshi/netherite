@@ -1,0 +1,60 @@
+{
+ "path": "csrc/tests/test_structures.c",
+ "lines": 357,
+ "role": "Gate: native structure starts (structure_walk, csrc/engine/structure.c) against StructuresProbe starts.jsonl files (out/java/structures/<dir>/): for each implemented type (Mineshaft, Stronghold, Temple, Village; Fortress in the Nether) recomputes the region's starts from the seed and compares their canonical NBT line by line.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/MapGenMineshaft.java",
+   "members": [
+    "canSpawnStructureAtCoords"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStronghold.java",
+   "members": [
+    "canSpawnStructureAtCoords"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenScatteredFeature.java",
+   "members": [
+    "canSpawnStructureAtCoords"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenVillage.java",
+   "members": [
+    "canSpawnStructureAtCoords"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenNetherBridge.java",
+   "members": [
+    "canSpawnStructureAtCoords"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureStart.java",
+   "members": [
+    "func_143022_a"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/StructuresProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 72-73: static const type-name tables (read-only)"
+ ],
+ "tests": [
+  "csrc/tests/test_structures.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Types without a native implementation are reported and skipped. Member names in java[] are the vanilla hooks for start selection and NBT write; not re-verified in the Java files."
+}

@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/world/gen/NoiseGeneratorOctaves.java",
+  "classes": ["NoiseGeneratorOctaves"],
+  "lines": 73,
+  "side": "server",
+  "category": "worldgen",
+  "role": "Sums N NoiseGeneratorImproved octaves at halving amplitude, with the 16777216 coordinate wrap, into a caller-supplied noise array. Used by every chunk provider's density and depth noises.",
+  "scope": "in_scope",
+  "scope_reason": "Terrain density for all three dimensions.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/noise.c", "symbols": ["octaves_init", "octaves_3d", "octaves_2d", "floor_long"]}, {"file": "csrc/engine/noise.h", "symbols": ["octaves"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_dims.c", "out/java/chunks/seed1", "out/java/chunks/wide2"],
+  "members": [
+    {"kind": "field", "name": "generatorCollection", "sig": "NoiseGeneratorImproved[]", "native": "csrc/engine/noise.h:octaves", "status": "exact", "note": "struct octaves.g, fixed capacity 16"},
+    {"kind": "field", "name": "octaves", "sig": "int", "native": "csrc/engine/noise.h:octaves", "status": "exact", "note": "struct octaves.n"},
+    {"kind": "ctor", "name": "NoiseGeneratorOctaves", "sig": "(Random,int)", "native": "csrc/engine/noise.c:octaves_init", "status": "exact"},
+    {"kind": "method", "name": "generateNoiseOctaves", "sig": "(double[],int,int,int,int,int,int,double,double,double)[D", "native": "csrc/engine/noise.c:octaves_3d", "status": "exact", "note": "The caller owns the output buffer; the null-array allocation branch has no C counterpart and is not needed."},
+    {"kind": "method", "name": "generateNoiseOctaves", "sig": "(double[],int,int,int,double,double,double)[D", "native": "csrc/engine/noise.c:octaves_2d", "status": "exact", "note": "2D bouncer: y 10, ySize 1, yScale 1."}
+  ],
+  "missing": [],
+  "notes": "The C struct caps octaves at 16 (vanilla uses at most 16). Not re-verified by running the gate here."
+}

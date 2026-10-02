@@ -1,0 +1,68 @@
+{
+ "path": "oracle/src/world/chunk/storage/AnvilSaveHandler.java",
+ "classes": [
+  "AnvilSaveHandler"
+ ],
+ "lines": 72,
+ "side": "server",
+ "category": "chunk",
+ "role": "The Anvil save handler for one world directory: picks each dimension's chunk loader folder (the world root, DIM-1 for the Nether, DIM1 for the End), stamps the save version and flushes region files.",
+ "scope": "in_scope",
+ "scope_reason": "Where a checkpoint's chunks live on disk; the native checkpoint start reads the same layout. The save-writing side is deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain; triage 2026-09-25, out/plan/remaining-2026-09-25.md). The read side is a real item (A1).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/region.c",
+   "symbols": [
+    "region_load_chunk",
+    "region_enumerate"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/cp-mobs-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "AnvilSaveHandler",
+   "sig": "(File,String,boolean)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getChunkLoader",
+   "sig": "(WorldProvider)IChunkLoader",
+   "native": "csrc/engine/region.c:region_load_chunk",
+   "status": "exact",
+   "note": "region for the overworld; DIM-1 and DIM1 through the snapshot's saved chunks"
+  },
+  {
+   "kind": "method",
+   "name": "saveWorldInfoWithPlayer",
+   "sig": "(WorldInfo,NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: the save's bytes; every save this game makes is written by the oracle (see notes)"
+  },
+  {
+   "kind": "method",
+   "name": "flush",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "I/O flush."
+  }
+ ],
+ "missing": [],
+ "notes": "I did not confirm whether the checkpoint path supports non-overworld starts at all. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

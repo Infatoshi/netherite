@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/entity/ai/EntityAISit.java",
+  "classes": ["EntityAISit"],
+  "lines": 68,
+  "side": "server",
+  "category": "ai",
+  "role": "The tameable sit toggle: while the isSitting flag holds, a tamed wolf or ocelot stops moving and sits; the flag is set externally (right-click) through setSitting.",
+  "scope": "switched_off",
+  "scope_reason": "Only EntityTameable (wolf, ocelot) registers this task (grep over oracle/src), and world.conf forces wolves = off and ocelots = off, so it is never constructed, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "theEntity", "sig": "EntityTameable", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "isSitting", "sig": "boolean", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityAISit", "sig": "(EntityTameable)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a", "note": "tamed, dry, on the ground, and either ownerless or the owner is far/attacking"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setSitting", "sig": "(boolean)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": ""
+}

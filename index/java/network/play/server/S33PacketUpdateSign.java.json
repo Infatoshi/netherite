@@ -1,0 +1,119 @@
+{
+ "path": "oracle/src/network/play/server/S33PacketUpdateSign.java",
+ "classes": [
+  "S33PacketUpdateSign"
+ ],
+ "lines": 87,
+ "side": "common",
+ "category": "network",
+ "role": "The four text lines of a sign tile entity, sent when the sign's chunk reaches the client or its text changes.",
+ "scope": "switched_off",
+ "scope_reason": "TileEntitySign.getDescriptionPacket sends one for every sign a client receives (built in details-blocks-s1 and pickblock-s1), but world.conf sign_editing = off keeps every sign blank (ItemSign.java:88), so it only ever carries four empty lines onto a client sign that is already blank.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S33PacketUpdateSign",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S33PacketUpdateSign",
+   "sig": "(int,int,int,String[])V",
+   "status": "missing"
+  },
+  {
+   "kind": "field",
+   "name": "field_149352_a",
+   "sig": "int",
+   "status": "missing",
+   "note": "x"
+  },
+  {
+   "kind": "field",
+   "name": "field_149350_b",
+   "sig": "int",
+   "status": "missing",
+   "note": "y"
+  },
+  {
+   "kind": "field",
+   "name": "field_149351_c",
+   "sig": "int",
+   "status": "missing",
+   "note": "z"
+  },
+  {
+   "kind": "field",
+   "name": "field_149349_d",
+   "sig": "String[]",
+   "status": "missing",
+   "note": "the four lines"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "missing"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "missing"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "missing"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "dispatch overload"
+  },
+  {
+   "kind": "method",
+   "name": "func_149346_c",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149345_d",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149344_e",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149347_f",
+   "sig": "()String[]",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [
+  "TileEntitySign.getDescriptionPacket (TileEntitySign.java:48), sent when a sign's chunk reaches the client (PlayerManager.java:554): no native counterpart; the native client renders signs from its own world state",
+  "readPacketData/writePacketData: no native codec"
+ ],
+ "notes": "Under world.conf sign_editing = off the only text this packet could carry is four empty strings; the sign block itself is in scope. idxaudit 2026-09-27: scope reason rewritten."
+}

@@ -1,0 +1,157 @@
+{
+ "path": "oracle/src/network/play/server/S23PacketBlockChange.java",
+ "classes": [
+  "S23PacketBlockChange"
+ ],
+ "lines": 97,
+ "side": "server",
+ "category": "network",
+ "role": "One block change on the client: position, block id and metadata.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet",
+    "world_set_block"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_clientworld.c",
+  "out/java/clientworld/smoke-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148887_a",
+   "sig": "int",
+   "status": "partial",
+   "note": "x, rides tracker_packet.x"
+  },
+  {
+   "kind": "field",
+   "name": "field_148885_b",
+   "sig": "int",
+   "status": "partial",
+   "note": "y"
+  },
+  {
+   "kind": "field",
+   "name": "field_148886_c",
+   "sig": "int",
+   "status": "partial",
+   "note": "z"
+  },
+  {
+   "kind": "field",
+   "name": "field_148883_d",
+   "sig": "Block",
+   "status": "partial",
+   "note": "the block, rides tracker_packet.block (an id, not a Block object)"
+  },
+  {
+   "kind": "field",
+   "name": "field_148884_e",
+   "sig": "int",
+   "status": "partial",
+   "note": "metadata, rides tracker_packet.meta"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,int,World)V",
+   "status": "n/a",
+   "note": "no live-flow emission; dig.h notes the vanilla branch that sends an S23; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "partial",
+   "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+   "note": "TRACKER_PKT_S23 case: world_set_block flag 3"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_148880_c",
+   "sig": "()Lnet/minecraft/block/Block;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148879_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148878_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148877_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148881_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes). Formerly listed as missing: No live-flow emission: the native client world shares the server's block writes, so no S23 is built; the client half is exercised through the ClientWorldProbe recordings (csrc/tests/test_clientworld.c)."
+}

@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/block/BlockBreakable.java",
+  "classes": ["BlockBreakable"],
+  "lines": 51,
+  "side": "common",
+  "category": "block",
+  "role": "The abstract base of glass, stained glass and ice: a full-cube block whose only behavior is hiding faces against a same-meta neighbour when its flag says so.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["should_side_be_rendered"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": ["csrc/tests/test_meshes.c", "out/java/render/terrain1", "out/java/render/terrain_nearest", "out/java/rendertick/mv_glass", "out/java/render/mv_glass_gl", "csrc/tests/test_render.c", "csrc/tests/render_budget.txt"],
+  "members": [
+    {"kind": "ctor", "name": "BlockBreakable", "sig": "(String,boolean,Material)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "The flag lands in the registry entries: 20 and 95 are glass (flag false), 79 is ice."},
+    {"kind": "field", "name": "field_149996_a", "sig": "boolean (hides same faces)", "native": "csrc/engine/render_blocks.c:should_side_be_rendered", "status": "exact", "note": "False for all three subclasses (glass 20, stained glass 95, ice 79), so each hides a face against its own block: render_blocks.c should_side_be_rendered's cases 20/95 and 79."},
+    {"kind": "field", "name": "field_149995_b", "sig": "String (texture name)", "native": null, "status": "n/a", "note": "Atlas naming only."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false for glass and ice."},
+    {"kind": "method", "name": "shouldSideBeRendered", "sig": "(IBlockAccess,IIII)Z", "native": "csrc/engine/render_blocks.c:should_side_be_rendered", "status": "exact", "note": "should_side_be_rendered: glass and stained glass draw the face whenever the neighbour's metadata differs from their own (whatever the neighbour is), otherwise hide it against the same block; ice hides it against ice; the rest is Block's. mv_glass pins cubes, lines, 16 colours stacked, glass beside stained glass of the same metadata, glass beside stone and an ice pair; without the glass case the views measure 720 to 11,315 px over 25 (39 to 690 with it)."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."}
+  ],
+  "missing": [],
+  "notes": "The subclasses are BlockGlass (20) and BlockStainedGlass (95) in blocks.h, with BlockIce (79) as the third; BlockPortal also extends it but overrides shouldSideBeRendered whole. The glass branch (the Blocks.glass / Blocks.stained_glass test in the base method) was ported by lane/meshvar; out/java/rendertick/mv_glass is its scene (8 views mv_glass_*, meshes vertex exact)."
+}

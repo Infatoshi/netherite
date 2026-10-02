@@ -1,0 +1,103 @@
+{
+ "path": "csrc/tests/test_snapshots.c",
+ "lines": 2048,
+ "role": "Gate: the snapshot loader and tape reader against oracle Snapshot recordings (out/java/snapshots/<name>/): manifest counts, chunk bytes and hashes, NBT round-trips of tile entities and entities, pending ticks, then replays each tape row past the snapshot through session.c (the load and tick pair the playable client runs), comparing client, server, inventory, world and entity fields.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/harness/netherite/oracle/Snapshot.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "tick"
+   ]
+  },
+  {
+   "path": "oracle/src/client/multiplayer/WorldClient.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/player/InventoryPlayer.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/util/FoodStats.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagCompound.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/gui/inventory/GuiChest.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/gui/inventory/GuiCrafting.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/gui/inventory/GuiFurnace.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/gui/inventory/GuiInventory.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/gui/GuiMerchant.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/gui/GuiGameOver.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/gui/GuiSleepMP.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/client/gui/GuiWinGame.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/MobFree.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/MobMove.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "tally",
+   "java": "per-run counters of compared rows and fields",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 42: static fails",
+  "line 85: static ring[8][64] message ring",
+  "line 123: static g_row",
+  "line 1291-1294: static order[16384], order_dim[16384]"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "An end-state snapshot beside the tape (end/, Snapshot's \"sub\") has every loaded overworld chunk's inhabitedTime compared after the last row (inhabit-s42; the freeze-inhabited flag is its negative check). Flags may precede the directory, which input_guard reads last. Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. The load, the start and the tick pair are session.c's (lane playfix), shared with csrc/play/play.c; this file keeps the load checks, the row comparison, --rows, --trace and the negative flags (dev-give-plus-one plants its bug through the after_player_tick hook). The widest gate: exercises session.c, serverreplay.c, player.c, snapshot.c, entity_nbt.c, nbtbin.c, nbtjson.c, nbtedit.c, dev.c, endfight.c, combat.c, survival.c, container.c, crafting.c, chunkload.c, fallhang.c, ticks.c, tape.c, trace.c. Run over every directory in out/java/snapshots. Per-GUI coverage is inferred from class names in comments, not verified field by field. cp.gui names GuiDispenser and GuiHopper; cp.fur (the client furnace's three progress bars) is compared when the row carries it. The chunk check computes every chunk's own and 3x3 hashes first, eight at a time (snapshot_chunk_hash_n, snapshot_chunk_hash_around_n). --rows N stops N rows past the snapshot (the any-tick sweep, oracle/tests/anytick.sh). lane/keyframes: the recording is the last argument and the start state may be a keyframe: --keyframe KDIR, or --from-row N (the verified keyframe at or before N in DIR/../../keyframes/NAME/set.json, refused when its lastSha1 is not this tape's last row), opened through session_open_at (the snapshot's own files, the recording's checkpoint); --to-row N stops before row N and --stop-first after the first row with a mismatch (the end-state checks then do not apply); --state-diff KDIR compares the state after the last row with a snapshot of that tick (statediff.c); --fault entity@ROW|block@ROW|scalar@ROW plants a divergence (an entity's motionY + 1/1024 after the row's tick, a Dev setblock of stone two blocks above the player as an extra setup entry, the overworld World.rand seed ^ 1 after the tick); --tape PATH, --trace-rows A and --watch ID serve csrc/tests/diverge.sh. Lane gpuphase (GPU audit L6): --phase-trace FILE, --phase-digest and --phase-check run the phase tracer (phase.h). --gen-ahead c|cuda serves chunk generation ahead of each step (genahead.h), --gen-ahead-misses logs each miss; built with the CUDA generators as out/native/cuda/worldgen/test_snapshots (lane/gpugen). --phase-kernel (tests/phasekernel.h, lane/gpuharness) runs the replay in an image environment with each tested phase on a device copy."
+}

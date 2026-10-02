@@ -1,0 +1,17 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"time","value":6000}
+{"cmd":"dev","op":"state","health":20.0,"food":20,"saturation":5.0}
+{"cmd":"dev","op":"tp","x":619.5,"y":36.0,"z":443.5,"yaw":90.0,"pitch":25.0}
+{"n":2,"act":{}}
+{"cmd":"dev","op":"setblock","x":618,"y":34,"z":441,"id":0,"meta":0,"mode":"replace"}
+{"n":8,"act":{}}
+{"n":1,"act":{"press":["use"]}}
+{"n":3,"act":{}}
+{"n":1,"act":{"gui":[["click",-1,1,0,0]]}}
+{"n":1,"act":{}}
+{"n":1,"act":{"gui":[["click",-1,31,0,0]]}}
+{"n":2,"act":{}}
+{"n":1,"act":{},"frame":true}
+{"n":3,"act":{}}

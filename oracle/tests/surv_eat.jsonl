@@ -1,0 +1,8 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"eat"}
+{"n":2,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{"dlook":[0,0]}}
+{"n":80,"act":{"hold":["use","forward"]}}
+{"n":1,"act":{"dlook":[180,0]}}
+{"n":140,"act":{"hold":["forward"]}}

@@ -1,0 +1,116 @@
+{
+ "path": "csrc/engine/stronghold.c",
+ "lines": 888,
+ "role": "MapGenStronghold (the three ring positions from the world seed and biome search, the nearest-stronghold query) and StructureStrongholdPieces' layout: the weighted piece list, every piece's constructor and buildComponent, the retry loop until a portal room exists, and the piece NBT.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStronghold.java",
+   "members": [
+    "canSpawnStructureAtCoords",
+    "getCoordList",
+    "getStructureStart",
+    "func_143025_a",
+    "field_82671_h",
+    "field_82672_i",
+    "field_82670_j"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureStrongholdPieces.java",
+   "members": [
+    "prepareStructurePieces",
+    "canAddStructurePieces",
+    "getNextComponent",
+    "getNextValidComponent",
+    "getStrongholdComponentFromWeightedPiece",
+    "PieceWeight",
+    "Stairs2",
+    "Straight",
+    "Prison",
+    "LeftTurn",
+    "RightTurn",
+    "RoomCrossing",
+    "StairsStraight",
+    "Stairs",
+    "Crossing",
+    "ChestCorridor",
+    "Library",
+    "PortalRoom",
+    "Corridor",
+    "buildComponent",
+    "getRandomDoor",
+    "canStrongholdGoDeeper",
+    "getNextComponentNormal",
+    "getNextComponentX",
+    "getNextComponentZ",
+    "func_143012_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/biome/WorldChunkManager.java",
+   "members": [
+    "func_150795_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "findClosestStructure"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "sh_state",
+   "java": "each StructureStrongholdPieces.Stronghold subclass's own saved fields (entryDoor, Straight left/right, Corridor steps, Crossing flags, ChestCorridor chest, RoomCrossing type, Library tall, Stairs source, PortalRoom mob)",
+   "fields": [
+    "kind",
+    "door",
+    "left",
+    "right",
+    "steps",
+    "cross_ll",
+    "cross_lh",
+    "cross_rl",
+    "cross_rh",
+    "chest",
+    "room_type",
+    "tall",
+    "source",
+    "mob"
+   ]
+  },
+  {
+   "name": "sh_coords",
+   "java": "MapGenStronghold.structureCoords",
+   "fields": [
+    "cx",
+    "cz"
+   ]
+  }
+ ],
+ "entry_points": [
+  "stronghold_nearest",
+  "stronghold_nearest_loaded",
+  "stronghold_note_chunk",
+  "stronghold_state",
+  "stronghold_piece_nbt",
+  "structure_stronghold"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 74, function gen_box: malloc of the biome box",
+  "line 310, function sh_pending_add: realloc of the pending list",
+  "lines 331-332, function mk_empty: calloc of each piece and its sh_state (pointer graph of pieces)",
+  "lines 801-831, function stronghold_make_start: retry loop up to 2000 attempts, then abort()",
+  "line 822, function stronghold_make_start: pending list removal shifts the array by index (order-dependent, carried as data)"
+ ],
+ "tests": [
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_eyes.c"
+ ],
+ "notes": "Runs when chunk generation places structures (populate.c calls make_start), which can happen inside the server tick when a new chunk loads. Evidence: out/java/structures (StructuresProbe), out/java/sblocks (StructureBlocksProbe), out/java/eyes (EyesProbe, stronghold_nearest). The world.conf distance/count/spread are fixed at the defaults. SRG field names for MapGenStronghold's ring are recalled, not checked."
+}

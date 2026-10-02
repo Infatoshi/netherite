@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/client/LoadingScreenRenderer.java",
+  "classes": ["LoadingScreenRenderer"],
+  "lines": 243,
+  "side": "client",
+  "category": "gui",
+  "role": "The vanilla loading screen: shows progress text and a dirt-textured background while a world loads or a dimension changes.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "LoadingScreenRenderer", "sig": "(Lnet/minecraft/client/Minecraft;)V", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "mc", "sig": "final Minecraft", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_73725_a", "sig": "final ScaledResolution", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_73724_b", "sig": "private String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_73726_c", "sig": "private volatile String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_73723_d", "sig": "private volatile String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146587_f", "sig": "private volatile int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146588_g", "sig": "private volatile int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146586_h", "sig": "private long", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resetProgressAndMessage", "sig": "(Ljava/lang/String;)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setLoadingProgress", "sig": "(I)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146584_a", "sig": "(Lnet/minecraft/world/chunk/IChunkProvider;Ljava/lang/String;IIII)V", "native": null, "status": "n/a", "note": "the chunk-load progress callback; the native engine loads chunks synchronously in the worldgen stage, with no screen"},
+    {"kind": "method", "name": "run", "sig": "()V", "native": null, "status": "n/a", "note": "the GL draw loop on its own thread"}
+  ],
+  "missing": [],
+  "notes": "Pure client presentation: the native engine has no loading screen and no separate load thread, and no gameplay behavior reads it. Screen text is not part of the pixel-diff gates. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "The loading-screen text and dirt background drawn while a world loads or the dimension changes; no game state reads it, and native frames are drawn after a tick, never during a load."
+}

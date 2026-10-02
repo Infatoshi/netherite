@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/jmath.c",
+ "lines": 16,
+ "role": "Defines MathHelper's 65536-entry sine table and fills it before main (a constructor); jmath_init stays as a no-op for old callers.",
+ "layer": "util",
+ "java": [
+  {"path": "oracle/src/util/MathHelper.java", "members": ["SIN_TABLE"]}
+ ],
+ "structs": [],
+ "entry_points": ["jmath_init"],
+ "tick_path": false,
+ "gpu": ["its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"],
+ "tests": ["csrc/tests/test_itemuse.c", "csrc/tests/test_dragon.c", "csrc/tests/test_renderstate.c"],
+ "notes": "The table is built before main and only read after, inside the tick through mh_sin and mh_cos (csrc/tests/globals.allow lists it)."
+}

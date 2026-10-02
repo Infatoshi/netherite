@@ -1,0 +1,31 @@
+{
+ "path": "csrc/engine/imgxfer.c",
+ "lines": 544,
+ "role": "The env image's transfer format and its ends (GPU plan L13): env_export reads a transfer out of an image (the whole image: every nonzero page of image_extents; or, with the write tracker, the pages written since the image was last in step, plus the zap log's pages, zero pages carried without bytes, pages that hold no memory and are not in the log dropped), env_import writes one into an image of the same layout (zero runs handed back to the kernel, the rest protected again). The tracker (Linux): one userfaultfd in asynchronous write-protect mode with remap events (a thread acknowledges them, so image_move keeps the protection), PAGEMAP_SCAN with WP_MATCHING for the written pages. Also the calling thread's user and kernel instruction counters (perf_event_open) and named mappings the grave's scan skips.",
+ "layer": "util",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "env_export",
+  "env_import",
+  "img_xfer_init",
+  "img_xfer_free",
+  "img_xfer_trim",
+  "img_track_open",
+  "img_track_close",
+  "img_track_add",
+  "img_counters_open",
+  "img_counters_read",
+  "img_map_named",
+  "img_unmap"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "the transfer's pages keep the image's pointers in the host's form (the base it names is in the transfer): a device reads p as its own base + (p - base)",
+  "a scan walks every page table of the image (about 20 kernel instructions per entry): its cost follows the heap's address spread, not the pages written"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "lane/gpuharness. Linux 6.7 or later for the tracker; elsewhere img_track_open returns NULL and only the whole-image export works."
+}

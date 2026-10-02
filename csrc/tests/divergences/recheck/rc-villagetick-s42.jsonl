@@ -1,0 +1,11 @@
+{"cmd":"run","class":"Snapshot"}
+{"n":16,"act":{}}
+{"cmd":"dev","op":"tp","x":700.5,"y":68.0,"z":-352.5,"yaw":180.0,"pitch":0.0}
+{"n":40,"act":{}}
+{"n":3,"act":{}}
+{"cmd":"dev","op":"summon","name":"Villager","x":692.5,"y":63.0,"z":-312.5}
+{"cmd":"dev","op":"summon","name":"Villager","x":693.5,"y":63.0,"z":-310.5}
+{"cmd":"dev","op":"summon","name":"Villager","x":691.5,"y":63.0,"z":-325.5}
+{"n":20,"act":{}}
+{"cmd":"dev","op":"weather","type":"rain","seconds":600}
+{"n":200,"act":{}}

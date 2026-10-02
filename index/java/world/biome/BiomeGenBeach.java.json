@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/world/biome/BiomeGenBeach.java",
+  "classes": ["BiomeGenBeach"],
+  "lines": 20,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The Beach (16) and Cold Beach (26) biome class: no passive mobs, sand top and filler, no trees, reeds, cacti or dead bushes.",
+  "scope": "in_scope",
+  "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/biomes.h", "symbols": ["BIOMES", "biome_def"]},
+    {"file": "csrc/engine/decorator.c", "symbols": ["deco_of"]},
+    {"file": "csrc/engine/spawning.c", "symbols": ["biome_has_creatures"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_populate.c", "csrc/tests/test_spawning.c", "out/java/chunks", "out/java/populate"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "obfuscation id"},
+    {"kind": "ctor", "name": "BiomeGenBeach", "sig": "(int)", "native": "csrc/engine/decorator.c:deco_of", "status": "exact", "note": "decorator counts in deco_of (ids 16, 26); sand top/filler in biomes.h BIOMES; the cleared creature list in spawning.c biome_has_creatures"}
+  ],
+  "missing": [],
+  "notes": "biomes.h is generated from the live biome objects (make biomes-h), so the top/filler columns follow this constructor by construction."
+}

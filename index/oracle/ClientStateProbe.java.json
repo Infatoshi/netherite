@@ -1,0 +1,13 @@
+{
+  "path": "oracle/harness/netherite/oracle/ClientStateProbe.java",
+  "lines": 330,
+  "role": "The render-state recorder's client view state: each frame row's cs block (fovMultiplierTemp and getFOVMultiplier's inputs, the movementSpeed attribute with its modifiers, the portal timer, inPortal, timeUntilPortal and the player's Random, every living entity's hurt fields, lastLightningBolt and the client bolts), the packets the tick processed (S06, S19, S0B, S1C health, S1D, S1E, S20, S2C, read off the client's receive queue at the tick's start) with the CLIENT seeder at that moment, and the row's inside list: the blocks WorldRenderer draws a second time from inside, kept per renderer from the view block of its last build.",
+  "kind": "recorder",
+  "used_by": [
+    "oracle/harness/netherite/oracle/RenderStateProbe.java (tickStart, doFog's cs block, doCamera and doFogGL for the inside list)",
+    "csrc/tests/test_rendertick.c (the client state steps)",
+    "csrc/engine/raster.c (the inside list)"
+  ],
+  "vanilla_hooks": [],
+  "notes": "No vanilla hook: the receive queue is read by reflection before Minecraft.runTick takes it, and the renderers' dirty flags and positions between RenderStateProbe's camera and fogGL hooks (the agent frame rebuilds every dirty renderer between them) tell which were rebuilt at which view block."
+}

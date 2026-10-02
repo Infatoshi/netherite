@@ -1,0 +1,9 @@
+out/
+oracle/logs/
+
+# a lane's working notes and report stay in its own tree (2026-09-30: lane/headline committed out/notes.md and every lane merging master took its notes)
+out/notes.md
+out/report.md
+
+# made by oracle/decomp/src.sh from the pristine decompile and oracle.patch; never committed
+/oracle/src/

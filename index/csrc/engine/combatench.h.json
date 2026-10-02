@@ -1,0 +1,50 @@
+{
+ "path": "csrc/engine/combatench.h",
+ "lines": 64,
+ "role": "Declares the melee enchantment hooks (combatench.c): EnumCreatureAttribute, the held item's modifiers, func_151384_a and func_151385_b, the fire-protection fire time and EntityMob.attackEntityAsMob.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/EnumCreatureAttribute.java",
+   "members": [
+    "UNDEFINED",
+    "UNDEAD",
+    "ARTHROPOD"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentHelper.java",
+   "members": [
+    "getEnchantmentModifierLiving",
+    "getKnockbackModifier",
+    "getFireAspectModifier",
+    "func_151384_a",
+    "func_151385_b"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMob.java",
+   "members": [
+    "attackEntityAsMob"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "living_creature_attribute",
+  "ench_modifier_living",
+  "ench_knockback",
+  "ench_fire_aspect",
+  "ench_hurt_iter",
+  "ench_damage_iter",
+  "ench_fire_time",
+  "living_fire_entity",
+  "mob_attack_entity_as_mob"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "CREATURE_* are EnumCreatureAttribute's constants."
+}

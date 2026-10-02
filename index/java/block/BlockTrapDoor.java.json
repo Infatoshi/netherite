@@ -1,0 +1,229 @@
+{
+  "path": "oracle/src/block/BlockTrapDoor.java",
+  "classes": [
+    "BlockTrapDoor"
+  ],
+  "lines": 283,
+  "side": "common",
+  "category": "block",
+  "role": "The trapdoor (id 96): a thin slab against one wall face, opened and closed by right click or redstone (bit 4), which also flips which face it hangs from; drops itself when its wall goes away.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "trapdoor_support",
+        "trapdoor_set_open",
+        "block_on_neighbor_changed",
+        "bwl_on_broken"
+      ]
+    },
+    {
+      "file": "csrc/engine/activate.c",
+      "symbols": [
+        "on_block_activated"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_pool_box"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "on_block_placed",
+        "can_replace",
+        "trapdoor_support"
+      ]
+    },
+    {
+      "file": "csrc/engine/ai.c",
+      "symbols": [
+        "blocks_movement"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "client_toggle_openable"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_activate.c",
+    "csrc/tests/test_place.c",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/idx-blocks-s1",
+    "out/java/snapshots/cpred-doors-s1",
+    "out/java/snapshots/cov-blkpower-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockTrapDoor",
+      "sig": "(Lnet/minecraft/block/material/Material;)V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "id 96: Material.wood row, full-cube static bounds (the real bounds are per state)"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getBlocksMovement",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;III)Z",
+      "native": "csrc/engine/ai.c:blocks_movement",
+      "status": "exact",
+      "note": "an open trapdoor (bit 4) is passable for pathfinding and movement"
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "render_type 0"
+    },
+    {
+      "kind": "method",
+      "name": "getSelectedBoundingBoxFromPool",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/raytrace.c:raytrace_block_bounds",
+      "status": "exact",
+      "note": "The state bounds (open, top, facing); idx-blocks-s1 places a trapdoor on a wall and toggles it through the pick; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(Lnet/minecraft/world/World;III)Lnet/minecraft/util/AxisAlignedBB;",
+      "native": "csrc/engine/collide.c:collide_pool_box",
+      "status": "exact",
+      "note": "case 96: the closed 0.1875 slab, or the open door's side slab (bit-4 doors report only the side box)"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(Lnet/minecraft/world/IBlockAccess;III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsForItemRender",
+      "sig": "()V",
+      "native": null,
+      "status": "exact",
+      "note": "The item form (the 3/16 slab) in block_item_model.c; the block-icon goldens draw it; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+    },
+    {
+      "kind": "method",
+      "name": "func_150117_b",
+      "sig": "(I)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockClicked",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/player/EntityPlayer;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "empty in vanilla"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z",
+      "native": "csrc/engine/activate.c:on_block_activated",
+      "status": "exact",
+      "note": "case ID_TRAPDOOR: toggles bit 4 (the iron material's early return only matters for iron trapdoors, which 1.7.10 has no item for); the client half (the toggle on WorldClient before the same tick's move, the 1003 sound's Math.random and world rand draws) is survival.c:client_toggle_openable"
+    },
+    {
+      "kind": "method",
+      "name": "func_150120_a",
+      "sig": "(Lnet/minecraft/world/World;IIIZ)V",
+      "native": "csrc/engine/blockcb.c:trapdoor_set_open",
+      "status": "exact",
+      "note": "the redstone-driven toggle"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)V",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact",
+      "note": "drops itself when the block behind its facing is gone, then the redstone toggle"
+    },
+    {
+      "kind": "method",
+      "name": "collisionRayTrace",
+      "sig": "(Lnet/minecraft/world/World;IIILnet/minecraft/util/Vec3;Lnet/minecraft/util/Vec3;)Lnet/minecraft/util/MovingObjectPosition;",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlaced",
+      "sig": "(Lnet/minecraft/world/World;IIIFFFFI)I",
+      "native": "csrc/engine/place.c:on_block_placed",
+      "status": "exact",
+      "note": "the facing meta 0..3 plus the top-hung bit 8 from the hit Y"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockOnSide",
+      "sig": "(Lnet/minecraft/world/World;IIII)Z",
+      "native": "csrc/engine/place.c:can_replace",
+      "status": "exact",
+      "note": "sides 2..5 only, on func_150119_a support"
+    },
+    {
+      "kind": "method",
+      "name": "func_150118_d",
+      "sig": "(I)Z",
+      "native": "csrc/engine/ai.c:blocks_movement",
+      "status": "exact",
+      "note": "The open bit (meta & 4) read inline where it matters (collision, pathing, activation)."
+    },
+    {
+      "kind": "method",
+      "name": "func_150119_a",
+      "sig": "(Lnet/minecraft/block/Block;)Z",
+      "native": "csrc/engine/blockcb.c:trapdoor_support",
+      "status": "exact",
+      "note": "an opaque full cube, glowstone, a slab or a stair can hold a trapdoor; place.c has its own copy of the same test"
+    }
+  ],
+  "missing": [],
+  "notes": "blockcb.c's header notes the conversion-path neighbor notifications that can pop a trapdoor; test_place.c covers placement and test_activate.c the toggle. lane/idxblocks: idx-blocks-s1 places a trapdoor on a wall (top half) and opens and closes it."
+}

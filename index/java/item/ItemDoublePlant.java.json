@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/item/ItemDoublePlant.java",
+  "classes": ["ItemDoublePlant"],
+  "lines": 30,
+  "side": "common",
+  "category": "item",
+  "role": "The ItemMultiTexture of the tall plant block: icons and grass colour per subtype; placement goes through ItemMultiTexture's damage-unchanged metadata and BlockDoublePlant.onBlockPlacedBy grows the upper half.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_block_on_item_use", "on_block_placed", "item_get_metadata"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemDoublePlant", "sig": "(Block,BlockDoublePlant,String[])V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "the tall plant's item is registered as ItemDoublePlant in registerItems"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "method", "name": "getColorFromItemStack", "sig": "(ItemStack,I)I", "native": null, "status": "n/a", "note": "client grass colour"},
+    {"kind": "method", "name": "getMetadata (inherited)", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "the default damage branch, named for ItemDoublePlant"},
+    {"kind": "method", "name": "onItemUse (inherited)", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/place.c:item_block_on_item_use", "status": "exact", "note": "BlockDoublePlant.onBlockPlacedBy's upper-half growth is in place.c's on_block_placed dispatch"}
+  ],
+  "missing": [],
+  "notes": null
+}

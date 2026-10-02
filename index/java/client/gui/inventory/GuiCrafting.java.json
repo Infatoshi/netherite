@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiCrafting.java",
+  "classes": ["GuiCrafting"],
+  "lines": 34,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The crafting table's container screen: the \"Crafting\" title and the crafting_table.png background over ContainerWorkbench.",
+  "scope": "in_scope",
+  "scope_reason": "Crafting is vanilla and in scope; the workbench screen is pixel-gated (out/java/render/gui_crafting).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_slot_xy"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["raster_gui_live"]}
+  ],
+  "evidence": [
+    "out/java/render/gui_crafting",
+    "csrc/tests/test_crafting.c",
+    "out/java/snapshots/stats-s1-pre",
+    "out/java/snapshots/cat-recipes-s1",
+    "out/java/snapshots/gold-g1-s42"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_147019_u", "sig": "static ResourceLocation", "native": null, "status": "n/a", "note": "static texture constant"},
+    {"kind": "ctor", "name": "GuiCrafting", "sig": "(InventoryPlayer,World,int,int,int)V", "native": null, "status": "n/a", "note": "the ContainerWorkbench construction is container.c's CONTAINER_WORKBENCH"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "\"Crafting\" at x 28 and \"Inventory\" at (8, height-94), raster_hud.c:1570-1576"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the 176x166 background modal"}
+  ],
+  "missing": [],
+  "notes": "Slot positions are gui_screen_slot_xy's CONTAINER_WORKBENCH branch (result at 124,35, grid from 30,17, player half from 8,84). idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): flow-craft-s1."
+}

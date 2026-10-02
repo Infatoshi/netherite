@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/AnvilConverterException.java",
+  "classes": ["AnvilConverterException"],
+  "lines": 15,
+  "side": "common",
+  "category": "util",
+  "role": "The checked exception thrown by AnvilConverter when a legacy save cannot be converted.",
+  "scope": "not_needed",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "AnvilConverterException", "sig": "(Ljava/lang/String;)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Nothing in this codebase converts legacy saves: worlds are created fresh from a seed in world.conf, and the native engine has no save-format conversion at all. This is the save-conversion exception, not the anvil block. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Only AnvilSaveConverter's legacy-save conversion throws it; the oracle's worlds are fresh Anvil saves and its start-up scan converts nothing (see AnvilSaveConverter), and the native engine loads snapshots."
+}

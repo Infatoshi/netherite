@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/block/BlockSponge.java",
+  "classes": ["BlockSponge"],
+  "lines": 15,
+  "side": "common",
+  "category": "block",
+  "role": "The sponge block (id 19): in 1.7.10 it has no behavior of its own, every method is inherited from Block.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]}
+  ],
+  "evidence": ["out/java/drops/s2", "out/java/harvestdrops/s2", "csrc/tests/test_drops.c", "csrc/tests/test_harvestdrops.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockSponge", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 19: Material.sponge row and static properties in the table"},
+    {"kind": "field", "name": "__OBFID", "sig": "static final String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "1.7.10 sponges do not absorb water (that returned in 1.8), so the empty class is fully covered by its table row. No dedicated recording or test names sponge. Evidence added by the triage 2026-09-25, out/plan/remaining-2026-09-25.md: the drops and harvestdrops probes break this block at every tool (s2 and s42)."
+}

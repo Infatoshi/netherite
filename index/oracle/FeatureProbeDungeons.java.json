@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/FeatureProbeDungeons.java",
+ "lines": 223,
+ "role": "The dungeon half of the feature probe: WorldGenDungeons' Config row and the per-case tile entity record (tileentities.bin: chests, mob spawners, furnaces, dispensers, flower pots as canonical NBT) written beside the block writes.",
+ "kind": "probe",
+ "used_by": [
+  "FeatureProbe.java (fe-dungeons-*)",
+  "StructureBlocksProbe.java and PlaceProbe.java reuse its tile entity record",
+  "csrc/tests/test_feature.c reads tileentities.bin (out/java/probes/fe-dungeons-2, fe-dungeons-42)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

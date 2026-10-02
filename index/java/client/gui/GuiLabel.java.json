@@ -1,0 +1,133 @@
+{
+ "path": "oracle/src/client/gui/GuiLabel.java",
+ "classes": [
+  "GuiLabel"
+ ],
+ "lines": 66,
+ "side": "client",
+ "category": "client_gui",
+ "role": "A screen's text label: centred or left lines with an optional drawn border, used by screens such as the credits.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Text labels of screens the native engine does not draw; no native screen draws a GuiLabel.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146167_a",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146161_f",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146162_g",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146174_h",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146173_k",
+   "sig": "ArrayList",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146170_l",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146172_j",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146171_m",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146168_n",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146169_o",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146166_p",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146165_q",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146164_r",
+   "sig": "FontRenderer",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_146163_s",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146159_a",
+   "sig": "(Minecraft,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "drawLabel"
+  },
+  {
+   "kind": "method",
+   "name": "func_146160_b",
+   "sig": "(Minecraft,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the border"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

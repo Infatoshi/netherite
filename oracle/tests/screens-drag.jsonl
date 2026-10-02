@@ -1,0 +1,26 @@
+{"n": 16, "act": {}}
+{"cmd": "run", "class": "MobFree", "radius": 16}
+{"cmd": "run", "class": "Snapshot"}
+{"n": 83, "act": {"hold": ["forward", "jump"]}}
+{"n": 7, "act": {}}
+{"n": 1, "act": {"dlook": [-46.3, -46.3]}}
+{"n": 1, "act": {"press": ["attack"], "hold": ["attack"]}}
+{"n": 80, "act": {"hold": ["attack"]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {"dlook": [0.0, 26.3]}}
+{"n": 1, "act": {"press": ["attack"], "hold": ["attack"]}}
+{"n": 90, "act": {"hold": ["attack"]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {"dlook": [0.0, 76.4]}}
+{"n": 1, "act": {"press": ["attack"], "hold": ["attack"]}}
+{"n": 90, "act": {"hold": ["attack"]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {"dlook": [0.0, -136.4]}}
+{"n": 1, "act": {"press": ["attack"], "hold": ["attack"]}}
+{"n": 90, "act": {"hold": ["attack"]}}
+{"n": 121, "act": {}}
+{"n": 10, "act": {"hold": ["forward", "right"]}}
+{"n": 10, "act": {"hold": ["back", "left"]}}
+{"n": 1, "act": {"press": ["inventory"]}}
+{"n": 1, "act": {"gui": [["click", 0, 36, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, -999, 0, 5], ["click", 0, 1, 1, 5], ["click", 0, 3, 1, 5], ["click", 0, -999, 2, 5]]}}

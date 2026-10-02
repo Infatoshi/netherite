@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/FeatureProbeTrees.java",
+ "lines": 45,
+ "role": "The tree generator instances for the feature probe rows (bigtree, taiga1, taiga2, megapine, megajungle, savanna, canopy), built the way their biomes build them and kept across cases so WorldGenBigTree carries its state as in a biome.",
+ "kind": "probe",
+ "used_by": [
+  "FeatureProbe.java (fe-bigtree-*, fe-taiga1/2-*, fe-megapine-*, fe-megajungle-*, fe-savanna-*, fe-canopy-*)",
+  "csrc/tests/test_feature.c",
+  "csrc/engine/features_trees.c cites it"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

@@ -1,0 +1,200 @@
+{
+  "path": "csrc/engine/clientstate.c",
+  "lines": 363,
+  "role": "The client-side view state of work item C5, one vanilla method per function: AbstractClientPlayer/EntityPlayerSP.getFOVMultiplier and EntityRenderer.updateFovModifierHand, the client movementSpeed attribute (S20 snapshot, the sprint modifier, the speed and slowness potion modifiers), EntityPlayerSP's portal timer with its trigger-sound draw, EntityLivingBase.handleHealthUpdate, performHurtAnimation, EntityPlayerSP.setPlayerSPHealth with EntityPlayer.damageEntity's client arithmetic, the hurt countdowns and the limb step, and the client EntityLightningBolt (built from the CLIENT seeder on an S2C) with WorldClient.lastLightningBolt.",
+  "layer": "client",
+  "java": [
+    {
+      "path": "oracle/src/client/entity/EntityPlayerSP.java",
+      "members": [
+        "getFOVMultiplier",
+        "onLivingUpdate",
+        "timeInPortal",
+        "prevTimeInPortal",
+        "setPlayerSPHealth"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "updateFovModifierHand",
+        "fovModifierHand",
+        "fovModifierHandPrev",
+        "fovMultiplierTemp"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "handleHealthUpdate",
+        "performHurtAnimation",
+        "onEntityUpdate",
+        "hurtTime",
+        "maxHurtTime",
+        "hurtResistantTime",
+        "attackedAtYaw",
+        "limbSwingAmount",
+        "setSprinting",
+        "applyArmorCalculations",
+        "applyPotionDamageCalculations"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayer.java",
+      "members": [
+        "damageEntity",
+        "getPortalCooldown"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "setInPortal",
+        "timeUntilPortal",
+        "inPortal"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/effect/EntityLightningBolt.java",
+      "members": [
+        "EntityLightningBolt",
+        "onUpdate",
+        "lightningState",
+        "boltLivingTime",
+        "boltVertex"
+      ]
+    },
+    {
+      "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+      "members": [
+        "handleSpawnGlobalEntity",
+        "handleEntityStatus",
+        "handleUpdateHealth",
+        "handleEntityProperties",
+        "handleAnimation"
+      ]
+    },
+    {
+      "path": "oracle/src/client/Minecraft.java",
+      "members": [
+        "runTick"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/ai/attributes/ModifiableAttributeInstance.java",
+      "members": [
+        "computeValue"
+      ]
+    },
+    {
+      "path": "oracle/src/potion/Potion.java",
+      "members": [
+        "applyAttributesModifiersToEntity",
+        "func_111183_a"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "cs_fov_in",
+      "java": "what getFOVMultiplier reads",
+      "fields": [
+        "flying",
+        "walk_speed",
+        "move_speed",
+        "bow",
+        "use_duration"
+      ]
+    },
+    {
+      "name": "cs_attr",
+      "java": "the client's movementSpeed ModifiableAttributeInstance",
+      "fields": [
+        "base",
+        "n",
+        "m"
+      ]
+    },
+    {
+      "name": "cs_portal",
+      "java": "EntityPlayerSP.timeInPortal/prevTimeInPortal, Entity.inPortal/timeUntilPortal",
+      "fields": [
+        "time",
+        "prev",
+        "in_portal",
+        "time_until"
+      ]
+    },
+    {
+      "name": "cs_hurt",
+      "java": "EntityLivingBase's hurt fields",
+      "fields": [
+        "hurt",
+        "max_hurt",
+        "res",
+        "max_res",
+        "attacked_yaw",
+        "limb",
+        "health",
+        "last_damage"
+      ]
+    },
+    {
+      "name": "cs_damage_ctx",
+      "java": "what EntityPlayer.damageEntity reads besides the amount",
+      "fields": [
+        "blocking",
+        "armor",
+        "resistance",
+        "absorption",
+        "ench_mod",
+        "max_health"
+      ]
+    },
+    {
+      "name": "cs_bolt",
+      "java": "a client EntityLightningBolt",
+      "fields": [
+        "id",
+        "state",
+        "living",
+        "vertex",
+        "rand",
+        "age"
+      ]
+    },
+    {
+      "name": "cs_weather",
+      "java": "WorldClient.lastLightningBolt and weatherEffects",
+      "fields": [
+        "last_bolt",
+        "n",
+        "b"
+      ]
+    }
+  ],
+  "entry_points": [
+    "clientstate_fov_multiplier",
+    "clientstate_fov_hand",
+    "clientstate_attr_value",
+    "clientstate_attr_apply",
+    "clientstate_attr_remove",
+    "clientstate_attr_sprint",
+    "clientstate_potion_speed_mod",
+    "clientstate_set_in_portal",
+    "clientstate_portal_tick",
+    "clientstate_health_update",
+    "clientstate_hurt_animation",
+    "clientstate_set_sp_health",
+    "clientstate_hurt_tick",
+    "clientstate_limb_step",
+    "clientstate_bolt_spawn",
+    "clientstate_weather_tick"
+  ],
+  "tick_path": true,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_rendertick.c"
+  ],
+  "notes": "Fixed-size state (CS_ATTR_MODS modifiers, CS_BOLTS bolts), no allocation. test_rendertick steps every piece between the rows of the cs_* recordings (out/java/rendertick/cs_sprint, out/java/rendertick/cs_speed, out/java/rendertick/cs_bow, out/java/rendertick/cs_portal, out/java/rendertick/cs_storm, out/java/rendertick/cs_hurt) from the packets the probe read off the client's receive queue, and recomputes each frame's camera, lightmap, sky and fog from the result. play.c and player.c run the same functions in the live client. The live client keeps survival.c's client_set_sp_health (the snapshot-verified S06 path); an S19 status 2 for the player is not queued there (follow-up)."
+}

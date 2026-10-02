@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/item/ItemBlockWithMetadata.java",
+  "classes": ["ItemBlockWithMetadata"],
+  "lines": 34,
+  "side": "common",
+  "category": "item",
+  "role": "An ItemBlock that places the block with the damage value unchanged as metadata; in 1.7.10 it is registered for nothing (no block uses it), so it exists only as a class.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_get_metadata", "item_block_on_item_use"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "out/java/snapshots/cov-place-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150950_b", "sig": "Block", "native": null, "status": "n/a", "note": "the icon block; client presentation only"},
+    {"kind": "ctor", "name": "ItemBlockWithMetadata", "sig": "(Block,Block)V", "native": null, "status": "n/a", "note": "never registered in Item.registerItems, so no ITEMS row carries this class_name"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "cov-place-s1 places it (wool, leaves, a piston, snow layers through ItemSnow's super path)"}
+  ],
+  "missing": [],
+  "notes": "place.c's is_item_block_family and the item_get_metadata comment name ItemBlockWithMetadata; no item id is registered with this class in 1.7.10, so the record has no ITEMS row to cite."
+}

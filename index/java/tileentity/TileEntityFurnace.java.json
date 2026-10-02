@@ -1,0 +1,318 @@
+{
+  "path": "oracle/src/tileentity/TileEntityFurnace.java",
+  "classes": [
+    "TileEntityFurnace"
+  ],
+  "lines": 402,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The furnace block entity: input, fuel and output slots, the burn and cook counters, the fuel table, smelting via FurnaceRecipes, and the lit/unlit block swap.",
+  "scope": "in_scope",
+  "scope_reason": "Smelting ore and food is core survival progression.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_furnace",
+        "TE_FURNACE"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileticks.c",
+      "symbols": [
+        "furnace_update",
+        "furnace_can_smelt",
+        "furnace_smelt",
+        "furnace_fuel_value",
+        "stack_container_item",
+        "tileticks_furnace_swapping"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_furnace",
+        "te_load"
+      ]
+    },
+    {
+      "file": "csrc/engine/container.c",
+      "symbols": [
+        "transfer_furnace",
+        "furnace_fuel",
+        "furnace_out_on_pickup",
+        "container_set_furnace"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "gui_open_tile",
+        "gui_furnace_xp",
+        "gui_can_interact"
+      ]
+    },
+    {
+      "file": "csrc/engine/smelting.c",
+      "symbols": []
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/te-furnace-s1",
+    "out/java/snapshots/te-charcoal-s1",
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "csrc/tests/test_containers.c",
+    "out/java/containers/seed2",
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/containers2-s42",
+    "out/java/render/gui_furnace_lit",
+    "out/java/snapshots/pf-furnacefuel-g9",
+    "out/java/snapshots/cont-furnace-s1",
+    "out/java/snapshots/furnace-reload-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145962_k, field_145959_l, field_145960_m",
+      "sig": "static int[] side slots",
+      "native": null,
+      "status": "n/a",
+      "note": "ISidedInventory for hoppers; hopper transfer is off"
+    },
+    {
+      "kind": "field",
+      "name": "field_145957_n",
+      "sig": "ItemStack[3]",
+      "native": "csrc/engine/tileentity.h:te_furnace",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145956_a",
+      "sig": "int burnTime",
+      "native": "csrc/engine/tileentity.h:te_furnace",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145963_i",
+      "sig": "int currentItemBurnTime",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "Set on ignition and recomputed from the fuel slot by readFromNBT (te_load, lane/playfuzz: pf-furnacefuel-g9); the client's copy comes by the S31 bars."
+    },
+    {
+      "kind": "field",
+      "name": "field_145961_j",
+      "sig": "int cookTime",
+      "native": "csrc/engine/tileentity.h:te_furnace",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_145958_o",
+      "sig": "String customName",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "getSizeInventory",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:te_furnace",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlot",
+      "sig": "(I)ItemStack",
+      "native": "csrc/engine/survival.c:gui_tile_pull",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "decrStackSize",
+      "sig": "(II)ItemStack",
+      "native": "csrc/engine/container.c:container_set_furnace",
+      "status": "exact",
+      "note": "Through the container copy, written back (gui_tile_changed); te-furnace-s1."
+    },
+    {
+      "kind": "method",
+      "name": "getStackInSlotOnClosing",
+      "sig": "(I)ItemStack",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setInventorySlotContents",
+      "sig": "(ILItemStack)V",
+      "native": "csrc/engine/survival.c:gui_tile_changed",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "Client window title text."
+    },
+    {
+      "kind": "method",
+      "name": "isInventoryNameLocalized",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "func_145951_a",
+      "sig": "(String)V",
+      "native": null,
+      "status": "n/a",
+      "note": "A custom name needs a named item stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "Items, BurnTime, CookTime and the currentItemBurnTime recompute (te_load); a CustomName only an anvil writes."
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_furnace",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getInventoryStackLimit",
+      "sig": "()I",
+      "native": "csrc/engine/container.c:container_init",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145953_d",
+      "sig": "(I)I",
+      "native": "csrc/engine/raster_hud.c:raster_gui_live",
+      "status": "exact",
+      "note": "cook progress scaled for the GUI arrow"
+    },
+    {
+      "kind": "method",
+      "name": "func_145955_e",
+      "sig": "(I)I",
+      "native": "csrc/engine/raster_hud.c:raster_gui_live",
+      "status": "exact",
+      "note": "burn time scaled for the GUI flame"
+    },
+    {
+      "kind": "method",
+      "name": "func_145950_i",
+      "sig": "()Z",
+      "native": "csrc/engine/tileticks.c:furnace_update",
+      "status": "exact",
+      "note": "isBurning"
+    },
+    {
+      "kind": "method",
+      "name": "updateEntity",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:furnace_update",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145948_k",
+      "sig": "()Z",
+      "native": "csrc/engine/tileticks.c:furnace_can_smelt",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145949_j",
+      "sig": "()V",
+      "native": "csrc/engine/tileticks.c:furnace_smelt",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145952_a",
+      "sig": "(ItemStack)I",
+      "native": "csrc/engine/tileticks.c:furnace_fuel_value",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145954_b",
+      "sig": "(ItemStack)Z",
+      "native": "csrc/engine/container.c:furnace_fuel",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isUseableByPlayer",
+      "sig": "(EntityPlayer)Z",
+      "native": "csrc/engine/survival.c:gui_can_interact",
+      "status": "exact",
+      "note": "the same tile and within 8"
+    },
+    {
+      "kind": "method",
+      "name": "isItemValidForSlot",
+      "sig": "(ILItemStack)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "automation only"
+    },
+    {
+      "kind": "method",
+      "name": "getAccessibleSlotsFromSide",
+      "sig": "(I)[I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "canInsertItem",
+      "sig": "(ILItemStack;I)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "canExtractItem",
+      "sig": "(ILItemStack;I)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "openInventory",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: empty; ContainerFurnace never calls it"
+    },
+    {
+      "kind": "method",
+      "name": "closeInventory",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: empty; ContainerFurnace never calls it"
+    }
+  ],
+  "missing": [],
+  "notes": "The fuel table exists twice: tileticks.c furnace_fuel_value (burn times) and container.c furnace_fuel (the > 0 test). Not verified whether the native client sends/renders S31 furnace progress. lane/idxblocks: the fuel total recompute was ported by lane/playfuzz; names are the anvil switch. lane/reloadstate: a chunk reload recomputes currentItemBurnTime from the fuel slot as readFromNBT does (serverreplay.c sr_tiles_loaded; the chunk keeps its structs natively); furnace-reload-s1 failed on master."
+}

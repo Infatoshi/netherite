@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiBrewingStand.java",
+  "classes": ["GuiBrewingStand"],
+  "lines": 85,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The brewing stand's container screen: the title and the fuel/bubble arrows read from TileEntityBrewingStand.func_145935_i().",
+  "scope": "switched_off",
+  "scope_reason": "world.conf brewing = off: brewing stands never brew (SPEC Decisions: brewing stand is a plain block), so this screen never opens on the oracle side either.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_147014_u", "sig": "static ResourceLocation", "native": null, "status": "n/a", "note": "static constant"},
+    {"kind": "field", "name": "field_147013_v", "sig": "TileEntityBrewingStand", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "GuiBrewingStand", "sig": "(InventoryPlayer,TileEntityBrewingStand)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No native grep hit for GuiBrewingStand."
+}

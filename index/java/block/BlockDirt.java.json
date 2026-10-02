@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/block/BlockDirt.java",
+  "classes": ["BlockDirt"],
+  "lines": 129,
+  "side": "common",
+  "category": "block",
+  "role": "The dirt block with podzol as metadata 2: drops itself, folds podzol back to plain dirt on drop, and supports podzol-specific placement (mushrooms, saplings, mega pines).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/dig.c", "symbols": ["dig_op"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["harvestdrops_break"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["block_on_neighbor_changed"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": ["out/java/dig/r2", "out/java/dig/r42", "out/java/harvestdrops/s2", "csrc/tests/test_dig.c", "csrc/tests/test_place.c", "out/java/snapshots/pickblock-s1", "out/java/snapshots/cov-blkbreak-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockDirt", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 3: hardness 0.5, dirt material."},
+    {"kind": "field", "name": "field_150009_a", "sig": "IIcon (dirt)", "native": null, "status": "n/a", "note": "Atlas icon."},
+    {"kind": "field", "name": "field_150008_b", "sig": "IIcon (coarse)", "native": null, "status": "n/a", "note": "Atlas icon; coarse dirt is 1.7.10's meta 1."},
+    {"kind": "field", "name": "field_150010_M", "sig": "IIcon (podzol side)", "native": null, "status": "n/a", "note": "Atlas icon."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": "csrc/engine/render_blocks.c:block_icon_world", "status": "partial", "note": "The per-meta icons come from the recorded table.bin sweep; the podzol side/top split is in the icon table, not named in code."},
+    {"kind": "method", "name": "getIcon", "sig": "(IBlockAccess,IIIII)IIcon", "native": "csrc/engine/render_blocks.c:block_icon_world", "status": "partial", "note": "Same table path."},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": "csrc/engine/dig.c:dig_op", "status": "exact", "note": "Podzol folds back to 0, dig.c:412; the harvestdrops copy at harvestdrops.c:424."},
+    {"kind": "method", "name": "createStackedBlock", "sig": "(I)ItemStack", "native": "csrc/engine/harvestdrops.c:harvestdrops_break", "status": "exact", "note": "The same fold."},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Item,CreativeTabs,List)V", "native": null, "status": "n/a", "note": "Creative inventory only."},
+    {"kind": "method", "name": "getDamageValue", "sig": "(World,III)I", "native": "csrc/engine/pickblock.c:block_get_damage", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."}
+  ],
+  "missing": [],
+  "notes": "Podzol's placement uses survive in place.c:299 (mushrooms), place.c:319 (saplings) and the mega-pine patch (features_trees.c:782)."
+}

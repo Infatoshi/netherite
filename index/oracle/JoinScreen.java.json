@@ -1,0 +1,13 @@
+{
+  "path": "oracle/harness/netherite/oracle/JoinScreen.java",
+  "lines": 40,
+  "role": "Harness GuiScreen shown while the world loads in place of the main menu; it does not pause the game, so the integrated server never runs its pause-save at join.",
+  "kind": "harness",
+  "used_by": [
+    "oracle/src/client/Minecraft.java displayGuiScreen hook (replaces the main menu)"
+  ],
+  "vanilla_hooks": [
+    "oracle/src/client/Minecraft.java"
+  ],
+  "notes": "24 lines; no native counterpart needed (client GUI only). In a pool JVM its first construction per run makes the GuiScreen initializer's seeder draw that a fresh JVM makes at that point (Pool.joinDrawn)."
+}

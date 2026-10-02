@@ -1,0 +1,60 @@
+{
+ "path": "csrc/tests/test_ticks.c",
+ "lines": 375,
+ "role": "Gate: native random block ticks (randomtick_update_tick, csrc/engine/randomtick.c) against TickProbe recordings (out/java/ticks/<name>/): replays each case's scene via world_set_block, runs the tick with the case's two Randoms, and compares the write stream, 3x3 hash and World.rand state; final.bin.gz closes the run. --cases N (make smoke, probe.h): the first N cases, without final.bin.gz.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "updateTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockGrass.java",
+   "members": [
+    "updateTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockCrops.java",
+   "members": [
+    "updateTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLeaves.java",
+   "members": [
+    "updateTick"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "func_147456_g"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/TickProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "writes",
+   "java": "the per-case block write stream being compared",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 46-47: static cur writes, diff_what"
+ ],
+ "tests": [
+  "csrc/tests/test_ticks.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. The block classes listed are examples of random-ticked blocks; the full scene list lives in the probe manifest and was not enumerated."
+}

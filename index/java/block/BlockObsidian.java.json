@@ -1,0 +1,59 @@
+{
+ "path": "oracle/src/block/BlockObsidian.java",
+ "classes": [
+  "BlockObsidian"
+ ],
+ "lines": 29,
+ "side": "common",
+ "category": "block",
+ "role": "Obsidian (id 49): a BlockStone subclass that drops itself once and has the obsidian map colour.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/world-obsidian-cast-s1",
+  "out/java/snapshots/world-water-lava-s1",
+  "csrc/tests/test_drops.c"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Random)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "the default base path: 1"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "default base(): the block's own item"
+  },
+  {
+   "kind": "method",
+   "name": "getMapColor",
+   "sig": "(I)MapColor",
+   "native": null,
+   "status": "n/a",
+   "note": "map colour; world.conf maps = off"
+  }
+ ],
+ "missing": [],
+ "notes": "Row 49: hardness 50, resistance 6000 (the 2000*3 BlockStone path). Obsidian forms from water on lava source in the liquid code; world-obsidian-cast-s1 covers it."
+}

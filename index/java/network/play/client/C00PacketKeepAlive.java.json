@@ -1,0 +1,26 @@
+{
+  "path": "oracle/src/network/play/client/C00PacketKeepAlive.java",
+  "classes": ["C00PacketKeepAlive"],
+  "lines": 60,
+  "side": "client",
+  "category": "network",
+  "role": "The client's reply to the server's S00 keepalive ping, echoing the id; the server's processKeepAlive uses it to measure latency.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149461_a (id)", "sig": "I", "native": null, "status": "missing"},
+    {"kind": "ctor", "name": "C00PacketKeepAlive", "sig": "(I)V", "native": null, "status": "missing"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": null, "status": "missing", "note": "processKeepAlive only compares the id and updates the latency fields; no game state"},
+    {"kind": "method", "name": "hasPriority", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149460_c", "sig": "()I", "native": null, "status": "missing"}
+  ],
+  "missing": [
+    "The S00/C00 keepalive ping exchange is unmodelled: the ping changes nothing the rows read. The counter that paces it is modelled though: NetHandlerPlayServer.networkTickCount lives as player.h's network_tick_count and drives the % 20 stationary S08 correction (player.c:1438)."
+  ],
+  "notes": null
+}

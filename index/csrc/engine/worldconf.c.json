@@ -1,0 +1,34 @@
+{
+ "path": "csrc/engine/worldconf.c",
+ "lines": 425,
+ "role": "config.yaml's C reader (lane/worldyaml): the strict YAML subset of config.yaml's header (and a run file's sim and policy parts, lane/runyaml: sim read, policy held to the grammar) and WorldConf.KEYS' registry, line for line with oracle/harness/netherite/oracle/WorldConf.java: defaults, a file, --set key=value, typed getters, a named config's start path, and wconf_match_start (a start's manifest world and tape header options against the file's world). Read by csrc/runtime (pool.c, pipeline.c pipe_config_file, pipe_bench, pipe_gate, pool_gate), never by the tick.",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  "struct wconf",
+  "struct wconf_key"
+ ],
+ "entry_points": [
+  "wconf_defaults",
+  "wconf_load",
+  "wconf_parse",
+  "wconf_set",
+  "wconf_unimplemented",
+  "wconf_index",
+  "wconf_get",
+  "wconf_int",
+  "wconf_on",
+  "wconf_difficulty",
+  "wconf_size",
+  "wconf_semantic",
+  "wconf_device_mesh",
+  "wconf_start_path",
+  "wconf_match_start"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/worldconf_check.c"
+ ],
+ "notes": "Ports no oracle/src file: it mirrors the harness's WorldConf (index/oracle/WorldConf.java.json). WCONF_KEYS is a read-only table. wconf_unimplemented refuses a non-default sim.actions value until lanes guiact and moveact implement it."
+}

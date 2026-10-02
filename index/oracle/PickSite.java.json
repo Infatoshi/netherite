@@ -1,0 +1,11 @@
+{
+ "path": "oracle/harness/netherite/oracle/PickSite.java",
+ "lines": 261,
+ "role": "Read-only site finder for the pickaxe tapes: scans loaded chunks around the world spawn for tree trunks (lowest and top log, leaf extents), the ground next to each and the first stone below, on its own thread while the server is parked.",
+ "kind": "util",
+ "used_by": [
+  "{\"cmd\":\"run\",\"class\":\"PickSite\"} (interactive/serve scripting; no checked-in script or native test references it)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No consumer found in oracle/tests, native or DEVLOG; it was used while authoring the pickaxe tapes."
+}

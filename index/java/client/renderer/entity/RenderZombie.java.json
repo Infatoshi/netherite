@@ -1,0 +1,46 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderZombie.java",
+  "classes": ["RenderZombie"],
+  "lines": 194,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for zombies: the zombie, zombie villager or pigman texture, the armor-pass machinery from RenderBiped, the arms-up rotation helper, and the villager-child variant model.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_zombie", "model_vertex", "raster_mobs_draw", "texture_names", "TEX_ZOMBIE_VILLAGER", "corpse_yaw", "pose_model"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs_zombie_f006",
+    "out/java/render/mobs_zombie_f011",
+    "out/java/render/mobs_zombie_f016",
+    "out/java/render/mobs2b_pigman_f006",
+    "csrc/tests/test_render.c",
+    "out/java/render-src/ent_zvil",
+    "out/java/render-src/ent_armor"
+  ],
+  "members": [
+    {"kind": "field", "name": "zombiePigmanTextures, zombieTextures, zombieVillagerTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "field", "name": "field_82434_o, zombieVillagerModel, field_82437_k, field_82435_l, field_82436_m, field_82433_n, field_82431_q", "sig": "ModelBiped / ModelZombieVillager / int", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "ctor", "name": "RenderZombie", "sig": "()V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "method", "name": "func_82421_b", "sig": "()V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityZombie,int,float)V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityZombie,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityZombie)ResourceLocation", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityZombie,float)V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "method", "name": "func_82427_a", "sig": "(EntityZombie)V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityZombie,float,float,float)V", "native": "csrc/engine/raster_mobs.c:corpse_yaw", "status": "exact", "note": "the converting shake; no recording has a converting zombie"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLiving,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityLiving)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLiving,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLiving,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityLivingBase,float,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: the zombie villager's texture and head (ModelZombieVillager(0, 0, false)), its armour head (the 64x32 variant), the conversion shake. ent_zvil (adult and baby zombie villagers, a baby zombie) within 33 px, master 1,597 px up."
+}

@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderGhast.java",
+  "classes": ["RenderGhast"],
+  "lines": 65,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the ghast: picks the normal or shooting texture from attackCounter and scales the ModelGhast by the attack-progress falloff before the model draws.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_ghast", "model_vertex", "raster_mobs_draw", "texture_names"]}
+  ],
+  "evidence": ["out/java/render/mobs2b_ghast_f006", "out/java/render/mobs2b_ghast_f011", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "ghastTextures, ghastShootingTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constants, grouped; the TEX_GHAST and TEX_GHAST_SHOOTING entries"},
+    {"kind": "ctor", "name": "RenderGhast", "sig": "()V (ModelGhast, shadow 0.5)", "native": "csrc/engine/raster_mobs.c:model_ghast", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityGhast)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the kind-to-texture switch picks TEX_GHAST_SHOOTING when e->ghast_shooting (EntityGhast.func_110182_bF)"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityGhast,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the MOB_GHAST branch scales by 1/(attack_progress^5*2+1); play.c interpolates m.attack_progress"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "The ghast model itself (ModelGhast) is model_ghast; the doRender flow is RendererLivingEntity's, mapped in RendererLivingEntity.java.json."
+}

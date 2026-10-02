@@ -1,0 +1,40 @@
+{
+ "path": "csrc/engine/tileticks.c",
+ "lines": 700,
+ "role": "The tile entity half of World.updateEntities: the walk over the world's loaded tile entity list with iterator removal of invalid ones, the addedTileEntityList merge, and each tick class's updateEntity (furnace, daylight detector, hopper, chest, ender chest, note, spawner via a callback, beacon, brewing stand, enchanting table, piston).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/World.java", "members": ["updateEntities", "field_147481_N", "field_147482_g", "field_147484_a", "field_147483_b"]},
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["removeTileEntity", "func_150812_a"]},
+  {"path": "oracle/src/tileentity/TileEntityFurnace.java", "members": ["updateEntity", "func_145952_a", "func_145948_k", "func_145949_j"]},
+  {"path": "oracle/src/block/BlockFurnace.java", "members": ["func_149931_a", "field_149934_M"]},
+  {"path": "oracle/src/tileentity/TileEntityDaylightDetector.java", "members": ["updateEntity"]},
+  {"path": "oracle/src/block/BlockDaylightDetector.java", "members": ["func_149957_e"]},
+  {"path": "oracle/src/tileentity/TileEntityHopper.java", "members": ["updateEntity", "func_145887_i"]},
+  {"path": "oracle/src/tileentity/TileEntityChest.java", "members": ["updateEntity", "func_145979_i", "func_145978_a", "invalidate"]},
+  {"path": "oracle/src/tileentity/TileEntityEnderChest.java", "members": ["updateEntity"]},
+  {"path": "oracle/src/tileentity/TileEntityNote.java", "members": ["updateEntity"]},
+  {"path": "oracle/src/tileentity/MobSpawnerBaseLogic.java", "members": ["updateSpawner"]},
+  {"path": "oracle/src/tileentity/TileEntityBeacon.java", "members": ["updateEntity", "func_146003_y"]},
+  {"path": "oracle/src/tileentity/TileEntityBrewingStand.java", "members": ["updateEntity", "func_145934_k", "func_145939_j"]},
+  {"path": "oracle/src/tileentity/TileEntityEnchantmentTable.java", "members": ["updateEntity"]},
+  {"path": "oracle/src/tileentity/TileEntityPiston.java", "members": ["updateEntity", "func_145863_a"]}
+ ],
+ "structs": [
+  {"name": "tt_env", "java": "the whole-server replay's callbacks for MobSpawnerBaseLogic.updateSpawner and the chest viewer recount", "fields": ["ctx", "spawner", "chest_viewers"]}
+ ],
+ "entry_points": ["tileticks_set_time", "tileticks_set_world_rand", "tileticks_pass", "tileticks_set_env", "tileticks_furnace_swapping", "tileticks_lid_render"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 652, function tileticks_pass: realloc growth of the world's tile entity list inside the tick",
+  "line 689, function tileticks_pass: realloc growth of the chunk's tile entity store inside the tick",
+  "lines 608-629, function tileticks_pass: walks an array of pointers to heap tile entities; removal shifts the tail (O(n) per removal)",
+  "lines 644-645, function tileticks_pass: linear membership scan per added entity (O(n*m))",
+  "lines 470-477, function enchant_update: while loops wrapping angles, unbounded in principle",
+  "lines 37-70, function furnace_fuel_value: item identity by strcmp on names per call",
+  "lines 391 and 385: tt_env function pointer calls into the replay"
+ ],
+ "tests": ["csrc/tests/test_tileticks.c"],
+ "notes": "With world.conf redstone and brewing off, the hopper only decrements its cooldown and the brewing stand only recomputes metadata; this is the documented switch behaviour, not a gap. The enchanting table's closest-player branch and the piston's entity push (func_145863_a) are not ported (the probe holds no entities or players); the chest's viewer recount and the spawner body come from tt_env, set by serverreplay.c. The daylight detector reads a recorded cos table instead of computing the celestial angle. Sign, skull, comparator, command block, jukebox and end portal kinds have no updateEntity here. World.updateEntities member names are from the header comment, not re-checked in World.java."
+}

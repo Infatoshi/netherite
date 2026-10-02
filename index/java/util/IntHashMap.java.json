@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/util/IntHashMap.java",
+  "classes": ["IntHashMap", "IntHashMap.Entry"],
+  "lines": 302,
+  "side": "common",
+  "category": "util",
+  "role": "An open-addressing-free chained hash map from int keys to objects, used by the entity tracker, the client world, pathfinding and key bindings to look entities and objects up by id.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/tracker.h", "symbols": ["tracker", "tracker_entry", "tracker_find"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/combat-mobs-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "slots/slotCount/count/field_76055_q", "sig": "Entry[]/int (table state)", "native": "csrc/engine/tracker.h:tracker", "status": "partial", "note": "each consumer replaces the map with a fixed-capacity array; the entity tracker's id-to-entry map is tracker.h's entries[512]"},
+    {"kind": "method", "name": "lookup", "sig": "(int)Object", "native": "csrc/engine/tracker.h:tracker_find", "status": "exact", "note": "the tracker's by-id lookup; linear over the array instead of hashed"},
+    {"kind": "method", "name": "containsItem", "sig": "(int)boolean", "native": "csrc/engine/tracker.h:tracker_find", "status": "partial"},
+    {"kind": "method", "name": "addKey", "sig": "(int,Object)V", "native": "csrc/engine/tracker.h:tracker_add", "status": "exact"},
+    {"kind": "method", "name": "grow", "sig": "(int)V", "native": null, "status": "n/a", "note": "fixed-capacity arrays, no growth"},
+    {"kind": "method", "name": "copyTo", "sig": "(IntHashMap.Entry[])V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "removeObject", "sig": "(int)Object", "native": "csrc/engine/tracker.h:tracker_remove", "status": "exact"},
+    {"kind": "method", "name": "clearMap", "sig": "()V", "native": "csrc/engine/tracker.h:tracker_init", "status": "partial"},
+    {"kind": "method", "name": "insert", "sig": "(int,int,Object,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "Entry.getHash/getValue/equals/hashCode/toString", "sig": "nested Entry accessors", "native": null, "status": "n/a", "note": "the entry's own accessors: IntHashMap reads the fields directly; equals, hashCode and toString have no caller in oracle/src (entries are never compared, hashed or printed)"}
+  ],
+  "missing": [],
+  "notes": "Only the entity-tracker use was traced. The GPU contract prefers flat fixed-capacity arrays over pointer-bucket maps (SPEC 'Java, then C, then the GPU'), so the map itself is intentionally not ported. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: No generic int-keyed hash map exists natively; every consumer keeps its own fixed-capacity array, so other IntHashMap users (KeyBinding, PathFinder, NetHandlerPlayServer, WorldServer) were not individually traced."
+}

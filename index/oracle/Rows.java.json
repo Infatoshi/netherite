@@ -1,0 +1,18 @@
+{
+ "path": "oracle/harness/netherite/oracle/Rows.java",
+ "lines": 823,
+ "role": "Per-tick tape rows: opens and writes the tape (header, setup notes; file writes on a writer thread), captures each tick's state row (player, inventory, window, entity NBT hashes, world LCG, folded block-write hash) after a tick pair, and compares rows against a reference tape on replay (text-equal rows skip the per-leaf diff); in the tick loop a row is held until its RowHash job's entity digests are in and written at the next flush; also the block-write hooks and the WriteListener probes install.",
+ "kind": "recorder",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Oracle.java (every play, script, replay and check run)",
+  "make -C oracle play / script / replay / check",
+  "csrc/engine/serverreplay.c, servertick.c, seedworld.c, world.c, activate.c, sha1.c (mirror its hashes and row fields)",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_seedworld.c",
+  "oracle/harness/netherite/oracle/RowHash.java (the entity digests)"
+ ],
+ "vanilla_hooks": [
+  "oracle/src/world/World.java"
+ ],
+ "notes": "Hooks in World.setBlock (onAttempt, onBlock, onAttemptEnd) and setBlockMetadataWithNotify (onBlock with id -1). Rows.writeListener is used by FeatureProbe, PlaceProbe, PopulateProbe, DigProbe and others. cp.fur (furJson): the client's open ContainerFurnace progress bars, the fields only the S31s write; the replay diff skips a replayed cp.fur that an older tape does not carry. --detail's sents list reuses the row's own entity digests (the same lists in the same order, checked by identity) instead of serializing and hashing every entity again on the client thread (lane/botspeed). --tick-profile laps the held row's flush and the capture (Prof)."
+}

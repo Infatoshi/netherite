@@ -1,0 +1,7 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"starve"}
+{"n":2,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{"dlook":[0,0]}}
+{"n":260,"act":{"hold":["jump","forward"]}}
+{"n":420,"act":{}}

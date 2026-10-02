@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/item/ItemMapBase.java",
+  "classes": ["ItemMapBase"],
+  "lines": 23,
+  "side": "common",
+  "category": "item",
+  "role": "Base class of ItemMap: marks an item as a map (isMap) and defines the map-update packet hook, both empty here.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf maps = off; this class only exists for the map feature.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "isMap", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_150911_c", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/network/Packet;", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

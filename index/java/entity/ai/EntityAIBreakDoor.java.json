@@ -1,0 +1,31 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIBreakDoor.java",
+ "classes": ["EntityAIBreakDoor"],
+ "lines": 81,
+ "side": "server",
+ "category": "ai",
+ "role": "The zombie's door-breaking goal: 240 ticks of breaking progress on the door in the path, the destroyBlockInWorldPartially stage packets, and the HARD-difficulty setBlockToAir at completion.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_add_break_door", "ai_tasks_update"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/fight-zombie-s1",
+  "csrc/tests/test_hostiles.c",
+  "out/java/snapshots/ent-door-s1"
+ ],
+ "members": [
+  {"kind": "field", "name": "breakingTime", "sig": "int", "native": "csrc/engine/living.h:breaking_time", "status": "exact"},
+  {"kind": "field", "name": "field_75358_j", "sig": "int", "native": "csrc/engine/living.h:field_75358_j", "status": "exact"},
+  {"kind": "ctor", "name": "EntityAIBreakDoor", "sig": "(EntityLiving)V", "native": "csrc/engine/ai.c:ai_add_break_door", "status": "exact", "note": "priority 1, mutex 0"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "EntityAIDoorInteract's path-door pickup, the mobGriefing gate (true: no command changes it in play) and BlockDoor.func_150015_f's open bit (meta & 4 on the lower half); ent-door-s1"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2023: breakingTime 0, field_75358_j -1"},
+  {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:1819: the 240-tick, door-state and 4-block distance gates"},
+  {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "breakingTime and the stage reset; destroyBlockInWorldPartially(-1) is the clients' S25"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "the 1-in-20 playAuxSFX(1010) roll, the stage counter (its destroyBlockInWorldPartially is the clients' S25) and, on HARD, the 240th tick's setBlockToAir (world_set_block; its 1012 and 2001 effects are the clients'); the break was missing natively. ent-door-s1"}
+ ],
+ "missing": [],
+ "notes": "zombie_can_break_doors is carried on struct living (living.h) and written to NBT; whether a tape exercises the full 240-tick break was not verified. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): completion is HARD-only (pinned NORMAL); stage packets reach only other players. Formerly listed as missing: updateTask's destroyBlockInWorldPartially stage packets and resetTask's stage-cancel call are not emitted; only the internal stage counter advances. The HARD-difficulty completion branch (setBlockToAir plus playAuxSFX 1012/2001) is missing. lane/idxentity: ent-door-s1 pins the door interaction and the HARD break."
+}

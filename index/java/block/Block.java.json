@@ -1,0 +1,1372 @@
+{
+  "path": "oracle/src/block/Block.java",
+  "classes": [
+    "Block",
+    "Block.SoundType"
+  ],
+  "lines": 1348,
+  "side": "common",
+  "category": "block",
+  "role": "The block base class and the static registry: registerBlocks builds all 1.7.10 blocks with their hardness, resistance, light, material and step sounds, and the instance methods are the default behaviors every block inherits (bounds, collision, drops, tick hooks, activation).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "block_def",
+        "MATERIALS",
+        "BLOCKS",
+        "FIRE_FLAM"
+      ]
+    },
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "bwl_on_added",
+        "block_on_neighbor_changed",
+        "bwl_on_broken",
+        "drop_item_spawn"
+      ]
+    },
+    {
+      "file": "csrc/engine/drops.c",
+      "symbols": [
+        "drops_break",
+        "drops_break_stream"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes",
+        "collide_entity_effect"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "raytrace_block_bounds",
+        "raytrace_blocks"
+      ]
+    },
+    {
+      "file": "csrc/engine/harvest.c",
+      "symbols": [
+        "block_hardness",
+        "item_can_harvest",
+        "inventory_str_vs_block"
+      ]
+    },
+    {
+      "file": "csrc/engine/harvestdrops.c",
+      "symbols": [
+        "harvestdrops_break"
+      ]
+    },
+    {
+      "file": "csrc/engine/explosion.c",
+      "symbols": [
+        "expl_run"
+      ]
+    },
+    {
+      "file": "csrc/engine/render_blocks.c",
+      "symbols": [
+        "should_side_be_rendered",
+        "block_icon_world"
+      ]
+    },
+    {
+      "file": "csrc/engine/pickblock.c",
+      "symbols": [
+        "pick_block_item"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_registry.c",
+    "csrc/tests/test_drops.c",
+    "csrc/tests/test_move.c",
+    "csrc/tests/test_dig.c",
+    "out/java/drops/s2",
+    "out/java/place/big2",
+    "out/java/dig/r2",
+    "out/java/render/terrain1",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/meshes/scene3-42",
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/idx-blocks-s1",
+    "out/java/snapshots/idx-randomtick-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "blockRegistry",
+      "sig": "RegistryNamespaced",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Generated from the live registry by netherite.oracle.BlockTable (make -C oracle blocks-h); id, name and every static property."
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeStone",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a",
+      "note": "Sound types feed only sounds, which are not state; soundTypeAnvil's aux SFX 1022 is kept in fallhang.c:916."
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeWood",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeGravel",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeGrass",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypePiston",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeMetal",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeGlass",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeCloth",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_149776_m",
+      "sig": "Block.SoundType (sand)",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeSnow",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeLadder",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "soundTypeAnvil",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a",
+      "note": "The anvil landing's playAuxSFX(1022) is ported in csrc/engine/fallhang.c:fh_env (aux_sfx callback)."
+    },
+    {
+      "kind": "field",
+      "name": "opaque",
+      "sig": "boolean",
+      "native": "csrc/engine/blocks.h:opaque_cube",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "lightOpacity",
+      "sig": "int",
+      "native": "csrc/engine/blocks.h:opacity",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "canBlockGrass",
+      "sig": "boolean",
+      "native": "csrc/engine/blocks.h:block_def",
+      "status": "exact",
+      "note": "registerBlocks' field_149783_u rule is baked into the generated table (blocks.h); the renderer's getCanBlockGrass reads it per cell (render_blocks.c:can_block_grass)."
+    },
+    {
+      "kind": "field",
+      "name": "lightValue",
+      "sig": "int",
+      "native": "csrc/engine/blocks.h:light",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_149783_u",
+      "sig": "boolean (diffuse light)",
+      "native": "csrc/engine/randomtick.c:rt_light_diffuse",
+      "status": "exact",
+      "note": "registerBlocks' per-block rule ported as a function; World.getBlockLightValue_do takes it into account."
+    },
+    {
+      "kind": "field",
+      "name": "blockHardness",
+      "sig": "float",
+      "native": "csrc/engine/blocks.h:hardness",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "blockResistance",
+      "sig": "float",
+      "native": "csrc/engine/blocks.h:resistance",
+      "status": "exact",
+      "note": "Stored post-setResistance (x3); explosion.c divides by 5 as vanilla does."
+    },
+    {
+      "kind": "field",
+      "name": "field_149791_x",
+      "sig": "boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "Mobility-2 blocks in pistons; redstone is off and no piston push is ported."
+    },
+    {
+      "kind": "field",
+      "name": "enableStats",
+      "sig": "boolean",
+      "native": "csrc/engine/harvestdrops.c:harvestdrops_has_mine_stat",
+      "status": "exact",
+      "note": "disableStats blocks carry no mine-block stat (harvestdrops_has_mine_stat); the stats dumps of idx-blocks-s1 and stats-s1 compare every mineBlock counter."
+    },
+    {
+      "kind": "field",
+      "name": "needsRandomTick",
+      "sig": "boolean",
+      "native": "csrc/engine/blocks.h:tick_randomly",
+      "status": "exact",
+      "note": "Also drives sections_ticking ref-counting in world.c:1202."
+    },
+    {
+      "kind": "field",
+      "name": "isBlockContainer",
+      "sig": "boolean",
+      "native": "csrc/engine/blocks.h:tile_entity",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "field_149759_B",
+      "sig": "double (bounds minX)",
+      "native": "csrc/engine/blocks.h:min_x",
+      "status": "exact",
+      "note": "Construction-time bounds are the registry columns; the mutable per-call setBlockBounds state is recomputed by each reader from the cell (raytrace.c:block_bounds, collide.c), the vanilla values without the shared field. The one place the shared field leaked into state, the tripwire, is the oracle tripwire pin."
+    },
+    {
+      "kind": "field",
+      "name": "field_149760_C",
+      "sig": "double (bounds minY)",
+      "native": "csrc/engine/blocks.h:min_y",
+      "status": "exact",
+      "note": "As field_149759_B."
+    },
+    {
+      "kind": "field",
+      "name": "field_149754_D",
+      "sig": "double (bounds minZ)",
+      "native": "csrc/engine/blocks.h:min_z",
+      "status": "exact",
+      "note": "As field_149759_B."
+    },
+    {
+      "kind": "field",
+      "name": "field_149755_E",
+      "sig": "double (bounds maxX)",
+      "native": "csrc/engine/blocks.h:max_x",
+      "status": "exact",
+      "note": "As field_149759_B."
+    },
+    {
+      "kind": "field",
+      "name": "field_149756_F",
+      "sig": "double (bounds maxY)",
+      "native": "csrc/engine/blocks.h:max_y",
+      "status": "exact",
+      "note": "As field_149759_B."
+    },
+    {
+      "kind": "field",
+      "name": "field_149757_G",
+      "sig": "double (bounds maxZ)",
+      "native": "csrc/engine/blocks.h:max_z",
+      "status": "exact",
+      "note": "As field_149759_B."
+    },
+    {
+      "kind": "field",
+      "name": "stepSound",
+      "sig": "Block.SoundType",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "blockParticleGravity",
+      "sig": "float",
+      "native": "csrc/engine/blocks.h:particle_gravity",
+      "status": "exact",
+      "note": "particles_live.c:97 reads it for dig particles."
+    },
+    {
+      "kind": "field",
+      "name": "blockMaterial",
+      "sig": "Material",
+      "native": "csrc/engine/blocks.h:material",
+      "status": "exact",
+      "note": "Index into blocks.h's MATERIALS."
+    },
+    {
+      "kind": "field",
+      "name": "slipperiness",
+      "sig": "float",
+      "native": "csrc/engine/blocks.h:slipperiness",
+      "status": "exact",
+      "note": "Read by player, living and item_entity movement."
+    },
+    {
+      "kind": "field",
+      "name": "unlocalizedNameBlock",
+      "sig": "String",
+      "native": null,
+      "status": "n/a",
+      "note": "Localization only."
+    },
+    {
+      "kind": "field",
+      "name": "blockIcon",
+      "sig": "IIcon",
+      "native": "csrc/engine/render_blocks.c:block_icon_world",
+      "status": "exact",
+      "note": "Icons come from the atlas and the recorded table.bin icon sweep; per-block overrides in render_blocks2/3.c."
+    },
+    {
+      "kind": "method",
+      "name": "getIdFromBlock",
+      "sig": "(Block)I",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Ids are the array index; test_registry.c checks names against it."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockById",
+      "sig": "(I)Block",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getBlockFromItem",
+      "sig": "(Item)Block",
+      "native": "csrc/engine/items.h:ITEMS",
+      "status": "exact",
+      "note": "ITEMS carries block_id; place.c resolves held items to blocks."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockFromName",
+      "sig": "(String)Block",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "n/a",
+      "note": "only CommandTestForBlock calls it, a permission-level-2 command a survival player without cheats cannot run"
+    },
+    {
+      "kind": "method",
+      "name": "func_149730_j",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:opaque_cube",
+      "status": "exact",
+      "note": "Cited as Block.func_149730_j at blockcb.c:1313 and explosion.c:488."
+    },
+    {
+      "kind": "method",
+      "name": "getLightOpacity",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:opacity",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getCanBlockGrass",
+      "sig": "()Z",
+      "native": "csrc/engine/render_blocks.c:can_block_grass",
+      "status": "n/a",
+      "note": "RenderBlocks asks it only on the smooth-lighting path; every run's options.txt has ao:0 (Main.optionsFor, no tape header sets ao) and the video settings screen is removed from the client, so no recording or player turns ambient occlusion on"
+    },
+    {
+      "kind": "method",
+      "name": "getLightValue",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:light",
+      "status": "exact",
+      "note": "world.c:797 reads BLOCKS[].light for the light engine."
+    },
+    {
+      "kind": "method",
+      "name": "func_149710_n",
+      "sig": "()Z",
+      "native": "csrc/engine/randomtick.c:rt_light_diffuse",
+      "status": "exact",
+      "note": "spawning.c:494 uses it for spawn light."
+    },
+    {
+      "kind": "method",
+      "name": "getMaterial",
+      "sig": "()Material",
+      "native": "csrc/engine/blocks.h:material",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMapColor",
+      "sig": "(I)MapColor",
+      "native": null,
+      "status": "n/a",
+      "note": "Map colours are read only by ItemMap: world.conf maps = off (an empty map stays empty, a loot map never draws)."
+    },
+    {
+      "kind": "method",
+      "name": "registerBlocks",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "Generated by the oracle from the live registry, including the field_149783_u pass; test_registry.c checks the values."
+    },
+    {
+      "kind": "ctor",
+      "name": "Block",
+      "sig": "(Material)V",
+      "native": "csrc/engine/blocks.h:block_def",
+      "status": "exact",
+      "note": "The constructor's setBlockBounds, opaque, lightOpacity and canBlockGrass initializations are baked into the generated entries."
+    },
+    {
+      "kind": "method",
+      "name": "setStepSound",
+      "sig": "(Block.SoundType)Block",
+      "native": null,
+      "status": "n/a",
+      "note": "Sound only."
+    },
+    {
+      "kind": "method",
+      "name": "setLightOpacity",
+      "sig": "(I)Block",
+      "native": "csrc/engine/blocks.h:opacity",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setLightLevel",
+      "sig": "(F)Block",
+      "native": "csrc/engine/blocks.h:light",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setResistance",
+      "sig": "(F)Block",
+      "native": "csrc/engine/blocks.h:resistance",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isBlockNormalCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:normal_cube",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isNormalCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:normal_cube",
+      "status": "exact",
+      "note": "pathfind.c, activate.c and blockcb.c read it."
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:normal_block",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getBlocksMovement",
+      "sig": "(IBlockAccess,III)Z",
+      "native": "csrc/engine/blocks.h:MATERIALS",
+      "status": "exact",
+      "note": "Answered from the material's blocks_movement through the registry; pathfind.c reads it."
+    },
+    {
+      "kind": "method",
+      "name": "getRenderType",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:render_type",
+      "status": "exact",
+      "note": "render_blocks.c's dispatch switches on it."
+    },
+    {
+      "kind": "method",
+      "name": "setHardness",
+      "sig": "(F)Block",
+      "native": "csrc/engine/blocks.h:hardness",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBlockUnbreakable",
+      "sig": "()Block",
+      "native": "csrc/engine/blocks.h:hardness",
+      "status": "exact",
+      "note": "Hardness -1 in the registry."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockHardness",
+      "sig": "(World,III)F",
+      "native": "csrc/engine/harvest.c:block_hardness",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setTickRandomly",
+      "sig": "(Z)Block",
+      "native": "csrc/engine/blocks.h:tick_randomly",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getTickRandomly",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:tick_randomly",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "hasTileEntity",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:tile_entity",
+      "status": "exact",
+      "note": "tileentity.c:te_kind_of_block switches on the id."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBounds",
+      "sig": "(FFFFFF)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact",
+      "note": "No shared mutable bounds: each caller computes the box setBlockBoundsBasedOnState would have set (raytrace.c:block_bounds for picks and selection, collide.c for collision, the mesher for render)."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockBrightness",
+      "sig": "(IBlockAccess,III)I",
+      "native": "csrc/engine/render_blocks.c:block_brightness",
+      "status": "exact",
+      "note": "The light brightness with the slab one-below retry (render_blocks.c:822); the mesh scenes compare every vertex brightness."
+    },
+    {
+      "kind": "method",
+      "name": "shouldSideBeRendered",
+      "sig": "(IBlockAccess,IIII)Z",
+      "native": "csrc/engine/render_blocks.c:should_side_be_rendered",
+      "status": "exact",
+      "note": "Base rule plus the overrides the renderer knows."
+    },
+    {
+      "kind": "method",
+      "name": "isBlockSolid",
+      "sig": "(IBlockAccess,IIII)Z",
+      "native": "csrc/engine/blocks.h:MATERIALS",
+      "status": "exact",
+      "note": "Material is_solid."
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(IBlockAccess,IIIII)IIcon",
+      "native": "csrc/engine/render_blocks.c:block_icon_world",
+      "status": "exact",
+      "note": "Grass world rule and the mutable-state classes through rb3_block_icon_index."
+    },
+    {
+      "kind": "method",
+      "name": "getIcon",
+      "sig": "(II)IIcon",
+      "native": "csrc/engine/render_blocks.c:table_icon",
+      "status": "exact",
+      "note": "Recorded per (id, meta, side) from the oracle; per-class overrides in render_blocks2/3.c."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockTextureFromSide",
+      "sig": "(I)IIcon",
+      "native": "csrc/engine/render_blocks.c:icon_from_side",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getSelectedBoundingBoxFromPool",
+      "sig": "(World,III)AxisAlignedBB",
+      "native": "csrc/engine/raytrace.c:raytrace_block_bounds",
+      "status": "exact",
+      "note": "The selection box is the block bounds at the cell (the HUD outline and the pick ray read raytrace_block_bounds); test_raypick checks the pick against the oracle."
+    },
+    {
+      "kind": "method",
+      "name": "addCollisionBoxesToList",
+      "sig": "(World,IIIAxisAlignedBB,List,Entity)V",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "Per-block overrides in collide.c; the shared-mutable-bounds form is dropped for explicit boxes."
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(World,III)AxisAlignedBB",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:opaque_cube",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "canCollideCheck",
+      "sig": "(IZ)Z",
+      "native": "csrc/engine/blocks.h:collidable",
+      "status": "exact",
+      "note": "Registry collidable flag."
+    },
+    {
+      "kind": "method",
+      "name": "isCollidable",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:collidable",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(World,IIIRandom)V",
+      "native": "csrc/engine/randomtick.c:randomtick_update_tick",
+      "status": "exact",
+      "note": "The random-tick dispatch and per-class updateTick bodies (grass, crops, liquids, fire, sapling and the rest)."
+    },
+    {
+      "kind": "method",
+      "name": "randomDisplayTick",
+      "sig": "(World,IIIRandom)V",
+      "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+      "status": "exact",
+      "note": "Every emitter and its draws, checked per tick against the oracle spawn log (test_rendertick fx scenes); the void-fog walk that calls it is clientworld.c:clientworld_random_display_tick (test_clientworld)."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockDestroyedByPlayer",
+      "sig": "(World,IIII)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Empty in Block; no override in the probed scenes carries state."
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact",
+      "note": "Per-class bodies (liquids, torches, rails, plants, doors, plates) in blockcb.c."
+    },
+    {
+      "kind": "method",
+      "name": "func_149738_a",
+      "sig": "(World)I",
+      "native": "csrc/engine/ticks.c:ticks_schedule_block_update",
+      "status": "n/a",
+      "note": "every block that schedules itself with this.func_149738_a overrides it (fire, falling blocks, liquids, dragon egg, buttons, plates, tripwire and hook, redstone torch, detector rail, dispenser, command block); BlockStairs.func_149738_a delegates to its model block's but nothing calls it on a stair"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockAdded",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_added",
+      "status": "exact",
+      "note": "Per-class bodies (dispenser facing, furnace, rails, tripwire, chest via world.c) run from chunk writes."
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(World,IIIBlockI)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_broken",
+      "status": "exact",
+      "note": "Per-class bodies (button, repeater, rails, bed, chest drops through dig.c)."
+    },
+    {
+      "kind": "method",
+      "name": "quantityDropped",
+      "sig": "(Random)I",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "Per-id drop table in drops.c."
+    },
+    {
+      "kind": "method",
+      "name": "getItemDropped",
+      "sig": "(IRandomI)Item",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getPlayerRelativeBlockHardness",
+      "sig": "(EntityPlayer,World,III)F",
+      "native": "csrc/engine/harvest.c:inventory_str_vs_block",
+      "status": "exact",
+      "note": "The /100 and /30 paths with canHarvestBlock."
+    },
+    {
+      "kind": "method",
+      "name": "dropBlockAsItem",
+      "sig": "(World,IIIII)V",
+      "native": "csrc/engine/blockcb.c:drop_item_stack",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "dropBlockAsItemWithChance",
+      "sig": "(World,IIIFII)V",
+      "native": "csrc/engine/blockcb.c:drop_item_stack",
+      "status": "exact",
+      "note": "The chance roll and the per-item draws, also drops.c:drops_break_stream for the probe path."
+    },
+    {
+      "kind": "method",
+      "name": "dropBlockAsItem_do",
+      "sig": "(World,IIILItemStackZ)V",
+      "native": "csrc/engine/blockcb.c:drop_item_spawn",
+      "status": "exact",
+      "note": "The EntityItem boilerplate: the three jitters, the per-entity Random, the UUID, the four Math.random draws, the doTileDrops gamerule."
+    },
+    {
+      "kind": "method",
+      "name": "dropXpOnBlockBreak",
+      "sig": "(World,IIIII)V",
+      "native": "csrc/engine/drops.c:emit_xp",
+      "status": "exact",
+      "note": "getXPSplit's loop and each EntityXPOrb's draws (drops.c:emit_xp); test_dig counts 1,209 orbs against the oracle, idx-blocks-s1 and the gold chain mine ores live."
+    },
+    {
+      "kind": "method",
+      "name": "damageDropped",
+      "sig": "(I)I",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "Per-id overrides in drops.c."
+    },
+    {
+      "kind": "method",
+      "name": "getExplosionResistance",
+      "sig": "(Entity)F",
+      "native": "csrc/engine/explosion.c:expl_run",
+      "status": "exact",
+      "note": "resistance / 5.0F at explosion.c:263."
+    },
+    {
+      "kind": "method",
+      "name": "collisionRayTrace",
+      "sig": "(World,IIIVec3Vec3)MovingObjectPosition",
+      "native": "csrc/engine/raytrace.c:raytrace_block_bounds",
+      "status": "exact",
+      "note": "The six-face crossings and nearest-hit logic; per-block bounds."
+    },
+    {
+      "kind": "method",
+      "name": "isVecInsideYZBounds",
+      "sig": "(Vec3)Z",
+      "native": "csrc/engine/raytrace.c:raytrace_block_bounds",
+      "status": "exact",
+      "note": "Folded into the raytrace engine."
+    },
+    {
+      "kind": "method",
+      "name": "isVecInsideXZBounds",
+      "sig": "(Vec3)Z",
+      "native": "csrc/engine/raytrace.c:raytrace_block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isVecInsideXYBounds",
+      "sig": "(Vec3)Z",
+      "native": "csrc/engine/raytrace.c:raytrace_block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockDestroyedByExplosion",
+      "sig": "(World,IIIIExplosion)V",
+      "native": "csrc/engine/explosion.c:expl_run",
+      "status": "exact",
+      "note": "Block's body is empty; BlockTNT's override primes (explosion.c, tnt.c), exercised by test_explosions and surv2-tnt-s1."
+    },
+    {
+      "kind": "method",
+      "name": "getRenderBlockPass",
+      "sig": "()I",
+      "native": "csrc/engine/render_blocks.c:render_pass",
+      "status": "exact",
+      "note": "The pass is the generated table's render_pass column (render_blocks.c filters each pass by it); the mesh scenes record pass 0 and pass 1 separately and match."
+    },
+    {
+      "kind": "method",
+      "name": "canReplace",
+      "sig": "(World,IIIIItemStack)Z",
+      "native": "csrc/engine/place.c:place_try",
+      "status": "exact",
+      "note": "The placement engine's replaceability test from the material."
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockOnSide",
+      "sig": "(World,IIII)Z",
+      "native": "csrc/engine/place.c:place_try",
+      "status": "exact",
+      "note": "Per-class overrides (button, lever, torch, door, double plant) in place.c."
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockAt",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/place.c:place_try",
+      "status": "exact",
+      "note": "Base replaceable test plus blockcb_can_stay (bushes, cactus) and the per-class rules."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockActivated",
+      "sig": "(World,IIIIIIIFFF)Z",
+      "native": "csrc/engine/activate.c:act_run",
+      "status": "exact",
+      "note": "The activation machine covers every block the probes reach; the live path is act_live_block (activate.c:934)."
+    },
+    {
+      "kind": "method",
+      "name": "onEntityWalking",
+      "sig": "(World,IIIIEntity)V",
+      "native": null,
+      "status": "n/a",
+      "note": "No override in 1.7.10 carries state; nothing to port."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlaced",
+      "sig": "(World,IIIFIII)I",
+      "native": "csrc/engine/place.c:place_try",
+      "status": "exact",
+      "note": "Per-class metadata rules (doors, buttons, rails, cocoa, beds)."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockClicked",
+      "sig": "(World,IIIIEntityPlayer)V",
+      "native": "csrc/engine/dig.c:dig_op_click",
+      "status": "exact",
+      "note": "The overrides with state: the dragon egg's teleport and the redstone ore's light-up (dig.c); BlockNote's event only plays a sound and a particle (no state; idx-blocks-s1 left-clicks a note block); every other body is empty."
+    },
+    {
+      "kind": "method",
+      "name": "velocityToAddToEntity",
+      "sig": "(World,IIIIEntityVec3)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Only BlockWeb overrides it (a velocity reset); web is not in any probed scene."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "Folded into each per-shape box computation in collide.c and the renderers."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockBoundsMinX",
+      "sig": "()D",
+      "native": "csrc/engine/blocks.h:min_x",
+      "status": "exact",
+      "note": "The registry bounds or the per-cell recompute, as field_149759_B."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockBoundsMaxX",
+      "sig": "()D",
+      "native": "csrc/engine/blocks.h:max_x",
+      "status": "exact",
+      "note": "As getBlockBoundsMinX."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockBoundsMinY",
+      "sig": "()D",
+      "native": "csrc/engine/blocks.h:min_y",
+      "status": "exact",
+      "note": "As getBlockBoundsMinX."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockBoundsMaxY",
+      "sig": "()D",
+      "native": "csrc/engine/blocks.h:max_y",
+      "status": "exact",
+      "note": "As getBlockBoundsMinX."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockBoundsMinZ",
+      "sig": "()D",
+      "native": "csrc/engine/blocks.h:min_z",
+      "status": "exact",
+      "note": "As getBlockBoundsMinX."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockBoundsMaxZ",
+      "sig": "()D",
+      "native": "csrc/engine/blocks.h:max_z",
+      "status": "exact",
+      "note": "As getBlockBoundsMinX."
+    },
+    {
+      "kind": "method",
+      "name": "getBlockColor",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "16777215 constant; color comes from biome tinting in the renderers where it matters."
+    },
+    {
+      "kind": "method",
+      "name": "getRenderColor",
+      "sig": "(I)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Default white; per-class overrides handled with the renderers."
+    },
+    {
+      "kind": "method",
+      "name": "colorMultiplier",
+      "sig": "(IBlockAccess,III)I",
+      "native": "csrc/engine/render_blocks.c:biome_color",
+      "status": "exact",
+      "note": "The base white and the grass, leaves, water and vine biome tints (render_blocks.c:biome_color); the mesh scenes compare every vertex colour."
+    },
+    {
+      "kind": "method",
+      "name": "isProvidingWeakPower",
+      "sig": "(IBlockAccess,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "world.conf redstone = off: no block receives power (SPEC)."
+    },
+    {
+      "kind": "method",
+      "name": "canProvidePower",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:provides_power",
+      "status": "n/a",
+      "note": "The flag is in the registry (provides_power), but no block ever receives power: world.conf redstone = off."
+    },
+    {
+      "kind": "method",
+      "name": "onEntityCollidedWithBlock",
+      "sig": "(World,IIIIEntity)V",
+      "native": "csrc/engine/collide.c:collide_entity_effect",
+      "status": "exact",
+      "note": "Cactus damage, soul sand slow, web, farmland trample and the rest of the entity effects."
+    },
+    {
+      "kind": "method",
+      "name": "isProvidingStrongPower",
+      "sig": "(IBlockAccess,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Redstone off."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsForItemRender",
+      "sig": "()V",
+      "native": "csrc/engine/block_item_model.c:block_item_model_build",
+      "status": "exact",
+      "note": "The item-form geometry (block_item_model.c) takes the per-class item bounds; the held and dropped block renders are the render lanes' goldens."
+    },
+    {
+      "kind": "method",
+      "name": "harvestBlock",
+      "sig": "(World,EntityPlayer,IIIII)V",
+      "native": "csrc/engine/harvestdrops.c:harvestdrops_break",
+      "status": "exact",
+      "note": "The stat, the exhaustion, the silk-touch and fortune branches; dig.c carries the dig-region copy."
+    },
+    {
+      "kind": "method",
+      "name": "canSilkHarvest",
+      "sig": "()Z",
+      "native": "csrc/engine/harvestdrops.c:harvestdrops_break",
+      "status": "exact",
+      "note": "renderAsNormalBlock && !isBlockContainer plus the overrides (glass, panes, ice, ender chest, monster eggs) in the harvest code; test_harvestdrops over 354,672 cases."
+    },
+    {
+      "kind": "method",
+      "name": "createStackedBlock",
+      "sig": "(I)ItemStack",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "Folded into the per-id drop records (subtypes carry their damage)."
+    },
+    {
+      "kind": "method",
+      "name": "quantityDroppedWithBonus",
+      "sig": "(IRandom)I",
+      "native": "csrc/engine/drops.c:drops_break",
+      "status": "exact",
+      "note": "Fortune sweep in the probe (drops.h comment)."
+    },
+    {
+      "kind": "method",
+      "name": "canBlockStay",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/blockcb.c:blockcb_can_stay",
+      "status": "exact",
+      "note": "The bush family, cactus, carpet, cake, cocoa, door, torch, snow and the rest in blockcb.c's neighbour handlers; test_sblocks and the scene recordings pin them."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPlacedBy",
+      "sig": "(World,IIIIEntityLivingBaseItemStack)V",
+      "native": "csrc/engine/place.c:place_try",
+      "status": "exact",
+      "note": "The facing rules (chest, furnace, dispenser, anvil, skull, pumpkin, piston) are ported. The display-name transfer to a tile entity needs a named stack, which only an anvil makes: world.conf anvil = off."
+    },
+    {
+      "kind": "method",
+      "name": "onPostBlockPlaced",
+      "sig": "(World,IIII)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Empty in Block; no override carries state in the probed scenes."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockName",
+      "sig": "(String)Block",
+      "native": "csrc/engine/blocks.h:name",
+      "status": "exact",
+      "note": "The registry name."
+    },
+    {
+      "kind": "method",
+      "name": "getLocalizedName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "Localization."
+    },
+    {
+      "kind": "method",
+      "name": "getUnlocalizedName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockEventReceived",
+      "sig": "(World,IIIII)Z",
+      "native": null,
+      "status": "exact",
+      "note": "The server's own event pass has no state: the chest and ender chest write the count they already hold, the note block plays a sound and a particle, the spawner's setDelayToMin acts only on a client world, pistons need power (redstone = off). The client halves (lids, spinner) are the playable client's, which reads the server tile entity (play.c)."
+    },
+    {
+      "kind": "method",
+      "name": "getEnableStats",
+      "sig": "()Z",
+      "native": "csrc/engine/harvestdrops.c:harvestdrops_has_mine_stat",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "disableStats",
+      "sig": "()Block",
+      "native": "csrc/engine/harvestdrops.c:harvestdrops_has_mine_stat",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getMobilityFlag",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:MATERIALS",
+      "status": "n/a",
+      "note": "only BlockPistonBase calls getMobilityFlag, when a piston extends or retracts; with world.conf redstone = off no piston ever moves"
+    },
+    {
+      "kind": "method",
+      "name": "getAmbientOcclusionLightValue",
+      "sig": "()F",
+      "native": "csrc/engine/render_blocks.h:ao_light",
+      "status": "n/a",
+      "note": "RenderBlocks asks it only on the smooth-lighting path; every run's options.txt has ao:0 (Main.optionsFor, no tape header sets ao) and the video settings screen is removed from the client, so no recording or player turns ambient occlusion on"
+    },
+    {
+      "kind": "method",
+      "name": "onFallenUpon",
+      "sig": "(World,IIIIEntityF)V",
+      "native": "csrc/engine/survival.c:surv_server_fall",
+      "status": "exact",
+      "note": "Farmland trampling (survival.c:surv_server_fall for the player, the living fall path for mobs); scen-snow-farmland-s1 and cat-fall-s1."
+    },
+    {
+      "kind": "method",
+      "name": "getItem",
+      "sig": "(World,III)Item",
+      "native": "csrc/engine/pickblock.c:block_get_item",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "getDamageValue",
+      "sig": "(World,III)I",
+      "native": "csrc/engine/pickblock.c:block_get_damage",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "getSubBlocks",
+      "sig": "(Item,CreativeTabs,List)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Creative inventory only."
+    },
+    {
+      "kind": "method",
+      "name": "getCreativeTabToDisplayOn",
+      "sig": "()CreativeTabs",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "setCreativeTab",
+      "sig": "(CreativeTabs)Block",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "onBlockHarvested",
+      "sig": "(World,IIIIIEntityPlayer)V",
+      "native": "csrc/engine/dig.c:try_harvest_block",
+      "status": "exact",
+      "note": "The survival overrides with state: the double plant's lower half and the tripwire's shears disarm (dig.c:try_harvest_block, idx-blocks-s1); the bed, door, skull, piston and flower pot bodies act only in creative mode."
+    },
+    {
+      "kind": "method",
+      "name": "onBlockPreDestroy",
+      "sig": "(World,IIII)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Empty in Block."
+    },
+    {
+      "kind": "method",
+      "name": "fillWithRain",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/world.c:world_fill_with_rain",
+      "status": "exact",
+      "note": "Only BlockCauldron overrides it; world.c:1794."
+    },
+    {
+      "kind": "method",
+      "name": "isFlowerPot",
+      "sig": "()Z",
+      "native": "csrc/engine/pickblock.c:pick_block_item",
+      "status": "exact",
+      "note": "pick block (Minecraft.func_147112_ai)"
+    },
+    {
+      "kind": "method",
+      "name": "func_149698_L",
+      "sig": "()Z",
+      "native": "csrc/engine/ticks.c:ticks_schedule_block_update",
+      "status": "exact",
+      "note": "Cited at ticks.c:59 for the immediate-update branch; the liquid override is the only behavior that differs."
+    },
+    {
+      "kind": "method",
+      "name": "canDropFromExplosion",
+      "sig": "(Explosion)Z",
+      "native": "csrc/engine/explosion.c:expl_run",
+      "status": "exact",
+      "note": "Block's true; BlockTNT's false at explosion.c:452."
+    },
+    {
+      "kind": "method",
+      "name": "func_149667_c",
+      "sig": "(Block)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "Identity comparison, trivially the same in C."
+    },
+    {
+      "kind": "method",
+      "name": "isEqualTo",
+      "sig": "(Block,Block)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "hasComparatorInputOverride",
+      "sig": "()Z",
+      "native": "csrc/engine/place.c:update_comparators",
+      "status": "n/a",
+      "note": "Comparator output: no block receives power (world.conf redstone = off)."
+    },
+    {
+      "kind": "method",
+      "name": "getComparatorInputOverride",
+      "sig": "(World,IIII)I",
+      "native": "csrc/engine/place.c:update_comparators",
+      "status": "n/a",
+      "note": "Comparator output: world.conf redstone = off."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockTextureName",
+      "sig": "(String)Block",
+      "native": "csrc/engine/render_blocks.c:rb_atlas_load",
+      "status": "exact",
+      "note": "Textures resolve from the atlas by name."
+    },
+    {
+      "kind": "method",
+      "name": "getTextureName",
+      "sig": "()String",
+      "native": "csrc/engine/render_blocks.c:rb_atlas_load",
+      "status": "exact",
+      "note": "The atlas names the renderer loads (render_blocks.c:rb_atlas_load); the mesh scenes compare every vertex u and v."
+    },
+    {
+      "kind": "method",
+      "name": "func_149735_b",
+      "sig": "(II)IIcon",
+      "native": "csrc/engine/render_blocks.c:table_icon",
+      "status": "exact",
+      "note": "render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": "csrc/engine/render_blocks.c:rb_atlas_load",
+      "status": "exact",
+      "note": "Atlas names are loaded from the extracted assets; no runtime registration."
+    },
+    {
+      "kind": "method",
+      "name": "getItemIconName",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "Hopper icon only."
+    },
+    {
+      "kind": "ctor",
+      "name": "Block.SoundType",
+      "sig": "(String,FF)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Sound data only."
+    },
+    {
+      "kind": "method",
+      "name": "Block.SoundType.func_150497_c",
+      "sig": "()F",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Block.SoundType.func_150494_d",
+      "sig": "()F",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Block.SoundType.func_150495_a",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Block.SoundType.func_150498_e",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Block.SoundType.func_150496_b",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "The registry is generated, not hand-written: make -C oracle blocks-h regenerates blocks.h from the live oracle objects, so every static property is exact by construction. The mutable block-bounds fields have no single native home; every consumer keeps its own copy, which the GPU contract requires (no shared mutable state). Every symbol cited above was verified present in the named file. The canBlockGrass and tick-rate defaults are the two places the generated table flattens rather than names a flag. lane/idxblocks (2026-09-27): every member is exact or a documented switch (maps, redstone, anvil for names). The localized-name, creative-tab and sub-block members are client text and stay n/a. idx-blocks-s1 (note click, snow and vine harvests, trapdoor, tripwire shears, silverfish egg) and idx-randomtick-s1 (snow melt, vine spread, lava fire) pin the block callbacks this lane checked."
+}

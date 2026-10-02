@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/server/management/BanEntry.java",
+  "classes": ["BanEntry"],
+  "lines": 79,
+  "side": "server",
+  "category": "server",
+  "role": "The abstract ban-list entry: start date, source, expiry date and reason, serialized into the Gson JSON the list file holds.",
+  "scope": "not_needed",
+  "scope_reason": "Bans need an operator to place them (a command) and are only checked on TCP login; neither happens in the oracle: commands are off (DEVLOG 2026-09-25) and the only player is the local host on an in-memory channel.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "dateFormat", "sig": "static SimpleDateFormat 'yyyy-MM-dd HH:mm:ss Z'", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "banStartDate", "sig": "Date", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "bannedBy", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "banEndDate", "sig": "Date", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "reason", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "BanEntry", "sig": "(Object,Date,String,Date,String)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "BanEntry", "sig": "(Object,JsonObject)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getBanEndDate", "sig": "()Date", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getBanReason", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasBanExpired", "sig": "()Z", "native": null, "status": "n/a", "note": "expiry before now, wall clock"},
+    {"kind": "method", "name": "func_152641_a", "sig": "(JsonObject)V", "native": null, "status": "n/a", "note": "writes created, source, expires, reason"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

@@ -1,0 +1,12 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":8,"mobs":true}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"gamerule","name":"doDaylightCycle","value":"false"}
+{"cmd":"dev","op":"time","mode":"set","value":6000}
+{"cmd":"dev","op":"fill","x0":192,"y0":18,"z0":240,"x1":207,"y1":29,"z1":255,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":193,"y0":19,"z0":241,"x1":206,"y1":28,"z1":254,"id":0,"meta":0}
+{"n":1,"act":{}}
+{"cmd":"dev","op":"purge"}
+{"n":2400,"act":{}}
+{"cmd":"run","class":"Stats"}
+{"cmd":"run","class":"Snapshot","sub":"end"}

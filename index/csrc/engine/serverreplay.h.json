@@ -1,0 +1,288 @@
+{
+ "path": "csrc/engine/serverreplay.h",
+ "lines": 671,
+ "role": "Interface of the whole-server replay: struct serverreplay (every WorldServer's tick state, entity pools and pass order, spawner, villages, player, dimension swap, chunk send queue and client chunk stream) and the calls that load a snapshot, run one server tick over every world, travel between dimensions, and read back the per-row values Rows.java's w and d blocks carry.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/server/MinecraftServer.java",
+   "members": [
+    "tick",
+    "updateTimeLightAndEntities",
+    "worldServers"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "tick",
+    "updateEntities",
+    "updateEntityTick",
+    "createSpawnPosition"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateEntities",
+    "loadedEntityList",
+    "weatherEffects",
+    "activeChunkSet",
+    "setActivePlayerChunksAndCheckLight",
+    "getTopSolidOrLiquidBlock",
+    "rand",
+    "updateLCG"
+   ]
+  },
+  {
+   "path": "oracle/src/server/management/ServerConfigurationManager.java",
+   "members": [
+    "transferPlayerToDimension",
+    "respawnPlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "onUpdate",
+    "loadedChunks"
+   ]
+  },
+  {
+   "path": "oracle/src/server/management/PlayerManager.java",
+   "members": [
+    "filterChunkLoadQueue",
+    "unloadAllChunks"
+   ]
+  },
+  {
+   "path": "oracle/src/network/NetHandlerPlayServer.java",
+   "members": [
+    "processClientStatus"
+   ]
+  },
+  {
+   "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+   "members": [
+    "handleMapChunkBulk",
+    "handleChunkData"
+   ]
+  },
+  {
+   "path": "oracle/src/server/integrated/IntegratedServer.java",
+   "members": [
+    "tick"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityList.java",
+   "members": [
+    "createEntityFromNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/world/Teleporter.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "sr_world",
+   "java": "one WorldServer: its servertick state, provider dimensionId, the snapshot's loaded chunk and pending tick counts, WorldServer.updateEntityTick, its PlayerManager's previousTotalWorldTime",
+   "fields": [
+    "st",
+    "dim",
+    "is_overworld",
+    "chunks",
+    "pending",
+    "update_entity_tick",
+    "active_cap",
+    "pm_sweep"
+   ]
+  },
+  {
+   "name": "sr_ent",
+   "java": "one World.loadedEntityList entry: which native pool (items/orbs, falling blocks/hangings, livings, the server player) and a pointer to it",
+   "fields": [
+    "pool",
+    "p"
+   ]
+  },
+  {
+   "name": "sr_saved_entity",
+   "java": "an entity AnvilChunkLoader.writeChunkToNBT saved with its chunk section, kept for the reload: seed creature, falling block NBT, living kind by NBT id, items, orbs, Nether livings, hangings, End crystals and dragon",
+   "fields": [
+    "ent",
+    "loaded",
+    "pool",
+    "kind",
+    "seq",
+    "cx",
+    "cz",
+    "section",
+    "active",
+    "tag",
+    "cls",
+    "uuid_msb",
+    "uuid_lsb",
+    "resaved",
+    "health",
+    "absorption",
+    "fall_distance",
+    "air",
+    "on_ground",
+    "growing_age",
+    "in_love",
+    "watcher16",
+    "egg_timer",
+    "persistence_required",
+    "can_pick_up_loot"
+   ]
+  },
+  {
+   "name": "sr_sent_chunk",
+   "java": "one chunk of an S26PacketMapChunkBulk EntityPlayerMP.onUpdate sent",
+   "fields": [
+    "dim",
+    "c"
+   ]
+  },
+  {
+   "name": "serverreplay",
+   "java": "MinecraftServer with its three WorldServers: Det, worlds, Rows.blkHash, the overworld's entity pools and pass order, SpawnerAnimals, village collection and siege, Collections.shuffle's Random, the player, weatherEffects, the chunk provider and player manager, the region store, the dimension swap slots, each world's Teleporter, the End fight, EntityPlayerMP.loadedChunks and the client chunk stream",
+   "fields": [
+    "det",
+    "w",
+    "nworlds",
+    "view",
+    "tracker_view",
+    "blk_hash",
+    "blk_count",
+    "iew",
+    "fhw",
+    "spawner",
+    "anw",
+    "vc",
+    "vs",
+    "shuf_rand",
+    "player",
+    "ents",
+    "nents",
+    "bolts",
+    "cl",
+    "extra",
+    "saved",
+    "saved_ents",
+    "pop",
+    "chunk_ticks",
+    "join_clock",
+    "here",
+    "away",
+    "hell",
+    "tp_over",
+    "tp_hell",
+    "sky",
+    "tp_end",
+    "end",
+    "send_queue",
+    "sent",
+    "stream_chunks",
+    "cchunks",
+    "err"
+   ]
+  },
+  {
+   "name": "sr_saved_tick",
+   "java": "a NextTickListEntry saved with its chunk (TileTicks: x, y, z, block, delay, priority)",
+   "fields": [
+    "x",
+    "y",
+    "z",
+    "block",
+    "delay",
+    "priority"
+   ]
+  },
+  {
+   "name": "sr_client_chunk",
+   "java": "a chunk packet on its way to the client: S26 bulk load or S21 empty ground-up unload",
+   "fields": [
+    "kind",
+    "dim",
+    "cx",
+    "cz"
+   ]
+  },
+  {
+   "name": "sr_chunk_ticks",
+   "java": "one unloaded chunk's pending ticks",
+   "fields": [
+    "cx",
+    "cz",
+    "n",
+    "ticks"
+   ]
+  }
+ ],
+ "entry_points": [
+  "serverreplay_load",
+  "sr_load_snapshot_entities",
+  "sr_living_from_nbt",
+  "sr_kind_for_class",
+  "serverreplay_tick",
+  "serverreplay_lightning_strike",
+  "serverreplay_summon_hostile",
+  "serverreplay_move_mob",
+  "serverreplay_track_entity",
+  "sr_order_push",
+  "sr_constructor_begin",
+  "sr_constructor_end",
+  "serverreplay_bind_player",
+  "serverreplay_set_view_distance",
+  "serverreplay_player_collide",
+  "serverreplay_queue_packets",
+  "serverreplay_player_manager",
+  "serverreplay_enter",
+  "serverreplay_respawn_conquered",
+  "serverreplay_pause_save",
+  "serverreplay_player_dim",
+  "serverreplay_world_rand",
+  "serverreplay_dragon",
+  "serverreplay_player_to_tail",
+  "serverreplay_order_players_only",
+  "serverreplay_take_sent",
+  "sr_negative",
+  "sr_world_time",
+  "sr_total_time",
+  "sr_block_writes",
+  "sr_block_hash",
+  "sr_world_rng",
+  "serverreplay_action_begin",
+  "serverreplay_action_end",
+  "serverreplay_sync_client",
+  "serverreplay_sync_client_chunks",
+  "sr_det",
+  "sr_entity_digest",
+  "sr_entry_nbt",
+  "sr_active_set",
+  "sr_active_set_memo",
+  "SR_MAX_ACTIVE",
+  "sr_top_solid_or_liquid",
+  "serverreplay_dim_nents",
+  "serverreplay_drop_env_begin",
+  "serverreplay_drop_env_end"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "struct sr_ent: a pool and the entity's slot in it (the crystal's index, 0 for the player and dragon); the pass order is an index list (lane/gpuarena, L3)",
+  "lines 383-385, struct sr_saved_entity: active pointer, heap NBT tag and strdup'd class string",
+  "lines 409, 448, 450, 453, 456, 465, 468, 476, 495, 507, struct serverreplay: heap arrays with count/capacity pairs (sent chunk copies, ents, bolts, extra, dev_writes, saved_ents, chunk_ticks, join_clock, send_queue, cchunks) grown at runtime",
+  "struct serverreplay dims[3], d: each dimension's sr_dimstate at a fixed place, entered by repointing d (serverreplay_enter); its pools and pass order hold pointer members (pointer graph)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_lightning.c"
+ ],
+ "notes": "Header only. sr_load_snapshot_entities, sr_living_from_nbt and sr_kind_for_class are implemented in snapshot_entities.c; sr_entity_digest and sr_entry_nbt in sr_digest.c; the rest in serverreplay.c. csrc/play/play.c and several src files (combat.c, dev.c, sleep.c, survival.c, tnt.c, throw.c and others) include it. The region store's seed-world (or checkpoint) build runs at the first chunk load (sr_ensure_saved); an unload before it stores into an empty store (sr_saved_init) and sets the globals the build leaves (sr_saved_context), so a recording that never loads a chunk never builds the seed world (lane suitestart, 2026-09-25)."
+}

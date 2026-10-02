@@ -1,0 +1,95 @@
+{
+ "classes": [
+  "EntityDropParticleFX"
+ ],
+ "lines": 131,
+ "side": "client",
+ "category": "particles",
+ "role": "A drip from a block above: water drop or lava drop with bob timing and its own brightness override.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "fx_brf",
+    "fx_update",
+    "new_drop",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "particle_quad",
+    "render_scale",
+    "draw_list",
+    "particles_live_from_json"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/render/fx_rain_f100",
+  "out/java/render/fx_rain_f101",
+  "out/java/rendertick/fx_rain",
+  "out/java/clientframes/cov-fx-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "field",
+   "name": "materialType",
+   "sig": "Material",
+   "native": "csrc/engine/particles_live.h:live_fx",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "bobTimer",
+   "sig": "int",
+   "native": "csrc/engine/particles_live.h:live_fx",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityDropParticleFX",
+   "sig": "(World,double,double,double,Material)",
+   "native": "csrc/engine/particles_live.c:new_drop",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBrightnessForRender",
+   "sig": "(float)",
+   "native": "csrc/engine/particles_live.c:fx_brf",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBrightness",
+   "sig": "(float)",
+   "native": null,
+   "status": "n/a",
+   "note": "not read by the particle passes"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()",
+   "native": "csrc/engine/particles_live.c:fx_update",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Ported in csrc/engine/particles_live.c (constructor new_drop, onUpdate in fx_update, getBrightnessForRender in fx_brf) and drawn by csrc/engine/raster_particles.c (draw_list, render_scale for the scale renderParticle animates). test_rendertick replays each recorded tick natively and compares every FX field bit for bit with the next frame row (lane/particles2).",
+ "path": "oracle/src/client/particle/EntityDropParticleFX.java"
+}

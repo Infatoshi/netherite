@@ -1,0 +1,287 @@
+{
+ "path": "oracle/src/block/BlockRedstoneWire.java",
+ "classes": [
+  "BlockRedstoneWire"
+ ],
+ "lines": 499,
+ "side": "common",
+ "category": "block",
+ "role": "Redstone dust (55): the strength propagation over neighbouring wire, the connection rules the renderer draws, the sweep of neighbour notifications on add and break, and the strength-tinted colour and particles.",
+ "scope": "in_scope",
+ "scope_reason": "In scope: redstone dust is mined from redstone ore and placed; placement, support, the drop and the neighbour notification sweeps run in the oracle with every wire at strength 0 (func_150177_e ran in containers2-s42 and pickblock-s1).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "wire_changed",
+    "wire_nchanged",
+    "wire_strength_at",
+    "wire_update_strength",
+    "wire_propagate",
+    "wire_notify_around",
+    "wire_on_added",
+    "wire_can_place_at",
+    "wire_neighbor"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "can_place_block_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks2.c",
+   "symbols": [
+    "wire_connects",
+    "rb2_render_redstone_wire"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/liq-wash-s1",
+  "csrc/tests/test_place.c",
+  "out/java/place/big2",
+  "csrc/tests/test_meshes.c",
+  "out/java/snapshots/pickblock-s1",
+  "out/java/snapshots/containers2-s42",
+  "out/java/snapshots/rs-wire-s1",
+  "out/java/snapshots/rs-diode-s1",
+  "csrc/tests/test_snapshots.c",
+  "out/java/meshes/scene3-2",
+  "out/java/snapshots/cov-blkpower-s1",
+  "out/java/clientframes/cov-blkgallery-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150181_a",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "the canProvidePower guard during the strongest-power read"
+  },
+  {
+   "kind": "field",
+   "name": "field_150179_b",
+   "sig": "Set<ChunkPosition>",
+   "native": null,
+   "status": "n/a",
+   "note": "Stays empty in this game: func_150175_a adds positions only when a wire's strength changes, and with redstone off every wire reads 0 from World.getStrongestIndirectPower (World.java:3585) and from its neighbours (all 0); no survival path writes a wire's metadata. blockcb.c keeps it as wire_changed (insertion order, not HashSet order) for a redstone world."
+  },
+  {
+   "kind": "field",
+   "name": "field_150182_M, field_150183_N, field_150184_O, field_150180_P",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "client icons"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRedstoneWire",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 55: circuits, bounds 0..0.0625"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)AxisAlignedBB",
+   "native": "csrc/engine/collide.c:collide_add_boxes",
+   "status": "exact",
+   "note": "no box"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks2.c:rb2_render_redstone_wire",
+   "status": "exact",
+   "note": "5"
+  },
+  {
+   "kind": "method",
+   "name": "colorMultiplier",
+   "sig": "(IBlockAccess,III)I",
+   "native": "csrc/engine/render_blocks2.c:rb2_render_redstone_wire",
+   "status": "exact",
+   "note": "the strength-0 tint the wire renderer applies; its vertices (colour included) match the oracle's meshes in out/java/meshes/scene3-2 (render type 5)"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/blockcb.c:wire_can_place_at",
+   "status": "exact",
+   "note": "solid top or glowstone; place.c too"
+  },
+  {
+   "kind": "method",
+   "name": "func_150177_e",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:wire_propagate",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150175_a",
+   "sig": "(World,IIIIII)V",
+   "native": "csrc/engine/blockcb.c:wire_update_strength",
+   "status": "exact",
+   "note": "getStrongestIndirectPower is 0"
+  },
+  {
+   "kind": "method",
+   "name": "func_150172_m",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:wire_notify_around",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:wire_on_added",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "breakBlock",
+   "sig": "(World,IIIBlockI)V",
+   "native": "csrc/engine/blockcb.c:bwl_on_broken",
+   "status": "exact",
+   "note": "the six notifications, then func_150172_m on the four sides and the four diagonals (BWL_WIRE_AROUND, BWL_WIRE_DIAG); func_150177_e is left out: it reads the wire metadata still stored against the neighbour wires, all at 0 with redstone off, so it moves and notifies nothing (liq-wash-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "func_150178_a",
+   "sig": "(World,IIII)I",
+   "native": "csrc/engine/blockcb.c:wire_strength_at",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:wire_neighbor",
+   "status": "exact",
+   "note": "propagate or drop the redstone item"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "redstone"
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingStrongPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "power"
+  },
+  {
+   "kind": "method",
+   "name": "isProvidingWeakPower",
+   "sig": "(IBlockAccess,IIII)I",
+   "native": null,
+   "status": "n/a",
+   "note": "power"
+  },
+  {
+   "kind": "method",
+   "name": "canProvidePower",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIIRandom)V",
+   "native": null,
+   "status": "n/a",
+   "note": "only for strength > 0"
+  },
+  {
+   "kind": "method",
+   "name": "func_150174_f",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": "csrc/engine/render_blocks2.c:wire_connects",
+   "status": "exact",
+   "note": "the arm connection rule; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+  },
+  {
+   "kind": "method",
+   "name": "func_150176_g",
+   "sig": "(IBlockAccess,IIII)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "power direction"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "atlas registration"
+  },
+  {
+   "kind": "method",
+   "name": "func_150173_e",
+   "sig": "(String)IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "icon lookup"
+  }
+ ],
+ "missing": [],
+ "notes": "GPU note: wire_changed and wire_nchanged are file-static mutable state in blockcb.c. idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact. The player could not place redstone dust natively: survival.c sent ItemRedstone to itemuse.c, which has no case for it (rs-wire-s1 failed at row 24); it now goes through place.c item_redstone_on_item_use on the server and in the client's prediction. rs-wire-s1 places seven dusts, breaks one by hand, pulls its floor, and places and breaks dust beside a water pit."
+}

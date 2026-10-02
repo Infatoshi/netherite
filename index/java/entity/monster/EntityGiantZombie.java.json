@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/entity/monster/EntityGiantZombie.java",
+  "classes": ["EntityGiantZombie"],
+  "lines": 33,
+  "side": "common",
+  "category": "entity",
+  "role": "A 12-block-tall zombie (the April Fools giant): a bare EntityMob subclass with no AI, no drops, no sounds.",
+  "scope": "not_needed",
+  "scope_reason": "Giants never spawn in survival and /summon is not part of the game (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "EntityGiantZombie", "sig": "(World)V", "native": null, "status": "missing", "note": "no HK_ kind exists for it; csrc/engine only mentions EntityGiantZombie in comments (survival.c:392, randomtick.c)"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": null, "status": "missing", "note": "maxHealth 100.0, movement 0.5"},
+    {"kind": "method", "name": "getBlockPathWeight", "sig": "(III)F", "native": null, "status": "missing", "note": "the vanilla light-weight body is inherited in java; here it is listed because the class declares it"}
+  ],
+  "missing": [
+    "The whole class is unported: no kind, no construct, no attribute set. csrc/engine's only traces are comments."
+  ],
+  "notes": "Vanilla never spawns the giant (no natural spawn, no egg, no mob spawner); the oracle pins worldgen and spawn lists where it is absent. It would only enter the world through /summon Giant, and the dev summon surface is not part of the product. If a summon path ever ships, this file is the whole port: a kind entry in living.h's enum, a construct with the 100/0.5 attributes and the 6x12 size, and a slot in the kind tables."
+}

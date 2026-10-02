@@ -1,0 +1,51 @@
+# The speedrun world with the semantic camera alone (lane/semteach): configs/speedrun.yaml's world, start
+# and one tick a step, but client.camera semantic: no renderer runs and no frame is made; each step ends
+# with a 64x36 raycast from the client player's eye through the client world's blocks (csrc/runtime/
+# semcam.h: block id and metadata, distance, face), what the privileged teacher plays on (mcsr-speedrun
+# scripts/semteach_ppo.py). pipe_bench --config configs/speedrun-semantic.yaml measures it.
+
+world:
+  seed: 1
+  difficulty: normal       # hostiles spawn: blazes and endermen exist
+  render_distance: 4       # 64-block overworld fog (lane/headline)
+  daylight_cycle: on
+  keep_inventory: off
+  villages: on
+  horses: off
+  wolves: off
+  ocelots: off
+  built_golems: off
+  wither: off
+  minecarts: off
+  boats: off
+  redstone: off
+  enchanting: off
+  anvil: off
+  brewing: off
+  beacon: off
+  maps: off
+  fishing: off
+  fireworks: off
+  book_editing: off
+  sign_editing: off
+
+client:
+  graphics: fast
+  particles: minimal
+  observation: 256x144     # the policy's frame (mcsr-speedrun SPEC.md: 256x144 at 20 fps)
+  ticks_per_step: 1        # the policy's 20 Hz; 4 is the headline's frame skip
+  hud: on
+  camera: semantic
+  semantic: 64x36
+  semantic_range: 64
+  gamma: 1.0               # the 1.16 training renders' brightness (lane/versionprior: netherite at 0.0 is darker)
+
+engine:
+  device_mesh: 1
+  device_generation: off
+  device_light: off
+
+# seed 1's fresh world under this file (oracle/tests/speedrun-s1.jsonl)
+pipeline:
+  kind: speedrun
+  start: out/java/snapshots/sr-speedrun-s1

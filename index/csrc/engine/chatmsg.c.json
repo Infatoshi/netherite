@@ -1,0 +1,128 @@
+{
+  "path": "csrc/engine/chatmsg.c",
+  "lines": 306,
+  "role": "The chat lines the server sends the player, built as vanilla builds them: CombatTracker.func_151521_b's death message over the CombatEntry list (DamageSource.func_151519_b and its entity and indirect forms, the fall accident labels, the killer), BlockBed's refusals, the achievement announcement and build.tooHigh, each queued as an S02.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/util/CombatTracker.java",
+      "members": [
+        "func_151521_b",
+        "func_94544_f",
+        "func_94548_b",
+        "func_94550_c"
+      ]
+    },
+    {
+      "path": "oracle/src/util/CombatEntry.java",
+      "members": [
+        "func_151522_h",
+        "func_94561_i",
+        "func_94562_g",
+        "getDamageSrc"
+      ]
+    },
+    {
+      "path": "oracle/src/util/DamageSource.java",
+      "members": [
+        "func_151519_b",
+        "damageType"
+      ]
+    },
+    {
+      "path": "oracle/src/util/EntityDamageSource.java",
+      "members": [
+        "func_151519_b"
+      ]
+    },
+    {
+      "path": "oracle/src/util/EntityDamageSourceIndirect.java",
+      "members": [
+        "func_151519_b"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayer.java",
+      "members": [
+        "func_145748_c_"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "func_145748_c_",
+        "getCommandSenderName"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "func_94060_bK"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayerMP.java",
+      "members": [
+        "onDeath",
+        "addChatComponentMessage"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockBed.java",
+      "members": [
+        "onBlockActivated"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/StatisticsFile.java",
+      "members": [
+        "func_150873_a"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/StatBase.java",
+      "members": [
+        "func_150951_e",
+        "func_150955_j"
+      ]
+    },
+    {
+      "path": "oracle/src/stats/Achievement.java",
+      "members": [
+        "func_150951_e"
+      ]
+    },
+    {
+      "path": "oracle/src/network/NetHandlerPlayServer.java",
+      "members": [
+        "processPlayerBlockPlacement"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "DT_NAME",
+      "java": "DamageSource.damageType of every source the player can take",
+      "fields": []
+    }
+  ],
+  "entry_points": [
+    "chatmsg_dtype",
+    "chatmsg_player_name",
+    "chatmsg_entity_name",
+    "chatmsg_bed",
+    "chatmsg_achievement",
+    "chatmsg_build_too_high",
+    "chatmsg_death",
+    "chatmsg_combat_add"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "lines 123, 132, 161 and 218: each builder keeps one struct chat_comp (under 1 KB) on its frame",
+    "queue_for: opens the row's packet queue from the world pass as the other world-pass senders do (s2c_clear)"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "The player's name is Main.java's --username Player. Custom mob names and named held items (the .item death lines, death.fell.*.item) need an anvil (world.conf anvil = off)."
+}

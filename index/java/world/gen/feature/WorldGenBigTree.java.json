@@ -1,0 +1,291 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenBigTree.java",
+ "classes": [
+  "WorldGenBigTree"
+ ],
+ "lines": 512,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The large branching oak (fancy tree): draws heightLimit once per generator object, lays out leaf nodes, round leaf blobs, the trunk and branch limbs, checking every line for obstructions.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_trees.c",
+   "symbols": [
+    "feature_bigtree",
+    "bigtree",
+    "big_node",
+    "bigtree_height_limit",
+    "bigtree_scaled",
+    "OTHER",
+    "big_layer_size",
+    "big_leaf_size",
+    "big_check_block_line",
+    "big_valid_location",
+    "big_leaf_column",
+    "big_limb",
+    "big_leaf_node_list",
+    "big_generate_leaves",
+    "big_generate_trunk",
+    "big_leaf_node_bases",
+    "features_bigtree_scaled",
+    "features_bigtree_reset",
+    "feature_bigtree_state_set",
+    "feature_bigtree_state_get"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "bigtree_state"
+   ]
+  },
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "feature_bigtree"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-bigtree-2",
+  "out/java/probes/fe-bigtree-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "otherCoordPairs",
+   "sig": "static byte[]",
+   "native": "csrc/engine/features_trees.c:OTHER",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rand",
+   "sig": "Random",
+   "native": "csrc/engine/features_trees.c:bigtree",
+   "status": "exact",
+   "note": "struct bigtree.rand, reseeded from the caller's nextLong each generate."
+  },
+  {
+   "kind": "field",
+   "name": "worldObj",
+   "sig": "World",
+   "native": "csrc/engine/features_trees.c:bigtree",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "basePos",
+   "sig": "int[]",
+   "native": "csrc/engine/features_trees.c:bigtree",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "heightLimit",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:bigtree_height_limit",
+   "status": "exact",
+   "note": "Carried between calls: one global for the probe, one per biome object in decorator.c bigtree_state."
+  },
+  {
+   "kind": "field",
+   "name": "height",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:bigtree",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "heightAttenuation",
+   "sig": "double",
+   "native": "csrc/engine/features_trees.c:BIG_HEIGHT_ATTENUATION",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "branchDensity",
+   "sig": "double",
+   "native": null,
+   "status": "n/a",
+   "note": "1.0, never changed; folded into the node count expression."
+  },
+  {
+   "kind": "field",
+   "name": "branchSlope",
+   "sig": "double",
+   "native": "csrc/engine/features_trees.c:BIG_BRANCH_SLOPE",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "scaleWidth",
+   "sig": "double",
+   "native": null,
+   "status": "n/a",
+   "note": "1.0 under every vanilla setScale call; folded."
+  },
+  {
+   "kind": "field",
+   "name": "leafDensity",
+   "sig": "double",
+   "native": null,
+   "status": "n/a",
+   "note": "1.0 under every vanilla setScale call; folded."
+  },
+  {
+   "kind": "field",
+   "name": "trunkSize",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:BIG_TRUNK_SIZE",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "heightLimitLimit",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:BIG_HEIGHT_LIMIT_LIMIT",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "leafDistanceLimit",
+   "sig": "int",
+   "native": "csrc/engine/features_trees.c:bigtree_scaled",
+   "status": "exact",
+   "note": "4 fresh, 5 after setScale(1,1,1)."
+  },
+  {
+   "kind": "field",
+   "name": "leafNodes",
+   "sig": "int[][]",
+   "native": "csrc/engine/features_trees.c:big_node",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenBigTree",
+   "sig": "(boolean)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generateLeafNodeList",
+   "sig": "()V",
+   "native": "csrc/engine/features_trees.c:big_leaf_node_list",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150529_a",
+   "sig": "(int,int,int,float,byte,Block)V",
+   "native": "csrc/engine/features_trees.c:big_leaf_column",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "layerSize",
+   "sig": "(int)F",
+   "native": "csrc/engine/features_trees.c:big_layer_size",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "leafSize",
+   "sig": "(int)F",
+   "native": "csrc/engine/features_trees.c:big_leaf_size",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generateLeafNode",
+   "sig": "(int,int,int)V",
+   "native": "csrc/engine/features_trees.c:big_generate_leaves",
+   "status": "exact",
+   "note": "Inlined into the leaves loop."
+  },
+  {
+   "kind": "method",
+   "name": "func_150530_a",
+   "sig": "(int[],int[],Block)V",
+   "native": "csrc/engine/features_trees.c:big_limb",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generateLeaves",
+   "sig": "()V",
+   "native": "csrc/engine/features_trees.c:big_generate_leaves",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "leafNodeNeedsBase",
+   "sig": "(int)Z",
+   "native": "csrc/engine/features_trees.c:big_leaf_node_bases",
+   "status": "exact",
+   "note": "Inlined comparison."
+  },
+  {
+   "kind": "method",
+   "name": "generateTrunk",
+   "sig": "()V",
+   "native": "csrc/engine/features_trees.c:big_generate_trunk",
+   "status": "exact",
+   "note": "trunkSize 1 only; the unreachable double trunk is not ported."
+  },
+  {
+   "kind": "method",
+   "name": "generateLeafNodeBases",
+   "sig": "()V",
+   "native": "csrc/engine/features_trees.c:big_leaf_node_bases",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "checkBlockLine",
+   "sig": "(int[],int[])I",
+   "native": "csrc/engine/features_trees.c:big_check_block_line",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "validTreeLocation",
+   "sig": "()Z",
+   "native": "csrc/engine/features_trees.c:big_valid_location",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setScale",
+   "sig": "(double,double,double)V",
+   "native": "csrc/engine/features_trees.c:features_bigtree_scaled",
+   "status": "exact",
+   "note": "Only the (1,1,1) and never-scaled cases vanilla reaches are modelled."
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_trees.c:feature_bigtree",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "feature_bigtree heap-allocates the leaf node array (struct bigtree.nodes, freed at the end) and keeps heightLimit in static globals; both are GPU-contract hazards. StrictMath sin/cos are libm (see the file comment for the one-ulp argument). The claim that scaleWidth and leafDensity stay 1.0 rests on the C comment, not a grep of every setScale caller. Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/dev.h",
+ "lines": 15,
+ "role": "Declares dev_apply and dev_end, the agent-only dev-op entry points, visible only when NETHERITE_DEV is defined.",
+ "layer": "tool",
+ "java": [
+  {"path": "oracle/harness/netherite/oracle/Dev.java", "members": []}
+ ],
+ "structs": [],
+ "entry_points": ["dev_apply", "dev_end"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Forward-declares struct jval, serverreplay and server_player only. Callers: csrc/play/play.c (play-dev) and csrc/tests/test_snapshots.c."
+}

@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/entity/item/EntityExpBottle.java",
+  "classes": ["EntityExpBottle"],
+  "lines": 65,
+  "side": "common",
+  "category": "entity",
+  "role": "The thrown bottle o' enchanting: a projectile whose impact spills 3 to 12 experience orbs and dies.",
+  "scope": "in_scope",
+  "scope_reason": "Experience and thrown projectiles are not switched off in world.conf.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/projectile.c", "symbols": ["exp_bottle_on_impact", "projectile_update", "proj_throwable_heading", "proj_spawn_throwable", "proj_spawn_throwable_shooter"]},
+    {"file": "csrc/engine/item_entity.c", "symbols": ["ie_spawn_orb", "ie_added_to_world"]},
+    {"file": "csrc/engine/living.c", "symbols": ["an_exp_bottle_orb_cb"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/use-kinds-s1",
+    "csrc/tests/test_projectiles.c",
+    "out/java/snapshots/cov-reload-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "EntityExpBottle", "sig": "(World)V", "native": "csrc/engine/snapshot_entities.c:sr_throwable_from_nbt", "status": "exact", "note": "EntityList's NBT constructor: cov-reload-s1 reloads a bottle saved in flight"},
+    {"kind": "ctor", "name": "EntityExpBottle", "sig": "(World,EntityLivingBase)V", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact"},
+    {"kind": "ctor", "name": "EntityExpBottle", "sig": "(World,DDD)V", "native": "csrc/engine/projectile.c:proj_spawn_throwable", "status": "exact"},
+    {"kind": "method", "name": "getGravityVelocity", "sig": "()F", "native": "csrc/engine/projectile.c:projectile_update", "status": "exact", "note": "the 0.07F gravity constant, kind IE_EXP_BOTTLE branch"},
+    {"kind": "method", "name": "func_70182_d", "sig": "()F", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact", "note": "0.7F, the per-kind throw speed"},
+    {"kind": "method", "name": "func_70183_g", "sig": "()F", "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter", "status": "exact", "note": "-20.0F, the per-kind pitch offset of the initial motion"},
+    {"kind": "method", "name": "onImpact", "sig": "(MovingObjectPosition)V", "native": "csrc/engine/projectile.c:exp_bottle_on_impact", "status": "exact", "note": "3 + World.rand(5) + World.rand(5) XP, the getXPSplit loop and the orbs, which join the living world's list through iew.spawn_orb (living.c:an_exp_bottle_orb_cb); the playAuxSFX(2002) is a sound"}
+  ],
+  "missing": [],
+  "notes": "use-kinds-s1 throws three bottles from the hand; their orbs replay exactly and are picked up. lane/idxentity: onImpact's playAuxSFX(2002) is the S28 to the clients (no server draw); the particles and the smash sound are the client's (particles_live.c particles_live_aux)."
+}

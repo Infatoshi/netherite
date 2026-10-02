@@ -1,0 +1,29 @@
+{
+ "path": "csrc/engine/lightdefer.c",
+ "lines": 71,
+ "role": "The client world's deferred light: the pending list made outside the tick (mmap), its runs by the executor (C by default: world_light_defer_run_c) at each sync, and the stats line.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateLightByType",
+    "func_147451_t"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "lightdefer_new",
+  "lightdefer_free",
+  "lightdefer_sync_cause",
+  "lightdefer_report"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/cuda/lighting/client_check.sh"
+ ],
+ "notes": "test_snapshots --light-defer never|c|c-write|c-frame|cuda and --cw-digest (tests/cwdigest.h) prove the deferral exact: every recording's client light digest after every row equals the immediate run's."
+}

@@ -1,0 +1,40 @@
+{
+ "path": "csrc/engine/hostiles_enderman.h",
+ "lines": 52,
+ "role": "Declares the EntityEnderman kind functions of hostiles_enderman.c: constructor, living tick, the old-AI action state, attackEntityFrom with the indirect and player-source flags, drops, the carried NBT and the enderman block of the hostile state record.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntityEnderman.java",
+   "members": [
+    "EntityEnderman",
+    "onLivingUpdate",
+    "attackEntityFrom",
+    "dropFewItems",
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateEntityActionState"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "enderman_construct",
+  "enderman_on_living_update",
+  "enderman_update_entity_action_state",
+  "enderman_attack_entity_from",
+  "enderman_drop_few_items",
+  "enderman_write_kind_nbt",
+  "enderman_write_extra"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_hostiles.c"
+ ],
+ "notes": "ENDERMAN_EXTRA_BYTES (44) is defined in hostiles.h."
+}

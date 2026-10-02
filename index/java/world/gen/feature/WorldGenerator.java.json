@@ -1,0 +1,107 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenerator.java",
+ "classes": [
+  "WorldGenerator"
+ ],
+ "lines": 49,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Abstract base of every population feature: generate places the feature, and func_150515_a/func_150516_a write a block with setBlock flag 2 during population or flag 3 when a growing sapling built the generator (doBlockNotify).",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features.c",
+   "symbols": [
+    "features_tree_notify",
+    "features_tree_write",
+    "feature"
+   ]
+  },
+  {
+   "file": "csrc/engine/features_trees.c",
+   "symbols": [
+    "put"
+   ]
+  },
+  {
+   "file": "csrc/engine/features_trees_small.c",
+   "symbols": [
+    "put"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "doBlockNotify",
+   "sig": "boolean",
+   "native": "csrc/engine/features.c:features_tree_notify",
+   "status": "exact",
+   "note": "A global flag switched around one sapling growth call instead of a per-object field."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenerator",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "doBlockNotify false; the C feature functions take no object."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenerator",
+   "sig": "(boolean)",
+   "native": "csrc/engine/features.c:features_tree_notify",
+   "status": "exact",
+   "note": "The flag is set by the caller (randomtick.c) around the grow."
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features.c:feature",
+   "status": "exact",
+   "note": "The struct feature row's generate function pointer is the virtual call."
+  },
+  {
+   "kind": "method",
+   "name": "setScale",
+   "sig": "(double,double,double)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty in the base; WorldGenBigTree's override is ported as features_bigtree_scaled."
+  },
+  {
+   "kind": "method",
+   "name": "func_150515_a",
+   "sig": "(World,int,int,int,Block)V",
+   "native": "csrc/engine/features.c:features_tree_write",
+   "status": "exact",
+   "note": "meta 0 wrapper; tree files call it through their static put."
+  },
+  {
+   "kind": "method",
+   "name": "func_150516_a",
+   "sig": "(World,int,int,int,Block,int)V",
+   "native": "csrc/engine/features.c:features_tree_write",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "features_trees.c and features_trees_small.c each wrap features_tree_write in a static put; features_trees_small.c's put also takes an explicit flag argument. Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

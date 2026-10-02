@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/util/StringUtils.java",
+  "classes": ["StringUtils"],
+  "lines": 33,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Small string helpers: mm:ss formatting of a tick count, stripping chat control codes, and a null-or-empty check.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "patternControlCode", "sig": "Pattern", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "ticksToElapsedTime", "sig": "(I)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "stripControlCodes", "sig": "(String)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isNullOrEmpty", "sig": "(String)Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "All three callers are client GUI/chat surfaces the native engine does not have. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Its callers are client text (Potion's duration string, RenderPlayer, RenderBiped), the player-skull profile (NBTUtil, TileEntitySkull: a player skull needs commands or creative) and the pre-Yggdrasil converter; none is on a state path this game reaches."
+}

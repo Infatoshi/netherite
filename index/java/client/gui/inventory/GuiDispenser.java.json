@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/client/gui/inventory/GuiDispenser.java",
+  "classes": ["GuiDispenser"],
+  "lines": 37,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The dispenser's container screen: title and background over ContainerDispenser's 9 slots.",
+  "scope": "in_scope",
+  "scope_reason": "Dispensers are vanilla blocks whose inventory is ported server-side, but redstone is off so they never dispense; the screen is still reachable by right-click, so it stays in scope as unported.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_slot_xy"]}
+  ],
+  "evidence": ["out/java/snapshots/containers2-s42", "out/java/clientframes/idx-dispenser-s1"],
+  "members": [
+    {"kind": "field", "name": "field_147088_v", "sig": "static ResourceLocation", "native": "csrc/engine/raster_hud.c:screen_texture", "status": "exact", "note": "textures/gui/container/dispenser.png, decoded by make play into out/native/gui/dispenser.rgba"},
+    {"kind": "field", "name": "field_147089_u", "sig": "TileEntityDispenser", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the client's new TileEntityDispenser or TileEntityDropper from the S2D (its Det.newRandom drawn on the client at the open); its name is the S2D's title key: a custom name needs the anvil (off)"},
+    {"kind": "ctor", "name": "GuiDispenser", "sig": "(InventoryPlayer,TileEntityDispenser)V", "native": "csrc/engine/gui_screens.c:gui_screen_slot_xy", "status": "exact", "note": "the container's slot positions and the 166 ySize for hit testing; the drawing is not ported"},
+    {"kind": "method", "name": "func_146979_b", "sig": "(int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "Dispenser or Dropper centred at y 6, Inventory at (8, ySize - 94)"},
+    {"kind": "method", "name": "func_146976_a", "sig": "(float,int,int)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact", "note": "the 176x166 sheet"}
+  ],
+  "missing": [],
+  "notes": "The dispenser tile entity's item storage is ported in csrc/engine/tileentity.c; only this screen is missing. lane/idxclient: drawn; idx-dispenser-s1 24 at 0 px, 49 carries the oracle's off-centre pointer (budget note)."
+}

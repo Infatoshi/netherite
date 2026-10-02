@@ -1,0 +1,29 @@
+{
+ "classes": [
+  "EntitySnowShovelFX"
+ ],
+ "lines": 79,
+ "side": "client",
+ "category": "particles",
+ "role": "The snow-shovel spray when snow is dug.",
+ "scope": "switched_off",
+ "scope_reason": "Its only spawner is BlockPumpkin's snow golem build (BlockPumpkin.java:60), which world.conf built_golems = off stops first (BlockPumpkin.java:41).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  }
+ ],
+ "missing": [
+  "Nothing native: unported."
+ ],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: scope reason rewritten and scope relabeled client_cosmetic -> switched_off.",
+ "path": "oracle/src/client/particle/EntitySnowShovelFX.java"
+}

@@ -1,0 +1,43 @@
+{
+ "path": "csrc/engine/grave.c",
+ "lines": 477,
+ "role": "Frees dead and purged livings once nothing refers to them: grave_bury records a living and its list entry when it leaves its world (an_tick_one's removal, dev_purge, and serverreplay's sr_cl_event for the livings an unloading chunk takes out of the world), and grave_collect, past a byte threshold (a living with its arena parts) and at a quiet point, conservatively scans the program's data, every writable anonymous mapping outside the environments' arenas, the arenas' pools and living parts up to their high-water marks, and the stack, for a word pointing into a buried living, its parts or its entry or a tagged lref naming its slot, then the kept ones to a fixed point, and returns the rest to the pools.",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  {
+   "name": "grave_rec",
+   "java": null,
+   "fields": [
+    "l",
+    "en"
+   ]
+  },
+  {
+   "name": "grave_range",
+   "java": null,
+   "fields": [
+    "lo",
+    "hi",
+    "rec"
+   ]
+  }
+ ],
+ "entry_points": [
+  "grave_enable",
+  "grave_bury",
+  "grave_ignore",
+  "grave_collect",
+  "grave_enable_images"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "function grave_bury: a global list of buried livings in its own mmap (off unless the harness calls grave_enable)",
+  "function sweep: reads /proc/self/maps and scans process memory (the replay harness between rows, never inside a tick)",
+  "a released living's slot gets a new generation (arena.c), so an lref that outlived it stops the program at lv_get (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Ports no oracle/src file: Java's garbage collector keeps a dead entity while anything references it (an attack or revenge target, a rider, a thrower, a saved chunk's live instance), and the native engine keeps those pointers the same way, so a dead living cannot be freed when it leaves the list. Before lane replaymem (2026-09-26) none was freed: swamp-night-s2, which purges every tick, held 153,452 (42 KB each, 7.1 GB). Checked on all 198 snapshot recordings with the normal build and with a build that fills a swept living with 0xA5 instead of freeing it, sweeping every 20 rows: every log identical. Linux x86-64 only (the register spill and the maps file); single-threaded use only. lane/gpumem2: grave_forbid keeps it off in test_interleave (two environments on two threads share the records, and a sweep would read the thread stacks' guard pages, which /proc/self/maps lists as rw-p); the scan's word filter runs eight words at a time under AVX2; the harnesses sweep at GRAVE_THRESHOLD (32 MB). lane/envpool: grave_enable_images, for image envs on several threads (csrc/runtime's pool): a sweep reads the current env's image alone, with the thread's own scratch (the sweep's statics are _Thread_local)."
+}

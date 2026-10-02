@@ -1,0 +1,7 @@
+{"cmd":"run","class":"Snapshot"}
+{"n":100,"act":{}}
+{"n":20,"act":{"hold":["forward"]}}
+{"n":150,"act":{}}
+{"n":1,"act":{"look":[180.0,10.0]}}
+{"n":15,"act":{"hold":["forward"]}}
+{"n":300,"act":{}}

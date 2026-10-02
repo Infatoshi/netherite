@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/client/renderer/entity/RendererLivingEntity.java",
+  "classes": ["RendererLivingEntity"],
+  "lines": 538,
+  "side": "client",
+  "category": "client_render",
+  "role": "The shared living-entity renderer every mob renderer builds on: interpolated rotations, the model draw with culling off, the hurt/death overlay passes, the shadow, the brightness math, and the name-tag layer.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["pose_model", "model_vertex", "draw_model", "draw_shadow", "raster_mobs_draw", "clip_vertex", "emit_box_faces", "xf_part", "raster_mobs_player_preview", "death_max_rotation", "draw_armor", "draw_armor_overlay", "draw_stuck_arrows"]}
+  ],
+  "evidence": ["out/java/render/mobs_zombie_f006", "out/java/render/worldfx_hurt", "out/java/render/mobs2a_slime_f006", "out/java/render/mobs2b_dragon_hurt_f006", "csrc/tests/test_render.c", "out/java/render/gui_inventory_preview", "out/java/render-src/ent_death", "out/java/render-src/ent_armor", "out/java/clientframes/idx-hudfx-s1", "out/java/clientframes/idx-arrows-s1"],
+  "members": [
+    {"kind": "field", "name": "logger", "sig": "Logger (static)", "native": null, "status": "n/a", "note": "static constant, grouped; logging only"},
+    {"kind": "field", "name": "RES_ITEM_GLINT", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:draw_armor", "status": "exact", "note": "the armour glint: two texture-matrix passes, GL_SRC_COLOR, GL_ONE under GL_EQUAL"},
+    {"kind": "field", "name": "mainModel", "sig": "ModelBase", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "exact", "note": "each kind's boxes are its model_* builder (pose_model): the mob scenes and the clientframes recordings judge them"},
+    {"kind": "field", "name": "renderPassModel", "sig": "ModelBase", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the second passes (saddle, fur, slime outer, armour) re-pose and re-draw their boxes in raster_mobs_draw"},
+    {"kind": "ctor", "name": "RendererLivingEntity", "sig": "(ModelBase,float)V", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "exact", "note": "the model and the shadow size per kind (draw_shadow's radius, fancy only)"},
+    {"kind": "method", "name": "setRenderPassModel", "sig": "(ModelBase)V", "native": null, "status": "n/a", "note": "state setter"},
+    {"kind": "method", "name": "interpolateRotation", "sig": "(float,float,float)float", "native": "csrc/play/play.c:draw_hitboxes", "status": "exact", "note": "mob_yaw is the same shortest-arc interpolation"},
+    {"kind": "method", "name": "doRender", "sig": "(EntityLivingBase,double,double,double,float,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the model pass with culling off, the render passes, the equipped items (the player's stuck arrows first), the hurt and colour-multiplier passes under GL_EQUAL with the lightmap off, the shadow (fancy only) and the fire; name tags are unreachable (passSpecialRender)"},
+    {"kind": "method", "name": "renderModel", "sig": "(EntityLivingBase,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:draw_model", "status": "exact", "note": "pose_model + the per-box draws through the shared rasterizer"},
+    {"kind": "method", "name": "renderLivingAt", "sig": "(EntityLivingBase,double,double,double)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the translate to the interpolated position and the scale(-1,-1,1) are folded into model_vertex's transform"},
+    {"kind": "method", "name": "rotateCorpse", "sig": "(EntityLivingBase,float,float,float)V", "native": "csrc/engine/raster_mobs.c:model_vertex", "status": "exact", "note": "the body yaw, the death roll to getDeathMaxRotation and the sleeping player's bed turn; the subclass overrides are in their records"},
+    {"kind": "method", "name": "renderSwingProgress", "sig": "(EntityLivingBase,float)float", "native": "csrc/play/play.c:draw_hitboxes", "status": "exact", "note": "m.swing is the interpolated swing progress"},
+    {"kind": "method", "name": "handleRotationFloat", "sig": "(EntityLivingBase,float)float", "native": "csrc/play/play.c:draw_hitboxes", "status": "exact", "note": "the per-kind rotation floats (squid tentacles, wolf tail, bat) arrive as mob_render_input fields"},
+    {"kind": "method", "name": "renderEquippedItems", "sig": "(EntityLivingBase,float)V", "native": null, "status": "n/a", "note": "empty in this class; subclasses override and are tracked per renderer"},
+    {"kind": "method", "name": "renderArrowsStuckInEntity", "sig": "(EntityLivingBase,float)V", "native": "csrc/engine/raster_mobs.c:draw_stuck_arrows", "status": "exact", "note": "RenderPlayer's call, the player seen in third person: the boxList pick seeded by the entity id, the point in the box, the arrow pointing out of it, lighting off; the client's DataWatcher 9 a row behind the server's (idx-arrows-s1 100, 172, 180 within 1 px)"},
+    {"kind": "method", "name": "inheritRenderPass", "sig": "(EntityLivingBase,int,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the hurt flash over the armour and the eyes passes' additive second draw"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the subclass passes are raster_mobs_draw's branches (saddle, fur, eyes, slime outer, creeper armour, the armour layers)"},
+    {"kind": "method", "name": "func_82408_c", "sig": "(EntityLivingBase,int,float)V", "native": null, "status": "n/a", "note": "empty in this class"},
+    {"kind": "method", "name": "getDeathMaxRotation", "sig": "(EntityLivingBase)float", "native": "csrc/engine/raster_mobs.c:death_max_rotation", "status": "exact"},
+    {"kind": "method", "name": "getColorMultiplier", "sig": "(EntityLivingBase,float,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "0 here; RenderCreeper's (the only override) is the white pass at the flash's fifth on the odd tenths of getCreeperFlashIntensity, under the hurt pass's GL_EQUAL (idx-hudfx-s1 289 to 300 within 5 px)"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V", "native": null, "status": "n/a", "note": "empty in this class; the per-kind scales are in model_vertex"},
+    {"kind": "method", "name": "passSpecialRender", "sig": "(EntityLivingBase,double,double,double)V", "native": null, "status": "n/a", "note": "a name tag draws when func_110813_b holds: RenderLiving's needs getAlwaysRenderNameTagForRender (NBT only) or a custom name on the pointed mob. A custom name comes from a named name tag, which needs the anvil (world.conf anvil = off: BlockAnvil.onBlockActivated returns false); the player's own is excluded (entity != renderManager.livingPlayer) and single player has no other player"},
+    {"kind": "method", "name": "func_110813_b", "sig": "(EntityLivingBase)boolean", "native": null, "status": "n/a", "note": "client-world gate; the native renders only client worlds"},
+    {"kind": "method", "name": "func_96449_a", "sig": "(EntityLivingBase,double,double,double,String,float,double)V", "native": null, "status": "n/a", "note": "see passSpecialRender"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,double,double,double,float,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": [],
+  "notes": "The two-sided model draw, the brightness scalar, the burning brightness boost and the shadow radius formula are all in raster_mobs_draw/model_vertex/draw_shadow; the worldfx_hurt and dragon hurt scenes pin the overlay behavior. doRender's interpolateRotation at partial tick 1 and the corpse rotation are also in raster_mobs_player_preview for the inventory preview. lane/idxclient: the creeper's colour multiplier and the player's stuck arrows ported; name tags unreachable (no anvil to name a tag)."
+}

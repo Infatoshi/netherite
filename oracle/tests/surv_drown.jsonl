@@ -1,0 +1,10 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"drown"}
+{"n":2,"act":{}}
+{"cmd":"run","class":"Snapshot"}
+{"n":1,"act":{"dlook":[-45,0]}}
+{"n":40,"act":{"hold":["forward"]}}
+{"n":520,"act":{}}
+{"n":30,"act":{}}
+{"n":1,"act":{"gui":[["respawn"]]}}
+{"n":40,"act":{"hold":["forward"]}}

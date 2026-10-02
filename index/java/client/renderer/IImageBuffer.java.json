@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/client/renderer/IImageBuffer.java",
+  "classes": ["IImageBuffer"],
+  "lines": 10,
+  "side": "client",
+  "category": "client_render",
+  "role": "Interface for processing a downloaded player skin image before it becomes a texture (parseUserSkin); used by SkinManager's ThreadDownloadImageData.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Player skins come from the Mojang session servers over the network; the C engine draws the fixed steve skin from the recorded assets (csrc/engine/raster_hand.c reads mobs/steve.rgba), so skin download processing is never reached.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "parseUserSkin", "sig": "(BufferedImage)LBufferedImage;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152634_a", "sig": "()V", "native": null, "status": "n/a", "note": "the skin-available callback; empty in ImageBufferDownload"}
+  ],
+  "missing": [],
+  "notes": "The only implementors are ImageBufferDownload and an anonymous class in SkinManager; both are download-time image processing."
+}

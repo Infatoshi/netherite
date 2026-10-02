@@ -1,0 +1,130 @@
+{
+ "classes": [
+  "ContainerWorkbench"
+ ],
+ "lines": 154,
+ "side": "server",
+ "category": "inventory",
+ "role": "The crafting table container: the 3x3 grid with its result, the close-time grid spill, and the range-checked canInteractWith.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_init",
+    "matrix_changed",
+    "container_close",
+    "transfer_workbench",
+    "can_collect_from"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_can_interact"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/pickaxe-complete-s1",
+  "out/java/snapshots/pickaxe-complete-s42",
+  "out/java/snapshots/cat-recipes-s1",
+  "out/java/snapshots/cont-wbfull-s1",
+  "out/java/snapshots/cov-containers-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "craftMatrix",
+   "sig": "InventoryCrafting",
+   "native": "csrc/engine/container.h:grid",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "craftResult",
+   "sig": "IInventory",
+   "native": "csrc/engine/container.h:result",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "worldObj",
+   "sig": "World",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "posX",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "posY",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "posZ",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerWorkbench",
+   "sig": "(InventoryPlayer,World,III)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact",
+   "note": "CONTAINER_WORKBENCH: the 3x3 grid and result"
+  },
+  {
+   "kind": "method",
+   "name": "onCraftMatrixChanged",
+   "sig": "(Lnet/minecraft/inventory/IInventory;)V",
+   "native": "csrc/engine/container.c:matrix_changed",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onContainerClosed",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/container.c:container_close",
+   "status": "exact",
+   "note": "the workbench branch: the 9-grid spill"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "the block is still a crafting table and the player within 8; the open records the table's position"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:transfer_workbench",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_94530_a",
+   "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/inventory/Slot;)Z",
+   "native": "csrc/engine/container.c:can_collect_from",
+   "status": "exact",
+   "note": "cov-containers-s1: a double-click (mode 6) collect in the workbench"
+  }
+ ],
+ "missing": [],
+ "notes": "idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): containers2-s42.",
+ "path": "oracle/src/inventory/ContainerWorkbench.java"
+}

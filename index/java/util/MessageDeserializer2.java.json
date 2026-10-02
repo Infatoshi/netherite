@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/util/MessageDeserializer2.java",
+  "classes": ["MessageDeserializer2"],
+  "lines": 57,
+  "side": "common",
+  "category": "network",
+  "role": "The netty frame decoder stage that splits the byte stream into length-prefixed frames (1-3 byte varint length) before packet decoding.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "decode", "sig": "(ChannelHandlerContext,ByteBuf,List)V", "native": null, "status": "missing", "note": "no byte stream exists natively"}
+  ],
+  "missing": [
+    "The varint length framing is not ported; native packet flow passes whole packet structs (csrc/engine/tracker.h tracker_packet) with no wire framing."
+  ],
+  "notes": "See MessageDeserializer."
+}

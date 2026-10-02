@@ -1,0 +1,91 @@
+{
+ "classes": [
+  "ContainerChest"
+ ],
+ "lines": 102,
+ "side": "server",
+ "category": "inventory",
+ "role": "The chest container over any IInventory (a chest tile entity, a double chest through InventoryLargeChest, or the player's ender chest), with numRows driving the slot layout.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_init",
+    "transfer_chest",
+    "container_close"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_open_tile",
+    "gui_open_ender",
+    "gui_can_interact"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/te-chest-s1",
+  "out/java/snapshots/containers2-s42"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "lowerChestInventory",
+   "sig": "IInventory",
+   "native": "csrc/engine/container.h:chest",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "numRows",
+   "sig": "int",
+   "native": "csrc/engine/container.h:chest_size",
+   "status": "exact",
+   "note": "the native container takes the chest's slot count (27 or 54) rather than a row count"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerChest",
+   "sig": "(IInventory,IInventory)V",
+   "native": "csrc/engine/survival.c:gui_open_tile",
+   "status": "exact",
+   "note": "the chest open builds CONTAINER_CHEST with 27 or 54 (a pair) slots; the ender chest path is gui_open_ender"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "the chest's isUseableByPlayer (both halves' for an InventoryLargeChest, InventoryEnderChest's for the ender window); containers2-s42 walks the player to 7.98 blocks (open) then 9 (closed)"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:transfer_chest",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onContainerClosed",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/container.c:container_close",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getLowerChestInventory",
+   "sig": "()Lnet/minecraft/inventory/IInventory;",
+   "native": "csrc/engine/container.h:chest",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): cat-toss-s1.",
+ "path": "oracle/src/inventory/ContainerChest.java"
+}

@@ -1,0 +1,35 @@
+{
+  "path": "oracle/src/village/VillageDoorInfo.java",
+  "classes": ["VillageDoorInfo"],
+  "lines": 84,
+  "side": "server",
+  "category": "ai",
+  "role": "One wooden door a village knows: its position, which side is inside, when a villager last saw it and how many villagers are currently restricted to it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/villagers.h", "symbols": ["village_door_info"]},
+    {"file": "csrc/engine/villagers.c", "symbols": ["vdi_dist_sq", "vdi_inside_dist_sq", "vdi_inside_x", "vdi_inside_y", "vdi_inside_z", "vdi_is_inside"]},
+    {"file": "csrc/engine/ai.c", "symbols": []}
+  ],
+  "evidence": ["csrc/tests/test_villagers.c", "out/java/snapshots/golem-fight-s42", "out/java/snapshots/village-siege-s42", "out/java/snapshots/gold-g12-s42"],
+  "members": [
+    {"kind": "field", "name": "posX/posY/posZ", "sig": "final int", "native": "csrc/engine/villagers.h:pos_x", "status": "exact"},
+    {"kind": "field", "name": "insideDirectionX/insideDirectionZ", "sig": "final int", "native": "csrc/engine/villagers.h:inside_dir_x", "status": "exact"},
+    {"kind": "field", "name": "lastActivityTimestamp", "sig": "int", "native": "csrc/engine/villagers.h:last_activity_timestamp", "status": "exact"},
+    {"kind": "field", "name": "isDetachedFromVillageFlag", "sig": "boolean", "native": "csrc/engine/villagers.h:is_detached_from_village_flag", "status": "exact"},
+    {"kind": "field", "name": "doorOpeningRestrictionCounter", "sig": "int", "native": "csrc/engine/villagers.h:door_opening_restriction_counter", "status": "exact"},
+    {"kind": "ctor", "name": "VillageDoorInfo", "sig": "(int,int,int,int,int,int)", "native": "csrc/engine/villagers.h:village_door_info", "status": "exact"},
+    {"kind": "method", "name": "getDistanceSquared", "sig": "(int,int,int)I", "native": "csrc/engine/villagers.c:vdi_dist_sq", "status": "exact"},
+    {"kind": "method", "name": "getInsideDistanceSquare", "sig": "(int,int,int)I", "native": "csrc/engine/villagers.c:vdi_inside_dist_sq", "status": "exact"},
+    {"kind": "method", "name": "getInsidePosX", "sig": "()I", "native": "csrc/engine/villagers.c:vdi_inside_x", "status": "exact"},
+    {"kind": "method", "name": "getInsidePosY", "sig": "()I", "native": "csrc/engine/villagers.c:vdi_inside_y", "status": "exact"},
+    {"kind": "method", "name": "getInsidePosZ", "sig": "()I", "native": "csrc/engine/villagers.c:vdi_inside_z", "status": "exact"},
+    {"kind": "method", "name": "isInside", "sig": "(int,int)Z", "native": "csrc/engine/villagers.c:vdi_is_inside", "status": "exact"},
+    {"kind": "method", "name": "resetDoorOpeningRestrictionCounter", "sig": "()V", "native": "csrc/engine/villagers.c:v_remove_dead_and_out_of_range_doors", "status": "exact", "note": "inline = 0"},
+    {"kind": "method", "name": "incrementDoorOpeningRestrictionCounter", "sig": "()V", "native": "csrc/engine/ai.c:door_opening_restriction_counter", "status": "exact", "note": "inline ++ in the restrict-open-door AI"},
+    {"kind": "method", "name": "getDoorOpeningRestrictionCounter", "sig": "()I", "native": "csrc/engine/villagers.c:v_find_nearest_door_unrestricted", "status": "exact", "note": "inline read"}
+  ],
+  "missing": [],
+  "notes": "Doors are held through pointers (village.doors[i] is a pointer), a GPU-contract concern for the native record. Status exact assumes test_villagers compares the village collection; not re-run. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): persist-village-s42."
+}

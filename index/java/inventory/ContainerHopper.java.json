@@ -1,0 +1,91 @@
+{
+ "classes": [
+  "ContainerHopper"
+ ],
+ "lines": 89,
+ "side": "server",
+ "category": "inventory",
+ "role": "The hopper GUI container over the hopper tile entity's 5 slots; its close does not spill (the hopper keeps what it holds).",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "container_init",
+    "transfer_chest",
+    "container_close"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "CONTAINER_HOPPER",
+    "container_kind_tile_inv"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "gui_open_tile",
+    "gui_can_interact",
+    "gui_te_slot"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileentity.c",
+   "symbols": [
+    "TE_HOPPER"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/containers2-s42"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_94538_a",
+   "sig": "IInventory",
+   "native": "csrc/engine/survival.c:gui_te_slot",
+   "status": "exact",
+   "note": "the window's slots 0..4 read and write the hopper tile's five"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerHopper",
+   "sig": "(InventoryPlayer,IInventory)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact",
+   "note": "CONTAINER_HOPPER: the 5 tile slots, then the player's rows; the constructor's openInventory is TileEntityHopper's empty one"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": "csrc/engine/survival.c:gui_can_interact",
+   "status": "exact",
+   "note": "TileEntityHopper.isUseableByPlayer: the same tile and within 8"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:transfer_chest",
+   "status": "exact",
+   "note": "the chest body split at getSizeInventory (5)"
+  },
+  {
+   "kind": "method",
+   "name": "onContainerClosed",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/container.c:container_close",
+   "status": "exact",
+   "note": "the base spill of the cursor; closeInventory is empty on the hopper tile"
+  }
+ ],
+ "missing": [],
+ "notes": "Gated by containers2-s42: 16 dirt placed in the hopper, the window closed and reopened with the dirt still in slot 0, then half taken back.",
+ "path": "oracle/src/inventory/ContainerHopper.java"
+}

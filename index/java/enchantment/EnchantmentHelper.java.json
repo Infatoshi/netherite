@@ -1,0 +1,402 @@
+{
+ "path": "oracle/src/enchantment/EnchantmentHelper.java",
+ "classes": [
+  "EnchantmentHelper",
+  "EnchantmentHelper.DamageIterator",
+  "EnchantmentHelper.HurtIterator",
+  "EnchantmentHelper.IModifier",
+  "EnchantmentHelper.ModifierDamage",
+  "EnchantmentHelper.ModifierLiving"
+ ],
+ "lines": 607,
+ "side": "server",
+ "category": "combat",
+ "role": "The static bridge between ItemStacks' ench NBT and the game: level lookups, the damage/protection/thorns modifiers applied over equipment, and the enchanting-table rolls (calcItemStackEnchantability, addRandomEnchantment, buildEnchantmentList, mapEnchantmentData).",
+ "scope": "in_scope",
+ "scope_reason": "The enchanting table is a plain block (world.conf enchanting=off), so the table-roll half is unreachable, but the level lookups and the loot-book buildEnchantmentList path are in play: chest loot, villager trades and mob equipment carry enchantments.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/enchant.c",
+   "symbols": [
+    "build_enchantment_list",
+    "map_enchantment_data",
+    "can_apply_together",
+    "add_random_enchantment_book",
+    "add_random_enchantment_tag",
+    "can_enchant_item",
+    "item_enchantability"
+   ]
+  },
+  {
+   "file": "csrc/engine/enchants.h",
+   "symbols": [
+    "ENCHANTS",
+    "CAN_APPLY_TOGETHER"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_enchantment_modifier_damage",
+    "living_set_fire"
+   ]
+  },
+  {
+   "file": "csrc/engine/hostiles_skeleton.c",
+   "symbols": [
+    "get_enchant_level"
+   ]
+  },
+  {
+   "file": "csrc/engine/hostiles_pigman.c",
+   "symbols": [
+    "attack_entity_as_mob"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvest.c",
+   "symbols": [
+    "player_str_vs_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvestdrops.h",
+   "symbols": [
+    "silk",
+    "fortune"
+   ]
+  },
+  {
+   "file": "csrc/engine/dragon.c",
+   "symbols": [
+    "enchantment_damage_roll"
+   ]
+  },
+  {
+   "file": "csrc/engine/animals.c",
+   "symbols": [
+    "animal_drop_few_items"
+   ]
+  },
+  {
+   "file": "csrc/engine/combatench.c",
+   "symbols": [
+    "ench_modifier_living",
+    "ench_knockback",
+    "ench_fire_aspect",
+    "ench_hurt_iter",
+    "ench_damage_iter",
+    "ench_fire_time",
+    "ench_looting",
+    "ref_level",
+    "held_item",
+    "last_active_items",
+    "ench_max_level",
+    "ench_blast_protection"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "armor_modifier_damage",
+    "surv_ench_level"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_loot.c",
+  "out/java/loot/seed2",
+  "csrc/tests/test_trades.c",
+  "out/java/trades/seed2",
+  "out/java/snapshots/fight-skeleton-s1",
+  "out/java/snapshots/combat-mobs-s1",
+  "csrc/tests/test_harvest.c",
+  "out/java/snapshots/pickaxe-complete-s1",
+  "out/java/snapshots/dmg-sources-s1",
+  "out/java/snapshots/melee-mods-s1",
+  "out/java/snapshots/fight-magmacube-s1",
+  "out/java/snapshots/fight-witherskel-s1",
+  "out/java/snapshots/idx-armorench-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "enchantmentRand",
+   "sig": "static Random",
+   "native": "csrc/engine/living.c:living_enchantment_modifier_damage",
+   "status": "exact",
+   "note": "the Det split stream './net/minecraft/enchantment/EnchantmentHelper.java:enchantmentRand'; dragon.c:enchantment_damage_roll draws the same stream"
+  },
+  {
+   "kind": "field",
+   "name": "enchantmentModifierDamage",
+   "sig": "static ModifierDamage",
+   "native": null,
+   "status": "n/a",
+   "note": "the IModifier indirection folds into living_enchantment_modifier_damage's loop over equip enchants"
+  },
+  {
+   "kind": "field",
+   "name": "enchantmentModifierLiving",
+   "sig": "static ModifierLiving",
+   "native": null,
+   "status": "n/a",
+   "note": "same folding"
+  },
+  {
+   "kind": "field",
+   "name": "field_151388_d",
+   "sig": "static HurtIterator",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_151389_e",
+   "sig": "static DamageIterator",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getEnchantmentLevel",
+   "sig": "(int,ItemStack)I",
+   "native": "csrc/engine/combatench.c:ref_level",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getEnchantments",
+   "sig": "(ItemStack)Ljava/util/Map;",
+   "native": null,
+   "status": "n/a",
+   "note": "The Map form is read only by ContainerRepair (world.conf anvil = off) and the creative inventory; every survival reader works on the {id,lvl} compounds directly (itemtag.c)."
+  },
+  {
+   "kind": "method",
+   "name": "setEnchantments",
+   "sig": "(Map,ItemStack)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Written only by ContainerRepair (world.conf anvil = off); the loot book and mob equipment paths write their compounds themselves (enchant.c:add_random_enchantment_tag, itemtag.c:itag_add_ench)."
+  },
+  {
+   "kind": "method",
+   "name": "getMaxEnchantmentLevel",
+   "sig": "(int,ItemStack[])I",
+   "native": "csrc/engine/combatench.c:ench_max_level",
+   "status": "exact",
+   "note": "The highest level over getLastActiveItems (a mob's five slots, the player's armour): Respiration (living.c decrease_air_supply, survival.c's air), Fire Protection (ench_fire_time), Blast Protection (ench_blast_protection); lane/idxblocks, idx-armorench-s1."
+  },
+  {
+   "kind": "method",
+   "name": "applyEnchantmentModifier",
+   "sig": "(IModifier,ItemStack)V",
+   "native": null,
+   "status": "n/a",
+   "note": "private; folded into the callers"
+  },
+  {
+   "kind": "method",
+   "name": "applyEnchantmentModifierArray",
+   "sig": "(IModifier,ItemStack[])V",
+   "native": null,
+   "status": "n/a",
+   "note": "private; folded into the callers"
+  },
+  {
+   "kind": "method",
+   "name": "getEnchantmentModifierDamage",
+   "sig": "(ItemStack[],DamageSource)I",
+   "native": "csrc/engine/survival.c:armor_modifier_damage",
+   "status": "exact",
+   "note": "living.c:living_enchantment_modifier_damage over a mob's equipment"
+  },
+  {
+   "kind": "method",
+   "name": "getEnchantmentModifierLiving",
+   "sig": "(EntityLivingBase,EntityLivingBase)F",
+   "native": "csrc/engine/combatench.c:ench_modifier_living",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_152377_a",
+   "sig": "(ItemStack,EnumCreatureAttribute)F",
+   "native": "csrc/engine/combatench.c:ench_modifier_living",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151384_a",
+   "sig": "(EntityLivingBase,Entity)V",
+   "native": "csrc/engine/combatench.c:ench_hurt_iter",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151385_b",
+   "sig": "(EntityLivingBase,Entity)V",
+   "native": "csrc/engine/combatench.c:ench_damage_iter",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getKnockbackModifier",
+   "sig": "(EntityLivingBase,EntityLivingBase)I",
+   "native": "csrc/engine/combatench.c:ench_knockback",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getFireAspectModifier",
+   "sig": "(EntityLivingBase)I",
+   "native": "csrc/engine/combatench.c:ench_fire_aspect",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getRespiration",
+   "sig": "(EntityLivingBase)I",
+   "native": null,
+   "status": "n/a",
+   "note": "always 0: nothing in the port wears armour (living.c comment at line 1670)"
+  },
+  {
+   "kind": "method",
+   "name": "getEfficiencyModifier",
+   "sig": "(EntityLivingBase)I",
+   "native": "csrc/engine/harvest.c:player_str_vs_block",
+   "status": "exact",
+   "note": "the dig machine carries the level (dig.h's held_enchant, set in dig.c:hp_of) and harvest.c adds (lvl*lvl+1) exactly when str > 1.0"
+  },
+  {
+   "kind": "method",
+   "name": "getSilkTouchModifier",
+   "sig": "(EntityLivingBase)Z",
+   "native": "csrc/engine/harvestdrops.h:silk",
+   "status": "exact",
+   "note": "the drops machine carries the level as the silk field of harvestdrops' case record"
+  },
+  {
+   "kind": "method",
+   "name": "getFortuneModifier",
+   "sig": "(EntityLivingBase)I",
+   "native": "csrc/engine/harvestdrops.h:fortune",
+   "status": "exact",
+   "note": "the drops machine carries the level as the fortune field"
+  },
+  {
+   "kind": "method",
+   "name": "func_151386_g",
+   "sig": "(EntityLivingBase)I",
+   "native": null,
+   "status": "n/a",
+   "note": "Luck of the Sea is read only by EntityFishHook: world.conf fishing = off."
+  },
+  {
+   "kind": "method",
+   "name": "func_151387_h",
+   "sig": "(EntityLivingBase)I",
+   "native": null,
+   "status": "n/a",
+   "note": "Lure is read only by EntityFishHook: world.conf fishing = off."
+  },
+  {
+   "kind": "method",
+   "name": "getLootingModifier",
+   "sig": "(EntityLivingBase)I",
+   "native": "csrc/engine/combatench.c:ench_looting",
+   "status": "exact",
+   "note": "EntityLivingBase.onDeath's var4 (living_on_death): the held item's Looting level when the source's entity is a player, into dropFewItems, dropEquipment and the rare-drop roll"
+  },
+  {
+   "kind": "method",
+   "name": "getAquaAffinityModifier",
+   "sig": "(EntityLivingBase)Z",
+   "native": "csrc/engine/survival.c:aqua_affinity",
+   "status": "exact",
+   "note": "The player's dig speed under water on both sides (survival.c:aqua_affinity; lane/survival's details-blocks-s1 era port)."
+  },
+  {
+   "kind": "method",
+   "name": "func_92099_a",
+   "sig": "(Enchantment,EntityLivingBase)ItemStack",
+   "native": "csrc/engine/combatench.c:thorns",
+   "status": "exact",
+   "note": "the first last-active item with thorns"
+  },
+  {
+   "kind": "method",
+   "name": "calcItemStackEnchantability",
+   "sig": "(Random,int,int,ItemStack)I",
+   "native": null,
+   "status": "n/a",
+   "note": "Read only by ContainerEnchantment: world.conf enchanting = off (the table is a plain block)."
+  },
+  {
+   "kind": "method",
+   "name": "addRandomEnchantment",
+   "sig": "(Random,ItemStack,int)ItemStack",
+   "native": "csrc/engine/enchant.c:add_random_enchantment_book",
+   "status": "exact",
+   "note": "for the loot-book path: build_enchantment_list then the StoredEnchantments tag exactly as ItemEnchantedBook writes it (add_random_enchantment_tag)"
+  },
+  {
+   "kind": "method",
+   "name": "buildEnchantmentList",
+   "sig": "(Random,ItemStack,int)Ljava/util/List;",
+   "native": "csrc/engine/enchant.c:build_enchantment_list",
+   "status": "exact",
+   "note": "the same draw order: enchantability halved, two nextInts, the float wobble, WeightedRandom over the HashMap order that java_hashmap rebuilds; also used by trades.c for the priest's tools and spawning.c for mob gear"
+  },
+  {
+   "kind": "method",
+   "name": "mapEnchantmentData",
+   "sig": "(int,ItemStack)Ljava/util/Map;",
+   "native": "csrc/engine/enchant.c:map_enchantment_data",
+   "status": "exact",
+   "note": "the candidate map rebuilt in a Java-8 HashMap (java_hashmap.c) so WeightedRandom's iteration order is bit for bit the oracle's"
+  },
+  {
+   "kind": "method",
+   "name": "DamageIterator.calculateModifier",
+   "sig": "(Enchantment,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the IModifier bodies fold into the callers"
+  },
+  {
+   "kind": "method",
+   "name": "HurtIterator.calculateModifier",
+   "sig": "(Enchantment,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "ModifierDamage.calculateModifier",
+   "sig": "(Enchantment,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "ModifierLiving.calculateModifier",
+   "sig": "(Enchantment,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EnchantmentHelper",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "n/a: a static-only class; nothing in oracle/src constructs it (no new EnchantmentHelper())"
+  }
+ ],
+ "missing": [],
+ "notes": "Evidence for the enchantability tables is the generated registry csrc/engine/enchants.h (netherite.oracle.EnchantTable). test_loot's book sweep is the 27,500-draw gate DEVLOG 2026-09-25 records for the loot-book enchantment path. lane/idxblocks: getMaxEnchantmentLevel was fire protection only; Respiration and Blast Protection now read it for the player and for mobs (idx-armorench-s1: a Respiration III helmet under water on the player and on a zombie, Fire Protection IV boots in lava, in fire and under lightning, Blast Protection IV near a creeper)."
+}

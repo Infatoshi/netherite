@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/command/CommandClearInventory.java",
+  "classes": ["CommandClearInventory"],
+  "lines": 81,
+  "side": "server",
+  "category": "commands",
+  "role": "The /clear command: empties a player's inventory, optionally of one item and meta, reports the removed count.",
+  "scope": "not_needed",
+  "scope_reason": "Commands are off in our survival worlds (DEVLOG 2026-09-25); the harness clears or gives stacks through dev ops (oracle/harness dev entries, csrc/engine/dev.c op 'clear'), not chat commands.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "getCommandName", "sig": "()String", "native": null, "status": "n/a", "note": "\"clear\""},
+    {"kind": "method", "name": "getCommandUsage", "sig": "(ICommandSender)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getRequiredPermissionLevel", "sig": "()I", "native": null, "status": "n/a", "note": "2"},
+    {"kind": "method", "name": "processCommand", "sig": "(ICommandSender,String[])V", "native": null, "status": "n/a", "note": "InventoryPlayer.clearInventory then container sync and held-item update"},
+    {"kind": "method", "name": "addTabCompletionOptions", "sig": "(ICommandSender,String[])List", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147209_d", "sig": "()[Ljava/lang/String;", "native": null, "status": "n/a", "note": "player names"},
+    {"kind": "method", "name": "isUsernameIndex", "sig": "(String[],int)Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The dev-op equivalent the game actually uses is the oracle's dev give/clear entries, mirrored natively by csrc/engine/dev.c (op 'clear' at line 237), which is indexed separately."
+}

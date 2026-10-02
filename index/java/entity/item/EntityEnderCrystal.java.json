@@ -1,0 +1,49 @@
+{
+  "path": "oracle/src/entity/item/EntityEnderCrystal.java",
+  "classes": ["EntityEnderCrystal"],
+  "lines": 120,
+  "side": "common",
+  "category": "entity",
+  "role": "The end crystal on the obsidian pillars: heals the dragon, and when hit explodes with a size 6 blast that can chain into other crystals.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/dragon.c", "symbols": ["dragon_crystal_init", "dragon_crystal_adopt", "dragon_crystal_tick", "dragon_crystal_attack"]},
+    {"file": "csrc/engine/dragon.h", "symbols": ["dragon_crystal_state", "DRAGON_MAX_CRYSTALS"]},
+    {"file": "csrc/engine/endfight.c", "symbols": ["endfight_spawn_crystal", "endfight_crystal_nbt"]},
+    {"file": "csrc/engine/serverreplay.c", "symbols": ["sr_end_crystal_explode", "eb_crystal_attack", "sr_end_query_other", "sr_crystal_box", "serverreplay_end_crystal_hit", "sr_place_entity_in", "sr_end_update"]},
+    {"file": "csrc/engine/seedworld.c", "symbols": ["sw_crystal"]},
+    {"file": "csrc/engine/pickobj.c", "symbols": ["pickobj_server_attack", "pickobj_client_prevents"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/cp-end-s1",
+    "out/java/snapshots/end-crystals-s1",
+    "out/java/snapshots/end-arrival-s1",
+    "csrc/tests/test_dragon.c",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/ent-endplace-s1",
+    "out/java/snapshots/end-throw-s42",
+    "out/java/snapshots/end-tnt-s42",
+    "out/java/snapshots/end-bed-s42",
+    "out/java/snapshots/end-return-s42",
+    "out/java/snapshots/ach-route-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "innerRotation", "sig": "int", "native": "csrc/engine/dragon.c:dragon_crystal_tick", "status": "exact", "note": "incremented each tick; the constructor's rand.nextInt(100000) draw is dragon_crystal_init and seedworld.c:sw_crystal's crystal_rotation"},
+    {"kind": "field", "name": "health", "sig": "int", "native": "csrc/engine/dragon.c:dragon_crystal_init", "status": "exact", "note": "init 5, set to 0 on the first hit"},
+    {"kind": "field", "name": "__OBFID", "sig": "String (static constants grouped)", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityEnderCrystal", "sig": "(World)V", "native": "csrc/engine/dragon.c:dragon_crystal_init", "status": "exact", "note": "health 5, innerRotation rand(100000), ids and UUID; the 2.0F box is serverreplay.c sr_crystal_box; preventEntitySpawning blocks a placement into the crystal's box on the server (serverreplay.c sr_place_entity_in) and in the client's prediction (pickobj.c pickobj_client_prevents); ent-endplace-s1"},
+    {"kind": "ctor", "name": "EntityEnderCrystal", "sig": "(World,double,double,double)V", "native": "csrc/engine/dragon.c:dragon_crystal_init", "status": "exact", "note": "health 5, innerRotation rand(100000), ids and UUID; the 2.0F box is serverreplay.c sr_crystal_box; preventEntitySpawning blocks a placement into the crystal's box on the server (serverreplay.c sr_place_entity_in) and in the client's prediction (pickobj.c pickobj_client_prevents); ent-endplace-s1"},
+    {"kind": "method", "name": "canTriggerWalking", "sig": "()Z", "native": null, "status": "n/a", "note": "returns false; no walking trigger in the ported surfaces"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": null, "status": "n/a", "note": "dataWatcher 8 (health) is a client sync channel; the native state carries health directly"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/engine/dragon.c:dragon_crystal_tick", "status": "exact", "note": "prev position, innerRotation++, and the set-fire-block-if-missing check (block id 51) under WorldProviderEnd. The fire goes to the End's world whether or not the dragon is loaded (serverreplay.c sr_end_update gives the dragon state the End's world before a crystal ticks)."},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/endfight.c:endfight_crystal_nbt", "status": "exact", "note": "vanilla writes nothing of its own; endfight_crystal_nbt states exactly that"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "empty in vanilla"},
+    {"kind": "method", "name": "getShadowSize", "sig": "()F", "native": null, "status": "n/a", "note": "client rendering"},
+    {"kind": "method", "name": "canBeCollidedWith", "sig": "()Z", "native": "csrc/engine/serverreplay.c:sr_end_query_other", "status": "exact", "note": "true: the projectile lists and the client pick (pickobj.c tracks the crystal to the client)"},
+    {"kind": "method", "name": "attackEntityFrom", "sig": "(DamageSource,F)Z", "native": "csrc/engine/serverreplay.c:eb_crystal_attack", "status": "exact", "note": "first hit sets health 0, dead, then the size 6 explosion; the probe path is csrc/engine/dragon.c:dragon_crystal_attack"}
+  ],
+  "missing": [],
+  "notes": "The explosion itself (World.createExplosion(null, x, y, z, 6.0F, true)) is csrc/engine/serverreplay.c:sr_end_crystal_explode with the chain through other crystals. end-arrival-s1 covers the crystals healing the dragon, end-crystals-s1 three crystals shot with a full bow; test_dragon.c drives dragon_crystal_tick and dragon_crystal_attack against the oracle/tests/end-* recordings. Not verified: whether the crystal's fire-block tick runs inside the same world pass as the dragon's tick in every scene. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port. It stays partial until a recording pins it. lane/idxentity: ent-endplace-s1 (from the cp-end-s1 checkpoint) places a block into a crystal's box, refused on both sides (it was placed natively, the dragon's box too), then a block beside it. Since lane/endreturn (2026-09-27): a snowball and an egg destroy a crystal (end-throw-s42), a TNT's and a bed's blast destroy one (end-tnt-s42, end-bed-s42), and the crystal blast's push on the player lands on the living twin too, so the entity pass's copy-back keeps it (serverreplay.c eb_player_motion; end-throw-s42 row 25). Crystal-on-crystal chains cannot happen on seed 42: its closest pair is 12.37 blocks apart, past a power-6 blast's 12-block entity reach."
+}

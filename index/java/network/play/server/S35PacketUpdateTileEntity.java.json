@@ -1,0 +1,140 @@
+{
+ "path": "oracle/src/network/play/server/S35PacketUpdateTileEntity.java",
+ "classes": [
+  "S35PacketUpdateTileEntity"
+ ],
+ "lines": 88,
+ "side": "common",
+ "category": "network",
+ "role": "A tile entity's NBT description to the client: mob spawners, command blocks, beacons, skulls and flower pots (each tile entity's getDescriptionPacket type code).",
+ "scope": "in_scope",
+ "scope_reason": "Mob spawners, skulls and flower pots exist in this game, so the oracle sends these packets; the native engine restores tile entity state directly instead.",
+ "status": "exact",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S35PacketUpdateTileEntity",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S35PacketUpdateTileEntity",
+   "sig": "(int,int,int,int,NBTTagCompound)V",
+   "status": "exact",
+   "native": "csrc/play/play.c:spin_of",
+   "note": "the spawner's Delay starts the client's own; the skull and flower pot content is the server tile the renderer reads"
+  },
+  {
+   "kind": "field",
+   "name": "field_148863_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "x",
+   "native": "csrc/play/play.c:spin_of"
+  },
+  {
+   "kind": "field",
+   "name": "field_148861_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "y",
+   "native": "csrc/play/play.c:spin_of"
+  },
+  {
+   "kind": "field",
+   "name": "field_148862_c",
+   "sig": "int",
+   "status": "exact",
+   "note": "z",
+   "native": "csrc/play/play.c:spin_of"
+  },
+  {
+   "kind": "field",
+   "name": "field_148859_d",
+   "sig": "int",
+   "status": "exact",
+   "note": "the action: 1 spawner, 4 skull, 5 flower pot",
+   "native": "csrc/play/play.c:draw_tileents"
+  },
+  {
+   "kind": "field",
+   "name": "field_148860_e",
+   "sig": "NBTTagCompound",
+   "status": "exact",
+   "note": "the tile's NBT: the fields the server tile carries",
+   "native": "csrc/engine/tileentity.c:te_load"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the integrated server passes packet objects"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/play/play.c:tileents_tick",
+   "note": "handleUpdateTileEntity's readFromNBT on the client tile"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "dispatch overload"
+  },
+  {
+   "kind": "method",
+   "name": "func_148856_c",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148855_d",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148854_e",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148853_f",
+   "sig": "()I",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148857_g",
+   "sig": "()NBTTagCompound",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "The description packet: TileEntity.getDescriptionPacket answers an S35 for the mob spawner (action 1: its NBT without SpawnPotentials), the skull (4) and the flower pot (5) (the beacon's 3 and the command block's 2 are off or creative); EntityPlayerMP.onUpdate sends it for every tile entity of a chunk it sends, and PlayerInstance.sendChunkUpdate for a changed cell's tile. The client's handleUpdateTileEntity reads the NBT into its own tile entity. The live client draws the server's tile entities, whose skull type and rotation, flower pot plant and spawner mob are the packet's content; the spawner's client half keeps its own delay from the packet's Delay (the value when the spawner is first seen), counting down only while the player is within range, and turns its spin by it (play.c tileents_tick). idx-spawner-s1 holds the spin, previous spin and delay to the oracle client's at every frame (the old guess, the server's delay plus one after a reset, fails at row 94). A server-driven change reaches Java's client world at the second tick (the next world tick's flush), while the live client draws the server's world at once: that is the renderer's world, a follow-up beside PlayerManager's record, not this packet's content."
+}

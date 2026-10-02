@@ -1,0 +1,47 @@
+# The headline world: what the RL pipeline trains on (Elliot, 2026-09-30).
+# config.yaml's grammar and keys (its header has both); a key left out takes
+# config.yaml's value, so this file names the world whole and says only
+# what differs elsewhere. make -C oracle script CONF=../configs/headline.yaml,
+# pipe_bench --config configs/headline.yaml.
+
+world:
+  seed: 1
+  difficulty: peaceful     # no hostile spawns, hostiles removed, the player healed (lane/peaceful)
+  render_distance: 4       # 64-block overworld fog; distant terrain remains visible at 128x128
+  daylight_cycle: on
+  keep_inventory: off
+  villages: on
+  horses: off
+  wolves: off
+  ocelots: off
+  built_golems: off
+  wither: off
+  minecarts: off
+  boats: off
+  redstone: off
+  enchanting: off
+  anvil: off
+  brewing: off
+  beacon: off
+  maps: off
+  fishing: off
+  fireworks: off
+  book_editing: off
+  sign_editing: off
+
+client:
+  graphics: fast
+  particles: minimal
+  observation: 128x128
+  ticks_per_step: 4
+  hud: off
+
+engine:
+  device_mesh: 1
+  device_generation: off
+  device_light: off
+
+# seed 1's fresh world under this file (oracle/tests/headline-s1.jsonl)
+pipeline:
+  kind: headline
+  start: out/java/snapshots/hl-headline-s1

@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/client/renderer/IconFlipped.java",
+  "classes": ["IconFlipped"],
+  "lines": 89,
+  "side": "client",
+  "category": "client_render",
+  "role": "An IIcon wrapper that flips a base icon's U coordinate (and nominally V) when queried; BlockDoor builds flipped variants of its door textures for the inner faces.",
+  "scope": "in_scope",
+  "scope_reason": "BlockDoor.getIcon returns IconFlipped icons, so the door's rendered UVs depend on this class; the native door mesher reproduces the swap.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/render_blocks2.c", "symbols": ["door_icon", "icon_from_side_meta"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/persist-village-full-s42"
+  ],
+  "members": [
+    {"kind": "field", "name": "baseIcon", "sig": "IIcon", "native": "csrc/engine/render_blocks2.c:door_icon", "status": "partial", "note": "the C door mesher reads the unflipped lower-door icon and swaps U itself"},
+    {"kind": "field", "name": "flipU", "sig": "boolean", "native": "csrc/engine/render_blocks2.c:door_icon", "status": "partial", "note": "the flipU=true case (BlockDoor's second icon) is mirrored by swapping min/max u"},
+    {"kind": "field", "name": "flipV", "sig": "boolean", "native": null, "status": "n/a", "note": "no vanilla user passes flipV=true, and the C mesher has no V-flip path; not a gap (triage 2026-09-25)"},
+    {"kind": "ctor", "name": "IconFlipped", "sig": "(IIcon,ZZ)V", "native": "csrc/engine/render_blocks2.c:door_icon", "status": "partial"},
+    {"kind": "method", "name": "getIconWidth", "sig": "()I", "native": null, "status": "n/a", "note": "delegates to the base icon; the C engine reads the icon size from atlas.json"},
+    {"kind": "method", "name": "getIconHeight", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getMinU", "sig": "()F", "native": "csrc/engine/render_blocks2.c:door_icon", "status": "partial", "note": "the swap is applied when the mesher writes the door's UVs"},
+    {"kind": "method", "name": "getMaxU", "sig": "()F", "native": "csrc/engine/render_blocks2.c:door_icon", "status": "partial"},
+    {"kind": "method", "name": "getInterpolatedU", "sig": "(D)F", "native": null, "status": "n/a", "note": "the door mesher writes corner UVs directly"},
+    {"kind": "method", "name": "getMinV", "sig": "()F", "native": null, "status": "n/a", "note": "flipV is never true in vanilla (getMinV returns base.getMinV() in both branches)"},
+    {"kind": "method", "name": "getMaxV", "sig": "()F", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getInterpolatedV", "sig": "(D)F", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getIconName", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "BlockDoor.java:107-108 is the only IconFlipped construction in oracle/src. Evidence is indirect: persist-village-s42 contains village houses with doors exercising the door mesher generally, and no render scene isolates the flipped inner face, so the pixel-exactness of the swap was not verified in isolation. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): vanilla never builds a V-flipped icon. Formerly listed as missing: The V flip (flipV) has no native path; vanilla never constructs one, so no behavior is lost today, but any future IconFlipped(base, false, true) user would render wrong. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

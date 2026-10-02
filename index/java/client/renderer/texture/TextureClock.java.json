@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/client/renderer/texture/TextureClock.java",
+  "classes": ["TextureClock"],
+  "lines": 73,
+  "side": "client",
+  "category": "client_render",
+  "role": "The 'clock' item icon's animated TextureAtlasSprite: each tick it eases a smoothed angle toward the world's celestial angle and advances the texture frame, so the dial spins.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/texanim.c", "symbols": ["clock_tick", "texanim_tick", "texanim_dials_tick"]}
+  ],
+  "evidence": ["out/java/render/blockicons_hotbar_a", "out/java/rendertick/anim_dials", "csrc/tests/test_rendertick.c"],
+  "members": [
+    {"kind": "field", "name": "field_94239_h", "sig": "double", "native": "csrc/engine/texanim.h:texanim_state", "status": "exact", "note": "clock_h"},
+    {"kind": "field", "name": "field_94240_i", "sig": "double", "native": "csrc/engine/texanim.h:texanim_state", "status": "exact", "note": "clock_i"},
+    {"kind": "ctor", "name": "TextureClock", "sig": "(String)", "native": null, "status": "n/a", "note": "the sprite comes from the dump"},
+    {"kind": "method", "name": "updateAnimation", "sig": "()V", "native": "csrc/engine/texanim.c:clock_tick", "status": "exact", "note": "off the surface the target is the client stream's Math.random (clientworld_tick_input draws it)"}
+  ],
+  "missing": [],
+  "notes": "Clocks are reachable in-game through villager trades (csrc/engine/trades.c lists item 347), so the icon can appear in a HUD slot. The vanilla dial is randomized off-surface via the oracle hook netherite.oracle.Det.mathRandom() (visible in this file's source), which is the oracle's determinism pin, not new behavior."
+}

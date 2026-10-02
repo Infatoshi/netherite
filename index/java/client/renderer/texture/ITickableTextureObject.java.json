@@ -1,0 +1,16 @@
+{
+  "path": "oracle/src/client/renderer/texture/ITickableTextureObject.java",
+  "classes": ["ITickableTextureObject"],
+  "lines": 5,
+  "side": "client",
+  "category": "client_render",
+  "role": "Marker interface joining ITextureObject and ITickable: a texture object that ticks once per client tick. The only implementor in this game is TextureMap (the block/item atlas).",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [],
+  "missing": [],
+  "notes": "The native renderer has no texture-object registry: it samples pre-stitched atlas dumps (csrc/engine/raster_texture.c, csrc/assets). The per-tick texture animation this interface enables lives in TextureClock/TextureCompass/TextureMap, which have their own records. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "An interface joining ITextureObject and ITickable; its only implementer, TextureMap, ticks the animated sprites that csrc/engine/texanim.c ports. No behaviour of its own."
+}

@@ -1,0 +1,3 @@
+id	found	by	area	field	cause	status	commit	pin	repro
+# lane/glowfix: dragonrun's open S8 frame row
+dragon-s1chain-S8	2026-09-30	lane/glowfix (frame judge)	render	px	the lit "glowstone" in the Nether fortress was a Blaze: csrc/play lit every mob from the world light at its position, where EntityBlaze and EntityMagmaCube return getBrightnessForRender 15728880 and getBrightness 1 (S8 t=5090 4,269 px to 2; cr-sweep-gold-g7-s42 t=3700 and 4100, the G7 fortress, 7,314 px to 3); the client world's light was equal to Java's (play --cw-hash against the oracle's --cw-diff)	fixed	39ff7023	clientframes/dragon-s1chain-S8 clientframes/cr-sweep-gold-g7-s42	-

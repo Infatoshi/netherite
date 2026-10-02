@@ -1,0 +1,162 @@
+{
+ "path": "csrc/engine/potion.c",
+ "lines": 981,
+ "role": "Potion effects on living entities: the Potion metadata tables, activePotionsMap as effects by id with insertion stamps, Java 8 HashMap<Integer, PotionEffect>'s iteration order computed from them (the 16 to 32 resize is the capacity), add/remove/clear/update of effects with their attribute modifiers, instant heal/harm and splash falloff, the PotionHelper damage-value parser, and the food items that apply effects.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/potion/Potion.java",
+   "members": [
+    "isBadEffect",
+    "getLiquidColor",
+    "isInstant",
+    "getEffectiveness",
+    "isReady",
+    "performEffect",
+    "affectEntity",
+    "applyAttributesModifiersToEntity",
+    "removeAttributesModifiersFromEntity",
+    "func_111183_a"
+   ]
+  },
+  {
+   "path": "oracle/src/potion/PotionEffect.java",
+   "members": [
+    "potionID",
+    "duration",
+    "amplifier",
+    "isSplashPotion",
+    "isAmbient",
+    "onUpdate",
+    "combine",
+    "deincrementDuration"
+   ]
+  },
+  {
+   "path": "oracle/src/potion/PotionHealthBoost.java",
+   "members": [
+    "removeAttributesModifiersFromEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/potion/PotionAbsoption.java",
+   "members": [
+    "applyAttributesModifiersToEntity",
+    "removeAttributesModifiersFromEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/potion/PotionAttackDamage.java",
+   "members": [
+    "func_111183_a"
+   ]
+  },
+  {
+   "path": "oracle/src/potion/PotionHelper.java",
+   "members": [
+    "getPotionEffects",
+    "parsePotionEffects",
+    "calcPotionLiquidColor",
+    "func_82817_b",
+    "checkFlag",
+    "isFlagSet",
+    "isFlagUnset",
+    "countSetFlags",
+    "func_77904_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "activePotionsMap",
+    "addPotionEffect",
+    "removePotionEffect",
+    "clearActivePotions",
+    "isPotionActive",
+    "getActivePotionEffect",
+    "updatePotionEffects",
+    "isPotionApplicable",
+    "onNewPotionEffect",
+    "onChangedPotionEffect",
+    "onFinishedPotionEffect",
+    "potionsNeedUpdate",
+    "isEntityUndead"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemAppleGold.java",
+   "members": [
+    "onFoodEaten"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemFood.java",
+   "members": [
+    "onFoodEaten",
+    "setPotionEffect"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemFishFood.java",
+   "members": [
+    "onFoodEaten"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "POT_BAD, POT_COLOR, POT_EFFECTIVENESS",
+   "java": "Potion.potionTypes' isBadEffect, liquidColor and effectiveness per id",
+   "fields": []
+  },
+  {
+   "name": "struct potion_req (table REQS)",
+   "java": "PotionHelper.potionRequirements and potionAmplifiers",
+   "fields": [
+    "id",
+    "req",
+    "amp",
+    "is_instant",
+    "effectiveness"
+   ]
+  }
+ ],
+ "entry_points": [
+  "potion_is_bad",
+  "potion_liquid_color",
+  "potion_is_instant",
+  "potion_effectiveness",
+  "potion_is_ready",
+  "potion_map_init",
+  "potion_map_clear",
+  "potion_map_get",
+  "potion_map_put",
+  "potion_map_remove",
+  "living_is_potion_active",
+  "living_get_potion_effect",
+  "living_add_potion_effect",
+  "living_remove_potion_effect",
+  "living_clear_active_potions",
+  "potion_perform_effect",
+  "potion_affect_entity",
+  "potion_apply_attributes",
+  "potion_remove_attributes",
+  "living_update_potion_effects",
+  "potion_calc_liquid_color",
+  "potion_all_ambient",
+  "potion_get_effects_for_damage",
+  "potion_apply_food",
+  "potion_map_order"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "lines 451, 464, 477, 496, 512, function potion_apply_attributes: snprintf of the modifier name inside the tick",
+  "lines 903 and 910, function potion_get_effects_for_damage: strlen and string parsing of the requirement table per call",
+  "function parse_potion_effects: the '|' and '&' splits evaluated on an explicit stack (at most 32 frames, deepest 5)",
+  "the potion map's order is data (potion_map_order over ids, stamps and the capacity); every walk, the update's expiring removal included, goes over that order (lane/gpuorder, L4)"
+ ],
+ "tests": [
+  "csrc/tests/test_potions.c"
+ ],
+ "notes": "living_heal is declared in potion.h but defined in living.c. Callers: hostiles_witch.c (thrown potions), hostiles_spider.c (spider_is_potion_applicable and the hard-difficulty spawn effect), hostiles_skeleton.c. Brewing is switched off in world.conf, so only effects from food, witch splash potions, spawn effects and loot potions reach this code. func_111183_a, func_82817_b and func_77904_a were confirmed in oracle/src/potion; the other Java member names were matched from the port's function names and comments. The update tail spends the living's rand on the ambient particle draws (lines 646-670) without spawning particles. lane/idxentity: the undead test is combatench.c living_creature_attribute (the pigman included). lane/itemuse: potion_apply_food is ItemFood.onFoodEaten's effect table with its World.rand probability draw (survival.c:sr_pot_food_effect calls it for the player; test_potions.c passes NULL for the probe's draw-free applyFoodToEntity); it had no tick caller before and lacked the poisonous potato (food-potato-s1)."
+}

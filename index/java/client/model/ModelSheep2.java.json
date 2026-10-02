@@ -1,0 +1,60 @@
+{
+ "path": "oracle/src/client/model/ModelSheep2.java",
+ "classes": [
+  "ModelSheep2"
+ ],
+ "lines": 44,
+ "side": "client",
+ "category": "client_model",
+ "role": "The sheep's body layer: the un-grown quadruped boxes under the wool.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_sheep",
+    "pose_model",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs_sheep_f006",
+  "out/java/render/mobs_sheep_f011",
+  "out/java/render/mobs_sheep_f016",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_78153_i",
+   "sig": "float",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelSheep2",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_sheep",
+   "status": "exact",
+   "note": "the wool=0 body pass with the sheep texture"
+  },
+  {
+   "kind": "method",
+   "name": "setLivingAnimations",
+   "sig": "(EntityLivingBase,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:pose_model",
+   "status": "exact"
+  }
+ ],
+ "missing": []
+}

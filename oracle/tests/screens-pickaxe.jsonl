@@ -1,0 +1,65 @@
+{"n": 16, "act": {}}
+{"cmd": "run", "class": "MobFree", "radius": 16}
+{"cmd": "run", "class": "Snapshot"}
+{"n": 1, "act": {}}
+{"n": 15, "act": {}}
+{"n": 83, "act": {"hold": ["forward", "jump"]}}
+{"n": 7, "act": {}}
+{"n": 1, "act": {"dlook": [-46.3, -46.3]}}
+{"n": 1, "act": {"press": ["attack"], "hold": ["attack"]}}
+{"n": 80, "act": {"hold": ["attack"]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {"dlook": [0.0, 26.3]}}
+{"n": 1, "act": {"press": ["attack"], "hold": ["attack"]}}
+{"n": 90, "act": {"hold": ["attack"]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {"dlook": [0.0, 76.4]}}
+{"n": 1, "act": {"press": ["attack"], "hold": ["attack"]}}
+{"n": 90, "act": {"hold": ["attack"]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {"dlook": [0.0, -136.4]}}
+{"n": 1, "act": {"press": ["attack"], "hold": ["attack"]}}
+{"n": 90, "act": {"hold": ["attack"]}}
+{"n": 121, "act": {}}
+{"n": 10, "act": {"hold": ["forward", "right"]}}
+{"n": 10, "act": {"hold": ["back", "left"]}}
+{"n": 1, "act": {"press": ["inventory"]}}
+{"n": 1, "act": {"gui": [["click", 0, 36, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 1, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 0, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 9, 0, 0]]}}
+{"n": 5, "act": {}}
+{"n": 1, "act": {"gui": [["click", 0, 9, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 1, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 3, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 9, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 0, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 10, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 9, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 1, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 2, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 3, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 4, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 11, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 0, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 0, 36, 0, 0]]}}
+{"n": 1, "act": {"gui": [["close"]]}}
+{"n": 5, "act": {}}
+{"n": 1, "act": {"dlook": [0.0, 135.4]}}
+{"n": 1, "act": {"press": ["use"]}}
+{"n": 3, "act": {}}
+{"n": 1, "act": {"press": ["use"]}}
+{"n": 1, "act": {}}
+{"n": 2, "act": {}}
+{"n": 1, "act": {"gui": [["click", 1, 12, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 1, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 2, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 3, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 12, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 11, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 5, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 8, 1, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 11, 0, 0]]}}
+{"n": 1, "act": {"gui": [["click", 1, 0, 0, 1]]}}
+{"n": 1, "act": {}}
+{"n": 1, "act": {"gui": [["close"]]}}

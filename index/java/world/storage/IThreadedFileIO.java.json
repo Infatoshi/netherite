@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/world/storage/IThreadedFileIO.java",
+  "classes": ["IThreadedFileIO"],
+  "lines": 9,
+  "side": "server",
+  "category": "world",
+  "role": "One-method interface for work queued on ThreadedFileIOBase's background writer thread; AnvilChunkLoader implements it to write pending chunks to region files.",
+  "scope": "not_needed",
+  "scope_reason": "Background disk writes change no game state; the native engine writes no saves and the GPU path has no file I/O.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "writeNextIO", "sig": "()Z", "native": null, "status": "n/a", "note": "Writes one queued chunk; I/O only."}
+  ],
+  "missing": [],
+  "notes": "No native reference found."
+}

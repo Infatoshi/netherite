@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/block/BlockSnowBlock.java",
+  "classes": ["BlockSnowBlock"],
+  "lines": 46,
+  "side": "common",
+  "category": "block",
+  "role": "The full snow block (minecraft:snow, id 80): melts above block light 11 like the layer, drops four snowballs.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/randomtick.c", "symbols": ["rt_snow"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]}
+  ],
+  "evidence": ["out/java/drops/s2", "out/java/harvestdrops/s2", "csrc/tests/test_drops.c", "csrc/tests/test_harvestdrops.c", "out/java/snapshots/cov-blkbreak-s1", "out/java/snapshots/cov-blkmisc-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockSnowBlock", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 80: Material.craftedSnow row, tick_randomly, in the table"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 80: the snowball item"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 80: 4"},
+    {"kind": "method", "name": "updateTick", "sig": "(Lnet/minecraft/world/World;IIILjava/util/Random;)V", "native": "csrc/engine/randomtick.c:rt_snow", "status": "exact", "note": "the same melt-above-light-11 body as the snow layer; rt_snow handles both ids"}
+  ],
+  "missing": [],
+  "notes": "No dedicated recording or test was found that breaks or melts a snow block; the port rests on the drops.c and randomtick.c cases matching the source. Evidence added by the triage 2026-09-25, out/plan/remaining-2026-09-25.md: the drops and harvestdrops probes break this block at every tool (s2 and s42)."
+}

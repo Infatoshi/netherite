@@ -1,0 +1,34 @@
+{
+ "path": "oracle/src/client/model/ModelCreeper.java",
+ "classes": ["ModelCreeper"],
+ "lines": 76,
+ "side": "client",
+ "category": "client_model",
+ "role": "The creeper's model: head, body and four stub legs, plus the second head layer the charged overlay uses.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_creeper", "pose_model"]}
+ ],
+ "evidence": [
+  "out/java/render/mobs2a_creeper_f006",
+  "out/java/render/mobs2a_creeper_f011",
+  "csrc/tests/test_render.c",
+  "out/java/render-src/ent_creeper"
+ ],
+ "members": [
+  {"kind": "field", "name": "head", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact"},
+  {"kind": "field", "name": "field_78133_b", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact", "note": "the grow 2.0 armour model, drawn GL_ONE, GL_ONE with depth writes and culling off"},
+  {"kind": "field", "name": "body", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact"},
+  {"kind": "field", "name": "leg1", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact"},
+  {"kind": "field", "name": "leg2", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact"},
+  {"kind": "field", "name": "leg3", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact"},
+  {"kind": "field", "name": "leg4", "sig": "ModelRenderer", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact"},
+  {"kind": "ctor", "name": "ModelCreeper", "sig": "()V", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact"},
+  {"kind": "ctor", "name": "ModelCreeper", "sig": "(float)V", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact", "note": "the grow parameter"},
+  {"kind": "method", "name": "render", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:model_creeper", "status": "exact"},
+  {"kind": "method", "name": "setRotationAngles", "sig": "(Entity,float,float,float,float,float,float)V", "native": "csrc/engine/raster_mobs.c:pose_model", "status": "exact", "note": "leg swing in model_creeper, head angles in pose_model"}
+ ],
+ "missing": [],
+ "notes": "lane/entrender: ent_creeper 5 views within 266 px (master 1,058 to 3,393 px); mobs2a_creeper fell from 1,088 to 136 px."
+}

@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/ChunkDump.java",
+ "lines": 320,
+ "role": "Stage-by-stage dump of raw overworld chunk generation (genbiomes, terrain, biomes, surface, caves, ravines, light) on a fresh ChunkProviderGenerate, checked against provideChunk; runs on its own OTHER-role thread while the server is parked. The worldgen reference in out/java/chunks.",
+ "kind": "recorder",
+ "used_by": [
+  "make -C oracle chunks (oracle/Makefile, the chunks command)",
+  "csrc/tests/test_worldgen.c (every dir under out/java/chunks)",
+  "oracle/harness/netherite/oracle/DimDump.java, FeatureProbe.java, LootProbe.java, PathProbe.java, Probe.java, ServerTickProbe.java, Snapshot.java, TradesProbe.java (reuse its helpers)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Other native tests (test_seedworld.c) also mention stage names; which of them read out/java/chunks was not verified."
+}

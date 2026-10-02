@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/world/gen/MapGenBase.java",
+  "classes": ["MapGenBase"],
+  "lines": 41,
+  "side": "server",
+  "category": "worldgen",
+  "role": "Base of every chunk-scoped generator (caves, ravines, Nether caves, and through MapGenStructure every structure type): func_151539_a seeds a Random from the world seed and calls func_151538_a for each chunk within range 8, each with its own derived seed.",
+  "scope": "in_scope",
+  "scope_reason": "Drives caves, ravines and structure start placement in every generated chunk.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/carve.c", "symbols": ["carve_pass", "RANGE"]},
+    {"file": "csrc/engine/nether.c", "symbols": ["nether_caves"]},
+    {"file": "csrc/engine/populate.c", "symbols": ["populate_offer_chunk"]},
+    {"file": "csrc/engine/structure.h", "symbols": ["structure_walk"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_dims.c", "csrc/tests/test_structures.c", "out/java/chunks/seed1", "out/java/dims/nether-2-wide"],
+  "members": [
+    {"kind": "field", "name": "range", "sig": "int (8)", "native": "csrc/engine/carve.c:RANGE", "status": "exact", "note": "A constant 8 in every C walker."},
+    {"kind": "field", "name": "rand", "sig": "Random", "native": "csrc/engine/carve.c:carve_pass", "status": "exact", "note": "A local jrand in C: vanilla reseeds it at every call, so no state carries between calls. populate.c precomputes the two placement longs once per world (mul_x, mul_z)."},
+    {"kind": "field", "name": "worldObj", "sig": "World", "native": null, "status": "n/a", "note": "Only used for getSeed and biome lookups; C passes the seed and biome array explicitly."},
+    {"kind": "method", "name": "func_151539_a", "sig": "(IChunkProvider,World,int,int,Block[])V", "native": "csrc/engine/carve.c:carve_pass", "status": "exact", "note": "Also csrc/engine/nether.c:nether_caves (Nether caves) and csrc/engine/populate.c:populate_offer_chunk (the four overworld structure maps)."},
+    {"kind": "method", "name": "func_151538_a", "sig": "(World,int,int,int,int,Block[])V", "native": null, "status": "n/a", "note": "Empty hook; each subclass's override is indexed in its own record (cave_source, ravine_source, hell_source)."}
+  ],
+  "missing": [],
+  "notes": "The x-outer, z-inner candidate order and the seed formula (x*k1 ^ z*k2 ^ seed) are reproduced in carve_pass, nether_caves and populate_offer_chunk. Gates not re-run for this record."
+}

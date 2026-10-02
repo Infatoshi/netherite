@@ -1,0 +1,72 @@
+{
+ "path": "oracle/src/network/status/server/S01PacketPong.java",
+ "classes": [
+  "S01PacketPong"
+ ],
+ "lines": 60,
+ "side": "server",
+ "category": "network",
+ "role": "The ping's reply: echoes the client's long back.",
+ "scope": "not_needed",
+ "scope_reason": "Part of the server list ping protocol, never reached in this game.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S01PacketPong",
+   "sig": "()V",
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "S01PacketPong",
+   "sig": "(J)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_149293_a",
+   "sig": "long",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerStatusClient)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "hasPriority",
+   "sig": "()Z",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_149292_c",
+   "sig": "()J",
+   "status": "n/a"
+  }
+ ],
+ "missing": []
+}

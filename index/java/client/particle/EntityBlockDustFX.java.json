@@ -1,0 +1,46 @@
+{
+ "classes": [
+  "EntityBlockDustFX"
+ ],
+ "lines": 17,
+ "side": "client",
+ "category": "particles",
+ "role": "The block dust puffed when an entity lands (RenderGlobal's blockdust name, with applyRenderColor).",
+ "scope": "in_scope",
+ "scope_reason": "In scope: an entity landing after a fall of more than three blocks makes the server send effect 2006 (EntityLivingBase.java:251); the client's RenderGlobal.playAuxSFX spawns up to 375 'blockdust_' particles from it, each spending two draws of the client world's Random first (RenderGlobal.java:2620-2621). The loop ran in 30 of 154 recordings; combat-mobs-s1 built an EntityBlockDustFX.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "new_block_fx",
+    "particles_live_aux_sfx"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/rendertick/fx_client",
+  "csrc/tests/test_rendertick.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityBlockDustFX",
+   "sig": "(World,DDDDDD,Block,I)V",
+   "native": "csrc/engine/particles_live.c:new_block_fx",
+   "status": "exact",
+   "note": "EntityDiggingFX's constructor, then the motion set to the arguments; its own kind PLIVE_BLOCKDUST (the dump names the class), layer 1"
+  }
+ ],
+ "missing": [],
+ "notes": "No behavior is ported. The scene renderer csrc/engine/raster_particles.c draws whatever class names the recorded state dump lists (base quads or icon quads), so a dump containing this class would render, but nothing constructs or ticks it natively. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). Spawned only by playAuxSFX 2006 (a fall over 3 blocks, the server's S28), 140 in fx_client. lane/idxlast 2026-09-27: proven by the rendertick scene fx_client (seed 1, --particles 0, 143 ticks, 3,923 FX compared field by field against the oracle's dump, test_rendertick); it fails with the class changed (a negative control of 80 mismatches).",
+ "path": "oracle/src/client/particle/EntityBlockDustFX.java"
+}

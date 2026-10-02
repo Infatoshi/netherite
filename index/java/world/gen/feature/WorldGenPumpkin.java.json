@@ -1,0 +1,47 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenPumpkin.java",
+ "classes": [
+  "WorldGenPumpkin"
+ ],
+ "lines": 27,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Pumpkin patch: 64 tries placing pumpkins with a random facing on grass.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_plants.c",
+   "symbols": [
+    "feature_pumpkin"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-pumpkin-2",
+  "out/java/probes/fe-pumpkin-42",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_plants.c:feature_pumpkin",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

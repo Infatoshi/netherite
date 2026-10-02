@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/network/play/client/C02PacketUseEntity.java",
+  "classes": ["C02PacketUseEntity", "C02PacketUseEntity.Action"],
+  "lines": 89,
+  "side": "client",
+  "category": "network",
+  "role": "Tells the server the player used (INTERACT) or attacked (ATTACK) an entity, carrying the target's entity id.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["client_out"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_client_attack_pressed", "right_click_mouse", "surv_server_tick_start", "process_c02_interact", "surv_find_living"]},
+    {"file": "csrc/engine/combat.c", "symbols": ["combat_server_attack"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/cat-sheep-full-s1",
+    "csrc/tests/test_hostiles.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149567_a", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "the target id rides the client_out c02[] / c02_use[] arrays, one entry per click"},
+    {"kind": "field", "name": "field_149566_b", "sig": "C02PacketUseEntity.Action", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "the action is which array the id lands in: c02[] is ATTACK, c02_use[] is INTERACT"},
+    {"kind": "ctor", "name": "C02PacketUseEntity", "sig": "(Entity,Action)V", "native": "csrc/engine/survival.c:surv_client_attack_pressed", "status": "exact", "note": "ATTACK is queued by surv_client_attack_pressed (c02[nc02++]), INTERACT by right_click_mouse (c02_use[nc02_use++]) after sync_current_play_item"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/survival.c:surv_server_tick_start", "status": "exact", "note": "surv_server_tick_start walks co->c02[] into combat.c:combat_server_attack and co->c02_use[] into process_c02_interact"},
+    {"kind": "method", "name": "func_149564_a", "sig": "(World)Entity", "native": "csrc/engine/survival.c:surv_find_living", "status": "exact", "note": "the getEntityByID lookup over the attackable livings"},
+    {"kind": "method", "name": "func_149565_c", "sig": "()Action", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "which array an entry sits in"},
+    {"kind": "field", "name": "Action enum (INTERACT, ATTACK, field_151421_c, field_151418_d)", "sig": "enum", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "modelled as the two id arrays plus process_c02_interact"},
+    {"kind": "ctor", "name": "C02PacketUseEntity", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [],
+  "notes": "The INTERACT path (process_c02_interact at survival.c:3039, the entity_interact shears/feeding flow) was read in the source; its tape coverage is via the interact tapes (cat-sheep-s1) rather than a dedicated native test. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): fight-zombie-s1, flow-combat-s1. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records cat-sheep-full-s1, whose native replay starts before the behaviour."
+}

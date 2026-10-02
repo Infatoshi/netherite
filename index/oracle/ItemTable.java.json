@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/ItemTable.java",
+ "lines": 230,
+ "role": "Generator: writes the item registry's static properties as the C header csrc/engine/items.h, read through the oracle's own methods (floats as hex literals); dumpGui also writes item_table.json (per id and meta: GUI icon/render path and display name) into a recording's state directory.",
+ "kind": "util",
+ "used_by": [
+  "make -C oracle items-h (oracle/Makefile) -> csrc/engine/items.h",
+  "csrc/tests/test_items.c (includes items.h)",
+  "oracle/harness/netherite/oracle/RenderStateProbe.java (calls ItemTable.dumpGui)",
+  "csrc/engine/hud_live.c and csrc/engine/raster_hand.c (read state/item_table.json)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "items.h is generated; do not edit it by hand."
+}

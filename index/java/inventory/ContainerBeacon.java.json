@@ -1,0 +1,111 @@
+{
+ "classes": [
+  "ContainerBeacon",
+  "ContainerBeacon.BeaconSlot"
+ ],
+ "lines": 171,
+ "side": "common",
+ "category": "inventory",
+ "role": "The beacon GUI container: one payment slot that accepts only the payment items, the effect pickers driven through enchantItem, and the three beacon field syncs.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf beacon = off: the beacon is a plain block, so this container never opens.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "theBeacon",
+   "sig": "TileEntityBeacon",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "beaconSlot",
+   "sig": "ContainerBeacon.BeaconSlot",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_82865_g",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_82867_h",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_82868_i",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerBeacon",
+   "sig": "(InventoryPlayer,TileEntityBeacon)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addCraftingToCrafters",
+   "sig": "(Lnet/minecraft/inventory/ICrafting;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateProgressBar",
+   "sig": "(II)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148327_e",
+   "sig": "()Lnet/minecraft/tileentity/TileEntityBeacon;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "BeaconSlot.isItemValid",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "BeaconSlot.getSlotStackLimit",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/ContainerBeacon.java"
+}

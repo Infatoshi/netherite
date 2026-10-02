@@ -1,0 +1,95 @@
+{
+ "path": "oracle/src/entity/item/EntityEnderPearl.java",
+ "classes": [
+  "EntityEnderPearl"
+ ],
+ "lines": 67,
+ "side": "common",
+ "category": "entity",
+ "role": "The thrown ender pearl: on impact it teleports the throwing player to where it landed and deals 5 fall damage.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/projectile.c",
+   "symbols": [
+    "proj_spawn_throwable_shooter",
+    "proj_spawn_throwable",
+    "proj_throwable_heading",
+    "pearl_on_impact",
+    "projectile_update"
+   ]
+  },
+  {
+   "file": "csrc/engine/throw.c",
+   "symbols": [
+    "spawn_throwable",
+    "pearl_impact",
+    "throw_bind",
+    "throw_server_use"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "item_entity_write_nbt"
+   ]
+  },
+  {
+   "file": "csrc/engine/riding.c",
+   "symbols": [
+    "ride_server_dismount"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/throw-items-s1",
+  "csrc/tests/test_projectiles.c",
+  "out/java/snapshots/ride-pig-s1",
+  "out/java/snapshots/pearl-death-s1",
+  "out/java/snapshots/pearl-dims-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static constants grouped)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityEnderPearl",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "EntityList's NBT constructor: a pearl still in flight when its chunk unloads; the replay keeps loaded chunks for the flight, and no survival path builds a pearl this way"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityEnderPearl",
+   "sig": "(World,EntityLivingBase)V",
+   "native": "csrc/engine/projectile.c:proj_spawn_throwable_shooter",
+   "status": "exact",
+   "note": "throw.c:spawn_throwable wraps it from ItemEnderPearl.onItemRightClick's use; proj_throwable_heading ports the ctor heading and 1.5F velocity"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityEnderPearl",
+   "sig": "(World,double,double,double)V",
+   "native": null,
+   "status": "n/a",
+   "note": "no vanilla caller in survival: dispensers do not fire pearls (BlockDispenser's registry) and redstone is off"
+  },
+  {
+   "kind": "method",
+   "name": "onImpact",
+   "sig": "(MovingObjectPosition)V",
+   "native": "csrc/engine/projectile.c:pearl_on_impact",
+   "status": "exact",
+   "note": "the entityHit.attackEntityFrom(causeThrownDamage, 0.0F) is in projectile_update's hit branch, the 32 portal particles' rand draws and setDead in pearl_on_impact, and the teleport half in throw.c:pearl_impact: only when the thrower's world is the pearl's (pearl-dims-s1), setPositionAndUpdate (fallDistance 0, attackEntityFrom(fall, 5.0F)); a pearl whose thrower died and respawned keeps the old EntityPlayerMP, so its setPositionAndUpdate moves the successor through the shared net handler (rotation 0, 0) and the 5 damage hits the dead object (pearl-death-s1); the riding thrower steps off first (riding.c ride_server_dismount)."
+  }
+ ],
+ "missing": [],
+ "notes": "ItemEnderPearl.onItemRightClick itself lives in csrc/engine/throw.c (IT_ENDER_PEARL in throw_server_use and throw_client_use) and is that file's record, not this one. EntityThrowable's shared fields (xTile, ownerName and so on) are written by csrc/engine/living.c:item_entity_write_nbt for IE_ENDER_PEARL. throw-items-s1 covers a pearl thrown onto a stone hill with the teleport and 5 damage; test_projectiles.c drives the IE_ENDER_PEARL kind through projectile_update. Not verified: the thrown-damage DamageSource plumbing against DMG_THROWN for a hit on a non-living ie_ent. lane/idxentity: only the thrower constructor is reached in play, and it is exact."
+}

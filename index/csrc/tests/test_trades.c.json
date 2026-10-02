@@ -1,0 +1,46 @@
+{
+ "path": "csrc/tests/test_trades.c",
+ "lines": 325,
+ "role": "Gate: native villager trade generation (csrc/engine/trades.c) against TradesProbe (out/java/trades/<name>/): each case drives one villager through addDefaultEquipmentAndRecipies and two unlock ticks with the maxUses boost, comparing the villager Random state and the recipe list as canonical NBT; also checks both static price tables.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/entity/passive/EntityVillager.java",
+   "members": [
+    "addDefaultEquipmentAndRecipies",
+    "updateAITick",
+    "villagersSellingList",
+    "blacksmithSellingList",
+    "func_146091_a",
+    "func_146089_b",
+    "func_146090_c"
+   ]
+  },
+  {
+   "path": "oracle/src/village/MerchantRecipeList.java",
+   "members": [
+    "addToListWithCheck"
+   ]
+  },
+  {
+   "path": "oracle/src/village/MerchantRecipe.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/TradesProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 153-155: static NATIVE_TABLES, NATIVE_TABLE_NAMES, N_NATIVE_ROWS (filled once in main)"
+ ],
+ "tests": [
+  "csrc/tests/test_trades.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Java member names were grepped in EntityVillager.java; the native test code names the static tables villagerStockList and blacksmithSellingList."
+}

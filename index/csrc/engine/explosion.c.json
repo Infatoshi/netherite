@@ -1,0 +1,104 @@
+{
+ "path": "csrc/engine/explosion.c",
+ "lines": 534,
+ "role": "The native explosion: doExplosionA's 16x16x16 ray march into doExplosionA's HashSet (jorder.c's jord_set3: keys in insertion order, the JDK 8 order computed), the entity damage and knockback pass with World.getBlockDensity, then doExplosionB's block destruction with drops, TNT chain priming and the flaming fire placement, run under blockcb_env.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/Explosion.java",
+   "members": [
+    "Explosion",
+    "doExplosionA",
+    "doExplosionB",
+    "explosionRNG",
+    "affectedBlockPositions",
+    "getExplosivePlacedBy"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "newExplosion"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getBlockDensity"
+   ]
+  },
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "dropBlockAsItemWithChance",
+    "dropBlockAsItem_do",
+    "canDropFromExplosion",
+    "onBlockDestroyedByExplosion",
+    "getExplosionResistance"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockTNT.java",
+   "members": [
+    "onBlockDestroyedByExplosion",
+    "canDropFromExplosion"
+   ]
+  },
+  {
+   "path": "oracle/src/enchantment/EnchantmentProtection.java",
+   "members": [
+    "func_92092_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityXPOrb.java",
+   "members": [
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityFireball.java",
+   "members": [
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/util/MathHelper.java",
+   "members": [
+    "floor_double",
+    "sqrt_double"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "expl_run",
+  "expl_run_extras",
+  "expl_result_free",
+  "expl_env_item_drop"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 175, function expl_env_item_drop: calloc of a new ie_ent per dropped item inside the tick",
+  "function expl_run_extras: the affected set is jord_set3 over the frame (the rays' first adds are its keys, an open-addressed index, per-bin counts for the treeify guard); the HashSet order is a counting sort by JDK bin (lane/gpuorder, L4)",
+  "line 249, function expl_run_extras: ray march loop bounded only by the float power decrement (var14 > 0), terminates but has a data-dependent trip count",
+  "lines 84-101, function block_density: triple float-step loop whose trip count depends on the box size",
+  "line 340, function expl_run_extras: iew->blast_entities callback function pointer into the owner world; expl_extra callbacks at lines 392 and 414",
+  "lines 431-498, function expl_run_extras: saves and overwrites the global blockcb_env for the duration",
+  "lines 139-141 and 448, 458: fprintf to stderr when explosion_debug is set",
+  "function expl_run_extras: the entity frames, the affected set and the affected and first-add lists come from the environment's scratch, one frame per explosion in progress (EXPL_SCRATCH_DEPTH 8: a crystal's blast inside another's); only the probe's expl_result gets heap copies (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_explosions.c",
+  "csrc/tests/test_ghasts.c",
+  "csrc/tests/test_dragon.c"
+ ],
+ "notes": "Ported against the oracle's ExplosionProbe dump. Resistance always uses blockResistance/5 (exploder treated as null for resistance); blast protection enchantment returns the value unchanged (no armour on the kinds carried). Not ported: the players' knockback map, the S27PacketExplosion fan-out, the post-run affected-position clear. The Java member names for Block/EntityItem are inferred from comments, not diffed against each Java method."
+}

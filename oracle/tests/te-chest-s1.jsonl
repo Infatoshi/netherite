@@ -1,0 +1,15 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"setblock","x":161,"y":71,"z":251,"id":54,"meta":2}
+{"cmd":"dev","op":"setblock","x":162,"y":71,"z":251,"id":54,"meta":2}
+{"n":3,"act":{}}
+{"n":1,"act":{"dlook":[0,3]}}
+{"n":1,"act":{"press":["use"]}}
+{"n":250,"act":{}}
+{"n":1,"act":{"gui":[["close"]]}}
+{"n":30,"act":{}}
+{"n":1,"act":{"press":["use"]}}
+{"n":3,"act":{}}
+{"n":1,"act":{"gui":[["close"]]}}
+{"n":30,"act":{}}

@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/item/crafting/RecipesDyes.java",
+  "classes": ["RecipesDyes"],
+  "lines": 61,
+  "side": "common",
+  "category": "crafting",
+  "role": "Registers the dye recipes: 16 wool and stained-block colours, the flower-to-dye recipes, the dye mixing recipes and the 16 carpets.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES", "CRAFT_DYE_TO_FLEECE"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "method", "name": "addRecipes", "sig": "(Lnet/minecraft/item/crafting/CraftingManager;)V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the two 16-loops and the mixing recipes unrolled into baked rows; BlockColored.func_150031_c's damage mapping is in the rows"}
+  ],
+  "missing": [],
+  "notes": "CRAFT_DYE_TO_FLEECE holds the dye-damage-to-fleece-colour mapping the armor-dye result also uses."
+}

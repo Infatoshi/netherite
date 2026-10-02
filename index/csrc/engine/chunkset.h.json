@@ -1,0 +1,73 @@
+{
+ "path": "csrc/engine/chunkset.h",
+ "lines": 78,
+ "role": "ChunkProviderServer.chunksToUnload (a Set over JDK 8 ConcurrentHashMap<Long>) with its iteration order carried as data: each key's list stamp inside its bin, per-bin counts and TreeBin roots, an open-addressed membership index.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderServer.java",
+   "members": [
+    "chunksToUnload",
+    "unloadChunksIfNotNearSpawn",
+    "unloadQueuedChunks"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "cu_slot",
+   "java": "ConcurrentHashMap Node / TreeNode: key, spread hash, the list position as a stamp, the red-black links",
+   "fields": [
+    "key",
+    "stamp",
+    "hash",
+    "parent",
+    "left",
+    "right",
+    "red",
+    "live"
+   ]
+  },
+  {
+   "name": "chunkset",
+   "java": "ChunkProviderServer.chunksToUnload",
+   "fields": [
+    "count",
+    "root",
+    "count_alt",
+    "root_alt",
+    "start",
+    "run",
+    "index",
+    "e",
+    "n",
+    "size",
+    "sizeCtl",
+    "ne",
+    "free",
+    "up",
+    "down",
+    "gen"
+   ]
+  }
+ ],
+ "entry_points": [
+  "cs_init",
+  "cs_free",
+  "cs_put",
+  "cs_take",
+  "cs_has",
+  "cs_order",
+  "cs_bytes"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "the order is a sort of the live keys by (bin, stamp): a plain put appends (the next stamp up), a tree put prepends (the next down), and a transfer keeps order (lane/gpuorder, L4)"
+ ],
+ "tests": [
+  "csrc/tests/order_test.c",
+  "csrc/tests/test_chunkload.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": ""
+}

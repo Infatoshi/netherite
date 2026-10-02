@@ -1,0 +1,114 @@
+{
+  "path": "csrc/engine/trades.c",
+  "lines": 559,
+  "role": "Villager trading: the two static price tables, each profession's draw sequence from EntityVillager.addDefaultEquipmentAndRecipies (buy, sell, the farmer's gravel, the librarian's enchanted book, the priest's enchanted tools), the Collections.shuffle, MerchantRecipeList's addToListWithCheck and canRecipeBeUsed, the unlock boost, and the Recipes NBT.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/entity/passive/EntityVillager.java",
+      "members": [
+        "addDefaultEquipmentAndRecipies",
+        "villagersSellingList",
+        "blacksmithSellingList",
+        "func_146091_a",
+        "func_146089_b",
+        "func_146092_b",
+        "func_146090_c",
+        "adjustProbability",
+        "field_82191_bN",
+        "updateAITick"
+      ]
+    },
+    {
+      "path": "oracle/src/village/MerchantRecipe.java",
+      "members": [
+        "hasSameIDsAs",
+        "hasSameItemsAs",
+        "func_82785_h",
+        "isRecipeDisabled",
+        "func_82783_a",
+        "writeToTags"
+      ]
+    },
+    {
+      "path": "oracle/src/village/MerchantRecipeList.java",
+      "members": [
+        "canRecipeBeUsed",
+        "addToListWithCheck",
+        "getRecipiesAsTags"
+      ]
+    },
+    {
+      "path": "oracle/src/enchantment/EnchantmentHelper.java",
+      "members": [
+        "addRandomEnchantment",
+        "buildEnchantmentList"
+      ]
+    },
+    {
+      "path": "oracle/src/enchantment/Enchantment.java",
+      "members": [
+        "enchantmentsBookList"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "VILLAGER_STOCK",
+      "java": "EntityVillager.villagersSellingList (item to min/max price)",
+      "fields": [
+        "item",
+        "min",
+        "max"
+      ]
+    },
+    {
+      "name": "BLACKSMITH_STOCK",
+      "java": "EntityVillager.blacksmithSellingList",
+      "fields": [
+        "item",
+        "min",
+        "max"
+      ]
+    },
+    {
+      "name": "trade_op",
+      "java": "one line of addDefaultEquipmentAndRecipies' per-profession switch",
+      "fields": [
+        "kind",
+        "item",
+        "prob"
+      ]
+    },
+    {
+      "name": "PROF_OPS",
+      "java": "the five profession branches of addDefaultEquipmentAndRecipies as data",
+      "fields": []
+    }
+  ],
+  "entry_points": [
+    "trades_villager_stock",
+    "trades_blacksmith_stock",
+    "trades_add_default",
+    "trades_unlock_boost",
+    "trades_disable",
+    "trades_same_ids",
+    "trades_is_disabled",
+    "trades_can_be_used",
+    "trades_nbt",
+    "trades_render",
+    "trades_free"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "lines 373-381 and 406-420, functions op_book and op_tools: build an NBT tree and malloc the rendered tag string inside the tick",
+    "lines 273, 311, 336, 351, 382, 423 and 461: list->r[list->n++] appends with no check against TRADES_MAX (32); add_with_check can overflow a list that grows past 32 recipes",
+    "line 432, function trades_add_default: a 32-recipe trade_list on the stack per call",
+    "lines 164-168: recipe stacks own heap tag strings (char* in a flat struct)"
+  ],
+  "tests": [
+    "csrc/tests/test_trades.c",
+    "csrc/tests/test_villagers.c"
+  ],
+  "notes": "The shuffle takes a separate Random (Collections.shuffle's shared static one), passed by the caller. Price tables and per-profession probabilities are hand-copied constants and are checked against the probe's manifest by test_trades.c per the header; not re-verified here. The price map lookup iterates a table in declared order, which does not matter since it is a keyed lookup. Java's price map field is named villagersSellingList (the header's comment says villagerStockList). trades_from_nbt: MerchantRecipeList(NBTTagCompound) for a villager's Offers and a snapshot's open trade window."
+}

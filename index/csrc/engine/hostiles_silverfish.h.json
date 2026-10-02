@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/hostiles_silverfish.h",
+ "lines": 12,
+ "role": "Declares the EntitySilverfish kind functions of hostiles_silverfish.c that hostiles.c, ai.c, living.c, survival.c and the replay code call.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntitySilverfish.java", "members": ["EntitySilverfish", "updateEntityActionState", "attackEntityFrom"]}
+ ],
+ "structs": [],
+ "entry_points": ["silverfish_construct", "silverfish_on_living_update", "silverfish_update_entity_action_state", "silverfish_hurt", "silverfish_write_extra"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hostiles.c"],
+ "notes": ""
+}

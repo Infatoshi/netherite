@@ -1,0 +1,36 @@
+{
+ "path": "oracle/harness/netherite/oracle/WorldConf.java",
+ "lines": 323,
+ "role": "The world config reader and key registry (lane/worldyaml): parses config.yaml (or configs/NAME.yaml) by the strict YAML subset its header writes down, or a tape header on replay (world object, options.difficulty and options.rd), plus --set section.key=value (a bare key is a world key); KEYS lists every key with its default and kind (world: seed, difficulty, render_distance, daylight_cycle, keep_inventory, villages and the UNSUPPORTED switches; client: graphics, particles, observation, ticks_per_step, hud; engine: device_mesh, device_generation, device_light; pipeline: kind, start), refusing unknown keys and values. Forces every UNSUPPORTED key off with a notice, sets a seed start's non-vanilla game rules at its first server tick (atServerTick), exposes the public booleans vanilla hooks check, refuses /summon of switched-off entities and prunes horses, wolves and ocelots from every biome spawn list.",
+ "kind": "harness",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Main.java (--conf, --set; the difficulty, render distance, particles and graphics defaults of options.txt) and the tape header (json())",
+  "oracle/harness/netherite/oracle/Dev.java (atServerTick: the game rules)",
+  "csrc/engine/worldconf.c (the same grammar and registry in C)",
+  "csrc/engine/spawning.c and csrc/engine/seedworld_creatures.h (spawn lists after pruneSpawns)",
+  "csrc/engine/survival.c (keeps the UNSUPPORTED features off)"
+ ],
+ "vanilla_hooks": [
+  "oracle/src/block/BlockAnvil.java",
+  "oracle/src/block/BlockBeacon.java",
+  "oracle/src/block/BlockBrewingStand.java",
+  "oracle/src/block/BlockEnchantmentTable.java",
+  "oracle/src/block/BlockPumpkin.java",
+  "oracle/src/block/BlockSkull.java",
+  "oracle/src/command/server/CommandSummon.java",
+  "oracle/src/item/ItemBoat.java",
+  "oracle/src/item/ItemEmptyMap.java",
+  "oracle/src/item/ItemFirework.java",
+  "oracle/src/item/ItemFishingRod.java",
+  "oracle/src/item/ItemMap.java",
+  "oracle/src/item/ItemMinecart.java",
+  "oracle/src/item/ItemSign.java",
+  "oracle/src/item/ItemWritableBook.java",
+  "oracle/src/tileentity/TileEntityBrewingStand.java",
+  "oracle/src/tileentity/TileEntityHopper.java",
+  "oracle/src/world/World.java",
+  "oracle/src/world/gen/structure/MapGenVillage.java",
+  "oracle/src/world/gen/structure/StructureMineshaftPieces.java"
+ ],
+ "notes": "vanilla_hooks is every oracle/src file that names WorldConf (grep); what each hook gates was not read per file. Unknown keys and values outside a key's kind are errors. Main.java calls WorldConf.load(conf, sets, Oracle.replayPath) and Checkpoint.verify uses WorldConf.json(). json() writes a game rule only when it is not vanilla's, so every tape before the rules reads the same; difficulty and render distance stay in the header's options (1.7.10 client options, applied as the integrated server starts)."
+}

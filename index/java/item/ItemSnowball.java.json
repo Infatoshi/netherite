@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/item/ItemSnowball.java",
+  "classes": ["ItemSnowball"],
+  "lines": 37,
+  "side": "common",
+  "category": "item",
+  "role": "The snowball (id 332): throws an EntitySnowball on right click, consuming one from the stack outside creative.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/throw.c", "symbols": ["throw_server_use"]}
+  ],
+  "evidence": ["out/java/snapshots/throw-items-s1", "csrc/tests/test_projectiles.c"],
+  "members": [
+    {"kind": "ctor", "name": "ItemSnowball", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 332: stack 16"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/throw.c:throw_server_use", "status": "exact", "note": "the snowball branch of the server use: the stack decrement, the itemRand pitch draw and the EntitySnowball spawn from the thrower"}
+  ],
+  "missing": [],
+  "notes": "The bow sound the client plays is client audio; the deterministic state (stack, entity spawn, RNG draws) is what throw.c replays."
+}

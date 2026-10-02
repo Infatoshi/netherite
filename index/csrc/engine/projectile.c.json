@@ -1,0 +1,174 @@
+{
+ "path": "csrc/engine/projectile.c",
+ "lines": 1359,
+ "role": "The server-side projectiles as ie_ent kinds: arrow, snowball, egg, ender pearl, exp bottle, splash potion, small and large fireball and the eye of ender. Their constructors (setThrowableHeading and the shooter constructors), onUpdate's block raytrace plus nearest-entity intercept, and each kind's onImpact; hits on living mobs, the player, crystals and dragon parts go out through ie_world callbacks.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/projectile/EntityArrow.java",
+   "members": [
+    "EntityArrow",
+    "setThrowableHeading",
+    "onUpdate",
+    "damage",
+    "canBePickedUp",
+    "shootingEntity",
+    "ticksInGround",
+    "ticksInAir",
+    "arrowShake",
+    "inGround",
+    "field_145791_d",
+    "field_145792_e",
+    "field_145789_f",
+    "field_145790_g",
+    "inData"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityThrowable.java",
+   "members": [
+    "EntityThrowable",
+    "setThrowableHeading",
+    "onUpdate",
+    "getGravityVelocity",
+    "func_70182_d",
+    "func_70183_g",
+    "throwableShake",
+    "inGround",
+    "ticksInAir",
+    "ticksInGround"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntitySnowball.java",
+   "members": [
+    "onImpact"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityEgg.java",
+   "members": [
+    "onImpact"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderPearl.java",
+   "members": [
+    "onImpact"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityExpBottle.java",
+   "members": [
+    "onImpact",
+    "getGravityVelocity",
+    "func_70182_d",
+    "func_70183_g"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityPotion.java",
+   "members": [
+    "onImpact",
+    "getGravityVelocity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityFireball.java",
+   "members": [
+    "EntityFireball",
+    "onUpdate",
+    "accelerationX",
+    "accelerationY",
+    "accelerationZ",
+    "shootingEntity",
+    "ticksAlive",
+    "ticksInAir",
+    "attackEntityFrom",
+    "getMotionFactor"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityLargeFireball.java",
+   "members": [
+    "onImpact",
+    "field_92057_e"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntitySmallFireball.java",
+   "members": [
+    "onImpact"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderEye.java",
+   "members": [
+    "moveTowards",
+    "onUpdate",
+    "targetX",
+    "targetY",
+    "targetZ",
+    "despawnTimer",
+    "shatterOrDrop"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemEnderEye.java",
+   "members": [
+    "onItemRightClick"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityXPOrb.java",
+   "members": [
+    "getXPSplit"
+   ]
+  },
+  {
+   "path": "oracle/src/util/AxisAlignedBB.java",
+   "members": [
+    "calculateIntercept"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "func_145775_I"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "proj_spawn_arrow",
+  "proj_spawn_arrow_target",
+  "proj_spawn_throwable",
+  "proj_spawn_fireball",
+  "proj_spawn_arrow_shooter",
+  "proj_spawn_throwable_shooter",
+  "proj_arrow_heading",
+  "proj_throwable_heading",
+  "projectile_update",
+  "proj_spawn_ender_eye",
+  "proj_throw_ender_eye",
+  "proj_use_ender_eye"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "lines 198, 229, 292, 379, 406, 442, functions proj_spawn_arrow, proj_spawn_arrow_target, proj_from_shooter, proj_spawn_throwable, proj_spawn_fireball, proj_spawn_ender_eye: calloc of each new projectile inside the tick, stored as a pointer in iew->list",
+  "shooting_entity and shooter are lrefs to the shooting living (lane/gpuarena, L3)",
+  "lines 826-855, 859-884, 888-908 (arrow), 1011-1092 (throwable), 1205-1305 (fireball): nearest-hit selection keeps the first candidate on a distance tie, so the result depends on the order entityquery_in_box and the query_living / query_other callbacks return candidates; fixed-size candidate buffers of 128 and 64 silently cap the scan",
+  "lines 738, 913, 922, 927, 1098, 1111, 1312, and egg/pearl paths 574, 603: behavior dispatched through ie_world function pointers (on_splash, on_arrow_hit, on_other_hit, on_fireball_impact, on_egg_chicken, on_pearl_impact, query_living, get_living_bb, spawn_item)",
+  "lines 119-122, function update_rotations and lines 519-522, function ender_eye_update: while loops wrapping prev angles by 360, unbounded in principle (bounded by the angle magnitude)",
+  "lines 486-488, function proj_throw_ender_eye: looks up Item.itemRand's det split stream by string name and may create it",
+  "line 1285, function projectile_update: the player's box comes through ghast_player_bb on iew->user_data, a ghasts.c coupling"
+ ],
+ "tests": [
+  "csrc/tests/test_projectiles.c",
+  "csrc/tests/test_ghasts.c",
+  "csrc/tests/test_eyes.c",
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Java member names in the java list were taken from this file's comments and the ported logic, not each re-checked against the Java source (the arrow/fireball field names in particular are the expected MCP names). Arrow damage on living hits, potion splash effects, pearl teleport, egg chickens and the large fireball explosion are delegated to callbacks installed by other files (item_entity.c, living.c, ghasts.c, serverreplay.c include projectile.h). Without on_egg_chicken the egg path spends the chick's constructor draws and discards it (line 577). proj_spawn_arrow and proj_spawn_throwable draw a UUID but do not store it (lines 206-207, 386-387); proj_spawn_arrow_target keeps Entity's default 0.6 x 1.8 size, matching the decompiled EntityArrow(World, EntityLivingBase, EntityLivingBase, float, float), which never calls setSize (checked). Arrow entity hits on plain ie_ents go through apply_entity_hit, which only sets fire and kills the arrow (no damage). Which tests cover which kind was inferred from grep counts, not by reading the tests."
+}

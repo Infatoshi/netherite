@@ -1,0 +1,67 @@
+{
+ "path": "oracle/src/client/model/ModelGhast.java",
+ "classes": [
+  "ModelGhast"
+ ],
+ "lines": 68,
+ "side": "client",
+ "category": "client_model",
+ "role": "The ghast's model: the body cube and nine tentacles whose lengths the constructor draws from a fixed Random(1660L).",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_ghast",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2b_ghast_f006",
+  "out/java/render/mobs2b_ghast_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "body",
+   "sig": "ModelRenderer",
+   "native": "csrc/engine/raster_mobs.c:model_ghast",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "tentacles",
+   "sig": "ModelRenderer[]",
+   "native": "csrc/engine/raster_mobs.c:model_ghast",
+   "status": "exact",
+   "note": "the Random(1660L) lengths are baked into the parts"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelGhast",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_ghast",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_ghast",
+   "status": "exact",
+   "note": "the tentacle sway from ageInTicks"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:draw_model",
+   "status": "exact",
+   "note": "the 0.6 translate folds into the draw_model base matrix"
+  }
+ ],
+ "missing": []
+}

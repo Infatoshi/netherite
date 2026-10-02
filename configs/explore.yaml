@@ -1,0 +1,18 @@
+# The exploring world: seed 1's spawn, the player walking out (pipe_bench's
+# explore kind: forward and sprinting, new chunks every few steps), each env
+# its own world with --env-seeds. config.yaml's grammar and keys; a key left
+# out takes config.yaml's value (the world is config.yaml's: seed 1, normal,
+# render distance 4). pipe_bench --config configs/explore.yaml.
+
+# Device generation wins here on the full machine (four processes, one a
+# GPU, each generating on its own card at the stream's highest priority;
+# lane/gpuspec, 2026-09-30): +21% env-steps/s at 64 worlds, +13% at 128,
+# +11% at 256 against the host path, digests equal. The headline and fresh
+# starts generate almost nothing in a run and keep it off.
+engine:
+  device_mesh: 1           # sections meshed on the device
+  device_generation: on    # raw chunk generation on the device
+
+pipeline:
+  kind: explore
+  start: out/java/snapshots/explore-long-s1

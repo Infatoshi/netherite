@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/util/IIcon.java",
+  "classes": ["IIcon"],
+  "lines": 46,
+  "side": "client",
+  "category": "client_render",
+  "role": "Interface for an icon in the texture atlas: its pixel size and its u/v bounds, used by the block renderer and the GUI to emit texture coordinates.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/render_blocks.h", "symbols": ["rb_uv", "rb_atlas", "icon_name"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_meshes.c",
+    "out/java/snapshots/rc-blocks-s1"
+  ],
+  "members": [
+    {"kind": "method", "name": "getIconWidth", "sig": "()int", "native": null, "status": "n/a", "note": "the native uv table keeps only the coordinate range, not the pixel size; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getIconHeight", "sig": "()int", "native": null, "status": "n/a", "note": "not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "getMinU", "sig": "()float", "native": "csrc/engine/render_blocks.h:rb_uv", "status": "exact", "note": "struct rb_uv holds min_u/max_u/min_v/max_v resolved per block/meta/side from atlas.json (render_blocks.h)"},
+    {"kind": "method", "name": "getMaxU", "sig": "()float", "native": "csrc/engine/render_blocks.h:rb_uv", "status": "exact"},
+    {"kind": "method", "name": "getInterpolatedU", "sig": "(double)float", "native": "csrc/engine/render_blocks.h:rb_uv", "status": "partial", "note": "the quad emission lerps the uv range inline; no named symbol"},
+    {"kind": "method", "name": "getMinV", "sig": "()float", "native": "csrc/engine/render_blocks.h:rb_uv", "status": "exact"},
+    {"kind": "method", "name": "getMaxV", "sig": "()float", "native": "csrc/engine/render_blocks.h:rb_uv", "status": "exact"},
+    {"kind": "method", "name": "getInterpolatedV", "sig": "(double)float", "native": "csrc/engine/render_blocks.h:rb_uv", "status": "partial"},
+    {"kind": "method", "name": "getIconName", "sig": "()String", "native": "csrc/engine/render_blocks.h:icon_name", "status": "partial", "note": "names exist only in the atlas manifest used to resolve the uv table"}
+  ],
+  "missing": [],
+  "notes": "The native renderer resolves icons through render_blocks.h's atlas and table (rb_atlas, icon_index); item and HUD icons are drawn by raster_hand.c and raster_hud.c with their own uv tables. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): data structure or helper replaced by fixed arrays or inlined arithmetic (GPU contract), behavior covered by its callers. Formerly listed as missing: getIconWidth/getIconHeight have no native counterpart; the uv range alone is stored."
+}

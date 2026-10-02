@@ -1,0 +1,16 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":8}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":150,"y0":89,"z0":240,"x1":172,"y1":89,"z1":264,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":150,"y0":90,"z0":240,"x1":172,"y1":99,"z1":264,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":161.5,"y":90.0,"z":250.5,"yaw":0.0,"pitch":10.0}
+{"cmd":"dev","op":"time","value":6000}
+{"cmd":"dev","op":"state","health":20.0,"food":20,"saturation":5.0}
+{"cmd":"dev","op":"slot","slot":39,"item":397,"count":1,"meta":1}
+{"cmd":"dev","op":"summon","name":"Zombie","x":163.5,"y":90.0,"z":256.5,"equip":[{"slot":4,"item":397,"meta":4}]}
+{"cmd":"dev","op":"summon","name":"Skeleton","x":159.5,"y":90.0,"z":256.5,"equip":[{"slot":4,"item":397,"meta":2}]}
+{"n":4,"act":{"look":[0.0,10.0]}}
+{"n":1,"act":{"opts":{"tpv":2}}}
+{"n":6,"act":{}}
+{"n":1,"act":{"opts":{"tpv":0}}}
+{"n":4,"act":{}}

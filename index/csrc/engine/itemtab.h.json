@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/itemtab.h",
+ "lines": 32,
+ "role": "itemtab.c's API: itemtab_get (a scene's converted table) and itemtab_lookup.",
+ "layer": "render",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "itemtab_get",
+  "itemtab_lookup"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_render.c"
+ ],
+ "notes": ""
+}

@@ -1,0 +1,40 @@
+{
+ "path": "oracle/src/entity/ai/EntityAIAvoidEntity.java",
+ "classes": ["EntityAIAvoidEntity"],
+ "lines": 138,
+ "side": "server",
+ "category": "ai",
+ "role": "Flee goal: find the nearest avoided entity in range, pick a RandomPositionGenerator target away from it and run there, speeding up inside 7 blocks.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_tasks_update", "nav_no_path", "random_target_block", "ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_update", "random_target_away_from"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/fight-creeper-s1",
+  "csrc/tests/test_hostiles.c",
+  "out/java/snapshots/villager-flee-s42"
+ ],
+ "members": [
+  {"kind": "field", "name": "field_98218_a", "sig": "IEntitySelector", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "isEntityAlive and senses_can_see for every candidate in list order"},
+  {"kind": "field", "name": "theEntity", "sig": "EntityCreature", "native": null, "status": "n/a"},
+  {"kind": "field", "name": "farSpeed", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.speed"},
+  {"kind": "field", "name": "nearSpeed", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.avoid_near_speed"},
+  {"kind": "field", "name": "closestLivingEntity", "sig": "Entity", "native": "csrc/engine/living.h:ai_task", "status": "n/a", "note": "ai_task.target"},
+  {"kind": "field", "name": "distanceFromEntity", "sig": "float", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "the task's 6.0F max distance"},
+  {"kind": "field", "name": "entityPathEntity", "sig": "PathEntity", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.path, built in shouldExecute and handed to setPath in startExecuting"},
+  {"kind": "field", "name": "entityPathNavigate", "sig": "PathNavigate", "native": null, "status": "n/a", "note": "l->nav"},
+  {"kind": "field", "name": "targetEntityClass", "sig": "Class", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target_class: HK_ZOMBIE for the villager (the pigman is in the class), 0 for the creeper (ocelots are off, the query is empty)"},
+  {"kind": "ctor", "name": "EntityAIAvoidEntity", "sig": "(EntityCreatureClassFDD)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "the villager's (EntityZombie.class, 8.0F, 0.6D, 0.6D) and the creeper's (EntityOcelot.class, 6.0F, 1.0D, 1.2D)"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "the class query, the first visible live candidate, findRandomTargetBlockAwayFrom(16, 7), the distance test, getPathToXYZ and isDestinationSame; the EntityPlayer branch (getClosestPlayerToEntity and the tamed gate) belongs to the only kind that avoids players, the ocelot, which world.conf ocelots = off removes"},
+  {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "!navigator.noPath"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "setPath(entityPathEntity, farSpeed)"},
+  {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "setSpeed(nearSpeed) inside 49 squared, else farSpeed"}
+ ],
+ "missing": [
+
+ ],
+ "notes": "Villagers flee zombies and pigmen (villager-flee-s42: two villagers start the task from the summoned zombie). The creeper's ocelot avoidance never starts (ocelots are off) and draws nothing. lane/idxentity: the player branch is a switched-off kind's (ocelots = off), not a gap."
+}

@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/block/BlockDynamicLiquid.java",
+  "classes": ["BlockDynamicLiquid"],
+  "lines": 357,
+  "side": "common",
+  "category": "block",
+  "role": "The flowing liquids (8, 10): the whole spread algorithm, the source merge, the lava-to-stone fizz, and the settle into the static form.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/features_springs.c", "symbols": ["liquid_update_tick", "depth_at", "side_sources", "fizz", "turn_static", "can_flow_into", "depth_of_neighbor"]},
+    {"file": "csrc/engine/ticks.c", "symbols": ["ticks_liquid_tick_rate"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["bwl_on_added", "lava_water_check"]},
+    {"file": "csrc/engine/servertick.c", "symbols": ["liquid_update_tick", "liquid_static_update_tick"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/liq-wash-s1",
+    "out/java/snapshots/liq-nether-s1",
+    "out/java/snapshots/world-water-lava-s1",
+    "out/java/snapshots/world-obsidian-cast-s1",
+    "out/java/snapshots/scen-water-lava-s1",
+    "csrc/tests/test_tileticks.c",
+    "out/java/snapshots/portalmake-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockDynamicLiquid", "sig": "(Lnet/minecraft/block/material/Material;)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "rows 8 and 10"},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/features_springs.c:liquid_update_tick", "status": "exact", "note": "the whole body: the four-neighbour min, the above merge, the water source merge, the lava 1-in-4 rate jitter, the meta write and reschedule, the pour and the side flow"},
+    {"kind": "method", "name": "func_149810_a", "sig": "(IBlockAccess,IIII)I", "native": "csrc/engine/features_springs.c:depth_of_neighbor", "status": "exact", "note": "the neighbour depth scan with the -100 seed and the side_sources count"},
+    {"kind": "method", "name": "func_149804_e", "sig": "(World,III)I", "native": "csrc/engine/features_springs.c:depth_at", "status": "exact", "note": "the material-matched meta"},
+    {"kind": "method", "name": "func_149811_n", "sig": "(World,III)V", "native": "csrc/engine/features_springs.c:turn_static", "status": "exact", "note": "settle into the static form, same meta"},
+    {"kind": "method", "name": "func_149813_h", "sig": "(World,IIII)V", "native": "csrc/engine/features_springs.c:flow_into", "status": "exact", "note": "the pour into one position: water drops the replaced block (randomtick.c:randomtick_drop; every block whose material does not block movement through drops.c's table), lava fizzes; liq-wash-s1, liq-nether-s1; a population's spring washing a mineshaft's rails away drops them through the population's own drop env (serverreplay.c sr_populate, portalmake-s1)"},
+    {"kind": "method", "name": "func_149799_m", "sig": "(World,III)V", "native": "csrc/engine/features_springs.c:fizz", "status": "exact", "note": "the lava-water fizz's particles and sound, draw-count stubs on the client side"},
+    {"kind": "method", "name": "func_149809_q", "sig": "(World,III)Z", "native": "csrc/engine/features_springs.c:can_flow_into", "status": "partial", "note": "the can-flow-below test folded into can_flow_into"},
+    {"kind": "method", "name": "func_149807_p", "sig": "(World,III)Z", "native": "csrc/engine/features_springs.c:can_flow_into", "status": "partial", "note": "the hole check folded into can_flow_into"},
+    {"kind": "method", "name": "func_149808_o", "sig": "(World,III)[Z", "native": "csrc/engine/features_springs.c:depth_of_neighbor", "status": "partial", "note": "the four side-hole flags, folded into the spread loop"},
+    {"kind": "method", "name": "func_149738_a", "sig": "(World)I", "native": "csrc/engine/ticks.c:ticks_liquid_tick_rate", "status": "exact", "note": "water 5, lava 10/30 by dimension"},
+    {"kind": "method", "name": "onBlockAdded", "sig": "(World,III)V", "native": "csrc/engine/blockcb.c:bwl_on_added", "status": "exact", "note": "case 8/10: the func_149805_n schedule then the rate-tick"},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "partial", "note": "the liquid reschedule rides the neighbour dispatch with lava_water_check"}
+  ],
+  "missing": [],
+  "notes": "Verified by world-water-lava-s1 (the spread), world-obsidian-cast-s1 (the lava-water interactions) and the scen-water-lava render scene. The spread lives entirely in features_springs.c, which the handoff already noted as the whole port."
+}

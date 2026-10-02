@@ -1,0 +1,36 @@
+{
+  "path": "oracle/src/tileentity/TileEntityPiston.java",
+  "classes": ["TileEntityPiston"],
+  "lines": 186,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The moving block's entity during a piston push: the block being moved, its direction and progress, pushing entities in its path, and placing the block when done.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf redstone = off: no block receives power, so pistons never extend or retract and no TileEntityPiston is ever created in play (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/tileentity.h", "symbols": ["te_piston", "TE_PISTON"]},
+    {"file": "csrc/engine/tileticks.c", "symbols": ["piston_update"]},
+    {"file": "csrc/engine/tileentity.c", "symbols": ["render_piston", "te_load"]}
+  ],
+  "evidence": ["out/java/tileticks/full2-v2", "csrc/tests/test_tileticks.c"],
+  "members": [
+    {"kind": "field", "name": "field_145869_a", "sig": "Block storedBlock", "native": "csrc/engine/tileentity.h:te_piston", "status": "exact"},
+    {"kind": "field", "name": "field_145876_i", "sig": "int storedMetadata", "native": "csrc/engine/tileentity.h:te_piston", "status": "exact"},
+    {"kind": "field", "name": "field_145874_j", "sig": "int facing", "native": "csrc/engine/tileentity.h:te_piston", "status": "exact"},
+    {"kind": "field", "name": "field_145875_k", "sig": "boolean extending", "native": "csrc/engine/tileentity.h:te_piston", "status": "exact"},
+    {"kind": "field", "name": "field_145872_l", "sig": "boolean shouldHeadBeRendered", "native": null, "status": "n/a", "note": "client render"},
+    {"kind": "field", "name": "field_145873_m, field_145870_n", "sig": "float progress, lastProgress", "native": "csrc/engine/tileentity.h:te_piston", "status": "exact"},
+    {"kind": "field", "name": "field_145871_o", "sig": "List pushedObjects", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "TileEntityPiston", "sig": "()V / (Block,int,int,boolean,boolean)V", "native": "csrc/engine/tileentity.c:te_load", "status": "n/a"},
+    {"kind": "method", "name": "func_145861_a, getBlockMetadata, func_145868_b, func_145864_c, func_145867_d", "sig": "getters", "native": "csrc/engine/tileentity.h:te_piston", "status": "n/a"},
+    {"kind": "method", "name": "func_145860_a, func_145865_b, func_145862_c, func_145859_d", "sig": "(F)F client offsets", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_145863_a", "sig": "(FF)V", "native": null, "status": "n/a", "note": "entity push; the native tick skips it (probe world has no entities)"},
+    {"kind": "method", "name": "func_145866_f", "sig": "()V", "native": null, "status": "n/a", "note": "clearPistonTileEntity"},
+    {"kind": "method", "name": "updateEntity", "sig": "()V", "native": "csrc/engine/tileticks.c:piston_update", "status": "n/a", "note": "ported for the tile tick probe (which sets one piston entity by hand)"},
+    {"kind": "method", "name": "readFromNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/tileentity.c:te_load", "status": "n/a"},
+    {"kind": "method", "name": "writeToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/tileentity.c:render_piston", "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Switched off, but a native port exists and is exact against the tile tick probe's hand-placed piston entity (manifest piston_slot). Missing when redstone is switched on: the entity push (func_145863_a) and func_145866_f. lane/reloadstate: a chunk reload sets lastProgress to progress as readFromNBT does (serverreplay.c sr_tiles_loaded)."
+}

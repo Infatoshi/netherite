@@ -1,0 +1,76 @@
+{
+  "path": "oracle/src/tileentity/TileEntityComparator.java",
+  "classes": [
+    "TileEntityComparator"
+  ],
+  "lines": 31,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The redstone comparator's block entity: the stored output signal strength.",
+  "scope": "in_scope",
+  "scope_reason": "Comparators can be crafted and placed, creating this block entity; with world.conf redstone = off its output is never updated, but it is saved.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "te_comparator",
+        "TE_COMPARATOR"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_comparator",
+        "te_load"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "out/java/place/big2",
+    "out/java/snapshots/cov-reload-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145997_a",
+      "sig": "int outputSignal",
+      "native": "csrc/engine/tileentity.h:te_comparator",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_comparator",
+      "status": "exact",
+      "note": "cov-reload-s1 saves a comparator with its chunk"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "cov-reload-s1 reads it back"
+    },
+    {
+      "kind": "method",
+      "name": "func_145996_a",
+      "sig": "()I",
+      "native": "csrc/engine/tileentity.h:te_comparator",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_145995_a",
+      "sig": "(I)V",
+      "native": null,
+      "status": "n/a",
+      "note": "only BlockRedstoneComparator's update, off with redstone"
+    }
+  ],
+  "missing": [],
+  "notes": "The placement probe's big2 tile entity dump contains a Comparator entry (grepped), so the fresh-entity NBT is checked by test_place."
+}

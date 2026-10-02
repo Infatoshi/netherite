@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/ProbeEntity.java",
+ "lines": 29,
+ "role": "The entity the move probe drives: a plain 0.6 x 1.8 Entity with step height 0.5 and empty NBT methods, spawned into a real world and never ticked; only moveEntity and setPosition are called on it.",
+ "kind": "util",
+ "used_by": [
+  "oracle/harness/netherite/oracle/Move.java",
+  "oracle/harness/netherite/oracle/Probe.java",
+  "csrc/tests/test_move.c (via the move kind's dumps)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "csrc/engine/entity.h and world.c name it as the reference for the native move entity."
+}

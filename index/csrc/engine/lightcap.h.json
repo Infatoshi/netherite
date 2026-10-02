@@ -1,0 +1,157 @@
+{
+ "path": "csrc/engine/lightcap.h",
+ "lines": 210,
+ "role": "Declares the light engine's capture (lightcap.c): the stream's records (LC_PUT, LC_CALL with its driver kinds), the chunk and band layout a non-C consumer reads, the sink interface and the counts; and the deferred mode (LC_F_AUTH, lc_back): the device holds the client world's light and returns the chunks it wrote at each sync.",
+ "layer": "test",
+ "java": [],
+ "structs": [
+  {
+   "name": "struct lc_put",
+   "java": null,
+   "fields": [
+    "kind",
+    "slot",
+    "present",
+    "shared",
+    "sent",
+    "pad",
+    "bytes",
+    "pad2"
+   ]
+  },
+  {
+   "name": "struct lc_call",
+   "java": null,
+   "fields": [
+    "kind",
+    "bytes",
+    "index",
+    "what",
+    "type",
+    "x",
+    "y",
+    "z",
+    "cx",
+    "cz",
+    "side",
+    "dim",
+    "no_generate",
+    "ret",
+    "overflow",
+    "cursor0",
+    "cursor1",
+    "calls",
+    "tail_sum",
+    "epoch0",
+    "wseq0",
+    "epoch1",
+    "wseq1",
+    "written",
+    "slot",
+    "flags"
+   ]
+  },
+  {
+   "name": "struct lc_after",
+   "java": null,
+   "fields": [
+    "slot",
+    "present",
+    "shared"
+   ]
+  },
+  {
+   "name": "struct lc_layout",
+   "java": null,
+   "fields": [
+    "chunk_bytes",
+    "chunk_slot",
+    "sec_bytes",
+    "cx",
+    "cz",
+    "band",
+    "height",
+    "precip",
+    "height_min",
+    "mask",
+    "no_sky",
+    "stamp",
+    "edge_stamp",
+    "wseq",
+    "terrain_populated",
+    "queued_light_checks",
+    "sec_ids_hi",
+    "sec_shared",
+    "sec_ids",
+    "sec_metas",
+    "sec_sky",
+    "sec_blocklight"
+   ]
+  },
+  {
+   "name": "struct lc_sink",
+   "java": null,
+   "fields": [
+    "ctx",
+    "buf",
+    "cap",
+    "submit",
+    "finish",
+    "free",
+    "sync"
+   ]
+  },
+  {
+   "name": "struct lc_stats",
+   "java": null,
+   "fields": [
+    "calls",
+    "sky",
+    "guard",
+    "wrote",
+    "writes",
+    "overflow",
+    "drivers",
+    "driver_calls",
+    "relight_host",
+    "tail_max",
+    "puts",
+    "put_bands",
+    "put_bytes",
+    "call_bytes",
+    "chunks_written",
+    "flushes"
+   ]
+  },
+  {
+   "name": "struct lc_back",
+   "java": null,
+   "fields": [
+    "slots",
+    "status",
+    "bytes",
+    "epoch",
+    "wseq"
+   ]
+  }
+ ],
+ "entry_points": [
+  "lightcap_new",
+  "lightcap_update",
+  "lightcap_driver_begin",
+  "lightcap_driver_end",
+  "lightcap_finish",
+  "lc_sink_cuda_create",
+  "lightcap_new_defer",
+  "lightcap_defer_run",
+  "lightcap_defer_forget",
+  "lc_defer_exec_cuda",
+  "lc_defer_exec_cuda_inproc"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": ""
+}

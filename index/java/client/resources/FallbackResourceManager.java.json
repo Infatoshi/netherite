@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/resources/FallbackResourceManager.java",
+  "classes": ["FallbackResourceManager"],
+  "lines": 96,
+  "side": "client",
+  "category": "client_resources",
+  "role": "One domain's resource-manager layer: keeps an ordered pack list, resolves getResource from the topmost pack that has it (with the .mcmeta sidecar attached) and getAllResources across every pack.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "resourcePacks", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "frmMetadataSerializer", "sig": "IMetadataSerializer", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "FallbackResourceManager", "sig": "(IMetadataSerializer)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "addResourcePack", "sig": "(IResourcePack)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResourceDomains", "sig": "()Set", "native": null, "status": "n/a", "note": "always returns null in 1.7.10"},
+    {"kind": "method", "name": "getResource", "sig": "(ResourceLocation)IResource", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getAllResources", "sig": "(ResourceLocation)List", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getLocationMcmeta", "sig": "(ResourceLocation)ResourceLocation", "native": null, "status": "n/a", "note": "static"}
+  ],
+  "missing": [],
+  "notes": "The pack-precedence logic only matters with more than one pack, which never happens in this game. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Pack precedence plumbing; with the default pack only there is nothing to layer, and native reads assets by path."
+}

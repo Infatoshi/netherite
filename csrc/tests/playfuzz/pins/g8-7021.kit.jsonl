@@ -1,0 +1,14 @@
+{"tick":2,"class":"Dev","cmd":{"op":"tp","x":-202.5,"y":44.0,"z":-92.5}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":5,"item":420,"count":4}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":7,"item":145,"count":2}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":1,"item":381,"count":16}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":3,"item":368,"count":16}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":0,"item":46,"count":16}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":4,"item":259,"count":1}}
+{"tick":2,"class":"Dev","cmd":{"op":"slot","slot":27,"item":373,"count":1,"meta":8200}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-204,"y0":44,"z0":-92,"x1":-202,"y1":46,"z1":-90,"id":0,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-204,"y0":43,"z0":-92,"x1":-202,"y1":43,"z1":-90,"id":1,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-204,"y0":44,"z0":-96,"x1":-202,"y1":46,"z1":-94,"id":0,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"fill","x0":-204,"y0":43,"z0":-96,"x1":-202,"y1":43,"z1":-94,"id":1,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"setblock","x":-203,"y":44,"z":-91,"id":85,"meta":0}}
+{"tick":2,"class":"Dev","cmd":{"op":"summon","name":"Cow","x":-202.5,"y":44.0,"z":-94.5}}

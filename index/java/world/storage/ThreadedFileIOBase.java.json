@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/world/storage/ThreadedFileIOBase.java",
+  "classes": ["ThreadedFileIOBase"],
+  "lines": 96,
+  "side": "server",
+  "category": "chunk",
+  "role": "The singleton \"File IO Thread\" that drains queued IThreadedFileIO writers (AnvilChunkLoader chunk saves) in the background. Carries two oracle hooks: under Oracle.active() queueIO hands the writer to netherite.oracle.ChunkIO (a chunk loader's saves are already queued there by AnvilChunkLoader.saveChunk's detach hook, so its queueIO is a no-op), and waitForFinish first settles ChunkIO.",
+  "scope": "not_needed",
+  "scope_reason": "Background disk writing is not game behavior: the oracle writes chunks through ChunkIO, which writes every save in save order from its own copy and lets a pending chunk load from a copy of its NBT, so chunk save/reload and the region files are deterministic, and the native engine keeps unloaded chunk state in memory rather than writing region files on a thread.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "threadedIOInstance", "sig": "static final ThreadedFileIOBase", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "threadedIOQueue", "sig": "List (synchronized)", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "writeQueuedCounter", "sig": "volatile long", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "savedIOCounter", "sig": "volatile long", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "isThreadWaiting", "sig": "volatile boolean", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "ThreadedFileIOBase", "sig": "()", "native": null, "status": "n/a", "note": "starts the File IO Thread at priority 1"},
+    {"kind": "method", "name": "run", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processQueue", "sig": "()V", "native": null, "status": "n/a", "note": "wall-clock sleeps of 0/10/25 ms"},
+    {"kind": "method", "name": "queueIO", "sig": "(IThreadedFileIO)V", "native": null, "status": "n/a", "note": "oracle hook: netherite.oracle.ChunkIO.queue takes the writer when Oracle.active() (a chunk loader: nothing to do, detach queued the save)"},
+    {"kind": "method", "name": "waitForFinish", "sig": "()V", "native": null, "status": "n/a", "note": "oracle hook: netherite.oracle.ChunkIO.settle() first"}
+  ],
+  "missing": [],
+  "notes": "The queueIO and waitForFinish hooks are one-line calls into netherite.oracle.ChunkIO (the vanilla background writer races chunk reloads; ChunkIO closes the race: every save is written in save order from its own copy, and settle waits for all of them). Not verified: whether csrc/engine/region.c or chunkload.c models the save point order explicitly; grep for ThreadedFileIO and queueIO in native found nothing."
+}

@@ -1,0 +1,151 @@
+{
+  "path": "csrc/engine/player.c",
+  "lines": 1930,
+  "role": "The client and server player ticks the lockstep replay drives: the client player's input, sprint, jump, water, ladder and ground movement and its C03/C0B motion packets, and the server player's C0B actions, processPlayer validation (S08 corrections) and EntityPlayerMP.onUpdateEntity movement, plus loading both players from the snapshot NBT trees.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/client/entity/EntityClientPlayerMP.java",
+      "members": [
+        "onUpdate",
+        "sendMotionUpdates",
+        "oldPosX",
+        "oldMinY",
+        "oldPosY",
+        "oldPosZ",
+        "oldRotationYaw",
+        "oldRotationPitch",
+        "wasOnGround",
+        "shouldStopSneaking",
+        "wasSneaking",
+        "ticksSinceMovePacket"
+      ]
+    },
+    {
+      "path": "oracle/src/client/entity/EntityPlayerSP.java",
+      "members": [
+        "onLivingUpdate",
+        "pushOutOfBlocks",
+        "isSneaking",
+        "sprintToggleTimer",
+        "sprintingTicksLeft",
+        "renderArmPitch",
+        "renderArmYaw",
+        "updateEntityActionState"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayer.java",
+      "members": [
+        "onUpdate",
+        "onLivingUpdate",
+        "moveEntityWithHeading",
+        "jump",
+        "isOnLadder",
+        "addMovementStat"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "onLivingUpdate",
+        "moveEntityWithHeading",
+        "jump",
+        "setSprinting",
+        "swingItem",
+        "updateArmSwingProgress",
+        "isOnLadder",
+        "isJumping",
+        "jumpTicks",
+        "jumpMovementFactor"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "setRotation",
+        "setPositionAndRotation",
+        "handleWaterMovement",
+        "moveFlying",
+        "isOffsetPositionInLiquid",
+        "onEntityUpdate",
+        "setSprinting"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "handleMaterialAcceleration",
+        "isAnyLiquid",
+        "isMaterialInBB",
+        "checkBlockCollision"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockLiquid.java",
+      "members": [
+        "getLiquidHeightPercent",
+        "func_149804_e",
+        "func_149800_f",
+        "velocityToAddToEntity"
+      ]
+    },
+    {
+      "path": "oracle/src/util/MovementInputFromOptions.java",
+      "members": [
+        "updatePlayerMoveState"
+      ]
+    },
+    {
+      "path": "oracle/src/network/NetHandlerPlayServer.java",
+      "members": [
+        "processPlayer",
+        "processEntityAction",
+        "hasMoved",
+        "lastPosX",
+        "lastPosY",
+        "lastPosZ",
+        "floatingTickCount",
+        "networkTickCount"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/player/EntityPlayerMP.java",
+      "members": [
+        "onUpdateEntity",
+        "onUpdate",
+        "playerConqueredTheEnd",
+        "currentWindowId"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "key_desc",
+    "key_lookup",
+    "entity_set_rotation",
+    "entity_set_pos_rot",
+    "handle_water_movement",
+    "client_player_load",
+    "server_player_load",
+    "client_swing_item",
+    "client_player_tick",
+    "server_player_tick",
+    "player_no_sprint_boost",
+    "player_no_ground_friction",
+    "client_player_added_to_chunk"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+    "line 51, function key_lookup: strcmp over key descriptions (load/parse time)",
+    "line 243, function liquid_flow_vector: strcmp on the material name \"ice\" inside the tick",
+    "lines 394-396, function scalar_text: nbt_render heap string then free (snapshot load, not the tick)",
+    "line 1241, function client_player_tick: particles_live_tick on a shared surv_fx particle state (client-side cosmetic work inside the client tick)",
+    "struct client_player and server_player (player.h) hold function pointers on_world_change and on_entity_update and pointers to combat, replay, open_container and iew: a pointer graph between per-player state"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "The Java member lists are read from the port's function comments and names; each Java member was not opened individually. Survival state, eating, sleep, stats and the s2c packet queue live in survival.c and sleep.c, which player.c calls (surv_client_tick_start, surv_server_tick_start, sleep_client_update and so on). play/play.c drives client_player_tick for the human client. The header comment lists what it does not port: dig and right-click use on these tapes, and the other entities. lane/clientstate: the client player carries EntityPlayerSP's portal timer (clientstate.c): cp_set_in_portal from its own move's portal cells, the tick in cp_on_living_update with the trigger draw on sv.erand; survival.c resets it for a fresh player. client_player_load / server_player_load read a snapshot's runtime block: the sprint and sneak flags, the movementSpeed value, the jump counters, the bounding box, the ridden vehicle, the portal counters, currentWindowId and the handler's lastPos. lane/anytick: both loads take the runtime collision flags (EntityPlayerSP stops a sprint on isCollidedHorizontally before it moves). lane/covclient: the tracker pass sends the player's own watcher 7 and 8 (potion colour and ambience) as PK_S1C_POT when they change."
+}

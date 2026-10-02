@@ -1,0 +1,133 @@
+{
+ "path": "csrc/engine/riding.c",
+ "lines": 508,
+ "role": "The player riding a saddled pig on both sides of the replay: EntityAIControlledByPlayer's steering and boost, the carrot on a stick, the saddle, the server mount (S1B, setPlayerLocation), the sneak and pearl dismount through dismountEntity, the rider's updateRidden inside its vehicle's update and again from processPlayer, the rider's fall and flyPig, the riding pickup box, and the client's S1B and rider position.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/ai/EntityAIControlledByPlayer.java",
+   "members": [
+    "shouldExecute",
+    "updateTask",
+    "boostSpeed",
+    "isControlledByPlayer",
+    "func_151498_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityPig.java",
+   "members": [
+    "canBeSteered",
+    "interact",
+    "fall",
+    "getAIControlledByPlayer"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemSaddle.java",
+   "members": [
+    "itemInteractionForEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemCarrotOnAStick.java",
+   "members": [
+    "onItemRightClick"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "mountEntity",
+    "updateRidden",
+    "addMountedMovementStat",
+    "getYOffset",
+    "onLivingUpdate (the riding pickup box)"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayerMP.java",
+   "members": [
+    "mountEntity",
+    "setEntityActionState",
+    "setPositionAndUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "dismountEntity",
+    "updateRidden"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "mountEntity",
+    "updateRidden",
+    "updateRiderPosition",
+    "getMountedYOffset",
+    "fall"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateEntityWithOptionalForce (the rider after its vehicle)"
+   ]
+  },
+  {
+   "path": "oracle/src/client/network/NetHandlerPlayClient.java",
+   "members": [
+    "handleEntityAttach (the player's own)"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityEnderPearl.java",
+   "members": [
+    "onImpact (the riding thrower)"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "server_player.riding / client_player.riding_id",
+   "java": "Entity.ridingEntity (the vehicle's ridden_by_entity is the replay's player twin)",
+   "fields": [
+    "riding",
+    "move_strafing",
+    "move_forward",
+    "is_jumping",
+    "riding_id"
+   ]
+  }
+ ],
+ "entry_points": [
+  "ride_ai_should_execute",
+  "ride_ai_update",
+  "ride_carrot_right_click",
+  "ride_saddle_interact",
+  "ride_pig_interact",
+  "ride_server_dismount",
+  "ride_server_update_entity",
+  "ride_server_rider_position",
+  "ride_server_process_input",
+  "ride_server_pickup_box",
+  "ride_player_fall",
+  "ride_pig_fly",
+  "ride_client_s1b",
+  "ride_client_riding",
+  "ride_client_rider_position",
+  "ride_client_vehicle_id"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "the server player's vehicle is an lref (ridingh) (lane/gpuarena, L3)",
+  "open_s2c: the per-player s2c queue is opened from inside the entity pass (the rider's update), keyed on dev_prequeued and net_phase"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/ride-stats-s1"
+ ],
+ "notes": "Recording out/java/snapshots/ride-pig-s1 (lane/ride). ride_client_update_ridden itself lives in player.c beside the client player's statics. C0C jump while riding runs the server player's own jump (never pressed in the recording)."
+}

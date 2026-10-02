@@ -1,0 +1,156 @@
+{
+  "path": "oracle/src/command/PlayerSelector.java",
+  "classes": [
+    "PlayerSelector"
+  ],
+  "lines": 347,
+  "side": "server",
+  "category": "commands",
+  "role": "Parses @p/@a/@r/@f selector tokens with x/y/z/r/rm/l/lm/m/c/team/name arguments and matches players through ServerConfigurationManager.findPlayers.",
+  "scope": "in_scope",
+  "scope_reason": "In scope since lane/idxclient: the chat takes typed input (GuiChat, the live client's T and slash), so a player types commands; the integrated server without cheats answers each (only tell, me, help and seed are allowed) and its tab completion reads the command map (csrc/engine/chatcmd.c).",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcmd.c",
+      "symbols": [
+        "sel_token",
+        "sel_arg_map",
+        "sel_value",
+        "sel_match",
+        "sel_multi"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/idx-chattype-s1",
+    "out/java/snapshots/idx-chatsleep-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "tokenPattern",
+      "sig": "Pattern (static)",
+      "native": "csrc/engine/chatcmd.c:sel_token",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "intListPattern",
+      "sig": "Pattern (static)",
+      "native": "csrc/engine/chatcmd.c:sel_arg_map",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "keyValueListPattern",
+      "sig": "Pattern (static)",
+      "native": "csrc/engine/chatcmd.c:sel_arg_map",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "matchOnePlayer",
+      "sig": "(ICommandSender,String)EntityPlayerMP",
+      "native": "csrc/engine/chatcmd.c:cmd_tell",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_150869_b",
+      "sig": "(ICommandSender,String)IChatComponent",
+      "native": "csrc/engine/chatcmd.c:cmd_me",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "matchPlayers",
+      "sig": "(ICommandSender,String)EntityPlayerMP[]",
+      "native": "csrc/engine/chatcmd.c:sel_match",
+      "status": "exact",
+      "note": "ServerConfigurationManager.findPlayers over the one player: name, team (none), the radius about the modified coordinates, the scores (no objective exists: a score argument matches nobody), the game mode, the levels; @r's Collections.shuffle of one draws nothing, a negative count is subList's exception"
+    },
+    {
+      "kind": "method",
+      "name": "func_96560_a",
+      "sig": "(Map)Map",
+      "native": "csrc/engine/chatcmd.c:sel_match",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "matchesMultiplePlayers",
+      "sig": "(String)boolean",
+      "native": "csrc/engine/chatcmd.c:sel_multi",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "hasTheseArguments",
+      "sig": "(String,String)boolean",
+      "native": "csrc/engine/chatcmd.c:sel_token",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "hasArguments",
+      "sig": "(String)boolean",
+      "native": "csrc/engine/chatcmd.c:cmd_me",
+      "status": "exact",
+      "note": "any token, as in Java"
+    },
+    {
+      "kind": "method",
+      "name": "getDefaultMinimumRange",
+      "sig": "(String)int",
+      "native": "csrc/engine/chatcmd.c:sel_match",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getDefaultMaximumRange",
+      "sig": "(String)int",
+      "native": "csrc/engine/chatcmd.c:sel_match",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getDefaultMaximumLevel",
+      "sig": "(String)int",
+      "native": "csrc/engine/chatcmd.c:sel_match",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getDefaultMinimumLevel",
+      "sig": "(String)int",
+      "native": "csrc/engine/chatcmd.c:sel_match",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getDefaultCount",
+      "sig": "(String)int",
+      "native": "csrc/engine/chatcmd.c:sel_match",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getArgumentMap",
+      "sig": "(String)Map",
+      "native": "csrc/engine/chatcmd.c:sel_arg_map",
+      "status": "exact",
+      "note": "the two patterns' find loops by hand (\\\\G anchored, the one empty match at the end)"
+    },
+    {
+      "kind": "ctor",
+      "name": "PlayerSelector",
+      "sig": "()",
+      "native": null,
+      "status": "n/a",
+      "note": "a class of static members only: nothing in oracle/src constructs it (no `new PlayerSelector`), so its implicit constructor never runs"
+    }
+  ],
+  "missing": [],
+  "notes": "lane/idxclient: over the one player, for /me's words and /tell's target. idx-chattype-s1 (@p, @a, @a[m=1], @f[c=2], @r[c=-1], @p[r=3,name=!bob], @p[l=0], @p[score_x=1], @p[0,0,0,5])."
+}

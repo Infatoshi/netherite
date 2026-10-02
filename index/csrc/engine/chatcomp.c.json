@@ -1,0 +1,179 @@
+{
+  "path": "csrc/engine/chatcomp.c",
+  "lines": 729,
+  "role": "The server's chat components in one fixed tree (ChatComponentText, ChatComponentTranslation, their ChatStyle chain, EnumChatFormatting's codes): Gson's wire form (IChatComponent.Serializer), the parts GuiNewChat iterates a component into over the en_US strings, the S02 that carries both on the server's packet queue, and the row check against the oracle's s02 field.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/util/ChatComponentText.java",
+      "members": [
+        "ChatComponentText",
+        "getChatComponentText_TextValue",
+        "getUnformattedTextForChat",
+        "createCopy"
+      ]
+    },
+    {
+      "path": "oracle/src/util/ChatComponentTranslation.java",
+      "members": [
+        "ChatComponentTranslation",
+        "ensureInitialized",
+        "initializeFromFormat",
+        "getFormatArgumentAsComponent",
+        "setChatStyle",
+        "iterator",
+        "createCopy",
+        "getKey",
+        "getFormatArgs"
+      ]
+    },
+    {
+      "path": "oracle/src/util/ChatComponentStyle.java",
+      "members": [
+        "appendSibling",
+        "appendText",
+        "setChatStyle",
+        "getChatStyle",
+        "iterator",
+        "getFormattedText",
+        "createDeepCopyIterator"
+      ]
+    },
+    {
+      "path": "oracle/src/util/ChatStyle.java",
+      "members": [
+        "getColor",
+        "getBold",
+        "getItalic",
+        "getStrikethrough",
+        "getUnderlined",
+        "getObfuscated",
+        "isEmpty",
+        "setColor",
+        "setChatClickEvent",
+        "setChatHoverEvent",
+        "setParentStyle",
+        "getFormattingCode",
+        "getParent",
+        "createShallowCopy",
+        "createDeepCopy",
+        "Serializer.serialize"
+      ]
+    },
+    {
+      "path": "oracle/src/util/EnumChatFormatting.java",
+      "members": [
+        "getFormattingCode",
+        "getFriendlyName",
+        "toString"
+      ]
+    },
+    {
+      "path": "oracle/src/util/IChatComponent.java",
+      "members": [
+        "Serializer.serialize",
+        "Serializer.func_150696_a"
+      ]
+    },
+    {
+      "path": "oracle/src/network/play/server/S02PacketChat.java",
+      "members": [
+        "S02PacketChat",
+        "writePacketData",
+        "func_148915_c"
+      ]
+    },
+    {
+      "path": "oracle/src/util/StatCollector.java",
+      "members": [
+        "translateToLocal",
+        "canTranslate"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "chat_comp",
+      "java": "one IChatComponent tree and its ChatStyle objects",
+      "fields": [
+        "ncomp",
+        "nstyle",
+        "npool",
+        "comp",
+        "style",
+        "pool"
+      ]
+    },
+    {
+      "name": "cc_comp",
+      "java": "ChatComponentText / ChatComponentTranslation (text or key, formatArgs, siblings, style)",
+      "fields": [
+        "kind",
+        "style",
+        "str",
+        "nsib",
+        "narg",
+        "sib",
+        "arg",
+        "arg_raw"
+      ]
+    },
+    {
+      "name": "cc_style",
+      "java": "ChatStyle (the Boolean fields -1 null, the parent a slot)",
+      "fields": [
+        "color",
+        "bold",
+        "italic",
+        "underlined",
+        "strikethrough",
+        "obfuscated",
+        "click",
+        "hover",
+        "click_value",
+        "hover_value",
+        "parent"
+      ]
+    },
+    {
+      "name": "CHAT_KEYS",
+      "java": "assets/minecraft/lang/en_US.lang, the keys the server's lines use",
+      "fields": []
+    }
+  ],
+  "entry_points": [
+    "chat_comp_init",
+    "chat_text",
+    "chat_translation",
+    "chat_arg",
+    "chat_arg_raw",
+    "chat_style_of",
+    "chat_set_style",
+    "chat_append",
+    "chat_append_text",
+    "chat_set_color",
+    "chat_set_click",
+    "chat_set_hover",
+    "chat_copy",
+    "chat_style_empty",
+    "chat_style_code",
+    "chat_json",
+    "chat_parts",
+    "chat_translate",
+    "chat_can_translate",
+    "chat_s02_send",
+    "chat_s02_json",
+    "chat_s02_check"
+  ],
+  "tick_path": true,
+  "gpu": [
+    "line 659, chat_s02_send: a 1536-byte local buffer for the JSON and parts before they are copied into the packet's side part (frame under 4 KB, make -C csrc stack)",
+    "lines 435 and 527, chat_json and chat_parts: the component walks run over bounded work lists (SJ_STACK 96, PW_STACK 64), not recursion",
+    "line 50, cc_fail: a tree past its fixed capacities (CC_MAX_COMP, CC_MAX_STYLE, CC_POOL) stops the program",
+    "chat_translate: a linear search over CHAT_KEYS, a const table"
+  ],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "notes": "chat_s02_check is the harness's row check (test_snapshots, play --check), outside the tick."
+}

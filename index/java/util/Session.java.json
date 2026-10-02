@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/util/Session.java",
+  "classes": ["Session", "Session.Type"],
+  "lines": 94,
+  "side": "client",
+  "category": "other",
+  "role": "The logged-in player's profile: username, player UUID, session token and account type, wrapped into the GameProfile the game carries.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "username", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "playerID", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "token", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_152429_d", "sig": "Session.Type", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "Session", "sig": "(String,String,String,String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSessionID", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPlayerID", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getUsername", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getToken", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_148256_e", "sig": "()GameProfile", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152428_f", "sig": "()Session.Type", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "Type", "sig": "enum LEGACY/MOJANG", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The oracle runs offline with a fixed profile; the native engine has no authentication and every player is one name carried in the snapshot. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "The logged-in profile (name, UUID, token); the oracle runs offline with one fixed profile, which the snapshot carries into native."
+}

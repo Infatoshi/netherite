@@ -1,0 +1,11 @@
+{
+  "path": "oracle/harness/netherite/oracle/PoolMouse.java",
+  "lines": 129,
+  "role": "The host mouse a pool run starts with: warps the X pointer back to where it was at the pristine point and writes back LWJGL's Mouse statics and its LinuxMouse (position, deltas, buttons, event queues). A GUI hover highlight reads the pointer; a pool run after a GUI run otherwise drew smoke-s1's inventory frame without it.",
+  "kind": "harness",
+  "used_by": [
+    "oracle/harness/netherite/oracle/Pool.java"
+  ],
+  "vanilla_hooks": [],
+  "notes": "LWJGL 2.9.1 Linux only (LinuxDisplay.mouse); pool init fails loudly elsewhere."
+}

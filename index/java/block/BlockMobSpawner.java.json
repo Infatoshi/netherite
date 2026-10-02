@@ -1,0 +1,34 @@
+{
+  "path": "oracle/src/block/BlockMobSpawner.java",
+  "classes": ["BlockMobSpawner"],
+  "lines": 62,
+  "side": "common",
+  "category": "block",
+  "role": "The monster spawner: a tile-entity block that drops nothing but 15 to 44 xp on break.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/tileentity.c", "symbols": ["te_kind_of_block", "TE_MOB_SPAWNER"]},
+    {"file": "csrc/engine/tileticks.c", "symbols": ["spawner_update", "TE_MOB_SPAWNER"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break", "emit_xp"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/te-spawner-s1",
+    "out/java/tileticks/full2-v2",
+    "csrc/tests/test_tileticks.c",
+    "out/java/snapshots/pickblock-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockMobSpawner", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 52: rock material"},
+    {"kind": "method", "name": "createNewTileEntity", "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;", "native": "csrc/engine/tileentity.c:te_kind_of_block", "status": "exact", "note": "case 52 returns TE_MOB_SPAWNER"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "n/a", "note": "Block.dropBlockAsItemWithChance asks getItemDropped once per quantityDropped, which is 0 for a spawner"},
+    {"kind": "method", "name": "quantityDropped", "sig": "(Ljava/util/Random;)I", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "0"},
+    {"kind": "method", "name": "dropBlockAsItemWithChance", "sig": "(World,IIIIFI)V", "native": "csrc/engine/drops.c:emit_xp", "status": "exact", "note": "case 52: the two nextInt(15) draws, the xp orbs"},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "opaque_cube 0"},
+    {"kind": "method", "name": "getItem", "sig": "(World,III)Lnet/minecraft/item/Item;", "native": "csrc/engine/pickblock.c:block_get_item", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"}
+  ],
+  "missing": [],
+  "notes": "Verified by te-spawner-s1 (zombie and skeleton spawners at night, waves at the player) and the tileticks census (spawner_update in the probe world returns early with no player in range, exactly as the oracle runs)."
+}

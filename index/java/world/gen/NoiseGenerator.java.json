@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/world/gen/NoiseGenerator.java",
+  "classes": ["NoiseGenerator"],
+  "lines": 6,
+  "side": "server",
+  "category": "worldgen",
+  "role": "Empty abstract base class of NoiseGeneratorImproved, NoiseGeneratorOctaves and NoiseGeneratorPerlin; it carries no state or behavior.",
+  "scope": "in_scope",
+  "scope_reason": "Base type of the terrain noise generators every chunk uses.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/noise.h", "symbols": ["improved", "octaves", "perlin"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "out/java/chunks/seed1"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a", "note": "Obfuscation id constant, no behavior."}
+  ],
+  "missing": [],
+  "notes": "Nothing to port: the class has no members beyond the obfuscation id. The C noise structs in noise.h stand on their own without a base type."
+}

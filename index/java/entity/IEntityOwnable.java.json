@@ -1,0 +1,19 @@
+{
+ "path": "oracle/src/entity/IEntityOwnable.java",
+ "classes": ["IEntityOwnable"],
+ "lines": 8,
+ "side": "server",
+ "category": "entity",
+ "role": "Interface for entities with an owner (EntityTameable's wolves and ocelots, EntityHorse): the owner's UUID string and the owner entity.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf: wolves = off, ocelots = off and horses = off, so no implementing class can exist in a world.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {"kind": "method", "name": "func_152113_b", "sig": "()String", "native": null, "status": "n/a", "note": "switched off with wolves/ocelots/horses"},
+  {"kind": "method", "name": "getOwner", "sig": "()Entity", "native": null, "status": "n/a", "note": "switched off with wolves/ocelots/horses"}
+ ],
+ "missing": [],
+ "notes": null
+}

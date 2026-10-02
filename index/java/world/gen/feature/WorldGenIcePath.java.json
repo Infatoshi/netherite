@@ -1,0 +1,77 @@
+{
+ "path": "oracle/src/world/gen/feature/WorldGenIcePath.java",
+ "classes": [
+  "WorldGenIcePath"
+ ],
+ "lines": 61,
+ "side": "server",
+ "category": "worldgen",
+ "role": "Ice Plains Spikes packed-ice path: a disk of packed ice replacing dirt, grass, snow and ice around a snow-covered surface point.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld, Nether and End population are vanilla and in scope (SPEC Decisions: all worldgen except the animal spawn lists and mineshaft minecarts is vanilla).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/features_lakes.c",
+   "symbols": [
+    "feature_icepath"
+   ]
+  },
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "spikes_pre"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "out/java/probes/fe-icepath-2",
+  "out/java/probes/fe-icepath-42",
+  "out/java/seedworld/seed1",
+  "out/java/snapshots/cov-icespikes-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_150555_a",
+   "sig": "Block",
+   "native": "csrc/engine/features_lakes.c:feature_icepath",
+   "status": "exact",
+   "note": "Fixed packed ice."
+  },
+  {
+   "kind": "field",
+   "name": "field_150554_b",
+   "sig": "int",
+   "native": "csrc/engine/features_lakes.c:feature_icepath",
+   "status": "exact",
+   "note": "The radius argument (4)."
+  },
+  {
+   "kind": "ctor",
+   "name": "WorldGenIcePath",
+   "sig": "(int)",
+   "native": "csrc/engine/features_lakes.c:features_lakes_for",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generate",
+   "sig": "(World,Random,int,int,int)Z",
+   "native": "csrc/engine/features_lakes.c:feature_icepath",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

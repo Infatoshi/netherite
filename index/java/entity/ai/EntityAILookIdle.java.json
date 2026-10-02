@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/entity/ai/EntityAILookIdle.java",
+  "classes": ["EntityAILookIdle"],
+  "lines": 63,
+  "side": "server",
+  "category": "ai",
+  "role": "Idle look-around: on a 2% draw the entity picks a random direction (cos/sin of a full-turn double) and stares at a point 20-40 ticks.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_update", "ai_setup_kind"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/mobspawn-final-s1", "out/java/snapshots/cp-mobs-s1", "csrc/tests/test_animals.c"],
+  "members": [
+    {"kind": "field", "name": "idleEntity", "sig": "EntityLiving", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "lookX", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.x"},
+    {"kind": "field", "name": "lookZ", "sig": "double", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.z"},
+    {"kind": "field", "name": "idleTime", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.idle_time"},
+    {"kind": "ctor", "name": "EntityAILookIdle", "sig": "(EntityLiving)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_LOOK_IDLE, mutex 3"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "nextFloat() < 0.02F"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "idleTime >= 0"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "StrictMath.cos/sin -> fd_cos/fd_sin, idleTime = 20 + rand(20)"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "--idleTime, look at posX + lookX, posY + eye height, posZ + lookZ at 10/40"}
+  ],
+  "missing": [],
+  "notes": "Java has no resetTask; the native ai_reset has no AIC_LOOK_IDLE case either."
+}

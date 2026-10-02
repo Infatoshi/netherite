@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/nether.h",
+ "lines": 50,
+ "role": "Declares the Nether provider struct and its generation passes, and the 128-high dimension block layout (DIM_CELLS, DIM_CELL) and block-id enum shared with the End (end.h).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderHell.java", "members": ["hellRNG", "netherNoiseGen1", "netherNoiseGen2", "netherNoiseGen3", "slowsandGravelNoiseGen", "netherrackExculsivityNoiseGen", "netherNoiseGen6", "netherNoiseGen7", "func_147419_a", "func_147418_b"]},
+  {"path": "oracle/src/world/gen/MapGenCavesHell.java", "members": ["func_151538_a"]}
+ ],
+ "structs": [
+  {"name": "nether", "java": "ChunkProviderHell minus the fortress generator: hellRNG, the seven NoiseGeneratorOctaves, the world seed", "fields": ["rand", "gen1", "gen2", "gen3", "slowsand_gravel", "exclusivity", "gen6", "gen7", "seed"]}
+ ],
+ "entry_points": ["nether_init", "nether_terrain", "nether_surface", "nether_caves"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_dims.c"],
+ "notes": "struct nether holds all noise tables inline (7 octaves of up to 16 improved generators, about 150 KB), no pointers. DIM_BIOME_HELL and DIM_BIOME_SKY are the biome ids 8 and 9 both dimensions use everywhere."
+}

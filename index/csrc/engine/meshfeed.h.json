@@ -1,0 +1,27 @@
+{
+ "path": "csrc/engine/meshfeed.h",
+ "lines": 114,
+ "role": "The header of meshfeed.c: a feed's requests, uploads and answers (meshfeed_out) as plain data in slot indices, and the tracker's API.",
+ "layer": "render",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/WorldRenderer.java",
+   "members": [
+    "updateRenderer"
+   ]
+  }
+ ],
+ "structs": [
+  "meshfeed_req",
+  "meshfeed_op",
+  "meshfeed_out"
+ ],
+ "entry_points": [],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [
+  "csrc/cuda/render/check.c",
+  "csrc/runtime/pipe_gate.c"
+ ],
+ "notes": "Not vanilla code: what raster_obs carries to the device mesher (cuda/meshing/host.c applies it)."
+}

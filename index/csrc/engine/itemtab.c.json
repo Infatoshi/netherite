@@ -1,0 +1,34 @@
+{
+ "path": "csrc/engine/itemtab.c",
+ "lines": 132,
+ "role": "The HUD's item records (a scene's state/item_table.json, RenderStateProbe's records by item id) read once a process and scene, converted by the caller's function into flat records, and looked up by id and damage (lane/rlasync): raster_hand.c's per-view parse of the 11 MB file put 2.5 million blocks into each env's heap.",
+ "layer": "render",
+ "java": [],
+ "structs": [
+  {
+   "name": "itemtab",
+   "java": null,
+   "fields": [
+    "scene",
+    "nids",
+    "first",
+    "stride",
+    "size",
+    "rec",
+    "next"
+   ]
+  }
+ ],
+ "entry_points": [
+  "itemtab_get",
+  "itemtab_lookup"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "itemtab_get: a process-wide list of tables built under a lock (the renderer's, never the tick's), allocated from the process heap with the env heap off"
+ ],
+ "tests": [
+  "csrc/tests/test_render.c"
+ ],
+ "notes": "An engine file, not one of pipeline.mk's PL_RENDER files, so the views' private copies of playview.so share one table. raster_hand_item_lookup's choice (the record whose dmg is meta, else the id's first) is kept: 291,171 lookups compared with the jval-tree lookup, 0 differ."
+}

@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/client/resources/DefaultResourcePack.java",
+  "classes": ["DefaultResourcePack"],
+  "lines": 98,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The pack for the game's own assets: reads from the classpath /assets/... entries of the client jar, falling back to a file map (the assets link), with the minecraft and realms domains.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "defaultResourceDomains", "sig": "Set (static)", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_152781_b", "sig": "Map", "native": null, "status": "n/a", "note": "fallback file map for the assets directory"},
+    {"kind": "ctor", "name": "DefaultResourcePack", "sig": "(Map)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getInputStream", "sig": "(ResourceLocation)InputStream", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152780_c", "sig": "(ResourceLocation)InputStream", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResourceStream", "sig": "(ResourceLocation)InputStream", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "resourceExists", "sig": "(ResourceLocation)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResourceDomains", "sig": "()Set", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPackMetadata", "sig": "(IMetadataSerializer,String)IMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPackImage", "sig": "()BufferedImage", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getPackName", "sig": "()String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "This is the pack every recorded frame loads its textures through; the native engine's copies of those assets live in csrc/assets (pre-converted by png2rgba and the scene dumps). idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Resource-pack plumbing for the game's own assets; native reads the same assets pre-converted (csrc/assets, scene dumps) by path."
+}

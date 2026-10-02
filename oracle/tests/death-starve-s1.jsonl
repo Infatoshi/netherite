@@ -1,0 +1,12 @@
+{"n":12,"act":{}}
+{"cmd":"run","class":"SurvivalSetup","preset":"starve"}
+{"n":1,"act":{}}
+{"cmd":"dev","op":"difficulty","value":3}
+{"cmd":"dev","op":"state","health":3.0,"food":0}
+{"n":2,"act":{}}
+{"cmd":"run","class":"MobFree","radius":16}
+{"cmd":"run","class":"Snapshot"}
+{"n":260,"act":{}}
+{"n":25,"act":{}}
+{"n":1,"act":{"gui":[["respawn"]]}}
+{"n":60,"act":{}}

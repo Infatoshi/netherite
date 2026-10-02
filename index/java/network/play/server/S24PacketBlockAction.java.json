@@ -1,0 +1,185 @@
+{
+ "path": "oracle/src/network/play/server/S24PacketBlockAction.java",
+ "classes": [
+  "S24PacketBlockAction"
+ ],
+ "lines": 97,
+ "side": "server",
+ "category": "network",
+ "role": "A block event: chest and ender-chest lid counters, note-block notes, piston moves and the mob spawner's state, delivered through WorldServer.addBlockEvent.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/activate.c",
+   "symbols": [
+    "add_event"
+   ]
+  },
+  {
+   "file": "csrc/play/play.c",
+   "symbols": [
+    "chest_lids_after_row",
+    "chest_lid_of"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileticks.c",
+   "symbols": [
+    "chest_scan"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/te-chest-s1",
+  "csrc/tests/test_activate.c",
+  "csrc/tests/test_snapshots.c",
+  "out/java/snapshots/idx-clientview-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148876_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "x of the queued event",
+   "native": "csrc/engine/activate.c:add_event"
+  },
+  {
+   "kind": "field",
+   "name": "field_148874_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "y",
+   "native": "csrc/engine/activate.c:add_event"
+  },
+  {
+   "kind": "field",
+   "name": "field_148875_c",
+   "sig": "int",
+   "status": "exact",
+   "note": "z",
+   "native": "csrc/engine/activate.c:add_event"
+  },
+  {
+   "kind": "field",
+   "name": "field_148872_d",
+   "sig": "int",
+   "status": "exact",
+   "note": "the event id (1: the chest and ender chest players-using count)",
+   "native": "csrc/engine/activate.c:add_event"
+  },
+  {
+   "kind": "field",
+   "name": "field_148873_e",
+   "sig": "int",
+   "status": "exact",
+   "note": "the event parameter (the count)",
+   "native": "csrc/engine/activate.c:add_event"
+  },
+  {
+   "kind": "field",
+   "name": "field_148871_f",
+   "sig": "Block",
+   "status": "exact",
+   "note": "the block id the event names",
+   "native": "csrc/engine/activate.c:add_event"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(int,int,int,Block,int,int)V",
+   "status": "exact",
+   "native": "csrc/engine/activate.c:add_event",
+   "note": "func_147452_c's dedupe and append; the chest open and close build the events"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "note": "handleBlockAction: the client chest's count, so its lid steps a row behind the server's",
+   "native": "csrc/play/play.c:chest_lids_after_row"
+  },
+  {
+   "kind": "method",
+   "name": "func_148868_c",
+   "sig": "()Lnet/minecraft/block/Block;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148867_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148866_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148865_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148869_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148864_h",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "WorldServer.func_147452_c queues a block event (deduped) and func_147488_Z, in the next world tick, applies it on the server block (onBlockEventReceived) and sends the S24 only when that answers true. The reachable senders: the chest and ender chest lid counters (event 1, the players-using count; the server's own receiveClientEvent sets the same count and answers true), the note block (its client half is a sound and a note particle, which agent mode's minimal particle setting never makes), pistons (redstone off). MobSpawnerBaseLogic.resetTimer's event 1 never goes out: the server's receiveClientEvent answers false (setDelayToMin acts on a client world only), so a client spawner's delay only counts down (play.c tileents_tick, checked by idx-spawner-s1). The client half: the chest's client tile entity steps its lid on the S24's count, which reaches it at the second client tick after the server's open or close, so the client's lid and previous lid are the server's of one row before (play.c chest_lids_after_row); idx-clientview-s1's clientview.jsonl holds the live client's lids to the oracle client's at every frame (the open at row 185 fails with the server's lids drawn). idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): idx-spawner-s1."
+}

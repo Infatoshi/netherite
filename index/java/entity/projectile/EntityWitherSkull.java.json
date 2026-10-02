@@ -1,0 +1,113 @@
+{
+ "classes": [
+  "EntityWitherSkull"
+ ],
+ "lines": 146,
+ "side": "common",
+ "category": "entity",
+ "role": "The wither boss's projectile: charges up from the shooter, its onImpact explodes and applies the wither effect, and it can break blocks a normal explosion cannot.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf wither = off: 'the wither, built from skulls and soul sand' is never built, so this projectile is never spawned in the oracle or the native engine.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EntityWitherSkull(World)",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityWitherSkull(World,EntityLivingBase,D,D,D)",
+   "sig": "(World,EntityLivingBase,D,D,D)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityWitherSkull(World,D,D,D,D,D,D)",
+   "sig": "(World,D,D,D,D,D,D)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getMotionFactor",
+   "sig": "()F",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isBurning",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_145772_a",
+   "sig": "(Lnet/minecraft/world/Explosion;Lnet/minecraft/world/World;IIILnet/minecraft/block/Block;)F",
+   "native": null,
+   "status": "n/a",
+   "note": "the explosion's block-break exemption"
+  },
+  {
+   "kind": "method",
+   "name": "onImpact",
+   "sig": "(Lnet/minecraft/util/MovingObjectPosition;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canBeCollidedWith",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(Lnet/minecraft/util/DamageSource;F)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "isInvulnerable",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "dataWatcher 10: the aura skull"
+  },
+  {
+   "kind": "method",
+   "name": "setInvulnerable",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Action/__OBFID",
+   "sig": "static final String",
+   "native": null,
+   "status": "n/a",
+   "note": "static constant, grouped"
+  }
+ ],
+ "missing": [],
+ "notes": "Unreachable in this game: the wither is never built (world.conf), /summon refuses it, and no native code mentions the skull (grep over csrc/engine and csrc/tests found nothing).",
+ "path": "oracle/src/entity/projectile/EntityWitherSkull.java"
+}

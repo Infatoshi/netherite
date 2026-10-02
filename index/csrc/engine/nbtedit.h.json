@@ -1,0 +1,15 @@
+{
+ "path": "csrc/engine/nbtedit.h",
+ "lines": 21,
+ "role": "Declares nbt_set_key, the replace-or-add of one key in a compound done through the canonical text form (nbtedit.c), and explains why nbtjson's append-only nbt_put was not enough.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/nbt/NBTTagCompound.java", "members": ["setTag"]}
+ ],
+ "structs": [],
+ "entry_points": ["nbt_set_key"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_crafting.c"],
+ "notes": "nbtjson.h now also has nbt_replace and nbt_comp_set, which replace a key in place; nbt_set_key predates or duplicates them (not verified which)."
+}

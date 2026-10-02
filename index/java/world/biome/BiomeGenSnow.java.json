@@ -1,0 +1,111 @@
+{
+ "path": "oracle/src/world/biome/BiomeGenSnow.java",
+ "classes": [
+  "BiomeGenSnow"
+ ],
+ "lines": 69,
+ "side": "common",
+ "category": "worldgen",
+ "role": "Ice Plains (12), Ice Mountains (13) and Ice Plains Spikes (140): no passive mobs, spruce (taiga2) trees, and on the spikes variant a snow top plus three ice spikes and two ice paths before the decorator.",
+ "scope": "in_scope",
+ "scope_reason": "Overworld biome; all worldgen is vanilla (SPEC Decisions).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/decorator.c",
+   "symbols": [
+    "spikes_pre",
+    "choice_of",
+    "TR_TAIGA2",
+    "shape_of"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "biome_has_creatures"
+   ]
+  },
+  {
+   "file": "csrc/engine/biomes.h",
+   "symbols": [
+    "BIOMES"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_spawning.c",
+  "out/java/populate",
+  "csrc/tests/test_biome_spawn.c",
+  "out/java/biome_spawn/bs-1",
+  "out/java/snapshots/cov-icespikes-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150615_aC",
+   "sig": "boolean (spikes)",
+   "native": "csrc/engine/decorator.c:shape_of",
+   "status": "exact",
+   "note": "aC for id 140"
+  },
+  {
+   "kind": "field",
+   "name": "field_150616_aD",
+   "sig": "WorldGenIceSpike",
+   "native": "csrc/engine/decorator.c:spikes_pre",
+   "status": "exact",
+   "note": "features_lakes_for(\"icespike\")"
+  },
+  {
+   "kind": "field",
+   "name": "field_150617_aE",
+   "sig": "WorldGenIcePath",
+   "native": "csrc/engine/decorator.c:spikes_pre",
+   "status": "exact",
+   "note": "features_lakes_for(\"icepath\")"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a",
+   "note": "obfuscation id"
+  },
+  {
+   "kind": "ctor",
+   "name": "BiomeGenSnow",
+   "sig": "(int,boolean)",
+   "native": "csrc/engine/spawning.c:biome_has_creatures",
+   "status": "exact",
+   "note": "ids 12, 13 and 140 (Ice Plains Spikes, a fresh BiomeGenSnow) have no creatures in biome_has_creatures; test_biome_spawn.c checks them against BiomeSpawnProbe"
+  },
+  {
+   "kind": "method",
+   "name": "decorate",
+   "sig": "(World,Random,int,int)V",
+   "native": "csrc/engine/decorator.c:spikes_pre",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150567_a",
+   "sig": "(Random)WorldGenAbstractTree",
+   "native": "csrc/engine/decorator.c:choice_of",
+   "status": "exact",
+   "note": "TR_TAIGA2, no draw"
+  },
+  {
+   "kind": "method",
+   "name": "func_150566_k",
+   "sig": "()BiomeGenBase",
+   "native": "csrc/engine/biomes.h:BIOMES",
+   "status": "exact",
+   "note": "row 140"
+  }
+ ],
+ "missing": [],
+ "notes": "The spawn lists are checked by test_biome_spawn.c (out/java/biome_spawn/bs-1); no recording spawns in a 140 chunk yet. Closed by lane/idxworld (verification): the ice plains' cleared creature list and the spikes variant's (140) lists are compared entry by entry with the live biome objects by test_biome_spawn (bs-1); the spawner that reads them is biome-independent code every spawning recording holds."
+}

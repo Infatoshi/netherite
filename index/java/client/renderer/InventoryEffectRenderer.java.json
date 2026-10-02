@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/InventoryEffectRenderer.java",
+  "classes": ["InventoryEffectRenderer"],
+  "lines": 102,
+  "side": "client",
+  "category": "client_gui",
+  "role": "GuiContainer subclass behind the player inventory screens: when the player has active potion effects it shifts the inventory left and draws a column of effect icons, localized names and durations.",
+  "scope": "in_scope",
+  "scope_reason": "The inventory screen is a played surface the agent opens and clicks, and potion effects are in scope (pot-apple-s1, pot-poison-s1), so the effect display belongs to the game the native engine plays.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["draw_effects", "POTIONS"]},
+    {"file": "csrc/engine/gui_screens.c", "symbols": ["gui_screen_effects_shift"]}
+  ],
+  "evidence": ["out/java/render/gui_inventory_effects", "out/java/hudscreens/hudscreens-s1", "csrc/tests/test_hudscreens.c"],
+  "members": [
+    {"kind": "field", "name": "field_147045_u", "sig": "boolean", "native": "csrc/engine/gui_screens.c:gui_screen_effects_shift", "status": "exact", "note": "whether the effect column is shown"},
+    {"kind": "ctor", "name": "InventoryEffectRenderer", "sig": "(Container)V", "native": "csrc/engine/raster_hud.c:raster_gui_live", "status": "exact"},
+    {"kind": "method", "name": "initGui", "sig": "()V", "native": "csrc/engine/gui_screens.c:gui_screen_effects_shift", "status": "exact", "note": "shifts field_147003_i left by the column width when the player has effects"},
+    {"kind": "method", "name": "drawScreen", "sig": "(IIF)V", "native": "csrc/engine/raster_hud.c:draw_effects", "status": "exact"},
+    {"kind": "method", "name": "func_147044_g", "sig": "()V", "native": "csrc/engine/raster_hud.c:draw_effects", "status": "exact", "note": "the effect column itself: icons from Potion.getStatusIconIndex, the localized name with the amplifier Roman numeral, and Potion.getDurationString"}
+  ],
+  "missing": [],
+  "notes": "Six effects (more than five: 26 pixels apart), in getActivePotionEffects' HashMap order (hunger's bucket first), an amplifier IV and a max-duration **:**; the live client iterates its potion_map by bucket, and test_hudscreens checks that order against the recording."
+}

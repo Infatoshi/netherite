@@ -1,0 +1,17 @@
+{
+ "path": "oracle/src/entity/passive/IAnimals.java",
+ "classes": [
+  "IAnimals"
+ ],
+ "lines": 5,
+ "side": "server",
+ "category": "entity",
+ "role": "An empty marker interface; EntityAnimal, EntityWaterMob, EntityAmbientCreature, EntityGolem and INpc carry it, and EntityTracker uses the instanceof test to pick a mob's tracking range.",
+ "scope": "not_needed",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [],
+ "missing": [],
+ "scope_reason": "A marker with no members and no behavior of its own; its consumers (EntityTracker's and EntityTrackerEntry's per-class tracking decisions) are indexed in their own files."
+}

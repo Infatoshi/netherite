@@ -1,0 +1,82 @@
+{
+ "path": "oracle/src/entity/EntityFlying.java",
+ "classes": [
+  "EntityFlying"
+ ],
+ "lines": 92,
+ "side": "server",
+ "category": "entity",
+ "role": "The flying-mob movement layer (ghast, blaze, bat): no fall damage, the air drag moveEntityWithHeading, and no ladder climbing.",
+ "scope": "in_scope",
+ "scope_reason": "The ghast and blaze are Nether mobs and the bat an ambient; all three are ported kinds.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "living_move_entity_with_heading_flying",
+    "living_fall_state"
+   ]
+  },
+  {
+   "file": "csrc/engine/ghasts.c",
+   "symbols": [
+    "ghast_drop_few_items"
+   ]
+  },
+  {
+   "file": "csrc/engine/hostiles_blaze.c",
+   "symbols": [
+    "blaze_update_entity_action_state"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/nether-trip-s1",
+  "csrc/tests/test_hostiles.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "EntityFlying",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "chained to EntityLiving's"
+  },
+  {
+   "kind": "method",
+   "name": "fall",
+   "sig": "(F)V",
+   "native": "csrc/engine/living.c:living_fall_state",
+   "status": "n/a",
+   "note": "n/a: EntityFlying's own updateFallState is empty, so Entity.updateFallState never calls it; the other caller, Entity.fall's riddenByEntity, needs something riding a ghast"
+  },
+  {
+   "kind": "method",
+   "name": "updateFallState",
+   "sig": "(DZ)V",
+   "native": "csrc/engine/living.c:living_fall_state",
+   "status": "exact",
+   "note": "the empty override: fallDistance never accumulates"
+  },
+  {
+   "kind": "method",
+   "name": "moveEntityWithHeading",
+   "sig": "(FF)V",
+   "native": "csrc/engine/living.c:living_move_entity_with_heading_flying",
+   "status": "exact",
+   "note": "the water and lava arms (0.02 friction, the 0.8/0.5 drags) and the air arm (slipperiness*0.91, 0.16277136/(v3*v3*v3), the all-three-motion drag); the limb-swing bookkeeping is client render"
+  },
+  {
+   "kind": "method",
+   "name": "isOnLadder",
+   "sig": "()Z",
+   "native": "csrc/engine/living.c:living_move_entity_with_heading_flying",
+   "status": "exact",
+   "note": "false: the air arm drops the ladder clamp"
+  }
+ ],
+ "missing": [],
+ "notes": "The limbSwing/limbSwingAmount tail of moveEntityWithHeading is animation state the server digests do not carry. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): fresh-play-s1."
+}

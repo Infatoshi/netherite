@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/Checkpoint.java",
+ "lines": 183,
+ "role": "Segment boundaries: a vanilla Save and Quit followed by a copy of its save plus manifest.json (seed, world.conf, dev flag, totalTime, quiescence); verifies, installs and hashes checkpoints and records the block writes the join makes.",
+ "kind": "snapshot",
+ "used_by": [
+  "make -C oracle script ... FROM=checkpoint-dir (oracle/Makefile; a script's {\"cmd\":\"save\"} writes one)",
+  "oracle/harness/netherite/oracle/Main.java",
+  "oracle/harness/netherite/oracle/Oracle.java",
+  "oracle/harness/netherite/oracle/Roundtrip.java"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No oracle/src hook; driven from Main and Oracle. Native consumption of checkpoints (csrc/play/play.c, csrc/engine/serverreplay.c mention checkpoint) was not traced."
+}

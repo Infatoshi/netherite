@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/terrain.h",
+ "lines": 34,
+ "role": "Declares the overworld density pass (terrain.c): struct terrain, the ChunkProviderGenerate generator state, the Java chunk block-array layout macros and the block-id constants the terrain and surface passes write.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/ChunkProviderGenerate.java", "members": ["rand", "field_147431_j", "field_147432_k", "field_147429_l", "field_147430_m", "noiseGen5", "noiseGen6", "mobSpawnerNoise", "parabolicField", "func_147424_a"]}
+ ],
+ "structs": [
+  {"name": "struct terrain", "java": "ChunkProviderGenerate's rand, noise generators, parabolicField, the GenLayer stack and the world seed", "fields": ["rand", "min_limit", "max_limit", "main", "depth5", "depth", "mob", "stone", "parabolic", "layers", "seed"]},
+  {"name": "BLK_* enum", "java": "Blocks ids the worldgen passes write (air, stone, grass, dirt, bedrock, water, sand, gravel, sandstone, ice, stained and hardened clay)", "fields": []}
+ ],
+ "entry_points": ["terrain_init", "terrain_density"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_worldgen.c"],
+ "notes": "CELL(x, y, z) is Java's x << 12 | z << 8 | y chunk index over CHUNK_CELLS 65536."
+}

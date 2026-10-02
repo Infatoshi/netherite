@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/entity/ai/EntityAITargetNonTamed.java",
+  "classes": ["EntityAITargetNonTamed"],
+  "lines": 23,
+  "side": "server",
+  "category": "ai",
+  "role": "Nearest-attackable-target restricted to untamed animals: an untamed wolf or ocelot uses it to hunt (the ocelot targets chickens); once tamed the task stops firing.",
+  "scope": "switched_off",
+  "scope_reason": "Only EntityWolf and EntityOcelot register this task (grep over oracle/src), and world.conf forces wolves = off and ocelots = off, so it is never constructed, in the oracle too (SPEC 'Unsupported features are world switches').",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "theTameable", "sig": "EntityTameable", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityAITargetNonTamed", "sig": "(EntityTameable,Class,int,boolean)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": null, "status": "n/a", "note": "!isTamed && super.shouldExecute()"}
+  ],
+  "missing": [],
+  "notes": ""
+}

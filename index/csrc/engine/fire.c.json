@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/fire.c",
+ "lines": 362,
+ "role": "BlockFire's flammability tables, canPlaceBlockAt, and updateTick: rain extinguish, age bump, re-schedule, the six neighbour burn attempts (with TNT priming) and the 3x3x6 spread cube, reading World.rand, rain and difficulty as the server tick publishes them.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/block/BlockFire.java", "members": ["field_149849_a", "field_149848_b", "func_149842_a", "func_149843_e", "func_149844_e", "func_149847_e", "func_149846_a", "func_149845_m", "func_149841_a", "canPlaceBlockAt", "updateTick"]},
+  {"path": "oracle/src/world/World.java", "members": ["doesBlockHaveSolidTopSurface", "canLightningStrikeAt", "isRaining"]},
+  {"path": "oracle/src/block/BlockTNT.java", "members": ["onBlockDestroyedByPlayer"]}
+ ],
+ "structs": [],
+ "entry_points": ["fire_set_weather", "fire_can_place", "fire_update_tick", "fire_solid_top_surface"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 252-253: global mutable function pointer fire_tnt_prime and fire_tnt_prime_ctx",
+  "lines 163-168, function class_is: block class identity by strcmp on names"
+ ],
+ "tests": ["csrc/tests/test_fallhang.c", "csrc/tests/test_lightning.c"],
+ "notes": "The flammability values are a hand-written switch per block id (the Blocks.init setFireInfo calls), not a generated table; not re-verified against BlockFire.func_149843_e here. The End's bedrock and netherrack keep fire burning. Not ported per the header: BlockPortal.func_150000_e (the portal frame attempt in BlockFire.onBlockAdded). The doFireTick gamerule is assumed true. The cube's lightning check reproduces the decompiled code reading the fire's own z for one side."
+}

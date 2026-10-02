@@ -1,0 +1,726 @@
+{
+ "path": "oracle/src/world/chunk/Chunk.java",
+ "classes": [
+  "Chunk"
+ ],
+ "lines": 1613,
+ "side": "common",
+ "category": "chunk",
+ "role": "One 16x256x16 column of the world: section storage, biome array, height and precipitation maps, sky-light generation and relighting, block and metadata writes, light values, per-section entity lists, the tile entity map, population and light-population flags, the per-tick relight cursor and client packet filling.",
+ "scope": "in_scope",
+ "scope_reason": "Every block read, write and light value goes through a chunk; core of the server tick and worldgen.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/world.h",
+   "symbols": [
+    "chunk"
+   ]
+  },
+  {
+   "file": "csrc/engine/world.c",
+   "symbols": [
+    "chunk_construct",
+    "generate_skylight_map",
+    "chunk_block",
+    "chunk_meta",
+    "chunk_opacity",
+    "chunk_see_sky",
+    "chunk_saved_light",
+    "chunk_set_light",
+    "propagate_skylight_occlusion",
+    "update_skylight_neighbor_height",
+    "relight_block",
+    "set_block_step",
+    "chunk_set_meta",
+    "top_filled_segment",
+    "world_get_height_value",
+    "world_get_precipitation_height",
+    "world_full_block_light_value",
+    "check_skylight_neighbor_height",
+    "chunk_recheck_gaps",
+    "chunk_enqueue_relight_checks",
+    "chunk_populate_column",
+    "world_light_column_check",
+    "chunk_light_populate_neighbor",
+    "chunk_light_populate",
+    "chunk_tick_flags",
+    "world_tile_entity",
+    "world_set_tile_entity",
+    "world_remove_tile_entity",
+    "world_get_biome",
+    "load_dim_chunk"
+   ]
+  },
+  {
+   "file": "csrc/engine/light.c",
+   "symbols": [
+    "skylight_map",
+    "skylight_map_nosky"
+   ]
+  },
+  {
+   "file": "csrc/engine/chunkload.c",
+   "symbols": [
+    "populate_chunk",
+    "chunk_ready"
+   ]
+  },
+  {
+   "file": "csrc/engine/item_entity.c",
+   "symbols": [
+    "chunk_remove_at"
+   ]
+  },
+  {
+   "file": "csrc/engine/entityquery.h",
+   "symbols": [
+    "entityquery_in_box"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "chunk_random",
+    "spawner_local_difficulty"
+   ]
+  },
+  {
+   "file": "csrc/engine/snapshot.c",
+   "symbols": [
+    "snapshot_chunk_bytes",
+    "load_chunk_bytes"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_worldgen.c",
+  "csrc/tests/test_chunkload.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_snapshots.c",
+  "out/java/chunks/light-seed1",
+  "out/java/chunks/light-wide42",
+  "out/java/chunkload",
+  "out/java/servertick",
+  "out/java/snapshots/persist-walkback-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "static Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "isLit",
+   "sig": "static boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "unused debug flag"
+  },
+  {
+   "kind": "field",
+   "name": "storageArrays",
+   "sig": "ExtendedBlockStorage[16]",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "flat ids/metas/sky/blocklight arrays plus the section mask and sections_ticking"
+  },
+  {
+   "kind": "field",
+   "name": "blockBiomeArray",
+   "sig": "byte[256]",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "biome[256]"
+  },
+  {
+   "kind": "field",
+   "name": "precipitationHeightMap",
+   "sig": "int[256]",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "precip[256]"
+  },
+  {
+   "kind": "field",
+   "name": "updateSkylightColumns",
+   "sig": "boolean[256]",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "update_skylight_columns"
+  },
+  {
+   "kind": "field",
+   "name": "isChunkLoaded",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "membership in the world map stands for it"
+  },
+  {
+   "kind": "field",
+   "name": "worldObj",
+   "sig": "World",
+   "native": null,
+   "status": "n/a",
+   "note": "functions take the world"
+  },
+  {
+   "kind": "field",
+   "name": "heightMap",
+   "sig": "int[256]",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "height[256]"
+  },
+  {
+   "kind": "field",
+   "name": "xPosition",
+   "sig": "final int",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "cx"
+  },
+  {
+   "kind": "field",
+   "name": "zPosition",
+   "sig": "final int",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "cz"
+  },
+  {
+   "kind": "field",
+   "name": "isGapLightingUpdated",
+   "sig": "boolean",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "gap_lighting_updated"
+  },
+  {
+   "kind": "field",
+   "name": "chunkTileEntityMap",
+   "sig": "Map<ChunkPosition,TileEntity>",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "tes (te_store)"
+  },
+  {
+   "kind": "field",
+   "name": "entityLists",
+   "sig": "List[16]",
+   "native": "csrc/engine/item_entity.c:chunk_remove_at",
+   "status": "exact",
+   "note": "per family, each entry stamped with its insertion into the section's shared list; entityquery.c merges the families by stamp, so every query walks Java's order"
+  },
+  {
+   "kind": "field",
+   "name": "isTerrainPopulated",
+   "sig": "boolean",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "terrain_populated"
+  },
+  {
+   "kind": "field",
+   "name": "isLightPopulated",
+   "sig": "boolean",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "light_populated"
+  },
+  {
+   "kind": "field",
+   "name": "field_150815_m",
+   "sig": "boolean (ticked once)",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "populated"
+  },
+  {
+   "kind": "field",
+   "name": "isModified",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "save dirtiness; region.c saves on its own schedule"
+  },
+  {
+   "kind": "field",
+   "name": "hasEntities",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "lastSaveTime",
+   "sig": "long",
+   "native": "csrc/engine/snapshot.c:load_chunk_bytes",
+   "status": "exact",
+   "note": "carried from the snapshot; only needsSaving reads it, deciding what a save writes (no running state)"
+  },
+  {
+   "kind": "field",
+   "name": "sendUpdates",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "heightMapMinimum",
+   "sig": "int",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "height_min"
+  },
+  {
+   "kind": "field",
+   "name": "inhabitedTime",
+   "sig": "long",
+   "native": "csrc/engine/world.h:inhabited_time",
+   "status": "exact",
+   "note": "struct chunk inhabited_time, loaded from the snapshot or the region NBT, advanced by PlayerManager (chunkload.c increase_inhabited), read by spawner_local_difficulty; inhabit-s42"
+  },
+  {
+   "kind": "field",
+   "name": "queuedLightChecks",
+   "sig": "int",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact",
+   "note": "queued_light_checks"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "Chunk",
+   "sig": "(World,int,int)",
+   "native": "csrc/engine/world.c:chunk_construct",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Chunk",
+   "sig": "(World,Block[],int,int)",
+   "native": "csrc/engine/world.c:chunk_construct",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Chunk",
+   "sig": "(World,Block[],byte[],int,int)",
+   "native": "csrc/engine/world.c:chunk_construct",
+   "status": "exact",
+   "note": "air cells leave the metadata alone"
+  },
+  {
+   "kind": "method",
+   "name": "isAtLocation",
+   "sig": "(int,int)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "trivial compare; the map lookup keys on (cx, cz)"
+  },
+  {
+   "kind": "method",
+   "name": "getHeightValue",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/world.c:world_get_height_value",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getTopFilledSegment",
+   "sig": "()I",
+   "native": "csrc/engine/world.c:top_filled_segment",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockStorageArray",
+   "sig": "()ExtendedBlockStorage[]",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "generateHeightMap",
+   "sig": "()V",
+   "native": "csrc/engine/session.c:client_take_chunks",
+   "status": "exact",
+   "note": "the client's fillChunk recomputes the height map from the sent blocks: the top light-opaque block plus one per column, a column without one keeping its value, and the precipitation map reset to -999 (recomputed on read from the same blocks); the native client chunk is the server chunk as sent, whose maps are that same function of the same blocks"
+  },
+  {
+   "kind": "method",
+   "name": "generateSkylightMap",
+   "sig": "()V",
+   "native": "csrc/engine/world.c:generate_skylight_map",
+   "status": "exact",
+   "note": "light.c skylight_map / skylight_map_nosky"
+  },
+  {
+   "kind": "method",
+   "name": "propagateSkylightOcclusion",
+   "sig": "(int,int)V",
+   "native": "csrc/engine/world.c:propagate_skylight_occlusion",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "recheckGaps",
+   "sig": "(boolean)V",
+   "native": "csrc/engine/world.c:chunk_recheck_gaps",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "checkSkylightNeighborHeight",
+   "sig": "(int,int,int)V",
+   "native": "csrc/engine/world.c:check_skylight_neighbor_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateSkylightNeighborHeight",
+   "sig": "(int,int,int,int)V",
+   "native": "csrc/engine/world.c:update_skylight_neighbor_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "relightBlock",
+   "sig": "(int,int,int)V",
+   "native": "csrc/engine/world.c:relight_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150808_b",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/world.c:chunk_opacity",
+   "status": "exact",
+   "note": "getBlockLightOpacity"
+  },
+  {
+   "kind": "method",
+   "name": "func_150810_a",
+   "sig": "(int,int,int)Block",
+   "native": "csrc/engine/world.c:chunk_block",
+   "status": "exact",
+   "note": "getBlock"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockMetadata",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/world.c:chunk_meta",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150807_a",
+   "sig": "(int,int,int,Block,int)Z",
+   "native": "csrc/engine/world.c:set_block_step",
+   "status": "exact",
+   "note": "func_150807_a is setBlockIDWithMetadata: breakBlock, relight, onBlockAdded and tile entity handling"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockMetadata",
+   "sig": "(int,int,int,int)Z",
+   "native": "csrc/engine/world.c:chunk_set_meta",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSavedLightValue",
+   "sig": "(EnumSkyBlock,int,int,int)I",
+   "native": "csrc/engine/world.c:chunk_saved_light",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setLightValue",
+   "sig": "(EnumSkyBlock,int,int,int,int)V",
+   "native": "csrc/engine/world.c:chunk_set_light",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockLightValue",
+   "sig": "(int,int,int,int)I",
+   "native": "csrc/engine/world.c:world_full_block_light_value",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addEntity",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/item_entity.c:chunk_add",
+   "status": "exact",
+   "note": "per family: item_entity.c chunk_add, living.c an_chunk_add, fallhang.c chunk_add, each with the shared list's insertion stamp"
+  },
+  {
+   "kind": "method",
+   "name": "removeEntity",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/item_entity.c:chunk_remove_at",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "removeEntityAtIndex",
+   "sig": "(Entity,int)V",
+   "native": "csrc/engine/item_entity.c:chunk_remove_at",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canBlockSeeTheSky",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/world.c:chunk_see_sky",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150806_e",
+   "sig": "(int,int,int)TileEntity",
+   "native": "csrc/engine/world.c:world_tile_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addTileEntity",
+   "sig": "(TileEntity)V",
+   "native": "csrc/engine/world.c:world_set_tile_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150812_a",
+   "sig": "(int,int,int,TileEntity)V",
+   "native": "csrc/engine/world.c:world_set_tile_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "removeTileEntity",
+   "sig": "(int,int,int)V",
+   "native": "csrc/engine/world.c:world_remove_tile_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onChunkLoad",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:sr_tiles_loaded",
+   "status": "exact",
+   "note": "func_147448_a's tile entities (sr_tiles_loaded) and the entities (sr_restore_saved_entities)"
+  },
+  {
+   "kind": "method",
+   "name": "onChunkUnload",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:sr_cl_event",
+   "status": "exact",
+   "note": "the unload's entities leave the pools and the pass's order, the tiles invalidated"
+  },
+  {
+   "kind": "method",
+   "name": "setChunkModified",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getEntitiesWithinAABBForEntity",
+   "sig": "(Entity,AxisAlignedBB,List,IEntitySelector)V",
+   "native": "csrc/engine/entityquery.c:entityquery_section",
+   "status": "exact",
+   "note": "one section's walk; the families merged by insertion stamp"
+  },
+  {
+   "kind": "method",
+   "name": "getEntitiesOfTypeWithinAAAB",
+   "sig": "(Class,AxisAlignedBB,List,IEntitySelector)V",
+   "native": "csrc/engine/living.c:an_collect",
+   "status": "exact",
+   "note": "by class and subclass, per caller"
+  },
+  {
+   "kind": "method",
+   "name": "needsSaving",
+   "sig": "(boolean)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "autosave cadence; region.c"
+  },
+  {
+   "kind": "method",
+   "name": "getRandomWithSeed",
+   "sig": "(long)Random",
+   "native": "csrc/engine/spawning.c:chunk_random",
+   "status": "exact",
+   "note": "slime chunks"
+  },
+  {
+   "kind": "method",
+   "name": "isEmpty",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "EmptyChunk only"
+  },
+  {
+   "kind": "method",
+   "name": "populateChunk",
+   "sig": "(IChunkProvider,IChunkProvider,int,int)V",
+   "native": "csrc/engine/chunkload.c:populate_chunk",
+   "status": "exact",
+   "note": "the four-neighbour rule"
+  },
+  {
+   "kind": "method",
+   "name": "getPrecipitationHeight",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/world.c:world_get_precipitation_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150804_b",
+   "sig": "(boolean)V",
+   "native": "csrc/engine/world.c:chunk_tick_flags",
+   "status": "exact",
+   "note": "gap recheck then light populate; enqueueRelightChecks is driven by servertick.c"
+  },
+  {
+   "kind": "method",
+   "name": "func_150802_k",
+   "sig": "()Z",
+   "native": "csrc/engine/chunkload.c:chunk_ready",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getChunkCoordIntPair",
+   "sig": "()ChunkCoordIntPair",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getAreLevelsEmpty",
+   "sig": "(int,int)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "WorldRenderer's skip of an empty band: drawing an empty band draws nothing, so the frame does not depend on it"
+  },
+  {
+   "kind": "method",
+   "name": "setStorageArrays",
+   "sig": "(ExtendedBlockStorage[])V",
+   "native": null,
+   "status": "n/a",
+   "note": "chunk loader plumbing"
+  },
+  {
+   "kind": "method",
+   "name": "fillChunk",
+   "sig": "(byte[],int,int,boolean)V",
+   "native": "csrc/engine/session.c:client_take_chunks",
+   "status": "exact",
+   "note": "the S21/S26 chunk data into the client world: the server chunk as sent (blocks, metas, light, biomes); partial updates through the player manager's flush (serverreplay_sync_client)"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeGenForWorldCoords",
+   "sig": "(int,int,WorldChunkManager)BiomeGenBase",
+   "native": "csrc/engine/world.c:world_get_biome",
+   "status": "exact",
+   "note": "the 0xFF (unset) fallback to the manager is not modelled; generated chunks always carry biomes"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeArray",
+   "sig": "()byte[]",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setBiomeArray",
+   "sig": "(byte[])V",
+   "native": "csrc/engine/world.h:chunk",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "resetRelightChecks",
+   "sig": "()V",
+   "native": "csrc/engine/world.c:load_dim_chunk",
+   "status": "exact",
+   "note": "queued_light_checks set per dimension (Nether 0, End 4096)"
+  },
+  {
+   "kind": "method",
+   "name": "enqueueRelightChecks",
+   "sig": "()V",
+   "native": "csrc/engine/world.c:chunk_enqueue_relight_checks",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150809_p",
+   "sig": "()V",
+   "native": "csrc/engine/world.c:chunk_light_populate",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150801_a",
+   "sig": "(int)V",
+   "native": "csrc/engine/world.c:chunk_light_populate_neighbor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_150811_f",
+   "sig": "(int,int)Z",
+   "native": "csrc/engine/world.c:world_light_column_check",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "Chunk$1",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in Chunk.getBlock's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "Chunk$1.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in Chunk.getBlock's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  }
+ ],
+ "missing": [],
+ "notes": "Native chunk storage is a flat struct in world.h with a section mask, reached through an open-addressing map of chunk pointers plus a 256-slot direct-mapped cache (world.h struct world): a pointer graph and heap allocation per chunk, relevant to the GPU contract. The chunk-level entity and tile-entity plumbing is spread across serverreplay.c, item_entity.c, living.c and world.c and was only spot-checked. Closed by lane/idxworld: the per-family section lists are one list in effect (each family's entries carry the insertion stamp the shared list would order them by, and the queries merge the families section by section by it: entityquery.h); the client-side members are equivalent or without effect (the member notes). lastSaveTime and isModified only decide what a save writes, which no running state reads. getBiomeGenForWorldCoords' 0xFF fallback (a column with no stored biome) is unreachable here: every chunk the 1.7.10 server generates or reads carries its Biomes array, and a full chunk packet carries it to the client."
+}

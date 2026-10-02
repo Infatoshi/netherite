@@ -1,0 +1,3 @@
+id	found	by	area	field	cause	status	commit	pin	repro
+# lane/dragonrun: the seed-1 chain (s1chain-S1..S23) on Java, C and the GPU; its frame judge recordings dragon-s1chain-SN
+dragon-s1chain-S8	2026-09-30	lane/dragonrun (frame judge)	render	px	the Nether fortress at t=5090: glowstone faces drawn lit by Java's client and dark by csrc/play, 4,269 px over 25 at pt 1.0 (pxdiff: cutout-sky+ clusters at x 61 to 275, y 0 to 125); the same symptom as divgen-glowstone-g7, here in a recorded segment; within its budget line (accepted as measured), cause not investigated	open	-	-	bash csrc/tests/frame_judge.sh out/java/clientframes/dragon-s1chain-S8 --frames c --shot-dir DIR, then pxdiff survey --a out/java/clientframes/dragon-s1chain-S8/f_005090.png --b DIR/s_005090.p1000.png

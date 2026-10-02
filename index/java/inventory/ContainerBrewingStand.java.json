@@ -1,0 +1,126 @@
+{
+ "classes": [
+  "ContainerBrewingStand",
+  "ContainerBrewingStand.Ingredient",
+  "ContainerBrewingStand.Potion"
+ ],
+ "lines": 215,
+ "side": "common",
+ "category": "inventory",
+ "role": "The brewing stand GUI container: the fuel slot, three potion slots that award the Local Brewery pickup, the ingredient slot, and the brewTime sync.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf brewing = off: the brewing stand is a plain block and never brews, so this container never opens.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "tileBrewingStand",
+   "sig": "TileEntityBrewingStand",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "theSlot",
+   "sig": "Slot",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "brewTime",
+   "sig": "int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ContainerBrewingStand",
+   "sig": "(InventoryPlayer,TileEntityBrewingStand)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "addCraftingToCrafters",
+   "sig": "(Lnet/minecraft/inventory/ICrafting;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "detectAndSendChanges",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateProgressBar",
+   "sig": "(II)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canInteractWith",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "transferStackInSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;I)Lnet/minecraft/item/ItemStack;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Ingredient.isItemValid",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Ingredient.getSlotStackLimit",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Potion.isItemValid",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Potion.getSlotStackLimit",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Potion.onPickupFromSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/ItemStack;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Potion.canHoldPotion",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/inventory/ContainerBrewingStand.java"
+}

@@ -1,0 +1,13 @@
+{
+  "path": "csrc/engine/lang.c",
+  "lines": 13,
+  "role": "Looks up the checked English language keys used by the engine in a table generated from the user's 1.7.10 client jar.",
+  "layer": "util",
+  "java": [{"path": "oracle/src/util/StringTranslate.java", "members": ["translateKey"]}],
+  "structs": [{"name": "lang_row", "java": "StringTranslate.languageList entry", "fields": ["key", "value"]}],
+  "entry_points": ["lang_text"],
+  "tick_path": true,
+  "gpu": ["lang_text scans a generated pointer table; callers in the tick use only checked keys and do not allocate"],
+  "tests": ["csrc/tests/test_snapshots.c"],
+  "notes": "The table header is generated in out/native by tools/langgen.c from assets/minecraft/lang/en_US.lang in the user's jar. Unknown keys abort, so the checked key list is the engine's complete domain."
+}

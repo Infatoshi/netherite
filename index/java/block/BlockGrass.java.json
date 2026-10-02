@@ -1,0 +1,47 @@
+{
+  "path": "oracle/src/block/BlockGrass.java",
+  "classes": ["BlockGrass"],
+  "lines": 205,
+  "side": "common",
+  "category": "block",
+  "role": "The grass block: random ticks kill it in the dark, spread it onto dirt in the light, and its bonemeal grow scatters tall grass and biome flowers over 128 tries.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["grass_like", "grass_bonemeal", "RT_GRASS", "flower_pick"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["grass_color_multiplier", "biome_color"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/world-crops-s1",
+    "out/java/snapshots/world-daynight-s1",
+    "out/java/snapshots/rc-items-s1",
+    "csrc/tests/test_populate.c",
+    "out/java/snapshots/grass-s1",
+    "out/java/snapshots/bonemeal-s1",
+    "out/java/snapshots/bonemeal-ff-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "logger", "sig": "Logger", "native": null, "status": "n/a", "note": "the func_149853_b debug line prints nothing the tape reads"},
+    {"kind": "field", "name": "field_149991_b", "sig": "IIcon", "native": null, "status": "n/a", "note": "client top texture"},
+    {"kind": "field", "name": "field_149993_M", "sig": "IIcon", "native": null, "status": "n/a", "note": "client snowed side texture"},
+    {"kind": "field", "name": "field_149994_N", "sig": "IIcon", "native": null, "status": "n/a", "note": "client side overlay texture"},
+    {"kind": "ctor", "name": "BlockGrass", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 2, tick_randomly 1"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client texture selection"},
+    {"kind": "method", "name": "getIcon", "sig": "(IBlockAccess,IIIII)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks.c:biome_color", "status": "partial", "note": "the snowed-side check is in the mesher's icon path; the overlay blending is verified through the pixel gate, not named separately"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client texture registration"},
+    {"kind": "method", "name": "getBlockColor", "sig": "()I", "native": "csrc/engine/render_blocks.c:biome_color", "status": "exact", "note": "the biome colour table lookup; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"},
+    {"kind": "method", "name": "getRenderColor", "sig": "(I)I", "native": "csrc/engine/render_blocks.c:biome_color", "status": "exact", "note": "the same lookup; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames (a frame replay runs it: lane/covframes' frame coverage)"},
+    {"kind": "method", "name": "colorMultiplier", "sig": "(IBlockAccess,III)I", "native": "csrc/engine/render_blocks.c:grass_color_multiplier", "status": "exact", "note": "the 3x3 biome grass colour average, verbatim"},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:grass_like", "status": "exact", "note": "the light-4 kill, the light-9 spread with the four nextInt draws; dispatch from randomtick_update_tick case RT_GRASS"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 2: dirt"},
+    {"kind": "method", "name": "func_149990_e", "sig": "()Lnet/minecraft/util/IIcon;", "native": null, "status": "n/a", "note": "client overlay texture getter"},
+    {"kind": "method", "name": "func_149851_a", "sig": "(World,IIIZ)Z", "native": "csrc/engine/randomtick.c:grass_bonemeal", "status": "exact", "note": "always true"},
+    {"kind": "method", "name": "func_149852_a", "sig": "(World,IIII)Z", "native": "csrc/engine/randomtick.c:grass_bonemeal", "status": "exact", "note": "always true"},
+    {"kind": "method", "name": "func_149853_b", "sig": "(World,IIII)V", "native": "csrc/engine/randomtick.c:grass_bonemeal", "status": "exact", "note": "the 128-try random walk with the two-draw multiply, tall grass and the biome flower pick"}
+  ],
+  "missing": [],
+  "notes": "Verified by world-crops-s1, world-daynight-s1 (whole-server, 0 mismatches) and rc-items-s1 (bonemeal on grass). The IGrowable dispatch is itemuse.c's bonemeal()."
+}

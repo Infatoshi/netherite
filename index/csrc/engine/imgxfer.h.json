@@ -1,0 +1,45 @@
+{
+ "path": "csrc/engine/imgxfer.h",
+ "lines": 91,
+ "role": "The transfer format (struct img_xfer: base, size, page indices with IMG_XFER_ZERO, the pages' bytes), the write tracker's calls (img_track_open, img_track_add), env_export and env_import, the instruction counters (struct img_counters).",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  {
+   "name": "img_xfer",
+   "java": null,
+   "fields": [
+    "base",
+    "size",
+    "full",
+    "npages",
+    "ndata",
+    "cap",
+    "page",
+    "bytes"
+   ]
+  },
+  {
+   "name": "img_counters",
+   "java": null,
+   "fields": [
+    "fd",
+    "n"
+   ]
+  }
+ ],
+ "entry_points": [
+  "env_export",
+  "env_import",
+  "img_track_open",
+  "img_track_add"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "the host/device exchange of a split tick: the host's writes down, a kernel's writes up"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "lane/gpuharness."
+}

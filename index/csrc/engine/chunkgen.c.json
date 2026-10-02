@@ -1,0 +1,41 @@
+{
+ "path": "csrc/engine/chunkgen.c",
+ "lines": 60,
+ "role": "ChunkProviderGenerate.provideChunk for one overworld chunk: seeds the provider rand from the chunk coords, runs the density pass, full-resolution biomes, surface pass, caves, ravines, then the Chunk constructor and generateSkylightMap.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/ChunkProviderGenerate.java",
+   "members": [
+    "provideChunk",
+    "rand",
+    "caveGenerator",
+    "ravineGenerator"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "Chunk(World,Block[],byte[],int,int)",
+    "generateSkylightMap",
+    "isTerrainPopulated",
+    "isLightPopulated"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "chunkgen_init",
+  "provide_chunk",
+  "chunkgen_raw",
+  "chunkgen_construct"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"
+ ],
+ "tests": [
+  "csrc/tests/test_seedworld.c"
+ ],
+ "notes": "Called from world.c chunk_backend_c (dimension 0 only, every call a world_chunk_request), which mallocs the chunk; that allocation is world.c's hazard, not this file's. test_worldgen.c checks the stages (terrain, surface, caves_pass, ravines_pass) individually rather than through provide_chunk; test_seedworld.c reaches provide_chunk through seedworld/world. struct chunkgen.owed marks a provider that owes world_insert_chunk's skipped generations; chunkgen_init clears it (lane suitestart, 2026-09-25). provide_chunk is chunkgen_raw then chunkgen_construct; genahead.c constructs a chunk generated elsewhere (the CUDA kernels) with chunkgen_construct (lane/gpugen)."
+}

@@ -1,0 +1,41 @@
+{
+  "path": "oracle/src/entity/monster/EntitySilverfish.java",
+  "classes": ["EntitySilverfish"],
+  "lines": 255,
+  "side": "common",
+  "category": "entity",
+  "role": "The silverfish: summons its swarm from infested stone when hurt, burrows into stone (turning it into monster egg), and hides when idle.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/hostiles_silverfish.c", "symbols": ["silverfish_construct", "silverfish_update_entity_action_state", "silverfish_on_living_update", "silverfish_hurt", "attack_entity", "attack_entity_as_mob", "silverfish_ally_summon_cooldown", "silverfish_update_wander_path", "find_player_to_attack", "silverfish_write_extra"]},
+    {"file": "csrc/engine/hostiles.c", "symbols": ["hostile_spawn", "silverfish_write_extra"]},
+    {"file": "csrc/engine/living.c", "symbols": ["living_drop_few_items"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-silverfish-s1", "csrc/tests/test_hostiles.c",
+    "out/java/snapshots/silverfish-wall-s1"],
+  "members": [
+    {"kind": "field", "name": "allySummonCooldown", "sig": "int", "native": "csrc/engine/hostiles_silverfish.c:silverfish_ally_summon_cooldown", "status": "exact"},
+    {"kind": "ctor", "name": "EntitySilverfish", "sig": "(World)V", "native": "csrc/engine/hostiles_silverfish.c:silverfish_construct", "status": "exact", "note": "size 0.4x0.3, experienceValue 0"},
+    {"kind": "method", "name": "applyEntityAttributes", "sig": "()V", "native": "csrc/engine/hostiles_silverfish.c:silverfish_construct", "status": "exact", "note": "maxHealth 8, movement 0.25, attack 1, followRange 16"},
+    {"kind": "method", "name": "canTriggerWalking", "sig": "()Z", "native": "csrc/engine/hostiles_silverfish.c:silverfish_construct", "status": "partial", "note": "false; the flag clear rides the construct"},
+    {"kind": "method", "name": "findPlayerToAttack", "sig": "()Lnet/minecraft/entity/Entity;", "native": "csrc/engine/hostiles_silverfish.c:find_player_to_attack", "status": "exact", "note": "the 8.0-block closest vulnerable player"},
+    {"kind": "method", "name": "getLivingSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getHurtSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "getDeathSound", "sig": "()Ljava/lang/String;", "native": null, "status": "n/a", "note": "audio"},
+    {"kind": "method", "name": "attackEntityFrom", "sig": "(Lnet/minecraft/util/DamageSource;F)Z", "native": "csrc/engine/hostiles_silverfish.c:silverfish_hurt", "status": "exact", "note": "the allySummonCooldown=20 arm when hit by an entity or magic, then super"},
+    {"kind": "method", "name": "attackEntity", "sig": "(Lnet/minecraft/entity/Entity;F)V", "native": "csrc/engine/hostiles_silverfish.c:attack_entity", "status": "exact", "note": "the 1.2F-range touch attack, attackTime 20 (hostiles_silverfish.c:226-233)"},
+    {"kind": "method", "name": "func_145780_a", "sig": "(IIILnet/minecraft/block/Block;)V", "native": null, "status": "n/a", "note": "step sound, audio"},
+    {"kind": "method", "name": "func_146068_u", "sig": "()Lnet/minecraft/item/Item;", "native": "csrc/engine/living.c:living_drop_few_items", "status": "exact", "note": "Item.getItemById(0): the shared loot dispatch has no drop branch for the silverfish"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/engine/hostiles_silverfish.c:silverfish_on_living_update", "status": "partial", "note": "the renderYawOffset=rotationYaw mirror is presentation; the body rides the shared living update"},
+    {"kind": "method", "name": "updateEntityActionState", "sig": "()V", "native": "csrc/engine/hostiles_silverfish.c:silverfish_update_entity_action_state", "status": "exact", "note": "the allySummonCooldown countdown with the 11x21x21 monster-egg scan and the mobGriefing branch, the idle burrow-into-stone (setBlock to monster egg, spawnExplosionParticle, setDead), the wander path"},
+    {"kind": "method", "name": "getBlockPathWeight", "sig": "(III)F", "native": "csrc/engine/hostiles_silverfish.c:silverfish_update_wander_path", "status": "partial", "note": "the stone-below 10.0F weight rides the wander-path body"},
+    {"kind": "method", "name": "isValidLightLevel", "sig": "()Z", "native": "csrc/engine/spawning.c:valid_light_level", "status": "partial", "note": "the always-true override; silverfish reach the world through monster-egg activation, so the spawner's monster light rule rarely applies"},
+    {"kind": "method", "name": "getCanSpawnHere", "sig": "()Z", "native": "csrc/engine/spawning.c:can_spawn_here_monster", "status": "partial", "note": "super's rule then the 5-block no-player check, folded into the spawn path"},
+    {"kind": "method", "name": "getCreatureAttribute", "sig": "()Lnet/minecraft/entity/EnumCreatureAttribute;", "native": "csrc/engine/combatench.c:living_creature_attribute", "status": "exact", "note": "ARTHROPOD: bane of arthropods reads it (combatench.c)"}
+  ],
+  "missing": [
+
+  ],
+  "notes": "The block half of the silverfish (monster egg placement, the wake-from-mining hook) lives in the block callbacks; hostiles_silverfish.c carries the entity half, including the NBT extras via silverfish_write_extra. test_hostiles.c covers HK_SILVERFISH. lane/idxentity. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): combat-mobs-s1."
+}

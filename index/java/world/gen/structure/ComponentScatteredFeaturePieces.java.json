@@ -1,0 +1,340 @@
+{
+ "path": "oracle/src/world/gen/structure/ComponentScatteredFeaturePieces.java",
+ "classes": [
+  "ComponentScatteredFeaturePieces",
+  "ComponentScatteredFeaturePieces.DesertPyramid",
+  "ComponentScatteredFeaturePieces.Feature",
+  "ComponentScatteredFeaturePieces.JunglePyramid",
+  "ComponentScatteredFeaturePieces.JunglePyramid.Stones",
+  "ComponentScatteredFeaturePieces.SwampHut"
+ ],
+ "lines": 696,
+ "side": "server",
+ "category": "worldgen",
+ "role": "The three single-piece temples: the desert pyramid (four chests over a TNT trap), the jungle pyramid (tripwire dispensers, lever puzzle, two chests, mossy random stones) and the swamp hut (with one witch), plus the shared Feature base that settles the piece on the average ground height.",
+ "scope": "in_scope",
+ "scope_reason": "Temples and witch huts are vanilla worldgen and on (SPEC Decisions). Their redstone parts are placed as blocks; redstone = off only means nothing is ever powered.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/temple.c",
+   "symbols": [
+    "temple_piece_new",
+    "feature_box",
+    "temple_make_start"
+   ]
+  },
+  {
+   "file": "csrc/engine/temple_blocks.c",
+   "symbols": [
+    "temple_blocks",
+    "feature_ground_level",
+    "desert_pyramid_parts",
+    "jungle_pyramid_parts",
+    "swamp_hut_parts",
+    "temple_chest",
+    "jungle_dispenser",
+    "jungle_stones_select",
+    "lever_attach"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure.c",
+   "symbols": [
+    "piece_nbt"
+   ]
+  },
+  {
+   "file": "csrc/engine/structure_blocks.c",
+   "symbols": [
+    "sc_witch_new"
+   ]
+  },
+  {
+   "file": "csrc/engine/loot_tables.h",
+   "symbols": [
+    "LOOT_DESERT_TEMPLE",
+    "LOOT_JUNGLE_TEMPLE",
+    "LOOT_JUNGLE_DISPENSER"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_pop_ent"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c",
+  "out/java/structures/te-1",
+  "out/java/structures/te-2",
+  "out/java/sblocks/te2-01",
+  "out/java/sblocks/te2-08",
+  "out/java/sblocks/te42-01",
+  "out/java/sblocks/te42-10",
+  "out/java/snapshots/struct-witchhut-s1",
+  "out/java/snapshots/struct-jungle-s1",
+  "out/java/snapshots/struct-tnt-s42",
+  "out/java/snapshots/cov-structload-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_143045_a",
+   "sig": "static ()V",
+   "native": "csrc/engine/temple.c:temple_make_start",
+   "status": "exact",
+   "note": "Registers TeDP, TeJP, TeSH; native sets those ids on the piece."
+  },
+  {
+   "kind": "field",
+   "name": "DesertPyramid.field_74940_h",
+   "sig": "boolean[4] (chest placed)",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "u.temple.v.desert.has_placed_chest."
+  },
+  {
+   "kind": "field",
+   "name": "DesertPyramid.itemsToGenerateInTemple",
+   "sig": "static WeightedRandomChestContent[]",
+   "native": "csrc/engine/loot_tables.h:LOOT_DESERT_TEMPLE",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "DesertPyramid",
+   "sig": "()V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "the NBT-load constructor MapGenStructureIO.func_143032_b runs for a saved start; native restores the piece from the snapshot's structures.json (cov-structload-s1: the temple half-populated before the checkpoint, finished after it)"
+  },
+  {
+   "kind": "ctor",
+   "name": "DesertPyramid",
+   "sig": "(Random,int,int)V",
+   "native": "csrc/engine/temple.c:temple_piece_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "DesertPyramid.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "DesertPyramid.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "HPos and the box from a snapshot's structures.json; the chest, trap and witch flags only matter inside a box that has not populated, where they are still false"
+  },
+  {
+   "kind": "method",
+   "name": "DesertPyramid.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/temple_blocks.c:desert_pyramid_parts",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "Feature.scatteredFeatureSizeX, scatteredFeatureSizeY, scatteredFeatureSizeZ",
+   "sig": "int",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "u.temple.size_x/y/z."
+  },
+  {
+   "kind": "field",
+   "name": "Feature.field_74936_d",
+   "sig": "int (HPos, -1)",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "u.temple.hpos; restored with the box from a snapshot's structures.json Temple.pieces (populate.c:populate_restore_pieces)"
+  },
+  {
+   "kind": "ctor",
+   "name": "Feature",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "Feature",
+   "sig": "(Random,int,int,int,int,int,int)V",
+   "native": "csrc/engine/temple.c:feature_box",
+   "status": "exact",
+   "note": "coordBaseMode draw then the oriented box."
+  },
+  {
+   "kind": "method",
+   "name": "Feature.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "Feature.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "HPos and the box from a snapshot's structures.json; the chest, trap and witch flags only matter inside a box that has not populated, where they are still false"
+  },
+  {
+   "kind": "method",
+   "name": "Feature.func_74935_a",
+   "sig": "(World,StructureBoundingBox,int)Z",
+   "native": "csrc/engine/temple_blocks.c:feature_ground_level",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "JunglePyramid.field_74947_h, field_74948_i, field_74945_j, field_74946_k",
+   "sig": "boolean (main chest, hidden chest, trap 1, trap 2)",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "u.temple.v.jungle."
+  },
+  {
+   "kind": "field",
+   "name": "JunglePyramid.junglePyramidsChestContents",
+   "sig": "static WeightedRandomChestContent[]",
+   "native": "csrc/engine/loot_tables.h:LOOT_JUNGLE_TEMPLE",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "JunglePyramid.junglePyramidsDispenserContents",
+   "sig": "static WeightedRandomChestContent[]",
+   "native": "csrc/engine/loot_tables.h:LOOT_JUNGLE_DISPENSER",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "JunglePyramid.junglePyramidsRandomScatteredStones",
+   "sig": "static Stones",
+   "native": "csrc/engine/temple_blocks.c:jungle_stones_select",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "JunglePyramid",
+   "sig": "()V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "the NBT-load constructor MapGenStructureIO.func_143032_b runs for a saved start; native restores the piece from the snapshot's structures.json (cov-structload-s1: the temple half-populated before the checkpoint, finished after it)"
+  },
+  {
+   "kind": "ctor",
+   "name": "JunglePyramid",
+   "sig": "(Random,int,int)V",
+   "native": "csrc/engine/temple.c:temple_piece_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "JunglePyramid.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "JunglePyramid.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "HPos and the box from a snapshot's structures.json; the chest, trap and witch flags only matter inside a box that has not populated, where they are still false"
+  },
+  {
+   "kind": "method",
+   "name": "JunglePyramid.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/temple_blocks.c:jungle_pyramid_parts",
+   "status": "exact",
+   "note": "Dispensers via jungle_dispenser, chests via temple_chest."
+  },
+  {
+   "kind": "ctor",
+   "name": "Stones",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Stones.selectBlocks",
+   "sig": "(Random,int,int,int,boolean)V",
+   "native": "csrc/engine/temple_blocks.c:jungle_stones_select",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "SwampHut.hasWitch",
+   "sig": "boolean",
+   "native": "csrc/engine/structure.h:piece",
+   "status": "exact",
+   "note": "u.temple.v.swamp.has_witch."
+  },
+  {
+   "kind": "ctor",
+   "name": "SwampHut",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "SwampHut",
+   "sig": "(Random,int,int)V",
+   "native": "csrc/engine/temple.c:temple_piece_new",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "SwampHut.func_143012_a",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/structure.c:piece_nbt",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "SwampHut.func_143011_b",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/populate.c:populate_restore_pieces",
+   "status": "exact",
+   "note": "HPos and the box from a snapshot's structures.json; the chest, trap and witch flags only matter inside a box that has not populated, where they are still false"
+  },
+  {
+   "kind": "method",
+   "name": "SwampHut.addComponentParts",
+   "sig": "(World,Random,StructureBoundingBox)Z",
+   "native": "csrc/engine/temple_blocks.c:swamp_hut_parts",
+   "status": "exact",
+   "note": "The witch is constructed through sc_witch_new (the Entity and EntityLivingBase constructor draws, onSpawnWithEgg's modifier UUID, the streams from before them kept) and joins the replay's world through serverreplay.c sr_pop_ent, which rebuilds it with hostile_spawn over those streams."
+  },
+  {
+   "kind": "ctor",
+   "name": "ComponentScatteredFeaturePieces",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a class of static members only: nothing in oracle/src constructs it (no `new ComponentScatteredFeaturePieces`), so its implicit constructor never runs"
+  }
+ ],
+ "missing": [],
+ "notes": "The NBT read side is listed as missing on members but counted in MapGenStructureData / StructureComponent rather than here. Gate not re-run for this record. Closed by lane/idxworld (verification): the pieces and their blocks are held by test_structures and test_sblocks against the oracle's structure dumps; the NBT-load constructors are n/a here (a start saved to disk comes back through the oracle's snapshot, see MapGenStructureIO)."
+}

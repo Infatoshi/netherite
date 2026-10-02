@@ -1,0 +1,64 @@
+{
+  "path": "csrc/tests/test_portals.c",
+  "lines": 468,
+  "role": "Gate: 1.7.10 dimension travel against the oracle's PortalProbe: builds portal frames, runs the portal counter and cooldown on an entity, transfers it between overworld, Nether and End through the native Teleporter (search, creation, caching, stale removal, End exit respawn) and compares positions, yaw, counters, block writes and the portal cache.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/world/Teleporter.java",
+      "members": [
+        "placeInPortal",
+        "placeInExistingPortal",
+        "makePortal",
+        "removeStalePortalLocations"
+      ]
+    },
+    {
+      "path": "oracle/src/server/management/ServerConfigurationManager.java",
+      "members": [
+        "transferEntityToWorld",
+        "transferPlayerToDimension"
+      ]
+    },
+    {
+      "path": "oracle/src/block/BlockPortal.java",
+      "members": [
+        "onEntityCollidedWithBlock",
+        "func_150000_e"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/Entity.java",
+      "members": [
+        "setInPortal",
+        "onEntityUpdate",
+        "travelToDimension",
+        "getMaxInPortalTime",
+        "getPortalCooldown"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "write_rec",
+      "java": "one block write the teleporter made (portal creation), per dimension",
+      "fields": [
+        "dim",
+        "x",
+        "y",
+        "z",
+        "id",
+        "meta"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "line 19, global recorded_writes/num_recorded_writes: static mutable write log filled by hook_on_block (harness only)"
+  ],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/portals. Native calls: teleporter_init, teleporter_free, teleporter_remove_stale_locations, portal_entity_init, portal_entity_set_in_portal, portal_entity_tick, portal_transfer_entity, portal_respawn_end_exit, portal_cache_get (csrc/engine/portal.h), entity_init/entity_set_size, jr_seed, world_*. Reads manifest.json, cases.bin, writes.bin, cache.bin. One of the LONG tests and in memslot.sh's big pool. Oracle side: oracle/harness/netherite/oracle/PortalProbe.java. Recordings: out/java/portals/seed2, seed42. The header comment is one line; Java member names are inferred from the native calls, not verified."
+}

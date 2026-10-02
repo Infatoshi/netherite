@@ -1,0 +1,35 @@
+{
+ "path": "csrc/engine/pickobj.c",
+ "lines": 1865,
+ "role": "The collidable non-living entities in the client pick other than the large fireball (clientworld.c's copy, combat.c's entry): EntityTracker for falling blocks, primed TNT, ender crystals, paintings and item frames (the spawn packet at spawnEntityInWorld, the start-watching S12, sendLocationToAllClients' S15/S16/S17/S18 and velocity S12s, the S13 before or after the player's update), the WorldClient copies those packets build and each copy's client onUpdate, the client's own attack on a copy, and the server's C02 attack on these kinds (a hanging entity broken, a crystal hit). It also tracks the ender dragon (a living, the IAnimals branch) and keeps its client copy and parts for the pick.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/EntityTrackerEntry.java", "members": ["tryStartWachingThis", "sendLocationToAllClients", "func_151260_c"]},
+  {"path": "oracle/src/entity/EntityTracker.java", "members": ["trackEntity", "func_85172_a"]},
+  {"path": "oracle/src/entity/boss/EntityDragon.java", "members": ["onLivingUpdate", "onDeathUpdate", "getParts"]},
+  {"path": "oracle/src/entity/boss/EntityDragonPart.java", "members": ["attackEntityFrom"]},
+  {"path": "oracle/src/client/network/NetHandlerPlayClient.java", "members": ["handleSpawnObject", "handleSpawnPainting", "handleEntityMovement", "handleEntityTeleport", "handleEntityVelocity", "handleDestroyEntities", "handleSpawnMob"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["setPositionAndRotation2"]},
+  {"path": "oracle/src/entity/item/EntityFallingBlock.java", "members": ["onUpdate"]},
+  {"path": "oracle/src/entity/item/EntityTNTPrimed.java", "members": ["onUpdate"]},
+  {"path": "oracle/src/entity/player/EntityPlayer.java", "members": ["attackTargetEntityWithCurrentItem"]},
+  {"path": "oracle/src/network/NetHandlerPlayServer.java", "members": ["processUseEntity"]},
+  {"path": "oracle/src/entity/item/EntityItemFrame.java", "members": ["interactFirst"]},
+  {"path": "oracle/src/item/ItemHangingEntity.java", "members": ["onItemUse"]},
+  {"path": "oracle/src/world/World.java", "members": ["checkNoEntityCollision"]}
+ ],
+ "structs": [
+  {"name": "pickobj", "java": "the WorldClient copy of one entity", "fields": ["id", "kind", "e", "server_x", "fuse", "tile_x", "cx", "seq"]},
+  {"name": "pickobj_state", "java": "the tracker entries, EntityPlayerMP.destroyedItemsNetCache, the packets in flight, the client copies", "fields": ["tr", "trk", "destroyed", "pend", "objs"]},
+  {"name": "pickobj_dragon", "java": "the client EntityDragon: dragon_state plus setPositionAndRotation2's target and the watcher's health", "fields": ["d", "ip"]}
+ ],
+ "entry_points": ["pickobj_bind", "pickobj_server_spawn", "pickobj_server_tick", "pickobj_server_attack", "pickobj_client_tick", "pickobj_client_pump_positions", "pickobj_client_world_change", "pickobj_client_attack", "pickobj_client_candidates", "pickobj_server_interact", "pickobj_client_interact", "pickobj_client_hanging_fits", "pickobj_chunk_sent", "pickobj_client_objs", "pickobj_client_dragon", "pickobj_client_prevents"],
+ "tick_path": true,
+ "gpu": [
+  "function send and spawn_copy: realloc of the packet queue and the copies array",
+  "function pickobj_bind: calloc of the state (once per run)",
+  "functions trk_find, obj_find: linear searches by id"
+ ],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Evidence: out/java/snapshots/pick-shapes-s1 (the gravel column's falling blocks under the crosshair, a painting and a frame punched). The large fireball moved to master's clientworld.c/combat.c path at the merge with lane/netherscen. The dragon and its parts have no client copy (a follow-up). pickobj_client_objs and pickobj_client_dragon hand the client copies to the live client's draw (read only, between ticks: csrc/play/clientents.c). pickobj_client_pump_positions runs the copies' setPositionAndRotation2 at updateController's place in runTick: its collision query puts a stair's shared bounds back to the full cube before the use's placement check (lane/rlfuzz2, rf-s1-814); EntityArrow's override only sets the position."
+}

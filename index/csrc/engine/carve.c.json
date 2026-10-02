@@ -1,0 +1,59 @@
+{
+ "path": "csrc/engine/carve.c",
+ "lines": 282,
+ "role": "Port of MapGenBase, MapGenCaves and MapGenRavine: carves caves and ravines into one chunk's raw block array (x<<12|z<<8|y layout) from every source chunk within range 8, with Java's Random draw order split into statements.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/MapGenBase.java",
+   "members": [
+    "func_151539_a",
+    "range",
+    "rand"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenCaves.java",
+   "members": [
+    "func_151541_a",
+    "func_151542_a",
+    "func_151538_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenRavine.java",
+   "members": [
+    "func_151540_a",
+    "func_151538_a",
+    "field_75046_d"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "cave_ctx",
+   "java": "MapGenBase call arguments (chunk coords, biome array, block array)",
+   "fields": [
+    "cx",
+    "cz",
+    "biomes",
+    "tops",
+    "ids"
+   ]
+  }
+ ],
+ "entry_points": [
+  "caves_pass",
+  "ravines_pass"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 128 and 131, function tunnel: recursive call for the two branch tunnels (depth bounded because branches get width <= 1.0 and do not branch again, but still recursion)",
+  "line 260, function carve_pass: source carver passed as a function pointer (cave_source or ravine_source)",
+  "line 202, function ravine: 256-float width profile on the stack per ravine"
+ ],
+ "tests": [
+  "csrc/tests/test_worldgen.c"
+ ],
+ "notes": "field_75046_d is MapGenRavine's per-height width array (profile here); name taken from the Java source by assumption, not re-verified member by member. Loops are bounded by steps (at most 112) and the 17x17 source window."
+}

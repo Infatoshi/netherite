@@ -1,0 +1,17 @@
+{
+  "path": "oracle/src/world/MinecraftException.java",
+  "classes": ["MinecraftException"],
+  "lines": 11,
+  "side": "common",
+  "category": "other",
+  "role": "A checked exception thrown when the session.lock of a save folder is held by another process.",
+  "scope": "not_needed",
+  "scope_reason": "Save-lock failure handling; the native engine has no save folder lock and no Java exception model.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "MinecraftException", "sig": "(String)", "native": null, "status": "n/a"}
+  ],
+  "missing": []
+}

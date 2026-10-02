@@ -1,0 +1,138 @@
+{
+ "path": "csrc/engine/nbtjson.c",
+ "lines": 1162,
+ "role": "The native NBT tree: typed nodes (scalars, arrays, lists, insertion-ordered compounds of interned keys) allocated from size-class free lists or, between nbt_scratch_begin and nbt_scratch_end, a rewound scratch region; its builders and readers, the canonical JSON-like text form the oracle probes write (keys sorted, typed scalar strings), a parser back from that text, and a path-reporting tree diff used by the gates.",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/nbt/NBTTagCompound.java",
+   "members": [
+    "setTag",
+    "setByte",
+    "setShort",
+    "setInteger",
+    "setLong",
+    "setFloat",
+    "setDouble",
+    "setString",
+    "setByteArray",
+    "setIntArray",
+    "getTag",
+    "hasKey",
+    "func_150296_c",
+    "tagMap"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTTagList.java",
+   "members": [
+    "appendTag",
+    "func_150304_a",
+    "tagCount",
+    "tagList"
+   ]
+  },
+  {
+   "path": "oracle/src/nbt/NBTBase.java",
+   "members": [
+    "getId"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "nbt (nbtjson_tree.h)",
+   "java": "NBTBase and its subclasses as one tagged union; NBTTagCompound.tagMap as a field array of interned keys in insertion order",
+   "fields": [
+    "type",
+    "shared",
+    "u.i",
+    "u.f",
+    "u.d",
+    "u.s",
+    "u.bytes",
+    "u.ints",
+    "u.list",
+    "u.comp"
+   ]
+  },
+  {
+   "name": "sbuf",
+   "java": null,
+   "fields": [
+    "p",
+    "n",
+    "cap"
+   ]
+  },
+  {
+   "name": "parse",
+   "java": null,
+   "fields": [
+    "p"
+   ]
+  }
+ ],
+ "entry_points": [
+  "nbt_new_byte",
+  "nbt_new_short",
+  "nbt_new_int",
+  "nbt_new_long",
+  "nbt_new_float",
+  "nbt_new_double",
+  "nbt_new_string",
+  "nbt_new_byte_array",
+  "nbt_new_int_array",
+  "nbt_new_list",
+  "nbt_new_compound",
+  "nbt_list_add",
+  "nbt_put",
+  "nbt_list_set",
+  "nbt_comp_set",
+  "nbt_replace",
+  "nbt_kind",
+  "nbt_get",
+  "nbt_list_size",
+  "nbt_list_get",
+  "nbt_string_value",
+  "nbt_int_value",
+  "nbt_field_count",
+  "nbt_field_key",
+  "nbt_field_value",
+  "nbt_float_bits",
+  "nbt_double_bits",
+  "nbt_byte_array",
+  "nbt_int_array",
+  "nbt_render",
+  "nbt_parse",
+  "nbt_diff",
+  "nbt_free",
+  "nbt_scratch_begin",
+  "nbt_scratch_end",
+  "nbt_put_site",
+  "nbt_scratch_bytes"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "functions pool_alloc_normal, pool_release, pool_realloc: every node, string, array, list and compound comes from static size-class free lists carved from 256 KB slabs (never returned), or malloc over 4 KB",
+  "functions scratch_alloc, nbt_scratch_begin and nbt_scratch_end: the scratch region's static slabs, rewound as a whole and the first slab re-zeroed per build (so nbt_scratch_bytes determines the tree); a scratch value must not outlive the end",
+  "function intern: keys and short string values interned in a static open-addressed table (never freed) behind a 4096-slot pointer cache verified by strcmp",
+  "struct nbt (nbtjson_tree.h): a pointer tree the GPU cannot mirror",
+  "function nbt_put: compounds keep insertion order, and nbtbin.c derives Java HashMap iteration order from it, so order is container state that must be preserved",
+  "function nbt_get: linear strcmp scan per key lookup",
+  "function key_order: insertion sort per render (quadratic in the key count) with a heap index array",
+  "function xmalloc: exits the process on allocation failure",
+  "functions nbt_free, render_value and parse_value: explicit stacks of NBT_WALK_DEPTH (64) open containers, deepest 9; diff_rec (a test tool) still recurses"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c",
+  "csrc/tests/test_loot.c",
+  "csrc/tests/test_crafting.c",
+  "csrc/tests/test_containers.c",
+  "csrc/tests/test_drops.c",
+  "csrc/tests/test_trades.c"
+ ],
+ "notes": "Not a port of the Java NBT classes member by member: it is the shared data structure that the entity, tile entity, item tag and structure code build, and that the gates compare. It is on the tick path because item stack tags and entity NBT (writeEntityToNBT ports) are built as these trees during ticks; about 29 csrc/engine files use it. Canonical text form matches netherite.oracle.StructuresProbe.canon (per the header comment, not verified against the oracle source). Tests listed are a subset of the 20 tests that call nbt_parse, nbt_render or nbt_diff. Allocation: the free lists and interning (lane replayspeed, 2026-09-25) replaced a malloc and strdup per node and key; the pools and the intern table are single-threaded (the renderer's workers never build trees). nbt_render writes integers and float bits with sb_dec/sb_hex instead of vsnprintf (checked against snprintf; lane suitestart, 2026-09-25)."
+}

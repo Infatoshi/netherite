@@ -1,0 +1,142 @@
+{
+ "path": "csrc/engine/ticks.c",
+ "lines": 674,
+ "role": "WorldServer's scheduled block update set: scheduleBlockUpdate/func_147454_a with the scheduledUpdatesAreImmediate branch (liquids and falling blocks updated at once during worldgen), the NextTickListEntry pending TreeSet as a min-heap plus a HashSet dedupe, chunk-load entries and the per-chunk pending query.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/WorldServer.java",
+   "members": [
+    "scheduleBlockUpdate",
+    "func_147454_a",
+    "func_147446_b",
+    "getPendingBlockUpdates",
+    "pendingTickListEntriesTreeSet",
+    "pendingTickListEntriesHashSet"
+   ]
+  },
+  {
+   "path": "oracle/src/world/NextTickListEntry.java",
+   "members": [
+    "nextTickEntryID",
+    "tickEntryID",
+    "compareTo",
+    "setScheduledTime",
+    "setPriority"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "scheduledUpdatesAreImmediate",
+    "checkChunksExist"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFalling.java",
+   "members": [
+    "field_149832_M",
+    "func_149831_e",
+    "func_149830_m",
+    "updateTick"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLiquid.java",
+   "members": [
+    "func_149738_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/Block.java",
+   "members": [
+    "func_149698_L"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "tick_entry",
+   "java": "NextTickListEntry (xCoord, yCoord, zCoord, block, scheduledTime, priority, tickEntryID)",
+   "fields": [
+    "x",
+    "y",
+    "z",
+    "block",
+    "time",
+    "priority",
+    "entry"
+   ]
+  },
+  {
+   "name": "tick_slot",
+   "java": "WorldServer.pendingTickListEntriesHashSet key (position and block)",
+   "fields": [
+    "x",
+    "y",
+    "z",
+    "block"
+   ]
+  },
+  {
+   "name": "ticks_backup",
+   "java": null,
+   "fields": [
+    "set",
+    "next_entry_id"
+   ]
+  }
+ ],
+ "entry_points": [
+  "ticks_set_immediate",
+  "ticks_set_fall_instantly",
+  "ticks_schedule_block_update",
+  "ticks_liquid_tick_rate",
+  "ticks_liquid_tick_rate_world",
+  "ticks_reset",
+  "ticks_load_entry",
+  "ticks_next_entry_id",
+  "ticks_set_next_entry_id",
+  "ticks_set_rand",
+  "ticks_get_rand",
+  "ticks_set_total_time",
+  "ticks_pending_count",
+  "ticks_peek",
+  "ticks_pop",
+  "ticks_pop_due",
+  "ticks_walk",
+  "ticks_load_chunk_entry",
+  "ticks_chunk_updates",
+  "ticks_save",
+  "ticks_restore",
+  "ticks_use",
+  "ticks_set_free",
+  "ticks_bwl_sched",
+  "ticks_bwl_step",
+  "ticks_slot_size"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "function heap_push: growth of the pending heap by a quarter, in the arena's slab (slab_grow; ticks_pop gives room back the same way) (lane/querybounds, TM-06)",
+  "function set_resize: the doubled or halved hash table is a slab block, the old one given back after the rehash (lane/querybounds, TM-06)",
+  "function ticks_peek: a peek of up to TICKS_PEEK_MAX (16) candidates uses a stack array (the tick peeks one); a check that reads the whole set gets a heap (lane/gpuarena, L3)",
+  "function ticks_walk: a slab copy of the heap per call, qsorted (ticks_save's backup and ticks_peek's large candidate heap are slab blocks too) (lane/querybounds, TM-06)",
+  "line 379, function ticks_chunk_updates: qsort of the result",
+  "lines 216-223 and 234, set_contains/set_add: open-addressing probe loops bounded only by the load factor",
+  "line 100, function falling_update_now: while loop dropping the block down to the first non-passable block",
+  "line 43, world_rand: pointer to an external Random, installed by the server tick",
+  "ticks_schedule_block_update runs its immediate liquid and falling updates on the block worklist (blockwl.h): the SCHED op, liquid_step, the falling block's FALL_TAIL; set_grow reinserts through set_insert (no recursion)"
+ ],
+ "tests": [
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_seedworld.c",
+  "csrc/tests/test_snapshots.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_fallhang.c",
+  "csrc/tests/test_activate.c",
+  "csrc/tests/test_itemuse.c"
+ ],
+ "notes": "The pending set's order is the TreeSet's (time, priority, entry id) carried as data in a heap, so container order is not a hazard for pop, but ticks_walk and ticks_peek rebuild that order per call. The dedupe hash uses backward-shift deletion. Only the immediate branch's updateTick dispatch lives here (ids 8-13); the consuming tickUpdates loop is elsewhere (servertick.c per the header comment, not verified line by line). ticks_liquid_tick_rate returns 10 for any non-zero dimension, ticks_liquid_tick_rate_world only for dim -1. Tests listed are those that include ticks.h; not verified which of them exercise each entry point."
+}

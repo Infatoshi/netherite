@@ -1,0 +1,201 @@
+{
+  "path": "oracle/src/stats/StatBase.java",
+  "classes": [
+    "StatBase",
+    "StatBase$1",
+    "StatBase$2",
+    "StatBase$3",
+    "StatBase$4"
+  ],
+  "lines": 178,
+  "side": "common",
+  "category": "stats",
+  "role": "Base class of every statistic: an id string, a display name, a formatter, an objective criterion, and registration into StatList.",
+  "scope": "in_scope",
+  "scope_reason": "Stats are counted on the server and sent in S37 packets; their identity (equals/hashCode on statId) keys the counter map.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "STAT_KILL_ENTITY",
+        "STAT_COUNT",
+        "surv_stats"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_add_stat"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/achieve-s1",
+    "out/java/snapshots/stats-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "statId",
+      "sig": "String",
+      "native": "csrc/engine/survival.h:STAT_COUNT",
+      "status": "exact",
+      "note": "The stat's identity is its enum index; the stats compare maps every index to the oracle's statId string (stats_table.h), so each dump checks the ids by name."
+    },
+    {
+      "kind": "field",
+      "name": "statName",
+      "sig": "IChatComponent",
+      "native": null,
+      "status": "n/a",
+      "note": "display only"
+    },
+    {
+      "kind": "field",
+      "name": "isIndependent",
+      "sig": "boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "awardLocallyOnly flag, read only by client GUI code"
+    },
+    {
+      "kind": "field",
+      "name": "type",
+      "sig": "IStatType",
+      "native": null,
+      "status": "n/a",
+      "note": "display formatting"
+    },
+    {
+      "kind": "field",
+      "name": "field_150957_c",
+      "sig": "IScoreObjectiveCriteria",
+      "native": null,
+      "status": "n/a",
+      "note": "scoreboard criterion, commands only"
+    },
+    {
+      "kind": "field",
+      "name": "field_150956_d",
+      "sig": "Class",
+      "native": null,
+      "status": "n/a",
+      "note": "JSON value class for exploreAllBiomes"
+    },
+    {
+      "kind": "field",
+      "name": "numberFormat, decimalFormat, simpleStatType, timeStatType, distanceStatType, field_111202_k",
+      "sig": "static formatters",
+      "native": null,
+      "status": "n/a",
+      "note": "GuiStats text only"
+    },
+    {
+      "kind": "ctor",
+      "name": "StatBase",
+      "sig": "(String,IChatComponent[,IStatType])V",
+      "native": null,
+      "status": "n/a",
+      "note": "registers the objective criterion; no native counterpart needed"
+    },
+    {
+      "kind": "method",
+      "name": "initIndependentStat",
+      "sig": "()StatBase",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "registerStat",
+      "sig": "()StatBase",
+      "native": "csrc/engine/survival.h:STAT_COUNT",
+      "status": "exact",
+      "note": "The registry is the fixed enum and name table built at compile time, in vanilla registration order where the order matters (the achievement list)."
+    },
+    {
+      "kind": "method",
+      "name": "isAchievement",
+      "sig": "()Z",
+      "native": "csrc/engine/survival.c:surv_add_stat",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_75968_a",
+      "sig": "(I)String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_150951_e",
+      "sig": "()IChatComponent",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_150955_j",
+      "sig": "()IChatComponent",
+      "native": null,
+      "status": "n/a",
+      "note": "The achievement's chat line is text: the integrated server's S02 carries no state, and the playable client builds the same line from its own S37 (play.c); the hud_achieve golden pins the toast."
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Object)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "enum identity"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "HashMap order of the S37 map is replaced by enum order in stats_fill_dirty"
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_150952_k",
+      "sig": "()IScoreObjectiveCriteria",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_150954_l",
+      "sig": "()Class",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_150953_b",
+      "sig": "(Class)StatBase",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "StatBase$1.format / StatBase$2.format / StatBase$3.format / StatBase$4.format",
+      "sig": "(I)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: the IStatType formatters: only StatBase.func_75968_a calls them, and only GuiStats (the statistics screen, client_cosmetic) calls that"
+    }
+  ],
+  "missing": [],
+  "notes": "Nested classes are the four anonymous IStatType formatters. The native S37 carries enum indices, not statId strings. func_150955_j's [name] (green, dark purple for the special achievements) is what play.c's chat message carries; the recorded frames pin its Java form (hud_achieve). lane/idxblocks: reviewed."
+}

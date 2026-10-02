@@ -1,0 +1,52 @@
+{
+  "path": "oracle/src/client/settings/KeyBinding.java",
+  "classes": ["KeyBinding"],
+  "lines": 169,
+  "side": "client",
+  "category": "client_input",
+  "role": "One key or mouse binding: its description, key code and category, plus the static registry (the keybind array and the key-code hash) and the per-binding held flag and pending-press counter the input loop and MovementInputFromOptions consume.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/player.h", "symbols": ["key_state", "key_lookup", "key_desc", "K_ATTACK"]},
+    {"file": "csrc/engine/player.c", "symbols": ["key_lookup", "key_desc"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["presses", "memset"]},
+    {"file": "csrc/engine/session.c", "symbols": ["key_lookup"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/walk300-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {"kind": "method", "name": "onTick", "sig": "(int)V", "native": "csrc/engine/session.c:key_lookup", "status": "n/a", "note": "run only by Minecraft's LWJGL mouse and keyboard loops (Minecraft.java:1740, 1796), which Oracle.gameInput skips in every agent run; the tapes set each binding through Act.oracleSet, and a person's Java session is judged through RawRec's events (rawjudge) (lane/covclient)"},
+    {"kind": "method", "name": "setKeyBindState", "sig": "(int,boolean)V", "native": "csrc/engine/session.c:key_lookup", "status": "n/a", "note": "run only by Minecraft's LWJGL mouse and keyboard loops (Minecraft.java:1736, 1792), which Oracle.gameInput skips in every agent run; the tapes set each binding through Act.oracleSet (lane/covclient)"},
+    {"kind": "method", "name": "unPressAllKeys", "sig": "()V", "native": "csrc/engine/survival.c:memset", "status": "partial", "note": "the vanilla call sites are mirrored by zeroing the whole key_state: the GuiWinGame focus change at survival.c:4073 and the sleep path at survival.c:4256"},
+    {"kind": "method", "name": "resetKeyBindingArrayAndHash", "sig": "()V", "native": null, "status": "n/a", "note": "rebuilds the key-code hash after options.txt load; the native table is static"},
+    {"kind": "method", "name": "func_151467_c", "sig": "()Set", "native": null, "status": "n/a", "note": "the category set, options GUI only"},
+    {"kind": "ctor", "name": "KeyBinding", "sig": "(String,int,String)V", "native": "csrc/engine/player.c:key_desc", "status": "partial", "note": "each binding's description, default code and category are the static table in player.c and its order in player.h's enum"},
+    {"kind": "method", "name": "getIsKeyPressed", "sig": "()Z", "native": "csrc/engine/player.h:key_state", "status": "exact", "note": "key_state.held[slot]"},
+    {"kind": "method", "name": "oraclePresses", "sig": "()I", "native": "csrc/engine/session.c:key_lookup", "status": "n/a", "note": "oracle hook: the pending-press count Act reads while a script is recorded (Act.applyInput's agent form, Act.java:538, 544) and while a person plays (captureSnapshot, Act.java:307); every replay, coverage's included, sets the bindings from the row's input snapshot (Act.java:563), which native reads directly (session.c key_lookup) (lane/covclient)"},
+    {"kind": "method", "name": "oracleSet", "sig": "(boolean,int)V", "native": "csrc/engine/session.c:key_lookup", "status": "exact", "note": "oracle hook: sets the held flag and press count the snapshot then records"},
+    {"kind": "method", "name": "getKeyCategory", "sig": "()String", "native": null, "status": "n/a", "note": "options GUI sorting"},
+    {"kind": "method", "name": "isPressed", "sig": "()Z", "native": "csrc/engine/survival.c:presses", "status": "exact", "note": "consume one pending press: the hotbar, inventory, drop and attack/use/pick handling around survival.c:4359-4409"},
+    {"kind": "method", "name": "unpressKey", "sig": "()V", "native": "csrc/engine/survival.c:memset", "status": "partial", "note": "only the unpress-everything call sites are mirrored (key_state zeroed)"},
+    {"kind": "method", "name": "getKeyDescription", "sig": "()String", "native": "csrc/engine/player.c:key_desc", "status": "exact", "note": "the description string is the snapshot's key"},
+    {"kind": "method", "name": "getKeyCodeDefault", "sig": "()I", "native": null, "status": "n/a", "note": "options GUI reset"},
+    {"kind": "method", "name": "getKeyCode", "sig": "()I", "native": null, "status": "n/a", "note": "the native table matches vanilla by description, not by code"},
+    {"kind": "method", "name": "setKeyCode", "sig": "(int)V", "native": null, "status": "n/a", "note": "key rebinding is never done in the recorded game"},
+    {"kind": "method", "name": "compareTo", "sig": "(KeyBinding)I", "native": null, "status": "n/a", "note": "options GUI sort order via I18n"},
+    {"kind": "method", "name": "compareTo", "sig": "(Object)I", "native": null, "status": "n/a", "note": "Comparable bridge"},
+    {"kind": "field", "name": "keybindArray", "sig": "List", "native": "csrc/engine/player.h:K_ATTACK", "status": "partial", "note": "the static registry order is player.h's enum (vanilla GameSettings order for the first 16, then the nine hotbar slots)"},
+    {"kind": "field", "name": "hash", "sig": "IntHashMap", "native": "csrc/engine/player.c:key_lookup", "status": "partial", "note": "the key-code lookup is replaced by a description lookup"},
+    {"kind": "field", "name": "keybindSet", "sig": "Set", "native": null, "status": "n/a", "note": "category set, options GUI only"},
+    {"kind": "field", "name": "keyDescription", "sig": "String", "native": "csrc/engine/player.c:key_desc", "status": "exact"},
+    {"kind": "field", "name": "keyCodeDefault", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "keyCategory", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "keyCode", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "pressed", "sig": "boolean", "native": "csrc/engine/player.h:key_state", "status": "exact", "note": "key_state.held"},
+    {"kind": "field", "name": "presses", "sig": "int", "native": "csrc/engine/player.h:key_state", "status": "exact", "note": "key_state.presses"}
+  ],
+  "missing": [],
+  "notes": "The input snapshot format is oracle/harness/netherite/oracle/Act.java:205 (keys {desc: [held, presses]}). The oraclePresses/oracleSet methods are this project's hooks, not vanilla. Verified key_state use in csrc/engine/survival.c (presses consumed for hotbar, inventory, drop, attack) and csrc/engine/session.c (session_parse_act, the snapshot parse) and csrc/play/play.c (tape_row, the tape write). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): bindings are the pinned defaults. Formerly listed as missing: key codes themselves are not tracked natively (the native table matches vanilla bindings by description, so a rebound key in options.txt would not replay) resetKeyBindingArrayAndHash and the key-code hash have no counterpart because the native registry is static"
+}

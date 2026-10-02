@@ -1,0 +1,16 @@
+{
+  "path": "oracle/harness/netherite/oracle/Coverage.java",
+  "lines": 96,
+  "role": "--coverage FILE: at the run's end (Oracle.finish before its Runtime.halt, and Oracle.onShutdown) writes the JVM's JaCoCo execution data to FILE, asked of the agent through org.jacoco.agent.rt.RT by reflection. make replay COVERAGE=FILE puts the agent on the JVM; make coverage (oracle/tests/coverage.sh, CovReport.java) replays every recording this way. In a coverage pool member it cuts the member's data per job: startup (what the JVM start ran, taken at the top of Pool.init), then CovInit.forJob (the forced class initializers a fresh JVM would have run by the job's end), then the job's own probes (reset by Pool.covReset after Pool.init and after every job's teardown), three JaCoCo dumps one after another that JaCoCo reads as one file. The agent instruments net.minecraft.* and netherite.* (the Makefile's COVOPTS), so the per-recording data names the harness methods each recording runs too: make selfcheck SELECT=1 (oracle/tests/SelfSelect.java, lane/selfselect) replays only the recordings that ran a method whose code changed since the data was made.",
+  "kind": "harness",
+  "used_by": [
+    "oracle/Makefile",
+    "oracle/harness/netherite/oracle/CovInit.java",
+    "oracle/harness/netherite/oracle/Main.java",
+    "oracle/harness/netherite/oracle/Oracle.java",
+    "oracle/harness/netherite/oracle/Pool.java",
+    "oracle/tests/coverage.sh"
+  ],
+  "vanilla_hooks": [],
+  "notes": "Off by default: without the flag nothing runs. A coverage run is cached per recording under COVROOT (oracle/tests/oraclecache.sh, the data as the COVFILE output, the JaCoCo version and agent options as --key) and on a miss goes to a coverage member of the shared pool (oracle/tests/poolauto.sh, key HARNESS-cov...), else a fresh JVM (lane/covcache). Main.configurePool gives coverage runs only to coverage members and never gives one to another member. Pooled and fresh data of one tape have equal covered-method sets but for two thread-timing sites that differ between fresh JVMs too (lane/covcache report)."
+}

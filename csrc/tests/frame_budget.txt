@@ -1,0 +1,2157 @@
+# tests/frame_judge.sh budgets: NAME TICK PT, then what the live frame
+# measured against the oracle's frame of that tick when it was accepted
+# (each channel's mean absolute error, the pixels over 25), as
+# tests/render_budget.txt's lines are: a ratchet, lower a line when a fix
+# lowers it. Every line also checks that a drop is drawn near each of the
+# oracle's items and orbs.
+#
+# game-s1 is Elliot's first played session (out/human/game session 1, from
+# fresh-play-s1): 109 a punched-out dirt block on the ground, 729 the
+# inventory open over two logs, a lilac and a block, 1899 a chicken's
+# feather and raw chicken beside its dying body. drops-s1 is staged
+# (oracle/tests/clientframes-drops-s1.jsonl): dirt, a stick, a sapling and a
+# torch thrown on stone, two orbs ten blocks off (102, also at partial tick
+# 0.5, the live loop's in-between frames), then a chest open with planks in
+# it (112). screens-s1 is the GUI judge's inventory case (the oracle fed
+# guijudge-inv-s1's raw events, RAWGUI=) with frames mid-drag: four slots
+# split (27), five placed one each (41), the crafting grid (80), nine slots
+# (96); the drag's shares and the cursor's remainder are drawn. pickup-s1
+# walks onto a thrown dirt block and an orb: 79 the tick the server
+# collects them (the client still shows them lying), 80 and 81 the
+# EntityPickupFX flights (the collected block drawn toward the player; the
+# spin is the server item's, so the cube turns another way than Java's).
+# Named residuals (pxdiff survey): the live world draws the server's
+# entities, the oracle the client's copies (tracker positions, the client's
+# own hoverStart and age): the items rest up to 0.3 block from Java's and
+# spin at another phase (drops-s1 102, game-s1 109 and 1899, where the dying
+# chicken also sits elsewhere); the player preview's held item (game-s1
+# 729, 303 px); the break particles (game-s1 109); a block item on the
+# cursor sits a fraction of a pixel off (screens-s1 41 and 96, about 1,000
+# px); the achievement toast's slide a tick apart (screens-s1 80). The join's
+# "Press 'E'" hint is drawn since lane/framesweep (game-s1 109, drops-s1 102
+# and 112 lowered by 10,000 to 20,000 px).
+# lane/idxworld: the live client keeps WorldClient's own clock (a tick
+# behind the server's, reset by the S03 every 20th tick), the chest lids
+# one row behind (the S24), the spawner spin from the S35's delay, and the
+# mob copies' equipment and leads (S04, S1B): 76 shots lower, 6 higher by
+# under 0.06 in a channel's mean (screens-s1 27, 41, 80, 96, game-s1 729,
+# sweep-gold-g17-s42 4500: the sky and light a tick earlier, as Java has
+# them, leave other residuals less cancelled). Then every explosion's S27
+# and its huge or large explosion on the client, and the S0D's pickups: the
+# pinned cr-* shots match Java's explosion particles; the unpinned goldens
+# (sweep-gold-g9 7597, g22 7540, 10000, 10423, g30 18300) rose, their
+# particles' children drawn from the shared client stream no one knows.
+#
+# sweep-* (lane/framesweep): the golden chain, gold-g1-s42 to gold-g30-s42
+# (each segment's own snapshot and tape), and Elliot's first session from
+# fresh-play-s1, each at eight ticks (the survey's worst frames, a screen
+# open, a hit taken, the most entities, random ones), at partial ticks 0.5
+# and 1.0 (the oracle's frames of both from one replay, make replay
+# ARGS="--frame-pts 0.5,1.0 --toasts --chat --tooltips"; drops from its
+# renderstate). Named residuals (pxdiff and the renderstate probe): the
+# torch flicker's phase (EntityRenderer.updateTorchFlicker draws the client
+# Math.random stream, which the native client does not keep exact: the
+# lightmap's block column, the whole frame in caves and the Nether, gold-g7
+# 700, gold-g8 2900); the random particles (dig and break debris, rain;
+# gold-g20 2700, gold-g23 6700, gold-g26 3100, gold-g22 10000); the oracle's
+# own frame history in sparse frames (EntityFX.interpPos from the last frame
+# drawn places a pickup far off, gold-g30 18300; BossStatus counts frames).
+#
+# lane/clientents re-measured every line: the entities are drawn from the
+# client's own copies (play/clientents.c: the livings' clocks and angles, the
+# dragon, EntityTracker's item and orb copies), the dragon's hurt pass keeps
+# the lightmap and the End's hurt flash reads block light only (gold-g30
+# 12500 61,234 to 0 px, 13500 68,326 to 12). 213 lines fell, 52 rose, each
+# by the causes named here: a dropped item's spin and bob phase (its
+# hoverStart is the client's Math.random, which the native client does not
+# keep: the copy's position and age are exact, the angle is not; gold-g3
+# 915, 2089, gold-g4 2485, gold-g10 1900, gold-g28 2900, sweep-fresh-play-s1
+# 1900, game-s1 109, where the old frame also missed the raw chicken or drew
+# a sapling Java does not); an enderman's teleport burst, where the replay's
+# own client copy drifts from Java's (gold-g14 10319); a pig whose correct
+# pose now shows past a block Java draws in front of it (gold-g12 9700); a
+# pixel or a channel's mean a few thousandths up where a far mob or item
+# moved (gold-g2 884, gold-g15 3170, gold-g21 11591, gold-g25 9145).
+#
+# hang-s1 (lane/clientents, oracle/tests/clientframes-hang-s1.jsonl, seed 1):
+# a painting (Kebab) and an item frame holding a diamond on a stone wall, a
+# cow leashed to a fence knot, at 30, 50 and 80. Named residuals: the join's
+# hint toast the native client draws there and the oracle does not, and the
+# sky's fade after the dev time change (30).
+#
+# cr-* (lane/clientrand): every recording above re-captured under Det's client
+# consumer pin (DIR/pins: clientrand; oracle/tests: make replay ARGS="--frame-pts
+# 0.5,1.0 --toasts --chat --tooltips --frame-ticks T,T,..."), both partial
+# ticks of every tick above, the rows replayed unchanged. The torch flicker,
+# a spawned item's EntityItem draws (hoverStart: its spin and bob), every
+# particle's Math.random and Random and EffectRenderer.rand come from their
+# own streams, reseeded each client tick, so the live client draws Java's
+# (csrc/engine/det.h det_pin). The cr-* set supersedes the recordings above,
+# whose lines lane/framerest removed with play's shared-stream mode (master
+# keeps them in out/java/clientframes-retired); the notes above still name
+# what each tick shows. Over the 496 sweep shots 2,110,423 px over 25
+# became 628,168: the flicker (sweep-gold-g7 700, 38,489 to 75), the break
+# and hit debris (gold-g20 2700, 90,293 to 3,041; gold-g23 6700, 65,992 to
+# 195; gold-g26 3100, 41,359 to 72) and the item phase (gold-g10 1900,
+# 2,354 to 64; gold-g4 2485, 2,488 to 472) are gone or a few hundred px.
+# Named residuals: the fire and lava texture animation phase (gold-g8 2900,
+# gold-g22 10000), the item tracker's own spawn schedule (a copy built at
+# another tick draws another phase: gold-g4's four copies Java sends at
+# ticks 14 and 15, native at 61 or never), the rest as named above. A shot
+# leaves EntityFX.interpPos for the next, as the capture drew exactly these
+# frames in order (cr-pickup-s1 81: 355 px). The collected item's copy reads
+# its emptied stack (the integrated server hands the client the server's
+# ItemStack), one cube: pickup-s1 79 to 81 lowered, sweep-gold-g19-s42 5700
+# raised 1,202 px against its pre-pin golden, whose item phase is unrelated.
+# Every line re-measured once more after lane/rerecaudit's snapshots replaced
+# master's (2026-09-27 1:55 am): the older recordings replay the shared client
+# streams from each snapshot's stored state, which the re-recording changed
+# (14 lines up, by 7 to 3,820 px, all pre-pin goldens: game-s1 109,
+# sweep-fresh-play-s1 122 and 934, gold-g11 4900, gold-g15 12500, gold-g17
+# 6300 among them); the pinned streams do not read it (no cr-* line rose).
+#
+# lane/framerest re-measured every cr-* line. The live client's item tracker
+# caps its ranges at EntityTracker's entityViewDistance, which WorldServer's
+# constructor took at view distance 10 (144 blocks: an item at 64, an orb at
+# 144), not the view of 4; its pass runs before the network tick (the player
+# where the last C03 left it), so every item and orb copy is built at Java's
+# tick (gold-g2, g3, g4 and g25's schedules equal Java's), and a copy is drawn
+# within isInRangeToRender3d (16 blocks, an orb 32). The animated sprites
+# start each session as the oracle's do (one update per client tick from
+# tape tick 0: fire, lava, water, the portal at Java's frame) and the HUD's
+# portal overlay and hotbar dials take the live frame at every draw. Over
+# the 496 sweep shots 621,502 px over 25 became 317,542: gold-g8 2900 21,617
+# to 110 (fire), gold-g22 10000 9,674 to 87 (lava), gold-g6 700's portal
+# overlay (means 4.18 to 0.38), gold-g3 2089 2,571 to 1,681 (items). Nine
+# lines rose by at most 7 px or 1e-4 of a mean with the water's phase now
+# Java's (gold-g13 1311, gold-g24 2419 and gold-g3 954, whose means fell by
+# 10 to 80%; game-s1 729, gold-g19 5700, gold-g22 11631 and gold-g30 12984
+# by one unit on a few texels).
+cr-drops-s1 102 0.50 0.029181 0.016069 0.029406 90
+cr-drops-s1 102 1.00 0.025866 0.015647 0.028874 89
+cr-drops-s1 112 0.50 0.217235 0.223348 0.197656 0
+cr-drops-s1 112 1.00 0.217418 0.223295 0.197673 0
+cr-game-s1 109 0.50 0.015379 0.012973 0.015515 45
+cr-game-s1 109 1.00 0.019572 0.014737 0.020641 60
+cr-game-s1 729 0.50 0.172570 0.197214 0.180457 0
+cr-game-s1 729 1.00 0.170475 0.194799 0.175173 0
+cr-game-s1 1899 0.50 2.042357 1.438971 1.777893 9445
+cr-game-s1 1899 1.00 2.542486 1.609138 1.978847 11385
+cr-hang-s1 30 0.50 0.089774 0.071907 0.076459 498
+cr-hang-s1 30 1.00 0.089786 0.071873 0.076312 498
+cr-hang-s1 50 0.50 0.082245 0.062461 0.069838 437
+cr-hang-s1 50 1.00 0.082245 0.062461 0.069848 437
+cr-hang-s1 80 0.50 0.082255 0.062480 0.069858 437
+cr-hang-s1 80 1.00 0.082255 0.062480 0.069858 437
+# lane/idxlast: 309 lines lowered, none raised, by two HUD fixes. The held
+# item's name: GuiIngame.updateTick runs at runTick's head, before the
+# tick's packets and input, so the name and its 40-tick clock follow the
+# stack the previous tick left (GuiIngame.highlightingItemStack), a tick
+# after a hotbar change or a pickup into the held slot (cr-hang-s1 50: 4,634
+# px to 437; cr-sweep-gold-g22-s42 11500: 451 to 0).
+# lane/idxlast: cr-pickup-s1 80 and 81 lowered by the hotbar's pickup pop
+# (GuiIngame.renderInventorySlot under ItemStack.animationsToGo, set by the
+# S2F that raises a hotbar slot's count): 81 at 1.0 went from 355 px (the
+# dirt in slot 0 unsquashed) to 18. What is left at 79 to 81 is the orb's
+# colour pulse (a shading-offset cluster on the orb, red up about 30: the
+# client copy's xpColor), a follow-up.
+cr-pickup-s1 79 0.50 0.083133 0.007316 0.116076 940
+cr-pickup-s1 79 1.00 0.142274 0.033380 0.046094 1030
+cr-pickup-s1 80 0.50 0.164847 0.012351 0.062844 1045
+cr-pickup-s1 80 1.00 0.282599 0.011895 0.085822 2266
+cr-pickup-s1 81 0.50 0.377710 0.008199 0.126561 2786
+cr-pickup-s1 81 1.00 0.031687 0.008919 0.018809 18
+cr-screens-s1 27 0.50 0.212663 0.180657 0.194514 1
+cr-screens-s1 27 1.00 0.178220 0.203725 0.157226 1
+cr-screens-s1 41 0.50 0.181304 0.193799 0.192350 1
+cr-screens-s1 41 1.00 0.181587 0.194192 0.192359 1
+cr-screens-s1 80 0.50 1.649044 1.674258 1.710322 9673
+cr-screens-s1 80 1.00 1.649014 1.670977 1.683036 9673
+cr-screens-s1 96 0.50 0.233031 0.243584 0.198597 179
+cr-screens-s1 96 1.00 0.232977 0.243540 0.198585 179
+# cr-screens-s1 27 (one more pixel over 25 at each partial tick, the means a tenth)
+# and 96 0.50 (blue 0.532 to 0.554): lane/pixworld starts the fog light where the
+# oracle's is (fogColor1 exact against the renderstate probe); an edge pixel and the
+# sky's rounding under the inventory's gradient move with it.
+cr-sweep-fresh-play-s1 100 0.50 0.034277 0.030769 0.031977 87
+cr-sweep-fresh-play-s1 100 1.00 0.033872 0.033255 0.032980 99
+cr-sweep-fresh-play-s1 122 0.50 0.117882 0.107555 0.088834 911
+cr-sweep-fresh-play-s1 122 1.00 0.122934 0.115030 0.093262 904
+cr-sweep-fresh-play-s1 300 0.50 0.096077 0.031789 0.036368 22
+cr-sweep-fresh-play-s1 300 1.00 0.106594 0.036161 0.042896 115
+cr-sweep-fresh-play-s1 476 0.50 0.016618 0.019792 0.015915 82
+cr-sweep-fresh-play-s1 476 1.00 0.017025 0.019016 0.015342 71
+cr-sweep-fresh-play-s1 934 0.50 0.063532 0.071460 0.060690 8
+cr-sweep-fresh-play-s1 934 1.00 0.058209 0.061324 0.058409 9
+cr-sweep-fresh-play-s1 1023 0.50 0.018113 0.022153 0.013190 80
+cr-sweep-fresh-play-s1 1023 1.00 0.018113 0.022153 0.013190 80
+cr-sweep-fresh-play-s1 1146 0.50 0.328008 0.320467 0.328508 1024
+cr-sweep-fresh-play-s1 1146 1.00 0.336854 0.327569 0.331845 1089
+cr-sweep-fresh-play-s1 1900 0.50 1.850229 1.180306 1.503142 6991
+cr-sweep-fresh-play-s1 1900 1.00 1.444540 0.871999 1.164591 4534
+cr-sweep-gold-g1-s42 100 0.50 0.035004 0.035278 0.042435 44
+cr-sweep-gold-g1-s42 100 1.00 0.032799 0.036514 0.029528 46
+cr-sweep-gold-g1-s42 109 0.50 0.038815 0.038695 0.031496 54
+cr-sweep-gold-g1-s42 109 1.00 0.036851 0.038386 0.039900 55
+cr-sweep-gold-g1-s42 124 0.50 0.058807 0.051081 0.087815 126
+cr-sweep-gold-g1-s42 124 1.00 0.060858 0.056479 0.046568 253
+cr-sweep-gold-g1-s42 165 0.50 0.009199 0.006938 0.008609 0
+cr-sweep-gold-g1-s42 165 1.00 0.009192 0.006213 0.010180 0
+cr-sweep-gold-g1-s42 300 0.50 0.008629 0.009743 0.010209 0
+cr-sweep-gold-g1-s42 300 1.00 0.009231 0.009346 0.009268 0
+cr-sweep-gold-g1-s42 478 0.50 0.276659 0.256135 0.284209 481
+cr-sweep-gold-g1-s42 478 1.00 0.276654 0.256133 0.284214 481
+cr-sweep-gold-g1-s42 500 0.50 0.042508 0.055777 0.067872 112
+cr-sweep-gold-g1-s42 500 1.00 0.043496 0.064127 0.074188 219
+cr-sweep-gold-g1-s42 578 0.50 0.014637 0.010217 0.005921 13
+cr-sweep-gold-g1-s42 578 1.00 0.015154 0.010607 0.006567 22
+cr-sweep-gold-g10-s42 1604 0.50 0.021575 0.022160 0.020489 18
+cr-sweep-gold-g10-s42 1604 1.00 0.117996 0.119067 0.116694 1150
+cr-sweep-gold-g10-s42 1900 0.50 0.142669 0.142298 0.141806 76
+cr-sweep-gold-g10-s42 1900 1.00 0.122600 0.122343 0.121934 64
+cr-sweep-gold-g10-s42 3900 0.50 0.028054 0.025883 0.025005 107
+cr-sweep-gold-g10-s42 3900 1.00 0.032977 0.027788 0.024807 127
+cr-sweep-gold-g10-s42 5300 0.50 0.016252 0.013776 0.020499 0
+cr-sweep-gold-g10-s42 5300 1.00 0.016374 0.014154 0.020919 0
+cr-sweep-gold-g10-s42 5655 0.50 0.004301 0.004306 0.003303 0
+cr-sweep-gold-g10-s42 5655 1.00 0.005508 0.005472 0.004396 0
+cr-sweep-gold-g10-s42 5901 0.50 0.004640 0.004564 0.005162 0
+cr-sweep-gold-g10-s42 5901 1.00 0.004835 0.005038 0.005274 0
+# lane/rlfuzz2: raised with the enderman's scream fix (rf-g14-583): a
+# scream set and reset in one tick dirties DataWatcher 18, so the tracker's
+# update block runs. With it every S12, S14, S18 and S19 the entry sends
+# matches the oracle's packet for packet (g14 enderman 8180, ticks 10264 to
+# 10324) and the client copies at the shot equal the oracle's snapshot
+# (position, prevPos, newPos, newPosRotationIncrements: g14 8180 at 10320,
+# g23 1401 and 1402 at 4031, g10 2286, 2556, 2557 at 6519); these budgets
+# were measured on copies that lagged. What is left is the renderer's body
+# yaw and limb swing (the copy's renderYawOffset is 0 natively), a
+# follow-up.
+cr-sweep-gold-g10-s42 6518 0.50 0.094182 0.090784 0.081975 0
+cr-sweep-gold-g10-s42 6518 1.00 0.058831 0.055716 0.050481 0
+cr-sweep-gold-g10-s42 9918 0.50 0.005235 0.005069 0.007109 0
+cr-sweep-gold-g10-s42 9918 1.00 0.004742 0.004601 0.006716 0
+cr-sweep-gold-g11-s42 731 0.50 0.016913 0.007936 0.017352 69
+cr-sweep-gold-g11-s42 731 1.00 0.020423 0.007387 0.017274 78
+cr-sweep-gold-g11-s42 3243 0.50 0.018201 0.006440 0.010978 5
+cr-sweep-gold-g11-s42 3243 1.00 0.018516 0.007445 0.011341 7
+cr-sweep-gold-g11-s42 4300 0.50 0.029847 0.022870 0.025312 91
+cr-sweep-gold-g11-s42 4300 1.00 0.026978 0.030801 0.038610 166
+cr-sweep-gold-g11-s42 4353 0.50 0.027147 0.028706 0.036251 50
+cr-sweep-gold-g11-s42 4353 1.00 0.024676 0.023856 0.038788 56
+cr-sweep-gold-g11-s42 4700 0.50 0.019238 0.017362 0.018435 64
+cr-sweep-gold-g11-s42 4700 1.00 0.017379 0.015579 0.015374 42
+cr-sweep-gold-g11-s42 4900 0.50 0.022814 0.017791 0.017428 31
+cr-sweep-gold-g11-s42 4900 1.00 0.029974 0.021509 0.021463 68
+cr-sweep-gold-g11-s42 9911 0.50 0.182706 0.182543 0.154972 750
+cr-sweep-gold-g11-s42 9911 1.00 0.245524 0.248527 0.217169 980
+cr-sweep-gold-g11-s42 11975 0.50 0.013747 0.010451 0.011192 44
+cr-sweep-gold-g11-s42 11975 1.00 0.019013 0.014971 0.015579 74
+cr-sweep-gold-g12-s42 1500 0.50 0.016454 0.014378 0.016984 47
+cr-sweep-gold-g12-s42 1500 1.00 0.016896 0.014947 0.017213 49
+cr-sweep-gold-g12-s42 1550 0.50 0.410097 0.398434 0.408272 807
+cr-sweep-gold-g12-s42 1550 1.00 0.410156 0.399153 0.408441 807
+cr-sweep-gold-g12-s42 2065 0.50 0.040647 0.029818 0.032448 78
+cr-sweep-gold-g12-s42 2065 1.00 0.040647 0.029818 0.032448 78
+cr-sweep-gold-g12-s42 7547 0.50 0.008443 0.008799 0.010866 0
+cr-sweep-gold-g12-s42 7547 1.00 0.008185 0.009804 0.011436 0
+cr-sweep-gold-g12-s42 8805 0.50 0.011422 0.007806 0.012327 1
+cr-sweep-gold-g12-s42 8805 1.00 0.011549 0.007797 0.012341 2
+cr-sweep-gold-g12-s42 9700 0.50 0.006460 0.005857 0.010492 7
+cr-sweep-gold-g12-s42 9700 1.00 0.005704 0.005191 0.008887 0
+cr-sweep-gold-g12-s42 11368 0.50 0.012156 0.010809 0.013710 0
+cr-sweep-gold-g12-s42 11368 1.00 0.012341 0.010490 0.015532 0
+cr-sweep-gold-g12-s42 11900 0.50 0.022712 0.009116 0.014274 43
+cr-sweep-gold-g12-s42 11900 1.00 0.023090 0.009016 0.014044 42
+cr-sweep-gold-g13-s42 1311 0.50 0.121490 0.111131 0.120338 204
+cr-sweep-gold-g13-s42 1311 1.00 0.120367 0.110802 0.121985 216
+cr-sweep-gold-g13-s42 1886 0.50 0.008367 0.007226 0.009590 1
+cr-sweep-gold-g13-s42 1886 1.00 0.006635 0.005469 0.007321 1
+cr-sweep-gold-g13-s42 3900 0.50 2.910444 0.394789 0.393350 6611
+cr-sweep-gold-g13-s42 3900 1.00 0.618838 0.164737 0.195243 1780
+cr-sweep-gold-g13-s42 5333 0.50 0.010161 0.012834 0.012229 25
+cr-sweep-gold-g13-s42 5333 1.00 0.012034 0.014217 0.013912 35
+cr-sweep-gold-g13-s42 6221 0.50 0.013366 0.011197 0.013364 52
+cr-sweep-gold-g13-s42 6221 1.00 0.023990 0.031311 0.019372 187
+cr-sweep-gold-g13-s42 9064 0.50 0.003384 0.002103 0.003525 0
+cr-sweep-gold-g13-s42 9064 1.00 0.002918 0.002222 0.002971 0
+cr-sweep-gold-g13-s42 9300 0.50 0.188542 0.233387 0.318945 2274
+cr-sweep-gold-g13-s42 9300 1.00 0.229896 0.282523 0.363529 2541
+cr-sweep-gold-g13-s42 9500 0.50 0.055257 0.064291 0.055125 84
+cr-sweep-gold-g13-s42 9500 1.00 0.064186 0.068596 0.061358 124
+cr-sweep-gold-g14-s42 871 0.50 0.019899 0.019318 0.024219 102
+cr-sweep-gold-g14-s42 871 1.00 0.021468 0.021555 0.025988 99
+cr-sweep-gold-g14-s42 1900 0.50 0.032887 0.032199 0.030321 167
+cr-sweep-gold-g14-s42 1900 1.00 0.024185 0.022536 0.021202 101
+cr-sweep-gold-g14-s42 2900 0.50 0.021958 0.023295 0.019623 93
+cr-sweep-gold-g14-s42 2900 1.00 0.022853 0.020824 0.018016 83
+cr-sweep-gold-g14-s42 4823 0.50 0.012090 0.013059 0.013895 12
+cr-sweep-gold-g14-s42 4823 1.00 0.012951 0.012793 0.014578 8
+cr-sweep-gold-g14-s42 10153 0.50 0.009160 0.006228 0.010609 0
+cr-sweep-gold-g14-s42 10153 1.00 0.009160 0.006228 0.010609 0
+# lane/idxclient: 10319 at 0.5 re-measured (red +0.000005, blue +0.000044, green -0.000157): the mobs' brightness now reads the copy's posX as Entity.getBrightnessForRender does, and squid 9308's is then the oracle's (renderstate brf 6291456, the interpolated position gave 3145728)
+cr-sweep-gold-g14-s42 10319 0.50 0.334426 0.087044 0.148363 691
+cr-sweep-gold-g14-s42 10319 1.00 0.330352 0.088110 0.149671 600
+cr-sweep-gold-g14-s42 11500 0.50 0.061068 0.022153 0.034024 27
+cr-sweep-gold-g14-s42 11500 1.00 0.062927 0.019733 0.035766 7
+cr-sweep-gold-g14-s42 11602 0.50 0.034738 0.035883 0.056006 2
+cr-sweep-gold-g14-s42 11602 1.00 0.036558 0.041245 0.062632 2
+cr-sweep-gold-g15-s42 28 0.50 0.182992 0.190659 0.190764 0
+cr-sweep-gold-g15-s42 28 1.00 0.185478 0.184346 0.194084 0
+cr-sweep-gold-g15-s42 3170 0.50 0.202298 0.266406 0.450822 2359
+cr-sweep-gold-g15-s42 3170 1.00 0.200037 0.263264 0.435761 2349
+cr-sweep-gold-g15-s42 4256 0.50 0.038095 0.044392 0.068896 4
+cr-sweep-gold-g15-s42 4256 1.00 0.034087 0.043767 0.072563 33
+cr-sweep-gold-g15-s42 4300 0.50 0.074680 0.041550 0.063920 46
+cr-sweep-gold-g15-s42 4300 1.00 0.074190 0.047075 0.064517 43
+cr-sweep-gold-g15-s42 5945 0.50 0.024478 0.030901 0.053884 39
+cr-sweep-gold-g15-s42 5945 1.00 0.029562 0.033750 0.060248 56
+cr-sweep-gold-g15-s42 6100 0.50 0.051576 0.033650 0.077320 18
+cr-sweep-gold-g15-s42 6100 1.00 0.051351 0.036127 0.079081 13
+cr-sweep-gold-g15-s42 9479 0.50 0.052498 0.061556 0.096133 63
+cr-sweep-gold-g15-s42 9479 1.00 0.043086 0.048517 0.085980 10
+cr-sweep-gold-g15-s42 12500 0.50 0.128745 0.097961 0.072502 642
+cr-sweep-gold-g15-s42 12500 1.00 0.098441 0.076149 0.056216 692
+cr-sweep-gold-g16-s42 770 0.50 0.014205 0.017899 0.018128 0
+cr-sweep-gold-g16-s42 770 1.00 0.015808 0.023046 0.022287 0
+cr-sweep-gold-g16-s42 1159 0.50 0.006240 0.005191 0.006357 0
+cr-sweep-gold-g16-s42 1159 1.00 0.006118 0.006431 0.006377 0
+cr-sweep-gold-g16-s42 1352 0.50 0.011417 0.008341 0.006594 0
+cr-sweep-gold-g16-s42 1352 1.00 0.041235 0.015164 0.011366 61
+cr-sweep-gold-g16-s42 2700 0.50 0.019187 0.018967 0.013878 55
+cr-sweep-gold-g16-s42 2700 1.00 0.016933 0.017455 0.012966 51
+cr-sweep-gold-g16-s42 2900 0.50 0.021943 0.025539 0.022480 159
+cr-sweep-gold-g16-s42 2900 1.00 0.022958 0.026288 0.023634 161
+cr-sweep-gold-g16-s42 3500 0.50 0.022621 0.026608 0.020726 123
+cr-sweep-gold-g16-s42 3500 1.00 0.021724 0.025676 0.018977 106
+cr-sweep-gold-g16-s42 10854 0.50 0.010068 0.013510 0.027537 4
+cr-sweep-gold-g16-s42 10854 1.00 0.010961 0.013395 0.026520 4
+cr-sweep-gold-g16-s42 11563 0.50 0.012459 0.014605 0.017364 4
+cr-sweep-gold-g16-s42 11563 1.00 0.012641 0.014808 0.018555 6
+cr-sweep-gold-g17-s42 1327 0.50 0.011822 0.013847 0.017350 2
+cr-sweep-gold-g17-s42 1327 1.00 0.011185 0.013629 0.017603 2
+cr-sweep-gold-g17-s42 3753 0.50 0.016562 0.013754 0.011368 14
+cr-sweep-gold-g17-s42 3753 1.00 0.015813 0.013649 0.014022 14
+cr-sweep-gold-g17-s42 3834 0.50 0.608814 0.616201 0.340305 2215
+cr-sweep-gold-g17-s42 3834 1.00 0.605211 0.617599 0.378674 2270
+cr-sweep-gold-g17-s42 4500 0.50 2.841320 2.740083 1.517933 10732
+cr-sweep-gold-g17-s42 4500 1.00 2.915554 2.815166 1.547048 11110
+cr-sweep-gold-g17-s42 4761 0.50 0.016152 0.009553 0.011514 28
+cr-sweep-gold-g17-s42 4761 1.00 0.016152 0.009553 0.011514 28
+cr-sweep-gold-g17-s42 6300 0.50 0.121585 0.076522 0.106774 685
+cr-sweep-gold-g17-s42 6300 1.00 0.118423 0.074305 0.104233 700
+cr-sweep-gold-g17-s42 7900 0.50 0.014161 0.010031 0.004774 6
+cr-sweep-gold-g17-s42 7900 1.00 0.011951 0.010356 0.009087 9
+cr-sweep-gold-g17-s42 8889 0.50 0.049480 0.050751 0.047978 0
+cr-sweep-gold-g17-s42 8889 1.00 0.033772 0.035470 0.033977 0
+cr-sweep-gold-g18-s42 1100 0.50 0.150339 0.165496 0.200764 859
+cr-sweep-gold-g18-s42 1100 1.00 0.154230 0.168833 0.198305 910
+cr-sweep-gold-g18-s42 1300 0.50 0.105616 0.073807 0.062751 579
+cr-sweep-gold-g18-s42 1300 1.00 0.163437 0.130077 0.091855 955
+cr-sweep-gold-g18-s42 1500 0.50 0.022863 0.020267 0.019050 80
+cr-sweep-gold-g18-s42 1500 1.00 0.020741 0.018362 0.018223 79
+cr-sweep-gold-g18-s42 1674 0.50 0.172387 0.137868 0.139632 49
+cr-sweep-gold-g18-s42 1674 1.00 0.155538 0.120443 0.128798 0
+cr-sweep-gold-g18-s42 4574 0.50 0.005272 0.005494 0.004996 0
+cr-sweep-gold-g18-s42 4574 1.00 0.005418 0.006001 0.005343 0
+cr-sweep-gold-g18-s42 6247 0.50 0.010683 0.011349 0.010834 0
+cr-sweep-gold-g18-s42 6247 1.00 0.010683 0.011349 0.010834 0
+cr-sweep-gold-g18-s42 7448 0.50 0.021185 0.021680 0.021870 0
+cr-sweep-gold-g18-s42 7448 1.00 0.020746 0.021299 0.021465 0
+cr-sweep-gold-g18-s42 8843 0.50 0.003935 0.004933 0.004716 0
+cr-sweep-gold-g18-s42 8843 1.00 0.003969 0.005411 0.004379 0
+cr-sweep-gold-g19-s42 2684 0.50 0.013393 0.013771 0.012851 0
+cr-sweep-gold-g19-s42 2684 1.00 0.015008 0.015615 0.014669 0
+cr-sweep-gold-g19-s42 3871 0.50 0.004315 0.004906 0.004513 0
+cr-sweep-gold-g19-s42 3871 1.00 0.003774 0.004916 0.003896 0
+cr-sweep-gold-g19-s42 5700 0.50 0.009268 0.007045 0.008897 20
+cr-sweep-gold-g19-s42 5700 1.00 0.013695 0.012551 0.016403 48
+cr-sweep-gold-g19-s42 5997 0.50 0.010770 0.010483 0.012573 23
+cr-sweep-gold-g19-s42 5997 1.00 0.014488 0.016123 0.018133 54
+cr-sweep-gold-g19-s42 6085 0.50 0.065237 0.067664 0.059924 84
+cr-sweep-gold-g19-s42 6085 1.00 0.055923 0.059939 0.052213 79
+cr-sweep-gold-g19-s42 10435 0.50 0.019084 0.021712 0.020058 92
+cr-sweep-gold-g19-s42 10435 1.00 0.033058 0.035141 0.028625 209
+cr-sweep-gold-g19-s42 11700 0.50 0.027622 0.024205 0.018589 75
+cr-sweep-gold-g19-s42 11700 1.00 0.031060 0.030206 0.024073 125
+cr-sweep-gold-g19-s42 11900 0.50 0.069470 0.042542 0.037688 298
+cr-sweep-gold-g19-s42 11900 1.00 0.059331 0.041057 0.036951 278
+cr-sweep-gold-g2-s42 81 0.50 0.055464 0.075837 0.043940 126
+cr-sweep-gold-g2-s42 81 1.00 0.056601 0.087049 0.052032 244
+cr-sweep-gold-g2-s42 85 0.50 0.048022 0.067345 0.040579 106
+cr-sweep-gold-g2-s42 85 1.00 0.038447 0.055245 0.032026 36
+cr-sweep-gold-g2-s42 100 0.50 0.040132 0.040457 0.034456 211
+cr-sweep-gold-g2-s42 100 1.00 0.044897 0.042672 0.033370 275
+cr-sweep-gold-g2-s42 300 0.50 0.180482 0.180164 0.182197 1130
+cr-sweep-gold-g2-s42 300 1.00 0.119953 0.119587 0.121587 610
+cr-sweep-gold-g2-s42 884 0.50 0.003140 0.006384 0.005072 0
+cr-sweep-gold-g2-s42 884 1.00 0.003186 0.006431 0.005118 0
+cr-sweep-gold-g2-s42 1229 0.50 0.049749 0.067298 0.049888 156
+cr-sweep-gold-g2-s42 1229 1.00 0.048380 0.062383 0.044172 57
+cr-sweep-gold-g2-s42 1280 0.50 2.104418 2.054247 1.555472 6798
+cr-sweep-gold-g2-s42 1280 1.00 2.103640 2.053623 1.555084 6795
+cr-sweep-gold-g2-s42 1300 0.50 0.179218 0.172897 0.197024 10
+cr-sweep-gold-g2-s42 1300 1.00 0.178632 0.172439 0.196651 9
+cr-sweep-gold-g20-s42 1100 0.50 0.028147 0.031779 0.020394 150
+cr-sweep-gold-g20-s42 1100 1.00 0.028786 0.032236 0.021721 151
+cr-sweep-gold-g20-s42 2700 0.50 0.499746 0.399800 0.322768 3041
+cr-sweep-gold-g20-s42 2700 1.00 0.383792 0.277791 0.201032 2533
+cr-sweep-gold-g20-s42 3300 0.50 0.175227 0.145514 0.105667 1013
+cr-sweep-gold-g20-s42 3300 1.00 0.180877 0.149654 0.108599 1068
+cr-sweep-gold-g20-s42 3452 0.50 0.003610 0.003469 0.009007 8
+cr-sweep-gold-g20-s42 3452 1.00 0.007709 0.006465 0.010834 1
+cr-sweep-gold-g20-s42 4394 0.50 0.005416 0.006018 0.012359 0
+cr-sweep-gold-g20-s42 4394 1.00 0.005860 0.003188 0.007848 0
+cr-sweep-gold-g20-s42 5332 0.50 2.280589 0.312863 0.458468 15149
+cr-sweep-gold-g20-s42 5332 1.00 0.514105 0.070953 0.104230 3744
+cr-sweep-gold-g20-s42 5840 0.50 0.009129 0.010046 0.014122 0
+cr-sweep-gold-g20-s42 5840 1.00 0.009155 0.009756 0.013412 0
+cr-sweep-gold-g20-s42 11000 0.50 0.159731 0.160112 0.159387 0
+cr-sweep-gold-g20-s42 11000 1.00 0.163212 0.163593 0.162868 0
+cr-sweep-gold-g21-s42 1189 0.50 0.005257 0.004084 0.006428 0
+cr-sweep-gold-g21-s42 1189 1.00 0.006574 0.005157 0.007189 0
+cr-sweep-gold-g21-s42 3300 0.50 0.023056 0.016089 0.017111 69
+cr-sweep-gold-g21-s42 3300 1.00 0.023236 0.016376 0.017074 70
+cr-sweep-gold-g21-s42 4500 0.50 0.033336 0.032292 0.022819 193
+cr-sweep-gold-g21-s42 4500 1.00 0.032804 0.032543 0.023390 186
+cr-sweep-gold-g21-s42 5700 0.50 0.067645 0.082797 0.063203 91
+cr-sweep-gold-g21-s42 5700 1.00 0.073929 0.087246 0.066918 144
+cr-sweep-gold-g21-s42 10637 0.50 0.068104 0.079408 0.065020 112
+cr-sweep-gold-g21-s42 10637 1.00 0.078842 0.091325 0.086127 156
+cr-sweep-gold-g21-s42 11219 0.50 0.015161 0.015979 0.013847 78
+cr-sweep-gold-g21-s42 11219 1.00 0.012149 0.011114 0.012039 54
+cr-sweep-gold-g21-s42 11518 0.50 0.011976 0.012700 0.016920 56
+cr-sweep-gold-g21-s42 11518 1.00 0.012646 0.011858 0.017255 55
+cr-sweep-gold-g21-s42 11591 0.50 0.018579 0.019933 0.018065 108
+cr-sweep-gold-g21-s42 11591 1.00 0.023829 0.026615 0.028750 119
+cr-sweep-gold-g22-s42 2823 0.50 0.004537 0.003345 0.003310 0
+cr-sweep-gold-g22-s42 2823 1.00 0.004218 0.002569 0.000956 0
+cr-sweep-gold-g22-s42 7540 0.50 0.029789 0.033309 0.016086 0
+cr-sweep-gold-g22-s42 7540 1.00 0.017333 0.020514 0.019448 1
+cr-sweep-gold-g22-s42 10000 0.50 0.011378 0.012154 0.009521 7
+cr-sweep-gold-g22-s42 10000 1.00 0.028993 0.027540 0.025954 87
+cr-sweep-gold-g22-s42 10300 0.50 0.007094 0.008289 0.004093 4
+cr-sweep-gold-g22-s42 10300 1.00 0.006052 0.007175 0.004525 3
+cr-sweep-gold-g22-s42 10423 0.50 0.012956 0.009597 0.013259 3
+cr-sweep-gold-g22-s42 10423 1.00 0.013015 0.009395 0.013756 3
+cr-sweep-gold-g22-s42 10500 0.50 0.011075 0.008358 0.004357 2
+cr-sweep-gold-g22-s42 10500 1.00 0.012585 0.008646 0.003379 2
+cr-sweep-gold-g22-s42 11500 0.50 0.011990 0.010553 0.013115 0
+cr-sweep-gold-g22-s42 11500 1.00 0.009729 0.008228 0.011056 0
+cr-sweep-gold-g22-s42 11631 0.50 2.062383 2.205077 1.994692 5304
+cr-sweep-gold-g22-s42 11631 1.00 2.062456 2.205094 1.994699 5304
+cr-sweep-gold-g23-s42 3541 0.50 0.005696 0.006938 0.006850 0
+cr-sweep-gold-g23-s42 3541 1.00 0.006204 0.006811 0.007023 0
+cr-sweep-gold-g23-s42 4030 0.50 0.092294 0.074158 0.062690 257
+cr-sweep-gold-g23-s42 4030 1.00 0.082231 0.065225 0.055121 200
+cr-sweep-gold-g23-s42 6700 0.50 0.046865 0.039505 0.033185 195
+cr-sweep-gold-g23-s42 6700 1.00 0.023239 0.019448 0.019660 114
+cr-sweep-gold-g23-s42 8771 0.50 0.012812 0.008802 0.005782 20
+cr-sweep-gold-g23-s42 8771 1.00 0.012095 0.008468 0.005838 22
+cr-sweep-gold-g23-s42 9100 0.50 0.021558 0.016284 0.020372 66
+cr-sweep-gold-g23-s42 9100 1.00 0.024500 0.019279 0.023427 86
+cr-sweep-gold-g23-s42 10276 0.50 2.025978 2.153918 1.947004 5304
+cr-sweep-gold-g23-s42 10276 1.00 2.025915 2.153874 1.947024 5304
+cr-sweep-gold-g23-s42 11300 0.50 0.042440 0.040161 0.022870 122
+cr-sweep-gold-g23-s42 11300 1.00 0.051239 0.053713 0.028501 218
+cr-sweep-gold-g23-s42 11966 0.50 0.017420 0.020038 0.016313 111
+cr-sweep-gold-g23-s42 11966 1.00 0.023097 0.028652 0.019450 159
+cr-sweep-gold-g24-s42 2419 0.50 0.037812 0.039920 0.035790 118
+cr-sweep-gold-g24-s42 2419 1.00 0.041742 0.046485 0.042438 131
+cr-sweep-gold-g24-s42 2700 0.50 0.053984 0.052013 0.052615 333
+cr-sweep-gold-g24-s42 2700 1.00 0.111048 0.089583 0.106840 769
+cr-sweep-gold-g24-s42 2900 0.50 0.047634 0.050600 0.032182 226
+cr-sweep-gold-g24-s42 2900 1.00 0.048392 0.050488 0.033233 225
+cr-sweep-gold-g24-s42 4442 0.50 0.037349 0.038876 0.038573 0
+cr-sweep-gold-g24-s42 4442 1.00 0.036993 0.038483 0.038046 0
+cr-sweep-gold-g24-s42 6236 0.50 0.006233 0.004213 0.007275 0
+cr-sweep-gold-g24-s42 6236 1.00 0.003371 0.003864 0.003984 0
+cr-sweep-gold-g24-s42 7300 0.50 2.117769 2.243738 2.035034 5304
+cr-sweep-gold-g24-s42 7300 1.00 2.106967 2.243738 2.034804 5304
+cr-sweep-gold-g24-s42 7593 0.50 0.002625 0.003884 0.003488 0
+cr-sweep-gold-g24-s42 7593 1.00 0.002642 0.003059 0.003164 0
+cr-sweep-gold-g24-s42 10644 0.50 0.006535 0.003637 0.003789 0
+cr-sweep-gold-g24-s42 10644 1.00 0.006631 0.004962 0.004276 0
+cr-sweep-gold-g25-s42 3618 0.50 0.006074 0.005242 0.005555 0
+cr-sweep-gold-g25-s42 3618 1.00 0.006501 0.005279 0.005411 0
+cr-sweep-gold-g25-s42 5300 0.50 0.032919 0.028974 0.026098 130
+cr-sweep-gold-g25-s42 5300 1.00 0.037890 0.038578 0.030121 163
+cr-sweep-gold-g25-s42 6300 0.50 0.048065 0.042372 0.032214 221
+cr-sweep-gold-g25-s42 6300 1.00 0.050720 0.044977 0.032160 249
+cr-sweep-gold-g25-s42 6500 0.50 0.070641 0.035309 0.032523 102
+cr-sweep-gold-g25-s42 6500 1.00 0.060341 0.037280 0.036927 165
+cr-sweep-gold-g25-s42 7164 0.50 1.967508 2.131689 1.902149 5304
+cr-sweep-gold-g25-s42 7164 1.00 1.970011 2.131909 1.904620 5304
+cr-sweep-gold-g25-s42 9145 0.50 0.008787 0.008255 0.009973 16
+cr-sweep-gold-g25-s42 9145 1.00 0.010158 0.008419 0.010883 23
+cr-sweep-gold-g25-s42 10505 0.50 0.015513 0.013649 0.016596 25
+cr-sweep-gold-g25-s42 10505 1.00 0.017742 0.016271 0.018665 25
+cr-sweep-gold-g25-s42 11294 0.50 0.012312 0.011022 0.012319 53
+cr-sweep-gold-g25-s42 11294 1.00 0.014252 0.013107 0.013376 63
+cr-sweep-gold-g26-s42 936 0.50 0.035561 0.032367 0.027547 194
+cr-sweep-gold-g26-s42 936 1.00 0.107314 0.112520 0.139413 555
+cr-sweep-gold-g26-s42 1500 0.50 0.032611 0.043516 0.039983 214
+cr-sweep-gold-g26-s42 1500 1.00 0.027681 0.035970 0.031470 155
+cr-sweep-gold-g26-s42 2900 0.50 0.069545 0.064815 0.064317 194
+cr-sweep-gold-g26-s42 2900 1.00 0.074639 0.070036 0.068613 251
+cr-sweep-gold-g26-s42 3100 0.50 0.021024 0.016776 0.014415 75
+cr-sweep-gold-g26-s42 3100 1.00 0.018213 0.015464 0.014456 72
+cr-sweep-gold-g26-s42 3772 0.50 0.020955 0.021909 0.025398 0
+cr-sweep-gold-g26-s42 3772 1.00 0.021621 0.022795 0.026403 0
+cr-sweep-gold-g26-s42 5333 0.50 0.005786 0.003013 0.001447 0
+cr-sweep-gold-g26-s42 5333 1.00 0.005730 0.002056 0.001142 0
+cr-sweep-gold-g26-s42 8540 0.50 2.092274 2.208399 1.996536 5304
+cr-sweep-gold-g26-s42 8540 1.00 2.092272 2.208399 1.996536 5304
+cr-sweep-gold-g26-s42 11236 0.50 0.005684 0.004711 0.005574 0
+cr-sweep-gold-g26-s42 11236 1.00 0.006023 0.005357 0.005838 0
+cr-sweep-gold-g27-s42 282 0.50 0.004259 0.003215 0.004545 0
+cr-sweep-gold-g27-s42 282 1.00 0.002359 0.001295 0.002647 0
+cr-sweep-gold-g27-s42 2604 0.50 0.004989 0.005747 0.005711 0
+cr-sweep-gold-g27-s42 2604 1.00 0.004367 0.005701 0.004462 0
+cr-sweep-gold-g27-s42 3283 0.50 0.015513 0.011149 0.012102 10
+cr-sweep-gold-g27-s42 3283 1.00 0.014805 0.010256 0.011146 6
+cr-sweep-gold-g27-s42 3300 0.50 0.020548 0.016384 0.014769 24
+cr-sweep-gold-g27-s42 3300 1.00 0.020338 0.014347 0.012681 27
+cr-sweep-gold-g27-s42 4300 0.50 0.031331 0.037795 0.032316 154
+cr-sweep-gold-g27-s42 4300 1.00 0.046860 0.054320 0.057043 279
+cr-sweep-gold-g27-s42 5100 0.50 0.157011 0.142094 0.164286 0
+cr-sweep-gold-g27-s42 5100 1.00 0.157375 0.143208 0.164696 0
+cr-sweep-gold-g27-s42 6614 0.50 0.016493 0.024068 0.019572 99
+cr-sweep-gold-g27-s42 6614 1.00 0.016493 0.024068 0.019572 99
+cr-sweep-gold-g27-s42 6752 0.50 0.014478 0.012451 0.014266 54
+cr-sweep-gold-g27-s42 6752 1.00 0.018330 0.018899 0.018018 93
+cr-sweep-gold-g28-s42 562 0.50 0.025117 0.027320 0.022129 122
+cr-sweep-gold-g28-s42 562 1.00 0.031209 0.036641 0.028210 122
+cr-sweep-gold-g28-s42 1748 0.50 0.035519 0.029674 0.024658 0
+cr-sweep-gold-g28-s42 1748 1.00 0.037656 0.031433 0.025422 0
+cr-sweep-gold-g28-s42 2094 0.50 0.420941 0.407426 0.407845 1033
+cr-sweep-gold-g28-s42 2094 1.00 0.418079 0.409451 0.409468 1094
+cr-sweep-gold-g28-s42 2213 0.50 0.018204 0.018794 0.016894 108
+cr-sweep-gold-g28-s42 2213 1.00 0.024280 0.026222 0.023509 146
+cr-sweep-gold-g28-s42 2500 0.50 0.029484 0.022890 0.023702 76
+cr-sweep-gold-g28-s42 2500 1.00 0.028249 0.021790 0.019901 58
+cr-sweep-gold-g28-s42 2700 0.50 0.026464 0.031577 0.025571 175
+cr-sweep-gold-g28-s42 2700 1.00 0.025429 0.028854 0.024627 163
+cr-sweep-gold-g28-s42 2900 0.50 0.195375 0.210756 0.181672 1849
+cr-sweep-gold-g28-s42 2900 1.00 0.188354 0.208965 0.177008 1833
+cr-sweep-gold-g28-s42 3306 0.50 0.056423 0.070426 0.066310 303
+cr-sweep-gold-g28-s42 3306 1.00 0.055247 0.070316 0.065325 290
+cr-sweep-gold-g29-s42 300 0.50 0.117206 0.088176 0.074705 638
+cr-sweep-gold-g29-s42 300 1.00 0.121436 0.090137 0.077740 644
+cr-sweep-gold-g29-s42 890 0.50 0.003613 0.002586 0.003896 0
+cr-sweep-gold-g29-s42 890 1.00 0.004345 0.002776 0.004759 0
+cr-sweep-gold-g29-s42 1308 0.50 0.035939 0.036702 0.036888 0
+cr-sweep-gold-g29-s42 1308 1.00 0.033475 0.033377 0.033690 0
+cr-sweep-gold-g29-s42 2039 0.50 0.038759 0.023729 0.018023 12
+cr-sweep-gold-g29-s42 2039 1.00 0.031387 0.023083 0.016818 10
+cr-sweep-gold-g29-s42 2100 0.50 0.009002 0.006406 0.006074 0
+cr-sweep-gold-g29-s42 2100 1.00 0.009170 0.006948 0.005665 0
+cr-sweep-gold-g29-s42 2343 0.50 0.003813 0.004467 0.004557 0
+cr-sweep-gold-g29-s42 2343 1.00 0.005721 0.006033 0.006738 0
+cr-sweep-gold-g29-s42 2500 0.50 0.026242 0.023183 0.021363 72
+cr-sweep-gold-g29-s42 2500 1.00 0.018211 0.017640 0.016840 42
+cr-sweep-gold-g29-s42 2960 0.50 0.012029 0.007379 0.003869 4
+cr-sweep-gold-g29-s42 2960 1.00 0.012029 0.007379 0.003869 4
+cr-sweep-gold-g3-s42 403 0.50 0.026864 0.018418 0.020040 17
+cr-sweep-gold-g3-s42 403 1.00 0.036048 0.028879 0.025576 134
+cr-sweep-gold-g3-s42 500 0.50 0.043096 0.036231 0.035953 64
+cr-sweep-gold-g3-s42 500 1.00 0.045499 0.037498 0.036668 109
+cr-sweep-gold-g3-s42 915 0.50 0.070306 0.090105 0.067938 399
+cr-sweep-gold-g3-s42 915 1.00 0.030125 0.042084 0.029259 97
+cr-sweep-gold-g3-s42 954 0.50 0.220799 0.215523 0.201671 1
+cr-sweep-gold-g3-s42 954 1.00 0.220472 0.215603 0.201825 4
+cr-sweep-gold-g3-s42 972 0.50 0.067706 0.102676 0.065398 136
+cr-sweep-gold-g3-s42 972 1.00 0.067706 0.102676 0.065398 136
+cr-sweep-gold-g3-s42 1500 0.50 0.068006 0.101139 0.065835 137
+cr-sweep-gold-g3-s42 1500 1.00 0.068025 0.101166 0.065854 137
+cr-sweep-gold-g3-s42 1700 0.50 0.067747 0.103879 0.068235 139
+cr-sweep-gold-g3-s42 1700 1.00 0.067747 0.103879 0.068235 139
+cr-sweep-gold-g3-s42 2089 0.50 0.067277 0.103354 0.069684 150
+cr-sweep-gold-g3-s42 2089 1.00 0.067377 0.103508 0.069801 151
+cr-sweep-gold-g30-s42 850 0.50 0.022865 0.016969 0.017303 0
+cr-sweep-gold-g30-s42 850 1.00 0.022865 0.016969 0.017303 0
+cr-sweep-gold-g30-s42 8153 0.50 0.492203 0.456109 0.486661 5
+cr-sweep-gold-g30-s42 8153 1.00 0.481287 0.373424 0.477793 1
+cr-sweep-gold-g30-s42 12500 0.50 0.044609 0.055206 0.051371 0
+cr-sweep-gold-g30-s42 12500 1.00 0.050068 0.051042 0.047948 0
+cr-sweep-gold-g30-s42 12984 0.50 0.098846 0.073885 0.135619 91
+cr-sweep-gold-g30-s42 12984 1.00 0.098629 0.073736 0.135339 91
+cr-sweep-gold-g30-s42 13500 0.50 0.102769 0.084363 0.111600 69
+cr-sweep-gold-g30-s42 13500 1.00 0.094192 0.077237 0.106221 12
+cr-sweep-gold-g30-s42 15055 0.50 0.269357 0.200778 0.373861 278
+cr-sweep-gold-g30-s42 15055 1.00 0.270072 0.201315 0.374700 276
+cr-sweep-gold-g30-s42 16378 0.50 0.204486 0.119477 0.189125 21
+cr-sweep-gold-g30-s42 16378 1.00 0.265779 0.220502 0.262666 22
+cr-sweep-gold-g30-s42 18300 0.50 0.224258 0.220728 0.117806 2042
+cr-sweep-gold-g30-s42 18300 1.00 1.552161 0.166479 0.546311 1512
+cr-sweep-gold-g4-s42 100 0.50 0.066920 0.082943 0.079274 193
+cr-sweep-gold-g4-s42 100 1.00 0.067213 0.083085 0.079603 197
+cr-sweep-gold-g4-s42 128 0.50 0.324902 0.258894 0.179167 1887
+cr-sweep-gold-g4-s42 128 1.00 0.298975 0.244960 0.167864 1813
+cr-sweep-gold-g4-s42 834 0.50 0.087234 0.085802 0.086863 0
+cr-sweep-gold-g4-s42 834 1.00 0.050956 0.048829 0.049985 0
+cr-sweep-gold-g4-s42 2318 0.50 0.096907 0.101510 0.075876 969
+cr-sweep-gold-g4-s42 2318 1.00 0.099268 0.102649 0.076427 994
+cr-sweep-gold-g4-s42 2485 0.50 0.060146 0.060583 0.048290 505
+cr-sweep-gold-g4-s42 2485 1.00 0.055457 0.056531 0.045870 472
+cr-sweep-gold-g4-s42 2500 0.50 0.093899 0.101588 0.077352 943
+cr-sweep-gold-g4-s42 2500 1.00 0.096316 0.106611 0.081091 975
+cr-sweep-gold-g4-s42 3100 0.50 0.099329 0.102025 0.075890 980
+cr-sweep-gold-g4-s42 3100 1.00 0.100349 0.104935 0.078737 1007
+cr-sweep-gold-g4-s42 3365 0.50 0.484051 0.508599 0.483972 1237
+cr-sweep-gold-g4-s42 3365 1.00 0.484012 0.508609 0.483931 1237
+cr-sweep-gold-g5-s42 1766 0.50 0.324432 0.307587 0.317889 0
+cr-sweep-gold-g5-s42 1766 1.00 0.324419 0.307584 0.317889 0
+cr-sweep-gold-g5-s42 4484 0.50 0.011968 0.014964 0.011841 26
+cr-sweep-gold-g5-s42 4484 1.00 0.011888 0.015125 0.012012 26
+cr-sweep-gold-g5-s42 4500 0.50 0.011868 0.014483 0.011734 25
+cr-sweep-gold-g5-s42 4500 1.00 0.011788 0.014649 0.011900 25
+cr-sweep-gold-g5-s42 5300 0.50 0.033348 0.031635 0.030643 79
+cr-sweep-gold-g5-s42 5300 1.00 0.033019 0.031496 0.031162 82
+cr-sweep-gold-g5-s42 5343 0.50 0.048673 0.048778 0.037322 75
+cr-sweep-gold-g5-s42 5343 1.00 0.049068 0.050120 0.038593 72
+cr-sweep-gold-g5-s42 5765 0.50 0.010517 0.009504 0.008267 12
+cr-sweep-gold-g5-s42 5765 1.00 0.010595 0.008990 0.007965 12
+cr-sweep-gold-g5-s42 5885 0.50 0.017989 0.018389 0.015581 18
+cr-sweep-gold-g5-s42 5885 1.00 0.017567 0.017725 0.015864 18
+cr-sweep-gold-g5-s42 6100 0.50 0.095877 0.078098 0.074761 32
+cr-sweep-gold-g5-s42 6100 1.00 0.095902 0.078132 0.074754 32
+cr-sweep-gold-g6-s42 245 0.50 0.003235 0.003840 0.004750 0
+cr-sweep-gold-g6-s42 245 1.00 0.003064 0.003520 0.004489 0
+cr-sweep-gold-g6-s42 300 0.50 0.002779 0.005523 0.004194 0
+cr-sweep-gold-g6-s42 300 1.00 0.002371 0.005140 0.003801 0
+cr-sweep-gold-g6-s42 304 0.50 0.003932 0.006338 0.005262 0
+cr-sweep-gold-g6-s42 304 1.00 0.003810 0.006418 0.004874 0
+cr-sweep-gold-g6-s42 449 0.50 0.006984 0.009319 0.008582 0
+cr-sweep-gold-g6-s42 449 1.00 0.006209 0.008543 0.007806 0
+cr-sweep-gold-g6-s42 479 0.50 0.004337 0.005591 0.005201 0
+cr-sweep-gold-g6-s42 479 1.00 0.004306 0.005072 0.005121 0
+cr-sweep-gold-g6-s42 500 0.50 0.005865 0.008145 0.006311 0
+cr-sweep-gold-g6-s42 500 1.00 0.006040 0.008331 0.006492 0
+cr-sweep-gold-g6-s42 623 0.50 0.023688 0.026266 0.024578 0
+cr-sweep-gold-g6-s42 623 1.00 0.022585 0.025163 0.023475 0
+cr-sweep-gold-g6-s42 700 0.50 0.382575 0.228218 0.393677 0
+cr-sweep-gold-g6-s42 700 1.00 0.375393 0.231787 0.402039 1
+cr-sweep-gold-g7-s42 73 0.50 0.044575 0.039649 0.032828 279
+cr-sweep-gold-g7-s42 73 1.00 0.030755 0.023600 0.019470 170
+cr-sweep-gold-g7-s42 700 0.50 0.026220 0.014481 0.014825 79
+cr-sweep-gold-g7-s42 700 1.00 0.030411 0.017979 0.017503 75
+cr-sweep-gold-g7-s42 1327 0.50 0.011061 0.007392 0.010173 0
+cr-sweep-gold-g7-s42 1327 1.00 0.010343 0.007045 0.009590 0
+cr-sweep-gold-g7-s42 2296 0.50 0.016262 0.013164 0.008955 60
+cr-sweep-gold-g7-s42 2296 1.00 0.019909 0.015015 0.009604 10
+cr-sweep-gold-g7-s42 2807 0.50 0.009821 0.007719 0.003889 0
+cr-sweep-gold-g7-s42 2807 1.00 0.009682 0.007516 0.003689 1
+cr-sweep-gold-g7-s42 3482 0.50 0.112471 0.064691 0.060631 0
+cr-sweep-gold-g7-s42 3482 1.00 0.114591 0.065647 0.062154 0
+cr-sweep-gold-g7-s42 3700 0.50 0.019182 0.016991 0.003625 3
+cr-sweep-gold-g7-s42 3700 1.00 0.024637 0.022343 0.003164 3
+cr-sweep-gold-g7-s42 4100 0.50 0.009556 0.009399 0.004598 0
+cr-sweep-gold-g7-s42 4100 1.00 0.014161 0.013032 0.005218 2
+cr-sweep-gold-g8-s42 31 0.50 0.006889 0.002940 0.000795 0
+cr-sweep-gold-g8-s42 31 1.00 0.006875 0.002923 0.000781 0
+cr-sweep-gold-g8-s42 438 0.50 0.017616 0.010780 0.009636 7
+cr-sweep-gold-g8-s42 438 1.00 0.017594 0.010824 0.009734 7
+cr-sweep-gold-g8-s42 656 0.50 0.005223 0.003974 0.001974 1
+cr-sweep-gold-g8-s42 656 1.00 0.015993 0.010668 0.007592 24
+cr-sweep-gold-g8-s42 901 0.50 0.011563 0.007140 0.008699 3
+cr-sweep-gold-g8-s42 901 1.00 0.018247 0.011851 0.012446 1
+cr-sweep-gold-g8-s42 1398 0.50 0.007733 0.005972 0.008807 2
+cr-sweep-gold-g8-s42 1398 1.00 0.007938 0.005989 0.008631 2
+cr-sweep-gold-g8-s42 2500 0.50 0.112376 0.076034 0.064820 526
+cr-sweep-gold-g8-s42 2500 1.00 0.112434 0.075056 0.064486 523
+cr-sweep-gold-g8-s42 2700 0.50 0.022504 0.018640 0.017484 42
+cr-sweep-gold-g8-s42 2700 1.00 0.017918 0.015996 0.014903 24
+cr-sweep-gold-g8-s42 2900 0.50 0.034387 0.028396 0.027261 165
+cr-sweep-gold-g8-s42 2900 1.00 0.028364 0.021860 0.020072 110
+cr-sweep-gold-g9-s42 649 0.50 0.004899 0.005772 0.005289 0
+cr-sweep-gold-g9-s42 649 1.00 0.003410 0.005838 0.004176 0
+cr-sweep-gold-g9-s42 700 0.50 0.021446 0.017162 0.016589 0
+cr-sweep-gold-g9-s42 700 1.00 0.012673 0.007218 0.006848 0
+cr-sweep-gold-g9-s42 779 0.50 0.016381 0.018194 0.016786 0
+cr-sweep-gold-g9-s42 779 1.00 0.016086 0.017769 0.016520 0
+cr-sweep-gold-g9-s42 899 0.50 0.004581 0.005238 0.006018 0
+cr-sweep-gold-g9-s42 899 1.00 0.004194 0.005438 0.005718 0
+cr-sweep-gold-g9-s42 3132 0.50 0.030096 0.035880 0.034843 38
+cr-sweep-gold-g9-s42 3132 1.00 0.030096 0.035880 0.034843 38
+cr-sweep-gold-g9-s42 7100 0.50 0.038220 0.019897 0.022682 45
+cr-sweep-gold-g9-s42 7100 1.00 0.038220 0.019897 0.022682 45
+cr-sweep-gold-g9-s42 7300 0.50 0.044096 0.034265 0.025544 45
+cr-sweep-gold-g9-s42 7300 1.00 0.044096 0.034265 0.025544 45
+cr-sweep-gold-g9-s42 7597 0.50 0.435009 0.428628 0.473663 1068
+cr-sweep-gold-g9-s42 7597 1.00 0.438022 0.427925 0.471255 1068
+#
+# idx-pot-s1 (oracle/tests/idx-pot-s1.jsonl, lane/idxworld): two flower pots, a poppy
+# planted at 84 and a sapling at 94; the live client reads the pots' plants
+# (ChunkCache.getTileEntity) from the live world (master draws them empty:
+# 1,434 and 6,253 px over 25).
+idx-pot-s1 83 0.50 0.018167 0.007211 0.021031 17
+idx-pot-s1 83 1.00 0.018167 0.007211 0.021031 17
+idx-pot-s1 84 0.50 0.018421 0.007270 0.021343 17
+idx-pot-s1 84 1.00 0.018448 0.007297 0.021370 17
+idx-pot-s1 85 0.50 0.016240 0.008063 0.017567 17
+idx-pot-s1 85 1.00 0.018228 0.007462 0.021351 17
+idx-pot-s1 94 0.50 0.050259 0.022946 0.037419 106
+idx-pot-s1 94 1.00 0.050168 0.038037 0.031755 106
+idx-pot-s1 95 0.50 0.026771 0.017369 0.030979 101
+idx-pot-s1 95 1.00 0.025385 0.018065 0.032570 105
+idx-pot-s1 104 0.50 0.044487 0.032360 0.031760 106
+idx-pot-s1 104 1.00 0.044487 0.032360 0.031760 106
+#
+# lane/idxclient (2026-09-27): idx-tpv-s1 (third person F5 both ways, the
+# sneak, the swing, the sword block, the bow, asleep with GuiSleepMP) and
+# idx-hudfx-s1 (the bed refusals' chat lines, a falling anvil and dragon
+# egg drawn through RenderBlocks where the client's copies are, the
+# creeper's white flash). idx-hudfx-s1 184: the landing tick, RenderGlobal
+# draws the server world's blocks (the landed egg and anvil a tick before
+# WorldClient has them; 3,431 px at 0.5). Raised, with the cause measured:
+# cr-screens-s1 80 and 96 (fewer px, blue up) and cr-sweep-gold-g1-s42 100,
+# 109, 124 (one unit at 1 to 7 sky pixels): fogColor1 now eases from the
+# join as EntityRenderer does (rendererUpdateCount the row - 1, er.fc1
+# 0.833306 at g1 t=99 and 0.9997303 at cr-screens t=79 on both sides, by
+# oracle/tests/rs.sh), which moves the rounding of the fog blend by one unit
+# where the old 0 start happened to match.
+idx-tpv-s1 22 0.50 0.018223 0.008258 0.020848 25
+idx-tpv-s1 22 1.00 0.017994 0.008187 0.020682 24
+idx-tpv-s1 25 0.50 0.083163 0.074556 0.086866 498
+idx-tpv-s1 25 1.00 0.083219 0.074617 0.086915 499
+idx-tpv-s1 34 0.50 0.079808 0.069560 0.082314 401
+idx-tpv-s1 34 1.00 0.027313 0.017003 0.030069 39
+idx-tpv-s1 41 0.50 0.025561 0.013659 0.026727 16
+idx-tpv-s1 41 1.00 0.024339 0.015035 0.027125 16
+idx-tpv-s1 47 0.50 0.071036 0.062185 0.072448 306
+idx-tpv-s1 47 1.00 0.045055 0.036151 0.046411 45
+idx-tpv-s1 49 0.50 0.051391 0.041335 0.055501 97
+idx-tpv-s1 49 1.00 0.051373 0.041606 0.055628 88
+idx-tpv-s1 61 0.50 0.035827 0.025529 0.038822 63
+idx-tpv-s1 61 1.00 0.030169 0.019872 0.033167 31
+idx-tpv-s1 78 0.50 0.037344 0.027376 0.040022 58
+idx-tpv-s1 78 1.00 0.038127 0.028105 0.040727 57
+idx-tpv-s1 82 0.50 0.020809 0.020380 0.020653 81
+idx-tpv-s1 82 1.00 0.050568 0.050010 0.050466 358
+idx-tpv-s1 87 0.50 0.028984 0.018604 0.031906 52
+idx-tpv-s1 87 1.00 0.029664 0.019367 0.032650 52
+idx-tpv-s1 89 0.50 0.037942 0.026744 0.039293 61
+idx-tpv-s1 89 1.00 0.037237 0.026632 0.038132 61
+idx-tpv-s1 100 0.50 0.443948 0.560624 0.034717 0
+idx-tpv-s1 100 1.00 0.443948 0.560624 0.034717 0
+idx-tpv-s1 103 0.50 0.065327 0.050947 0.021704 0
+idx-tpv-s1 103 1.00 0.065325 0.050947 0.021704 0
+idx-tpv-s1 106 0.50 0.589769 0.397985 0.230987 0
+idx-tpv-s1 106 1.00 0.589769 0.397992 0.230994 0
+idx-hudfx-s1 23 0.50 0.017230 0.008665 0.021763 23
+idx-hudfx-s1 23 1.00 0.016469 0.009504 0.023678 34
+idx-hudfx-s1 25 0.50 0.019021 0.008372 0.023836 35
+idx-hudfx-s1 25 1.00 0.019018 0.009143 0.023124 35
+idx-hudfx-s1 170 0.50 0.034897 0.012715 0.035302 16
+idx-hudfx-s1 170 1.00 0.034897 0.012715 0.035302 16
+idx-hudfx-s1 174 0.50 0.034897 0.012715 0.035302 16
+idx-hudfx-s1 174 1.00 0.034897 0.012715 0.035302 16
+idx-hudfx-s1 178 0.50 0.034897 0.012712 0.035302 16
+idx-hudfx-s1 178 1.00 0.034897 0.012712 0.035302 16
+idx-hudfx-s1 182 0.50 0.034897 0.012715 0.035302 16
+idx-hudfx-s1 182 1.00 0.034897 0.012715 0.035302 16
+idx-hudfx-s1 184 0.50 0.034841 0.012659 0.035246 16
+idx-hudfx-s1 184 1.00 0.034897 0.012715 0.035302 16
+idx-hudfx-s1 234 0.50 0.018648 0.010712 0.023178 24
+idx-hudfx-s1 234 1.00 0.017681 0.011900 0.025141 34
+idx-hudfx-s1 236 0.50 0.015903 0.008089 0.019214 7
+idx-hudfx-s1 236 1.00 0.015637 0.008543 0.018713 7
+idx-hudfx-s1 289 0.50 0.017940 0.031572 0.028842 5
+idx-hudfx-s1 289 1.00 0.023946 0.029684 0.034885 5
+idx-hudfx-s1 290 0.50 0.023387 0.044457 0.035261 3
+idx-hudfx-s1 290 1.00 0.012376 0.021207 0.020414 4
+idx-hudfx-s1 294 0.50 0.020172 0.029472 0.026542 5
+idx-hudfx-s1 294 1.00 0.024451 0.091525 0.092055 5
+idx-hudfx-s1 295 0.50 0.019743 0.089622 0.080601 5
+idx-hudfx-s1 295 1.00 0.021836 0.081365 0.077757 4
+idx-hudfx-s1 300 0.50 0.008807 0.051444 0.050044 0
+idx-hudfx-s1 300 1.00 0.008565 0.051005 0.049705 0
+#
+# idx-arrows-s1 (lane/idxclient): a skeleton's arrows in the player, seen from
+# the front (F5 twice) and the back: RenderPlayer's renderArrowsStuckInEntity
+# (100, 172, 180 within 1 px, the arrow in the back of the head). The hit
+# frames 72, 148, 152, 190 carry the red hurt pass: where the walking legs
+# cross, Mesa's GL_EQUAL leaves the pants' texels under the red (1,766 to
+# 2,077 px, the red channel alone); the poses match rs.sh's to the float.
+idx-arrows-s1 60 0.50 0.015542 0.008724 0.011124 0
+idx-arrows-s1 60 1.00 0.015542 0.008724 0.009534 0
+idx-arrows-s1 72 0.50 0.517428 0.006999 0.007741 1766
+idx-arrows-s1 72 1.00 0.520428 0.006484 0.007880 2001
+idx-arrows-s1 100 0.50 0.009426 0.008597 0.007145 0
+idx-arrows-s1 100 1.00 0.009426 0.008577 0.007409 0
+idx-arrows-s1 148 0.50 0.384453 0.006984 0.006438 899
+idx-arrows-s1 148 1.00 0.359004 0.006872 0.007331 754
+idx-arrows-s1 152 0.50 0.514535 0.007206 0.007097 1838
+idx-arrows-s1 152 1.00 0.511495 0.007028 0.006533 2077
+idx-arrows-s1 172 0.50 0.010448 0.008119 0.007136 1
+idx-arrows-s1 172 1.00 0.010453 0.008099 0.006892 1
+idx-arrows-s1 180 0.50 0.012049 0.009558 0.008531 1
+idx-arrows-s1 180 1.00 0.011009 0.009531 0.008509 1
+idx-arrows-s1 190 0.50 0.550920 0.010851 0.010553 1975
+idx-arrows-s1 190 1.00 0.558192 0.009997 0.009807 1940
+#
+# idx-dispenser-s1 (lane/idxclient): GuiDispenser over a dispenser and then a
+# dropper (the S2D title names which), the sheet from the jar's palette PNG.
+# 49: the oracle's pointer after the second open is off the centre the
+# first open had (its golden hovers no slot; the live client's agent frames
+# keep the centre): the one slot highlight, 1,024 px.
+idx-dispenser-s1 24 0.50 0.244170 0.243262 0.264737 0
+idx-dispenser-s1 24 1.00 0.229298 0.220887 0.280674 0
+idx-dispenser-s1 49 0.50 0.239169 0.251381 0.277979 0
+idx-dispenser-s1 49 1.00 0.239796 0.251351 0.277830 0
+idx-dispenser-s1 55 0.50 0.048851 0.037571 0.036563 78
+idx-dispenser-s1 55 1.00 0.048851 0.037571 0.036561 78
+#
+# idx-glint-s1 (lane/idxclient): the enchant glint in the hand, the hotbar and
+# the third-person hand, a potion's and a water bottle's two passes, the
+# golden apple's foil. The frame clock is Minecraft.getSystemTime as agent
+# frames see it (Oracle.tick, one past the row, times 50 ms); the second
+# hand pass passes GL_LEQUAL. 66: the third-person sword's glint (RenderBiped
+# over the player's extruded sprite) stays dimmer than the oracle's, 361 and
+# 503 px.
+idx-glint-s1 25 0.50 0.136168 0.033387 0.339395 14
+idx-glint-s1 25 1.00 0.136371 0.033528 0.339918 18
+idx-glint-s1 33 0.50 0.058704 0.020184 0.137334 8
+idx-glint-s1 33 1.00 0.058543 0.020148 0.137263 9
+idx-glint-s1 41 0.50 0.014659 0.005791 0.017094 7
+idx-glint-s1 41 1.00 0.014657 0.005791 0.017094 7
+idx-glint-s1 49 0.50 0.070402 0.019643 0.161417 17
+idx-glint-s1 49 1.00 0.070402 0.019643 0.161417 17
+idx-glint-s1 57 0.50 0.095526 0.031001 0.195780 7
+idx-glint-s1 57 1.00 0.095526 0.031001 0.195780 7
+idx-glint-s1 66 0.50 0.046163 0.024517 0.088371 361
+idx-glint-s1 66 1.00 0.052281 0.026193 0.104191 503
+#
+# idx-frames-s1 (lane/idxclient): block items in item frames (stone, grass, a
+# birch log, glass, a turned furnace, a pumpkin) through RenderItem's 3D path
+# under renderInFrame, beside a flat diamond.
+idx-frames-s1 22 0.50 0.039313 0.007297 0.036968 4
+idx-frames-s1 22 1.00 0.039169 0.007157 0.036824 3
+#
+# idx-tip*-s1 (lane/idxclient): ItemStack.getTooltip's lines under the first
+# open's centred pointer: a sword's enchantments and its attack damage with
+# Sharpness, a record's title, a strength and a weakness potion's effect and
+# When Applied block.
+idx-tipsword-s1 22 0.50 0.185343 0.200829 0.205274 0
+idx-tipsword-s1 22 1.00 0.181345 0.191615 0.189830 0
+idx-tippotion-s1 22 0.50 0.182984 0.198636 0.202942 0
+idx-tippotion-s1 22 1.00 0.178986 0.189422 0.187498 0
+idx-tiprecord-s1 22 0.50 0.188112 0.205599 0.208321 0
+idx-tiprecord-s1 22 1.00 0.184114 0.196385 0.192877 0
+idx-tipweak-s1 22 0.50 0.184465 0.200546 0.204506 0
+idx-tipweak-s1 22 1.00 0.180467 0.191332 0.189061 0
+#
+# idx-doorcrack-s1 (lane/idxclient): a zombie that can break doors cracks a
+# lit door (EntityAIBreakDoor's S25 stages, RenderGlobal.damagedBlocks under
+# drawBlockDamageTexture): 150 is 606 px against master's 1,075 without the
+# crack; the rest is the crack's edge on the door's thin box and the zombie
+# seen through the window.
+idx-doorcrack-s1 90 0.50 0.045504 0.101217 0.071050 164
+idx-doorcrack-s1 90 1.00 0.045421 0.101259 0.071075 164
+idx-doorcrack-s1 130 0.50 0.053925 0.081396 0.063120 83
+idx-doorcrack-s1 130 1.00 0.054562 0.081499 0.063217 83
+idx-doorcrack-s1 150 0.50 0.051129 0.101347 0.061251 70
+idx-doorcrack-s1 150 1.00 0.051032 0.101320 0.061268 70
+idx-doorcrack-s1 170 0.50 0.054389 0.086546 0.069909 73
+idx-doorcrack-s1 170 1.00 0.055191 0.084231 0.066859 62
+#
+# idx-skull-s1 (lane/idxclient): worn skulls (RenderBiped's and RenderPlayer's
+# Items.skull branch through TileEntitySkullRenderer.func_152674_a): the player's
+# wither skull from the front, a zombie's creeper head and a skeleton's zombie
+# head in first person.
+idx-skull-s1 20 0.50 0.042838 0.012556 0.047946 12
+idx-skull-s1 20 1.00 0.042150 0.012439 0.047441 9
+idx-skull-s1 24 0.50 0.030669 0.020316 0.038754 8
+idx-skull-s1 24 1.00 0.030604 0.020284 0.038725 8
+idx-skull-s1 30 0.50 0.042333 0.029457 0.042916 10
+idx-skull-s1 30 1.00 0.042342 0.030172 0.042125 8
+idx-spawnerhead-s1 24 0.50 0.046770 0.014176 0.034114 50
+idx-spawnerhead-s1 24 1.00 0.045943 0.013429 0.033777 49
+idx-spawnerhead-s1 30 0.50 0.046782 0.014369 0.034831 49
+idx-spawnerhead-s1 30 1.00 0.047236 0.014454 0.034775 49
+idx-spawnerhead-s1 40 0.50 0.045460 0.013305 0.033655 49
+idx-spawnerhead-s1 40 1.00 0.044911 0.013076 0.033436 49
+idx-spawnerhead-s1 50 0.50 0.043052 0.010751 0.030857 29
+idx-spawnerhead-s1 50 1.00 0.045828 0.013066 0.033299 36
+idx-spawnerhead-s1 60 0.50 0.084580 0.049717 0.069355 358
+idx-spawnerhead-s1 60 1.00 0.082575 0.048644 0.068094 358
+idx-spawnerhead-s1 70 0.50 0.077779 0.045731 0.065408 358
+idx-spawnerhead-s1 70 1.00 0.077035 0.045265 0.065049 358
+#
+# idx-hopper-s1 (lane/idxclient): GuiHopper over a hopper (the sheet at its
+# ySize of 133, the Item Hopper title): arrows shifted in, cobblestone
+# picked up and placed. 33: the cobblestone on the cursor a fraction of a
+# pixel off, as screens-s1 41 and 96 have it (471 px).
+idx-hopper-s1 24 0.50 0.272963 0.266567 0.302698 0
+idx-hopper-s1 24 1.00 0.265871 0.254662 0.303188 0
+idx-hopper-s1 29 0.50 0.268045 0.261188 0.277203 0
+idx-hopper-s1 29 1.00 0.255545 0.252862 0.244536 0
+idx-hopper-s1 33 0.50 0.278349 0.263276 0.242403 0
+idx-hopper-s1 33 1.00 0.265910 0.248695 0.242403 0
+idx-hopper-s1 38 0.50 0.263732 0.265510 0.244253 0
+idx-hopper-s1 38 1.00 0.263744 0.265520 0.244267 0
+#
+# idx-deathmsg-s1 (lane/idxclient): four deaths and their chat lines
+# (CombatTracker.func_151521_b's S02): a 12-block fall (fell from a high
+# place, 101), a 4.5-block one (hit the ground too hard, 190), a zombie
+# (slain by Zombie, 279), lava's edge after a zombie's hits (walked into fire
+# whilst fighting Zombie, 426, the first-person fire from the client's own
+# fire counter). 426: the zombie drawn where the server has it (2,884 px).
+idx-deathmsg-s1 101 0.50 0.306013 0.228735 0.245550 0
+idx-deathmsg-s1 101 1.00 0.308409 0.224063 0.246690 0
+idx-deathmsg-s1 190 0.50 0.310939 0.227200 0.243938 0
+idx-deathmsg-s1 190 1.00 0.312129 0.220136 0.245292 0
+idx-deathmsg-s1 279 0.50 0.297319 0.231060 0.241676 0
+idx-deathmsg-s1 279 1.00 0.295875 0.229859 0.245126 0
+idx-deathmsg-s1 426 0.50 0.441696 0.404838 0.436195 943
+idx-deathmsg-s1 426 1.00 0.388598 0.348385 0.447399 504
+#
+# idx-watch-s1 (lane/idxclient): a sheep dyed (24, the client's own copy dyed
+# at the click), sheared (31, 32: the fleece stays until the S1C lands), a pig
+# saddled (41, the copy saddled at the click): the copies render watcher 16 as
+# they hold it. Named residuals: the wool items' rest and spin, the sheep
+# beside the camera from 41 (its client copy's pose).
+idx-watch-s1 24 0.50 0.090930 0.088644 0.101691 569
+idx-watch-s1 24 1.00 0.090930 0.088644 0.101691 569
+idx-watch-s1 25 0.50 0.090930 0.088644 0.101691 569
+idx-watch-s1 25 1.00 0.090930 0.088644 0.101691 569
+idx-watch-s1 31 0.50 0.090442 0.088332 0.101154 568
+idx-watch-s1 31 1.00 0.090598 0.088488 0.101310 569
+idx-watch-s1 32 0.50 0.299432 0.158267 0.172624 1734
+idx-watch-s1 32 1.00 0.438476 0.207145 0.217142 2469
+idx-watch-s1 33 0.50 0.371816 0.384270 0.368601 2209
+idx-watch-s1 33 1.00 0.403625 0.424893 0.414171 2335
+idx-watch-s1 41 0.50 0.600371 0.807004 0.729669 4055
+idx-watch-s1 41 1.00 0.405338 0.763534 0.709887 3076
+idx-watch-s1 42 0.50 0.195202 0.326083 0.343250 1325
+idx-watch-s1 42 1.00 0.183399 0.325986 0.347641 1291
+idx-watch-s1 43 0.50 0.040927 0.035927 0.060504 359
+idx-watch-s1 43 1.00 0.040927 0.035927 0.060507 359
+idx-watch-s1 44 0.50 0.040927 0.035927 0.060507 359
+idx-watch-s1 44 1.00 0.041835 0.036351 0.061383 353
+#
+# idx-burn-s1 (lane/idxclient): a zombie into lava (28, burning from the copy's
+# own touch of the lava, then the S1C's flag 0) and a creeper's swell (its
+# copy's clocks over the watched state), every tick to the blast at 52, where
+# the copy is drawn once more from its last input. Named residuals: the
+# creeper's swell a fraction of a pixel off, the zombie's flames.
+idx-burn-s1 21 0.50 0.018484 0.019155 0.084492 3
+idx-burn-s1 21 1.00 0.018394 0.019128 0.084468 2
+idx-burn-s1 22 0.50 0.016662 0.028296 0.030799 0
+idx-burn-s1 22 1.00 0.016633 0.028415 0.030750 0
+idx-burn-s1 23 0.50 0.022158 0.025942 0.023841 0
+idx-burn-s1 23 1.00 0.022387 0.025239 0.021509 0
+idx-burn-s1 24 0.50 0.024963 0.026544 0.029867 0
+idx-burn-s1 24 1.00 0.024898 0.027798 0.030913 1
+idx-burn-s1 25 0.50 0.025671 0.031653 0.031511 4
+idx-burn-s1 25 1.00 0.039942 0.035431 0.045387 3
+idx-burn-s1 26 0.50 0.041184 0.038610 0.050095 5
+idx-burn-s1 26 1.00 0.036336 0.036324 0.044758 7
+idx-burn-s1 27 0.50 0.140540 0.082216 0.087322 6
+idx-burn-s1 27 1.00 0.088232 0.035419 0.036475 8
+idx-burn-s1 28 0.50 0.105384 0.091620 0.108799 40
+idx-burn-s1 28 1.00 0.025639 0.021351 0.029037 48
+idx-burn-s1 29 0.50 0.053730 0.017718 0.024966 2
+idx-burn-s1 29 1.00 0.055333 0.018065 0.024588 11
+idx-burn-s1 30 0.50 0.023309 0.033482 0.021477 15
+idx-burn-s1 30 1.00 0.023300 0.033507 0.021507 15
+idx-burn-s1 31 0.50 0.028018 0.021433 0.028018 18
+idx-burn-s1 31 1.00 0.029652 0.025037 0.025251 18
+idx-burn-s1 32 0.50 0.205123 0.188605 0.248773 40
+idx-burn-s1 32 1.00 0.174995 0.169052 0.219467 39
+idx-burn-s1 33 0.50 0.032948 0.026464 0.029174 43
+idx-burn-s1 33 1.00 0.036741 0.024017 0.027715 43
+idx-burn-s1 34 0.50 0.027813 0.019972 0.022521 18
+idx-burn-s1 34 1.00 0.027815 0.019926 0.022570 18
+idx-burn-s1 35 0.50 0.027466 0.023480 0.024744 16
+idx-burn-s1 35 1.00 0.027476 0.023480 0.024812 16
+idx-burn-s1 36 0.50 0.019589 0.022453 0.031504 10
+idx-burn-s1 36 1.00 0.036634 0.034038 0.044806 10
+idx-burn-s1 37 0.50 0.359960 0.344872 0.374902 11
+idx-burn-s1 37 1.00 0.027518 0.038925 0.030472 11
+idx-burn-s1 38 0.50 0.238952 0.220106 0.248983 2
+idx-burn-s1 38 1.00 0.032594 0.030660 0.042286 1
+idx-burn-s1 39 0.50 0.030372 0.029718 0.032838 30
+idx-burn-s1 39 1.00 0.019594 0.021655 0.023336 1
+idx-burn-s1 40 0.50 0.026034 0.026020 0.026315 50
+idx-burn-s1 40 1.00 0.023122 0.022495 0.025524 30
+idx-burn-s1 41 0.50 0.028140 0.023212 0.024988 49
+idx-burn-s1 41 1.00 0.024641 0.021980 0.022756 16
+idx-burn-s1 42 0.50 0.024461 0.017786 0.021997 1
+idx-burn-s1 42 1.00 0.451537 0.407309 0.459541 755
+idx-burn-s1 43 0.50 0.064644 0.053240 0.056089 50
+idx-burn-s1 43 1.00 0.038444 0.031155 0.031870 1
+idx-burn-s1 44 0.50 0.028479 0.025520 0.026803 1
+idx-burn-s1 44 1.00 0.035902 0.037678 0.040252 43
+idx-burn-s1 45 0.50 0.024127 0.020062 0.022675 2
+idx-burn-s1 45 1.00 0.024146 0.020048 0.022641 2
+idx-burn-s1 46 0.50 0.027344 0.024393 0.023619 17
+idx-burn-s1 46 1.00 0.024876 0.020860 0.023214 6
+idx-burn-s1 47 0.50 0.026800 0.021153 0.025120 8
+idx-burn-s1 47 1.00 0.026517 0.020767 0.024190 2
+idx-burn-s1 48 0.50 0.041442 0.033382 0.038815 1
+idx-burn-s1 48 1.00 0.028974 0.024241 0.027654 9
+idx-burn-s1 49 0.50 0.089835 0.084748 0.091318 189
+idx-burn-s1 49 1.00 0.052866 0.046753 0.049573 42
+idx-burn-s1 50 0.50 0.075700 0.052679 0.045804 130
+idx-burn-s1 50 1.00 0.057482 0.036461 0.027283 114
+idx-burn-s1 51 0.50 0.076242 0.037685 0.028188 131
+idx-burn-s1 51 1.00 0.076856 0.038776 0.027947 132
+idx-burn-s1 52 0.50 0.504698 0.350100 0.422080 3327
+idx-burn-s1 52 1.00 0.122146 0.080577 0.078557 545
+misc-fwstar-s1 12 0.50 0.399627 0.417238 0.398361 2986
+misc-fwstar-s1 12 1.00 0.203791 0.212088 0.204894 1496
+misc-fwstar-s1 19 0.50 2.058824 2.048334 1.521709 7820
+misc-fwstar-s1 19 1.00 2.069279 2.054311 1.504025 7820
+misc-fwstar-s1 50 0.50 0.056113 0.031182 0.053559 156
+misc-fwstar-s1 50 1.00 0.056113 0.031182 0.053559 156
+#
+# idx-preview-s1 (lane/idxclient): GuiInventory's player through RenderPlayer
+# whole (iron armour, a diamond sword, a zombie's hits from 97, on fire from
+# 118; drawn: the oracle drew the screen each frame, so the preview looks at
+# the centred pointer). Named residuals: the achievement toast's slide (82),
+# the hurt tint on the helmet's top face (98: red 254 against the oracle's 109
+# at its top, the rest of the tint within a few units). The fire takes the
+# lightmap at the hand's coordinates (RendererLivingEntity re-enabled the unit).
+idx-preview-s1 82 0.50 1.668294 1.698407 1.694775 5036
+idx-preview-s1 82 1.00 1.657297 1.687839 1.684907 5036
+idx-preview-s1 97 0.50 0.427825 0.148185 0.261361 3028 drawn
+idx-preview-s1 97 1.00 0.409753 0.136644 0.247492 3006 drawn
+idx-preview-s1 98 0.50 0.264654 0.142957 0.248922 1582 drawn
+idx-preview-s1 98 1.00 0.265096 0.145858 0.249829 1582 drawn
+idx-preview-s1 100 0.50 0.394306 0.152698 0.241515 2524 drawn
+idx-preview-s1 100 1.00 0.397390 0.154308 0.238751 2524 drawn
+idx-preview-s1 111 0.50 0.329364 0.136597 0.247778 1772 drawn
+idx-preview-s1 111 1.00 0.329142 0.137215 0.249854 1772 drawn
+idx-preview-s1 116 0.50 0.283787 0.157245 0.243028 1600 drawn
+idx-preview-s1 116 1.00 0.284065 0.157004 0.242486 1600 drawn
+idx-preview-s1 118 0.50 0.329213 0.168587 0.246219 1813 drawn
+idx-preview-s1 118 1.00 0.330418 0.169767 0.245177 1815 drawn
+idx-preview-s1 120 0.50 0.203828 0.217591 0.255801 593 drawn
+idx-preview-s1 120 1.00 0.206496 0.216701 0.258243 593 drawn
+#
+# idx-heldblock-s1 (lane/idxclient): a log, a chest and a slab held in third
+# person (front view) and in the inventory's preview: RenderBiped's
+# renderItemIn3d branch (the icon entry's mode 1), the chest's own sheet
+# for its item model and its icon. Named residual: the achievement toast
+# (44, 46).
+idx-heldblock-s1 28 0.50 0.029220 0.019570 0.032780 13
+idx-heldblock-s1 28 1.00 0.029203 0.019572 0.032760 13
+idx-heldblock-s1 33 0.50 0.035614 0.022656 0.037473 12
+idx-heldblock-s1 33 1.00 0.035529 0.024673 0.039293 12
+idx-heldblock-s1 38 0.50 0.030613 0.021028 0.033355 9
+idx-heldblock-s1 38 1.00 0.030621 0.019274 0.033092 9
+idx-heldblock-s1 44 0.50 1.607521 1.669716 1.765096 9675
+idx-heldblock-s1 44 1.00 1.605196 1.666330 1.758587 9675
+idx-heldblock-s1 45 0.50 2.096553 2.110883 1.689722 8770 drawn
+idx-heldblock-s1 45 1.00 2.089308 2.102144 1.634124 8723 drawn
+idx-heldblock-s1 46 0.50 2.029564 2.025027 1.507340 7823 drawn
+idx-heldblock-s1 46 1.00 2.029459 2.025076 1.504276 7823 drawn
+# lane/pixworld (the edge-case audit's world pixels, N-07 to N-14; scripts
+# oracle/tests/pix-*.jsonl; pix-zvil-s42 and pix-sheared-s1 start on
+# village-hurt-s42 and rc-animals-s1). pix-sky-s1: dawn and dusk facing east
+# and west (the sunrise fan, the fog's sunrise blend), eight nights for the
+# moon phases. pix-lava-s1: a lava pool's rim, then the eye under lava until
+# death (fog 0.6/0.1/0 at density 2, the fire overlay). pix-void-s1: lit
+# corridors at y 40, 30, 15 and 5 (the void fog). pix-fluid-s1: water down
+# steps, a waterfall into a pit, lava down steps. pix-crack-s1: the outline
+# and the cracks on stairs, fences, a pane, a bed, a cauldron, a door and a
+# ladder. pix-desert-s20 (plains and desert), pix-biome-s42 (ice plains and
+# plains), pix-biome-s7 (swamp water and grass): the views, then rain
+# starting and stopping every 20 ticks through the ramp; pix-roofed-s30,
+# pix-biome-s1 (forest and jungle, jungle edge). pix-mobs-s1: an enderman
+# carrying dirt, a baby zombie, a creeper charged by lightning. Named
+# residuals: the HUD's hearts (pix-lava-s1), the stairs' dig particles'
+# shared bounds before the first ray trace, water side faces at the client's
+# loaded edge (pix-biome-s7, pix-desert-s20 80), the sunrise fan's colour
+# interpolation (pix-sky-s1, one level), mob poses from the client copies
+# (the cow in pix-sheared-s1, the creeper in pix-mobs-s1).
+pix-sky-s1 57 0.50 0.133468 0.168699 0.146197 2
+pix-sky-s1 57 1.00 0.133672 0.168738 0.147060 2
+pix-sky-s1 60 0.50 0.030377 0.057945 0.031218 2
+pix-sky-s1 60 1.00 0.029984 0.057514 0.031030 2
+pix-sky-s1 100 0.50 0.133560 0.122768 0.147043 2
+pix-sky-s1 100 1.00 0.133443 0.168972 0.146973 2
+pix-sky-s1 103 0.50 0.050300 0.050493 0.029145 1
+pix-sky-s1 103 1.00 0.050015 0.050407 0.029225 1
+pix-sky-s1 143 0.50 0.014374 0.008572 0.011517 0
+pix-sky-s1 143 1.00 0.014374 0.008572 0.011517 0
+pix-sky-s1 183 0.50 0.014374 0.008572 0.011517 0
+pix-sky-s1 183 1.00 0.014374 0.008572 0.011517 0
+pix-sky-s1 223 0.50 0.014374 0.008572 0.011517 0
+pix-sky-s1 223 1.00 0.014374 0.008572 0.011517 0
+pix-sky-s1 263 0.50 0.014374 0.008572 0.011517 0
+pix-sky-s1 263 1.00 0.014374 0.008572 0.011517 0
+pix-sky-s1 303 0.50 0.014374 0.008572 0.011517 0
+pix-sky-s1 303 1.00 0.014374 0.008572 0.011517 0
+pix-sky-s1 343 0.50 0.014374 0.008572 0.011517 0
+pix-sky-s1 343 1.00 0.014374 0.008572 0.011517 0
+pix-sky-s1 383 0.50 0.014374 0.008572 0.011517 0
+pix-sky-s1 383 1.00 0.014374 0.008572 0.011517 0
+pix-sky-s1 423 0.50 0.014374 0.008572 0.011517 0
+pix-sky-s1 423 1.00 0.014374 0.008572 0.011517 0
+pix-lava-s1 50 0.50 0.053401 0.042477 0.041096 142
+pix-lava-s1 50 1.00 0.048324 0.042572 0.041335 142
+pix-lava-s1 57 0.50 0.038325 0.027193 0.035705 139
+pix-lava-s1 57 1.00 0.038510 0.027276 0.035941 140
+pix-lava-s1 60 0.50 0.024283 0.082236 0.010319 0
+pix-lava-s1 60 1.00 0.024236 0.083572 0.010404 0
+pix-lava-s1 65 0.50 0.036100 0.147843 0.055352 0
+pix-lava-s1 65 1.00 0.035756 0.147904 0.056001 0
+pix-lava-s1 70 0.50 0.056784 0.247870 0.016506 1
+pix-lava-s1 70 1.00 0.056782 0.248300 0.016503 1
+pix-lava-s1 75 0.50 0.008589 0.031094 0.005386 0
+pix-lava-s1 75 1.00 0.008951 0.032482 0.005740 0
+pix-lava-s1 80 0.50 0.038490 0.091840 0.018645 1
+pix-lava-s1 80 1.00 0.038481 0.092603 0.018645 1
+pix-lava-s1 85 0.50 0.029845 0.158067 0.011263 1
+pix-lava-s1 85 1.00 0.029574 0.159521 0.011029 1
+pix-lava-s1 90 0.50 0.029511 0.177576 0.018077 0
+pix-lava-s1 90 1.00 0.029511 0.178662 0.018077 0
+pix-lava-s1 95 0.50 0.043262 0.147621 0.030684 1
+pix-lava-s1 95 1.00 0.043033 0.147782 0.031121 1
+pix-lava-s1 99 0.50 0.072363 0.254969 0.044296 0
+pix-lava-s1 99 1.00 0.072363 0.254969 0.044296 0
+pix-void-s1 45 0.50 0.025947 0.006616 0.012393 4
+pix-void-s1 45 1.00 0.025947 0.006616 0.012393 4
+pix-void-s1 50 0.50 0.018038 0.013642 0.012929 2
+pix-void-s1 50 1.00 0.018213 0.013837 0.028791 2
+pix-void-s1 78 0.50 0.008572 0.014034 0.010758 7
+pix-void-s1 78 1.00 0.008572 0.014034 0.010758 7
+pix-void-s1 83 0.50 0.042796 0.007438 0.014098 3
+pix-void-s1 83 1.00 0.027318 0.007433 0.014147 3
+pix-void-s1 111 0.50 0.021926 0.005242 0.019155 5
+pix-void-s1 111 1.00 0.021926 0.005242 0.019155 5
+pix-void-s1 116 0.50 0.017667 0.026259 0.013773 3
+pix-void-s1 116 1.00 0.017772 0.026405 0.013820 3
+pix-void-s1 144 0.50 0.031391 0.006640 0.003449 4
+pix-void-s1 144 1.00 0.031391 0.006640 0.003449 4
+pix-void-s1 149 0.50 0.036744 0.008416 0.023117 0
+pix-void-s1 149 1.00 0.037078 0.015025 0.023195 0
+pix-fluid-s1 25 0.50 0.081818 0.092074 0.067150 395
+pix-fluid-s1 25 1.00 0.081731 0.092035 0.067062 395
+pix-fluid-s1 45 0.50 0.044906 0.039944 0.040525 134
+pix-fluid-s1 45 1.00 0.044909 0.039944 0.040554 134
+pix-fluid-s1 70 0.50 0.045109 0.039849 0.040359 134
+pix-fluid-s1 70 1.00 0.045109 0.039852 0.040357 134
+pix-fluid-s1 100 0.50 0.045211 0.039983 0.040476 135
+pix-fluid-s1 100 1.00 0.045206 0.039983 0.040476 135
+pix-fluid-s1 140 0.50 0.045136 0.039922 0.040469 135
+pix-fluid-s1 140 1.00 0.045136 0.039922 0.040469 135
+pix-fluid-s1 200 0.50 0.047734 0.045319 0.044779 132
+pix-fluid-s1 200 1.00 0.047734 0.045319 0.044779 132
+pix-fluid-s1 280 0.50 0.048692 0.047295 0.047648 133
+pix-fluid-s1 280 1.00 0.048692 0.047295 0.047648 133
+pix-fluid-s1 360 0.50 0.048912 0.048175 0.047343 126
+pix-fluid-s1 360 1.00 0.048912 0.048175 0.047343 126
+pix-fluid-s1 437 0.50 0.048270 0.047038 0.047619 126
+pix-fluid-s1 437 1.00 0.048270 0.047038 0.047619 126
+pix-fluid-s1 440 0.50 0.043357 0.039652 0.041098 53
+pix-fluid-s1 440 1.00 0.043362 0.039657 0.041096 54
+pix-fluid-s1 443 0.50 0.021626 0.016328 0.025317 39
+pix-fluid-s1 443 1.00 0.036497 0.016284 0.025468 39
+pix-crack-s1 22 0.50 0.068321 0.057789 0.049022 200
+pix-crack-s1 22 1.00 0.068330 0.057894 0.049019 201
+pix-crack-s1 50 0.50 0.052881 0.044031 0.056260 225
+pix-crack-s1 50 1.00 0.052630 0.044201 0.055518 225
+pix-crack-s1 60 0.50 0.066976 0.050363 0.048717 182
+pix-crack-s1 60 1.00 0.066976 0.050363 0.048717 182
+pix-crack-s1 88 0.50 0.054011 0.043304 0.056523 218
+pix-crack-s1 88 1.00 0.053728 0.043426 0.055733 218
+pix-crack-s1 98 0.50 0.066642 0.049649 0.048256 176
+pix-crack-s1 98 1.00 0.066642 0.049649 0.048256 176
+pix-crack-s1 102 0.50 0.050744 0.040013 0.054254 198
+pix-crack-s1 102 1.00 0.050490 0.040181 0.053510 198
+pix-crack-s1 111 0.50 0.043872 0.029154 0.038271 49
+pix-crack-s1 111 1.00 0.043865 0.029147 0.038261 49
+pix-crack-s1 115 0.50 0.027944 0.014786 0.030038 48
+pix-crack-s1 115 1.00 0.028142 0.014947 0.028879 48
+pix-crack-s1 123 0.50 0.067067 0.049846 0.048963 185
+pix-crack-s1 123 1.00 0.067069 0.049854 0.048963 185
+pix-crack-s1 172 0.50 0.050505 0.040118 0.053976 207
+pix-crack-s1 172 1.00 0.067596 0.050373 0.049480 185
+pix-crack-s1 181 0.50 0.033485 0.012751 0.021858 13
+pix-crack-s1 181 1.00 0.033548 0.027891 0.021980 14
+pix-crack-s1 225 0.50 0.019855 0.010136 0.024698 13
+pix-crack-s1 225 1.00 0.020080 0.010295 0.024446 13
+pix-crack-s1 234 0.50 0.039188 0.022114 0.042296 14
+pix-crack-s1 234 1.00 0.039181 0.022117 0.042289 14
+pix-crack-s1 239 0.50 0.018423 0.008063 0.022351 15
+pix-crack-s1 239 1.00 0.039798 0.022600 0.042686 14
+pix-desert-s20 77 0.50 0.045119 0.039361 0.022309 83
+pix-desert-s20 77 1.00 0.045116 0.039359 0.022290 83
+pix-desert-s20 80 0.50 0.141608 0.171797 0.293177 2395
+pix-desert-s20 80 1.00 0.157509 0.156018 0.309221 2397
+pix-desert-s20 83 0.50 0.069701 0.080147 0.053610 32
+pix-desert-s20 83 1.00 0.069975 0.061107 0.068533 32
+pix-desert-s20 86 0.50 0.047458 0.027847 0.018462 26
+pix-desert-s20 86 1.00 0.043599 0.036705 0.033875 26
+pix-desert-s20 106 0.50 0.193265 0.199127 0.180594 16
+pix-desert-s20 106 1.00 0.196343 0.199854 0.190623 17
+pix-desert-s20 126 0.50 0.140498 0.139186 0.138539 11
+pix-desert-s20 126 1.00 0.145619 0.142245 0.140091 11
+pix-desert-s20 146 0.50 0.110082 0.139398 0.117050 36
+pix-desert-s20 146 1.00 0.112659 0.145794 0.130589 10
+pix-desert-s20 166 0.50 0.124073 0.103154 0.133067 9
+pix-desert-s20 166 1.00 0.118716 0.098534 0.132619 8
+pix-desert-s20 186 0.50 0.108872 0.101247 0.131350 13
+pix-desert-s20 186 1.00 0.108214 0.101044 0.127376 24
+pix-desert-s20 206 0.50 0.107999 0.099241 0.133465 193
+pix-desert-s20 206 1.00 0.103959 0.090323 0.111583 124
+pix-desert-s20 226 0.50 0.104028 0.100244 0.112822 21
+pix-desert-s20 226 1.00 0.117528 0.111349 0.123192 18
+pix-desert-s20 246 0.50 0.118972 0.120880 0.148683 12
+pix-desert-s20 246 1.00 0.125002 0.132133 0.163920 10
+pix-desert-s20 266 0.50 0.143501 0.143277 0.143743 11
+pix-desert-s20 266 1.00 0.138066 0.136949 0.135417 11
+pix-desert-s20 286 0.50 0.169106 0.180462 0.174495 13
+pix-desert-s20 286 1.00 0.190271 0.198590 0.188622 13
+pix-desert-s20 306 0.50 0.083926 0.082875 0.086039 16
+pix-desert-s20 306 1.00 0.082514 0.082336 0.085851 16
+pix-desert-s20 326 0.50 0.068833 0.064274 0.064649 16
+pix-desert-s20 326 1.00 0.068833 0.064274 0.064649 16
+pix-biome-s42 77 0.50 0.057162 0.052164 0.051112 134
+pix-biome-s42 77 1.00 0.057079 0.052152 0.050971 134
+pix-biome-s42 80 0.50 0.042650 0.024600 0.021997 102
+pix-biome-s42 80 1.00 0.026742 0.024683 0.043618 102
+pix-biome-s42 83 0.50 0.030747 0.023714 0.032519 52
+pix-biome-s42 83 1.00 0.033375 0.032516 0.029674 52
+pix-biome-s42 103 0.50 0.132697 0.146202 0.163203 53
+pix-biome-s42 103 1.00 0.128776 0.144362 0.164718 52
+pix-biome-s42 123 0.50 0.090630 0.065418 0.091403 204
+pix-biome-s42 123 1.00 0.088010 0.063412 0.096926 273
+pix-biome-s42 143 0.50 0.057038 0.069872 0.062151 142
+pix-biome-s42 143 1.00 0.057018 0.072273 0.092433 404
+pix-biome-s42 163 0.50 0.061797 0.040730 0.093716 403
+pix-biome-s42 163 1.00 0.064539 0.043391 0.084826 356
+pix-biome-s42 183 0.50 0.058929 0.038756 0.062822 177
+pix-biome-s42 183 1.00 0.056731 0.038259 0.067684 237
+pix-biome-s42 203 0.50 0.059851 0.043916 0.102532 473
+pix-biome-s42 203 1.00 0.061288 0.043972 0.108597 496
+pix-biome-s42 223 0.50 0.051703 0.041130 0.058672 189
+pix-biome-s42 223 1.00 0.051981 0.041032 0.054223 178
+pix-biome-s42 243 0.50 0.068050 0.049717 0.104437 346
+pix-biome-s42 243 1.00 0.066335 0.048004 0.108119 380
+pix-biome-s42 263 0.50 0.079891 0.060992 0.122870 230
+pix-biome-s42 263 1.00 0.079398 0.061480 0.120904 273
+pix-biome-s42 283 0.50 0.149651 0.143443 0.173622 57
+pix-biome-s42 283 1.00 0.154123 0.145794 0.178115 57
+pix-biome-s42 303 0.50 0.046524 0.038378 0.052396 56
+pix-biome-s42 303 1.00 0.047629 0.039222 0.053591 55
+pix-biome-s42 323 0.50 0.037734 0.025983 0.039461 56
+pix-biome-s42 323 1.00 0.037734 0.025983 0.039461 56
+pix-biome-s7 82 0.50 0.189566 0.167145 0.201537 12
+pix-biome-s7 82 1.00 0.189532 0.167123 0.201539 12
+pix-biome-s7 85 0.50 0.247095 0.232867 0.341450 657
+pix-biome-s7 85 1.00 0.247724 0.243750 0.359087 657
+pix-biome-s7 88 0.50 0.203198 0.193108 0.238390 73
+pix-biome-s7 88 1.00 0.203713 0.183104 0.248356 73
+pix-biome-s7 108 0.50 0.462705 0.502747 0.590898 751
+pix-biome-s7 108 1.00 0.469060 0.505350 0.593999 744
+pix-biome-s7 128 0.50 0.412751 0.457038 0.531211 673
+pix-biome-s7 128 1.00 0.407253 0.452247 0.532045 613
+pix-biome-s7 148 0.50 0.397741 0.470846 0.524756 557
+pix-biome-s7 148 1.00 0.402754 0.477203 0.534621 505
+pix-biome-s7 168 0.50 0.415418 0.440874 0.474639 376
+pix-biome-s7 168 1.00 0.410378 0.434734 0.474668 298
+pix-biome-s7 188 0.50 0.407272 0.477376 0.521136 232
+pix-biome-s7 188 1.00 0.391962 0.460126 0.507892 261
+pix-biome-s7 208 0.50 0.402254 0.475349 0.517284 467
+pix-biome-s7 208 1.00 0.410331 0.490840 0.534170 356
+pix-biome-s7 228 0.50 0.446477 0.471780 0.502635 332
+pix-biome-s7 228 1.00 0.442208 0.463076 0.492252 298
+pix-biome-s7 248 0.50 0.406384 0.442335 0.448385 445
+pix-biome-s7 248 1.00 0.408599 0.443521 0.449258 443
+pix-biome-s7 268 0.50 0.418306 0.486510 0.523924 598
+pix-biome-s7 268 1.00 0.418047 0.484921 0.523983 622
+pix-biome-s7 288 0.50 0.463268 0.503242 0.631184 748
+pix-biome-s7 288 1.00 0.457262 0.495158 0.630003 715
+pix-biome-s7 308 0.50 0.219165 0.232809 0.290745 836
+pix-biome-s7 308 1.00 0.220911 0.234677 0.290349 836
+pix-biome-s7 328 0.50 0.180435 0.213969 0.306243 892
+pix-biome-s7 328 1.00 0.180435 0.213969 0.306243 892
+pix-roofed-s30 77 0.50 0.044357 0.055904 0.043906 199
+pix-roofed-s30 77 1.00 0.044367 0.055884 0.043901 199
+pix-roofed-s30 80 0.50 0.033963 0.036007 0.037927 114
+pix-roofed-s30 80 1.00 0.034380 0.026108 0.023692 114
+pix-roofed-s30 83 0.50 0.041198 0.061075 0.042784 224
+pix-roofed-s30 83 1.00 0.040793 0.055028 0.042455 223
+pix-biome-s1 77 0.50 0.046453 0.092242 0.023168 427
+pix-biome-s1 77 1.00 0.046453 0.092242 0.023168 427
+pix-biome-s1 80 0.50 0.035319 0.035534 0.016957 86
+pix-biome-s1 80 1.00 0.035712 0.037388 0.030123 86
+pix-biome-s1 83 0.50 0.038405 0.035446 0.029586 51
+pix-biome-s1 83 1.00 0.038222 0.019814 0.035561 51
+pix-biome-s1 143 0.50 0.127920 0.185478 0.093377 1094
+pix-biome-s1 143 1.00 0.127920 0.185478 0.093379 1094
+pix-biome-s1 146 0.50 0.045658 0.021407 0.047153 30
+pix-biome-s1 146 1.00 0.046107 0.021365 0.047700 30
+pix-mobs-s1 49 0.50 0.050056 0.063156 0.045992 46
+pix-mobs-s1 49 1.00 0.050746 0.063144 0.046282 46
+pix-mobs-s1 69 0.50 0.043501 0.046368 0.041545 40
+pix-mobs-s1 69 1.00 0.048810 0.045628 0.046892 35
+pix-mobs-s1 89 0.50 0.054730 0.052801 0.051181 31
+pix-mobs-s1 89 1.00 0.060285 0.046765 0.050986 30
+pix-mobs-s1 109 0.50 0.060412 0.079962 0.045655 32
+pix-mobs-s1 109 1.00 0.052518 0.068469 0.045033 32
+pix-mobs-s1 129 0.50 0.036705 0.036090 0.048353 90
+pix-mobs-s1 129 1.00 0.035287 0.036580 0.050688 108
+pix-mobs-s1 149 0.50 0.037066 0.060809 0.050390 32
+pix-mobs-s1 149 1.00 0.058272 0.066411 0.050190 32
+pix-mobs-s1 169 0.50 0.048424 0.035570 0.035744 40
+pix-mobs-s1 169 1.00 0.054367 0.035370 0.039942 40
+pix-mobs-s1 189 0.50 0.058355 0.061651 0.053835 96
+pix-mobs-s1 189 1.00 0.057894 0.054069 0.051059 81
+pix-mobs-s1 209 0.50 0.057843 0.068147 0.052105 30
+pix-mobs-s1 209 1.00 0.057694 0.046814 0.046380 30
+pix-mobs-s1 229 0.50 0.047190 0.056062 0.031792 41
+pix-mobs-s1 229 1.00 0.039313 0.044592 0.049724 41
+pix-mobs-s1 249 0.50 0.049588 0.052178 0.045553 62
+pix-mobs-s1 249 1.00 0.055296 0.051935 0.052274 64
+pix-mobs-s1 269 0.50 0.054906 0.058587 0.052866 30
+pix-mobs-s1 269 1.00 0.054772 0.042899 0.047119 30
+pix-mobs-s1 279 0.50 0.031362 0.032331 0.062095 31
+pix-mobs-s1 279 1.00 0.031221 0.032211 0.062129 30
+pix-zvil-s42 674 0.50 0.022983 0.021055 0.026503 30
+pix-zvil-s42 674 1.00 0.023002 0.021036 0.025300 30
+pix-zvil-s42 680 0.50 0.023297 0.020331 0.028257 30
+pix-zvil-s42 680 1.00 0.023297 0.020331 0.028345 30
+pix-zvil-s42 692 0.50 0.038661 0.024976 0.034302 30
+pix-zvil-s42 692 1.00 0.038661 0.024473 0.035583 30
+pix-zvil-s42 704 0.50 0.033938 0.027866 0.031216 30
+pix-zvil-s42 704 1.00 0.033938 0.027869 0.031155 30
+pix-zvil-s42 740 0.50 0.036958 0.040791 0.025090 30
+pix-zvil-s42 740 1.00 0.036958 0.040862 0.025161 30
+pix-zvil-s42 770 0.50 0.037617 0.037656 0.023022 31
+pix-zvil-s42 770 1.00 0.037617 0.037854 0.024410 31
+pix-zvil-s42 800 0.50 0.117118 0.120001 0.106196 235
+pix-zvil-s42 800 1.00 0.127347 0.130155 0.116428 279
+pix-sheared-s1 64 0.50 0.308646 0.297531 0.354545 1688
+pix-sheared-s1 64 1.00 0.367257 0.378049 0.436754 1901
+pix-sheared-s1 79 0.50 0.062066 0.057894 0.073588 150
+pix-sheared-s1 79 1.00 0.061109 0.059607 0.073139 153
+pix-sheared-s1 99 0.50 0.093257 0.079979 0.089891 195
+pix-sheared-s1 99 1.00 0.086929 0.072568 0.082082 149
+pix-sheared-s1 129 0.50 0.368455 0.336417 0.403203 2043
+pix-sheared-s1 129 1.00 0.370423 0.347424 0.416364 2140
+pix-sheared-s1 159 0.50 0.761007 0.776259 0.903972 3846
+# lane/rlfuzz2: raised with the ageable copy's recentring (rf-g25-1554):
+# a child copy's next move starts from the box setScaleForAge shrank from
+# its min corner, as moveEntity does, which made g25-1554's pick exact; the
+# calf at this shot now takes that step (its legs mid-stride). The cow
+# copies here were already 0.04 to 0.1 blocks off the oracle's snapshot at
+# tick 160 (687, 688, 896) with or without it, a follow-up.
+pix-sheared-s1 159 1.00 0.708851 0.722395 0.865925 3637
+# idx-book-s1 (lane/idxclient): an enchanting table's book, closed, turning to
+# the player as they come within 3, opening with the page flips, closing
+# as they back off (the client's TileEntityEnchantmentTable, made by the
+# chunk rebuild's lookup on the frame after the S21, its page picks on
+# the client's split stream). Recorded with a frame every tick (EVERY=1):
+# the client entity exists only once a frame has looked it up.
+idx-book-s1 24 0.50 0.036644 0.013798 0.037002 20
+idx-book-s1 24 1.00 0.036971 0.013612 0.036578 18
+idx-book-s1 30 0.50 0.042096 0.015881 0.042799 35
+idx-book-s1 30 1.00 0.037903 0.016930 0.039654 47
+idx-book-s1 36 0.50 0.041003 0.020936 0.044499 59
+idx-book-s1 36 1.00 0.041223 0.019953 0.044384 59
+idx-book-s1 44 0.50 0.034258 0.027740 0.039032 16
+idx-book-s1 44 1.00 0.039922 0.033404 0.044697 16
+idx-book-s1 52 0.50 0.024790 0.017760 0.029052 15
+idx-book-s1 52 1.00 0.024710 0.017679 0.028972 14
+idx-book-s1 60 0.50 0.037371 0.018599 0.042803 55
+idx-book-s1 60 1.00 0.039154 0.017406 0.042150 45
+idx-book-s1 70 0.50 0.035000 0.015513 0.038259 42
+idx-book-s1 70 1.00 0.037422 0.017974 0.040652 48
+# idx-chatdraw-s1 (lane/idxclient): GuiChat drawn: the strip and GuiTextField's text,
+# its blinking underscore and bar cursors, a line past the field's width
+# scrolling it, a shift and control selection (glLogicOp OR_REVERSE), the
+# open chat's twenty lines scrolled by the wheel and PgUp with its scroll
+# bar, a tab completion's list line. Recorded with a frame every tick.
+idx-chatdraw-s1 30 0.50 0.027520 0.012312 0.030447 16
+idx-chatdraw-s1 30 1.00 0.027520 0.012312 0.030447 16
+idx-chatdraw-s1 79 0.50 0.019882 0.008263 0.022097 4
+idx-chatdraw-s1 79 1.00 0.019882 0.008263 0.022097 4
+idx-chatdraw-s1 82 0.50 0.019882 0.008263 0.022097 4
+idx-chatdraw-s1 82 1.00 0.019882 0.008263 0.022097 4
+idx-chatdraw-s1 85 0.50 0.019882 0.008263 0.022097 4
+idx-chatdraw-s1 85 1.00 0.019882 0.008263 0.022097 4
+idx-chatdraw-s1 88 0.50 0.018084 0.007911 0.020006 4
+idx-chatdraw-s1 88 1.00 0.018084 0.007911 0.020006 4
+idx-chatdraw-s1 91 0.50 0.018084 0.007911 0.020006 4
+idx-chatdraw-s1 91 1.00 0.018084 0.007911 0.020006 4
+idx-chatdraw-s1 94 0.50 0.018084 0.007911 0.020006 4
+idx-chatdraw-s1 94 1.00 0.018084 0.007911 0.020006 4
+idx-chatdraw-s1 97 0.50 0.018084 0.007911 0.019611 4
+idx-chatdraw-s1 97 1.00 0.018084 0.007911 0.019611 4
+idx-chatdraw-s1 100 0.50 0.018079 0.007931 0.019606 4
+idx-chatdraw-s1 100 1.00 0.018079 0.007931 0.019606 4
+idx-chatdraw-s1 103 0.50 0.027505 0.012305 0.030433 16
+idx-chatdraw-s1 103 1.00 0.027505 0.012305 0.030433 16
+idx-chatdraw-s1 108 0.50 0.019877 0.007782 0.022073 4
+idx-chatdraw-s1 108 1.00 0.019877 0.007782 0.022073 4
+idx-chatdraw-s1 110 0.50 0.019877 0.007782 0.022073 4
+idx-chatdraw-s1 110 1.00 0.019877 0.007782 0.022073 4
+idx-chatdraw-s1 113 0.50 0.019877 0.007782 0.022073 4
+idx-chatdraw-s1 113 1.00 0.019877 0.007782 0.022073 4
+# idx-chathover-s1 (lane/idxclient): GuiChat.drawScreen's hover, an achievement line's
+# SHOW_ACHIEVEMENT tooltip at the centred pointer (the name in its colour,
+# Achievement in italics, the description wrapped at 150).
+idx-chathover-s1 21 0.50 0.240103 0.204272 0.217401 0
+idx-chathover-s1 21 1.00 0.198236 0.210726 0.234234 0
+idx-chathover-s1 37 0.50 0.027505 0.012305 0.030433 16
+idx-chathover-s1 37 1.00 0.027505 0.012305 0.030433 16
+idx-chathover-s1 92 0.50 0.020138 0.008277 0.021848 9
+idx-chathover-s1 92 1.00 0.020138 0.008277 0.021848 9
+idx-chathover-s1 95 0.50 0.020138 0.008277 0.021848 9
+idx-chathover-s1 95 1.00 0.020138 0.008277 0.021848 9
+idx-chathover-s1 97 0.50 0.020138 0.008277 0.021848 9
+idx-chathover-s1 97 1.00 0.020138 0.008277 0.021848 9
+# idx-hudfx2-s1 (lane/idxclient): the live HUD's effect styles and the mount: poison
+# hearts (a spider eye), regeneration's bob and the absorption row (a golden
+# apple; the S1C of watcher 17 to the player), hunger's food icons (rotten
+# flesh), a saddled pig's hearts in place of the food bar.
+idx-hudfx2-s1 70 0.50 0.015871 0.007106 0.018057 19
+idx-hudfx2-s1 70 1.00 0.015871 0.007106 0.018057 19
+idx-hudfx2-s1 105 0.50 0.027518 0.017864 0.024071 104
+idx-hudfx2-s1 105 1.00 0.022170 0.012410 0.020411 58
+idx-hudfx2-s1 110 0.50 0.024293 0.014849 0.026659 81
+idx-hudfx2-s1 110 1.00 0.023700 0.014596 0.025912 88
+idx-hudfx2-s1 130 0.50 0.021509 0.019143 0.024210 104
+idx-hudfx2-s1 130 1.00 0.016328 0.012632 0.019172 58
+idx-hudfx2-s1 150 0.50 0.013259 0.007904 0.015923 20
+idx-hudfx2-s1 150 1.00 0.012302 0.009609 0.016189 20
+idx-hudfx2-s1 200 0.50 0.016757 0.007153 0.019004 19
+idx-hudfx2-s1 200 1.00 0.016757 0.007153 0.019004 19
+idx-hudfx2-s1 262 0.50 0.037100 0.027776 0.035358 215
+idx-hudfx2-s1 262 1.00 0.037100 0.027776 0.035358 215
+# lane/idxlast: idx-tpv-s1 106 (asleep, timer 10) re-measured with the
+# sleep fade drawn: red 0.580645 to 0.589769, green and blue down (1.09 to
+# 0.23), 0 px before and after.
+# lane/idxlast (2026-09-27), each 1.00 before 0.50 as the oracle's
+# --frame-pts 1.0,0.5 drew them (the second draw of a fresh inventory has
+# GuiInventory's stored pointer):
+# idx-sleep-s1: a bed at night, frames asleep (timer 1 to 100), the wake and
+# the fade out (GuiIngame's sleep fade, new: 100 was 4,180 px, 123 14,475,
+# now 0 everywhere). idx-usehand-s1: an enchanted golden apple eaten, a
+# regeneration potion drunk, an enchanted bow drawn (ItemBow's client
+# setItemInUse and the pulling icon in the hand, new: 117 was 69,390 px, now
+# 20). idx-tipapple-s1: the epic rarity's colour. idx-furnace-s1: a lit
+# furnace loaded from NBT (the Dev op's readFromNBT recomputes
+# currentItemBurnTime; the recording failed test_snapshots row 23 on
+# master). idx-wither-s1: a wither skeleton's hits, the wither hearts.
+# idx-pickcap-s1: 27 single items spilled from a chest under the player and
+# taken in one tick (S0Ds past the old 16 cap, all 27 flights drawn); 24 is
+# the dev setblock reaching the drawn client world a tick early (27,083 px,
+# as idx-hudfx-s1 184), 25 and 26 the flights' spin phase (the client
+# copies' hoverStart). idx-doorbreak-s1: a zombie breaks a door on HARD,
+# the 2001 destroy debris (28 to 133 px). idx-dragondeath-s42: the dragon's
+# death, largeexplode and hugeexplosion puffs (up to 1,895 px: the puffs'
+# placement from the client dragon copy's own Random); 371, the last XP
+# burst, is left out (one orb of 19 not drawn, a follow-up). 233 and 272 at
+# 1.00: green mean up 0.000002 and 0.000003, px equal, once the End fog's
+# green was exact (128 / 255.0F, lane/rerender).
+idx-sleep-s1 25 1.00 0.018469 0.007633 0.658238 0
+idx-sleep-s1 25 0.50 0.019004 0.009094 0.654403 1
+idx-sleep-s1 26 1.00 0.175337 0.072904 0.528506 0
+idx-sleep-s1 26 0.50 0.164737 0.093104 0.529484 1
+idx-sleep-s1 50 1.00 0.209975 0.513337 0.151220 0
+idx-sleep-s1 50 0.50 0.210036 0.513295 0.151305 0
+idx-sleep-s1 75 1.00 0.095489 0.070243 0.191681 0
+idx-sleep-s1 75 0.50 0.095497 0.070245 0.191664 0
+idx-sleep-s1 100 1.00 0.147012 0.397158 0.450546 0
+idx-sleep-s1 100 0.50 0.147009 0.397163 0.450546 0
+idx-sleep-s1 121 1.00 0.600700 0.336431 0.033326 0
+idx-sleep-s1 121 0.50 0.600676 0.336407 0.033302 0
+idx-sleep-s1 122 1.00 0.220255 0.497692 0.118657 0
+idx-sleep-s1 122 0.50 0.220255 0.497697 0.118660 0
+idx-sleep-s1 123 1.00 0.121787 0.417023 0.509499 0
+idx-sleep-s1 123 0.50 0.121765 0.416996 0.509473 0
+idx-sleep-s1 124 1.00 0.476278 0.594274 0.029579 0
+idx-sleep-s1 124 0.50 0.456679 0.593279 0.036500 0
+idx-sleep-s1 125 1.00 0.011761 0.005357 0.003040 0
+idx-sleep-s1 125 0.50 0.012112 0.005411 0.002903 0
+idx-sleep-s1 126 1.00 0.651676 0.536566 0.073992 0
+idx-sleep-s1 126 0.50 0.647307 0.531545 0.071007 0
+idx-sleep-s1 127 1.00 0.165132 0.159738 0.267899 0
+idx-sleep-s1 127 0.50 0.165891 0.159839 0.268569 0
+idx-sleep-s1 128 1.00 0.014966 0.009163 0.023202 0
+idx-sleep-s1 128 0.50 0.014715 0.009133 0.023229 0
+idx-sleep-s1 129 1.00 0.120575 0.201844 0.152720 0
+idx-sleep-s1 129 0.50 0.104994 0.206579 0.153884 0
+idx-sleep-s1 131 1.00 0.318452 0.297285 0.267579 0
+idx-sleep-s1 131 0.50 0.318455 0.297280 0.267577 0
+idx-sleep-s1 133 1.00 0.016767 0.012998 0.016754 0
+idx-sleep-s1 133 0.50 0.016767 0.012998 0.016754 0
+idx-sleep-s1 135 1.00 0.016767 0.012998 0.016754 0
+idx-sleep-s1 135 0.50 0.016767 0.012998 0.016754 0
+idx-sleep-s1 138 1.00 0.016767 0.012998 0.016754 0
+idx-sleep-s1 138 0.50 0.016767 0.012998 0.016754 0
+idx-sleep-s1 143 1.00 0.066881 0.043835 0.055633 71
+idx-sleep-s1 143 0.50 0.066879 0.043835 0.055643 71
+idx-usehand-s1 24 1.00 0.045726 0.014120 0.108992 9
+idx-usehand-s1 24 0.50 0.036673 0.010831 0.082643 12
+idx-usehand-s1 27 1.00 0.040759 0.011090 0.093950 9
+idx-usehand-s1 27 0.50 0.040364 0.011083 0.094894 9
+idx-usehand-s1 33 1.00 0.108050 0.034802 0.258685 17
+idx-usehand-s1 33 0.50 0.101798 0.033297 0.243484 15
+idx-usehand-s1 41 1.00 0.093191 0.028823 0.219416 7
+idx-usehand-s1 41 0.50 0.089034 0.027857 0.206716 10
+idx-usehand-s1 49 1.00 0.052466 0.014117 0.115771 7
+idx-usehand-s1 49 0.50 0.051271 0.013825 0.111041 8
+idx-usehand-s1 62 1.00 0.011361 0.006833 0.017162 6
+idx-usehand-s1 62 0.50 0.013185 0.009260 0.019801 5
+idx-usehand-s1 67 1.00 0.027242 0.012378 0.045331 6
+idx-usehand-s1 67 0.50 0.024973 0.011578 0.041164 6
+idx-usehand-s1 75 1.00 0.019999 0.008599 0.030523 5
+idx-usehand-s1 75 0.50 0.019494 0.008670 0.029113 7
+idx-usehand-s1 83 1.00 0.022324 0.009343 0.034997 6
+idx-usehand-s1 83 0.50 0.021277 0.009465 0.032228 7
+idx-usehand-s1 89 1.00 0.012720 0.008311 0.015596 5
+idx-usehand-s1 89 0.50 0.011983 0.007643 0.015423 5
+idx-usehand-s1 101 1.00 0.213132 0.071838 0.432206 313
+idx-usehand-s1 101 0.50 0.176542 0.036124 0.393774 17
+idx-usehand-s1 104 1.00 0.136832 0.043872 0.315620 19
+idx-usehand-s1 104 0.50 0.136005 0.043748 0.313281 15
+idx-usehand-s1 109 1.00 0.116235 0.035624 0.220070 20
+idx-usehand-s1 109 0.50 0.115325 0.035453 0.217982 19
+idx-usehand-s1 117 1.00 0.229642 0.094238 0.635468 20
+idx-usehand-s1 117 0.50 0.228345 0.093713 0.632811 11
+idx-usehand-s1 124 1.00 0.257243 0.078742 0.621838 103
+idx-usehand-s1 124 0.50 0.236263 0.059660 0.597036 21
+idx-usehand-s1 126 1.00 0.136207 0.069406 0.281828 230
+idx-usehand-s1 126 0.50 0.308616 0.255196 0.491049 1560
+idx-tipapple-s1 22 1.00 0.187188 0.199434 0.201069 0
+idx-tipapple-s1 22 0.50 0.184887 0.202505 0.204789 0
+idx-furnace-s1 25 1.00 0.223675 0.221024 0.240040 0
+idx-furnace-s1 25 0.50 0.208409 0.220365 0.196368 0
+idx-furnace-s1 32 1.00 0.207118 0.208741 0.216289 0
+idx-furnace-s1 32 0.50 0.207118 0.209297 0.216289 0
+idx-furnace-s1 52 1.00 0.195360 0.220750 0.172580 0
+idx-furnace-s1 52 0.50 0.195360 0.220750 0.172580 0
+idx-furnace-s1 92 1.00 0.208933 0.196636 0.189813 0
+idx-furnace-s1 92 0.50 0.208933 0.196636 0.189813 0
+idx-furnace-s1 132 1.00 0.208933 0.196636 0.189813 0
+idx-furnace-s1 132 0.50 0.208933 0.196636 0.189813 0
+idx-wither-s1 55 1.00 0.031004 0.014517 0.019684 0
+idx-wither-s1 55 0.50 0.034797 0.015115 0.021882 0
+idx-wither-s1 62 1.00 0.327849 0.228823 0.182604 1
+idx-wither-s1 62 0.50 0.310953 0.221780 0.174400 0
+idx-wither-s1 68 1.00 0.385631 0.225429 0.182784 0
+idx-wither-s1 68 0.50 0.373407 0.217011 0.176771 1
+idx-wither-s1 72 1.00 0.471241 0.284392 0.229133 1
+idx-wither-s1 72 0.50 0.374368 0.231450 0.185339 0
+idx-wither-s1 76 1.00 0.961822 0.534819 0.462317 0
+idx-wither-s1 76 0.50 0.927305 0.549044 0.434265 0
+idx-wither-s1 82 1.00 0.218596 0.376266 0.303606 1
+idx-wither-s1 82 0.50 0.403637 0.424880 0.331601 0
+idx-wither-s1 100 1.00 0.023705 0.003062 0.015869 0
+idx-wither-s1 100 0.50 0.023585 0.003091 0.015871 0
+idx-wither-s1 106 1.00 0.018289 0.004977 0.012456 0
+idx-wither-s1 106 0.50 0.018128 0.004786 0.012495 0
+idx-wither-s1 110 1.00 0.013488 0.005142 0.006240 0
+idx-wither-s1 110 0.50 0.013954 0.004240 0.006367 0
+idx-wither-s1 130 1.00 0.036234 0.004179 0.013608 0
+idx-wither-s1 130 0.50 0.035246 0.004281 0.013437 0
+idx-wither-s1 146 1.00 0.016569 0.009185 0.005335 0
+idx-wither-s1 146 0.50 0.005477 0.004974 0.003171 0
+idx-pickcap-s1 24 1.00 5.478798 2.129342 1.970043 27083
+idx-pickcap-s1 24 0.50 5.478776 2.129325 1.970033 27083
+idx-pickcap-s1 25 1.00 1.580630 1.344965 1.079977 7002
+idx-pickcap-s1 25 0.50 1.418104 1.222490 0.976732 6352
+idx-pickcap-s1 26 1.00 2.372153 2.765959 1.706113 12106
+idx-pickcap-s1 26 0.50 5.169116 4.659463 4.144899 25424
+idx-pickcap-s1 27 1.00 0.029996 0.029933 0.029698 169
+idx-pickcap-s1 27 0.50 0.014359 0.013198 0.014337 85
+idx-pickcap-s1 28 1.00 0.018740 0.018235 0.018977 129
+idx-pickcap-s1 28 0.50 0.015808 0.015598 0.015803 104
+idx-pickcap-s1 29 1.00 0.188639 0.198092 0.179391 1746
+idx-pickcap-s1 29 0.50 0.055286 0.054442 0.055604 453
+idx-pickcap-s1 31 1.00 0.023417 0.026569 0.021270 111
+idx-pickcap-s1 31 0.50 0.039066 0.039432 0.039091 49
+idx-pickcap-s1 33 1.00 0.019882 0.023353 0.018579 75
+idx-pickcap-s1 33 0.50 0.020416 0.023117 0.019335 71
+idx-doorbreak-s1 121 1.00 0.062234 0.081787 0.062668 100
+idx-doorbreak-s1 121 0.50 0.062256 0.082101 0.062934 104
+idx-doorbreak-s1 321 1.00 0.022592 0.012424 0.015198 33
+idx-doorbreak-s1 321 0.50 0.022529 0.012446 0.015259 33
+idx-doorbreak-s1 521 1.00 0.066994 0.086568 0.076852 94
+idx-doorbreak-s1 521 0.50 0.067113 0.086639 0.076856 95
+idx-doorbreak-s1 577 1.00 0.035000 0.021229 0.026798 31
+idx-doorbreak-s1 577 0.50 0.032926 0.022497 0.025066 38
+idx-doorbreak-s1 579 1.00 0.036734 0.018567 0.027947 28
+idx-doorbreak-s1 579 0.50 0.032943 0.021902 0.029469 41
+idx-doorbreak-s1 581 1.00 0.028498 0.026900 0.028179 32
+idx-doorbreak-s1 581 0.50 0.030084 0.022434 0.024739 34
+idx-doorbreak-s1 583 1.00 0.027840 0.021870 0.024734 38
+idx-doorbreak-s1 583 0.50 0.029306 0.021265 0.020567 34
+idx-doorbreak-s1 585 1.00 0.024932 0.020580 0.022983 38
+idx-doorbreak-s1 585 0.50 0.031152 0.022509 0.028301 37
+idx-doorbreak-s1 587 1.00 0.023866 0.028474 0.026442 40
+idx-doorbreak-s1 587 0.50 0.022958 0.027664 0.029047 41
+idx-doorbreak-s1 589 1.00 0.026515 0.030379 0.026691 47
+idx-doorbreak-s1 589 0.50 0.026895 0.031255 0.025693 43
+idx-doorbreak-s1 591 1.00 0.032060 0.040745 0.044533 133
+idx-doorbreak-s1 591 0.50 0.030530 0.027186 0.036944 42
+idx-doorbreak-s1 593 1.00 0.046841 0.022317 0.036397 37
+idx-doorbreak-s1 593 0.50 0.035504 0.025281 0.044777 34
+idx-doorbreak-s1 595 1.00 0.038305 0.036512 0.067364 36
+idx-doorbreak-s1 595 0.50 0.035831 0.033780 0.057860 37
+idx-doorbreak-s1 597 1.00 0.026859 0.060936 0.072726 42
+idx-doorbreak-s1 597 0.50 0.036668 0.055525 0.067825 22
+idx-doorbreak-s1 599 1.00 0.032601 0.050185 0.058972 53
+idx-doorbreak-s1 599 0.50 0.026776 0.054977 0.057919 53
+idx-doorbreak-s1 601 1.00 0.023997 0.052905 0.051237 38
+idx-doorbreak-s1 601 0.50 0.036251 0.054069 0.047563 76
+idx-doorbreak-s1 603 1.00 0.052337 0.050585 0.082321 92
+idx-doorbreak-s1 603 0.50 0.040264 0.038503 0.066925 84
+idx-doorbreak-s1 605 1.00 0.043455 0.041220 0.035692 98
+idx-doorbreak-s1 605 0.50 0.038478 0.043770 0.041837 89
+idx-doorbreak-s1 607 1.00 0.020028 0.029518 0.035934 43
+idx-doorbreak-s1 607 0.50 0.028330 0.038378 0.042964 67
+idx-doorbreak-s1 609 1.00 0.028271 0.035670 0.030177 24
+idx-doorbreak-s1 609 0.50 0.024036 0.039498 0.029925 42
+idx-doorbreak-s1 611 1.00 0.027454 0.047795 0.019999 29
+idx-doorbreak-s1 611 0.50 0.026281 0.045084 0.018289 33
+idx-doorbreak-s1 613 1.00 0.018755 0.032382 0.029047 20
+idx-doorbreak-s1 613 0.50 0.010902 0.028023 0.030201 13
+idx-doorbreak-s1 615 1.00 0.026012 0.032514 0.027881 9
+idx-doorbreak-s1 615 0.50 0.017538 0.031611 0.021014 16
+idx-doorbreak-s1 617 1.00 0.066149 0.076066 0.059763 86
+idx-doorbreak-s1 617 0.50 0.063205 0.064830 0.067516 78
+idx-doorbreak-s1 619 1.00 0.041742 0.050454 0.066140 30
+idx-doorbreak-s1 619 0.50 0.039169 0.047016 0.050317 29
+idx-doorbreak-s1 621 1.00 0.017747 0.073863 0.046494 77
+idx-doorbreak-s1 621 0.50 0.017557 0.062022 0.044087 65
+idx-dragondeath-s42 140 1.00 0.117306 0.097365 0.158707 65
+idx-dragondeath-s42 140 0.50 0.114954 0.096626 0.157540 63
+idx-dragondeath-s42 143 1.00 0.187188 0.157143 0.238561 695
+idx-dragondeath-s42 143 0.50 0.187300 0.162641 0.236875 769
+idx-dragondeath-s42 146 1.00 0.214718 0.170882 0.263395 111
+idx-dragondeath-s42 146 0.50 0.218733 0.171187 0.272009 166
+idx-dragondeath-s42 149 1.00 0.210341 0.153496 0.257858 63
+idx-dragondeath-s42 149 0.50 0.222853 0.167647 0.268311 79
+idx-dragondeath-s42 152 1.00 0.282353 0.223495 0.322412 533
+idx-dragondeath-s42 152 0.50 0.280282 0.224266 0.317330 460
+idx-dragondeath-s42 155 1.00 0.271487 0.212119 0.317821 889
+idx-dragondeath-s42 155 0.50 0.290298 0.231801 0.336068 824
+idx-dragondeath-s42 158 1.00 0.267372 0.212019 0.309719 796
+idx-dragondeath-s42 158 0.50 0.267896 0.211136 0.311490 956
+idx-dragondeath-s42 161 1.00 0.292211 0.236122 0.346253 613
+idx-dragondeath-s42 161 0.50 0.280399 0.226025 0.330067 536
+idx-dragondeath-s42 164 1.00 0.265627 0.211719 0.315815 138
+idx-dragondeath-s42 164 0.50 0.272795 0.218079 0.324410 218
+idx-dragondeath-s42 167 1.00 0.258024 0.203879 0.306701 336
+idx-dragondeath-s42 167 0.50 0.264757 0.211210 0.313542 316
+idx-dragondeath-s42 170 1.00 0.291086 0.240723 0.334738 772
+idx-dragondeath-s42 170 0.50 0.284299 0.232367 0.327913 706
+idx-dragondeath-s42 173 1.00 0.375429 0.318430 0.418099 1895
+idx-dragondeath-s42 173 0.50 0.371882 0.315713 0.415308 1722
+idx-dragondeath-s42 176 1.00 0.362395 0.310692 0.405013 1367
+idx-dragondeath-s42 176 0.50 0.389932 0.337468 0.431975 1873
+idx-dragondeath-s42 179 1.00 0.310558 0.248763 0.362912 801
+idx-dragondeath-s42 179 0.50 0.325881 0.264796 0.376556 949
+idx-dragondeath-s42 182 1.00 0.364842 0.291723 0.423800 1299
+idx-dragondeath-s42 182 0.50 0.374117 0.303042 0.431565 1402
+idx-dragondeath-s42 185 1.00 0.331809 0.256235 0.391572 544
+idx-dragondeath-s42 185 0.50 0.337937 0.259348 0.401861 643
+idx-dragondeath-s42 188 1.00 0.344135 0.279437 0.391450 796
+idx-dragondeath-s42 188 0.50 0.346714 0.281538 0.395643 856
+idx-dragondeath-s42 191 1.00 0.394082 0.312144 0.435848 1005
+idx-dragondeath-s42 191 0.50 0.382714 0.301925 0.425403 895
+idx-dragondeath-s42 194 1.00 0.418038 0.329203 0.469679 1001
+idx-dragondeath-s42 194 0.50 0.409978 0.322880 0.456909 831
+idx-dragondeath-s42 197 1.00 0.421414 0.300537 0.468011 951
+idx-dragondeath-s42 197 0.50 0.445694 0.326781 0.500224 1096
+idx-dragondeath-s42 200 1.00 0.507943 0.360763 0.563261 1553
+idx-dragondeath-s42 200 0.50 0.501898 0.356538 0.557626 1570
+idx-dragondeath-s42 203 1.00 0.555240 0.381138 0.612739 1100
+idx-dragondeath-s42 203 0.50 0.551156 0.385368 0.604350 1251
+idx-dragondeath-s42 206 1.00 0.550371 0.335329 0.622002 802
+idx-dragondeath-s42 206 0.50 0.566606 0.355133 0.638932 767
+idx-dragondeath-s42 209 1.00 0.621331 0.396824 0.697646 917
+idx-dragondeath-s42 209 0.50 0.622085 0.395245 0.698544 974
+idx-dragondeath-s42 212 1.00 0.536702 0.356684 0.606250 634
+idx-dragondeath-s42 212 0.50 0.556799 0.369421 0.628754 665
+idx-dragondeath-s42 215 1.00 0.517264 0.355006 0.588322 849
+idx-dragondeath-s42 215 0.50 0.519562 0.357121 0.588917 837
+idx-dragondeath-s42 218 1.00 0.526288 0.363827 0.596738 769
+idx-dragondeath-s42 218 0.50 0.516040 0.356026 0.585958 815
+idx-dragondeath-s42 221 1.00 0.494262 0.334985 0.562590 663
+idx-dragondeath-s42 221 0.50 0.505016 0.343487 0.576686 715
+idx-dragondeath-s42 224 1.00 0.454730 0.294589 0.514332 431
+idx-dragondeath-s42 224 0.50 0.470587 0.309392 0.534729 438
+idx-dragondeath-s42 227 1.00 0.501554 0.336239 0.581331 482
+idx-dragondeath-s42 227 0.50 0.502818 0.335707 0.580094 456
+idx-dragondeath-s42 230 1.00 0.487385 0.316708 0.565842 747
+idx-dragondeath-s42 230 0.50 0.503969 0.332987 0.585475 758
+idx-dragondeath-s42 233 1.00 0.495802 0.318589 0.582855 973
+idx-dragondeath-s42 233 0.50 0.501093 0.320794 0.590867 1078
+idx-dragondeath-s42 236 1.00 0.642213 0.363051 0.735263 740
+idx-dragondeath-s42 236 0.50 0.636863 0.362832 0.732426 842
+idx-dragondeath-s42 239 1.00 0.693006 0.404694 0.793040 1145
+idx-dragondeath-s42 239 0.50 0.709534 0.406921 0.809009 1105
+idx-dragondeath-s42 242 1.00 0.612788 0.388517 0.700961 884
+idx-dragondeath-s42 242 0.50 0.610356 0.385612 0.702235 962
+idx-dragondeath-s42 245 1.00 0.598224 0.394235 0.683165 984
+idx-dragondeath-s42 245 0.50 0.601039 0.393638 0.687332 990
+idx-dragondeath-s42 248 1.00 0.550544 0.372926 0.627303 706
+idx-dragondeath-s42 248 0.50 0.559660 0.377337 0.636958 734
+idx-dragondeath-s42 251 1.00 0.557148 0.395580 0.621397 972
+idx-dragondeath-s42 251 0.50 0.551517 0.388200 0.617755 864
+idx-dragondeath-s42 254 1.00 0.560422 0.384726 0.635007 1227
+idx-dragondeath-s42 254 0.50 0.564137 0.391635 0.636017 1243
+idx-dragondeath-s42 257 1.00 0.567394 0.383238 0.653598 1115
+idx-dragondeath-s42 257 0.50 0.560353 0.377249 0.641828 1065
+idx-dragondeath-s42 260 1.00 0.533933 0.363466 0.610204 940
+idx-dragondeath-s42 260 0.50 0.543143 0.371668 0.623890 931
+idx-dragondeath-s42 263 1.00 0.519523 0.349310 0.597258 1018
+idx-dragondeath-s42 263 0.50 0.517189 0.351444 0.592540 872
+idx-dragondeath-s42 266 1.00 0.538232 0.361536 0.621129 1014
+idx-dragondeath-s42 266 0.50 0.534831 0.359002 0.617742 990
+idx-dragondeath-s42 269 1.00 0.537956 0.364015 0.629040 1251
+idx-dragondeath-s42 269 0.50 0.543101 0.367547 0.632040 1254
+idx-dragondeath-s42 272 1.00 0.494745 0.331243 0.581252 752
+idx-dragondeath-s42 272 0.50 0.514583 0.342320 0.604859 925
+idx-dragondeath-s42 275 1.00 0.518533 0.359782 0.597695 1104
+idx-dragondeath-s42 275 0.50 0.507123 0.353105 0.583528 929
+idx-dragondeath-s42 278 1.00 0.546890 0.368226 0.627613 1257
+idx-dragondeath-s42 278 0.50 0.538212 0.364213 0.618770 1212
+idx-dragondeath-s42 281 1.00 0.528867 0.344057 0.596675 1296
+idx-dragondeath-s42 281 0.50 0.528132 0.344531 0.599571 1286
+idx-dragondeath-s42 284 1.00 0.521799 0.343713 0.584402 1301
+idx-dragondeath-s42 284 0.50 0.526437 0.345819 0.593391 1391
+idx-dragondeath-s42 287 1.00 0.518357 0.343001 0.587502 1034
+idx-dragondeath-s42 287 0.50 0.528064 0.348558 0.600961 1161
+idx-dragondeath-s42 290 1.00 0.495460 0.331343 0.563959 1096
+idx-dragondeath-s42 290 0.50 0.506406 0.335653 0.576739 1249
+idx-dragondeath-s42 293 1.00 0.474356 0.318974 0.545092 1175
+idx-dragondeath-s42 293 0.50 0.473605 0.320626 0.543504 1153
+idx-dragondeath-s42 296 1.00 0.469492 0.332043 0.536466 1000
+idx-dragondeath-s42 296 0.50 0.478537 0.332506 0.551822 1089
+idx-dragondeath-s42 299 1.00 0.480618 0.336336 0.554611 977
+idx-dragondeath-s42 299 0.50 0.477561 0.334404 0.549375 958
+idx-dragondeath-s42 302 1.00 0.508653 0.363156 0.595162 1087
+idx-dragondeath-s42 302 0.50 0.502586 0.358253 0.589232 1007
+idx-dragondeath-s42 305 1.00 0.516567 0.360463 0.592718 1194
+idx-dragondeath-s42 305 0.50 0.526647 0.368589 0.609314 1152
+idx-dragondeath-s42 308 1.00 0.502181 0.354657 0.578435 1122
+idx-dragondeath-s42 308 0.50 0.498309 0.352757 0.571616 1079
+idx-dragondeath-s42 311 1.00 0.510085 0.350483 0.577927 1065
+idx-dragondeath-s42 311 0.50 0.511773 0.352069 0.582938 1055
+idx-dragondeath-s42 314 1.00 0.491752 0.339600 0.552264 984
+idx-dragondeath-s42 314 0.50 0.492591 0.343301 0.556567 995
+idx-dragondeath-s42 317 1.00 0.487341 0.325676 0.551171 1152
+idx-dragondeath-s42 317 0.50 0.496663 0.332097 0.564317 1253
+idx-dragondeath-s42 320 1.00 0.564152 0.377486 0.644962 837
+idx-dragondeath-s42 320 0.50 0.534426 0.361763 0.608799 749
+idx-dragondeath-s42 323 1.00 0.600986 0.357072 0.673439 949
+idx-dragondeath-s42 323 0.50 0.631091 0.392862 0.703871 1165
+idx-dragondeath-s42 326 1.00 0.624739 0.414098 0.704803 1090
+idx-dragondeath-s42 326 0.50 0.616086 0.399041 0.696272 1049
+idx-dragondeath-s42 329 1.00 0.548144 0.378859 0.632728 1010
+idx-dragondeath-s42 329 0.50 0.562234 0.393867 0.642830 968
+idx-dragondeath-s42 332 1.00 0.407711 0.272951 0.493711 298
+idx-dragondeath-s42 332 0.50 0.438810 0.290527 0.530816 489
+idx-dragondeath-s42 335 1.00 0.336329 0.271436 0.428664 245
+idx-dragondeath-s42 335 0.50 0.347507 0.261912 0.439134 257
+idx-dragondeath-s42 338 1.00 0.281057 0.241696 0.348287 187
+idx-dragondeath-s42 338 0.50 0.292940 0.252242 0.363268 179
+idx-dragondeath-s42 341 1.00 0.245541 0.205850 0.304303 271
+idx-dragondeath-s42 341 0.50 0.241667 0.203476 0.298058 217
+idx-dragondeath-s42 344 1.00 0.195809 0.151061 0.261827 162
+idx-dragondeath-s42 344 0.50 0.205584 0.161629 0.270714 182
+idx-dragondeath-s42 347 1.00 0.176822 0.130899 0.245948 182
+idx-dragondeath-s42 347 0.50 0.176286 0.131667 0.242718 173
+idx-dragondeath-s42 350 1.00 0.061492 0.041984 0.083011 60
+idx-dragondeath-s42 350 0.50 0.073553 0.050605 0.100561 76
+idx-dragondeath-s42 353 1.00 0.027056 0.016957 0.032104 24
+idx-dragondeath-s42 353 0.50 0.027069 0.016972 0.032070 24
+idx-dragondeath-s42 356 1.00 0.026620 0.016598 0.031362 22
+idx-dragondeath-s42 356 0.50 0.026693 0.016559 0.031318 23
+idx-dragondeath-s42 359 1.00 0.026478 0.016401 0.030896 24
+idx-dragondeath-s42 359 0.50 0.026239 0.016335 0.030735 23
+idx-dragondeath-s42 362 1.00 0.026722 0.016576 0.031048 25
+idx-dragondeath-s42 362 0.50 0.026703 0.016498 0.030943 24
+idx-dragondeath-s42 365 1.00 0.026483 0.016491 0.031109 24
+idx-dragondeath-s42 365 0.50 0.026593 0.016564 0.031191 24
+idx-dragondeath-s42 368 1.00 0.026713 0.016689 0.031689 23
+idx-dragondeath-s42 368 0.50 0.026930 0.016694 0.031711 23
+idx-dragondeath-s42 374 1.00 0.027544 0.017330 0.032504 25
+idx-dragondeath-s42 374 0.50 0.027142 0.017155 0.032370 24
+# idx-tipbook-s1 (lane/idxlast): the seed's dungeon at (617, 34, 443), its
+# Power III book moved to the slot under the chest screen's centred pointer:
+# ItemEnchantedBook's uncommon (yellow) name and its stored enchantment.
+idx-tipbook-s1 37 1.00 0.280313 0.244594 0.263937 0
+idx-tipbook-s1 37 0.50 0.280313 0.244594 0.263937 0
+# idx-tradelock-s1 (lane/idxlast): trade-prof-s1's librarian traded to its
+# lock at 7 uses, the window closed and opened again inside the 40-tick
+# restock: the S3F's isRecipeDisabled boolean, new natively (the offer's two
+# red crosses; 124 and 130 were 832 px, now 184, the world behind the sheet).
+idx-tradelock-s1 113 1.00 0.261666 0.269745 0.230838 184
+idx-tradelock-s1 113 0.50 0.261666 0.269745 0.230838 184
+idx-tradelock-s1 124 1.00 0.261663 0.269750 0.230833 184
+idx-tradelock-s1 124 0.50 0.261663 0.269750 0.230833 184
+idx-tradelock-s1 130 1.00 0.261663 0.269758 0.230833 184
+idx-tradelock-s1 130 0.50 0.261663 0.269758 0.230833 184
+# lane/covblock: cov-blkgallery-s1 (oracle/tests/cov-blkgallery-s1.jsonl) draws the block/
+# package's render-only methods: a gallery of blocks, the inventory screen of
+# block items, the outline on a cactus, cake, cocoa, door, ladder, stairs and
+# trapdoor. Named residuals (pxdiff survey): the wall sign's face a shade off
+# (82, 92, 122: shading-offset, about 600 px), the hotbar's item name drawn
+# live where the oracle has none (64, 82, 92: content, about 600 px), the
+# inventory preview's pose (71). Not in the frame: the anvil, fence gate and
+# dragon egg item stacks, which the live GUI does not draw yet.
+cov-blkgallery-s1 50 0.50 0.267933 0.287034 0.259963 817
+cov-blkgallery-s1 50 1.00 0.309075 0.295023 0.268748 1279
+cov-blkgallery-s1 57 0.50 0.295372 0.297319 0.263161 1209
+cov-blkgallery-s1 57 1.00 0.295399 0.297275 0.265725 1209
+cov-blkgallery-s1 64 0.50 0.357192 0.365381 0.346860 1289
+cov-blkgallery-s1 64 1.00 0.357184 0.365371 0.346863 1289
+cov-blkgallery-s1 71 0.50 0.307955 0.319628 0.287422 572
+cov-blkgallery-s1 71 1.00 0.305852 0.316708 0.282516 572
+cov-blkgallery-s1 82 0.50 0.419260 0.404781 0.373092 1630
+cov-blkgallery-s1 82 1.00 0.419357 0.404884 0.373178 1631
+cov-blkgallery-s1 92 0.50 0.430089 0.415201 0.380818 1763
+cov-blkgallery-s1 92 1.00 0.430121 0.415240 0.380823 1763
+cov-blkgallery-s1 102 0.50 0.086046 0.073800 0.042696 789
+cov-blkgallery-s1 102 1.00 0.086051 0.073792 0.042681 789
+cov-blkgallery-s1 112 0.50 0.040310 0.050427 0.030816 330
+cov-blkgallery-s1 112 1.00 0.040491 0.050615 0.030987 331
+cov-blkgallery-s1 122 0.50 0.246465 0.233794 0.203071 1584
+cov-blkgallery-s1 122 1.00 0.246441 0.233763 0.203052 1584
+cov-blkgallery-s1 132 0.50 0.094150 0.080696 0.047168 840
+cov-blkgallery-s1 132 1.00 0.038686 0.053430 0.030274 223
+cov-blkgallery-s1 142 0.50 0.058614 0.070097 0.048666 417
+cov-blkgallery-s1 142 1.00 0.058665 0.070155 0.048736 418
+# cov-foliage-s1 (lane/covworld): seed 1, Swamp M (biome 134) at x 2094 z
+# 486, grass, vines and swamp oak leaves through BiomeGenMutated's colours
+# (its (x, y, y) call into BiomeGenSwamp), oak leaves held in the hotbar
+# (ColorizerFoliage.getFoliageColorBasic). cov-mesa-s1: Mesa Plateau F at
+# x -3434 z 1854, its grass and four placed oak leaves (BiomeGenMesa's
+# grass and foliage colours). pxdiff survey: no cluster in either; the
+# residual is scattered texel and edge pixels.
+cov-foliage-s1 153 1.00 0.048712 0.049868 0.025805 286
+cov-foliage-s1 153 0.50 0.048812 0.049939 0.025825 287
+cov-mesa-s1 153 1.00 0.066259 0.055023 0.028940 403
+cov-mesa-s1 153 0.50 0.066259 0.055023 0.028940 403
+# cov-zoo-s1 (lane/covframes): the renderers no frame recording drew before it,
+# on a glass-penned stone field: an iron golem, a magma cube and a slime (their
+# squish from the client copy's own landings), a mooshroom, a witch in fire, a
+# charging blaze (its fire is its charge flag) and its small fireballs, a
+# silverfish falling to its death, three thrown snowballs, a blank standing sign
+# (lit with unit normals once a slime has turned GL_NORMALIZE on) and a primed TNT.
+# Named residuals: the held snowball after each throw (83 to 93, ItemRenderer's
+# re-equip), the small fireball's and the primed TNT's positions (the client
+# copies Java draws against the server's; 104, 146 to 181).
+cov-zoo-s1 24 0.50 0.209973 0.173636 0.223495 1425
+cov-zoo-s1 24 1.00 0.191933 0.164954 0.205184 1313
+cov-zoo-s1 28 0.50 0.142111 0.140249 0.148529 933
+cov-zoo-s1 28 1.00 0.122687 0.140179 0.117013 867
+cov-zoo-s1 32 0.50 0.096594 0.108141 0.092621 349
+cov-zoo-s1 32 1.00 0.098190 0.103298 0.094672 534
+cov-zoo-s1 36 0.50 0.062812 0.054867 0.066103 290
+cov-zoo-s1 36 1.00 0.060407 0.051049 0.063869 295
+cov-zoo-s1 40 0.50 0.048548 0.039130 0.046319 192
+cov-zoo-s1 40 1.00 0.074639 0.080550 0.072168 262
+cov-zoo-s1 44 0.50 0.080152 0.088054 0.075532 269
+cov-zoo-s1 44 1.00 0.078554 0.086539 0.074527 261
+cov-zoo-s1 48 0.50 0.078801 0.086593 0.074856 263
+cov-zoo-s1 48 1.00 0.076710 0.085448 0.074932 259
+cov-zoo-s1 52 0.50 0.085824 0.079603 0.084116 415
+cov-zoo-s1 52 1.00 0.084199 0.079464 0.083658 409
+cov-zoo-s1 56 0.50 0.082218 0.074202 0.082765 435
+cov-zoo-s1 56 1.00 0.078010 0.069521 0.077652 422
+cov-zoo-s1 60 0.50 0.074863 0.064000 0.076576 389
+cov-zoo-s1 60 1.00 0.074415 0.063778 0.077491 393
+cov-zoo-s1 63 0.50 0.046404 0.038683 0.048861 213
+cov-zoo-s1 63 1.00 0.045804 0.038356 0.049361 211
+cov-zoo-s1 66 0.50 0.046063 0.035863 0.047348 211
+cov-zoo-s1 66 1.00 0.045799 0.035836 0.046951 209
+cov-zoo-s1 69 0.50 0.047131 0.036663 0.046699 215
+cov-zoo-s1 69 1.00 0.047278 0.036717 0.046877 215
+cov-zoo-s1 72 0.50 0.046114 0.040344 0.052966 211
+cov-zoo-s1 72 1.00 0.045997 0.040659 0.052832 210
+cov-zoo-s1 75 0.50 0.045716 0.040674 0.053298 211
+cov-zoo-s1 75 1.00 0.046038 0.041501 0.053742 216
+cov-zoo-s1 78 0.50 0.058494 0.057792 0.078654 273
+cov-zoo-s1 78 1.00 0.055291 0.052727 0.070641 253
+cov-zoo-s1 83 0.50 1.591508 1.532841 1.641615 10383
+cov-zoo-s1 83 1.00 0.508531 0.475490 0.490684 3223
+cov-zoo-s1 88 0.50 1.553032 1.475542 1.604201 10174
+cov-zoo-s1 88 1.00 0.492413 0.457416 0.474895 3174
+cov-zoo-s1 93 0.50 1.543496 1.474068 1.586461 10045
+cov-zoo-s1 93 1.00 0.477052 0.442477 0.458616 2966
+cov-zoo-s1 100 0.50 0.037307 0.028713 0.039042 184
+cov-zoo-s1 100 1.00 0.033636 0.025646 0.034199 153
+cov-zoo-s1 104 0.50 0.038525 0.035185 0.036724 259
+cov-zoo-s1 104 1.00 0.034470 0.033167 0.028288 184
+cov-zoo-s1 108 0.50 0.028557 0.030191 0.021975 142
+cov-zoo-s1 108 1.00 0.028379 0.031831 0.024790 146
+cov-zoo-s1 112 0.50 0.026903 0.030399 0.023744 137
+cov-zoo-s1 112 1.00 0.027049 0.030657 0.024000 138
+cov-zoo-s1 116 0.50 0.028262 0.029942 0.024319 139
+cov-zoo-s1 116 1.00 0.027747 0.029613 0.023934 139
+cov-zoo-s1 120 0.50 0.026164 0.029891 0.023851 135
+cov-zoo-s1 120 1.00 0.025983 0.029581 0.023768 136
+cov-zoo-s1 124 0.50 0.027852 0.030306 0.023246 137
+cov-zoo-s1 124 1.00 0.028084 0.030443 0.023566 137
+cov-zoo-s1 128 0.50 0.026893 0.030181 0.024332 136
+cov-zoo-s1 128 1.00 0.028013 0.030355 0.024495 142
+cov-zoo-s1 132 0.50 0.027447 0.029547 0.024161 135
+cov-zoo-s1 132 1.00 0.027508 0.029759 0.024122 135
+cov-zoo-s1 136 0.50 0.028030 0.030616 0.023439 139
+cov-zoo-s1 136 1.00 0.027671 0.030203 0.023368 138
+cov-zoo-s1 146 0.50 1.294399 1.367440 1.469645 3459
+cov-zoo-s1 146 1.00 1.328162 1.681865 1.858382 3983
+cov-zoo-s1 153 0.50 0.597468 0.309987 0.364278 1345
+cov-zoo-s1 153 1.00 0.555913 0.288795 0.353589 1246
+cov-zoo-s1 160 0.50 0.202017 0.198975 0.204286 108
+cov-zoo-s1 160 1.00 0.265196 0.222199 0.216762 256
+cov-zoo-s1 167 0.50 0.531611 0.363803 0.472565 1199
+cov-zoo-s1 167 1.00 0.717311 0.598556 0.720753 1728
+cov-zoo-s1 174 0.50 1.117542 0.981126 0.973327 4628
+cov-zoo-s1 174 1.00 1.117533 0.984604 0.978210 4670
+cov-zoo-s1 181 0.50 0.840408 0.521699 0.456862 2576
+cov-zoo-s1 181 1.00 0.997041 0.617786 0.508887 3039
+cov-zoo-s1 188 0.50 0.195709 0.155657 0.193508 340
+cov-zoo-s1 188 1.00 0.195236 0.155462 0.193340 338
+cov-zoo-s1 195 0.50 0.788649 0.654111 0.718438 1175
+cov-zoo-s1 195 1.00 0.780989 0.651178 0.710365 1118
+cov-tipprot-s1 31 0.50 0.210641 0.224658 0.300295 0
+cov-tipprot-s1 31 1.00 0.208080 0.225444 0.300766 0
+cov-skull-s1 27 0.50 0.039610 0.019987 0.041711 16
+cov-skull-s1 27 1.00 0.039613 0.019982 0.041713 16
+cov-blocks-s1 22 0.50 0.052866 0.017789 0.041403 57
+cov-blocks-s1 22 1.00 0.047358 0.017847 0.041469 57
+cov-blocks-s1 26 0.50 0.047246 0.017806 0.041250 55
+cov-blocks-s1 26 1.00 0.047248 0.017801 0.041252 55
+cov-blocks-s1 30 0.50 0.067933 0.041911 0.039832 164
+cov-blocks-s1 30 1.00 0.067777 0.026642 0.045299 163
+cov-blocks-s1 34 0.50 0.057899 0.042399 0.056470 141
+cov-blocks-s1 34 1.00 0.063139 0.042613 0.041684 141
+cov-blocks-s1 38 0.50 0.046638 0.030125 0.029306 39
+cov-blocks-s1 38 1.00 0.046590 0.030077 0.029279 39
+cov-blocks-s1 42 0.50 0.046487 0.029979 0.023683 39
+cov-blocks-s1 42 1.00 0.046487 0.029977 0.023685 39
+cov-blocks-s1 46 0.50 0.061680 0.036251 0.029601 87
+cov-blocks-s1 46 1.00 0.061451 0.036024 0.029552 87
+cov-blocks-s1 60 0.50 0.042267 0.030857 0.024917 37
+cov-blocks-s1 60 1.00 0.045672 0.036866 0.038034 90
+cov-blocks-s1 64 0.50 0.036729 0.020765 0.049461 118
+cov-blocks-s1 64 1.00 0.036815 0.020765 0.049476 118
+cov-blocks-s1 67 0.50 0.009826 0.003064 0.010124 0
+cov-blocks-s1 67 1.00 0.009826 0.003064 0.010124 0
+cov-blocks-s1 71 0.50 0.041657 0.035839 0.024778 64
+cov-blocks-s1 71 1.00 0.050815 0.046126 0.034653 139
+cov-fx-s1 25 0.50 0.034182 0.033777 0.009702 46
+cov-fx-s1 25 1.00 0.034294 0.033970 0.009595 47
+cov-fx-s1 29 0.50 0.033343 0.033546 0.008929 41
+cov-fx-s1 29 1.00 0.033916 0.033038 0.009202 42
+cov-fx-s1 33 0.50 0.031743 0.031321 0.008519 31
+cov-fx-s1 33 1.00 0.031770 0.031187 0.008280 31
+cov-fx-s1 37 0.50 0.030262 0.030855 0.007065 25
+cov-fx-s1 37 1.00 0.030608 0.030457 0.006789 25
+cov-fx-s1 41 0.50 0.031838 0.031548 0.007916 31
+cov-fx-s1 41 1.00 0.031543 0.031367 0.007858 30
+cov-fx-s1 45 0.50 0.034163 0.032770 0.011331 47
+cov-fx-s1 45 1.00 0.034456 0.033136 0.011246 48
+cov-fx-s1 49 0.50 0.034460 0.033933 0.011419 52
+cov-fx-s1 49 1.00 0.034180 0.033660 0.010785 50
+cov-fx-s1 53 0.50 0.036173 0.035214 0.015093 63
+cov-fx-s1 53 1.00 0.036566 0.035097 0.015735 65
+cov-fx-s1 57 0.50 0.033304 0.038010 0.017040 88
+cov-fx-s1 57 1.00 0.032704 0.037005 0.016769 86
+cov-fx-s1 61 0.50 0.041713 0.040571 0.019126 82
+cov-fx-s1 61 1.00 0.043143 0.041411 0.021890 97
+cov-fx-s1 65 0.50 0.042218 0.041952 0.019679 82
+cov-fx-s1 65 1.00 0.042708 0.041759 0.019718 83
+cov-fx-s1 69 0.50 0.043367 0.043426 0.022399 101
+cov-fx-s1 69 1.00 0.042662 0.044214 0.021419 98
+cov-fx-s1 73 0.50 0.046770 0.046394 0.022826 118
+cov-fx-s1 73 1.00 0.045846 0.047107 0.024707 105
+cov-fx-s1 77 0.50 0.046116 0.045245 0.025263 113
+cov-fx-s1 77 1.00 0.047321 0.046607 0.025968 115
+cov-fx-s1 81 0.50 0.046580 0.044770 0.027322 107
+cov-fx-s1 81 1.00 0.048168 0.048509 0.027669 120
+cov-fx-s1 85 0.50 0.044804 0.046311 0.022802 94
+cov-fx-s1 85 1.00 0.044423 0.045943 0.023892 93
+cov-fx-s1 89 0.50 0.044616 0.047453 0.024968 92
+cov-fx-s1 89 1.00 0.044006 0.047138 0.024732 93
+cov-fx-s1 93 0.50 0.044201 0.047597 0.024085 89
+cov-fx-s1 93 1.00 0.043706 0.046816 0.023402 86
+cov-fx-s1 97 0.50 0.042264 0.047321 0.022570 77
+cov-fx-s1 97 1.00 0.041535 0.046094 0.021011 71
+cov-fx-s1 101 0.50 0.042130 0.046936 0.023331 68
+cov-fx-s1 101 1.00 0.041428 0.045614 0.021109 60
+cov-fx-s1 105 0.50 0.042174 0.045758 0.021855 84
+cov-fx-s1 105 1.00 0.043462 0.046504 0.022373 89
+cov-fx-s1 109 0.50 0.044814 0.047736 0.025778 92
+cov-fx-s1 109 1.00 0.045721 0.048175 0.026108 102
+cov-fx-s1 113 0.50 0.046809 0.048570 0.023185 94
+cov-fx-s1 113 1.00 0.047370 0.049141 0.024429 106
+cov-fx-s1 117 0.50 0.460575 0.676342 0.732453 3920
+cov-fx-s1 117 1.00 0.610961 0.942577 1.042408 5640
+cov-fx-s1 121 0.50 0.145199 0.200371 0.270672 710
+cov-fx-s1 121 1.00 0.107860 0.146658 0.151886 552
+cov-fx-s1 125 0.50 0.124888 0.166603 0.172570 540
+cov-fx-s1 125 1.00 0.111290 0.141672 0.140149 481
+cov-fx-s1 129 0.50 0.084231 0.074658 0.099402 241
+cov-fx-s1 129 1.00 0.049878 0.053352 0.029820 111
+cov-fx-s1 133 0.50 0.046809 0.045755 0.026725 88
+cov-fx-s1 133 1.00 0.046551 0.046697 0.027505 85
+cov-fx-s1 137 0.50 0.030826 0.033202 0.007221 9
+cov-fx-s1 137 1.00 0.033731 0.035483 0.008660 12
+cov-fx-s1 141 0.50 0.041647 0.043706 0.018750 61
+cov-fx-s1 141 1.00 0.038790 0.040615 0.014117 43
+cov-fx-s1 145 0.50 0.046209 0.047270 0.024527 92
+cov-fx-s1 145 1.00 0.046619 0.047573 0.025871 94
+cov-fx-s1 149 0.50 0.049593 0.052147 0.031953 141
+cov-fx-s1 149 1.00 0.044538 0.046143 0.026820 107
+cov-fx-s1 153 0.50 0.050505 0.051417 0.025568 127
+cov-fx-s1 153 1.00 0.052835 0.054001 0.026754 156
+cov-fx-s1 157 0.50 0.042852 0.043562 0.016855 59
+cov-fx-s1 157 1.00 0.042506 0.043223 0.017255 60
+cov-fx-s1 161 0.50 0.041411 0.042206 0.016550 49
+cov-fx-s1 161 1.00 0.041301 0.040854 0.017259 47
+cov-fx-s1 165 0.50 0.041169 0.042130 0.015615 50
+cov-fx-s1 165 1.00 0.040837 0.042042 0.015530 49
+cov-fx-s1 169 0.50 0.042377 0.043238 0.016869 61
+cov-fx-s1 169 1.00 0.041996 0.042843 0.016628 57
+cov-fx-s1 173 0.50 0.034675 0.038266 0.018933 64
+cov-fx-s1 173 1.00 0.038686 0.041140 0.021136 79
+cov-fx-s1 177 0.50 0.049027 0.049766 0.038888 151
+cov-fx-s1 177 1.00 0.048802 0.048200 0.037385 151
+cov-fx-s1 181 0.50 0.014998 0.022287 0.009746 56
+cov-fx-s1 181 1.00 0.071714 0.055762 0.058341 185
+cov-fx-s1 185 0.50 0.046546 0.057567 0.035497 130
+cov-fx-s1 185 1.00 0.051366 0.061388 0.029711 99
+cov-fx-s1 189 0.50 0.041069 0.052727 0.031099 136
+cov-fx-s1 189 1.00 0.041193 0.047390 0.032972 145
+cov-tnt-s1 92 0.50 0.160500 0.158748 0.181150 875
+cov-tnt-s1 92 1.00 0.160500 0.158748 0.181150 875
+cov-tnt-s1 93 0.50 0.160336 0.158697 0.181130 874
+cov-tnt-s1 93 1.00 0.160080 0.158558 0.181030 875
+cov-tnt-s1 94 0.50 0.168023 0.162378 0.184431 912
+cov-tnt-s1 94 1.00 0.180338 0.169538 0.190840 957
+cov-tnt-s1 95 0.50 0.183219 0.154825 0.171643 917
+cov-tnt-s1 95 1.00 0.186378 0.158768 0.179245 926
+cov-tnt-s1 96 0.50 0.166869 0.145611 0.165801 823
+cov-tnt-s1 96 1.00 0.186102 0.180413 0.207299 943
+cov-tnt-s1 97 0.50 1.005145 1.361846 1.478972 3308
+cov-tnt-s1 97 1.00 0.620045 0.826869 0.902435 2106
+cov-tnt-s1 98 0.50 0.451791 0.603118 0.662419 1622
+cov-tnt-s1 98 1.00 0.199580 0.261173 0.295177 777
+cov-tnt-s1 99 0.50 0.183843 0.229642 0.259204 750
+cov-tnt-s1 99 1.00 0.187483 0.235014 0.265118 787
+cov-tnt-s1 100 0.50 0.778567 0.983067 1.058187 2522
+cov-tnt-s1 100 1.00 1.448414 1.998439 2.168977 4639
+dragon-s1chain-S1 100 0.50 0.015213 0.018791 0.015420 57
+dragon-s1chain-S1 100 1.00 0.012637 0.017486 0.014935 57
+dragon-s1chain-S1 600 0.50 0.072124 0.094906 0.103581 24
+dragon-s1chain-S1 600 1.00 0.069936 0.097673 0.103584 19
+dragon-s1chain-S1 1190 0.50 0.031662 0.030469 0.022846 151
+dragon-s1chain-S1 1190 1.00 0.016369 0.018079 0.015096 75
+dragon-s1chain-S2 600 0.50 0.021526 0.015706 0.018360 91
+dragon-s1chain-S2 600 1.00 0.022390 0.015132 0.017050 102
+dragon-s1chain-S2 1310 0.50 0.182509 0.182677 0.183733 0
+dragon-s1chain-S2 1310 1.00 0.182509 0.182677 0.183733 0
+dragon-s1chain-S3 1700 0.50 0.014222 0.016906 0.014576 74
+dragon-s1chain-S3 1700 1.00 0.016391 0.020275 0.015752 103
+dragon-s1chain-S3 3540 0.50 0.018018 0.017164 0.018004 77
+dragon-s1chain-S3 3540 1.00 0.017294 0.016220 0.017457 80
+dragon-s1chain-S4 1500 0.50 0.022663 0.022190 0.021436 0
+dragon-s1chain-S4 1500 1.00 0.021480 0.021377 0.020270 0
+dragon-s1chain-S4 3030 0.50 0.013393 0.014493 0.011070 43
+dragon-s1chain-S4 3030 1.00 0.013393 0.014493 0.011070 43
+dragon-s1chain-S5 1800 0.50 0.005611 0.005777 0.005655 0
+dragon-s1chain-S5 1800 1.00 0.005269 0.005813 0.005206 0
+dragon-s1chain-S5 3660 0.50 0.127518 0.111324 0.086395 0
+dragon-s1chain-S5 3660 1.00 0.128637 0.112251 0.087029 0
+dragon-s1chain-S6 3900 0.50 0.002744 0.004513 0.003147 0
+dragon-s1chain-S6 3900 1.00 0.002701 0.004408 0.003110 0
+dragon-s1chain-S6 7820 0.50 0.058560 0.057211 0.063612 1
+dragon-s1chain-S6 7820 1.00 0.058489 0.057157 0.063573 0
+dragon-s1chain-S7 1900 0.50 0.009946 0.006901 0.008328 0
+dragon-s1chain-S7 1900 1.00 0.009946 0.006901 0.008328 0
+dragon-s1chain-S7 3840 0.50 0.343960 0.221243 0.306626 2
+dragon-s1chain-S7 3840 1.00 0.315462 0.213954 0.342635 2
+dragon-s1chain-S7 3875 0.50 0.051427 0.040566 0.033702 254
+dragon-s1chain-S7 3875 1.00 0.050778 0.041018 0.034204 249
+# lane/glowfix: dragon-s1chain-S8 5090's lit "glowstone" was a Blaze, which
+# play lit from the world's light where EntityBlaze and EntityMagmaCube return
+# 15728880 (4,269 px to 2; cr-sweep-gold-g7-s42 3700 and 4100 the same, 7,314
+# to 3); cov-zoo-s1's blaze and magma cube lines moved with it (R lower, G up
+# to 0.00004 on shots whose R error on the changed pixels fell 884 to 60).
+dragon-s1chain-S8 2500 0.50 0.018204 0.019767 0.013995 0
+dragon-s1chain-S8 2500 1.00 0.018433 0.018838 0.013693 0
+dragon-s1chain-S8 5090 0.50 0.011163 0.008853 0.004335 4
+dragon-s1chain-S8 5090 1.00 0.012368 0.009485 0.003574 2
+dragon-s1chain-S9 1000 0.50 0.008085 0.005577 0.006155 1
+dragon-s1chain-S9 1000 1.00 0.013881 0.009133 0.008863 1
+dragon-s1chain-S9 2060 0.50 0.229801 0.234697 0.238959 705
+dragon-s1chain-S9 2060 1.00 0.236541 0.188068 0.206828 508
+dragon-s1chain-S10 3600 0.50 0.023261 0.013756 0.011549 51
+dragon-s1chain-S10 3600 1.00 0.023261 0.013756 0.011549 51
+dragon-s1chain-S10 7340 0.50 0.206782 0.165632 0.212010 0
+dragon-s1chain-S10 7340 1.00 0.208441 0.165196 0.210944 0
+dragon-s1chain-S11 6100 0.50 0.072543 0.081582 0.120621 1
+dragon-s1chain-S11 6100 1.00 0.072485 0.081548 0.118391 1
+dragon-s1chain-S11 12290 0.50 0.003684 0.004052 0.004374 0
+dragon-s1chain-S11 12290 1.00 0.002944 0.003498 0.003720 0
+dragon-s1chain-S12 6000 0.50 0.005672 0.003940 0.006079 1
+dragon-s1chain-S12 6000 1.00 0.005191 0.003384 0.005260 0
+dragon-s1chain-S12 11960 0.50 0.035522 0.042018 0.032267 1
+dragon-s1chain-S12 11960 1.00 0.035756 0.042545 0.032126 4
+dragon-s1chain-S13 6000 0.50 0.013176 0.011392 0.014554 0
+dragon-s1chain-S13 6000 1.00 0.009785 0.007860 0.008324 0
+dragon-s1chain-S13 11960 0.50 0.061922 0.051959 0.019845 76
+dragon-s1chain-S13 11960 1.00 0.060324 0.049639 0.017655 54
+dragon-s1chain-S14 6000 0.50 0.006113 0.005652 0.005491 0
+dragon-s1chain-S14 6000 1.00 0.005933 0.006179 0.005294 0
+dragon-s1chain-S14 11960 0.50 0.072163 0.104411 0.075451 3
+dragon-s1chain-S14 11960 1.00 0.073751 0.104201 0.074597 4
+dragon-s1chain-S15 6000 0.50 0.166586 0.928628 0.282350 7319
+dragon-s1chain-S15 6000 1.00 0.436946 1.380913 0.491469 11800
+dragon-s1chain-S15 11960 0.50 0.021785 0.024866 0.020314 113
+dragon-s1chain-S15 11960 1.00 0.021785 0.024866 0.020314 113
+dragon-s1chain-S16 6100 0.50 0.003937 0.005528 0.003401 0
+dragon-s1chain-S16 6100 1.00 0.004284 0.005950 0.004052 0
+dragon-s1chain-S16 12210 0.50 0.009631 0.008404 0.013351 17
+dragon-s1chain-S16 12210 1.00 0.010441 0.009336 0.014310 17
+dragon-s1chain-S17 6000 0.50 0.009814 0.006462 0.006982 0
+dragon-s1chain-S17 6000 1.00 0.008760 0.005096 0.005926 1
+dragon-s1chain-S17 11960 0.50 0.045421 0.049239 0.035524 63
+dragon-s1chain-S17 11960 1.00 0.048461 0.052278 0.036005 74
+dragon-s1chain-S18 5500 0.50 0.016752 0.015513 0.016010 76
+dragon-s1chain-S18 5500 1.00 0.016752 0.015513 0.016010 76
+dragon-s1chain-S18 11100 0.50 0.008404 0.008119 0.009104 0
+dragon-s1chain-S18 11100 1.00 0.007089 0.006853 0.007853 0
+dragon-s1chain-S19 6000 0.50 0.038183 0.037054 0.038420 0
+dragon-s1chain-S19 6000 1.00 0.037341 0.036122 0.037676 0
+dragon-s1chain-S19 11960 0.50 0.031492 0.039505 0.031850 64
+dragon-s1chain-S19 11960 1.00 0.024127 0.029596 0.023022 10
+dragon-s1chain-S20 6000 0.50 0.013000 0.011749 0.014152 50
+dragon-s1chain-S20 6000 1.00 0.025512 0.027110 0.022290 158
+dragon-s1chain-S20 11960 0.50 0.005186 0.004811 0.010041 0
+dragon-s1chain-S20 11960 1.00 0.005186 0.004811 0.010041 0
+dragon-s1chain-S21 6300 0.50 0.002588 0.001503 0.002879 0
+dragon-s1chain-S21 6300 1.00 0.001686 0.001478 0.001698 0
+dragon-s1chain-S21 12630 0.50 0.189593 0.197922 0.189183 0
+dragon-s1chain-S21 12630 1.00 0.189593 0.197922 0.189183 0
+dragon-s1chain-S22 1100 0.50 0.140276 0.140979 0.140530 0
+dragon-s1chain-S22 1100 1.00 0.006884 0.005877 0.008226 0
+dragon-s1chain-S22 2330 0.50 0.017928 0.019126 0.015566 65
+dragon-s1chain-S22 2330 1.00 0.020216 0.022016 0.017996 87
+dragon-s1chain-S23 200 0.50 0.012985 0.013203 0.011222 0
+dragon-s1chain-S23 200 1.00 0.009412 0.009282 0.007601 0
+dragon-s1chain-S23 4000 0.50 0.282828 0.428384 1.010163 15
+dragon-s1chain-S23 4000 1.00 0.508377 0.701998 0.651588 1209
+dragon-s1chain-S23 8300 0.50 0.155999 0.124671 0.181662 57
+dragon-s1chain-S23 8300 1.00 0.155040 0.121050 0.178706 58
+dragon-s1chain-S23 16600 0.50 0.260995 0.292889 0.466245 0
+dragon-s1chain-S23 16600 1.00 0.245480 0.287922 0.449293 0
+dragon-s1chain-S23 16750 0.50 0.330713 0.500932 0.586990 2167
+dragon-s1chain-S23 16750 1.00 0.340286 0.517581 0.607097 2219
+dragon-s1chain-S23 16785 0.50 0.483341 0.623436 0.637041 631
+dragon-s1chain-S23 16785 1.00 0.381640 0.453657 0.481582 480

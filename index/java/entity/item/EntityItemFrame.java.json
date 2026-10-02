@@ -1,0 +1,195 @@
+{
+ "path": "oracle/src/entity/item/EntityItemFrame.java",
+ "classes": [
+  "EntityItemFrame"
+ ],
+ "lines": 229,
+ "side": "common",
+ "category": "entity",
+ "role": "The item frame hanging entity: holds one item stack and a rotation on a wall, drops them when broken.",
+ "scope": "in_scope",
+ "scope_reason": "Item frames are not switched off in world.conf (only maps, which the frame's map-dot removal touches, are).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/fallhang.c",
+   "symbols": [
+    "fh_spawn_frame",
+    "fh_place_hanging",
+    "fh_set_direction",
+    "fh_spawn_hanging_nbt",
+    "fh_write_nbt",
+    "hanging_attacked",
+    "on_broken",
+    "fh_frame_interact"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickobj.c",
+   "symbols": [
+    "pickobj_server_interact",
+    "pickobj_client_interact"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/persist-hanging-full-s1",
+  "csrc/tests/test_fallhang.c",
+  "out/java/snapshots/details-frames-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "itemDropChance",
+   "sig": "float",
+   "native": "csrc/engine/fallhang.c:on_broken",
+   "status": "exact",
+   "note": "always 1.0F in play: only a command's NBT sets another; the chance draw is spent and the NBT writes 1.0F"
+  },
+  {
+   "kind": "field",
+   "name": "static constants",
+   "sig": "String __OBFID",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityItemFrame",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "no spawn path uses the bare ctor natively"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityItemFrame",
+   "sig": "(World,IIII)V",
+   "native": "csrc/engine/fallhang.c:fh_spawn_frame",
+   "status": "exact",
+   "note": "tile x/y/z and direction; fh_set_direction does the EntityHanging setDirection arithmetic"
+  },
+  {
+   "kind": "method",
+   "name": "entityInit",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "DataWatcher indexes 2 and 3; the native engine keeps item/item_damage/rot in fh_ent"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntityFrom",
+   "sig": "(DamageSource,F)Z",
+   "native": "csrc/engine/fallhang.c:hanging_attacked",
+   "status": "exact",
+   "note": "a frame showing an item only drops it (the drop-chance draw, the copy at offset 0) and empties, keeping the rotation; an empty one breaks through EntityHanging's body. Reached from the player's hit, arrows and throwables, and falling anvils; details-frames-s1"
+  },
+  {
+   "kind": "method",
+   "name": "getWidthPixels",
+   "sig": "()I",
+   "native": "csrc/engine/fallhang.c:fh_set_direction",
+   "status": "exact",
+   "note": "the 9-pixel width is hardcoded in the frame branch of the box arithmetic"
+  },
+  {
+   "kind": "method",
+   "name": "getHeightPixels",
+   "sig": "()I",
+   "native": "csrc/engine/fallhang.c:fh_set_direction",
+   "status": "exact",
+   "note": "same 9-pixel height"
+  },
+  {
+   "kind": "method",
+   "name": "isInRangeToRenderDist",
+   "sig": "(D)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "client render culling"
+  },
+  {
+   "kind": "method",
+   "name": "onBroken",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/fallhang.c:on_broken",
+   "status": "exact",
+   "note": "EntityHanging.onBroken, the Entity parameter always null on the native paths"
+  },
+  {
+   "kind": "method",
+   "name": "func_146065_b",
+   "sig": "(Entity,Z)V",
+   "native": "csrc/engine/fallhang.c:on_broken",
+   "status": "exact",
+   "note": "drops the frame, then the displayed item against the drop chance draw"
+  },
+  {
+   "kind": "method",
+   "name": "removeFrameFromMap",
+   "sig": "(ItemStack)V",
+   "native": null,
+   "status": "n/a",
+   "note": "map-dot removal; world.conf maps = off so filled maps never draw"
+  },
+  {
+   "kind": "method",
+   "name": "getDisplayedItem",
+   "sig": "()ItemStack",
+   "native": "csrc/engine/fallhang.c:on_broken",
+   "status": "exact",
+   "note": "fh_ent.item/item_damage/item_tag, written back in the Item NBT and on the drop"
+  },
+  {
+   "kind": "method",
+   "name": "setDisplayedItem",
+   "sig": "(ItemStack)V",
+   "native": "csrc/engine/fallhang.c:fh_frame_interact",
+   "status": "exact",
+   "note": "the insert (a copy of size 1, rotation kept), the hit's clear, the dev op and the NBT restore; the ItemStack's own tag is not carried (fh_ent holds id and damage)"
+  },
+  {
+   "kind": "method",
+   "name": "getRotation",
+   "sig": "()I",
+   "native": "csrc/engine/fallhang.c:on_broken",
+   "status": "exact",
+   "note": "fh_ent.rot (details-frames-s1 turns it)"
+  },
+  {
+   "kind": "method",
+   "name": "setItemRotation",
+   "sig": "(I)V",
+   "native": "csrc/engine/fallhang.c:fh_frame_interact",
+   "status": "exact",
+   "note": "(rot + 1) % 4 on each right click of a full frame; details-frames-s1 turns one three times"
+  },
+  {
+   "kind": "method",
+   "name": "writeEntityToNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/fallhang.c:fh_write_nbt",
+   "status": "exact",
+   "note": "Item, ItemRotation and the hanging base tags"
+  },
+  {
+   "kind": "method",
+   "name": "readEntityFromNBT",
+   "sig": "(NBTTagCompound)V",
+   "native": "csrc/engine/fallhang.c:fh_spawn_hanging_nbt",
+   "status": "exact",
+   "note": "the snapshot restore path reads the displayed item and rotation"
+  },
+  {
+   "kind": "method",
+   "name": "interactFirst",
+   "sig": "(EntityPlayer)Z",
+   "native": "csrc/engine/fallhang.c:fh_frame_interact",
+   "status": "exact",
+   "note": "the server half through pickobj_server_interact (processUseEntity's reach), the client's true answer through pickobj_client_interact; details-frames-s1"
+  }
+ ],
+ "missing": [],
+ "notes": "Verified fh_spawn_frame, fh_set_direction (the hardcoded 9-pixel frame box), on_broken and the NBT pair in csrc/engine/fallhang.c. persist-hanging-s1 covers placement and whole-server persistence of an item frame (DEVLOG lane/persist2). The removeFrameFromMap map-dot removal is out of scope while maps are off; I did not verify any attack-on-frame recording. lane/idxentity: the frame's DataWatcher reads are its struct fields. lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-hanging-full-s1, whose native replay starts before the behaviour."
+}

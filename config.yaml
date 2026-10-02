@@ -1,0 +1,119 @@
+# netherite config: one file per world. The Java oracle (make play, script,
+# serve, chunks and the gates), the C engine's tools and the CUDA pipeline
+# (pipe_bench, pipe_gate, pool_gate: --config FILE) all read it. Another file:
+# CONF=path (configs/ holds the named ones). One run: SET="key=value ...",
+# where key is section.key, or a bare world key (seed=2, difficulty=peaceful).
+# Tapes record the resolved world and replay from it, not from this file.
+#
+# The grammar, a strict subset of YAML that csrc/engine/worldconf.c and
+# oracle/harness/netherite/oracle/WorldConf.java parse exactly, without a library
+# (mcsr-speedrun's mcsr/runconf.py reads it the same way):
+#
+#   file     = { line }
+#   line     = blank | comment | section | entry
+#   blank    = spaces, then end of line
+#   comment  = spaces, "#", anything
+#   section  = name ":" [ trailer ]            at column 0
+#   entry    = "  " name ":" " " value [ trailer ]  exactly two spaces in, under a section
+#   trailer  = spaces [ "#" anything ]
+#   name     = [a-z] { [a-z0-9_] }
+#   value    = { [A-Za-z0-9_./+,-] }+          a plain scalar: no quotes, no spaces (a comma list is one value)
+#
+# A run file (configs/speedrun-grpo.yaml: one RL run) has two parts, one
+# level up: "sim:" and "policy:" at column 0, each part's sections two spaces
+# in and their entries four. A file whose first line at column 0 is a part
+# is a run file; any other file is sim's sections alone, as this one. sim is
+# this file's sections and keys; policy (the trainer's model, placement,
+# heads, GRPO, reward and out) is read by runconf.py, and the oracle and the
+# C side check its grammar and skip it. SET= takes sim.section.key too.
+#
+# No tabs, no nesting below a section, no lists, no flow ({ } [ ]), no
+# anchors, no multi-line values, no key twice. Every key of every section is
+# known to both readers; an unknown one is an error. on and off are words to
+# both (YAML 1.2 reads them as strings, YAML 1.1 as booleans).
+
+# What the world is. The oracle applies these when it creates the world; the
+# native engine replays what the oracle recorded.
+world:
+  seed: 1
+  difficulty: normal       # peaceful, easy, normal or hard (options.txt's, applied as the integrated server starts)
+  render_distance: 4       # chunks, 2 to 16: the client's, and the server's view distance, so it decides which chunks load
+
+  # Game rules, set on a new world before its first tick (a checkpoint keeps its save's).
+  daylight_cycle: on       # doDaylightCycle
+  keep_inventory: off      # keepInventory
+
+  # Supported: on is vanilla.
+  villages: on             # village structures, villagers, trading, iron golems
+
+  # Not supported yet. These parts of vanilla 1.7.10 will come in a future
+  # release. Setting one to on prints a notice and the world runs with it off,
+  # in the oracle too, so the oracle and the native engine play the same game.
+
+  # Changes what a seed generates or spawns.
+  horses: off              # horses, donkeys and mules in the spawn tables
+  wolves: off
+  ocelots: off
+  built_golems: off        # iron and snow golems built from pumpkins
+  wither: off              # the wither, built from skulls and soul sand
+  minecarts: off           # mineshaft chest carts are never spawned (their loot is lost); carts cannot be placed
+  boats: off               # boats cannot be placed
+
+  # The blocks and items stay; using them does nothing.
+  redstone: off            # no block ever receives power: pistons, iron doors, rails and TNT stay put; hoppers only store
+  enchanting: off          # the enchanting table is a plain block
+  anvil: off
+  brewing: off
+  beacon: off
+  maps: off                # an empty map stays empty; a filled map from loot never draws
+  fishing: off
+  fireworks: off
+  book_editing: off
+  sign_editing: off        # signs are placed blank
+
+# How the client draws. The oracle pins every other option (Main.optionsFor).
+client:
+  graphics: fast           # fast or fancy (the oracle's --option fancy overrides it)
+  particles: minimal       # all, decreased or minimal (--particles)
+  observation: 128x128     # the pipeline's frame, WxH (pipe_bench --size)
+  ticks_per_step: 4        # game ticks a pipeline step runs (pipe_bench --ticks)
+  hud: off                 # the HUD drawn into the observation (off: the HUD as numbers)
+  gamma: 0.0               # options.txt's brightness: 0.0 (Moody) to 1.0 (Bright) in quarters; the frames' light, never a row
+  camera: pixels           # the runtime's observation: pixels (the frames), semantic (the semantic camera alone,
+                           # no renderer), or both (csrc/runtime/semcam.h); never a row
+  semantic: 64x36          # the semantic camera's rays, WxH (block, metadata, distance and face a ray)
+  semantic_range: 64       # its rays' length in blocks
+
+# The batched runtime's choices. None of them may change a row or a frame:
+# the gates hold each to the host path bit for bit.
+engine:
+  device_mesh: 0           # sections meshed on the host (0), the device (1), or both, compared (2)
+  device_generation: off   # raw chunk generation on the device
+  device_light: off        # the client world's light deferred to the device
+
+# Where the pipeline's envs start: a snapshot the oracle recorded from this
+# file (the pool refuses a start whose world is not this one).
+pipeline:
+  kind: fresh              # the start's name in pipe_bench's lines
+  start: out/java/snapshots/fresh-play-s1
+  worlds: 128              # an RL run's envs in all (nw_grpo: --n a sim card times the cards)
+  groups: 2                # GRPO groups a sim card (the envs of a group share a seed and start)
+  cards: 0                 # the sim cards (CUDA ordinals, a comma list)
+  episode_seconds: 60      # an RL episode's game time (20 steps a second at ticks_per_step 1)
+
+# The engine-side action compiler: what a policy's action becomes in vanilla
+# input (lanes guiact, moveact). The defaults are today's behaviour; the
+# runtime refuses any other value as not implemented yet until they land.
+# hold_attack, look_target and look_ticks are (lane/moveact): a lever on lets
+# the binding take its commands (csrc/runtime/rlmove.h nwrl_move); with no
+# command the acts run as they are.
+actions:
+  click_interval: 1        # min ticks between two clicks it emits (2 to 3 is human speed); 1 = today
+  mask_close_grid: off     # refuse close while a crafting grid holds items
+  mask_noop_clicks: off    # refuse a click that changes nothing (empty slot and empty cursor, empty result)
+  move_stack: off          # accept (from, to, all|half|one) and emit its pick and place clicks
+  item_select: off         # accept an item kind where a slot is expected; the compiler picks the stack
+  recipes: off             # accept "craft R x n" and emit its clicks (needs a table or inventory screen open)
+  hold_attack: off         # an attack press holds until the targeted block breaks or the target changes
+  look_target: off         # accept a look target (a pixel of the frame) and turn the camera over look_ticks
+  look_ticks: 3            # ticks a look target's turn takes

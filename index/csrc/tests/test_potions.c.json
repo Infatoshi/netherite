@@ -1,0 +1,79 @@
+{
+  "path": "csrc/tests/test_potions.c",
+  "lines": 1123,
+  "role": "Gate: replays the oracle's PotionProbe dump (living spawns, then scripted events: add potion effect, clear effects, eat food, throw a splash potion) through csrc/engine/potion.c and living.c, comparing every entity field, NBT, removal and Det digest after each tick.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/potion/PotionEffect.java",
+      "members": [
+        "onUpdate",
+        "performEffect",
+        "combine"
+      ]
+    },
+    {
+      "path": "oracle/src/potion/Potion.java",
+      "members": [
+        "performEffect",
+        "affectEntity",
+        "isReady"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/EntityLivingBase.java",
+      "members": [
+        "addPotionEffect",
+        "clearActivePotions",
+        "updatePotionEffects",
+        "onNewPotionEffect",
+        "onFinishedPotionEffect"
+      ]
+    },
+    {
+      "path": "oracle/src/entity/projectile/EntityPotion.java",
+      "members": [
+        "onImpact"
+      ]
+    },
+    {
+      "path": "oracle/src/item/ItemFood.java",
+      "members": [
+        "onEaten",
+        "onFoodEaten"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "splitref",
+      "java": "one Det split stream (determinize.sh static RNG name) per role",
+      "fields": [
+        "name",
+        "state",
+        "used"
+      ]
+    },
+    {
+      "name": "ref",
+      "java": "the oracle's Det start.txt/end.txt snapshot (netherite.oracle.Det: world seed, per-role nextId, seeder/math digests, split streams)",
+      "fields": [
+        "world_seed",
+        "next_id",
+        "seeder",
+        "math",
+        "splits",
+        "nsplits"
+      ]
+    }
+  ],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "lines 687, 879, 1001: getenv(AN_LIST / AN_DEBUG) debug prints (harness only)"
+  ],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/potions. Native calls: living_add_potion_effect, living_clear_active_potions, potion_apply_food (csrc/engine/potion.h), an_spawn_potion, an_spawn_living, an_init/an_tick/an_free, living_nbt_text/hash, item_entity_nbt_text/hash, world_*, det_*, nbt_*. Skips a dump whose kind is not potions. The file header still describes the AnimalProbe (copied from test_animals); the manifest kind is potions and the oracle side is oracle/harness/netherite/oracle/PotionProbe.java. Recordings: out/java/potions/seed2, seed42."
+}

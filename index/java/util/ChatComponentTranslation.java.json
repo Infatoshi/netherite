@@ -1,0 +1,205 @@
+{
+  "path": "oracle/src/util/ChatComponentTranslation.java",
+  "classes": [
+    "ChatComponentTranslation"
+  ],
+  "lines": 297,
+  "side": "common",
+  "category": "util",
+  "role": "A translatable chat component: looks the key up in the language map at render time and splits the format string on %s/%n$ placeholders, substituting format args as child components.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: the chat lines GuiNewChat (in scope) draws are translations (chat.type.achievement, death.attack.*, tile.bed.*), formatted by this class.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcomp.c",
+      "symbols": [
+        "chat_translation",
+        "chat_arg",
+        "chat_arg_raw",
+        "chat_set_style",
+        "chat_copy",
+        "pw_expand",
+        "sj_expand",
+        "chat_translate",
+        "CHAT_KEYS"
+      ]
+    },
+    {
+      "file": "csrc/engine/chatcomp.h",
+      "symbols": [
+        "cc_comp"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/chat-achieve-s1",
+    "out/java/snapshots/chat-bed-refuse-s1",
+    "out/java/snapshots/chat-deaths-s1",
+    "out/java/snapshots/chat-deaths2-s1",
+    "out/java/snapshots/chat-build-s1",
+    "out/java/snapshots/chat-climbfall-s1",
+    "out/java/snapshots/chat-edge-knock-s1",
+    "out/java/snapshots/chat-idx-blast-s1",
+    "out/java/snapshots/chat-fight-witch-s1",
+    "out/java/snapshots/chat-fight-enderman-s1",
+    "out/java/snapshots/chat-death-drown-s1",
+    "out/java/snapshots/chat-death-lava-s1",
+    "out/java/snapshots/chat-death-starve-s1",
+    "out/java/snapshots/chat-act2-s1",
+    "out/java/snapshots/chat-surv2-bed-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "key",
+      "sig": "String",
+      "native": "csrc/engine/chatcomp.h:cc_comp",
+      "status": "exact",
+      "note": "str, the key's pool string"
+    },
+    {
+      "kind": "field",
+      "name": "formatArgs",
+      "sig": "Object[]",
+      "native": "csrc/engine/chatcomp.h:cc_comp",
+      "status": "exact",
+      "note": "arg (a component) and arg_raw (a plain Object's String.valueOf)"
+    },
+    {
+      "kind": "field",
+      "name": "syncLock",
+      "sig": "Object",
+      "native": null,
+      "status": "n/a",
+      "note": "the cache lock of a single-threaded read; native translates at each iteration"
+    },
+    {
+      "kind": "field",
+      "name": "lastTranslationUpdateTimeInMilliseconds",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "the children cache's key (the last language reload); the language never changes in a session, so the children are the same whenever they are made"
+    },
+    {
+      "kind": "field",
+      "name": "children",
+      "sig": "List",
+      "native": "csrc/engine/chatcomp.c:pw_expand",
+      "status": "exact",
+      "note": "made while iterating from the translated string"
+    },
+    {
+      "kind": "field",
+      "name": "stringVariablePattern",
+      "sig": "Pattern (static, %n$ and % placeholder matcher)",
+      "native": "csrc/engine/chatcomp.c:pw_expand",
+      "status": "exact",
+      "note": "the placeholder scan, %s, %n$s and %%, other conversions stop the program as vanilla throws"
+    },
+    {
+      "kind": "ctor",
+      "name": "ChatComponentTranslation",
+      "sig": "(String,Object...)V",
+      "native": "csrc/engine/chatcomp.c:chat_translation",
+      "status": "exact",
+      "note": "with chat_arg / chat_arg_raw, which parent a component argument's style to the translation's"
+    },
+    {
+      "kind": "method",
+      "name": "ensureInitialized",
+      "sig": "()V",
+      "native": "csrc/engine/chatcomp.c:chat_translate",
+      "status": "exact",
+      "note": "StatCollector.translateToLocal over the en_US strings; translateToFallback is the same en_US map"
+    },
+    {
+      "kind": "method",
+      "name": "initializeFromFormat",
+      "sig": "(String)V",
+      "native": "csrc/engine/chatcomp.c:pw_expand",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getFormatArgumentAsComponent",
+      "sig": "(int)IChatComponent",
+      "native": "csrc/engine/chatcomp.c:pw_expand",
+      "status": "exact",
+      "note": "a component as itself, a plain Object as a text parented to the translation's style"
+    },
+    {
+      "kind": "method",
+      "name": "setChatStyle",
+      "sig": "(ChatStyle)IChatComponent",
+      "native": "csrc/engine/chatcomp.c:chat_set_style",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "iterator",
+      "sig": "()Iterator",
+      "native": "csrc/engine/chatcomp.c:pw_expand",
+      "status": "exact",
+      "note": "children then siblings"
+    },
+    {
+      "kind": "method",
+      "name": "getUnformattedTextForChat",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "no game path reads a translation's own text: GuiNewChat iterates its children, and getUnformattedText feeds only the server console log (MinecraftServer.addChatMessage)"
+    },
+    {
+      "kind": "method",
+      "name": "createCopy",
+      "sig": "()ChatComponentTranslation",
+      "native": "csrc/engine/chatcomp.c:chat_copy",
+      "status": "exact",
+      "note": "StatBase.func_150951_e's statName copy"
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Object)boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "no game path compares translations"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()int",
+      "native": null,
+      "status": "n/a",
+      "note": "no game path hashes a component"
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "logging only"
+    },
+    {
+      "kind": "method",
+      "name": "getKey",
+      "sig": "()String",
+      "native": "csrc/engine/chatcomp.c:sj_expand",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getFormatArgs",
+      "sig": "()Object[]",
+      "native": "csrc/engine/chatcomp.c:sj_expand",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "Every S02 the server sends is compared per row: the oracle's rows carry each tick's S02s (Rows.s02: the IChatComponent.Serializer JSON and GuiNewChat's iterated parts) and test_snapshots and play --check compare csrc/engine/chatcomp.c chat_s02_check against the queue (lane/idxchat, DEVLOG 2026-09-27). The keys the server's lines use: chat.type.achievement, the achievement names (survival.c surv_ach_lang), death.attack.*, death.fell.*, tile.bed.*, build.tooHigh and the entity names (csrc/engine/chatcomp.c CHAT_KEYS, resolved from the generated user-jar language table). The live client's drawing of these lines (NetHandlerPlayClient.handleChat into GuiNewChat) is GuiNewChat's record and the pixel lane's item N-02; the native client still builds its achievement line from the toast. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

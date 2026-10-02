@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/entity/passive/EntityAmbientCreature.java",
+  "classes": ["EntityAmbientCreature", "IAnimals (implemented by it)"],
+  "lines": 28,
+  "side": "common",
+  "category": "entity",
+  "role": "Base class for ambient mobs (the bat): un-leashable, un-interactable.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/animals.c", "symbols": ["animal_construct", "bat_fall", "bat_on_base_update", "bat_update_ai_tasks", "squidbat_bat_on_living_update", "bat_write_kind_nbt", "bat_spawn_distance_squared"]}
+  ],
+  "evidence": ["csrc/tests/test_animals.c", "out/java/snapshots/cov-mobs-s1"],
+  "members": [
+    {"kind": "ctor", "name": "EntityAmbientCreature", "sig": "(World)V", "native": "csrc/engine/animals.c:animal_construct", "status": "exact", "note": "the base's work (super EntityLiving) folds into the shared construct; the bat's own constructor is the kind branch"},
+    {"kind": "method", "name": "allowLeashing", "sig": "()Z", "native": "csrc/engine/leash.c:allow_leashing", "status": "exact", "note": "cov-mobs-s1: a lead used on a bat"},
+    {"kind": "method", "name": "interact", "sig": "(Lnet/minecraft/entity/player/EntityPlayer;)Z", "native": null, "status": "n/a", "note": "false; the probe player never right-clicks a bat"}
+  ],
+  "missing": [],
+  "notes": "The bat is the only subclass, and it is old-AI: animals.c carries bat_fall, the hang/sleep cycle, and the cave spawn-distance rule. lane/idxentity: allowLeashing is now leash.c's."
+}

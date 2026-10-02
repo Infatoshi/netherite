@@ -1,0 +1,359 @@
+{
+ "path": "csrc/engine/living.c",
+ "lines": 5176,
+ "role": "The living-entity framework every mob kind runs on: attributes (ModifiableAttributeInstance), EntityLivingBase's entity update, damage, knockback, death, fall, movement with heading (ground, water, lava, ladder, flying), onUpdate and onLivingUpdate, EntityLiving's despawn, AI tick order and drops, riding, the per-chunk entity sections and World.getEntitiesWithinAABB queries, the entity list tick (World.updateEntities order), spawn helpers for mobs, items, orbs, arrows and potions, and the canonical NBT writer and state record the gates hash.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "onEntityUpdate",
+    "onUpdate",
+    "onLivingUpdate",
+    "onDeathUpdate",
+    "attackEntityFrom",
+    "damageEntity",
+    "knockBack",
+    "onDeath",
+    "fall",
+    "updateFallState",
+    "moveEntityWithHeading",
+    "jump",
+    "func_110146_f",
+    "collideWithNearbyEntities",
+    "getTotalArmorValue",
+    "setHealth",
+    "getMaxHealth",
+    "setAbsorptionAmount",
+    "isOnLadder",
+    "setJumping",
+    "setBeenAttacked",
+    "setRevengeTarget",
+    "updateRidden",
+    "dropRareDrop",
+    "getAIMoveSpeed",
+    "setAIMoveSpeed",
+    "isClientWorld",
+    "applyEntityAttributes",
+    "writeEntityToNBT",
+    "getExperiencePoints",
+    "decreaseAirSupply",
+    "heal",
+    "canBePushed",
+    "isMovementBlocked",
+    "func_94060_bK",
+    "arrowHitTimer"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "EntityLiving",
+    "onEntityUpdate",
+    "onUpdate",
+    "onLivingUpdate",
+    "updateAITasks",
+    "updateEntityActionState",
+    "despawnEntity",
+    "canDespawn",
+    "faceEntity",
+    "updateRotation",
+    "getMaxSafePointTries",
+    "onSpawnWithEgg",
+    "dropFewItems",
+    "dropEquipment",
+    "playLivingSound",
+    "getTalkInterval",
+    "isAIEnabled",
+    "writeEntityToNBT",
+    "equipmentDropChances",
+    "persistenceRequired",
+    "canPickUpLoot"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateEntityActionState",
+    "entityToAttack",
+    "hasAttacked",
+    "fleeingTick",
+    "homePosition",
+    "maximumHomeDistance"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityPigZombie.java",
+   "members": [
+    "dropRareDrop"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityAgeable.java",
+   "members": [
+    "setGrowingAge",
+    "setSize",
+    "setScale"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityAnimal.java",
+   "members": [
+    "attackEntityFrom",
+    "inLove"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityFlying.java",
+   "members": [
+    "moveEntityWithHeading",
+    "updateFallState"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "Entity",
+    "setSize",
+    "setPosition",
+    "setLocationAndAngles",
+    "handleWaterMovement",
+    "handleLavaMovement",
+    "isInsideOfMaterial",
+    "isEntityInsideOpaqueBlock",
+    "isOffsetPositionInLiquid",
+    "isInWater",
+    "isWet",
+    "setFire",
+    "setBeenAttacked",
+    "addVelocity",
+    "applyEntityCollision",
+    "moveFlying",
+    "mountEntity",
+    "updateRidden",
+    "getFlag",
+    "setFlag",
+    "isBurning",
+    "writeToNBT",
+    "setInPortal",
+    "onEntityUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/attributes/ModifiableAttributeInstance.java",
+   "members": [
+    "computeValue",
+    "getAttributeValue",
+    "setBaseValue",
+    "applyModifier",
+    "removeModifier",
+    "removeAllModifiers",
+    "flagForUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/attributes/RangedAttribute.java",
+   "members": [
+    "clampValue"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/SharedMonsterAttributes.java",
+   "members": [
+    "maxHealth",
+    "knockbackResistance",
+    "movementSpeed",
+    "followRange",
+    "attackDamage",
+    "writeBaseAttributeMapToNBT",
+    "writeAttributeInstanceToNBT",
+    "writeAttributeModifierToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateEntities",
+    "updateEntity",
+    "updateEntityWithOptionalForce",
+    "getEntitiesWithinAABB",
+    "getEntitiesWithinAABBExcludingEntity",
+    "isAnyLiquid",
+    "getLightBrightness",
+    "getFullBlockLightValue",
+    "getBlockLightValue_do",
+    "getClosestPlayerToEntity",
+    "spawnEntityInWorld"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "addEntity",
+    "removeEntityAtIndex",
+    "getEntitiesOfTypeWithinAAAB",
+    "getEntitiesWithinAABBForEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityEgg.java",
+   "members": [
+    "onImpact"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityWaterMob.java",
+   "members": [
+    "getExperiencePoints"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityBat.java",
+   "members": [
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityCreeper.java",
+   "members": [
+    "onDeath"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityIronGolem.java",
+   "members": [
+    "collideWithEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityGolem.java",
+   "members": [
+    "fall"
+   ]
+  },
+  {
+   "path": "oracle/src/util/CombatTracker.java",
+   "members": [
+    "func_94547_a",
+    "func_94549_h",
+    "func_94550_c"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityZombie.java",
+   "members": [
+    "attackEntityFrom"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityArrow.java",
+   "members": [
+    "onUpdate"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "ATTR_NAME, ATTR_DEFAULT, ATTR_MIN, ATTR_MAXV (static const tables)",
+   "java": "SharedMonsterAttributes' RangedAttribute names, defaults and clamps",
+   "fields": []
+  },
+  {
+   "name": "light_brightness_table, nether_light_brightness_table (static float[16])",
+   "java": "WorldProvider.lightBrightnessTable for the surface and the Nether",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "attrs_init",
+  "attrs_get",
+  "attrs_value",
+  "attrs_set_base",
+  "attrs_apply",
+  "attrs_remove",
+  "attrs_remove_all",
+  "an_init",
+  "an_free",
+  "an_add",
+  "an_remove",
+  "an_chunk_add",
+  "an_chunk_remove",
+  "an_chunk_find",
+  "an_chunk_membership",
+  "living_kind_in_class",
+  "an_entities_within_aabb",
+  "an_entities_excluding",
+  "an_tick",
+  "an_tick_one",
+  "an_update_one",
+  "an_add_living",
+  "an_add_living_list",
+  "an_add_living_chunk",
+  "an_spawn_living",
+  "an_spawn_item",
+  "an_spawn_orb",
+  "an_spawn_arrow",
+  "an_spawn_potion",
+  "an_adopt_projectile",
+  "an_egg_chicken",
+  "living_init",
+  "living_update_entity",
+  "living_on_living_update",
+  "living_default_on_living_update",
+  "living_move_entity_with_heading",
+  "living_move_entity_with_heading_flying",
+  "living_attack_entity_from",
+  "living_attack_entity_from_attacker",
+  "living_attack_entity_from_attacker_base",
+  "living_damage_entity",
+  "living_fall",
+  "living_despawn_entity",
+  "living_on_spawn_with_egg",
+  "living_on_spawn_with_egg_ret",
+  "living_update_ai_tasks",
+  "living_update_entity_action_state",
+  "living_drop_few_items",
+  "living_drop_equipment",
+  "living_mount",
+  "living_dismount",
+  "living_write_nbt",
+  "item_entity_write_nbt",
+  "living_nbt_hash",
+  "item_entity_nbt_hash",
+  "an_write_state",
+  "living_set_walking_world",
+  "build_light_table",
+  "living_skeleton_on_spawn_with_egg",
+  "living_arrow_decay",
+  "an_chunk_drop_empty"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "livings and list entries come from the environment's slot pools (living_alloc, an_ent_alloc; arena.c) with generations; a living's parts (AI tasks, villager trades, player inventory) sit beside it in the arena (lane/gpuarena, L3)",
+  "function an_chunk_get: the chunk table comes from the arena's list slab (slab_table_room), found by linear scan (an_chunk_find) (lane/gpuarena, L3)",
+  "struct living holds lrefs to other livings (targets, riders, attackers, task partners) and function pointers per kind (on_living_update and the others set in living_init): the virtual dispatch stays (lane/gpuarena, L3)",
+  "lines 2892-2897, function an_tick_one: removal memmoves the whole entity list to keep spawn order; an_tick (line 2924) re-runs index i after a removal, so tick order is the container order",
+  "lines 655-715, function an_collect: query results follow chunk (cx, cz), section y and in-section insertion order (Java's order, carried by the container)",
+  "function an_chunk_add: a section holds as many as its world (AN_MAX_ENTITIES; sec_push stops loudly past it); each section list holds an_ent pool slots in the arena slab (sec_push) (lane/gpuarena, L3)",
+  "line 3885, function an_add_living_list: no bound check against AN_MAX_ENTITIES (4096)",
+  "lines 4017-4052, functions living_nbt_hash and item_entity_nbt_hash: build and render a heap NBT tree per entity per hash",
+  "line 2919, function an_tick: trace() writes to the global trace file when one is open; line 2920-2927 swap the global blockcb_env for the tick",
+  "line 614, function an_chunk_add: increments the global entity_chunk_stamp from entity.c",
+  "function an_tick_one: a removed dead living goes to grave_bury (grave.c's global list; off unless the replay harness enables it)",
+  "living_write_nbt walks the riding chain in a loop (RIDING_CHAIN 16, deepest 2) and puts each Riding tag afterwards, innermost first; block_light_value_do's neighbour reads go through block_light_value_raw; the setSize moveEntity (entity_size_apply -> living_move -> entity_move_ex) still closes a cycle through the move's collision and fall callbacks (attack_from, fall_state, end_portal: function pointers), see lane/gpuworklist's DEVLOG entry"
+ ],
+ "tests": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_hostiles.c",
+  "csrc/tests/test_lightning.c",
+  "csrc/tests/test_ghasts.c",
+  "csrc/tests/test_potions.c",
+  "csrc/tests/test_projectiles.c",
+  "csrc/tests/test_slimes.c",
+  "csrc/tests/test_villagers.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Kind-specific halves live in animals.c, hostiles*.c, villagers.c, slimes.c, ghasts.c and ai.c; living_init dispatches on kind to their on_living_update. Sounds are reduced to their RNG draws. Java member lists come from the Java names this file's comments cite and from function names; they were not diffed method by method against the Java files,; every listed member name was confirmed to occur in its Java file by grep, but not that each is fully ported. test_snapshots.c reaches this file through serverreplay.c. The GPU line numbers are exact for allocations and globals, approximate (function spans) elsewhere. lane/idxentity: the arrow decay, EntityZombie's HARD reinforcement roll (zombie_reinforce), the arrow punch in Java's order. lane/envmem: an_chunk_drop_empty drops an unloaded chunk's empty entity lists (the park)."
+}

@@ -1,0 +1,37 @@
+{
+  "path": "oracle/src/client/renderer/RenderHelper.java",
+  "classes": ["RenderHelper"],
+  "lines": 81,
+  "side": "client",
+  "category": "client_render",
+  "role": "Static GL state helpers for the fixed-function lighting used on items: the standard two-light setup (ambient 0.4, diffuse 0.6 from directions (0.2, 1, -0.7) and (-0.2, 1, 0.7)) and the GUI variant that rotates the lights with -30 yaw and 165 pitch.",
+  "scope": "in_scope",
+  "scope_reason": "The light directions and ambient/diffuse constants change the pixels of every lit item and hand quad, so the C renderer had to reproduce them.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_hand.c", "symbols": ["set_lights", "lit"]},
+    {"file": "csrc/engine/raster_entities.c", "symbols": ["compute_diffuse"]},
+    {"file": "csrc/engine/raster_hud.c", "symbols": ["raster_hud_draw"]}
+  ],
+  "evidence": [
+    "out/java/render/hand_sword",
+    "out/java/render/hand_pickaxe",
+    "out/java/render/gui_inventory",
+    "out/java/render/blockicons_hotbar_a",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "colorBuffer", "sig": "static FloatBuffer", "native": null, "status": "n/a", "note": "GL light parameter scratch buffer"},
+    {"kind": "field", "name": "field_82884_b", "sig": "static Vec3", "native": "csrc/engine/raster_hand.c:set_lights", "status": "exact", "note": "the first light direction, normalized with MathHelper.sqrt_double's float length (1.236931687687298)"},
+    {"kind": "field", "name": "field_82885_c", "sig": "static Vec3", "native": "csrc/engine/raster_hand.c:set_lights", "status": "exact", "note": "the second light direction"},
+    {"kind": "field", "name": "__OBFID", "sig": "static final String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "disableStandardItemLighting", "sig": "()V", "native": null, "status": "n/a", "note": "GL enable/disable plumbing; the native rasterizers carry per-pass state instead of GL toggles"},
+    {"kind": "method", "name": "enableStandardItemLighting", "sig": "()V", "native": "csrc/engine/raster_hand.c:set_lights", "status": "exact", "note": "the two light positions go to eye space under the current modelview, Mesa normalizes them; the ambient 0.4 + diffuse 0.6 factor is evaluated in raster_hand.c lit and raster_entities.c compute_diffuse"},
+    {"kind": "method", "name": "setColorBuffer", "sig": "(DDDD)FloatBuffer", "native": null, "status": "n/a", "note": "light parameter packing; the constants land in set_lights and compute_diffuse"},
+    {"kind": "method", "name": "setColorBuffer", "sig": "(FFFF)FloatBuffer", "native": null, "status": "n/a", "note": "same"},
+    {"kind": "method", "name": "enableGUIStandardItemLighting", "sig": "()V", "native": "csrc/engine/raster_hud.c:raster_hud_draw", "status": "exact", "note": "the rotated light positions after -30 yaw and 165 pitch are hardcoded in the HUD item renderer's comment and constants"},
+    {"kind": "ctor", "name": "RenderHelper", "sig": "()V", "native": null, "status": "n/a", "note": "never constructed: every member is static (lane/covclient)"}
+  ],
+  "missing": [],
+  "notes": "The eye-space light transform and the eye_normal rescale live in raster_hand.c (set_lights, eye_normal); the entity path folds the same constants into compute_diffuse in raster_entities.c. Verified the constants at raster_hand.c:57-60, raster_entities.c:114-124 and raster_hud.c:714-716. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): GL plumbing: GL is the numerical oracle, not emitted (SPEC); atlases and meshes are consumed as data. Formerly listed as missing: disableStandardItemLighting: the GL toggle has no native counterpart because the rasterizers carry per-pass state; behaviour is equivalent."
+}

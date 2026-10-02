@@ -1,0 +1,30 @@
+{
+ "path": "oracle/src/entity/EntityMinecartCommandBlock.java",
+ "classes": ["EntityMinecartCommandBlock"],
+ "lines": 142,
+ "side": "server",
+ "category": "entity",
+ "role": "The command-block minecart: an EntityMinecart carrying an anonymous CommandBlockLogic whose command is mirrored through dataWatcher 23/24 and re-run on activator rails.",
+ "scope": "switched_off",
+ "scope_reason": "world.conf: minecarts = off (\"carts cannot be placed\", mineshaft chest carts are never spawned), so no minecart of any type, including this one, can exist in a world.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {"kind": "field", "name": "field_145824_a", "sig": "CommandBlockLogic", "native": null, "status": "n/a", "note": "switched off with minecarts"},
+  {"kind": "field", "name": "field_145823_b", "sig": "int", "native": null, "status": "n/a", "note": "switched off with minecarts"},
+  {"kind": "ctor", "name": "EntityMinecartCommandBlock", "sig": "(World)V", "native": null, "status": "n/a", "note": "switched off with minecarts"},
+  {"kind": "ctor", "name": "EntityMinecartCommandBlock", "sig": "(WorldDDD)V", "native": null, "status": "n/a", "note": "switched off with minecarts"},
+  {"kind": "method", "name": "entityInit", "sig": "()V", "native": null, "status": "n/a", "note": "watchers 23/24"},
+  {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "getMinecartType", "sig": "()I", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "func_145817_o", "sig": "()Block", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "func_145822_e", "sig": "()CommandBlockLogic", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "onActivatorRailPass", "sig": "(IIIZ)V", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "interactFirst", "sig": "(EntityPlayer)Z", "native": null, "status": "n/a"},
+  {"kind": "method", "name": "func_145781_i", "sig": "(I)V", "native": null, "status": "n/a"}
+ ],
+ "missing": [],
+ "notes": "serverreplay.c's entity restore skips the minecart classes explicitly (\"a class this replay does not port: a minecart, a boat\"); items.h still registers the command_block_minecart item id because the item table is complete even though the entity is unreachable."
+}

@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/client/resources/SimpleReloadableResourceManager.java",
+  "classes": ["SimpleReloadableResourceManager"],
+  "lines": 134,
+  "side": "client",
+  "category": "client_resources",
+  "role": "The client's IResourceManager: routes a resource lookup to per-domain fallback managers across the selected resource packs and notifies reload listeners when the pack set changes.",
+  "scope": "client_cosmetic",
+  "scope_reason": "Resource pack layering and hot reload. The native engine has one fixed asset directory per render scene (csrc/engine/raster.c raster_live_new loads textures, table.bin and atlas.json from it); nothing reloads at runtime.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "SimpleReloadableResourceManager", "sig": "(IMetadataSerializer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "reloadResourcePack", "sig": "(IResourcePack)V", "native": null, "status": "n/a", "note": "adds a pack's per-domain fallback managers"},
+    {"kind": "method", "name": "getResourceDomains", "sig": "()Set", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResource", "sig": "(ResourceLocation)IResource", "native": null, "status": "n/a", "note": "first pack that has the resource wins"},
+    {"kind": "method", "name": "getAllResources", "sig": "(ResourceLocation)List", "native": null, "status": "n/a", "note": "every pack's copy, in order"},
+    {"kind": "method", "name": "clearResources", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "reloadResources", "sig": "(List)V", "native": null, "status": "n/a", "note": "clears, re-adds the packs, notifies listeners"},
+    {"kind": "method", "name": "registerReloadListener", "sig": "(IResourceManagerReloadListener)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "notifyReloadListeners", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "domainResourceManagers", "sig": "Map", "native": null, "status": "n/a", "note": "domain to FallbackResourceManager"},
+    {"kind": "field", "name": "reloadListeners", "sig": "List", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "setResourceDomains", "sig": "Set", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "rmMetadataSerializer", "sig": "IMetadataSerializer", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": null
+}

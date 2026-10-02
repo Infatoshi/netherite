@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/item/ItemGlassBottle.java",
+  "classes": ["ItemGlassBottle"],
+  "lines": 79,
+  "side": "server",
+  "category": "item",
+  "role": "The empty bottle: right click on a source water block fills it into a potion item (water bottle), swapping or adding the stack.",
+  "scope": "in_scope",
+  "scope_reason": "Brewing is switched off (world.conf brewing), but filling a bottle at water stays vanilla and the water bottle exists.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/itemuse.c", "symbols": ["bottle_rclick", "look_ray"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["give_or_drop"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_itemuse.c",
+    "out/java/itemuse/seed2-v2",
+    "out/java/snapshots/iu-fill-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemGlassBottle", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 374"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon (the potion atlas frame)"},
+    {"kind": "method", "name": "onItemRightClick", "sig": "(ItemStack,World,EntityPlayer)ItemStack", "native": "csrc/engine/itemuse.c:bottle_rclick", "status": "exact", "note": "the canMineBlock, canPlayerEdit, the water-material check and the swap; the added water bottle is the give stack survival.c:give_or_drop stores or drops; iu-fill-s1 (a stack of 4, the last two with a full inventory)"},
+    {"kind": "method", "name": "registerIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "client icons"}
+  ],
+  "missing": [],
+  "notes": "The bottle is never filled at a brewing stand in this game (brewing off); the water-bottle item is produced and stackable."
+}

@@ -1,0 +1,122 @@
+{
+ "path": "oracle/src/network/play/server/S0BPacketAnimation.java",
+ "classes": [
+  "S0BPacketAnimation"
+ ],
+ "lines": 69,
+ "side": "server",
+ "category": "network",
+ "role": "An entity animation: arm swing (1) or the sleep/wake statuses the client acts on (2 leave bed, 3 ...).",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/sleep.c",
+   "symbols": [
+    "sleep_server_wake",
+    "sleep_client_wake"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_client_pump"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/surv2-bed-s1",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148981_a",
+   "sig": "int",
+   "status": "partial",
+   "note": "entity id, rides s2c_pkt.i0"
+  },
+  {
+   "kind": "field",
+   "name": "field_148980_b",
+   "sig": "int",
+   "status": "partial",
+   "note": "animation/status, rides s2c_pkt.i1; only 2 is modeled"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(Entity,int)V",
+   "status": "partial",
+   "native": "csrc/engine/sleep.c:sleep_server_wake",
+   "note": "only the wake status 2 is queued"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "partial",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "PK_S0B case handles only status 2 (sleep.c:sleep_client_wake)"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_148978_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_148977_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): only observable by a second player; the env is single player. Formerly listed as missing: The other-entity arm-swing animation (status 1) and the vanilla client's swing render have no native half; only the wake status 2 rides the native packet."
+}

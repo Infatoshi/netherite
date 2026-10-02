@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/network/handshake/client/C00Handshake.java",
+  "classes": ["C00Handshake"],
+  "lines": 78,
+  "side": "client",
+  "category": "network",
+  "role": "The first packet of every connection: protocol version, server address, port and the intended next state (login or status).",
+  "scope": "not_needed",
+  "scope_reason": "Transport plumbing. The oracle's local channel passes packet objects straight to NetHandlerLoginServer.processHandshake and the native engine joins by loading the oracle snapshot, so no handshake is ever framed or replayed.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149600_a (protocol version)", "sig": "I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149598_b (server address)", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149599_c (port)", "sig": "I", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_149597_d (next state)", "sig": "EnumConnectionState", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "C00Handshake", "sig": "(I,String,I,EnumConnectionState)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerHandshakeServer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasPriority", "sig": "()Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149594_c", "sig": "()EnumConnectionState", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149595_d", "sig": "()I", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The second ctor (no-arg, for the receiving side) is part of the Packet contract and carries no behavior."
+}

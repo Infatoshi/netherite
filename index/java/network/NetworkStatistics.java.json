@@ -1,0 +1,134 @@
+{
+  "path": "oracle/src/network/NetworkStatistics.java",
+  "classes": [
+    "NetworkStatistics",
+    "NetworkStatistics.PacketStat",
+    "NetworkStatistics.PacketStatData",
+    "NetworkStatistics.Tracker"
+  ],
+  "lines": 243,
+  "side": "common",
+  "category": "network",
+  "role": "Per-packet-id byte and count statistics for the shared network connections: a lock-free array of atomic counters the message codecs feed.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_152480_c",
+      "sig": "NetworkStatistics.Tracker",
+      "native": null,
+      "status": "n/a",
+      "note": "The inbound tracker; telemetry with no consumer in game code."
+    },
+    {
+      "kind": "field",
+      "name": "field_152481_d",
+      "sig": "NetworkStatistics.Tracker",
+      "native": null,
+      "status": "n/a",
+      "note": "The outbound tracker."
+    },
+    {
+      "kind": "method",
+      "name": "func_152469_a",
+      "sig": "(IJ)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Inbound record call from the decoder."
+    },
+    {
+      "kind": "method",
+      "name": "func_152464_b",
+      "sig": "(IJ)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Outbound record call from the encoder."
+    },
+    {
+      "kind": "method",
+      "name": "func_152465_a",
+      "sig": "()J",
+      "native": null,
+      "status": "n/a",
+      "note": "Total inbound bytes; read only by debug output."
+    },
+    {
+      "kind": "method",
+      "name": "func_152471_b",
+      "sig": "()J",
+      "native": null,
+      "status": "n/a",
+      "note": "Total outbound bytes."
+    },
+    {
+      "kind": "method",
+      "name": "func_152472_c",
+      "sig": "()J",
+      "native": null,
+      "status": "n/a",
+      "note": "Total inbound packet count."
+    },
+    {
+      "kind": "method",
+      "name": "func_152473_d",
+      "sig": "()J",
+      "native": null,
+      "status": "n/a",
+      "note": "Total outbound packet count."
+    },
+    {
+      "kind": "method",
+      "name": "func_152477_e",
+      "sig": "()LNetworkStatistics$PacketStat;",
+      "native": null,
+      "status": "n/a",
+      "note": "Largest inbound packet by bytes."
+    },
+    {
+      "kind": "method",
+      "name": "func_152467_f",
+      "sig": "()LNetworkStatistics$PacketStat;",
+      "native": null,
+      "status": "n/a",
+      "note": "Most frequent inbound packet."
+    },
+    {
+      "kind": "method",
+      "name": "func_152475_g",
+      "sig": "()LNetworkStatistics$PacketStat;",
+      "native": null,
+      "status": "n/a",
+      "note": "Largest outbound packet by bytes."
+    },
+    {
+      "kind": "method",
+      "name": "func_152470_h",
+      "sig": "()LNetworkStatistics$PacketStat;",
+      "native": null,
+      "status": "n/a",
+      "note": "Most frequent outbound packet."
+    },
+    {
+      "kind": "method",
+      "name": "func_152466_a",
+      "sig": "(I)LNetworkStatistics$PacketStat;",
+      "native": null,
+      "status": "n/a",
+      "note": "One inbound packet id's stats."
+    },
+    {
+      "kind": "method",
+      "name": "func_152468_b",
+      "sig": "(I)LNetworkStatistics$PacketStat;",
+      "native": null,
+      "status": "n/a",
+      "note": "One outbound packet id's stats."
+    }
+  ],
+  "missing": [],
+  "notes": "The nested PacketStat, PacketStatData and Tracker types are the counter machinery. Nothing in oracle/src reads the stats outside debug logging, so there is no observable behavior to gate and none to port."
+}

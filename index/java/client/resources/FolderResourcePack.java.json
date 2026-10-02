@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/client/resources/FolderResourcePack.java",
+  "classes": ["FolderResourcePack"],
+  "lines": 60,
+  "side": "client",
+  "category": "client_resources",
+  "role": "A directory-backed resource pack: serves files under the pack folder and lists the assets/ subdirectories as domains.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "FolderResourcePack", "sig": "(File)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getInputStreamByName", "sig": "(String)InputStream", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "hasResourceName", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getResourceDomains", "sig": "()Set", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Never used in this game: no user resource pack is ever loaded in agent mode. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "A folder user resource pack; no user pack is ever loaded."
+}

@@ -1,0 +1,45 @@
+# The any-tick sweep's recordings (make anytick with no RECS): one name per
+# line under out/java/snapshots, of every kind a resume has to carry: a fresh
+# world, fights, villages, containers, deaths, the Nether, the End, riding,
+# golden-chain segments.
+fresh-s42
+night-s1
+swamp-night-s2
+world-crops-s1
+world-fire-s1
+fight-zombie-s1
+fight-skeleton-s1
+fight-creeper-s1
+golem-fight-s42
+pot-witch-s1
+throw-bow-s1
+ride-pig-s1
+lead-s1
+item-tags-s1
+village-rain-s42
+villager-flee-s42
+struct-village-s42
+village-siege-s42
+containers2-s42
+te-furnace-s1
+death-drops-s1
+death-drown-s1
+surv2-tnt-s1
+cp-mobs-s1
+cp-nether-s1
+nether-trip-s1
+nether-trip2-s42
+nf-mobs-s42
+nf-fortress-s42
+sh-dig-s42
+end-arrival-s1
+end-crystals-s1
+end-dragon-s1
+end-exit-s1
+gold-g3-s42
+gold-g5-s42
+gold-g7-s42
+gold-g8-s42
+gold-g10-s42
+gold-g11-s42
+leaves-stale-s1

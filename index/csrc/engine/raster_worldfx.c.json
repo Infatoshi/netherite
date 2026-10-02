@@ -1,0 +1,21 @@
+{
+ "path": "csrc/engine/raster_worldfx.c",
+ "lines": 387,
+ "role": "Draws weather and first-person screen overlays: EntityRenderer.renderRainSnow (per-column rain and snow quads seeded per column, biome temperature choosing rain or snow) and ItemRenderer.renderOverlays (the in-block texture, the warped underwater overlay and the fire overlay), plus Entity.isEntityInsideOpaqueBlock for the in-block test.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/EntityRenderer.java", "members": ["renderRainSnow", "rainXCoords", "rainYCoords"]},
+  {"path": "oracle/src/client/renderer/ItemRenderer.java", "members": ["renderOverlays", "renderInsideOfBlock", "renderWarpedTextureOverlay", "renderFireInFirstPerson"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["isEntityInsideOpaqueBlock"]},
+  {"path": "oracle/src/world/World.java", "members": ["getLightBrightnessForSkyBlocks", "getPrecipitationHeight"]}
+ ],
+ "structs": [],
+ "entry_points": ["worldfx_weather", "worldfx_screen", "worldfx_is_inside_opaque", "worldfx_inside_block"],
+ "tick_path": false,
+ "gpu": [
+  "line 128-145, function worldfx_weather: static mutable coords[2048] and ready flag, lazily filled on first call (EntityRenderer.rainXCoords/rainYCoords)",
+  "line 191-193, function worldfx_weather: a fresh det_rng per column, seeded from the column; no stream state escapes the call"
+ ],
+ "tests": ["csrc/tests/raster.c", "csrc/tests/test_render.c"],
+ "notes": "worldfx_weather and worldfx_screen are called from raster.c; worldfx_inside_block and worldfx_is_inside_opaque also from csrc/play/play.c. The comment says WorldChunkManager.getTemperatureAtHeight is the identity, so the biome temperature is used directly. Rain splash particles and rain sound (EntityRenderer.addRainParticles) are not in this file. lane/covclient: overlay_inside draws opaque (renderWorld disables GL_BLEND before renderHand, EntityRenderer.java:1444) and takes the block's side-2 icon through table_icon, not the icon array by id; cov-blocks-s1 67: 356,432 px to 0."
+}

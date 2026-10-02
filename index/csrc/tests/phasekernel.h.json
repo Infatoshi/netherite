@@ -1,0 +1,21 @@
+{
+ "path": "csrc/tests/phasekernel.h",
+ "lines": 518,
+ "role": "The per-phase kernel harness, part of test_snapshots (--phase-kernel LIST|all, --phase-kernel-ref TRACE, --phase-kernel-plant ROW:LABEL:WHAT, --phase-kernel-verify N): the replay in an image environment with a device copy in another slot; at every tested phase's start the host's writes go down (env_export, env_import), the host's mapping is moved aside and the copy's onto its address (image_move), the C phase runs there as the stand-in kernel, its writes come back, and each row's digests are compared with the reference trace's line. Prints the round trip's cost per row (pages each way; user and kernel instructions of the host's export and import and of the device side) and a tsv line for tests/phase_kernel_table.sh.",
+ "layer": "test",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "pk_flag",
+  "pk_setup",
+  "pk_kernel",
+  "pk_row_end",
+  "pk_summary"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "the gate of every tick-phase kernel (L17 on): the CUDA kernel takes the stand-in's place in pk_kernel"
+ ],
+ "tests": [],
+ "notes": "lane/gpuharness. make -C csrc phase-kernel-check (tests/phase_kernel_check.sh) and phase-kernel-cost."
+}

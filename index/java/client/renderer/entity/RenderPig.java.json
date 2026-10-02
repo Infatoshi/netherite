@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderPig.java",
+  "classes": ["RenderPig"],
+  "lines": 60,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for the pig: ModelPig and the saddle as a second pass (the ModelPig(0.5) render-pass model) when the pig is saddled.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_pig", "raster_mobs_draw", "texture_names"]}
+  ],
+  "evidence": ["out/java/render/mobs_pig_f006", "out/java/render/mobs_pig_f011", "out/java/render/mobs_pig_f016", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "saddledPigTextures, pigTextures", "sig": "ResourceLocation (static)", "native": "csrc/engine/raster_mobs.c:texture_names", "status": "exact", "note": "static constants, grouped; the TEX_PIG and TEX_SADDLE entries"},
+    {"kind": "ctor", "name": "RenderPig", "sig": "(ModelBase,ModelBase,float)V", "native": "csrc/engine/raster_mobs.c:model_pig", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityPig,int,float)V", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "the saddle pass: TEX_SADDLE with the boxes grown by 0.5, exactly ModelPig(0.5) expanded"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityPig)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "shouldRenderPass", "sig": "(EntityLivingBase,int,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

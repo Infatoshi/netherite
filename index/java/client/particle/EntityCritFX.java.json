@@ -1,0 +1,86 @@
+{
+ "classes": [
+  "EntityCritFX"
+ ],
+ "lines": 82,
+ "side": "client",
+ "category": "particles",
+ "role": "A critical-hit sparkle: shrinks over its life, green and blue channels decay.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "fx_brf",
+    "fx_update",
+    "new_crit",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "particle_quad",
+    "render_scale",
+    "draw_list",
+    "particles_live_from_json"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/render/fx_crit_a1",
+  "out/java/render/fx_crit_a12",
+  "out/java/rendertick/fx_crit"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "native": null,
+   "status": "n/a",
+   "note": "compiler constant"
+  },
+  {
+   "kind": "field",
+   "name": "initialParticleScale",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.h:live_fx",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityCritFX",
+   "sig": "(World,double,double,double,double,double,double)",
+   "native": "csrc/engine/particles_live.c:new_crit",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityCritFX",
+   "sig": "(World,double,double,double,double,double,double,float)",
+   "native": "csrc/engine/particles_live.c:new_crit",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderParticle",
+   "sig": "(Tessellator,float,float,float,float,float,float)",
+   "native": "csrc/engine/raster_particles.c:particle_quad",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()",
+   "native": "csrc/engine/particles_live.c:fx_update",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Ported in csrc/engine/particles_live.c (constructor new_crit, onUpdate in fx_update, getBrightnessForRender in fx_brf) and drawn by csrc/engine/raster_particles.c (draw_list, render_scale for the scale renderParticle animates). test_rendertick replays each recorded tick natively and compares every FX field bit for bit with the next frame row (lane/particles2).",
+ "path": "oracle/src/client/particle/EntityCritFX.java"
+}

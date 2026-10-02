@@ -1,0 +1,26 @@
+{
+ "path": "csrc/engine/raster_particles.c",
+ "lines": 610,
+ "role": "EffectRenderer.renderLitParticles and renderParticles over a recorded frame's fx dump (read into the live struct by particles_live_from_json) or the live list: each subclass's renderParticle (the animated scale, the digging and breaking quarter-icon UVs in float with their corner order, colour and alpha), MathHelper's table sin/cos for the billboard basis.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/particle/EffectRenderer.java", "members": ["renderLitParticles", "renderParticles"]},
+  {"path": "oracle/src/client/particle/EntityFX.java", "members": ["renderParticle", "interpPosX", "interpPosY", "interpPosZ"]},
+  {"path": "oracle/src/client/particle/EntityDiggingFX.java", "members": ["renderParticle"]},
+  {"path": "oracle/src/client/particle/EntityBreakingFX.java", "members": ["renderParticle"]},
+  {"path": "oracle/src/client/particle/EntityLargeExplodeFX.java", "members": ["renderParticle"]},
+  {"path": "oracle/src/client/particle/EntityHugeExplodeFX.java", "members": ["renderParticle"]},
+  {"path": "oracle/src/client/renderer/ActiveRenderInfo.java", "members": ["updateRenderInfo"]}
+ ],
+ "structs": [],
+ "entry_points": ["raster_particles_scene", "raster_particles_draw_live"],
+ "tick_path": false,
+ "gpu": [
+  "line 167-172, function layer_texture: reads atlas.json from disk and mallocs its text per call",
+  "line 197-199, function layer_texture: mallocs and reads a layer texture from disk per call",
+  "line 218, function raster_particles_scene: reads state/frames.jsonl from disk per frame",
+  "line 346, function raster_particles_scene: strcmp on each particle's recorded class name to skip EntityHugeExplodeFX"
+ ],
+ "tests": ["csrc/tests/raster.c", "csrc/tests/test_render.c"],
+ "notes": "lane/particles2: one draw_list for both paths; EntityCrit2FX and EntityHugeExplodeFX draw nothing; layer 3 draws only EntityLargeExplodeFX. lane/entrender: EntityPickupFX (layer 3) through raster_world_item_at and raster_orb_quad."
+}

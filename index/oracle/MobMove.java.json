@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/MobMove.java",
+ "lines": 34,
+ "role": "Legacy setup op: moves one already spawned server mob (by entity id) to x,y,z with setPosition between tape ticks, for attack cases; marked MUTATES.",
+ "kind": "devop",
+ "used_by": [
+  "oracle/tests/mobattack-overlap.jsonl",
+  "oracle/harness/netherite/oracle/Oracle.java (legacySetup)",
+  "csrc/play/play.c, csrc/engine/combat.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Accepted in old non-dev tapes; new work uses Dev ops."
+}

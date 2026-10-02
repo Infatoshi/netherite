@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/network/play/client/C09PacketHeldItemChange.java",
+  "classes": ["C09PacketHeldItemChange"],
+  "lines": 51,
+  "side": "client",
+  "category": "network",
+  "role": "Tells the server the player's new hotbar slot (0-8).",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/survival.h", "symbols": ["client_out"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["sync_current_play_item", "surv_server_tick_start"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/dev-give-s1",
+    "csrc/tests/test_items.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_149615_a", "sig": "I", "native": "csrc/engine/survival.h:client_out", "status": "exact", "note": "client_out c09_slot (-1: no C09 this tick)"},
+    {"kind": "ctor", "name": "C09PacketHeldItemChange", "sig": "(I)V", "native": "csrc/engine/survival.c:sync_current_play_item", "status": "exact", "note": "syncCurrentPlayItem queues the packet whenever the hotbar moved off the synced slot"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": "csrc/engine/survival.c:surv_server_tick_start", "status": "exact", "note": "sets the server's current_item from co->c09_slot before the tick's actions run"},
+    {"kind": "method", "name": "func_149614_c", "sig": "()I", "native": "csrc/engine/survival.h:client_out", "status": "exact"},
+    {"kind": "ctor", "name": "C09PacketHeldItemChange", "sig": "()V", "native": null, "status": "n/a", "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs"}
+  ],
+  "missing": [],
+  "notes": "idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): cat-clicks-s1."
+}

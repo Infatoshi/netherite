@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/block/material/MaterialLogic.java",
+  "classes": ["MaterialLogic"],
+  "lines": 34,
+  "side": "common",
+  "category": "material",
+  "role": "The logic material (circuits, pressure plates, tripwires, levers, torches, rails): not solid, does not block light, does not block movement, no tool required.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["MATERIALS"]}
+  ],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "MaterialLogic", "sig": "(Lnet/minecraft/block/material/MapColor;)V", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "the circuits rows: isSolid false, opaque false, blocksMovement false, no tool required"},
+    {"kind": "method", "name": "isSolid", "sig": "()Z", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "false"},
+    {"kind": "method", "name": "blocksMovement", "sig": "()Z", "native": "csrc/engine/blocks.h:MATERIALS", "status": "exact", "note": "false"},
+    {"kind": "method", "name": "isToolNotRequired", "sig": "(Lnet/minecraft/block/material/Material;)Z", "native": "csrc/engine/harvest.c:item_can_harvest", "status": "exact", "note": "true"}
+  ],
+  "missing": [],
+  "notes": "The torches, levers and rails that use this material appear in every played session, so the rows are exercised indirectly even though no recording or test names MaterialLogic."
+}

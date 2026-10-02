@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/command/CommandNotFoundException.java",
+  "classes": [
+    "CommandNotFoundException"
+  ],
+  "lines": 16,
+  "side": "server",
+  "category": "commands",
+  "role": "Thrown when a command name is unknown.",
+  "scope": "not_needed",
+  "scope_reason": "Commands never run in this game: the product has no chat text entry (no chat handling in csrc/play/play.c) and no harness path constructs ServerCommandManager (grep of oracle/harness finds none); the behaviors the project needs are the Dev ops of oracle/harness/netherite/oracle/Dev.java and csrc/engine/dev.c, not this command system.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "CommandNotFoundException",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "CommandNotFoundException",
+      "sig": "(String,Object[])V",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "Static __OBFID constants are grouped out per the brief."
+}

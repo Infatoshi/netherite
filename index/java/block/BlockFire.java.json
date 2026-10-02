@@ -1,0 +1,287 @@
+{
+ "path": "oracle/src/block/BlockFire.java",
+ "classes": [
+  "BlockFire"
+ ],
+ "lines": 420,
+ "side": "common",
+ "category": "block",
+ "role": "Fire: the flammable-block tables, the scheduled tick that burns neighbours and spreads, and the onBlockAdded portal-frame attempt and placement guards.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/fire.c",
+   "symbols": [
+    "fire_update_tick",
+    "fire_can_place",
+    "fire_burn",
+    "fire_odds",
+    "spread_attempt",
+    "burn_value",
+    "neighbor_flammable",
+    "fire_tnt_prime"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "fire_on_block_added",
+    "portal_try_create",
+    "ID_FIRE"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "fire_rule",
+    "update_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "particles_live_display_tick"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/world-fire-s1",
+  "out/java/snapshots/rc-items-s1",
+  "csrc/tests/test_explosions.c",
+  "csrc/tests/test_ticks.c",
+  "out/java/snapshots/fire-forest-s1",
+  "out/java/snapshots/fire-rain-s1",
+  "out/java/snapshots/rain-mix-s1",
+  "out/java/snapshots/portalframes-s1",
+  "out/java/snapshots/portallava-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149849_a",
+   "sig": "int[]",
+   "native": "csrc/engine/fire.c:fire_burn",
+   "status": "exact",
+   "note": "the encourage table, a switch over block ids instead of the int array"
+  },
+  {
+   "kind": "field",
+   "name": "field_149848_b",
+   "sig": "int[]",
+   "native": "csrc/engine/fire.c:fire_odds",
+   "status": "exact",
+   "note": "the burn-odds table, same form"
+  },
+  {
+   "kind": "field",
+   "name": "field_149850_M",
+   "sig": "IIcon[]",
+   "native": null,
+   "status": "n/a",
+   "note": "client layer textures"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockFire",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 51, tick_randomly 1"
+  },
+  {
+   "kind": "method",
+   "name": "func_149843_e",
+   "sig": "()V",
+   "native": "csrc/engine/fire.c:fire_burn",
+   "status": "exact",
+   "note": "the static table fill is the same switch body"
+  },
+  {
+   "kind": "method",
+   "name": "func_149842_a",
+   "sig": "(III)V",
+   "native": "csrc/engine/fire.c:fire_burn",
+   "status": "exact",
+   "note": "the table entries are written as switch cases"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)Lnet/minecraft/util/AxisAlignedBB;",
+   "native": "csrc/engine/collide.c:collide_pool_box",
+   "status": "exact",
+   "note": "null: the fire material is not collidable"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "opaque_cube 0 in row 51"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "normal_block 0 in row 51"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "render_type 3"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Ljava/util/Random;)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 51 drops nothing"
+  },
+  {
+   "kind": "method",
+   "name": "func_149738_a",
+   "sig": "(World)I",
+   "native": "csrc/engine/fire.c:fire_update_tick",
+   "status": "exact",
+   "note": "the 30 base plus nextInt(10) reschedule is inside the tick"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/fire.c:fire_update_tick",
+   "status": "exact",
+   "note": "the doFireTick gate (servertick reads the GameRules NBT), the netherrack and End bedrock exemption, the rain checks, the meta bump, the reschedule, the six spread attempts and the (x, z, y) cube walk"
+  },
+  {
+   "kind": "method",
+   "name": "func_149698_L",
+   "sig": "()Z",
+   "native": "csrc/engine/collide.c:collide_pool_box",
+   "status": "n/a",
+   "note": "WorldServer asks it only while scheduledUpdatesAreImmediate, which WorldGenLiquids, WorldGenHellLava and the nether fortress's lava set around a liquid's placement and first updateTick; that chain places and schedules only liquids, never fire"
+  },
+  {
+   "kind": "method",
+   "name": "func_149841_a",
+   "sig": "(World,IIIIILjava/util/Random;I)V",
+   "native": "csrc/engine/fire.c:spread_attempt",
+   "status": "exact",
+   "note": "the odds roll, the ignite-or-clear, and the TNT priming through fire_tnt_prime"
+  },
+  {
+   "kind": "method",
+   "name": "func_149847_e",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/fire.c:neighbor_flammable",
+   "status": "exact",
+   "note": "the six-neighbour can-burn scan"
+  },
+  {
+   "kind": "method",
+   "name": "func_149845_m",
+   "sig": "(World,III)I",
+   "native": "csrc/engine/fire.c:burn_value",
+   "status": "exact",
+   "note": "an air cell's burn value, the max of the six neighbours' encourage entries"
+  },
+  {
+   "kind": "method",
+   "name": "isCollidable",
+   "sig": "()Z",
+   "native": "csrc/engine/collide.c:collide_pool_box",
+   "status": "exact",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "func_149844_e",
+   "sig": "(IBlockAccess,III)Z",
+   "native": "csrc/engine/fire.c:fire_burn",
+   "status": "exact",
+   "note": "encourage[id] > 0"
+  },
+  {
+   "kind": "method",
+   "name": "func_149846_a",
+   "sig": "(World,IIII)I",
+   "native": "csrc/engine/fire.c:burn_value",
+   "status": "exact",
+   "note": "the same max scan's per-neighbour step"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/fire.c:fire_can_place",
+   "status": "exact",
+   "note": "solid top or a flammable neighbour"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+   "status": "exact",
+   "note": "the fire case clears the block when it can no longer sit"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockAdded",
+   "sig": "(World,III)V",
+   "native": "csrc/engine/blockcb.c:fire_on_block_added",
+   "status": "exact",
+   "note": "dimension > 0 or the portal frame attempt, then the sit test or the scheduled tick at 30 + nextInt(10)"
+  },
+  {
+   "kind": "method",
+   "name": "randomDisplayTick",
+   "sig": "(World,IIILjava/util/Random;)V",
+   "native": "csrc/engine/particles_live.c:particles_live_display_tick",
+   "status": "partial",
+   "note": "ported with its draws and spawns; no recording reaches it yet"
+  },
+  {
+   "kind": "method",
+   "name": "registerBlockIcons",
+   "sig": "(IIconRegister)V",
+   "native": null,
+   "status": "n/a",
+   "note": "client texture registration"
+  },
+  {
+   "kind": "method",
+   "name": "func_149840_c",
+   "sig": "(I)Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a",
+   "note": "client layer texture getter"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a",
+   "note": "client layer 0"
+  },
+  {
+   "kind": "method",
+   "name": "getMapColor",
+   "sig": "(I)Lnet/minecraft/block/material/MapColor;",
+   "native": null,
+   "status": "n/a",
+   "note": "maps are off (world.conf maps = off)"
+  }
+ ],
+ "missing": [],
+ "notes": "Verified by world-fire-s1 (whole-server, 0 mismatches) and rc-items-s1 (flint and steel lights fire). The BlockPortal.func_150000_e attempt on the overworld path is blockcb.c's portal_try_create; BlockFire's own comment says the portal piece was the last piece brought in."
+}

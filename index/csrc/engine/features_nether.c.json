@@ -1,0 +1,103 @@
+{
+ "path": "csrc/engine/features_nether.c",
+ "lines": 299,
+ "role": "The Nether and End population features: WorldGenHellLava (open and hidden springs, with the immediate liquid update tick), WorldGenFire, WorldGenGlowStone1/2 (one shared body), WorldGenFlowers with Nether mushrooms, the quartz vein over netherrack, and WorldGenSpikes with its ender crystal reported through spike_crystal_last.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenHellLava.java",
+   "members": [
+    "WorldGenHellLava",
+    "generate",
+    "field_150553_a",
+    "field_94524_b"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenFire.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenGlowStone1.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenGlowStone2.java",
+   "members": [
+    "generate"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenFlowers.java",
+   "members": [
+    "generate",
+    "field_150552_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockMushroom.java",
+   "members": [
+    "canBlockStay"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/feature/WorldGenSpikes.java",
+   "members": [
+    "WorldGenSpikes",
+    "generate",
+    "field_150520_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/ChunkProviderHell.java",
+   "members": [
+    "populate"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "NETHER_ROWS",
+   "java": "the rows FeatureProbeNether appends to the oracle's FeatureProbe table (helllava, fire, glowstone1, glowstone2, nethermushrooms x2, quartz, helllavahidden, spikes)",
+   "fields": [
+    "name",
+    "config",
+    "y0",
+    "y1",
+    "margin",
+    "block",
+    "count",
+    "generate"
+   ]
+  },
+  {
+   "name": "spike_crystal_last",
+   "java": "the EntityEnderCrystal WorldGenSpikes spawns",
+   "fields": [
+    "spawned",
+    "x",
+    "y",
+    "z",
+    "yaw"
+   ]
+  }
+ ],
+ "entry_points": [
+  "features_nether_for"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 109-111, function feature_helllava: toggles the global ticks_set_immediate flag around liquid_update_tick (World.scheduledUpdatesAreImmediate)",
+  "lines 274-299, function features_nether_for: string-compare lookup table"
+ ],
+ "tests": [
+  "csrc/tests/test_feature.c",
+  "csrc/tests/test_populate.c"
+ ],
+ "notes": "populate_nether.c drives these for real chunk population; serverreplay.c spawns the reported crystal through endfight_spawn_crystal. The y bands mirror ChunkProviderHell.populate's draws as the probe makes them. The End spike placement loop itself (BiomeEndDecorator) is not in this file."
+}

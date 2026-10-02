@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/block/BlockStoneBrick.java",
+  "classes": ["BlockStoneBrick"],
+  "lines": 69,
+  "side": "common",
+  "category": "block",
+  "role": "Stone bricks (id 98) in four variants (default, mossy, cracked, chiseled); drops itself with its meta.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS", "MATERIALS"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_dispatch"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["table_icon"]}
+  ],
+  "evidence": ["out/java/rendertick/mv_variants", "out/java/render/mv_variants_sl", "out/java/render/mv_variants_pk", "csrc/tests/test_render.c", "csrc/tests/render_budget.txt"],
+  "members": [
+    {"kind": "field", "name": "field_150142_a", "sig": "static final String[]", "native": null, "status": "n/a", "note": "unlocalized subtype names, client text"},
+    {"kind": "field", "name": "field_150141_b", "sig": "static final String[]", "native": null, "status": "n/a", "note": "icon suffixes, client texture bookkeeping"},
+    {"kind": "field", "name": "field_150143_M", "sig": "IIcon[]", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "BlockStoneBrick", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "id 98: Material.rock row and static properties in the table"},
+    {"kind": "method", "name": "getIcon", "sig": "(II)Lnet/minecraft/util/IIcon;", "native": "csrc/engine/render_blocks.c:table_icon", "status": "exact", "note": "Table-driven: RenderTable reads getIcon(side, meta) for every meta off the live block."},
+    {"kind": "method", "name": "damageDropped", "sig": "(I)I", "native": "csrc/engine/drops.c:drops_dispatch", "status": "exact", "note": "case 98: meta passthrough"},
+    {"kind": "method", "name": "getSubBlocks", "sig": "(Lnet/minecraft/item/Item;Lnet/minecraft/creativetab/CreativeTabs;Ljava/util/List;)V", "native": null, "status": "n/a", "note": "creative menu listing"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(Lnet/minecraft/client/renderer/texture/IIconRegister;)V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No dedicated recording or test names stone bricks. Pinned by lane/meshvar's mesh scene (out/java/rendertick/mv_variants, 13 views mv_variants_*, each within its budget with no pxdiff cluster; the scene's sections match the oracle's sections.bin vertex for vertex): the four variants (mossy drawn with the plain icon: 1,412 px over 25; chiseled with cracked's: 1,369; against 36)."
+}

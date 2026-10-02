@@ -1,0 +1,50 @@
+{
+ "path": "csrc/engine/seedworld.c",
+ "lines": 930,
+ "role": "Builds the world a 1.7.10 server holds before its first tick from the seed alone: the WorldServers' Det seeder draws in Java order, createSpawnPosition's biome search and fuzz loop, initialWorldChunkLoad's 625 chunk loads with Chunk.populateChunk's four-neighbour rule, each dimension's populate body (overworld, Nether, End), performWorldGenSpawning's creatures, and the item, villager, witch, crystal and dragon entities the build constructs, all folded into Rows.blkHash.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/WorldServer.java", "members": ["createSpawnPosition"]},
+  {"path": "oracle/src/server/MinecraftServer.java", "members": ["initialWorldChunkLoad", "loadAllWorlds"]},
+  {"path": "oracle/src/world/World.java", "members": ["World", "rand", "updateLCG", "ambientTickCountdown", "getTopBlock", "getTopSolidOrLiquidBlock", "isAirBlock", "doesBlockHaveSolidTopSurface", "spawnEntityInWorld"]},
+  {"path": "oracle/src/world/chunk/Chunk.java", "members": ["populateChunk", "func_150809_p"]},
+  {"path": "oracle/src/world/gen/ChunkProviderServer.java", "members": ["loadChunk", "populate"]},
+  {"path": "oracle/src/world/gen/ChunkProviderGenerate.java", "members": ["populate"]},
+  {"path": "oracle/src/world/gen/ChunkProviderHell.java", "members": ["populate"]},
+  {"path": "oracle/src/world/gen/ChunkProviderEnd.java", "members": ["populate"]},
+  {"path": "oracle/src/world/SpawnerAnimals.java", "members": ["performWorldGenSpawning", "canCreatureTypeSpawnAtLocation"]},
+  {"path": "oracle/src/util/WeightedRandom.java", "members": ["getRandomItem"]},
+  {"path": "oracle/src/world/biome/BiomeGenBase.java", "members": ["getSpawningChance"]},
+  {"path": "oracle/src/world/WorldProvider.java", "members": ["getAverageGroundLevel"]},
+  {"path": "oracle/src/entity/Entity.java", "members": ["Entity"]},
+  {"path": "oracle/src/entity/EntityLivingBase.java", "members": ["EntityLivingBase"]},
+  {"path": "oracle/src/entity/EntityLiving.java", "members": ["onSpawnWithEgg"]},
+  {"path": "oracle/src/entity/passive/EntitySheep.java", "members": ["onSpawnWithEgg", "getRandomFleeceColor"]},
+  {"path": "oracle/src/entity/passive/EntityChicken.java", "members": ["EntityChicken", "timeUntilNextEgg"]},
+  {"path": "oracle/src/entity/item/EntityItem.java", "members": ["EntityItem", "hoverStart", "delayBeforeCanPickup"]},
+  {"path": "oracle/src/entity/item/EntityEnderCrystal.java", "members": ["EntityEnderCrystal", "innerRotation"]},
+  {"path": "oracle/src/entity/boss/EntityDragon.java", "members": ["EntityDragon"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenSpikes.java", "members": ["generate"]},
+  {"path": "oracle/src/world/biome/BiomeEndDecorator.java", "members": ["func_150513_a"]}
+ ],
+ "structs": [
+  {"name": "seedworld (seedworld.h)", "java": "one WorldServer at world start", "fields": ["p", "det", "world_rand", "update_lcg", "dim", "spawn_x", "spawn_z", "spawn_y", "ents", "nents", "blk_hash", "blk_count"]},
+  {"name": "sw_entity (seedworld.h)", "java": "an entity SpawnDump's animals.jsonl records", "fields": ["id", "cls", "uuid_msb", "uuid_lsb", "x", "y", "z", "yaw", "rand_state", "follow_bonus", "fleece", "crystal_rotation", "item", "damage", "count"]},
+  {"name": "SW_CLASS_NAME", "java": "the Java class names the oracle dump spells for each SW_* kind", "fields": []}
+ ],
+ "entry_points": ["seedworld_init", "seedworld_init_dim", "seedworld_move_det", "seedworld_free", "seedworld_build", "seedworld_build_dim", "seedworld_entities", "seedworld_class_name"],
+ "tick_path": false,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 90, function sw_new: realloc grows s->ents per constructed entity (heap growth, not a fixed-capacity array)",
+  "lines 371-373, function sw_top_block: while loop climbs y until an air block with no upper bound, and every read may generate a chunk",
+  "lines 695-710, function sw_spawn_position: fuzz loop bounded only by a 1000-iteration guard",
+  "lines 662-670 and 632-657, functions sw_on_chunk and sw_populate_chunk: indirect recursion, a populate call's feature reads load chunks through world.c, whose on_chunk hook reruns the populate rule",
+  "lines 754-772, function sw_init_shared: installs process-global hooks (populate_world_rand, populate_det, populate_on_ent, blockcb_env, randomtick and ticks.c globals) pointing into this struct",
+  "line 598, function sw_populate_end: writes the global spike_crystal_last report from features",
+  "lines 446-447, function sw_creatures: fprintf and abort on an unregistered biome id",
+  "struct seedworld holds pointer-based chunk storage (struct populate / world) and det split lists: a pointer graph the GPU cannot mirror as is"
+ ],
+ "tests": ["csrc/tests/test_seedworld.c", "csrc/tests/test_fortress_spawn.c"],
+ "notes": "Runs before the first tick for the standalone build, but serverreplay.c's sr_ensure_saved calls seedworld_init/seedworld_build (line 4922) lazily from a chunk load/unload callback during replay, so its cost and hazards can land inside a tick. Villager and witch records come from structure pieces via sw_sc_ent and are untested per the file's own comment (no seed of the five has one). Mineshaft chest minecarts are dropped (world.conf keeps minecarts off). Oracle references: out/java/seedworld/seed*/ (SpawnDump, SpawnDumpDim). Sheep fleece colour is written as the jr_int_n thresholds, not through EntitySheep.getRandomFleeceColor itself."
+}

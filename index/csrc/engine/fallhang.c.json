@@ -1,0 +1,177 @@
+{
+ "path": "csrc/engine/fallhang.c",
+ "lines": 1348,
+ "role": "Falling blocks and hanging entities ticked as the server ticks them: EntityFallingBlock's gravity, landing, anvil damage and timeout; EntityHanging's 100-tick validity check and break drops; painting art selection and setDirection geometry; the BlockFalling/BlockDragonEgg update ticks; ItemHangingEntity placement; chunk section membership and canonical NBT.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/item/EntityFallingBlock.java",
+   "members": [
+    "EntityFallingBlock",
+    "onUpdate",
+    "fall",
+    "writeEntityToNBT",
+    "readEntityFromNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityHanging.java",
+   "members": [
+    "EntityHanging",
+    "setDirection",
+    "func_70517_b",
+    "onUpdate",
+    "onValidSurface",
+    "attackEntityFrom",
+    "writeEntityToNBT",
+    "readEntityFromNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityPainting.java",
+   "members": [
+    "EntityPainting",
+    "onBroken",
+    "writeEntityToNBT",
+    "readEntityFromNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityItemFrame.java",
+   "members": [
+    "EntityItemFrame",
+    "onBroken",
+    "func_146065_b",
+    "writeEntityToNBT",
+    "readEntityFromNBT",
+    "attackEntityFrom",
+    "interactFirst",
+    "setDisplayedItem",
+    "setItemRotation"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFalling.java",
+   "members": [
+    "field_149832_M",
+    "func_149830_m",
+    "func_149831_e",
+    "func_149828_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockDragonEgg.java",
+   "members": [
+    "func_150018_e"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockAnvil.java",
+   "members": [
+    "func_149829_a",
+    "func_149828_a",
+    "damageDropped"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemHangingEntity.java",
+   "members": [
+    "onItemUse"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "entityDropItem",
+    "readFromNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateEntityWithOptionalForce",
+    "getEntitiesWithinAABBExcludingEntity",
+    "canPlaceEntityOnSide",
+    "spawnEntityInWorld"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "addEntity",
+    "removeEntityAtIndex",
+    "onChunkUnload"
+   ]
+  },
+  {
+   "path": "oracle/src/util/Direction.java",
+   "members": [
+    "rotateOpposite"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLeashKnot.java",
+   "members": [
+    "EntityLeashKnot(World,III)",
+    "onValidSurface",
+    "writeEntityToNBT"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "ARTS",
+   "java": "EntityPainting.EnumArt values in declaration order (title, sizeX, sizeY)",
+   "fields": [
+    "title",
+    "w",
+    "h"
+   ]
+  },
+  {
+   "name": "ROTATE_OPPOSITE",
+   "java": "Direction.rotateOpposite",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "fallhang_player_break",
+  "fallhang_update_tick",
+  "fh_added_to_world",
+  "fh_adopt_falling",
+  "fh_entities_in_box",
+  "fh_free",
+  "fh_init",
+  "fh_place_hanging",
+  "fh_set_direction",
+  "fh_set_fall_instantly",
+  "fh_spawn_falling",
+  "fh_spawn_falling_nbt",
+  "fh_spawn_frame",
+  "fh_spawn_hanging_nbt",
+  "fh_spawn_painting",
+  "fh_tick",
+  "fh_tick_one",
+  "fh_unload_chunk",
+  "fh_valid_surface",
+  "fh_write_nbt",
+  "fh_frame_interact",
+  "fh_chunk_drop_empty"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 38: global mutable fh_env hooks; line 41: static mutable fall_instantly",
+  "lines 238, 266, 326, 457, functions fh_spawn_falling, fh_adopt_falling, fh_spawn_falling_nbt, spawn_hanging: calloc per entity inside the tick (fallhang_update_tick spawns at line 1144)",
+  "function chunk_add: the chunk table and its section lists come from the arena's list slab (slab_table_room, sec_push; lists hold fh pool slots) (lane/gpuarena, L3)",
+  "lines 153-158, function chunk_find: linear scan over the chunk array (order of first insertion carried as data)",
+  "functions fh_tick_one and fh_tick: a dead entity goes back to the environment's fh pool (fh_ent_release); the list (pool slots) is compacted by memmove (lane/gpuarena, L3)",
+  "lines 296-320 and 442-444: nbt_render/strtoull string round trips with malloc/free for NBT scalars (load path)",
+  "line 1155, function fallhang_update_tick: while loop down the column bounded by y > 0",
+  "line 184, function chunk_add: increments the global entity_chunk_stamp",
+  "lines 822 and 847: draws from the per-entity det_rng in the anvil damage roll and the frame drop chance"
+ ],
+ "tests": [
+  "csrc/tests/test_fallhang.c"
+ ],
+ "notes": "Checked against the oracle's FallHangProbe dump. Also called from dev.c and serverreplay.c (tape replay uses fh_adopt_falling and fh_tick_one). Drops are recorded via fh_env.drop and never joined to a list. Not ported: the TileEntityData placement path (no ITileEntityProvider falling block in 1.7.10), hanging-entity damage from players or projectiles (onBroken is always called with a null entity), item-frame interaction (rotate or insert by right click). Anvils fall only via the dev/probe paths since redstone is off does not matter here; anvil use itself is switched off in world.conf but the block still falls. lane/pick: fh_tick_one removes an entity killed outside its own update without updating it; a drop carries its Det Random state; fallhang_player_break and fh_entities_in_box serve the pick and the projectile lists. lane/envmem: fh_chunk_drop_empty drops an unloaded chunk's empty lists (the park)."
+}

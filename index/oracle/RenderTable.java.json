@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/RenderTable.java",
+ "lines": 562,
+ "role": "Generator of the renderer lookup tables: every block's getIcon(side, meta) texture name, render properties the mesher branches on, block bounds after setBlockBoundsBasedOnState, and the grass and foliage colormaps with per-biome color kinds, written as DIR/table.bin and table.json.",
+ "kind": "util",
+ "used_by": [
+  "oracle/harness/netherite/oracle/MeshProbe.java (writes it into each mesh recording)",
+  "oracle/harness/netherite/oracle/MeshScene.java",
+  "csrc/engine/render_blocks.c (table.bin loader)",
+  "csrc/tests/test_meshes.c",
+  "make -C oracle run CLASS=RenderTable CMD='{\"out\":\"/abs/dir\"}'"
+ ],
+ "vanilla_hooks": []
+}

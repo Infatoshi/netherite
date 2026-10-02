@@ -1,0 +1,371 @@
+{
+ "path": "oracle/src/client/model/ModelHorse.java",
+ "classes": [
+  "ModelHorse"
+ ],
+ "lines": 574,
+ "side": "client",
+ "category": "client_model",
+ "role": "The horse, donkey and mule model with its saddle, ropes, reins and chest boxes.",
+ "scope": "switched_off",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "head",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "mouthTop",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "mouthBottom",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseLeftEar",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseRightEar",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "muleLeftEar",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "muleRightEar",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "neck",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseFaceRopes",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "mane",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "body",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "tailBase",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "tailMiddle",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "tailTip",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "backLeftLeg",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "backLeftShin",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "backLeftHoof",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "backRightLeg",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "backRightShin",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "backRightHoof",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "frontLeftLeg",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "frontLeftShin",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "frontLeftHoof",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "frontRightLeg",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "frontRightShin",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "frontRightHoof",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "muleLeftChest",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "muleRightChest",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseSaddleBottom",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseSaddleFront",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseSaddleBack",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseLeftSaddleRope",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseLeftSaddleMetal",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseRightSaddleRope",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseRightSaddleMetal",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseLeftFaceMetal",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseRightFaceMetal",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseLeftRein",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "field",
+   "name": "horseRightRein",
+   "sig": "ModelRenderer",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelHorse",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "method",
+   "name": "render",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "method",
+   "name": "setBoxRotation",
+   "sig": "(ModelRenderer,float,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "method",
+   "name": "updateHorseRotation",
+   "sig": "(float,float,float)F",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  },
+  {
+   "kind": "method",
+   "name": "setLivingAnimations",
+   "sig": "(EntityLivingBase,float,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "switched off"
+  }
+ ],
+ "missing": [],
+ "scope_reason": "world.conf: horses = off; horses, donkeys and mules leave every spawn list, so the model is never drawn.",
+ "notes": "Model geometry never ported; no render scene exists for it."
+}

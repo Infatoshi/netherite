@@ -1,0 +1,129 @@
+{
+ "classes": [
+  "EntityLargeExplodeFX"
+ ],
+ "lines": 87,
+ "side": "client",
+ "category": "particles",
+ "role": "The explosion smoke sheet: layer 3, renders its own explosion.png sheet frame with fixed brightness 240, dies after 6-9 ticks.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "fx_brf",
+    "fx_update",
+    "new_large",
+    "particles_live_spawn"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_particles.c",
+   "symbols": [
+    "draw_list",
+    "particles_live_from_json"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_rendertick.c",
+  "out/java/render/fx_explode_f101",
+  "out/java/render/fx_explode_f87",
+  "out/java/render/particles_tnt",
+  "out/java/render/particles_tnt_t90",
+  "out/java/render/particles_tnt_t99",
+  "out/java/rendertick/fx_explode",
+  "out/java/snapshots/surv2-tnt-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_70581_a",
+   "sig": "int",
+   "native": "csrc/engine/particles_live.c:particles_live_tick",
+   "status": "exact",
+   "note": "live: vx, the frame counter"
+  },
+  {
+   "kind": "field",
+   "name": "field_70584_aq",
+   "sig": "int",
+   "native": "csrc/engine/particles_live.c:particles_live_explosion",
+   "status": "exact",
+   "note": "live: vq, 6 + rand.nextInt(4)"
+  },
+  {
+   "kind": "field",
+   "name": "theRenderEngine",
+   "sig": "TextureManager",
+   "native": "csrc/engine/particles_live.h:live_fx",
+   "status": "exact",
+   "note": "the pass binds the sheet from the scene dir"
+  },
+  {
+   "kind": "field",
+   "name": "field_70582_as",
+   "sig": "float",
+   "native": "csrc/engine/particles_live.c:particles_live_explosion",
+   "status": "exact",
+   "note": "live: vs, 1 - p * 0.5"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityLargeExplodeFX",
+   "sig": "(TextureManager,World,dddddd)",
+   "native": "csrc/engine/particles_live.c:new_large",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderParticle",
+   "sig": "(Tessellator,FFFFFFFF)V",
+   "native": "csrc/engine/raster_particles.c:draw_list",
+   "status": "exact",
+   "note": "own sheet, opaque with depth writes, per-quad brightness 240"
+  },
+  {
+   "kind": "method",
+   "name": "getBrightnessForRender",
+   "sig": "(F)I",
+   "native": "csrc/engine/particles_live.c:fx_brf",
+   "status": "exact",
+   "note": "61680"
+  },
+  {
+   "kind": "method",
+   "name": "onUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/particles_live.c:fx_update",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getFXLayer",
+   "sig": "()I",
+   "native": "csrc/engine/particles_live.c:kind_layer",
+   "status": "exact",
+   "note": "3"
+  },
+  {
+   "kind": "field",
+   "name": "field_110127_a",
+   "sig": "ResourceLocation",
+   "native": "csrc/engine/particles_live.h:live_fx",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityLargeExplodeFX",
+   "sig": "(TextureManager,World,double,double,double,double,double,double)",
+   "native": "csrc/engine/particles_live.c:new_large",
+   "status": "exact"
+  }
+ ],
+ "missing": [],
+ "notes": "Ported in csrc/engine/particles_live.c (constructor new_large, onUpdate in fx_update, getBrightnessForRender in fx_brf) and drawn by csrc/engine/raster_particles.c (draw_list, render_scale for the scale renderParticle animates). test_rendertick replays each recorded tick natively and compares every FX field bit for bit with the next frame row (lane/particles2).",
+ "path": "oracle/src/client/particle/EntityLargeExplodeFX.java"
+}

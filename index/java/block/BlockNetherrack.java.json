@@ -1,0 +1,50 @@
+{
+  "path": "oracle/src/block/BlockNetherrack.java",
+  "classes": [
+    "BlockNetherrack"
+  ],
+  "lines": 21,
+  "side": "common",
+  "category": "block",
+  "role": "Netherrack: the Nether's terrain rock, whose only behaviour of note is holding an eternal fire above it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/fire.c",
+      "symbols": [
+        "netherrack_below"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/nether-trip-s1",
+    "csrc/tests/test_populate.c"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockNetherrack",
+      "sig": "()V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "row 87: rock material, hardness 0.4"
+    },
+    {
+      "kind": "method",
+      "name": "getMapColor",
+      "sig": "(I)Lnet/minecraft/block/material/MapColor;",
+      "native": null,
+      "status": "n/a",
+      "note": "maps are off (world.conf maps = off)"
+    }
+  ],
+  "missing": [],
+  "notes": "The terrain row plus the generic dig paths cover the block; the eternal-fire exemption lives in fire.c's netherrack_below check, exercised by the nether recordings."
+}

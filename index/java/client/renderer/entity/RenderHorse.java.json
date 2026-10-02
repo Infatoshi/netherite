@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderHorse.java",
+  "classes": ["RenderHorse"],
+  "lines": 138,
+  "side": "client",
+  "category": "client_render",
+  "role": "Living renderer for horses, donkeys, mules and their undead variants: per-variant textures through a layered-texture cache, saddle and chest layers in renderModel, and the horse-specific pre-render scaling.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has horses = off: horses, donkeys and mules are out of every spawn list, so EntityHorse never exists in the game both sides run.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_110852_a, whiteHorseTextures, muleTextures, donkeyTextures, zombieHorseTextures, skeletonHorseTextures", "sig": "Map / ResourceLocation (static)", "native": null, "status": "n/a", "note": "static constants, grouped"},
+    {"kind": "ctor", "name": "RenderHorse", "sig": "(ModelBase,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityHorse,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "renderModel", "sig": "(EntityHorse,float,float,float,float,float,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityHorse)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_110848_b", "sig": "(EntityHorse)ResourceLocation", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "preRenderCallback", "sig": "(EntityLivingBase,float)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "renderModel", "sig": "(EntityLivingBase,...)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

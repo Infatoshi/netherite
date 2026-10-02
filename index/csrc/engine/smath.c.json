@@ -1,0 +1,37 @@
+{
+ "path": "csrc/engine/smath.c",
+ "lines": 885,
+ "role": "fdlibm's sin, cos, pow and atan2 (with its rem_pio2 argument reduction), ported unchanged so java.lang.Math.sin/cos and StrictMath.pow/atan2 results match bit for bit.",
+ "layer": "util",
+ "java": [],
+ "structs": [
+  {
+   "name": "two_over_pi",
+   "java": null,
+   "fields": []
+  },
+  {
+   "name": "npio2_hw",
+   "java": null,
+   "fields": []
+  },
+  {
+   "name": "PIo2",
+   "java": null,
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "fd_sin",
+  "fd_cos",
+  "fd_pow",
+  "fd_atan2"
+ ],
+ "tick_path": true,
+ "gpu": [],
+ "tests": [
+  "csrc/tests/test_slimes.c",
+  "csrc/tests/test_projectiles.c"
+ ],
+ "notes": "Ports the JDK's StrictMath (fdlibm), not a oracle/src file. Only static const tables; no mutable state, allocation or recursion. Callers include ai.c, living.c, projectile.c, dragon.c and several hostiles files, so it runs in the tick; the tests listed are tick tests that go through those callers, not direct unit tests of smath."
+}

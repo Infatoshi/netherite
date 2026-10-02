@@ -1,0 +1,31 @@
+{
+ "path": "csrc/engine/jhashmap.c",
+ "lines": 157,
+ "role": "The JDK 8 HashMap order emulation for a Long-keyed map (MapGenStructure.structureMap): tail-append put, the resize that splits each chain into low and high halves in chain order, and bucket-ascending iteration. The ChunkPosition-keyed set the explosion used is jorder.c's computed order now (lane/gpuorder, L4).",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStructure.java",
+   "members": [
+    "structureMap"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "jhm64_init",
+  "jhm64_free",
+  "jhm64_put",
+  "jhm64_size",
+  "jhm64_contains",
+  "jhm64_order"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "jhm64_init and jhm64_put: calloc of the table and malloc of one node per new key; chains of heap pointers. It serves worldgen's structure map (populate.c, populate_nether.c), outside L4's list; the explosion's ChunkPosition set moved to jorder.c (lane/gpuorder, L4)"
+ ],
+ "tests": [
+  "csrc/tests/test_populate.c"
+ ],
+ "notes": "HashMap and HashSet are JDK classes, so there is no oracle/src file for the container itself; the Java entries list the vanilla fields whose iteration order this reproduces. jhm_put resizes after the insert when n > 3/4 cap; the comment argues the order is the same as JDK's pre-insert threshold test. jhm64 emulates treeifyBin's resize-below-64 branch; jhm does not. For the GPU, the order could be precomputed as data (sort keys by the emulated order) rather than built with a heap map."
+}

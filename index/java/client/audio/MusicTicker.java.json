@@ -1,0 +1,108 @@
+{
+ "path": "oracle/src/client/audio/MusicTicker.java",
+ "classes": [
+  "MusicTicker",
+  "MusicTicker.MusicType"
+ ],
+ "lines": 90,
+ "side": "client",
+ "category": "client_audio",
+ "role": "Client background-music scheduler: picks the music type for the current situation (menu, game, creative, nether, end, boss, credits) and starts a track after a random delay.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_147679_a",
+   "sig": "Random",
+   "native": null,
+   "status": "n/a",
+   "note": "netherite Det.newRandom(): its own stream, so its draws never touch game RNG"
+  },
+  {
+   "kind": "field",
+   "name": "field_147677_b",
+   "sig": "Minecraft",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_147678_c",
+   "sig": "ISound",
+   "native": null,
+   "status": "n/a",
+   "note": "current track"
+  },
+  {
+   "kind": "field",
+   "name": "field_147676_d",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "ticks until next track"
+  },
+  {
+   "kind": "ctor",
+   "name": "MusicTicker",
+   "sig": "(Minecraft)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "update",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "called from Minecraft.runTick; in agent mode playSound is a no-op because the sound system never starts"
+  },
+  {
+   "kind": "field",
+   "name": "MusicType constants",
+   "sig": "MENU..END enum constants with location and min/max delay",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "MusicType.field_148645_h/field_148646_i/field_148643_j",
+   "sig": "ResourceLocation,int,int",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "MusicType",
+   "sig": "(String,int,ResourceLocation,int,int)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "MusicType.func_148635_a",
+   "sig": "()ResourceLocation",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "MusicType.func_148634_b",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "MusicType.func_148633_c",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "The oracle's determinize pass gave this Random its own Det stream, so music scheduling cannot shift any recorded RNG. Minecraft.func_147109_W (the music-type choice) lives in Minecraft.java."
+}

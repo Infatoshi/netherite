@@ -1,0 +1,15 @@
+{
+ "path": "csrc/tests/allocount.c",
+ "lines": 54,
+ "role": "The heap allocation counter the phase profiler reads: built as out/native/allocount.so and preloaded by make phase-profile, it counts every malloc, calloc, realloc and aligned allocation in nw_alloc_calls (found by dlsym) and hands each to glibc's __libc_* allocator. Not linked into any tool (the Makefile's BIN leaves it out).",
+ "layer": "test",
+ "java": [],
+ "structs": [],
+ "entry_points": [
+  "nw_alloc_calls"
+ ],
+ "tick_path": false,
+ "gpu": [],
+ "tests": [],
+ "notes": ""
+}

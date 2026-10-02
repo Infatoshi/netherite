@@ -1,0 +1,18 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderMinecartMobSpawner.java",
+  "classes": ["RenderMinecartMobSpawner"],
+  "lines": 27,
+  "side": "client",
+  "category": "client_render",
+  "role": "Minecart renderer for the mob-spawner cart: after RenderMinecart's body it draws the spawner tile entity inside the cart.",
+  "scope": "switched_off",
+  "scope_reason": "world.conf has minecarts = off: a spawner minecart can never exist (mineshaft chest carts are never spawned and no cart can be placed).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "func_147910_a", "sig": "(EntityMinecartMobSpawner,float,Block,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_147910_a", "sig": "(EntityMinecart,float,Block,int)V (bridge)", "native": null, "status": "n/a", "note": "synthetic bridge"}
+  ],
+  "missing": []
+}

@@ -1,0 +1,91 @@
+{
+ "path": "csrc/engine/leash.c",
+ "lines": 377,
+ "role": "Leads: the lead click on a mob (and on a mob leashed to the player), the fence tie with its knot, the knot's retie and untie, EntityCreature.updateLeashedState (home area, the restriction task, the path, the pull, the 10-block break and the lead drop), recreateLeash after a reload, and the Leash NBT.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "interactFirst (the lead half)",
+    "updateLeashedState",
+    "clearLeashed",
+    "allowLeashing",
+    "setLeashedToEntity",
+    "recreateLeash",
+    "writeEntityToNBT (Leash)",
+    "readEntityFromNBT (Leashed, Leash)"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateLeashedState"
+   ]
+  },
+  {
+   "path": "oracle/src/item/ItemLead.java",
+   "members": [
+    "onItemUse",
+    "func_150909_a"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockFence.java",
+   "members": [
+    "onBlockActivated"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLeashKnot.java",
+   "members": [
+    "interactFirst",
+    "func_110129_a",
+    "getKnotForBlock"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityVillager.java",
+   "members": [
+    "allowLeashing"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/passive/EntityAmbientCreature.java",
+   "members": [
+    "allowLeashing"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "living leash fields",
+   "java": "EntityLiving.isLeashed, leashedToEntity, field_110170_bx; EntityCreature.field_110180_bt",
+   "fields": [
+    "is_leashed",
+    "leash_holder",
+    "leash_knot",
+    "leash_pending",
+    "leash_ai"
+   ]
+  }
+ ],
+ "entry_points": [
+  "leash_bind",
+  "leash_interact_first",
+  "leash_tie_to_fence",
+  "leash_knot_interact",
+  "leash_update",
+  "leash_write_nbt",
+  "leash_read_nbt"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "leash_sr: static global pointer to the replay (the player twin and the knot pool)",
+  "leash_knot: a living names its knot by fhref (generation-checked slot handle) (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Recording out/java/snapshots/lead-s1 (lane/ride). The knot is the fall/hang pool's FH_KNOT (fallhang.c), tracked to the client as pickobj.c's PK_KNOT. lane/idxentity: allow_leashing refuses the villager and the bat."
+}

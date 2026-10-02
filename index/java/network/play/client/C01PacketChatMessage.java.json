@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/network/play/client/C01PacketChatMessage.java",
+  "classes": ["C01PacketChatMessage"],
+  "lines": 64,
+  "side": "client",
+  "category": "network",
+  "role": "A chat line the player typed (truncated to 100 chars); the server runs it through the command parser or broadcasts it.",
+  "scope": "not_needed",
+  "scope_reason": "No chat is ever typed in this game: agents act through the act stream, the chat GUI is among raster_hud.c's not-drawn screens, and the dev ops (give, summon, orb) bypass chat entirely.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_149440_a (message)", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "C01PacketChatMessage", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readPacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing; the native engine has no network"},
+    {"kind": "method", "name": "writePacketData", "sig": "(PacketBuffer)V", "native": null, "status": "n/a", "note": "wire framing"},
+    {"kind": "method", "name": "processPacket", "sig": "(INetHandlerPlayServer)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_149439_c", "sig": "()String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "serialize", "sig": "()String", "native": null, "status": "n/a", "note": "logging only"}
+  ],
+  "missing": [],
+  "notes": "Commands the game itself needs (the /summon-style dev ops) run through the oracle's --dev sidecar, not chat; see the dev op notes in AGENTS.md."
+}

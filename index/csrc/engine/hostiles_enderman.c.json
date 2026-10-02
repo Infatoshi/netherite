@@ -1,0 +1,134 @@
+{
+ "path": "csrc/engine/hostiles_enderman.c",
+ "lines": 970,
+ "role": "The EntityEnderman kind on the old (non-task) AI: attributes and constructor, the living tick (wet damage, attacking speed boost, mobGriefing block pick-up and place, portal-particle draws, daylight and wet teleports, scream reset, stare and teleport-to-target), the stare check that makes it aggressive, teleportTo/teleportRandomly/teleportToEntity, attackEntityFrom with the indirect-source teleport loop, EntityCreature.updateEntityActionState with EntityLiving's old-AI else branch, ender pearl drops, the carried NBT keys and the 44-byte enderman block of the hostile state record.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntityEnderman.java",
+   "members": [
+    "EntityEnderman",
+    "applyEntityAttributes",
+    "onLivingUpdate",
+    "findPlayerToAttack",
+    "shouldAttackPlayer",
+    "teleportRandomly",
+    "teleportToEntity",
+    "teleportTo",
+    "attackEntityFrom",
+    "dropFewItems",
+    "writeEntityToNBT",
+    "carriableBlocks",
+    "attackingSpeedBoostModifierUUID",
+    "attackingSpeedBoostModifier",
+    "teleportDelay",
+    "stareTimer",
+    "lastEntityToAttack",
+    "isAggressive",
+    "func_146080_a",
+    "func_146081_a",
+    "func_146082_f",
+    "func_146083_cb",
+    "func_146084_a",
+    "func_146085_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityCreature.java",
+   "members": [
+    "updateEntityActionState",
+    "updateWanderPath",
+    "field_110181_i",
+    "fleeingTick",
+    "hasAttacked",
+    "entityToAttack",
+    "pathToEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLiving.java",
+   "members": [
+    "updateEntityActionState",
+    "getVerticalFaceSpeed",
+    "faceEntity",
+    "despawnEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMob.java",
+   "members": [
+    "onLivingUpdate",
+    "attackEntityAsMob",
+    "attackEntity",
+    "getBlockPathWeight"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "getLook",
+    "canEntityBeSeen",
+    "attackEntityFrom"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "attacking_speed_boost_modifier",
+   "java": "EntityEnderman.attackingSpeedBoostModifier (Attacking speed boost, 6.2, operation 0)",
+   "fields": [
+    "name",
+    "amount",
+    "operation",
+    "uuid_msb",
+    "uuid_lsb",
+    "saved"
+   ]
+  },
+  {
+   "name": "fleeing_speed_bonus_modifier",
+   "java": "EntityCreature.field_110181_i",
+   "fields": [
+    "name",
+    "amount",
+    "operation",
+    "uuid_msb",
+    "uuid_lsb",
+    "saved"
+   ]
+  },
+  {
+   "name": "vec3",
+   "java": "Vec3",
+   "fields": [
+    "x",
+    "y",
+    "z"
+   ]
+  }
+ ],
+ "entry_points": [
+  "enderman_construct",
+  "enderman_on_living_update",
+  "enderman_update_entity_action_state",
+  "enderman_attack_entity_from",
+  "enderman_drop_few_items",
+  "enderman_write_kind_nbt",
+  "enderman_write_extra",
+  "enderman_restore_speed_boost"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 259, function enderman_clear_path: free() of the heap path inside the tick; ai_creature_path_to_entity/xyz allocate new ones (lines 307, 612, 634)",
+  "line 422, function teleport_to: while loop walking down until a solid block, bounded by y > 0",
+  "lines 521-524, function enderman_attack_entity_from: up to 64 teleport attempts (bounded, dead in the probe)",
+  "lines 754 and 767, function enderman_on_living_update: world_set_block writes the shared world from inside a mob's tick",
+  "line 907, function enderman_drop_few_items: an_spawn_item heap allocation per pearl",
+  "line 953, function enderman_write_extra: hashes the whole path point array (bounded by path length)",
+  "references to other livings (entity_to_attack, attack_target, last targets, a projectile's shooter) are lrefs read through lv_get, and the old AI's path a pathref (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_hostiles.c"
+ ],
+ "notes": "PROBE_MOB_GRIEFING is hardcoded 1. The indirect-damage branch (arrows, thrown items) is ported but every current caller passes indirect=0 per the file header. The pumpkin-helmet check in shouldAttackPlayer is skipped (the probe player wears none), so a player wearing a pumpkin is not handled. The living_is_client_world guard stands for Java's !worldObj.isRemote; the name reads inverted but was not investigated. Java func_ names for the carried-block accessors are MCP guesses, not checked against EntityEnderman.java. Evidence recordings: out/java/hostiles e-2, e-42 and the fight-enderman-s1 snapshot. enderman_restore_speed_boost: a snapshot's enderman's unsaved speed boost."
+}

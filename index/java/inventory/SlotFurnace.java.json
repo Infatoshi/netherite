@@ -1,0 +1,101 @@
+{
+ "classes": [
+  "SlotFurnace"
+ ],
+ "lines": 111,
+ "side": "common",
+ "category": "inventory",
+ "role": "The furnace output slot: on pickup it spawns the smelt's XP orbs (field_75228_b orbs worth), resets the counter, and runs the acquireIron/cookFish achievement chain.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "furnace_out_on_pickup",
+    "slot_decr",
+    "slot_valid"
+   ]
+  },
+  {
+   "file": "csrc/engine/container.h",
+   "symbols": [
+    "furnace_used",
+    "furnace_xp",
+    "crafted"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/te-furnace-s1",
+  "out/java/snapshots/te-charcoal-s1",
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/cov-containers-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "thePlayer",
+   "sig": "EntityPlayer",
+   "native": null,
+   "status": "n/a",
+   "note": "single player"
+  },
+  {
+   "kind": "field",
+   "name": "field_75228_b",
+   "sig": "int",
+   "native": "csrc/engine/container.h:furnace_used",
+   "status": "exact",
+   "note": "the amount smelted since the last pickup"
+  },
+  {
+   "kind": "ctor",
+   "name": "SlotFurnace",
+   "sig": "(EntityPlayer,IInventory,III)V",
+   "native": "csrc/engine/container.c:container_init",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isItemValid",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/container.c:slot_valid",
+   "status": "exact",
+   "note": "cov-containers-s1: a click on the furnace output with a stack on the cursor"
+  },
+  {
+   "kind": "method",
+   "name": "decrStackSize",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:slot_decr",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onPickupFromSlot",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.c:furnace_out_on_pickup",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/item/ItemStack;I)V",
+   "native": "csrc/engine/container.h:furnace_xp",
+   "status": "partial",
+   "note": "the XP-orb server half is the container's furnace_xp callback (the orbs' entity spawn is another lane's)"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/container.h:crafted",
+   "status": "partial",
+   "note": "the achievement chain through the crafted callback"
+  }
+ ],
+ "missing": [],
+ "notes": "te-furnace-s1 takes the output with 6 XP from 8 iron ore, so the orb count and the counter reset are replay-proven; the orb entities themselves are deliberately out of this port (container.h).",
+ "path": "oracle/src/inventory/SlotFurnace.java"
+}

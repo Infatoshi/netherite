@@ -1,0 +1,351 @@
+{
+ "path": "oracle/src/client/gui/GuiScreen.java",
+ "classes": [
+  "GuiScreen"
+ ],
+ "lines": 420,
+ "side": "client",
+ "category": "client_gui",
+ "role": "Base class of every screen: the scaled resolution, the button and label lists, input dispatch (mouse, keyboard, clipboard), the dark background gradients, tooltips and the pause flag.",
+ "scope": "in_scope",
+ "scope_reason": "The container screens, the death screen and the pause behaviour the native client drives all live in this class's contract.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/gui_screens.c",
+   "symbols": [
+    "gui_screen_layout",
+    "gui_screen_hit"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_hud.c",
+   "symbols": [
+    "screen_gradient",
+    "screen_tooltip",
+    "screen_button"
+   ]
+  },
+  {
+   "file": "csrc/play/play.c",
+   "symbols": [
+    "gui_close",
+    "gui_respawn",
+    "cmd_down",
+    "modifier_event"
+   ]
+  },
+  {
+   "file": "csrc/engine/session.c",
+   "symbols": [
+    "game_paused"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/gui_inventory",
+  "out/java/render/gui_death",
+  "out/java/snapshots/screens-pickaxe-s1",
+  "csrc/tests/test_render.c",
+  "csrc/tests/test_containers.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "itemRender (static)",
+   "sig": "RenderItem",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "mc",
+   "sig": "Minecraft",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "width",
+   "sig": "int",
+   "native": "csrc/engine/gui_screens.c:gui_screen_layout",
+   "status": "partial",
+   "note": "the scaled sw/sh the screens use"
+  },
+  {
+   "kind": "field",
+   "name": "height",
+   "sig": "int",
+   "native": "csrc/engine/gui_screens.c:gui_screen_layout",
+   "status": "partial"
+  },
+  {
+   "kind": "field",
+   "name": "field_146291_p",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "allowUserInput; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "fontRendererObj",
+   "sig": "FontRenderer",
+   "native": "csrc/engine/raster_hud.c:font_string",
+   "status": "partial",
+   "note": "the overlay's font struct"
+  },
+  {
+   "kind": "field",
+   "name": "buttonList",
+   "sig": "List",
+   "native": null,
+   "status": "n/a",
+   "note": "no button objects; screens draw and hit-test inline; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "labelList",
+   "sig": "List",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "selectedButton",
+   "sig": "GuiButton",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "eventButton",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "lastMouseEvent",
+   "sig": "long",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "field",
+   "name": "field_146298_h",
+   "sig": "int",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "drawScreen",
+   "sig": "(int,int,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty base; each native screen draws in raster_hud.c or not at all; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "keyTyped",
+   "sig": "(char,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the native client's keys go through the recorded input snapshot (play.c); not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "getClipboardString",
+   "sig": "()String (static)",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "setClipboardString",
+   "sig": "(String)V (static)",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "func_146285_a",
+   "sig": "(ItemStack,int,int)V",
+   "native": "csrc/engine/raster_hud.c:screen_tooltip",
+   "status": "partial",
+   "note": "renderToolTip: the hovered slot's item name"
+  },
+  {
+   "kind": "method",
+   "name": "func_146279_a",
+   "sig": "(String,int,int)V",
+   "native": "csrc/engine/raster_hud.c:screen_tooltip",
+   "status": "n/a",
+   "note": "the one-line hover text: GuiContainerCreative (no creative mode), GuiBeacon (beacon = off) and GuiChat's hovers for an item or achievement that fails to parse, which no vanilla message carries (lane/covclient)"
+  },
+  {
+   "kind": "method",
+   "name": "func_146283_a",
+   "sig": "(List,int,int)V",
+   "native": "csrc/engine/raster_hud.c:screen_tooltip",
+   "status": "partial",
+   "note": "one-line tooltips only; no wrapped list"
+  },
+  {
+   "kind": "method",
+   "name": "mouseClicked",
+   "sig": "(int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "handled as recorded gui click ops in play.c; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "mouseMovedOrUp",
+   "sig": "(int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "mouseClickMove",
+   "sig": "(int,int,int,long)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the drag path is the recorded click mode (screens-drag-s1); not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "actionPerformed",
+   "sig": "(GuiButton)V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "setWorldAndResolution",
+   "sig": "(Minecraft,int,int)V",
+   "native": "csrc/engine/gui_screens.c:gui_screen_layout",
+   "status": "partial",
+   "note": "the scale computation"
+  },
+  {
+   "kind": "method",
+   "name": "initGui",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty base; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "handleInput",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "the native client polls SDL and writes gui ops in play.c; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "handleMouseInput",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "handleKeyboardInput",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "updateScreen",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty base; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "onGuiClosed",
+   "sig": "()V",
+   "native": "csrc/play/play.c:gui_close",
+   "status": "partial",
+   "note": "the close gui op"
+  },
+  {
+   "kind": "method",
+   "name": "drawDefaultBackground",
+   "sig": "()V",
+   "native": "csrc/engine/raster_hud.c:screen_gradient",
+   "status": "partial",
+   "note": "the dark gradient over the world; the options-background tiled texture branch is not drawn"
+  },
+  {
+   "kind": "method",
+   "name": "func_146270_b",
+   "sig": "(int)V",
+   "native": "csrc/engine/raster_hud.c:screen_gradient",
+   "status": "partial",
+   "note": "drawWorldBackground"
+  },
+  {
+   "kind": "method",
+   "name": "func_146278_c",
+   "sig": "(int)V",
+   "native": "csrc/engine/raster_hud.c:screen_gradient",
+   "status": "n/a",
+   "note": "the dirt background: drawWorldBackground draws it only with no world (the main menu), and GuiDownloadTerrain.drawScreen (client_cosmetic) never gets a frame: the S08 after the S07 closes it in the same packet pass (lane/covclient)"
+  },
+  {
+   "kind": "method",
+   "name": "doesGuiPauseGame",
+   "sig": "()Z",
+   "native": "csrc/engine/session.c:game_paused",
+   "status": "n/a",
+   "note": "the base's true: every screen a run shows overrides it (GuiContainer, GuiChat and GuiSleepMP, GuiGameOver, GuiWinGame, GuiDownloadTerrain, the oracle's JoinScreen); the screens keeping it (GuiIngameMenu, GuiScreenBook, GuiEditSign, GuiCommandBlock, GuiYesNo) are never opened: book_editing and sign_editing are off and Escape only releases the mouse (lane/covclient)"
+  },
+  {
+   "kind": "method",
+   "name": "confirmClicked",
+   "sig": "(boolean,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty base; not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "isCtrlKeyDown",
+   "sig": "()Z (static)",
+   "native": "csrc/play/play.c:cmd_down",
+   "status": "partial",
+   "note": "the native client tracks the key state for the input snapshot"
+  },
+  {
+   "kind": "method",
+   "name": "isShiftKeyDown",
+   "sig": "()Z (static)",
+   "native": "csrc/engine/gui_input.c:gui_input_modifier",
+   "status": "exact",
+   "note": "Keyboard.isKeyDown as the last frame polled it (gui_input_frame)"
+  }
+ ],
+ "missing": [],
+ "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): clipboard and raw input dispatch are replaced by gui ops. Formerly listed as missing: The clipboard helpers (getClipboardString, setClipboardString) have no native counterpart. The options-background tiled texture branch of drawDefaultBackground is not drawn (only the dark gradient). A container screen's input is dispatched as handleInput does it (csrc/engine/gui_input.c:gui_input_run: the Mouse queue, then the Keyboard queue, inside the client tick; lane/clientui); the other screens' input goes through the recorded input snapshot and gui ops (play.c). func_146283_a (drawHoveringText) draws every tooltip line with the first line's 2-pixel gap (raster_hud.c screen_tooltip)."
+}

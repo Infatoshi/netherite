@@ -1,0 +1,33 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIMoveThroughVillage.java",
+  "classes": ["EntityAIMoveThroughVillage"],
+  "lines": 175,
+  "side": "server",
+  "category": "ai",
+  "role": "Makes a zombie (or a non-nocturnal golem at night) walk through a village door by door: picks the nearest unvisited door of the nearest village, paths to it with door-breaking off, and remembers visited doors.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_setup_kind", "random_target_towards"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/fight-zombie-s1", "out/java/snapshots/persist-village-full-s42", "csrc/tests/test_hostiles.c"],
+  "members": [
+    {"kind": "field", "name": "theEntity", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "movementSpeed", "sig": "double", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "1.0 zombie, 0.6 golem"},
+    {"kind": "field", "name": "entityPathNavigate", "sig": "PathEntity", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "not stored: the native shouldExecute paths directly with nav_try_move_to_xyz, so the Java field's round trip through startExecuting is equivalent"},
+    {"kind": "field", "name": "doorInfo", "sig": "VillageDoorInfo", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.front_door"},
+    {"kind": "field", "name": "isNocturnal", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.nocturnal; the golem passes true, the zombie false"},
+    {"kind": "field", "name": "doorList", "sig": "List", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.visited_doors[16][3] with nvisited_doors, a fixed-capacity ring instead of the ArrayList"},
+    {"kind": "ctor", "name": "EntityAIMoveThroughVillage", "sig": "(EntityCreature,double,boolean)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_MOVE_THROUGH_VILLAGE, mutex 1"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_MOVE_THROUGH_VILLAGE case: trims the visited list, the nocturnal daytime block, findNearestVillage(0), the nearest unvisited door, then paths with can_pass_closed_doors cleared and falls back to findRandomTargetBlockTowards(10,7)"},
+    {"kind": "method", "name": "func_75412_a", "sig": "(Village)VillageDoorInfo", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "inlined: the nearest-door scan in the shouldExecute case"},
+    {"kind": "method", "name": "func_75413_a", "sig": "(VillageDoorInfo)Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "inlined: the visited-door check"},
+    {"kind": "method", "name": "func_75414_f", "sig": "()V", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "inlined: the size > 15 trim"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "path and door further than (width + 4)^2"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "no-op case: the path was already set in shouldExecute"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "records the door as visited when there is no path or the door is within 4 blocks"}
+  ],
+  "missing": [],
+  "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

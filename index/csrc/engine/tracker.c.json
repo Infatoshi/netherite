@@ -1,0 +1,64 @@
+{
+ "path": "csrc/engine/tracker.c",
+ "lines": 277,
+ "role": "A partial port of EntityTracker/EntityTrackerEntry's position sync: per-class tracking range and update frequency, the multiply-by-32 position scaling, and one entry's per-tick choice of S15/S16/S17/S18 movement, S12 velocity and S19 head-look packets into a fixed packet buffer.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/EntityTrackerEntry.java",
+   "members": [
+    "sendLocationToAllClients",
+    "lastScaledXPosition",
+    "lastScaledYPosition",
+    "lastScaledZPosition",
+    "lastYaw",
+    "lastPitch",
+    "lastHeadMotion",
+    "ticks",
+    "ticksSinceLastForcedTeleport",
+    "updateFrequency",
+    "blocksDistanceThreshold",
+    "sendVelocityUpdates",
+    "ridingEntity",
+    "field_73143_t",
+    "motionX",
+    "motionY",
+    "motionZ"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityTracker.java",
+   "members": [
+    "addEntityToTracker",
+    "removeEntityFromAllTrackingPlayers"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "EnumEntitySize"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "tracker_multiply_by_32_and_round",
+  "tracker_init",
+  "tracker_find",
+  "tracker_remove",
+  "tracker_add",
+  "tracker_entry_tick",
+  "tracker_class_name",
+  "tracker_class_of"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "lines 43-66, tracker_find and tracker_remove: linear scans by id; tracker_remove swaps the last entry into the hole, so entry order depends on removal history rather than Java's tracked-entity set order",
+  "lines 94-130, function tracker_add: tracking range chosen by strcmp on the class name",
+  "function tracker_add: past TRACKER_MAX_ENTRIES (4096, the living list) the program stops with a message (list_full)"
+ ],
+ "tests": [
+  "csrc/tests/test_clientworld.c"
+ ],
+ "notes": "Used by combat.c (the replay's tracker for S12/S15-S19 to the client) and test_clientworld.c. Not ported relative to EntityTrackerEntry.sendLocationToAllClients: the S1B attach, S1C metadata and S20 attribute sends (func_111190_b), the riding-entity branch, the per-player watch set (tryStartWachingThis, the watched/watch_x fields exist but are unused), and ticksSinceLastForcedTeleport is only reset, never incremented. Only six class ranges are mapped (player, fish hook, arrow, item, falling block and XP orb, everything else 80/3/true), unlike EntityTracker.addEntityToTracker's full list. negative_check_s15_for_s17 is a test hook that deliberately sends S15 instead of S17. Java field names are from MCP naming and not each re-checked. lane/coldaudit: tracker_add's range and frequency choice switches on enum tracker_class; the index probes (id, entry) slots over index_mask + 1 slots, tracker_rehash growing it to twice the entries."
+}

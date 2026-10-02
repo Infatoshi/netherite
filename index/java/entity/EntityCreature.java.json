@@ -1,0 +1,308 @@
+{
+ "path": "oracle/src/entity/EntityCreature.java",
+ "classes": [
+  "EntityCreature"
+ ],
+ "lines": 402,
+ "side": "server",
+ "category": "ai",
+ "role": "The mob brain's middle layer: the attack target, the flee-on-hit speed modifier, the pathing decision in updateEntityActionState, the wander pick, the home area, and the leash drag.",
+ "scope": "in_scope",
+ "scope_reason": "Every ported mob is an EntityCreature and its AI state is digest state.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/ai.c",
+   "symbols": [
+    "body_helper_update",
+    "ai_add_leash_restriction"
+   ]
+  },
+  {
+   "file": "csrc/engine/hostiles_enderman.c",
+   "symbols": [
+    "enderman_update_entity_action_state",
+    "enderman_update_wander_path",
+    "fleeing_speed_bonus_modifier"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.h",
+   "symbols": [
+    "entity_to_attack",
+    "home_x",
+    "maximum_home_distance"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "can_spawn_here_base",
+    "can_spawn_here_monster",
+    "can_spawn_here_animal"
+   ]
+  },
+  {
+   "file": "csrc/engine/leash.c",
+   "symbols": [
+    "leash_update"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_hostiles.c",
+  "out/java/snapshots/fight-enderman-s1",
+  "out/java/snapshots/fight-skeleton-s1",
+  "out/java/snapshots/combat-mobs-s1",
+  "out/java/snapshots/lead-s1",
+  "out/java/snapshots/fight-spider-s1",
+  "out/java/snapshots/fight-pigmen-s1",
+  "out/java/snapshots/fight-silverfish-s1",
+  "out/java/snapshots/arrow-reload-s1",
+  "out/java/snapshots/pfc-knotportal-s4"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_110179_h",
+   "sig": "static UUID",
+   "native": "csrc/engine/hostiles_enderman.c:fleeing_speed_bonus_modifier",
+   "status": "exact",
+   "note": "the fleeing speed modifier's UUID"
+  },
+  {
+   "kind": "field",
+   "name": "field_110181_i",
+   "sig": "static AttributeModifier",
+   "native": "csrc/engine/hostiles_enderman.c:fleeing_speed_bonus_modifier",
+   "status": "exact",
+   "note": "Fleeing speed bonus, 2.0, op 2, not saved"
+  },
+  {
+   "kind": "field",
+   "name": "pathToEntity",
+   "sig": "PathEntity",
+   "native": "csrc/engine/living.h:creature_path",
+   "status": "exact",
+   "note": "a pathref on the living (living.h creature_path): the old-AI kinds' path (enderman, pigman, spider, cave spider, silverfish, blaze), set and followed by their updateEntityActionState ports"
+  },
+  {
+   "kind": "field",
+   "name": "entityToAttack",
+   "sig": "Entity",
+   "native": "csrc/engine/living.h:entity_to_attack",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "hasAttacked",
+   "sig": "boolean",
+   "native": "csrc/engine/living.h:has_attacked",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "fleeingTick",
+   "sig": "int",
+   "native": "csrc/engine/living.h:fleeing_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "homePosition",
+   "sig": "ChunkCoordinates",
+   "native": "csrc/engine/living.h:home_x",
+   "status": "exact",
+   "note": "home_x/home_y/home_z"
+  },
+  {
+   "kind": "field",
+   "name": "maximumHomeDistance",
+   "sig": "float",
+   "native": "csrc/engine/living.h:maximum_home_distance",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_110178_bs",
+   "sig": "EntityAIBase",
+   "native": "csrc/engine/ai.c:ai_add_leash_restriction",
+   "status": "exact",
+   "note": "the EntityAIMoveTowardsRestriction(1.0) task the leash adds at priority 2 (leash.c leash_update adds it, ai_remove_task takes it off)"
+  },
+  {
+   "kind": "field",
+   "name": "field_110180_bt",
+   "sig": "boolean",
+   "native": "csrc/engine/living.h:leash_ai",
+   "status": "exact",
+   "note": "the task latch: set with the task, cleared when the leash goes"
+  },
+  {
+   "kind": "ctor",
+   "name": "EntityCreature",
+   "sig": "(World)V",
+   "native": null,
+   "status": "n/a",
+   "note": "chained"
+  },
+  {
+   "kind": "method",
+   "name": "isMovementCeased",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false in the base; the per-mob updates set has_attacked = 0 where Java's override would"
+  },
+  {
+   "kind": "method",
+   "name": "updateEntityActionState",
+   "sig": "()V",
+   "native": "csrc/engine/hostiles_enderman.c:enderman_update_entity_action_state",
+   "status": "exact",
+   "note": "per old-AI mob: the enderman, pigman, blaze, spider (living.c calls spider_update_entity_action_state as EntityCreature's), silverfish and squid bodies each carry the flee-tick expiry, the target pick, the attack, the path follow with the 30-degree clamp and the strafe turn, the water jump roll; proven by fight-enderman-s1, fight-spider-s1, fight-pigmen-s1, fight-silverfish-s1 and fight-blaze-s42; its searches read this.worldObj (ai.c ai_creature_path_to_entity through nav_scratch_take_world), so a pigman that went through a portal searches the destination (pigman-away-s1, lane/dawnscenes)"
+  },
+  {
+   "kind": "method",
+   "name": "updateWanderPath",
+   "sig": "()V",
+   "native": "csrc/engine/hostiles_enderman.c:enderman_update_wander_path",
+   "status": "exact",
+   "note": "the 10-candidate pick with the rand draws and getBlockPathWeight; ai.c:789 carries World.getEntityPathToXYZ"
+  },
+  {
+   "kind": "method",
+   "name": "attackEntity",
+   "sig": "(Entity,F)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in the base; per-mob overrides live with the mobs"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockPathWeight",
+   "sig": "(III)F",
+   "native": "csrc/engine/animals.c:animal_get_block_path_weight",
+   "status": "exact",
+   "note": "per kind: the animals' grass weight (animal_get_block_path_weight), EntityMob's 0.5 - brightness (hostiles_enderman.c and the spawner's can_spawn_here_monster)"
+  },
+  {
+   "kind": "method",
+   "name": "findPlayerToAttack",
+   "sig": "()Entity",
+   "native": "csrc/engine/hostiles_enderman.c:enderman_update_entity_action_state",
+   "status": "n/a",
+   "note": "n/a: the base body (null) is reached only from EntityCreature.updateEntityActionState, the old AI, and every old-AI creature overrides it (EntityMob, EntityAnimal, EntitySpider, EntityEnderman, EntitySilverfish, EntityPigZombie through EntityMob); the new-AI ones never run that method"
+  },
+  {
+   "kind": "method",
+   "name": "getCanSpawnHere",
+   "sig": "()Z",
+   "native": "csrc/engine/spawning.c:can_spawn_here_monster",
+   "status": "exact",
+   "note": "EntityCreature's getBlockPathWeight >= 0 over the base body: EntityMob's 0.5 - brightness in can_spawn_here_monster, the animals' zero weight in can_spawn_here_animal, both over can_spawn_here_base"
+  },
+  {
+   "kind": "method",
+   "name": "hasPath",
+   "sig": "()Z",
+   "native": "csrc/engine/living.h:entity_to_attack",
+   "status": "n/a",
+   "note": "the path pointer null test"
+  },
+  {
+   "kind": "method",
+   "name": "setPathToEntity",
+   "sig": "(PathEntity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "folded"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityToAttack",
+   "sig": "()Entity",
+   "native": "csrc/engine/living.h:entity_to_attack",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setTarget",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/living.h:entity_to_attack",
+   "status": "n/a",
+   "note": "n/a: its one caller is EntityWolf (wolves = off)"
+  },
+  {
+   "kind": "method",
+   "name": "isWithinHomeDistanceCurrentPosition",
+   "sig": "()Z",
+   "native": "csrc/engine/ai.c:random_target_block",
+   "status": "n/a",
+   "note": "the home-distance tests live inside the wander/pathing helpers (ai.c:865, 897), which carry home_x/maximum_home_distance from the living"
+  },
+  {
+   "kind": "method",
+   "name": "isWithinHomeDistance",
+   "sig": "(III)Z",
+   "native": "csrc/engine/ai.c:random_target_block",
+   "status": "n/a",
+   "note": "the home-distance tests live inside the wander/pathing helpers (ai.c:865, 897), which carry home_x/maximum_home_distance from the living"
+  },
+  {
+   "kind": "method",
+   "name": "setHomeArea",
+   "sig": "(IIII)V",
+   "native": "csrc/engine/living.h:home_x",
+   "status": "exact",
+   "note": "home fields on the living"
+  },
+  {
+   "kind": "method",
+   "name": "getHomePosition",
+   "sig": "()ChunkCoordinates",
+   "native": "csrc/engine/living.h:home_x",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_110174_bM",
+   "sig": "()F",
+   "native": "csrc/engine/living.h:maximum_home_distance",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "detachHome",
+   "sig": "()V",
+   "native": "csrc/engine/living.h:maximum_home_distance",
+   "status": "exact",
+   "note": "reset to -1"
+  },
+  {
+   "kind": "method",
+   "name": "hasHome",
+   "sig": "()Z",
+   "native": "csrc/engine/living.h:maximum_home_distance",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateLeashedState",
+   "sig": "()V",
+   "native": "csrc/engine/leash.c:leash_update",
+   "status": "exact",
+   "note": "home to the holder, the restriction task at 2, the 4/6/10 path, pull and break; the holder must be in this world: a knot of the world a portal left behind is not pathed to (leash.c leash_update, pfc-knotportal-s4)"
+  },
+  {
+   "kind": "method",
+   "name": "func_142017_o",
+   "sig": "(F)V",
+   "native": null,
+   "status": "n/a",
+   "note": "empty in the base"
+  }
+ ],
+ "missing": [],
+ "notes": "The per-mob updateEntityActionState bodies are indexed under each mob's file; this record cites the enderman's as the reference port. lane/idxentity: every open member verified against its port; the leash task pair is leash.c plus ai_add_leash_restriction. lane/reloadstate: updateEntityActionState's else branch (a dead entityToAttack is cleared) also takes a dead non-living entityToAttack (entity_to_attack_gone: the arrow of a shooterless hit) in hostiles_spider.c, hostiles_pigman.c, hostiles_silverfish.c and hostiles_blaze.c."
+}

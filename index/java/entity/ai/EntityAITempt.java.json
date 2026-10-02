@@ -1,0 +1,39 @@
+{
+  "path": "oracle/src/entity/ai/EntityAITempt.java",
+  "classes": ["EntityAITempt"],
+  "lines": 162,
+  "side": "server",
+  "category": "ai",
+  "role": "Lures an animal to a player holding the tempt item (carrot for pigs, wheat for cows and sheep, seeds for chickens): after a 100-tick cooldown it follows the closest player within 10 blocks until within 2.5 blocks.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["tempt_player", "ai_should_execute", "ai_continue_executing", "ai_start", "ai_update", "ai_reset", "ai_setup_kind"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/rc-animals-s1", "csrc/tests/test_animals.c"],
+  "members": [
+    {"kind": "field", "name": "temptedEntity", "sig": "EntityCreature", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the owning struct living"},
+    {"kind": "field", "name": "field_75282_b", "sig": "double", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "ai_task.speed, per kind (1.2 pig, 1.25 cow, 1.0 chicken, 1.1 sheep)"},
+    {"kind": "field", "name": "targetX", "sig": "double", "native": null, "status": "n/a", "note": "only consumed by the scaredByPlayerMovement branch, which no registrant enables; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "targetY", "sig": "double", "native": null, "status": "n/a", "note": "same as targetX; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "targetZ", "sig": "double", "native": null, "status": "n/a", "note": "same as targetX; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "field_75278_f", "sig": "double", "native": null, "status": "n/a", "note": "the player's previous rotationPitch for the scared check; dead in this game; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "field_75279_g", "sig": "double", "native": null, "status": "n/a", "note": "the player's previous rotationYaw for the scared check; dead in this game; not a gap (triage 2026-09-25)"},
+    {"kind": "field", "name": "temptingPlayer", "sig": "EntityPlayer", "native": "csrc/engine/ai.c:tempt_player", "status": "exact", "note": "folded: the engine's single player (an->player / an->has_player) plays the role; getClosestPlayerToEntity(10.0) becomes the distance check"},
+    {"kind": "field", "name": "delayTemptCounter", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.delay_tempt_counter"},
+    {"kind": "field", "name": "isRunning", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.tempt_running"},
+    {"kind": "field", "name": "field_151484_k", "sig": "Item", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.item_id; registered as 398/391 (pig), 296 (cow, sheep), 295 (chicken)"},
+    {"kind": "field", "name": "scaredByPlayerMovement", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.scared_by_movement; the field exists but every registrant passes false"},
+    {"kind": "field", "name": "field_75286_m", "sig": "boolean", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.tempt_old_avoid, the saved avoidsWater"},
+    {"kind": "ctor", "name": "EntityAITempt", "sig": "(EntityCreature,double,Item,boolean)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_TEMPT, priority 3 or 4, mutex 3, one entry per tempt item"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_TEMPT case: the decrementing delay, then the closest player within 10 blocks and the held item check"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "partial", "note": "the scaredByPlayerMovement branch (the 6-block movement and 5-degree look deltas) is not implemented; the native comment records that every tempting animal is built with scaredByPlayerMovement false, so it calls shouldExecute again, which matches the enabled path"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "isRunning = true, saves and clears avoidsWater"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "clears the path, delayTemptCounter = 100, isRunning = false, restores avoidsWater"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "looks at the player (eye height 1.62) at 30/40, clears the path within 2.5 blocks, otherwise re-paths to the player"},
+    {"kind": "method", "name": "isRunning", "sig": "()Z", "native": "csrc/engine/living.h:ai_task", "status": "n/a", "note": "its only caller is EntityOcelot (switched off)"}
+  ],
+  "missing": [],
+  "notes": "Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): scaredByPlayerMovement is true only for the ocelot, which is switched off. Formerly listed as missing: The scaredByPlayerMovement branch of continueExecuting (target tracking plus the 0.01-block and 5-degree movement tests) has no native counterpart; it is dead in this game because every registrant passes false."
+}

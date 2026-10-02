@@ -1,0 +1,84 @@
+{
+ "classes": [
+  "HoverEvent",
+  "HoverEvent.Action"
+ ],
+ "lines": 129,
+ "side": "common",
+ "category": "other",
+ "role": "One chat-component hover action (show text, show achievement, show item) with an IChatComponent value, held by ChatStyle for tooltip lines.",
+ "scope": "not_needed",
+ "scope_reason": "Only reachable through chat tooltips and GUI screens, which the native client never draws and the GPU/RL path does not need.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "action",
+   "sig": "HoverEvent.Action",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "value",
+   "sig": "IChatComponent",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "HoverEvent",
+   "sig": "(HoverEvent.Action,IChatComponent)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getAction",
+   "sig": "()HoverEvent.Action",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getValue",
+   "sig": "()IChatComponent",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "equals",
+   "sig": "(Object)Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "toString",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "hashCode",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Action (enum: SHOW_TEXT, SHOW_ACHIEVEMENT, SHOW_ITEM)",
+   "sig": "enum",
+   "native": null,
+   "status": "n/a",
+   "note": "static constants, grouped"
+  }
+ ],
+ "missing": [],
+ "notes": "",
+ "path": "oracle/src/event/HoverEvent.java"
+}

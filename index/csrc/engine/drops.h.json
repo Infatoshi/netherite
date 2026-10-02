@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/drops.h",
+ "lines": 92,
+ "role": "Declares the block-drop port: the spawned-entity record (an item stack or an XP orb with position, motion, yaw and hoverStart), the break case (block, meta, fortune, position, world Random seed, Math stream, optional out seed) and the break entry points over a seeded or caller-owned world Random.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/block/Block.java", "members": ["dropBlockAsItemWithChance", "dropBlockAsItem_do", "dropXpOnBlockBreak"]},
+  {"path": "oracle/src/entity/item/EntityXPOrb.java", "members": ["getXPSplit"]},
+  {"path": "oracle/src/item/Item.java", "members": ["getItemFromBlock"]}
+ ],
+ "structs": [
+  {"name": "drop_ent", "java": "one spawned EntityItem (stack, hoverStart) or EntityXPOrb (xpValue) with its position, motion and rotationYaw", "fields": ["kind", "item", "damage", "count", "xp", "x", "y", "z", "mx", "my", "mz", "yaw", "hover"]},
+  {"name": "drop_case", "java": "the arguments of one break: block, metadata, fortune, position, the world Random seed, the Math.random stream", "fields": ["block", "meta", "fortune", "x", "y", "z", "opseed", "math", "out_seed"]}
+ ],
+ "entry_points": ["drops_break", "drops_break_stream", "drops_skull_break_stream", "drops_item_break_stream", "drops_break_live", "drops_xp_split", "drops_block_item"],
+ "tick_path": true,
+ "gpu": ["line 57-58, struct drop_case: math and out_seed are pointers into the caller's state"],
+ "tests": ["csrc/tests/test_drops.c", "csrc/tests/test_harvestdrops.c", "csrc/tests/test_containers.c", "csrc/tests/test_place.c"],
+ "notes": "DROPS_MAX_ENTS is 256, a fixed cap for one break's output. drop_kind: DROP_ITEM 0, DROP_XP 1."
+}

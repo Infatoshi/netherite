@@ -1,0 +1,32 @@
+{
+  "path": "oracle/src/block/BlockBush.java",
+  "classes": ["BlockBush"],
+  "lines": 95,
+  "side": "common",
+  "category": "block",
+  "role": "The abstract bush base (flowers, tall grass, dead bushes, saplings, mushrooms): a plant with no collision that drops itself and pops when the floor under it can no longer hold it.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/blockcb.c", "symbols": ["bush_floor_ok", "bush_can_stay", "bush_neighbor", "blockcb_bush_floor_ok", "blockcb_can_stay"]},
+    {"file": "csrc/engine/randomtick.c", "symbols": ["bush_tick", "randomtick_update_tick"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_add_boxes"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]}
+  ],
+  "evidence": ["out/java/probes/fe-tallgrass-2", "out/java/snapshots/world-crops-s1", "csrc/tests/test_ticks.c", "csrc/tests/test_place.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockBush", "sig": "(Material)V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "The plant material, no bounds, no collision."},
+    {"kind": "method", "name": "canPlaceBlockAt", "sig": "(World,III)Z", "native": "csrc/engine/blockcb.c:blockcb_bush_floor_ok", "status": "exact", "note": "blockcb.c:394: the placement path runs the floor test through it."},
+    {"kind": "method", "name": "func_149854_a", "sig": "(World,III)Z", "native": "csrc/engine/blockcb.c:bush_floor_ok", "status": "exact", "note": "The floor test, overridden per subclass (sand for dead bush, soil for crops, and so on); blockcb.c:345 names it."},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:bush_neighbor", "status": "exact", "note": "blockcb.c:412; the pop is a flags-2 write so nothing is notified (blockcb.c:332)."},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:bush_tick", "status": "exact", "note": "The same canBlockStay test with the drop and the removal; randomtick.c:493."},
+    {"kind": "method", "name": "func_149855_e", "sig": "(World,III)Z", "native": "csrc/engine/blockcb.c:bush_neighbor", "status": "exact", "note": "blockcb.c:409 names it; the double plant's override is double_plant_tick in randomtick.c."},
+    {"kind": "method", "name": "canBlockStay", "sig": "(World,III)Z", "native": "csrc/engine/blockcb.c:bush_can_stay", "status": "exact", "note": "blockcb.c:375."},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "exact", "note": "Null collision: collide.c's no-box family covers the plant ids."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false."},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "1 (crossed squares); the dispatch at render_blocks.c:3084."}
+  ],
+  "missing": [],
+  "notes": "The subclasses (BlockFlower, BlockTallGrass, BlockDeadBush, BlockSapling, BlockMushroom, BlockCrops, BlockCocoa's host checks) override only the floor test and the drops; each carries its own record. The tallgrass probe (out/java/probes/fe-tallgrass-2) and test_ticks.c exercise the tick path."
+}

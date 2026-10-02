@@ -1,0 +1,18 @@
+{
+ "path": "csrc/engine/pick_table.h",
+ "lines": 267,
+ "role": "Generated Block.damageDropped per block id (0..255) and metadata: the default getDamageValue pick block reads. Written by netherite.oracle.PickTable via make -C oracle pick-h; never edited by hand.",
+ "layer": "util",
+ "java": [
+  {"path": "oracle/src/block/Block.java", "members": ["damageDropped", "getDamageValue"]},
+  {"path": "oracle/harness/netherite/oracle/PickTable.java", "members": []}
+ ],
+ "structs": [
+  {"name": "PICK_DAMAGE_DROPPED", "java": "Block.damageDropped(meta) for every registered block", "fields": []}
+ ],
+ "entry_points": ["PICK_DAMAGE_DROPPED"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Client-side input only (pick block); included by pickblock.c."
+}

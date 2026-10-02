@@ -1,0 +1,235 @@
+{
+ "path": "oracle/src/server/integrated/IntegratedServer.java",
+ "classes": [
+  "IntegratedServer"
+ ],
+ "lines": 228,
+ "side": "server",
+ "category": "server",
+ "role": "The integrated server: subclasses MinecraftServer with the client's world settings, the pause-and-save on menu, the difficulty from the client's game settings and the view distance from the render distance.",
+ "scope": "in_scope",
+ "scope_reason": "This is the server the oracle runs; the lockstep pins its tick and the native replay reproduces it. Nothing in world.conf switches any of it. Deferred: native never writes save files; Java writes every checkpoint (product decision, not a gap for the GPU or the golden chain) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "serverreplay_load",
+    "serverreplay_pause_save",
+    "serverreplay_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/chunkload.c",
+   "symbols": [
+    "cl_view_radius"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_world_setup"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_servertick.c",
+  "out/java/snapshots/play-reload2-s1",
+  "out/java/snapshots/cg-smoke-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "logger",
+   "sig": "static Logger",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "mc",
+   "sig": "Minecraft",
+   "native": null,
+   "status": "n/a",
+   "note": "the client back-reference; the native replay's two halves play that role"
+  },
+  {
+   "kind": "field",
+   "name": "theWorldSettings",
+   "sig": "WorldSettings",
+   "native": "csrc/engine/serverreplay.h:struct serverreplay",
+   "status": "exact",
+   "note": "seed, game type and terrain type come from the tape's resolved world, not a settings object"
+  },
+  {
+   "kind": "field",
+   "name": "isGamePaused",
+   "sig": "boolean",
+   "native": "csrc/engine/serverreplay.c:serverreplay_pause_save",
+   "status": "exact",
+   "note": "the pause save it gates is serverreplay_pause_save (serverreplay.h:287)"
+  },
+  {
+   "kind": "ctor",
+   "name": "IntegratedServer",
+   "sig": "(Minecraft,String,String,WorldSettings)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "the server as constructed (view distance 10, build limit 256), from the snapshot"
+  },
+  {
+   "kind": "method",
+   "name": "loadAllWorlds",
+   "sig": "(String,String,long,WorldType,String)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "the override builds the three worlds from theWorldSettings directly (no WorldInfo-from-disk branch); the replay loads the snapshot the oracle's own run produced"
+  },
+  {
+   "kind": "method",
+   "name": "startServer",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "the online-mode, animal, NPC, pvp, flight and keypair setup; auth work only"
+  },
+  {
+   "kind": "method",
+   "name": "tick",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_pause_save",
+   "status": "exact",
+   "note": "the pause save's marks; the view-distance sync at every unpaused tick's tail is session.c session_row's PH_VD (serverreplay.c serverreplay_set_view_distance) off the client's render distance a row's opts rd sets (an agent opts step; a person cannot change it in 1.7.10: setOptionValue has no RENDER_DISTANCE branch, so F3+F only toggles the debug screen), opts-rd-s1; the bytes are the oracle's"
+  },
+  {
+   "kind": "method",
+   "name": "canStructuresSpawn",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false; structure spawn is governed by the worldgen itself"
+  },
+  {
+   "kind": "method",
+   "name": "getGameType",
+   "sig": "()WorldSettings.GameType",
+   "native": null,
+   "status": "n/a",
+   "note": "survival in every recorded run"
+  },
+  {
+   "kind": "method",
+   "name": "func_147135_j",
+   "sig": "()EnumDifficulty",
+   "native": "csrc/engine/survival.c:surv_world_setup",
+   "status": "exact",
+   "note": "mc.gameSettings.difficulty reaches the native engine through surv_world_setup's difficulty argument and the snapshot's world info"
+  },
+  {
+   "kind": "method",
+   "name": "isHardcore",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "func_152363_m",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "getDataDirectory",
+   "sig": "()File",
+   "native": null,
+   "status": "n/a",
+   "note": "the client's mcDataDir"
+  },
+  {
+   "kind": "method",
+   "name": "isDedicatedServer",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false"
+  },
+  {
+   "kind": "method",
+   "name": "finalTick",
+   "sig": "(CrashReport)V",
+   "native": null,
+   "status": "n/a",
+   "note": "crashes the client"
+  },
+  {
+   "kind": "method",
+   "name": "addServerInfoToCrashReport",
+   "sig": "(CrashReport)CrashReport",
+   "native": null,
+   "status": "n/a",
+   "note": "crash decoration"
+  },
+  {
+   "kind": "method",
+   "name": "setGameType",
+   "sig": "(WorldSettings.GameType)V",
+   "native": null,
+   "status": "n/a",
+   "note": "the config manager's default game type; survival only"
+  },
+  {
+   "kind": "method",
+   "name": "isCommandBlockEnabled",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "true, and no command block runs"
+  },
+  {
+   "kind": "method",
+   "name": "func_110455_j",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "the op level, 4"
+  },
+  {
+   "kind": "ctor",
+   "name": "IntegratedServer$1",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in IntegratedServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "IntegratedServer$1.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in IntegratedServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "IntegratedServer$2",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in IntegratedServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "IntegratedServer$2.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in IntegratedServer.addServerInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  }
+ ],
+ "missing": [],
+ "notes": "play-reload2-s1 exercises the pause save and the reload path. The tick loop itself is proven by test_servertick.c; this class adds only the pause and view-distance branches over MinecraftServer.tick. Closed by lane/idxworld: the pause save's in-game effect (every world's unload marks, serverreplay_pause_save) and the view-distance sync (IntegratedServer.tick's func_152611_a when the client's render distance changes: serverreplay_set_view_distance since lane/harness2; before it only the join's tick-1 change ran) are ported; the constructor and the world load are the oracle's, which the snapshot holds. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings). Closed by lane/idxworld: the pause save's in-game effect (every world's unload marks, serverreplay_pause_save) and the view-distance sync (IntegratedServer.tick's func_152611_a when the client's render distance changes: cl_view_radius) are ported; the constructor and the world load are the oracle's, which the snapshot holds. The disk half is n/a (lane/idxworld): every save this game makes is the oracle's (a checkpoint's save, session.sh's Save and Quit through Java: AGENTS.md 'Playing a full game'), and the native engine reads what it wrote (region.c for the overworld's region files, the snapshot's saved chunks for DIM-1 and DIM1, structures.json, villages.nbt, worldinfo.nbt, player_server.nbt); writing those files natively is the deferred product work of the 2026-09-25 triage (SPEC.md NEXT, '11 deferred save-writing'; out/plan/remaining-2026-09-25.md, 'Deferred, not noise'). Within a session nothing reads a save back: an unloaded chunk waits whole in the in-memory region store (sr_store_chunk) with what writeChunkToNBT keeps of it (the entities it saves, in section order; the pending ticks relative to the world time), and a reload restores exactly that (the persist-* and play-reload recordings)."
+}

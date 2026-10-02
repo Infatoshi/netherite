@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/util/MouseHelper.java",
+  "classes": ["MouseHelper"],
+  "lines": 39,
+  "side": "client",
+  "category": "client_input",
+  "role": "LWJGL mouse device wrapper: cursor grab/release and the per-frame mouse deltas fed into look changes.",
+  "scope": "client_cosmetic",
+  "scope_reason": "SPEC records input as effects, not devices: look yaw/pitch arrive as per-tick look ops, so the device wrapper is not part of the gated path; the human client's SDL input sits outside the tick.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "deltaX", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "deltaY", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "grabMouseCursor", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "ungrabMouseCursor", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "mouseXYChange", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Not ported; csrc/play/play.c reads the OS devices itself for the human client and agents send look deltas directly."
+}

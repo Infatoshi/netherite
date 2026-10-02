@@ -1,0 +1,103 @@
+{
+ "path": "csrc/engine/structure.c",
+ "lines": 421,
+ "role": "The shared structure layer: StructureBoundingBox, StructureStart (piece list, bounding box, height placement, intersect search, NBT), per-piece NBT, buildComponent dispatch, the structure type registry and the MapGenBase/MapGenStructure candidate walk.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/world/gen/structure/StructureBoundingBox.java",
+   "members": [
+    "getNewBoundingBox",
+    "expandTo",
+    "offset",
+    "intersectsWith",
+    "getXSize",
+    "getYSize",
+    "getZSize",
+    "getComponentToAddBoundingBox",
+    "func_151535_h"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureStart.java",
+   "members": [
+    "updateBoundingBox",
+    "markAvailableHeight",
+    "setRandomHeight",
+    "func_143021_a",
+    "getComponents"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/StructureComponent.java",
+   "members": [
+    "func_143010_b",
+    "func_143012_a",
+    "buildComponent",
+    "findIntersecting"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStructure.java",
+   "members": [
+    "func_151538_a"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/MapGenBase.java",
+   "members": [
+    "func_151539_a",
+    "range"
+   ]
+  },
+  {
+   "path": "oracle/src/world/gen/structure/MapGenStructureIO.java",
+   "members": [
+    "func_143033_a"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "structure_types",
+   "java": "the MapGenStructure instances the chunk provider holds (mineshaft, temple, village, stronghold, fortress)",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "bbox_make",
+  "bbox_new_empty",
+  "bbox_expand_to",
+  "bbox_offset",
+  "bbox_intersects",
+  "bbox_xsize",
+  "bbox_ysize",
+  "bbox_zsize",
+  "bbox_component_to_add",
+  "start_init",
+  "start_add",
+  "start_update_bb",
+  "start_mark_available_height",
+  "start_set_random_height",
+  "start_find_intersecting",
+  "start_free",
+  "piece_nbt",
+  "start_nbt",
+  "piece_build_component",
+  "structure_type_by_name",
+  "start_list_free",
+  "structure_walk"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 115, function start_add: realloc of the start's piece pointer array (pointer graph of heap pieces)",
+  "line 377, function start_list_add: realloc of the start list",
+  "line 413, function structure_walk: malloc of each start",
+  "line 420, function structure_walk: qsort of the found starts (order imposed after the walk)"
+ ],
+ "tests": [
+  "csrc/tests/test_structures.c",
+  "csrc/tests/test_sblocks.c"
+ ],
+ "notes": "structure_walk is the region walk the structure tests use; in the game populate.c drives can_spawn and make_start itself, which runs when the tick generates a chunk. Evidence: out/java/structures. MCP/SRG member names are from comments (func_143010_b, func_143012_a, func_143021_a, func_151538_a, func_151539_a, func_143033_a); func_151535_h and getComponents are not verified."
+}

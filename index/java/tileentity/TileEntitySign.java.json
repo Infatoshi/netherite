@@ -1,0 +1,126 @@
+{
+  "path": "oracle/src/tileentity/TileEntitySign.java",
+  "classes": [
+    "TileEntitySign"
+  ],
+  "lines": 75,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The sign's block entity: four text lines, the editable flag and editing player, NBT and the S33 update-sign packet.",
+  "scope": "in_scope",
+  "scope_reason": "Signs are craftable and generate in villages; world.conf sign_editing = off means they are placed blank, so the text stays four empty lines.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/tileentity.h",
+      "symbols": [
+        "TE_SIGN"
+      ]
+    },
+    {
+      "file": "csrc/engine/tileentity.c",
+      "symbols": [
+        "render_sign",
+        "te_load"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "item_sign_on_item_use"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "out/java/place/big2",
+    "out/java/snapshots/details-blocks-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "field_145915_a",
+      "sig": "String[4] signText",
+      "native": "csrc/engine/tileentity.h:tile_entity",
+      "status": "exact",
+      "note": "sign_text, blank when placed (sign_editing is off)."
+    },
+    {
+      "kind": "field",
+      "name": "field_145918_i",
+      "sig": "int lineBeingEdited",
+      "native": null,
+      "status": "n/a",
+      "note": "client editor"
+    },
+    {
+      "kind": "field",
+      "name": "field_145916_j",
+      "sig": "boolean isEditable",
+      "native": null,
+      "status": "n/a",
+      "note": "sign_editing off"
+    },
+    {
+      "kind": "field",
+      "name": "field_145917_k",
+      "sig": "EntityPlayer editor",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "writeToNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:render_sign",
+      "status": "exact",
+      "note": "blank lines"
+    },
+    {
+      "kind": "method",
+      "name": "readFromNBT",
+      "sig": "(NBTTagCompound)V",
+      "native": "csrc/engine/tileentity.c:te_load",
+      "status": "exact",
+      "note": "Text1..Text4, each cut to 15 UTF-16 units; render_sign writes them back."
+    },
+    {
+      "kind": "method",
+      "name": "getDescriptionPacket",
+      "sig": "()Packet",
+      "native": null,
+      "status": "n/a",
+      "note": "The playable client draws each tile entity from the server's copy (one process: play.c, raster_tileent.c), so the description packet's content, sent whenever the server copy changes, is what it already reads; no row carries the client copy. Signs are placed blank (world.conf sign_editing = off)."
+    },
+    {
+      "kind": "method",
+      "name": "func_145914_a",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145913_a",
+      "sig": "(Z)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145912_a",
+      "sig": "(EntityPlayer)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_145911_b",
+      "sig": "()EntityPlayer",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "Village signs are generated blank in vanilla too. Whether chunk loads keep a non-blank sign via te_set_raw was not traced. lane/idxblocks: reviewed."
+}

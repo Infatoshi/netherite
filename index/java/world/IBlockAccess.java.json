@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/world/IBlockAccess.java",
+  "classes": ["IBlockAccess"],
+  "lines": 47,
+  "side": "common",
+  "category": "world",
+  "role": "The read-only block view World and ChunkCache implement: block, tile entity, metadata, light, biome, air test, height and strong power. Block methods take one so the same code runs on the world and the mesher's cache.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.h", "symbols": ["world_get_block", "world_get_meta", "world_tile_entity", "world_get_light", "world_get_biome"]},
+    {"file": "csrc/engine/render_blocks.c", "symbols": ["rb_world_block", "rb_world_meta", "rb_world_biome", "light_brightness"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_meshes.c"],
+  "members": [
+    {"kind": "method", "name": "getBlock", "sig": "(int,int,int)Block", "native": "csrc/engine/world.h:world_get_block", "status": "exact", "note": "rb_world_block on the render side"},
+    {"kind": "method", "name": "getTileEntity", "sig": "(int,int,int)TileEntity", "native": "csrc/engine/world.h:world_tile_entity", "status": "exact"},
+    {"kind": "method", "name": "getLightBrightnessForSkyBlocks", "sig": "(int,int,int,int)I", "native": "csrc/engine/render_blocks.c:light_brightness", "status": "partial", "note": "the ChunkCache form on the mesher; World's form is in raster_worldfx.c/particles_live.c"},
+    {"kind": "method", "name": "getBlockMetadata", "sig": "(int,int,int)I", "native": "csrc/engine/world.h:world_get_meta", "status": "exact"},
+    {"kind": "method", "name": "isAirBlock", "sig": "(int,int,int)Z", "native": null, "status": "partial", "note": "reimplemented as a static helper in each consumer (features_lakes.c, decorator.c, randomtick.c, render_blocks3.c...), no shared function"},
+    {"kind": "method", "name": "getBiomeGenForCoords", "sig": "(int,int)BiomeGenBase", "native": "csrc/engine/world.h:world_get_biome", "status": "exact", "note": "returns the biome id"},
+    {"kind": "method", "name": "getHeight", "sig": "()I", "native": null, "status": "n/a", "note": "always 256; a constant in C"},
+    {"kind": "method", "name": "extendedLevelsInChunkCache", "sig": "()Z", "native": null, "status": "n/a", "note": "the mesher's empty-cache skip; not found in native; not a gap (triage 2026-09-25)"},
+    {"kind": "method", "name": "isBlockProvidingPowerTo", "sig": "(int,int,int,int)I", "native": null, "status": "n/a", "note": "redstone = off: native shorts it to 0 (place.c, blockcb.c comments)"}
+  ],
+  "missing": [],
+  "notes": "An interface: C has no single dispatch type; the server world (world.h) and the renderer's rb_world each expose their own accessors. Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): extendedLevelsInChunkCache only skips empty mesh work."
+}

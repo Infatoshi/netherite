@@ -1,0 +1,140 @@
+{
+  "path": "oracle/src/entity/effect/EntityLightningBolt.java",
+  "classes": [
+    "EntityLightningBolt"
+  ],
+  "lines": 136,
+  "side": "common",
+  "category": "entity",
+  "role": "The lightning bolt weather entity: the constructor ignites fire around the strike point, onUpdate runs the flash state machine, re-ignites fire and damages every entity in a 3-block box, and on the client it sets World.lastLightningBolt for the sky flash and feeds the bolt render.",
+  "scope": "in_scope",
+  "scope_reason": "Lightning is not on world.conf's switched-off list; the whole-server storm recording world-storm-s1 and the lightning oracle recordings cover it.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/lightning.c",
+      "symbols": [
+        "lightning_adopt",
+        "lightning_constructor_fire",
+        "lightning_tick",
+        "struct lightning_bolt"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "serverreplay_lightning_strike"
+      ]
+    },
+    {
+      "file": "csrc/engine/hostiles_creeper.c",
+      "symbols": [
+        "creeper_lightning_bolt"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_things.c",
+      "symbols": [
+        "draw_bolt"
+      ]
+    },
+    {
+      "file": "csrc/engine/clientstate.c",
+      "symbols": [
+        "clientstate_bolt_spawn",
+        "clientstate_weather_tick"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/bed-wake-s1",
+    "csrc/tests/test_lightning.c",
+    "out/java/lightning/light2",
+    "out/java/lightning/light42",
+    "out/java/lightning/light2-no-fire",
+    "out/java/lightning/light2-easy",
+    "out/java/snapshots/world-storm-s1",
+    "out/java/render-src/ent_bolt",
+    "out/java/rendertick/cs_storm",
+    "csrc/tests/test_rendertick.c",
+    "out/java/snapshots/lightning-mobs-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "EntityLightningBolt",
+      "sig": "(Lnet/minecraft/world/World;DDD)V",
+      "native": "csrc/engine/lightning.c:lightning_constructor_fire",
+      "status": "exact",
+      "note": "server: the constructor's draws and fire. The client constructor (a Random and a UUID from the CLIENT seeder, boltVertex, boltLivingTime) is clientstate_bolt_spawn"
+    },
+    {
+      "kind": "method",
+      "name": "onUpdate",
+      "sig": "()V",
+      "native": "csrc/engine/lightning.c:lightning_tick",
+      "status": "exact",
+      "note": "server: lightning_tick, with the two sound pitch draws (ambient.weather.thunder, random.explode) spent where Java spends them; the sounds themselves are client audio. The client branch (lastLightningBolt = 2 while lightningState >= 0, the same draws, no fire) is clientstate.c clientstate_weather_tick, checked bolt for bolt on cs_storm. A bolt that hurts the player (serverreplay.c serverreplay_lightning_strike's player branch) sends the tracker pass's S1C of the new health and wakes a sleeper, bed-wake-s1"
+    },
+    {
+      "kind": "method",
+      "name": "entityInit",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "Empty override, no watcher data."
+    },
+    {
+      "kind": "method",
+      "name": "readEntityFromNBT",
+      "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Empty override; bolts live in World.weatherEffects and are never persisted."
+    },
+    {
+      "kind": "method",
+      "name": "writeEntityToNBT",
+      "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Empty override; see readEntityFromNBT."
+    },
+    {
+      "kind": "field",
+      "name": "lightningState",
+      "sig": "I",
+      "native": "csrc/engine/lightning.h:struct lightning_bolt",
+      "status": "exact",
+      "note": "Mirrored as lightning_bolt.state, set to 2 by lightning_adopt and driven by lightning_tick."
+    },
+    {
+      "kind": "field",
+      "name": "boltVertex",
+      "sig": "J",
+      "native": "csrc/engine/servertick.c:bolt_vertex",
+      "status": "exact",
+      "note": "Drawn with jr_long at the servertick thunder spawn and carried on the spawn record; also lightning_bolt.vertex in csrc/engine/lightning.h. Only consumer would be the client bolt render, which is not ported."
+    },
+    {
+      "kind": "field",
+      "name": "boltLivingTime",
+      "sig": "I",
+      "native": "csrc/engine/servertick.c:bolt_living_time",
+      "status": "exact",
+      "note": "Drawn with jr_int_n(r, 3) + 1 at the servertick thunder spawn; mirrored as lightning_bolt.living_time."
+    },
+    {
+      "kind": "field",
+      "name": "__OBFID",
+      "sig": "String",
+      "native": null,
+      "status": "n/a",
+      "note": "Compiler-injected obfuscation constant (groups the file's static constants)."
+    }
+  ],
+  "missing": [
+
+  ],
+  "notes": "Server-side path is proven: csrc/tests/test_lightning.c compares 6 bolts over 30 ticks across four scenes (state, living_time, Random state, fire mask, target hp/fire, pigman conversion, Det state) against out/java/lightning/light2, light42, light2-no-fire and light2-easy (six strike scenes each per DEVLOG 2026-09-24). out/java/snapshots/world-storm-s1 is a whole-server storm recording the replay passes with 0 field mismatches (DEVLOG lines ~1161-1170). Not verified: whether any native client replay sets lbolt on bolt spawn (grep found lbolt only in renderstate.c and test_renderstate.c), and the exact AABB iteration order claim in serverreplay.c's comment (spawn order until a chunk crossing) beyond what the tests assert. The client bolts and lastLightningBolt: clientstate.c, stepped against every cs_storm row (a bolt built from the tick-start CLIENT seeder, a natural one already in flight), and play.c builds one for each bolt the server spawned. lane/idxentity: the playSoundEffect calls are audio; their Random draws are ported, so nothing in-scope is missing."
+}

@@ -1,0 +1,54 @@
+{
+ "path": "csrc/tests/test_renderstate.c",
+ "lines": 480,
+ "role": "Gate: replays the oracle's RenderStateProbe per-frame dump (out/java/renderstate/<name>/frames.jsonl), rebuilds each frame's inputs, runs renderstate_compute (csrc/engine/renderstate.c) and compares lightmap, fog, sky/fog colors and projection/modelview bit for bit; also checks each frame's tick against the tape row.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/client/renderer/EntityRenderer.java",
+   "members": [
+    "updateLightmap",
+    "updateFogColor",
+    "setupFog",
+    "setupCameraTransform",
+    "orientCamera",
+    "setupViewBobbing",
+    "hurtCameraEffect"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getSkyColor",
+    "getFogColor",
+    "getCloudColour",
+    "getStarBrightness",
+    "getCelestialAngle",
+    "getSunBrightness"
+   ]
+  },
+  {
+   "path": "oracle/src/world/WorldProvider.java",
+   "members": [
+    "calcSunriseSunsetColors"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/RenderStateProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 31-32: static fails, frame_t (file-scope counters)",
+  "line 405, main: realloc growing the frame buffer"
+ ],
+ "tests": [
+  "csrc/tests/test_renderstate.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Exercises csrc/engine/renderstate.c via renderstate_compute and tape.c's JSON/lines reader. Recordings: out/java/renderstate/{rs-bench2k,rs-gamma1,rs-night}. GL fog start/end compared only on linear-fog frames, density only on exp frames."
+}

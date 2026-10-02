@@ -1,0 +1,65 @@
+{
+ "path": "csrc/tests/test_slimes.c",
+ "lines": 1090,
+ "role": "Gate: native EntitySlime, EntityMagmaCube and the probe player (csrc/engine/slimes.c over living.c's an_tick) against SlimeProbe dumps (out/java/slimes/<name>/): spawns as SpawnerAnimals does, ticks as World.updateEntities does, and compares every entity field, removals, damage events, Det state and final blocks after each tick.",
+ "layer": "test",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntitySlime.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMagmaCube.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/SpawnerAnimals.java",
+   "members": []
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateEntities"
+   ]
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/SlimeProbe.java",
+   "members": []
+  },
+  {
+   "path": "oracle/harness/netherite/oracle/DetProbe.java",
+   "members": []
+  }
+ ],
+ "structs": [
+  {
+   "name": "splitref",
+   "java": "a recorded Det split Random state",
+   "fields": []
+  },
+  {
+   "name": "ref",
+   "java": "the loaded reference record files",
+   "fields": []
+  },
+  {
+   "name": "event",
+   "java": "a recorded probe damage event",
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "main"
+ ],
+ "tick_path": false,
+ "gpu": [
+  "line 35: static failures",
+  "line 222-223: static events[4096]",
+  "line 268-269: static nremovals[8192]",
+  "line 93, read_file: malloc"
+ ],
+ "tests": [
+  "csrc/tests/test_slimes.c"
+ ],
+ "notes": "Test binary, not linked into the product; hazards listed are test-harness statics, not tick code. Record sizes REC_BYTES 112, PLAYER_BYTES 144, SPAWN_BYTES 100. Struct fields not enumerated."
+}

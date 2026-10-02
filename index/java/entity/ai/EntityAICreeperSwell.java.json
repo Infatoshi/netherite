@@ -1,0 +1,30 @@
+{
+ "path": "oracle/src/entity/ai/EntityAICreeperSwell.java",
+ "classes": ["EntityAICreeperSwell"],
+ "lines": 71,
+ "side": "server",
+ "category": "ai",
+ "role": "The creeper's swell goal: sets creeperState 1 while a target is within 7 blocks and in sight, -1 otherwise, which drives the fuse.",
+ "scope": "in_scope",
+ "scope_reason": null,
+ "status": "exact",
+ "native": [
+  {"file": "csrc/engine/hostiles_creeper.c", "symbols": ["creeper_swell_should_execute", "creeper_swell_update"]},
+  {"file": "csrc/engine/ai.c", "symbols": ["ai_tasks_update"]}
+ ],
+ "evidence": [
+  "out/java/snapshots/fight-creeper-s1",
+  "csrc/tests/test_hostiles.c"
+ ],
+ "members": [
+  {"kind": "field", "name": "swellingCreeper", "sig": "EntityCreeper", "native": null, "status": "n/a", "note": "the owning struct living"},
+  {"kind": "field", "name": "creeperAttackTarget", "sig": "EntityLivingBase", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target"},
+  {"kind": "ctor", "name": "EntityAICreeperSwell", "sig": "(EntityCreeper)V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "mutex 1"},
+  {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/hostiles_creeper.c:creeper_swell_should_execute", "status": "exact", "note": "the state byte from last tick or a target within 9 blocks squared"},
+  {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2037: clearPath and the target copy"},
+  {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_tasks_update", "status": "exact", "note": "ai.c:2225 clears the target"},
+  {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/hostiles_creeper.c:creeper_swell_update", "status": "exact", "note": "the -1 / 49-squared / sight / 1 branches; continueExecuting is EntityAIBase's default (ai.c:1871)"}
+ ],
+ "missing": [],
+ "notes": "The creeper's fuse bookkeeping (timeSinceIgnited from creeperState) lives in hostiles_creeper.c's onUpdate head."
+}

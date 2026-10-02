@@ -1,0 +1,23 @@
+{
+ "path": "csrc/engine/explosion.h",
+ "lines": 144,
+ "role": "Declares the native explosion (WorldServer.newExplosion minus the packet work: Explosion.doExplosionA and doExplosionB(false)), its result struct, the outside-entity extension hooks and the item-drop sink used under blockcb_env.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/Explosion.java", "members": ["doExplosionA", "doExplosionB", "affectedBlockPositions", "explosionRNG", "exploder", "getExplosivePlacedBy"]},
+  {"path": "oracle/src/world/WorldServer.java", "members": ["newExplosion"]}
+ ],
+ "structs": [
+  {"name": "expl_result", "java": "Explosion.affectedBlockPositions (HashSet iteration order and insertion order) and Explosion.explosionRNG's final state, for the test", "fields": ["rng_state", "wr_mid", "affected", "n_affected", "affected_first", "n_first"]},
+  {"name": "expl_extra", "java": "an Entity outside the run's ie_world seen by the damage pass (posX/Y/Z, getEyeHeight, boundingBox, attackEntityFrom, addVelocity)", "fields": ["ent", "pos", "eye_height", "box", "attack_from", "add_motion"]}
+ ],
+ "entry_points": ["expl_run", "expl_run_extras", "expl_result_free", "expl_env_item_drop"],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "lines 78-85, struct expl_result: affected and affected_first are malloc'd arrays the caller frees",
+  "lines 93-102, struct expl_extra and expl_extra_query: function pointers and an opaque void* entity tag (pointer graph)"
+ ],
+ "tests": ["csrc/tests/test_explosions.c", "csrc/tests/test_ghasts.c", "csrc/tests/test_dragon.c"],
+ "notes": "struct living is forward-declared twice (lines 50 and 57), harmless. The header comment lists what is not ported: non-null exploder resistance, the players' knockback map, S27PacketExplosion and the affected-position clear."
+}

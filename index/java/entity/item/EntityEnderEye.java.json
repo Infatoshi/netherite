@@ -1,0 +1,44 @@
+{
+  "path": "oracle/src/entity/item/EntityEnderEye.java",
+  "classes": ["EntityEnderEye"],
+  "lines": 231,
+  "side": "common",
+  "category": "entity",
+  "role": "The thrown eye of ender that flies toward the nearest stronghold, trailing portal particles, then drops as an item or shatters.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/projectile.c", "symbols": ["proj_spawn_ender_eye", "proj_throw_ender_eye", "proj_use_ender_eye", "ender_eye_update"]},
+    {"file": "csrc/engine/entity_nbt.c", "symbols": ["ent_nbt_ie"]},
+    {"file": "csrc/engine/throw.c", "symbols": ["throw_server_use"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/throw-items-s1",
+    "csrc/tests/test_eyes.c",
+    "out/java/snapshots/cov-reload-s1",
+    "out/java/snapshots/pfc-eyeload-g26"
+  ],
+  "members": [
+    {"kind": "field", "name": "targetX", "sig": "double", "native": "csrc/engine/projectile.c:proj_spawn_ender_eye", "status": "exact", "note": "item_entity.h's eye_target_x, set by the moveTowards clamp"},
+    {"kind": "field", "name": "targetY", "sig": "double", "native": "csrc/engine/projectile.c:proj_spawn_ender_eye", "status": "exact", "note": "eye_target_y"},
+    {"kind": "field", "name": "targetZ", "sig": "double", "native": "csrc/engine/projectile.c:proj_spawn_ender_eye", "status": "exact", "note": "eye_target_z"},
+    {"kind": "field", "name": "despawnTimer", "sig": "int", "native": "csrc/engine/projectile.c:ender_eye_update", "status": "exact", "note": "eye_timer, setDead after 80"},
+    {"kind": "field", "name": "shatterOrDrop", "sig": "boolean", "native": "csrc/engine/projectile.c:proj_spawn_ender_eye", "status": "exact", "note": "eye_drop, rand.nextInt(5) > 0"},
+    {"kind": "field", "name": "__OBFID", "sig": "String (static constants grouped)", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "EntityEnderEye", "sig": "(World)V", "native": "csrc/engine/snapshot_entities.c:sr_ender_eye_from_nbt", "status": "exact", "note": "EntityList's NBT constructor: cov-reload-s1 saves an eye in flight with its chunk and reads it back (then it heads for 0, 0: readEntityFromNBT reads nothing)"},
+    {"kind": "method", "name": "entityInit", "sig": "()V", "native": null, "status": "n/a", "note": "empty in vanilla"},
+    {"kind": "method", "name": "isInRangeToRenderDist", "sig": "(D)Z", "native": null, "status": "n/a", "note": "client render distance culling"},
+    {"kind": "ctor", "name": "EntityEnderEye", "sig": "(World,double,double,double)V", "native": "csrc/engine/projectile.c:proj_spawn_ender_eye", "status": "exact", "note": "position, yOffset 0, despawnTimer 0; ItemEnderEye's throw builds this ctor"},
+    {"kind": "method", "name": "moveTowards", "sig": "(DID)V", "native": "csrc/engine/projectile.c:proj_spawn_ender_eye", "status": "exact", "note": "the >12 distance clamp toward the stronghold, targetY + 8, and the shatterOrDrop draw"},
+    {"kind": "method", "name": "setVelocity", "sig": "(DDD)V", "native": null, "status": "n/a", "note": "the client copy's S12 handler on the WorldClient copy; the replay keeps no client copy of an eye (canBeCollidedWith is false, so the pick never needs it) and nothing in the state reads the copy's motion"},
+    {"kind": "method", "name": "onUpdate", "sig": "()V", "native": "csrc/engine/projectile.c:ender_eye_update", "status": "exact", "note": "flight toward the target, rotation blending, the two portal-particle rand draws when not in water, despawn at 80 and the item drop; the no-drop branch's playAuxSFX(2003) on the server only sends the S28 (env_aux_sfx, lane/chainfuzz: it was not sent; pfc-eyeshatter-g28), whose particles and WorldClient.rand draws are the client's (particles_live.c particles_live_aux)"},
+    {"kind": "method", "name": "writeEntityToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/entity_nbt.c:ent_nbt_ie", "status": "exact", "note": "the IE_ENDER_EYE case writes nothing, matching the empty vanilla body"},
+    {"kind": "method", "name": "readEntityFromNBT", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "empty in vanilla"},
+    {"kind": "method", "name": "getShadowSize", "sig": "()F", "native": null, "status": "n/a", "note": "client rendering"},
+    {"kind": "method", "name": "getBrightness", "sig": "(F)F", "native": null, "status": "n/a", "note": "client rendering (always 1.0F)"},
+    {"kind": "method", "name": "getBrightnessForRender", "sig": "(F)I", "native": null, "status": "n/a", "note": "client rendering (always 15728880)"},
+    {"kind": "method", "name": "canAttackWithItem", "sig": "()Z", "native": null, "status": "n/a", "note": "the eye's canBeCollidedWith is false: the pick never selects it, so no melee reaches the false answer"}
+  ],
+  "missing": [],
+  "notes": "The server throw (ItemEnderEye.onItemRightClick: findClosestStructure, the (World,double,double,double) ctor, moveTowards, the itemRand bow pitch) is csrc/engine/throw.c:throw_server_use's IT_ENDER_EYE case calling csrc/engine/projectile.c:proj_throw_ender_eye, which uses stronghold_nearest_loaded. ItemEnderEye.onItemUse (portal frame filling) is a separate file's surface (csrc/engine/place.c:eye_use, csrc/engine/itemuse.c:eye_use) and is not a member of this class. test_eyes.c replays proj_spawn_ender_eye, proj_use_ender_eye and the stronghold targets; throw-items-s1 shows three eyes flying, two dropping and one shattering. lane/idxentity: the three open members were client presentation or unreachable; the server flight is exact on throw-items-s1."
+}

@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderCow.java",
+  "classes": ["RenderCow"],
+  "lines": 33,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders an EntityCow: the quadruped cow model at the cow texture, no behaviour of its own beyond texture binding.",
+  "scope": "in_scope",
+  "scope_reason": "Cows are in the gated animal spawn lists and the mob scenes compare their pixels.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_mobs.c", "symbols": ["model_cow", "raster_mobs_draw"]}
+  ],
+  "evidence": [
+    "out/java/render/mobs_cow_f006",
+    "out/java/render/mobs_cow_f012",
+    "out/java/render/mobs_farm_f006",
+    "csrc/tests/test_render.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "cowTextures", "sig": "static ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact", "note": "TEX_COW in the texture table"},
+    {"kind": "ctor", "name": "RenderCow", "sig": "(ModelBase,F)V", "native": null, "status": "n/a", "note": "model construction; the native model is model_cow (quadruped with horns and udder)"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(EntityCow)ResourceLocation", "native": "csrc/engine/raster_mobs.c:raster_mobs_draw", "status": "exact"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": null, "status": "n/a", "note": "bridge"}
+  ],
+  "missing": [],
+  "notes": "The cow's doRender is the inherited RenderLiving chain (RendererLivingEntity pass loop) that raster_mobs.c implements once for all quadruped mobs; model_cow carries the geometry."
+}

@@ -1,0 +1,54 @@
+{
+ "path": "oracle/src/client/gui/GuiOptionButton.java",
+ "classes": [
+  "GuiOptionButton"
+ ],
+ "lines": 31,
+ "side": "client",
+ "category": "client_gui",
+ "role": "A GuiButton bound to a GameSettings option, used by the options screens.",
+ "scope": "client_cosmetic",
+ "scope_reason": "Options screens are client-only presentation the GPU/RL path does not need.",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_146137_o",
+   "sig": "GameSettings.Options",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiOptionButton",
+   "sig": "(int,int,int,String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiOptionButton",
+   "sig": "(int,int,int,int,int,String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "GuiOptionButton",
+   "sig": "(int,int,int,GameSettings.Options,String)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_146136_c",
+   "sig": "()GameSettings.Options",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": null
+}

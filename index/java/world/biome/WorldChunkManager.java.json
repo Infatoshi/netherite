@@ -1,0 +1,43 @@
+{
+  "path": "oracle/src/world/biome/WorldChunkManager.java",
+  "classes": ["WorldChunkManager"],
+  "lines": 277,
+  "side": "common",
+  "category": "worldgen",
+  "role": "The overworld biome source: owns the quarter-resolution (genBiomes) and block-resolution (biomeIndexLayer) GenLayer stacks, the biome cache and the spawn-biome list, and answers biome-area queries for terrain, structures and the world spawn search.",
+  "scope": "in_scope",
+  "scope_reason": "Biome placement is vanilla worldgen (SPEC Decisions).",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/layers.c", "symbols": ["layers_init", "layer_ints", "biomes_gen", "biomes_full"]},
+    {"file": "csrc/engine/layers.h", "symbols": ["layers"]},
+    {"file": "csrc/engine/populate.c", "symbols": ["populate_biome_spawn_search"]},
+    {"file": "csrc/engine/village.c", "symbols": ["are_biomes_viable", "biome_gen_at"]},
+    {"file": "csrc/engine/stronghold.c", "symbols": ["find_biome_position", "gen_box"]},
+    {"file": "csrc/engine/temple.c", "symbols": ["biome_gen_at"]},
+    {"file": "csrc/engine/world.c", "symbols": ["world_get_biome"]}
+  ],
+  "evidence": ["csrc/tests/test_worldgen.c", "csrc/tests/test_structures.c", "csrc/tests/test_seedworld.c", "out/java/chunks", "out/java/structures", "out/java/seedworld", "out/java/clientframes/pix-biome-s42", "out/java/clientframes/pix-biome-s7"],
+  "members": [
+    {"kind": "field", "name": "genBiomes", "sig": "GenLayer", "native": "csrc/engine/layers.h:layers", "status": "exact", "note": "layers.gen"},
+    {"kind": "field", "name": "biomeIndexLayer", "sig": "GenLayer", "native": "csrc/engine/layers.h:layers", "status": "exact", "note": "layers.full"},
+    {"kind": "field", "name": "biomeCache", "sig": "BiomeCache", "native": null, "status": "n/a", "note": "memo; see BiomeCache"},
+    {"kind": "field", "name": "biomesToSpawnIn", "sig": "List", "native": "csrc/engine/populate.c:populate_biome_spawn_search", "status": "exact", "note": "spawn_biomes {4,1,5,19,18,21,22}"},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "WorldChunkManager", "sig": "()", "native": null, "status": "n/a", "note": "cache and list setup"},
+    {"kind": "ctor", "name": "WorldChunkManager", "sig": "(long,WorldType)", "native": "csrc/engine/layers.c:layers_init", "status": "exact", "note": "default world type only"},
+    {"kind": "ctor", "name": "WorldChunkManager", "sig": "(World)", "native": "csrc/engine/layers.c:layers_init", "status": "exact"},
+    {"kind": "method", "name": "getBiomesToSpawnIn", "sig": "()List", "native": "csrc/engine/populate.c:populate_biome_spawn_search", "status": "exact"},
+    {"kind": "method", "name": "getBiomeGenAt", "sig": "(int,int)BiomeGenBase", "native": "csrc/engine/world.c:world_get_biome", "status": "exact", "note": "for unloaded chunks; temple.c and village.c biome_gen_at"},
+    {"kind": "method", "name": "getRainfall", "sig": "(float[],int,int,int,int)float[]", "native": null, "status": "n/a", "note": "fills BiomeCache rainfall, which nothing reads natively"},
+    {"kind": "method", "name": "getTemperatureAtHeight", "sig": "(float,int)F", "native": null, "status": "exact", "note": "identity; raster_worldfx.c uses the temperature directly (EntityRenderer.renderRainSnow's rain or snow choice); pix-biome-s42, pix-biome-s7 and pix-desert-s20 frames (a frame replay: lane/covframes' coverage of the frame recordings)"},
+    {"kind": "method", "name": "getBiomesForGeneration", "sig": "(BiomeGenBase[],int,int,int,int)BiomeGenBase[]", "native": "csrc/engine/layers.c:biomes_gen", "status": "exact"},
+    {"kind": "method", "name": "loadBlockGeneratorData", "sig": "(BiomeGenBase[],int,int,int,int)BiomeGenBase[]", "native": "csrc/engine/layers.c:biomes_full", "status": "exact"},
+    {"kind": "method", "name": "getBiomeGenAt", "sig": "(BiomeGenBase[],int,int,int,int,boolean)BiomeGenBase[]", "native": "csrc/engine/layers.c:biomes_full", "status": "exact"},
+    {"kind": "method", "name": "areBiomesViable", "sig": "(int,int,int,List)Z", "native": "csrc/engine/village.c:are_biomes_viable", "status": "exact", "note": "villages; temple.c tests one centre biome instead, as MapGenScatteredFeature does"},
+    {"kind": "method", "name": "func_150795_a", "sig": "(int,int,int,List,Random)ChunkPosition", "native": "csrc/engine/stronghold.c:find_biome_position", "status": "exact", "note": "and populate.c populate_biome_spawn_search for the world spawn"},
+    {"kind": "method", "name": "cleanupCache", "sig": "()V", "native": null, "status": "n/a", "note": "wall-clock memo eviction"}
+  ],
+  "missing": [],
+  "notes": "GPU hazards live in the callers: village.c are_biomes_viable and populate.c populate_biome_spawn_search malloc per call, and stronghold.c keeps a static cached box (sh_box)."
+}

@@ -1,0 +1,20 @@
+{
+  "path": "oracle/src/client/resources/I18n.java",
+  "classes": ["I18n"],
+  "lines": 20,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Static facade over the current Locale: format(key, args...) translates a key through the loaded .lang files and applies String.format; setLocale is called by LanguageManager at startup.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "i18nLocale", "sig": "Locale (static)", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "setLocale", "sig": "(Locale)V", "native": null, "status": "n/a", "note": "package-private"},
+    {"kind": "method", "name": "format", "sig": "(String,Object...)String", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "The native engine renders no translated text of its own: GUI strings (achievement toast title/description, item names if any) arrive in the render-state dump already resolved by the Java client, and raster_hud.c draws the recorded strings. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "Translation of GUI strings; the native GUI draws the en_US strings it needs directly (for example raster_hud.c's container titles), so no translation layer runs natively."
+}

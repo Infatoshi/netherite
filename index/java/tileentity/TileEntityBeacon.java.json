@@ -1,0 +1,42 @@
+{
+  "path": "oracle/src/tileentity/TileEntityBeacon.java",
+  "classes": ["TileEntityBeacon"],
+  "lines": 390,
+  "side": "common",
+  "category": "tileentity",
+  "role": "The beacon block entity: every 80 ticks the pyramid levels scan and the potion effects on nearby players, the chosen primary/secondary effects, the payment slot, the client beam animation and the fullBeacon achievement.",
+  "scope": "switched_off",
+  "scope_reason": "Reachable only through a world.conf switch that is off (beacon) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [
+    {"file": "csrc/engine/tileentity.h", "symbols": ["te_beacon", "TE_BEACON"]},
+    {"file": "csrc/engine/tileticks.c", "symbols": ["beacon_update"]},
+    {"file": "csrc/engine/tileentity.c", "symbols": ["render_beacon", "te_load", "te_new"]}
+  ],
+  "evidence": ["out/java/tileticks/full2-v2", "csrc/tests/test_tileticks.c"],
+  "members": [
+    {"kind": "field", "name": "field_146009_a", "sig": "static Potion[][]", "native": null, "status": "n/a", "note": "effect choices per level; GUI only with beacon off"},
+    {"kind": "field", "name": "field_146016_i, field_146014_j", "sig": "long, float", "native": null, "status": "n/a", "note": "client beam timing"},
+    {"kind": "field", "name": "field_146015_k", "sig": "boolean isComplete", "native": null, "status": "partial", "note": "not stored; only gates effects, which cannot be chosen"},
+    {"kind": "field", "name": "field_146012_l", "sig": "int levels", "native": "csrc/engine/tileentity.h:te_beacon", "status": "exact", "note": "-1 fresh"},
+    {"kind": "field", "name": "field_146013_m, field_146010_n", "sig": "int primary, secondary", "native": "csrc/engine/tileentity.h:te_beacon", "status": "exact"},
+    {"kind": "field", "name": "field_146011_o", "sig": "ItemStack payment", "native": null, "status": "n/a", "note": "GUI slot"},
+    {"kind": "field", "name": "field_146008_p", "sig": "String customName", "native": null, "status": "missing"},
+    {"kind": "method", "name": "updateEntity", "sig": "()V", "native": "csrc/engine/tileticks.c:beacon_update", "status": "exact"},
+    {"kind": "method", "name": "func_146000_x", "sig": "()V", "native": null, "status": "n/a", "note": "apply effects; primary is always 0 with beacon off"},
+    {"kind": "method", "name": "func_146003_y", "sig": "()V", "native": "csrc/engine/tileticks.c:beacon_update", "status": "exact", "note": "the fullBeacon trigger is inert: its parent killWither is unreachable with wither off"},
+    {"kind": "method", "name": "func_146002_i", "sig": "()F", "native": null, "status": "n/a", "note": "client beam"},
+    {"kind": "method", "name": "func_146007_j, func_146006_k, func_145998_l", "sig": "()I getters", "native": "csrc/engine/tileentity.h:te_beacon", "status": "exact"},
+    {"kind": "method", "name": "func_146005_c", "sig": "(I)V", "native": null, "status": "n/a", "note": "client levels setter"},
+    {"kind": "method", "name": "func_146001_d", "sig": "(I)V", "native": null, "status": "n/a", "note": "set primary from the GUI"},
+    {"kind": "method", "name": "func_146004_e", "sig": "(I)V", "native": null, "status": "n/a", "note": "set secondary from the GUI"},
+    {"kind": "method", "name": "getDescriptionPacket", "sig": "()Packet", "native": null, "status": "missing", "note": "S35 action 3"},
+    {"kind": "method", "name": "getMaxRenderDistanceSquared", "sig": "()D", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readFromNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/tileentity.c:te_load", "status": "exact"},
+    {"kind": "method", "name": "writeToNBT", "sig": "(NBTTagCompound)V", "native": "csrc/engine/tileentity.c:render_beacon", "status": "exact"},
+    {"kind": "method", "name": "getSizeInventory, getStackInSlot, decrStackSize, getStackInSlotOnClosing, setInventorySlotContents, getInventoryStackLimit, isUseableByPlayer, isItemValidForSlot", "sig": "IInventory", "native": null, "status": "n/a", "note": "the payment slot is only reached through the beacon GUI (off)"},
+    {"kind": "method", "name": "getInventoryName, isInventoryNameLocalized, func_145999_a", "sig": "custom name", "native": null, "status": "missing"}
+  ],
+  "missing": ["Custom names and the S35 description packet (client beam render)."],
+  "notes": "Effects, the GUI and the payment slot become in scope when beacon leaves the world.conf switch list."
+}

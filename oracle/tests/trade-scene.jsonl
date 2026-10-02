@@ -1,0 +1,5 @@
+{"cmd":"run","class":"SceneSetup","dim":0,"x":1020.5,"y":75.0,"z":-675.5,"yaw":135.0,"pitch":10.0,"selected":2,"health":11.0,"food":13,"saturation":1.0,"air":300,"level":7,"xp":0.42,"hotbar":[{"id":260,"count":7},{"id":280,"count":32},{"id":270,"count":1},{"id":50,"count":48},{"id":1,"count":24},{"id":5,"meta":2,"count":12},{"id":264,"count":3},{"id":373,"meta":8193,"count":2},{"id":383,"meta":50,"count":3}],"armor":[{"id":309},{"id":308},{"id":307},{"id":306}]}
+{"n":80,"act":{"look":[135.0,10.0],"opts":{"hide":0}}}
+{"cmd":"run","class":"ScreenSetup","screen":"merchant","slots":[{"slot":0,"id":35,"count":14},{"slot":3,"id":297,"count":12},{"slot":4,"id":260,"count":7}],"cursor":{"id":280,"count":12},"recipes":[{"buy":{"id":35,"count":14},"sell":{"id":388,"count":1}},{"buy":{"id":388,"count":1},"sell":{"id":297,"count":4},"uses":3,"maxUses":7},{"buy":{"id":388,"count":1},"sell":{"id":297,"count":3},"uses":7,"maxUses":7,"disabled":true}],"trsel":1,"hover":0}
+{"n":1,"act":{"look":[135.0,10.0]},"frame":"@OUT@/java/render/gui_merchant/golden.png"}
+{"cmd":"run","class":"MeshProbe","out":"@OUT@/java/render/gui_merchant","radius":4,"allowEmpty":true}

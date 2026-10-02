@@ -1,0 +1,115 @@
+{
+ "path": "csrc/engine/ghasts.c",
+ "lines": 957,
+ "role": "EntityGhast and the EntityLargeFireball it fires, over the an_world living and item pools: the ghast's old-AI wander, targeting and fireball attack, the fireball impact and explosion, ghast drops, and a bare probe player's damage paths, plus the probe's own World.updateEntities pass (gh_tick). Checked against the oracle's GhastProbe dump.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntityGhast.java",
+   "members": [
+    "EntityGhast",
+    "updateEntityActionState",
+    "isCourseTraversable",
+    "attackEntityFrom",
+    "dropFewItems",
+    "courseChangeCooldown",
+    "waypointX",
+    "waypointY",
+    "waypointZ",
+    "targetedEntity",
+    "aggroCooldown",
+    "prevAttackCounter",
+    "attackCounter",
+    "explosionStrength"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityLargeFireball.java",
+   "members": [
+    "onImpact",
+    "writeEntityToNBT",
+    "field_92057_e"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityFireball.java",
+   "members": [
+    "EntityFireball",
+    "attackEntityFrom",
+    "writeEntityToNBT"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "getLook",
+    "canEntityBeSeen",
+    "knockBack",
+    "attackEntityFrom",
+    "collideWithNearbyEntities"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "attackEntityFrom",
+    "damageEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "writeToNBT",
+    "applyEntityCollision"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getClosestVulnerablePlayerToEntity",
+    "updateEntities"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "gh_pass_world (static)",
+   "java": null,
+   "fields": []
+  }
+ ],
+ "entry_points": [
+  "ghast_construct",
+  "ghast_look_vec",
+  "ghast_update_entity_action_state",
+  "ghast_attack_entity_from",
+  "ghast_drop_few_items",
+  "ghast_collide_with_nearby_entities",
+  "ghast_player_bb",
+  "gh_closest_vulnerable_player",
+  "gh_player_attack_entity_from",
+  "gh_fireball_impact",
+  "ghast_fireball_write_nbt",
+  "ghast_fireball_nbt_hash",
+  "ghast_fireball_nbt_text",
+  "gh_spawn_ghast",
+  "gh_tick"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "line 216, function gh_closest_vulnerable_player: reads the gh_world through an->user_data (a void pointer only tests/test_ghasts.c sets), so a ghast outside the probe dereferences NULL (DEVLOG notes the play client crash)",
+  "line 318, function ghast_fire_fireball: calloc of an an_ent for every fireball inside the tick",
+  "function ghast_fire_fireball: the fireball joins the lists as pool slots and its shooter is an lref; a ghast's target is a flag on its world's player (lane/gpuarena, L3)",
+  "lines 517-540, function gh_expl_query: damage dispatched through function pointers (attack_from, add_motion)",
+  "line 598, function gh_fireball_impact: O(n) scan of an->list per new explosion item, and calloc per new an_ent (line 611)",
+  "line 730, function gh_player_attack_entity_from: while loop redrawing Math.random until the offset is non-degenerate (unbounded in principle)",
+  "lines 836-873, function ghast_collide_with_nearby_entities: result depends on chunk-section insertion order (container-order dependence, deliberate to match Java's double-add order)",
+  "line 953, function gh_spawn_ghast: calloc of the living and the an_ent",
+  "line 1054, function gh_tick: memmove removal from the list, order-dependent iteration with --i"
+ ],
+ "tests": [
+  "csrc/tests/test_ghasts.c"
+ ],
+ "notes": "The probe player gh_player is a bare stand-in, not the real EntityPlayerMP; the fireball's flight lives in projectile.c (IE_LARGE_FIREBALL) and the explosion in explosion.c (expl_run_extras). Java member names for ghast fields (waypointX, targetedEntity, aggroCooldown, explosionStrength) were taken from the C field comments and MCP naming, not checked one by one against EntityGhast.java. The EntityGhast fireball-from-player reflect branch of attackEntityFrom is not ported (no probe source has a player attacker)."
+}

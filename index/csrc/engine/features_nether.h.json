@@ -1,0 +1,20 @@
+{
+ "path": "csrc/engine/features_nether.h",
+ "lines": 32,
+ "role": "Declares the Nether and End feature group's table lookup, the target-block WorldGenMinable, and spike_crystal_last, the report of the ender crystal WorldGenSpikes would spawn (the caller spawns it).",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/feature/WorldGenSpikes.java", "members": ["generate"]},
+  {"path": "oracle/src/world/gen/feature/WorldGenMinable.java", "members": ["generate", "field_150518_c"]},
+  {"path": "oracle/src/world/gen/ChunkProviderHell.java", "members": ["populate"]},
+  {"path": "oracle/src/world/biome/BiomeEndDecorator.java", "members": ["genDecorations"]}
+ ],
+ "structs": [
+  {"name": "spike_crystal", "java": "the EntityEnderCrystal WorldGenSpikes.generate constructs (position and yaw)", "fields": ["spawned", "x", "y", "z", "yaw"]}
+ ],
+ "entry_points": ["features_nether_for", "feature_minable_target"],
+ "tick_path": true,
+ "gpu": ["its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left"],
+ "tests": ["csrc/tests/test_feature.c", "csrc/tests/test_populate.c"],
+ "notes": "feature_minable_target is declared here and in features.h; defined in features.c. The BiomeEndDecorator member name genDecorations is from memory, not verified against oracle/src."
+}

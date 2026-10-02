@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/world/gen/layer/IntCache.java",
+  "classes": ["IntCache"],
+  "lines": 104,
+  "side": "common",
+  "category": "worldgen",
+  "role": "A global pool of int[] scratch arrays that every GenLayer.getInts draws its output from; reset after each biome query.",
+  "scope": "in_scope",
+  "scope_reason": "Used by every GenLayer call during overworld generation; it has no effect on generated values, only on allocation.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/layers.c", "symbols": ["area"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "out/java/chunks/seed1"],
+  "members": [
+    {"kind": "field", "name": "intCacheSize, freeSmallArrays, inUseSmallArrays, freeLargeArrays, inUseLargeArrays", "sig": "static int / static List", "native": null, "status": "n/a", "note": "Pool state; native allocates with malloc/free per call instead."},
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getIntCache", "sig": "static (int)[I", "native": "csrc/engine/layers.c:area", "status": "exact", "note": "Replaced by malloc in area(), zoom() and voronoi(); every cell read is written first, so pooling is not observable."},
+    {"kind": "method", "name": "resetIntCache", "sig": "static ()V", "native": null, "status": "n/a", "note": "Native frees each buffer at the end of the layer call."},
+    {"kind": "method", "name": "getCacheSizes", "sig": "static ()String", "native": null, "status": "n/a", "note": "Debug string for crash reports."},
+    {"kind": "ctor", "name": "IntCache", "sig": "()", "native": null, "status": "n/a", "note": "a class of static members only: nothing in oracle/src constructs it (no `new IntCache`), so its implicit constructor never runs"}
+  ],
+  "missing": [],
+  "notes": "Not a behavior to port: an allocation pool. For the GPU the per-call malloc in layers.c is itself the hazard (heap allocation, sized by the query); a fixed scratch buffer per layer depth would mirror IntCache more closely. The claim that pooling is unobservable is from reading the layers, not from a test."
+}

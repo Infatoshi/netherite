@@ -1,0 +1,49 @@
+{
+ "path": "csrc/engine/hostiles_witch.c",
+ "lines": 227,
+ "role": "EntityWitch: attributes and AI setup, the potion-drinking onLivingUpdate (water breathing, fire resistance, healing, speed, with the drinking speed penalty modifier), the thrown splash potion aimed at the target, and the drop table.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntityWitch.java",
+   "members": [
+    "EntityWitch",
+    "applyEntityAttributes",
+    "setAggressive",
+    "getAggressive",
+    "onLivingUpdate",
+    "attackEntityWithRangedAttack",
+    "dropFewItems",
+    "witchAttackTimer",
+    "field_110185_bq",
+    "witchDrops"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/projectile/EntityPotion.java",
+   "members": [
+    "EntityPotion"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "witch_construct",
+  "witch_set_aggressive",
+  "witch_get_aggressive",
+  "witch_on_living_update",
+  "witch_attack_entity_with_ranged_attack",
+  "witch_drop_few_items"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 143, function witch_attack_entity_with_ranged_attack: calloc of the EntityPotion ie_ent per throw inside the tick",
+  "line 197, function witch_attack_entity_with_ranged_attack: calloc of an an_ent wrapper per throw inside the tick",
+  "lines 192 and 203, function witch_attack_entity_with_ranged_attack: appends to the ie_world and an_world pointer lists; entity order is list append order",
+  "references to other livings (entity_to_attack, attack_target, last targets, a projectile's shooter) are lrefs read through lv_get, and the old AI's path a pathref (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_hostiles.c"
+ ],
+ "notes": "The file has no Java-naming comments; the mapping to EntityWitch is by body and constants (26 health, 0.25 speed, drinking modifier UUID, potion damage values 8237/16307/16341/16274 and 32732/32698/32660/32696). witch_on_living_update repeats the speed-potion branch twice (lines 94-103), matching the decompile's two identical else-if arms. handleHealthUpdate and applyPotionDamageCalculations (magic damage reduced to 15 percent) are not in this file; not verified whether another file carries the latter. The particle chance draw at line 117 is kept for the Random order."
+}

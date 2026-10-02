@@ -1,0 +1,108 @@
+{
+  "path": "oracle/src/util/ChatComponentText.java",
+  "classes": [
+    "ChatComponentText"
+  ],
+  "lines": 72,
+  "side": "common",
+  "category": "util",
+  "role": "The leaf chat component: a literal string with a style, used for every plain chat line.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: it builds the text of the chat lines GuiNewChat (in scope) draws in the HUD, such as the achievement announcement's player name and bracketed achievement name.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/chatcomp.c",
+      "symbols": [
+        "chat_text",
+        "chat_copy",
+        "sj_expand",
+        "pw_expand",
+        "chat_parts"
+      ]
+    },
+    {
+      "file": "csrc/engine/chatcomp.h",
+      "symbols": [
+        "cc_comp"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/chat-achieve-s1",
+    "out/java/snapshots/chat-bed-refuse-s1",
+    "out/java/snapshots/chat-deaths-s1",
+    "out/java/snapshots/chat-deaths2-s1",
+    "out/java/snapshots/chat-build-s1",
+    "out/java/snapshots/chat-climbfall-s1",
+    "out/java/snapshots/chat-edge-knock-s1",
+    "out/java/snapshots/chat-idx-blast-s1",
+    "out/java/snapshots/chat-fight-witch-s1",
+    "out/java/snapshots/chat-fight-enderman-s1",
+    "out/java/snapshots/chat-death-drown-s1",
+    "out/java/snapshots/chat-death-lava-s1",
+    "out/java/snapshots/chat-death-starve-s1",
+    "out/java/snapshots/chat-act2-s1",
+    "out/java/snapshots/chat-surv2-bed-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "text",
+      "sig": "String",
+      "native": "csrc/engine/chatcomp.h:cc_comp",
+      "status": "exact",
+      "note": "the pool string at str"
+    },
+    {
+      "kind": "ctor",
+      "name": "ChatComponentText",
+      "sig": "(String)V",
+      "native": "csrc/engine/chatcomp.c:chat_text",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "getChatComponentText_TextValue",
+      "sig": "()String",
+      "native": "csrc/engine/chatcomp.c:sj_expand",
+      "status": "exact",
+      "note": "the serializer's text and the plain-string form"
+    },
+    {
+      "kind": "method",
+      "name": "getUnformattedTextForChat",
+      "sig": "()String",
+      "native": "csrc/engine/chatcomp.c:pw_expand",
+      "status": "exact",
+      "note": "each iterated text part's text"
+    },
+    {
+      "kind": "method",
+      "name": "createCopy",
+      "sig": "()ChatComponentText",
+      "native": "csrc/engine/chatcomp.c:chat_copy",
+      "status": "exact",
+      "note": "the game copies only StatBase's statName (a translation) and the display iterator's per-part copies, whose only use is the resolved style (chat_style_code)"
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Object)boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "the only caller is CombatTracker.func_151521_b's var6.equals(var4) in the fall branch, where var4 is the last (fall) entry's attacker name: CombatEntry.func_151522_h returns null for DamageSource.fall (it has no entity), so `var4 == null ||` short-circuits; ChatComponentTranslation.equals and HoverEvent.equals only recurse from it"
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "logging only (S02PacketChat.serialize, Style toString)"
+    }
+  ],
+  "missing": [],
+  "notes": "Every S02 the server sends is compared per row: the oracle's rows carry each tick's S02s (Rows.s02: the IChatComponent.Serializer JSON and GuiNewChat's iterated parts) and test_snapshots and play --check compare csrc/engine/chatcomp.c chat_s02_check against the queue (lane/idxchat, DEVLOG 2026-09-27). The live client's drawing of these lines (NetHandlerPlayClient.handleChat into GuiNewChat) is GuiNewChat's record and the pixel lane's item N-02; the native client still builds its achievement line from the toast. idxaudit 2026-09-27: was client_cosmetic/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit)."
+}

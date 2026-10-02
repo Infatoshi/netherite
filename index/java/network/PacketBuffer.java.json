@@ -1,0 +1,30 @@
+{
+  "path": "oracle/src/network/PacketBuffer.java",
+  "classes": ["PacketBuffer"],
+  "lines": 936,
+  "side": "common",
+  "category": "network",
+  "role": "A netty ByteBuf wrapper that adds Minecraft's wire primitives: varints, length-prefixed UTF-8 strings, compressed NBT compounds and the ItemStack id/count/damage/tag framing every packet's readPacketData/writePacketData uses.",
+  "scope": "not_needed",
+  "scope_reason": "The native engine has no network transport. The oracle's lockstep moves packet objects over an in-process channel and the native tick applies client acts directly to the players (csrc/engine/survival.h client_out, csrc/engine/survival.c), so no packet is ever serialized or parsed and this wire format is never replayed.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_150794_a", "sig": "ByteBuf", "native": null, "status": "n/a", "note": "the wrapped netty buffer; transport plumbing"},
+    {"kind": "field", "name": "static __OBFID", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "PacketBuffer", "sig": "(ByteBuf)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getVarIntSize", "sig": "(I)I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readVarIntFromBuffer", "sig": "()I", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writeVarIntToBuffer", "sig": "(I)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writeNBTTagCompoundToBuffer", "sig": "(NBTTagCompound)V", "native": null, "status": "n/a", "note": "the compressed-NBT framing; the native engine's own NBT lives in csrc/engine/nbtbin.c with a different (snapshot) format, not this wire format"},
+    {"kind": "method", "name": "readNBTTagCompoundFromBuffer", "sig": "()NBTTagCompound", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writeItemStackToBuffer", "sig": "(ItemStack)V", "native": null, "status": "n/a", "note": "the native ItemStack is the flat struct surv_stack (csrc/engine/survival.h), moved by value, never framed"},
+    {"kind": "method", "name": "readItemStackFromBuffer", "sig": "()ItemStack", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "readStringFromBuffer", "sig": "(I)String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "writeStringToBuffer", "sig": "(String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "ByteBuf delegation methods (capacity through release, about 150 overloads: getByte/getShort/getInt/... setByte/... readByte/... writeByte/... copy/slice/duplicate/nioBuffer/retain/refCnt)", "sig": "various", "native": null, "status": "n/a", "note": "pure one-line delegation to field_150794_a implementing the ByteBuf interface; no game behavior, so grouped into one entry instead of 150 rows"}
+  ],
+  "missing": [],
+  "notes": "Not verified against any recording: nothing exercises this class natively by design. If a native GPU transport ever needs the exact 1.7.10 wire format, this file is the spec for the varint, string and ItemStack framings."
+}

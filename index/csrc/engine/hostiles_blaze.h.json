@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/hostiles_blaze.h",
+ "lines": 14,
+ "role": "Declares the EntityBlaze kind functions of hostiles_blaze.c that hostiles.c, ai.c, living.c and serverreplay.c dispatch to.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/monster/EntityBlaze.java", "members": ["EntityBlaze", "onLivingUpdate", "fall", "dropFewItems", "func_70845_n", "func_70844_e"]},
+  {"path": "oracle/src/entity/EntityCreature.java", "members": ["updateEntityActionState"]}
+ ],
+ "structs": [],
+ "entry_points": ["blaze_construct", "blaze_on_living_update", "blaze_update_entity_action_state", "blaze_fall", "blaze_drop_few_items", "blaze_set_on_fire", "blaze_is_on_fire"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_hostiles.c", "csrc/tests/test_fortress_spawn.c"],
+ "notes": ""
+}

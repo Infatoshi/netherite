@@ -1,0 +1,15 @@
+{"n":16,"act":{}}
+{"cmd":"run","class":"MobFree","radius":4}
+{"cmd":"run","class":"Snapshot"}
+{"cmd":"dev","op":"fill","x0":160,"y0":100,"z0":240,"x1":182,"y1":100,"z1":262,"id":1,"meta":0}
+{"cmd":"dev","op":"fill","x0":160,"y0":101,"z0":240,"x1":182,"y1":112,"z1":262,"id":0,"meta":0}
+{"cmd":"dev","op":"tp","x":176.5,"y":101.0,"z":248.5,"yaw":90.0,"pitch":20.0}
+{"cmd":"dev","op":"fill","x0":164,"y0":101,"z0":244,"x1":172,"y1":101,"z1":244,"id":85,"meta":0}
+{"cmd":"dev","op":"fill","x0":164,"y0":101,"z0":252,"x1":172,"y1":101,"z1":252,"id":85,"meta":0}
+{"cmd":"dev","op":"fill","x0":164,"y0":101,"z0":245,"x1":164,"y1":101,"z1":251,"id":85,"meta":0}
+{"cmd":"dev","op":"fill","x0":172,"y0":101,"z0":245,"x1":172,"y1":101,"z1":251,"id":85,"meta":0}
+{"cmd":"dev","op":"summon","name":"Chicken","x":166.5,"y":101.0,"z":246.5}
+{"cmd":"dev","op":"summon","name":"Chicken","x":170.5,"y":101.0,"z":246.5}
+{"cmd":"dev","op":"summon","name":"Chicken","x":166.5,"y":101.0,"z":250.5}
+{"cmd":"dev","op":"summon","name":"Chicken","x":170.5,"y":101.0,"z":250.5}
+{"n":12000,"act":{}}

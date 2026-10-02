@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/block/BlockDeadBush.java",
+  "classes": ["BlockDeadBush"],
+  "lines": 46,
+  "side": "common",
+  "category": "block",
+  "role": "The dead bush: a desert plant that drops only to shears (one stick) and pops when its floor (sand, hardened clay, dirt) is gone.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["randomtick_update_tick", "bush_floor_ok", "bush_tick"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["bush_floor_ok", "bush_can_stay"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["harvestdrops_break", "harvestdrops_has_mine_stat"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]}
+  ],
+  "evidence": ["out/java/snapshots/cov-deadbush-s1", "out/java/probes/fe-deadbush-2", "out/java/probes/fe-deadbush-42", "out/java/probes/fe-deadbush-desert-2", "out/java/drops/s2", "csrc/tests/test_ticks.c", "out/java/snapshots/explore-long-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockDeadBush", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 32, plant material, no collision, render type 1."},
+    {"kind": "method", "name": "func_149854_a", "sig": "(World,III)Z", "native": "csrc/engine/randomtick.c:bush_floor_ok", "status": "exact", "note": "sand, hardened clay, stained clay or dirt: the random tick's floor test (randomtick.c bush_floor_ok, id 32); blockcb.c bush_floor_ok answers the neighbour path"},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:bush_tick", "status": "exact", "note": "BlockBush.updateTick through randomtick_update_tick's id-32 case (missing until lane/longrun: explore-long-s1 row 7241, a mesa bush over a lake's water); the drop draws the roll with no item (getItemDropped null)"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(IRandomI)Item", "native": "csrc/engine/randomtick.c:randomtick_update_tick", "status": "exact", "note": "null; the randomtick.c:411 comment names it."},
+    {"kind": "method", "name": "harvestBlock", "sig": "(World,EntityPlayer,IIIII)V", "native": "csrc/engine/harvestdrops.c:harvestdrops_break", "status": "exact", "note": "The shears drop (one stick), harvestdrops.c:586-591."},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."}
+  ],
+  "missing": [],
+  "notes": "The dead bush's own floor rule (sand, hardened clay, dirt) lives in the shared bush_floor_ok via the bush family and place.c:1510's keep list; the exact subclass rule was verified in the randomtick path only for the shared test, so the dead-bush-specific list's placement is noted as partial on func_149854_a."
+}

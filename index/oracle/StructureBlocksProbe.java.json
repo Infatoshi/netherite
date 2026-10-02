@@ -1,0 +1,12 @@
+{
+ "path": "oracle/harness/netherite/oracle/StructureBlocksProbe.java",
+ "lines": 601,
+ "role": "Structure block probe: over a raw region generates every mineshaft start wholly inside it chunk by chunk (cx-major) with the population Random seeded as ChunkProviderGenerate.populate seeds it, recording per step every block write, the tile entity delta, constructed entities and the 3x3 hash: the reference for structure_blocks.c and mineshaft_blocks.c.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=StructureBlocksProbe (the generic {\"cmd\":\"run\",\"class\":\"StructureBlocksProbe\"} reflection dispatch in Oracle.java)",
+  "csrc/tests/test_sblocks.c (out/java/sblocks/<name>/)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Temporarily flips WorldConf.minecarts on for its own run so chest minecarts appear, then off again (moves no recorded value). Output manifest.json, steps.bin, writes.bin, tileentities.bin, entities.bin, final.bin.gz. No oracle/src hook."
+}

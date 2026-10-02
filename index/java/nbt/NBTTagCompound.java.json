@@ -1,0 +1,403 @@
+{
+  "path": "oracle/src/nbt/NBTTagCompound.java",
+  "classes": [
+    "NBTTagCompound"
+  ],
+  "lines": 507,
+  "side": "common",
+  "category": "nbt",
+  "role": "The compound tag: a key-to-tag map that every snapshot file, entity NBT, tile entity, item stack tag and world info is built from.",
+  "scope": "in_scope",
+  "scope_reason": "The backbone of snapshot state and the d.ents digest; the native engine cannot load, edit or hash state without it.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/nbtjson.h",
+      "symbols": [
+        "nbt",
+        "nbt_new_compound",
+        "nbt_put",
+        "nbt_get",
+        "nbt_field_count",
+        "nbt_field_key"
+      ]
+    },
+    {
+      "file": "csrc/engine/nbtbin.c",
+      "symbols": [
+        "write_payload",
+        "nbtbin_write_root"
+      ]
+    },
+    {
+      "file": "csrc/engine/region.c",
+      "symbols": [
+        "nbt_bin_compound"
+      ]
+    },
+    {
+      "file": "csrc/engine/nbtedit.c",
+      "symbols": [
+        "nbt_set_key"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c",
+    "csrc/tests/test_det.c",
+    "out/java/snapshots/fresh-play-s1",
+    "out/java/snapshots/dev-give-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "tagMap",
+      "sig": "Map",
+      "native": "csrc/engine/nbtjson.h:nbt",
+      "status": "exact",
+      "note": "An opaque insertion-ordered compound node; nbtbin.c reproduces the JDK 8 HashMap iteration order (bucket index ascending, insertion order inside a bucket) structurally from the put order."
+    },
+    {
+      "kind": "method",
+      "name": "write",
+      "sig": "(LDataOutput;)V",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "exact",
+      "note": "Walks the keys in HashMap order; proven byte for byte by the d.ents SHA-1 digest on the replayed mob-free tapes."
+    },
+    {
+      "kind": "method",
+      "name": "func_152446_a",
+      "sig": "(LDataInput;ILNBTSizeTracker;)V",
+      "native": "csrc/engine/region.c:nbt_bin_compound",
+      "status": "exact",
+      "note": "Reads tagged entries to the END byte; the 512 depth guard lives in the region reader's depth parameter."
+    },
+    {
+      "kind": "method",
+      "name": "func_150296_c",
+      "sig": "()Ljava/util/Set;",
+      "native": "csrc/engine/nbtjson.h:nbt_field_key",
+      "status": "exact",
+      "note": "Key iteration; native walks the fields in put order, which is what the binary writer needs."
+    },
+    {
+      "kind": "method",
+      "name": "getId",
+      "sig": "()B",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "exact",
+      "note": "Constant 10; the compound kind of nbt_type."
+    },
+    {
+      "kind": "method",
+      "name": "setTag",
+      "sig": "(Ljava/lang/String;LNBTBase;)V",
+      "native": "csrc/engine/nbtjson.h:nbt_put",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setByte",
+      "sig": "(Ljava/lang/String;B)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_byte",
+      "status": "exact",
+      "note": "All the typed setters build a node and nbt_put it."
+    },
+    {
+      "kind": "method",
+      "name": "setShort",
+      "sig": "(Ljava/lang/String;S)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_short",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setInteger",
+      "sig": "(Ljava/lang/String;I)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_int",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setLong",
+      "sig": "(Ljava/lang/String;J)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_long",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setFloat",
+      "sig": "(Ljava/lang/String;F)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_float",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setDouble",
+      "sig": "(Ljava/lang/String;D)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_double",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setString",
+      "sig": "(Ljava/lang/String;Ljava/lang/String;)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_string",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setByteArray",
+      "sig": "(Ljava/lang/String;[B)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_byte_array",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setIntArray",
+      "sig": "(Ljava/lang/String;[I)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_int_array",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setBoolean",
+      "sig": "(Ljava/lang/String;Z)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_byte",
+      "status": "exact",
+      "note": "A byte tag of 1 or 0, like Java's setByte."
+    },
+    {
+      "kind": "method",
+      "name": "getTag",
+      "sig": "(Ljava/lang/String;)LNBTBase;",
+      "native": "csrc/engine/nbtjson.h:nbt_get",
+      "status": "exact",
+      "note": "Null when the key is absent, both sides."
+    },
+    {
+      "kind": "method",
+      "name": "func_150299_b",
+      "sig": "(Ljava/lang/String;)B",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "exact",
+      "note": "The stored tag's type id, 0 when absent; native is nbt_kind(nbt_get(key))."
+    },
+    {
+      "kind": "method",
+      "name": "hasKey",
+      "sig": "(Ljava/lang/String;)Z",
+      "native": "csrc/engine/nbtjson.h:nbt_get",
+      "status": "exact",
+      "note": "A non-null lookup."
+    },
+    {
+      "kind": "method",
+      "name": "func_150297_b",
+      "sig": "(Ljava/lang/String;I)Z",
+      "native": "csrc/engine/crafting.c:display_compound",
+      "status": "exact",
+      "note": "The type-checked hasKey with the 99 any-numeric rule; native readers check the kind inline after the lookup (the crafting code is where the missing-key compound case is spelled out in a comment)."
+    },
+    {
+      "kind": "method",
+      "name": "getByte",
+      "sig": "(Ljava/lang/String;)B",
+      "native": "csrc/engine/nbtjson.h:nbt_int_value",
+      "status": "exact",
+      "note": "The engine only reads a scalar as the type it was written as, so the ClassCastException fallback and the cross-type coercion never fire."
+    },
+    {
+      "kind": "method",
+      "name": "getShort",
+      "sig": "(Ljava/lang/String;)S",
+      "native": "csrc/engine/nbtjson.h:nbt_int_value",
+      "status": "exact",
+      "note": "Same well-typed-data assumption."
+    },
+    {
+      "kind": "method",
+      "name": "getInteger",
+      "sig": "(Ljava/lang/String;)I",
+      "native": "csrc/engine/nbtjson.h:nbt_int_value",
+      "status": "exact",
+      "note": "Same well-typed-data assumption."
+    },
+    {
+      "kind": "method",
+      "name": "getLong",
+      "sig": "(Ljava/lang/String;)J",
+      "native": "csrc/engine/nbtjson.h:nbt_int_value",
+      "status": "exact",
+      "note": "Same well-typed-data assumption."
+    },
+    {
+      "kind": "method",
+      "name": "getFloat",
+      "sig": "(Ljava/lang/String;)F",
+      "native": "csrc/engine/nbtjson.h:nbt_float_bits",
+      "status": "exact",
+      "note": "Same well-typed-data assumption."
+    },
+    {
+      "kind": "method",
+      "name": "getDouble",
+      "sig": "(Ljava/lang/String;)D",
+      "native": "csrc/engine/nbtjson.h:nbt_double_bits",
+      "status": "exact",
+      "note": "Same well-typed-data assumption."
+    },
+    {
+      "kind": "method",
+      "name": "getString",
+      "sig": "(Ljava/lang/String;)Ljava/lang/String;",
+      "native": "csrc/engine/nbtjson.h:nbt_string_value",
+      "status": "exact",
+      "note": "Reads string nodes; Java's toString fallback for a non-string tag is never reached on engine data."
+    },
+    {
+      "kind": "method",
+      "name": "getByteArray",
+      "sig": "(Ljava/lang/String;)[B",
+      "native": "csrc/engine/nbtjson.h:nbt_byte_array",
+      "status": "exact",
+      "note": "A wrong-type key throws a ReportedException in Java and returns NULL in native; neither happens on engine data."
+    },
+    {
+      "kind": "method",
+      "name": "getIntArray",
+      "sig": "(Ljava/lang/String;)[I",
+      "native": "csrc/engine/nbtjson.h:nbt_int_array",
+      "status": "exact",
+      "note": "Same as getByteArray."
+    },
+    {
+      "kind": "method",
+      "name": "getCompoundTag",
+      "sig": "(Ljava/lang/String;)LNBTTagCompound;",
+      "native": "csrc/engine/nbtjson.h:nbt_get",
+      "status": "exact",
+      "note": "Java's detached empty compound for a missing key is emulated by the native callers, spelled out in crafting.c:display_compound."
+    },
+    {
+      "kind": "method",
+      "name": "getTagList",
+      "sig": "(Ljava/lang/String;I)LNBTTagList;",
+      "native": "csrc/engine/nbtjson.h:nbt_list_get",
+      "status": "exact",
+      "note": "The absent-or-wrong-type empty-list case is handled by the native callers checking nbt_kind first."
+    },
+    {
+      "kind": "method",
+      "name": "getBoolean",
+      "sig": "(Ljava/lang/String;)Z",
+      "native": "csrc/engine/nbtjson.h:nbt_int_value",
+      "status": "exact",
+      "note": "getByte != 0."
+    },
+    {
+      "kind": "method",
+      "name": "removeTag",
+      "sig": "(Ljava/lang/String;)V",
+      "native": "csrc/engine/nbtedit.c:nbt_set_key",
+      "status": "exact",
+      "note": "Removal goes through the canonical text: render, drop the member, parse back (the file's header comment describes exactly this)."
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()Ljava/lang/String;",
+      "native": "csrc/engine/nbtjson.c:nbt_render",
+      "status": "exact",
+      "note": "Canonical text form rather than Java's {key:value,...} debug format; nothing in the engine consumes Java's format."
+    },
+    {
+      "kind": "method",
+      "name": "hasNoTags",
+      "sig": "()Z",
+      "native": "csrc/engine/nbtjson.h:nbt_field_count",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "createCrashReport",
+      "sig": "(Ljava/lang/String;ILjava/lang/ClassCastException;)LCrashReport;",
+      "native": null,
+      "status": "n/a",
+      "note": "Corrupt-tag crash reporting; the native readers return NULL or an exception class name instead, and engine data is well-typed."
+    },
+    {
+      "kind": "method",
+      "name": "copy",
+      "sig": "()LNBTTagCompound;",
+      "native": "csrc/engine/crafting.c:copy_tag",
+      "status": "exact",
+      "note": "Deep copy through the canonical text round trip."
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Ljava/lang/Object;)Z",
+      "native": "csrc/engine/nbtjson.c:nbt_diff",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()I",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "n/a",
+      "note": "Only feeds the tagMap HashMap; the write order it indirectly determines is reproduced structurally from insertion order."
+    },
+    {
+      "kind": "method",
+      "name": "func_150298_a",
+      "sig": "(Ljava/lang/String;LNBTBase;LDataOutput;)V",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "exact",
+      "note": "Type byte, writeUTF name, payload; the END type writes nothing after the byte."
+    },
+    {
+      "kind": "method",
+      "name": "func_152447_a",
+      "sig": "(LDataInput;LNBTSizeTracker;)B",
+      "native": "csrc/engine/region.c:nbt_name",
+      "status": "exact",
+      "note": "The type-byte read at the head of the compound loop."
+    },
+    {
+      "kind": "method",
+      "name": "func_152448_b",
+      "sig": "(LDataInput;LNBTSizeTracker;)Ljava/lang/String;",
+      "native": "csrc/engine/region.c:nbt_name",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_152449_a",
+      "sig": "(BLjava/lang/String;LDataInput;ILNBTSizeTracker;)LNBTBase;",
+      "native": "csrc/engine/region.c:nbt_bin_value",
+      "status": "exact",
+      "note": "Builds the tag by type and reads it; an IOException becomes a ReportedException in Java and a load failure in native."
+    },
+    {
+      "kind": "method",
+      "name": "NBTTagCompound$1.call",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "createCrashReport's tag-type section, built when getString, getByteArray, getIntArray, getCompoundTag or getTagList meets a tag of another type; the game reads every key with its written type. a crash-report section, built only while a ReportedException is being thrown; no recording crashes"
+    },
+    {
+      "kind": "method",
+      "name": "NBTTagCompound$2.call",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "createCrashReport's expected-type section; see NBTTagCompound$1.call. a crash-report section, built only while a ReportedException is being thrown; no recording crashes"
+    }
+  ],
+  "missing": [],
+  "notes": "The cross-type coercion in the typed getters (Java's floor for float and double read as integer kinds) is not ported because the engine only ever reads a scalar as the type it wrote, and every native tree comes from the engine's own writes, the canonical-text parse or the region reader, all well-typed. The write path is the one behind the d.ents digest; the HashMap-order emulation in nbtbin.c is what makes it byte-exact."
+}

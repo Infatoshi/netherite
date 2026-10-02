@@ -1,0 +1,34 @@
+{
+  "path": "csrc/tests/test_render.c",
+  "lines": 135,
+  "role": "Gate: renders one scene directory under out/java/render with raster_render and compares the frame with the oracle's golden.png; fails when the per-channel mean absolute error or the count of pixels over 25 exceeds the scene's line in tests/render_budget.txt (a ratchet), or when a scene has no budget line; SKIP lines exclude a scene by name with a reason.",
+  "layer": "test",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "updateCameraAndRender",
+        "renderWorld"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/RenderGlobal.java",
+      "members": [
+        "sortAndRender",
+        "renderSky",
+        "renderClouds"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [
+    "main"
+  ],
+  "tick_path": false,
+  "gpu": [
+    "line 93, function main: getenv(TMPDIR) for the output frame path (harness only)",
+    "line 98: the rendered frame file is left on disk (unlink is commented out)"
+  ],
+  "tests": [],
+  "notes": "Test harness, built with -Dmain=gate_test_main behind tests/input_guard.c; not linked into the product and never on the tick path. make -C csrc test runs it on every directory under out/java/render. Native calls: raster_render (csrc/engine/raster.h), png_read_rgba (pngread.h). Depends on the GUI rgba assets built from the client jar (csrc/Makefile line 67). The Java list is the vanilla frame path the golden comes from; this test checks only the pixel budget, not individual Java members. Scenes include out/java/render/beach, beach6, beach8, blockicons_* and more."
+}

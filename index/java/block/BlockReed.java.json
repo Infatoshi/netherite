@@ -1,0 +1,180 @@
+{
+ "path": "oracle/src/block/BlockReed.java",
+ "classes": [
+  "BlockReed"
+ ],
+ "lines": 139,
+ "side": "common",
+ "category": "block",
+ "role": "Sugar cane (83): grows up to three high next to water on grass, dirt or sand, pops off when its support or water goes, and takes the biome grass colour.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/randomtick.c",
+   "symbols": [
+    "rt_reed",
+    "reed_check",
+    "reed_can_stay",
+    "RT_REEDS"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "reed_can_stay"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "reed_can_place"
+   ]
+  },
+  {
+   "file": "csrc/engine/features_plants.c",
+   "symbols": [
+    "reed_can_stay",
+    "feature_reed"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "color_multiplier"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  },
+  {
+   "file": "csrc/engine/pickblock.c",
+   "symbols": [
+    "pick_block_item"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/plant-reed-s1",
+  "out/java/ticks/ticks-s2",
+  "csrc/tests/test_ticks.c",
+  "csrc/tests/test_feature.c",
+  "out/java/chunks",
+  "csrc/tests/test_place.c",
+  "out/java/snapshots/pickblock-s1"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockReed",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "row 83: plants, bounds 0.125..0.875, tick_randomly"
+  },
+  {
+   "kind": "method",
+   "name": "updateTick",
+   "sig": "(World,IIIRandom)V",
+   "native": "csrc/engine/randomtick.c:rt_reed",
+   "status": "exact",
+   "note": "verbatim, meta 15 grows a block"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceBlockAt",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/place.c:reed_can_place",
+   "status": "exact",
+   "note": "also randomtick.c, blockcb.c and features_plants.c copies"
+  },
+  {
+   "kind": "method",
+   "name": "onNeighborBlockChange",
+   "sig": "(World,IIIBlock)V",
+   "native": "csrc/engine/blockcb.c:reed_can_stay",
+   "status": "exact",
+   "note": "the neighbour pass drops the reed when it cannot stay"
+  },
+  {
+   "kind": "method",
+   "name": "func_150170_e",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/randomtick.c:reed_check",
+   "status": "exact",
+   "note": "drop then setBlockToAir"
+  },
+  {
+   "kind": "method",
+   "name": "canBlockStay",
+   "sig": "(World,III)Z",
+   "native": "csrc/engine/randomtick.c:reed_can_stay",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getCollisionBoundingBoxFromPool",
+   "sig": "(World,III)AxisAlignedBB",
+   "native": "csrc/engine/collide.c:collide_add_boxes",
+   "status": "exact",
+   "note": "no box"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 83: reeds item"
+  },
+  {
+   "kind": "method",
+   "name": "isOpaqueCube",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "renderAsNormalBlock",
+   "sig": "()Z",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "1, crossed squares"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "(World,III)Item",
+   "native": "csrc/engine/pickblock.c:block_get_item",
+   "status": "exact",
+   "note": "pick block (Minecraft.func_147112_ai)"
+  },
+  {
+   "kind": "method",
+   "name": "colorMultiplier",
+   "sig": "(IBlockAccess,III)I",
+   "native": "csrc/engine/render_blocks.c:color_multiplier",
+   "status": "exact",
+   "note": "case 83: biome grass colour"
+  }
+ ],
+ "missing": [],
+ "notes": "The collide.c citation is on the member only; the no-box family comment lists BlockReed. Pick-block is a creative feature."
+}

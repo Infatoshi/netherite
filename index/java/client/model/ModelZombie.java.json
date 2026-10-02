@@ -1,0 +1,62 @@
+{
+ "path": "oracle/src/client/model/ModelZombie.java",
+ "classes": [
+  "ModelZombie"
+ ],
+ "lines": 48,
+ "side": "client",
+ "category": "client_model",
+ "role": "The zombie (and pig zombie) model: the biped with the arms-held-out pose.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_zombie",
+    "pose_model",
+    "draw_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs_zombie_f006",
+  "out/java/render/mobs_zombie_f011",
+  "out/java/render/mobs_zombie_f016",
+  "out/java/render/mobs2b_pigman_f006",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ModelZombie",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_zombie",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelZombie",
+   "sig": "(float,float,int,int)V",
+   "native": "csrc/engine/raster_mobs.c:model_zombie",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ModelZombie",
+   "sig": "(float,boolean)V",
+   "native": "csrc/engine/raster_mobs.c:model_zombie",
+   "status": "exact",
+   "note": "the boolean picks the 64x64 or 64x32 texture layout"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_zombie",
+   "status": "exact",
+   "note": "the arms-held-out pose on onGround and the swing wobble"
+  }
+ ],
+ "missing": []
+}

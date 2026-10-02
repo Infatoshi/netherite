@@ -1,0 +1,88 @@
+{
+ "path": "oracle/src/block/BlockOre.java",
+ "classes": [
+  "BlockOre"
+ ],
+ "lines": 100,
+ "side": "common",
+ "category": "block",
+ "role": "The ores (coal 16, iron 15, gold 14, lapis 21, diamond 56, emerald 129, nether quartz 153): which item each drops, the fortune multiplier, and the xp orb draw for the non-self drops.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break",
+    "ore_count",
+    "emit_xp"
+   ]
+  },
+  {
+   "file": "csrc/engine/blocks.h",
+   "symbols": [
+    "BLOCKS"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/drops/s2",
+  "out/java/drops/s42",
+  "csrc/tests/test_drops.c",
+  "csrc/tests/test_harvestdrops.c",
+  "out/java/snapshots/pickaxe-complete-s1",
+  "out/java/snapshots/pfc-oreblast-s5"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "BlockOre",
+   "sig": "()V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rock material rows 14,15,16,21,56,129,153"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDropped",
+   "sig": "(IRandomI)Item",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "coal, diamond, dye, emerald, quartz, else itself"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDropped",
+   "sig": "(Random)I",
+   "native": "csrc/engine/drops.c:ore_count",
+   "status": "exact",
+   "note": "lapis 4 + nextInt(5), else 1"
+  },
+  {
+   "kind": "method",
+   "name": "quantityDroppedWithBonus",
+   "sig": "(IRandom)I",
+   "native": "csrc/engine/drops.c:ore_count",
+   "status": "exact",
+   "note": "nextInt(fortune + 2) - 1 floored at 0, drawn before quantityDropped"
+  },
+  {
+   "kind": "method",
+   "name": "dropBlockAsItemWithChance",
+   "sig": "(World,IIIIFI)V",
+   "native": "csrc/engine/drops.c:emit_xp",
+   "status": "exact",
+   "note": "the xp ranges 0-2, 3-7, 2-5 drawn after the item drop; the roll runs on a client world too, from the S27 (particles_live.c:particles_live_explosion_packet, pfc-oreblast-s5)"
+  },
+  {
+   "kind": "method",
+   "name": "damageDropped",
+   "sig": "(I)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "lapis 4, else 0"
+  }
+ ],
+ "missing": [],
+ "notes": "The xp orbs split through drops_xp_split. Evidence names are the drop probe dumps; pickaxe-complete-s1 mines ore in a played session (not rechecked per ore)."
+}

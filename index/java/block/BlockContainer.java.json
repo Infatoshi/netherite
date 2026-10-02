@@ -1,0 +1,24 @@
+{
+  "path": "oracle/src/block/BlockContainer.java",
+  "classes": ["BlockContainer"],
+  "lines": 34,
+  "side": "common",
+  "category": "block",
+  "role": "The abstract tile-entity-provider base: marks its subclasses as containers and removes the tile entity when the block breaks; forwards client events to the tile entity.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/world.c", "symbols": ["world_remove_tile_entity", "world_tile_entity"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["harvestdrops_break"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]}
+  ],
+  "evidence": ["out/java/snapshots/te-chest-s1", "out/java/snapshots/te-furnace-s1", "csrc/tests/test_snapshots.c"],
+  "members": [
+    {"kind": "ctor", "name": "BlockContainer", "sig": "(Material)V", "native": "csrc/engine/blocks.h:tile_entity", "status": "exact", "note": "isBlockContainer becomes the registry's tile_entity flag (harvestdrops.c:407 names it)."},
+    {"kind": "method", "name": "onBlockAdded", "sig": "(World,III)V", "native": "csrc/engine/blockcb.c:bwl_on_added", "status": "exact", "note": "The super call only; the per-class bodies (chest facing, furnace, dispenser) run from the blockcb dispatch."},
+    {"kind": "method", "name": "breakBlock", "sig": "(World,IIIBlockI)V", "native": "csrc/engine/world.c:world_remove_tile_entity", "status": "exact", "note": "world.c:1211-1221: the breakBlock tail removes the tile entity."},
+    {"kind": "method", "name": "onBlockEventReceived", "sig": "(World,IIIII)Z", "native": null, "status": "n/a", "note": "The generic receiveClientEvent route is not ported; the chest lid and note block behaviors reach tileticks.c by their own paths.; not a gap (triage 2026-09-25)"}
+  ],
+  "missing": [],
+  "notes": "The tile_entity flag drives silk-touch exclusion (dig.c:395, harvestdrops.c:405) and the tile entity registry (tileentity.c:te_kind_of_block). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): onBlockEventReceived's server half changes no state for any reachable container. Formerly listed as missing: BlockContainer.onBlockEventReceived's forwarding to TileEntity.receiveClientEvent has no native counterpart; the effects that need it (the chest lid, the note block pitch) are handled inside tileticks.c instead."
+}

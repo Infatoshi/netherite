@@ -1,0 +1,363 @@
+{
+ "path": "oracle/src/server/management/PlayerManager.java",
+ "classes": [
+  "PlayerManager",
+  "PlayerManager.PlayerInstance"
+ ],
+ "lines": 563,
+ "side": "server",
+ "category": "chunk",
+ "role": "Per-world chunk watch: which chunks each player sees (the radius square), the spiral chunk load queue, the load and unload decisions, and the per-instance block-update batching that becomes S21/S22/S23 packets.",
+ "scope": "in_scope",
+ "scope_reason": "The chunk load, populate and unload order around the player is part of every recorded walk; nothing in world.conf switches it.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/chunkload.c",
+   "symbols": [
+    "cl_login",
+    "cl_logout",
+    "cl_c03",
+    "cl_send_order",
+    "cl_view_radius",
+    "cl_unload_step",
+    "cl_spawn_area",
+    "cl_replay_load",
+    "cl_sweep",
+    "cl_set_mark",
+    "increase_inhabited"
+   ]
+  },
+  {
+   "file": "csrc/engine/chunkload.h",
+   "symbols": [
+    "struct cl"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "serverreplay_tick",
+    "cl_sweep",
+    "serverreplay_sync_client"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.h",
+   "symbols": [
+    "pm_sweep"
+   ]
+  },
+  {
+   "file": "csrc/engine/session.c",
+   "symbols": [
+    "client_take_chunks"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_chunkload.c",
+  "out/java/chunkload/s1-walk3",
+  "out/java/chunkload/s42-walk",
+  "out/java/snapshots/play-reload2-s1",
+  "out/java/snapshots/inhabit-s42",
+  "out/java/snapshots/pfc-fireflush-g13"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "theWorldServer",
+   "sig": "WorldServer",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact",
+   "note": "each struct cl is bound to one world"
+  },
+  {
+   "kind": "field",
+   "name": "players",
+   "sig": "List of EntityPlayerMP",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact",
+   "note": "one player in the recorded game"
+  },
+  {
+   "kind": "field",
+   "name": "playerInstances",
+   "sig": "LongHashMap (chunk key -> PlayerInstance)",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact",
+   "note": "chunkload.c:786's PlayerInstance struct, keyed the same packed way"
+  },
+  {
+   "kind": "field",
+   "name": "chunkWatcherWithPlayers",
+   "sig": "List of PlayerInstance",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "the instances with a pending flush: the tick's write lists"
+  },
+  {
+   "kind": "field",
+   "name": "playerInstanceList",
+   "sig": "List of PlayerInstance",
+   "native": "csrc/engine/chunkload.c:cl_sweep",
+   "status": "exact",
+   "note": "the live watchers (inst set) the sweep walks; each instance touches only its own chunk, so the order does not matter"
+  },
+  {
+   "kind": "field",
+   "name": "playerViewRadius",
+   "sig": "int",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact",
+   "note": "cl_radius, set by cl_set_radius and cl_view_radius"
+  },
+  {
+   "kind": "field",
+   "name": "previousTotalWorldTime",
+   "sig": "long",
+   "native": "csrc/engine/serverreplay.h:pm_sweep",
+   "status": "exact",
+   "note": "per world in struct sr_world; a snapshot records it (worlds.nbt pmSweep)"
+  },
+  {
+   "kind": "field",
+   "name": "xzDirectionsConst",
+   "sig": "int[4][2]",
+   "native": "csrc/engine/chunkload.c:cl_send_order",
+   "status": "exact",
+   "note": "chunkload.c:14 names it; east, south, west, north spiral"
+  },
+  {
+   "kind": "ctor",
+   "name": "PlayerManager",
+   "sig": "(WorldServer)V",
+   "native": "csrc/engine/chunkload.c:cl_init",
+   "status": "exact",
+   "note": "the view radius comes from the config manager as in the constructor"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldServer",
+   "sig": "()WorldServer",
+   "native": null,
+   "status": "n/a",
+   "note": "accessor"
+  },
+  {
+   "kind": "method",
+   "name": "updatePlayerInstances",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "the flush; the 8000-tick processChunk sweep (cl_sweep) and the no-player unloadAllChunks (cl_save_marks); a cell a handler's S23 set last tick goes out as this flush found it when the network work after it changed the cell and the client did not (pfc-fireflush-g13)"
+  },
+  {
+   "kind": "method",
+   "name": "func_152621_a",
+   "sig": "(II)Z",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact",
+   "note": "is the chunk's instance present"
+  },
+  {
+   "kind": "method",
+   "name": "getOrCreateChunkWatcher",
+   "sig": "(IIZ)PlayerManager.PlayerInstance",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151250_a",
+   "sig": "(III)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "markBlockForUpdate's queue: every write lands in the world's write list the flush walks"
+  },
+  {
+   "kind": "method",
+   "name": "addPlayer",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_login",
+   "status": "exact",
+   "note": "chunkload.c:1345 names addPlayer; the managedPosX/Z stamps and the radius square"
+  },
+  {
+   "kind": "method",
+   "name": "filterChunkLoadQueue",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_send_order",
+   "status": "exact",
+   "note": "chunkload.c:1199 names it; the spiral order of EntityPlayerMP.loadedChunks"
+  },
+  {
+   "kind": "method",
+   "name": "removePlayer",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_logout",
+   "status": "exact",
+   "note": "chunkload.c:1455 names it"
+  },
+  {
+   "kind": "method",
+   "name": "overlaps",
+   "sig": "(IIIII)Z",
+   "native": "csrc/engine/chunkload.c:cl_c03",
+   "status": "exact",
+   "note": "the moved-square rectangle test inside updateMountedMovingPlayer"
+  },
+  {
+   "kind": "method",
+   "name": "updateMountedMovingPlayer",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_c03",
+   "status": "exact",
+   "note": "chunkload.c:1362 names it, driven by the C03 position packet"
+  },
+  {
+   "kind": "method",
+   "name": "isPlayerWatchingChunk",
+   "sig": "(EntityPlayerMP,II)Z",
+   "native": "csrc/engine/chunkload.c:cl_player_watching",
+   "status": "exact",
+   "note": "the instance's membership; the loadedChunks half is the chunk send queue"
+  },
+  {
+   "kind": "method",
+   "name": "func_152622_a",
+   "sig": "(I)V",
+   "native": "csrc/engine/chunkload.c:cl_view_radius_at",
+   "status": "exact",
+   "note": "the view-radius change around the player's own (int)posX >> 4, not the managed position; a manager without the player takes the radius only (cl_set_radius); opts-rd-s1 (8, 3, 6, 2 clamped to 3, 5)"
+  },
+  {
+   "kind": "method",
+   "name": "getFurthestViewableBlock",
+   "sig": "(I)I",
+   "native": null,
+   "status": "n/a",
+   "note": "radius * 16 - 16, an arithmetic helper"
+  },
+  {
+   "kind": "field",
+   "name": "playersWatchingChunk",
+   "sig": "List (PlayerInstance, nested class)",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "chunkLocation",
+   "sig": "ChunkCoordIntPair (PlayerInstance, nested class)",
+   "native": "csrc/engine/chunkload.h:struct cl",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_151254_d",
+   "sig": "short[64] (PlayerInstance, nested class)",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "the pending cells: the write lists"
+  },
+  {
+   "kind": "field",
+   "name": "numberOfTilesToUpdate",
+   "sig": "int (PlayerInstance, nested class)",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "S23, S22 or S21 by count: each carries the cells' final state, so the flush writes them all"
+  },
+  {
+   "kind": "field",
+   "name": "flagsYAreasToUpdate",
+   "sig": "int (PlayerInstance, nested class)",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "the S21's sections: the same cells' final state"
+  },
+  {
+   "kind": "field",
+   "name": "previousWorldTime",
+   "sig": "long (PlayerInstance, nested class)",
+   "native": "csrc/engine/chunkload.c:increase_inhabited",
+   "status": "exact",
+   "note": "struct watcher prev, marked by the first player (watch_add); a snapshot records each instance's age (worlds.nbt pmInst, cl_set_mark)"
+  },
+  {
+   "kind": "ctor",
+   "name": "PlayerInstance",
+   "sig": "(II)V",
+   "native": "csrc/engine/chunkload.c:cl_login",
+   "status": "exact",
+   "note": "instance creation loads the chunk, as the constructor does"
+  },
+  {
+   "kind": "method",
+   "name": "addPlayer",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_login",
+   "status": "exact",
+   "note": "chunkload.c:1308 names it"
+  },
+  {
+   "kind": "method",
+   "name": "removePlayer",
+   "sig": "(EntityPlayerMP)V",
+   "native": "csrc/engine/chunkload.c:cl_logout",
+   "status": "exact",
+   "note": "watch_drop: the S21 of a ready chunk, the queue entry, then watcher_dead (increaseInhabitedTime, the map removal, the unload mark)"
+  },
+  {
+   "kind": "method",
+   "name": "processChunk",
+   "sig": "()V",
+   "native": "csrc/engine/chunkload.c:cl_sweep",
+   "status": "exact",
+   "note": "the 8000-tick inhabitedTime accumulation"
+  },
+  {
+   "kind": "method",
+   "name": "increaseInhabitedTime",
+   "sig": "(Chunk)V",
+   "native": "csrc/engine/chunkload.c:increase_inhabited",
+   "status": "exact",
+   "note": "onto struct chunk inhabited_time; a chunk the world does not hold is the EmptyChunk, which drops it. inhabit-s42 compares every end chunk"
+  },
+  {
+   "kind": "method",
+   "name": "func_151253_a",
+   "sig": "(III)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "one cell into the queue (a repeated cell once)"
+  },
+  {
+   "kind": "method",
+   "name": "func_151251_a",
+   "sig": "(Packet)V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "only a chunk the client already holds takes the cell"
+  },
+  {
+   "kind": "method",
+   "name": "sendChunkUpdate",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:serverreplay_sync_client",
+   "status": "exact",
+   "note": "the S23 vs S22 vs S21 batching choice and the tile-entity description packets"
+  },
+  {
+   "kind": "method",
+   "name": "func_151252_a",
+   "sig": "(TileEntity)V",
+   "native": "csrc/play/play.c:tileents_tick",
+   "status": "exact",
+   "note": "the tile's description packet: the S35 record"
+  }
+ ],
+ "missing": [],
+ "notes": "The load/populate/unload order machine is exact: test_chunkload.c replays the oracle's ChunkLoadProbe recordings (out/java/chunkload) event for event, including addPlayer's radius square, updateMountedMovingPlayer's moved square and filterChunkLoadQueue's spiral. What is missing is the packet-facing half, which the GPU-path client does not consume. Closed by lane/idxworld: the packet side is ported onto the client world the client player collides with: serverreplay_sync_client is updatePlayerInstances' flush in the next world tick (the world tick's own writes of this tick, the entity pass's and the network tick's of the tick before; an explosion's with its S27), each cell as it stands at the flush. S23, S22 and S21 all carry the cells' final blocks and metadata, so the choice among them changes nothing the client world's blocks hold (an S21's sections also carry their light, and after an S22 or S23 the client relights itself; the native client world's light is read by nothing, since the player's collisions and the display ticks read blocks and the live renderer draws the server's world); the tile description packets are the S35 record's. The live renderer draws the server's own world rather than this client world (play.c's render world), so a server-driven block change shows in its frame at once, two ticks ahead of Java's client: a renderer follow-up, not this class."
+}

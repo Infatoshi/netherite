@@ -1,0 +1,269 @@
+{
+  "path": "oracle/src/stats/StatList.java",
+  "classes": [
+    "StatList"
+  ],
+  "lines": 277,
+  "side": "common",
+  "category": "stats",
+  "role": "The static registry of every stat: the general StatBasic counters, the per-block mine, per-item use/craft/break tables (with similar-block merging), and the per-entity kill stats.",
+  "scope": "in_scope",
+  "scope_reason": "Server award sites index these tables; the ids reach the client in S37.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/survival.h",
+      "symbols": [
+        "STAT_KILL_ENTITY",
+        "STAT_MINUTES_PLAYED",
+        "STAT_DISTANCE_WALKED",
+        "STAT_DISTANCE_SWUM",
+        "STAT_DISTANCE_DOVE",
+        "STAT_DISTANCE_CLIMBED",
+        "STAT_DISTANCE_FLOWN",
+        "STAT_JUMP",
+        "STAT_DROP",
+        "STAT_DAMAGE_DEALT",
+        "STAT_DAMAGE_TAKEN",
+        "STAT_DEATHS",
+        "STAT_MOB_KILLS",
+        "STAT_PLAYER_KILLS",
+        "STAT_MINE_BLOCK",
+        "STAT_USE_ITEM",
+        "STAT_CRAFT_ITEM",
+        "STAT_BREAK_ITEM",
+        "EGG_COUNT"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "egg_kind",
+        "surv_egg_of_kind",
+        "surv_add_stat",
+        "surv_stat_name",
+        "surv_stat_by_name"
+      ]
+    },
+    {
+      "file": "csrc/engine/stats_table.h",
+      "symbols": [
+        "STAT_TABLE_MINE",
+        "STAT_TABLE_USE",
+        "STAT_TABLE_CRAFT",
+        "STAT_TABLE_BREAK",
+        "STAT_TABLE_GENERAL"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/snapshots/achieve-s1",
+    "out/java/snapshots/stats-s1",
+    "out/java/snapshots/stats-s1-pre",
+    "out/java/snapshots/ride-stats-s1",
+    "out/java/snapshots/idx-flypig-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "oneShotStats",
+      "sig": "static Map<String,StatBase>",
+      "native": null,
+      "status": "n/a",
+      "note": "id-string lookup; native uses enum indices"
+    },
+    {
+      "kind": "field",
+      "name": "allStats, generalStats, itemStats, objectMineStats",
+      "sig": "static List",
+      "native": null,
+      "status": "n/a",
+      "note": "GUI and scoreboard listings"
+    },
+    {
+      "kind": "field",
+      "name": "minutesPlayedStat",
+      "sig": "static StatBase",
+      "native": "csrc/engine/survival.h:STAT_MINUTES_PLAYED",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "distanceWalkedStat, distanceSwumStat, distanceDoveStat, distanceClimbedStat, distanceFlownStat",
+      "sig": "static StatBase",
+      "native": "csrc/engine/survival.h:STAT_DISTANCE_WALKED",
+      "status": "exact",
+      "note": "awarded in survival.c's addMovementStat port"
+    },
+    {
+      "kind": "field",
+      "name": "jumpStat, dropStat, damageDealtStat, damageTakenStat, deathsStat, mobKillsStat, playerKillsStat",
+      "sig": "static StatBase",
+      "native": "csrc/engine/survival.h:STAT_JUMP",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "leaveGameStat",
+      "sig": "static StatBase",
+      "native": "csrc/engine/survival.h:STAT_LEAVE_GAME",
+      "status": "exact",
+      "note": "awarded at logout (a checkpoint save); the resumed file carries it"
+    },
+    {
+      "kind": "field",
+      "name": "distanceFallenStat",
+      "sig": "static StatBase",
+      "native": "csrc/engine/survival.c:surv_server_fall",
+      "status": "exact",
+      "note": "EntityPlayer.fall: Math.round(distance * 100) for falls of 2 or more"
+    },
+    {
+      "kind": "field",
+      "name": "distanceByMinecartStat, distanceByBoatStat, field_151185_q",
+      "sig": "static StatBase",
+      "native": null,
+      "status": "n/a",
+      "note": "minecarts, boats and horses are off in world.conf"
+    },
+    {
+      "kind": "field",
+      "name": "distanceByPigStat",
+      "sig": "static StatBase",
+      "native": "csrc/engine/survival.h:STAT_DISTANCE_PIG",
+      "status": "exact",
+      "note": "EntityPlayer.addMountedMovementStat for a pig vehicle (riding.c, lane/ride); ride-stats-s1 and idx-flypig-s1 compare pigOneCm."
+    },
+    {
+      "kind": "field",
+      "name": "field_151186_x",
+      "sig": "static StatBase (animalsBred)",
+      "native": "csrc/engine/survival.c:surv_bred",
+      "status": "exact",
+      "note": "animalsBred through EntityAIMate.spawnBaby"
+    },
+    {
+      "kind": "field",
+      "name": "fishCaughtStat, field_151183_A, field_151184_B",
+      "sig": "static StatBase",
+      "native": null,
+      "status": "n/a",
+      "note": "fishing is off in world.conf"
+    },
+    {
+      "kind": "field",
+      "name": "mineBlockStatArray",
+      "sig": "static StatBase[4096]",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_MINE",
+      "status": "exact",
+      "note": "generated from the live array after replaceAllSimilarBlocks; surv_add_stat resolves through it"
+    },
+    {
+      "kind": "field",
+      "name": "objectCraftStats",
+      "sig": "static StatBase[32000]",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_CRAFT",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "objectUseStats",
+      "sig": "static StatBase[32000]",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_USE",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "objectBreakStats",
+      "sig": "static StatBase[32000]",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_BREAK",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_151178_a",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "bootstrap; native tables are compile-time"
+    },
+    {
+      "kind": "method",
+      "name": "initCraftableStats",
+      "sig": "()V",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_CRAFT",
+      "status": "exact",
+      "note": "the registered set is the generated table"
+    },
+    {
+      "kind": "method",
+      "name": "func_151181_c",
+      "sig": "()V",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_MINE",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "initStats",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_151179_e",
+      "sig": "()V",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_BREAK",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "replaceAllSimilarBlocks",
+      "sig": "(StatBase[])V",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_MINE",
+      "status": "exact",
+      "note": "the aliasing is in each generated table (grass and farmland count as dirt, lit furnace as furnace)"
+    },
+    {
+      "kind": "method",
+      "name": "func_151180_a",
+      "sig": "(StatBase[],Block,Block)V",
+      "native": "csrc/engine/stats_table.h:STAT_TABLE_MINE",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_151182_a",
+      "sig": "(EntityEggInfo)StatBase",
+      "native": "csrc/engine/survival.c:egg_kind",
+      "status": "exact",
+      "note": "stat.killEntity.<name> via STAT_KILL_ENTITY + egg index"
+    },
+    {
+      "kind": "method",
+      "name": "func_151176_b",
+      "sig": "(EntityEggInfo)StatBase",
+      "native": "csrc/engine/survival.h:STAT_ENTITY_KILLED_BY",
+      "status": "exact",
+      "note": "awarded in surv_server_death from the CombatTracker killer"
+    },
+    {
+      "kind": "method",
+      "name": "func_151177_a",
+      "sig": "(String)StatBase",
+      "native": "csrc/engine/survival.c:surv_stat_by_name",
+      "status": "exact",
+      "note": "an aliased slot's orphan stat object is never incremented and never named by a file"
+    },
+    {
+      "kind": "ctor",
+      "name": "StatList",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a",
+      "note": "n/a: a static-only class; nothing in oracle/src constructs it (no new StatList())"
+    }
+  ],
+  "missing": [],
+  "notes": "Which award sites exist is listed in StatisticsFile and survival.c's surv_add_stat callers; whether the per-id id mismatch matters is moot until per-id stats are sent in S37. lane/idxblocks: pigOneCm was ported by lane/ride."
+}

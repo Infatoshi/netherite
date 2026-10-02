@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/client/gui/GuiYesNo.java",
+  "classes": ["GuiYesNo"],
+  "lines": 89,
+  "side": "client",
+  "category": "client_gui",
+  "role": "The generic yes/no confirmation dialog with two GuiOptionButtons and a countdown that re-enables them.",
+  "scope": "not_needed",
+  "scope_reason": "Only reached from title-screen and options flows (world deletion, demo notice, disconnect confirm) that this build never runs; no in-game path opens it.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "field_146355_a", "sig": "GuiYesNoCallback", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146351_f", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146354_r", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146352_g", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146356_h", "sig": "String", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146357_i", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "field_146353_s", "sig": "int", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "GuiYesNo", "sig": "(GuiYesNoCallback,String,String,int)V", "native": null, "status": "n/a"},
+    {"kind": "ctor", "name": "GuiYesNo", "sig": "(GuiYesNoCallback,String,String,String,String,int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "initGui", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "actionPerformed", "sig": "(GuiButton)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "drawScreen", "sig": "(int,int,float)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_146350_a", "sig": "(int)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "updateScreen", "sig": "()V", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No native grep hit for GuiYesNo. Nothing to verify."
+}

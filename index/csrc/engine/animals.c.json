@@ -1,0 +1,33 @@
+{
+ "path": "csrc/engine/animals.c",
+ "lines": 760,
+ "role": "The per-kind halves of the passive mobs: the five farm animals (pig, cow, mooshroom, chicken, sheep) plus the squid and the bat. Attributes, constructor work, the EntityAgeable/EntityAnimal living-tick tail (growth, love decay, chicken egg laying), drops, breeding children with the sheep dye-mix colour, kind NBT keys, the squid's swim and the bat's hang/fly AI, and EntityAnimal.getBlockPathWeight.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/entity/passive/EntityPig.java", "members": ["applyEntityAttributes", "EntityPig", "dropFewItems", "writeEntityToNBT"]},
+  {"path": "oracle/src/entity/passive/EntityCow.java", "members": ["applyEntityAttributes", "EntityCow", "dropFewItems"]},
+  {"path": "oracle/src/entity/passive/EntityMooshroom.java", "members": ["EntityMooshroom"]},
+  {"path": "oracle/src/entity/passive/EntityChicken.java", "members": ["applyEntityAttributes", "EntityChicken", "fall", "onLivingUpdate", "dropFewItems", "writeEntityToNBT", "timeUntilNextEgg", "field_70886_e", "destPos", "field_70884_g", "field_70888_h", "field_70889_i", "field_152118_bv"]},
+  {"path": "oracle/src/entity/passive/EntitySheep.java", "members": ["applyEntityAttributes", "EntitySheep", "eatGrassBonus", "onSpawnWithEgg", "dropFewItems", "func_90014_a", "createChild", "writeEntityToNBT", "setFleeceColor", "setSheared"]},
+  {"path": "oracle/src/entity/passive/EntitySquid.java", "members": ["applyEntityAttributes", "EntitySquid", "isInWater", "moveEntityWithHeading", "updateEntityActionState", "onLivingUpdate", "dropFewItems", "squidPitch", "prevSquidPitch", "squidYaw", "prevSquidYaw", "squidRotation", "prevSquidRotation", "tentacleAngle", "lastTentacleAngle", "randomMotionSpeed", "rotationVelocity", "field_70871_bB", "randomMotionVecX", "randomMotionVecY", "randomMotionVecZ"]},
+  {"path": "oracle/src/entity/passive/EntityBat.java", "members": ["applyEntityAttributes", "EntityBat", "onUpdate", "updateAITasks", "fall", "updateFallState", "writeEntityToNBT", "setIsBatHanging", "spawnPosition"]},
+  {"path": "oracle/src/entity/passive/EntityAnimal.java", "members": ["onLivingUpdate", "inLove", "breeding", "getBlockPathWeight"]},
+  {"path": "oracle/src/entity/EntityAgeable.java", "members": ["onLivingUpdate", "setGrowingAge"]},
+  {"path": "oracle/src/entity/ai/EntityAIMate.java", "members": ["spawnBaby"]},
+  {"path": "oracle/src/item/crafting/RecipesDyes.java", "members": ["addRecipes"]},
+  {"path": "oracle/src/entity/monster/EntityIronGolem.java", "members": ["dropFewItems"]}
+ ],
+ "structs": [{"name": "dye_recipe (function table)", "java": "RecipesDyes' nine two-dye shapeless recipes as CraftingManager.findMatchingRecipe resolves them for EntitySheep.func_90014_a", "fields": []}],
+ "entry_points": ["animal_attributes", "animal_construct", "animal_eat_grass_bonus", "animal_on_spawn_with_egg", "animal_on_living_update", "animal_drop_few_items", "animal_create_child", "bat_write_kind_nbt", "animal_write_kind_nbt", "squid_is_in_water", "squid_move_entity_with_heading", "squid_update_entity_action_state", "squid_on_living_update", "bat_on_base_update", "bat_update_ai_tasks", "squidbat_bat_on_living_update", "squidbat_kind_tick", "animal_get_block_path_weight"],
+ "tick_path": true,
+ "gpu": [
+  "line 278, function animal_on_living_update: chicken egg drop calls an_spawn_item, which calloc()s a new item entity in living.c (per-entity heap allocation inside the tick)",
+  "lines 294 and 301, functions drop_item and drop_item_damage: every drop goes through an_spawn_item (calloc in living.c)",
+  "line 417, function animal_create_child: an_spawn_living calloc()s the child struct living (living.c) and returns a pointer",
+  "lines 436-449, functions bat_write_kind_nbt and animal_write_kind_nbt: nbt_put/nbt_new_byte build a heap NBT tree (used for state hashing and saves, not needed by the GPU tick)",
+  "lines 266 and 743, functions animal_on_living_update and animal_get_block_path_weight: trace() writes to the global trace FILE in trace.c when a trace is open",
+  "struct living carries function pointers (kind_fall set at lines 114 and 137) and back pointers (l->an, l->world): a pointer graph the GPU cannot mirror as is"
+ ],
+ "tests": ["csrc/tests/test_animals.c", "csrc/tests/test_hostiles.c", "csrc/tests/test_potions.c", "csrc/tests/test_lightning.c", "csrc/tests/test_snapshots.c"],
+ "notes": "Squid and bat are here although the header comment names only the five farm animals. Sound playback is reduced to its RNG draws. Mooshroom shearing, pig saddling and lightning conversion, sheep shearing and wool regrowth AI, and interact() handlers are not in this file (they may live in itemuse.c or ai.c; not verified). Horses, wolves and ocelots are switched off in world.conf and have no code here. The Java member lists were matched from comments and field names, not by diffing each Java method."
+}

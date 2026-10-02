@@ -1,0 +1,19 @@
+{
+  "path": "oracle/src/client/resources/data/TextureMetadataSectionSerializer.java",
+  "classes": ["TextureMetadataSectionSerializer"],
+  "lines": 67,
+  "side": "client",
+  "category": "client_resources",
+  "role": "Gson deserializer for the 'texture' .mcmeta section: blur, clamp and the mipmaps array (numbers only).",
+  "scope": "client_cosmetic",
+  "scope_reason": "Parses texture metadata JSON the native renderer never reads.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "deserialize", "sig": "(JsonElement,Type,JsonDeserializationContext)TextureMetadataSection", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSectionName", "sig": "()String", "native": null, "status": "n/a", "note": "\"texture\""}
+  ],
+  "missing": [],
+  "notes": null
+}

@@ -1,0 +1,13 @@
+{
+ "path": "oracle/harness/netherite/oracle/FeatureProbePlants.java",
+ "lines": 145,
+ "role": "The plants lane's rows for the feature probe: the small decoration features (flowers, tall grass, dead bush, reeds, cactus, pumpkin, melon, vines, waterlily, sand, clay, double plants, mushrooms) with their surface placement rules, in csrc/engine/features_plants.c's order.",
+ "kind": "probe",
+ "used_by": [
+  "FeatureProbe.java (fe-flowers-*, fe-tallgrass-*, fe-reed-*, fe-cactus-*, fe-waterlily-*, fe-sand-*, fe-clay-* and others)",
+  "csrc/tests/test_feature.c",
+  "csrc/engine/features_plants.c mirrors its row order"
+ ],
+ "vanilla_hooks": [],
+ "notes": "No oracle/src file calls into it (grep of oracle/src for the class name); used_by paths under out/java were listed, not opened."
+}

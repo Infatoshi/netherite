@@ -1,0 +1,50 @@
+{
+  "path": "oracle/src/block/BlockCocoa.java",
+  "classes": ["BlockCocoa"],
+  "lines": 245,
+  "side": "common",
+  "category": "block",
+  "role": "The cocoa pod: grows on jungle log faces in three stages, pops when its host log is gone, drops dye damage 3, and takes bonemeal.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/randomtick.c", "symbols": ["rt_cocoa", "spend_cocoa_drop", "randomtick_bonemeal_can", "randomtick_bonemeal_chance", "randomtick_bonemeal_grow"]},
+    {"file": "csrc/engine/itemuse.c", "symbols": ["cocoa_on_block_placed"]},
+    {"file": "csrc/engine/place.c", "symbols": ["place_try"]},
+    {"file": "csrc/engine/blockcb.c", "symbols": ["block_on_neighbor_changed"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["cocoa_bounds", "collide_add_boxes"]},
+    {"file": "csrc/engine/render_blocks3.c", "symbols": ["rb3_render_cocoa"]},
+    {"file": "csrc/engine/raytrace.c", "symbols": ["block_bounds", "raytrace_collision"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": ["csrc/tests/test_ticks.c", "out/java/ticks/ticks-s2", "out/java/place/big2", "csrc/tests/test_itemuse.c", "out/java/raypick/rp-1", "csrc/tests/test_raypick.c", "out/java/snapshots/pickblock-s1", "out/java/snapshots/cov-blkgrow-s1", "out/java/clientframes/cov-blkgallery-s1"],
+  "members": [
+    {"kind": "ctor", "name": "BlockCocoa", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "Entry 127, plant material, render type 28."},
+    {"kind": "method", "name": "getIcon", "sig": "(II)IIcon", "native": "csrc/engine/render_blocks3.c:rb3_render_cocoa", "status": "partial", "note": "The stage textures resolve inside the renderer."},
+    {"kind": "method", "name": "func_149988_b", "sig": "(I)I", "native": null, "status": "n/a", "note": "Icon naming only."},
+    {"kind": "method", "name": "updateTick", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:rt_cocoa", "status": "exact", "note": "The host check, the pop, and the one-in-five growth, randomtick.c:1160; the dispatch at randomtick.c:1343."},
+    {"kind": "method", "name": "canBlockStay", "sig": "(World,III)Z", "native": "csrc/engine/randomtick.c:rt_cocoa", "status": "exact", "note": "The same host test (jungle log with meta 3); the blockcb copy is blockcb.c:2324."},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "28; the dispatch at render_blocks.c:3112."},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "false."},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact"},
+    {"kind": "method", "name": "getCollisionBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:collide_add_boxes", "status": "exact", "note": "The pod's own box through cocoa_bounds, collide.c:394 and 732."},
+    {"kind": "method", "name": "getSelectedBoundingBoxFromPool", "sig": "(World,III)AxisAlignedBB", "native": "csrc/engine/collide.c:cocoa_bounds", "status": "exact", "note": "collide.c:732's comment: the pool box is the pod; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"},
+    {"kind": "method", "name": "setBlockBoundsBasedOnState", "sig": "(IBlockAccess,III)V", "native": "csrc/engine/raytrace.c:block_bounds", "status": "exact"},
+    {"kind": "method", "name": "onBlockPlacedBy", "sig": "(World,IIIIEntityLivingBaseItemStack)V", "native": null, "status": "n/a", "note": "only ItemBlock and ItemReed call onBlockPlacedBy; cocoa beans place through ItemDye, which calls onBlockPlaced only, and the cocoa block's own ItemBlock (id 127) cannot be obtained in survival (the block drops dye, a survival middle click only selects a held stack)"},
+    {"kind": "method", "name": "onBlockPlaced", "sig": "(World,IIIFIII)I", "native": "csrc/engine/itemuse.c:cocoa_on_block_placed", "status": "exact", "note": "The side-to-facing rule, itemuse.c:354, called from place.c:1942."},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "The host check and the flags-2 pop, blockcb.c:2324."},
+    {"kind": "method", "name": "func_149987_c", "sig": "(I)I", "native": "csrc/engine/render_blocks3.c:rb3_render_cocoa", "status": "exact", "note": "The age bits, (meta & 12) >> 2, cited at render_blocks3.c:1358; the same mask is in rt_cocoa."},
+    {"kind": "method", "name": "dropBlockAsItemWithChance", "sig": "(World,IIIFII)V", "native": "csrc/engine/randomtick.c:spend_cocoa_drop", "status": "exact", "note": "One dye below age 2, three at age 2, no roll, randomtick.c:1154; the dig-time pop drop is blockcb.c:2333's place_block_drop."},
+    {"kind": "method", "name": "getItem", "sig": "(World,III)Item", "native": "csrc/engine/pickblock.c:block_get_item", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "getDamageValue", "sig": "(World,III)I", "native": "csrc/engine/pickblock.c:block_get_damage", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "registerBlockIcons", "sig": "(IIconRegister)V", "native": null, "status": "n/a", "note": "Atlas naming only."},
+    {"kind": "method", "name": "func_149851_a", "sig": "(World,III)Z", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_can", "status": "exact", "note": "Age < 2, randomtick.c:1448."},
+    {"kind": "method", "name": "func_149852_a", "sig": "(World,IIIRandom)Z", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_chance", "status": "exact", "note": "1 (no roll), randomtick.c:1416."},
+    {"kind": "method", "name": "func_149853_b", "sig": "(World,IIIRandom)V", "native": "csrc/engine/randomtick.c:randomtick_bonemeal_grow", "status": "exact", "note": "The +1 age write, randomtick.c:1720."},
+    {"kind": "method", "name": "func_149895_l", "sig": "(I)I", "native": "csrc/engine/render_blocks3.c:rb3_render_cocoa", "status": "exact", "note": "meta & 3 at render_blocks3.c:1357, inherited from BlockDirectional."}
+  ],
+  "missing": [
+    "The dig-time break path (harvestdrops' shears-or-base rule for the pod) was not verified against a probe; the tick-time and neighbor pops are covered."
+  ],
+  "notes": "The tick probe (out/java/ticks/ticks-s2) sweeps the growth draws; test_itemuse.c covers the placement facing. The pod's drop item is dye damage 3 (item id 351) in spend_cocoa_drop."
+}

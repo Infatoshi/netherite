@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/world/storage/ISaveFormat.java",
+  "classes": ["ISaveFormat"],
+  "lines": 56,
+  "side": "client",
+  "category": "world",
+  "role": "Interface of the saves-folder manager (SaveFormatOld, AnvilSaveConverter): lists worlds, hands out a save handler, renames, deletes and converts old-format worlds.",
+  "scope": "not_needed",
+  "scope_reason": "World selection, rename, delete and McRegion conversion are menu and launcher concerns; the oracle starts on a fixed per-tape game dir and the native engine takes its snapshot and save directory as arguments.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "method", "name": "func_154333_a", "sig": "()String", "native": null, "status": "n/a", "note": "Format name."},
+    {"kind": "method", "name": "getSaveLoader", "sig": "(String,Z)ISaveHandler", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getSaveList", "sig": "()List", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "flushCache", "sig": "()V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getWorldInfo", "sig": "(String)WorldInfo", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_154335_d", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "deleteWorldDirectory", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "renameWorld", "sig": "(String,String)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_154334_a", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "isOldMapFormat", "sig": "(String)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "convertMapFormat", "sig": "(String,IProgressUpdate)Z", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "canLoadWorld", "sig": "(String)Z", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "No native file mentions ISaveFormat or its members (grep of csrc/engine and csrc/play)."
+}

@@ -1,0 +1,32 @@
+{
+  "path": "csrc/engine/container.c",
+  "lines": 1920,
+  "role": "Native Container.slotClick (modes 0 to 6 including drag), mergeItemStack, per-container transferStackInSlot, Slot rules, SlotCrafting/SlotFurnace/SlotMerchantResult pickup, InventoryPlayer store/add, InventoryMerchant recipe reset and onContainerClosed, one function per Java method.",
+  "layer": "tick",
+  "java": [
+    {"path": "oracle/src/inventory/Container.java", "members": ["slotClick", "mergeItemStack", "retrySlotClick", "func_94525_a", "onContainerClosed", "onCraftMatrixChanged"]},
+    {"path": "oracle/src/inventory/ContainerPlayer.java", "members": ["transferStackInSlot", "onCraftMatrixChanged", "onContainerClosed"]},
+    {"path": "oracle/src/inventory/ContainerWorkbench.java", "members": ["transferStackInSlot", "onContainerClosed"]},
+    {"path": "oracle/src/inventory/ContainerFurnace.java", "members": ["transferStackInSlot"]},
+    {"path": "oracle/src/inventory/ContainerChest.java", "members": ["transferStackInSlot"]},
+    {"path": "oracle/src/inventory/ContainerMerchant.java", "members": ["transferStackInSlot", "onContainerClosed"]},
+    {"path": "oracle/src/inventory/Slot.java", "members": ["isItemValid", "getSlotStackLimit", "putStack", "decrStackSize", "onPickupFromSlot", "canTakeStack", "onSlotChange"]},
+    {"path": "oracle/src/inventory/SlotCrafting.java", "members": ["onPickupFromSlot", "onCrafting", "decrStackSize"]},
+    {"path": "oracle/src/inventory/SlotFurnace.java", "members": ["onPickupFromSlot", "onCrafting", "decrStackSize"]},
+    {"path": "oracle/src/inventory/SlotMerchantResult.java", "members": ["onPickupFromSlot", "onCrafting"]},
+    {"path": "oracle/src/inventory/InventoryMerchant.java", "members": ["resetRecipeAndSlots", "setCurrentRecipeIndex", "decrStackSize", "setInventorySlotContents"]},
+    {"path": "oracle/src/inventory/InventoryCrafting.java", "members": ["setInventorySlotContents", "decrStackSize"]},
+    {"path": "oracle/src/entity/player/InventoryPlayer.java", "members": ["getFirstEmptyStack", "storeItemStack", "storePartialItemStack", "addItemStackToInventory"]},
+    {"path": "oracle/src/tileentity/TileEntityFurnace.java", "members": ["func_145952_a", "func_145954_b"]},
+    {"path": "oracle/src/item/ItemStack.java", "members": ["getMaxStackSize", "isItemStackDamageable", "isItemDamaged", "areItemStackTagsEqual", "copy", "splitStack"]},
+    {"path": "oracle/src/inventory/ContainerDispenser.java", "members": ["ContainerDispenser", "transferStackInSlot"]},
+    {"path": "oracle/src/inventory/ContainerHopper.java", "members": ["ContainerHopper", "transferStackInSlot", "onContainerClosed"]},
+    {"path": "oracle/src/item/Item.java", "members": ["hasContainerItem", "getContainerItem", "doesContainerItemLeaveCraftingGrid"]}
+  ],
+  "structs": [],
+  "entry_points": ["container_stack_fits", "container_slot_accepts", "container_slot_collectable", "container_slot_limit", "container_init", "container_free", "container_set_player", "container_set_chest", "container_set_furnace", "container_set_merchant", "container_set_grid", "container_set_cursor", "container_slot", "container_slot_click", "container_close", "container_merchant_reset", "container_merchant_set_recipe_index"],
+  "tick_path": true,
+  "gpu": ["lines 117-122, function stack_tags_equal: nbt_render allocates two strings per tag comparison and frees them (heap allocation inside the click path)", "line 72, function tag_bool: nbt_render allocation per tag read", "lines 127-131, function stack_copy: craft_stack_copy deep-copies an nbt tag through its canonical text (heap allocation) whenever a stack has a tag", "lines 364-369, function player_add: do/while loop bounded by the stack count", "struct container fields merchant_use, merchant_sound, furnace_xp, crafted: server-side callbacks through function pointers and void* contexts", "struct craft_stack.tag: every stack owns a heap nbt tree (pointer graph)", "line 1368, function drop_push: more than 16 drops in one click are dropped with a stderr message", "function slot_click_inner: retrySlotClick runs as a loop after the click (the retry is the click's last act), no recursion"],
+  "tests": ["csrc/tests/test_containers.c", "csrc/tests/test_snapshots.c"],
+  "notes": "Deliberately not here (per the header): the EntityItem a drop spawns (drops are recorded as stacks), and SlotCrafting's dead container-item branch. Stats, achievements and furnace XP orbs go through the crafted/furnace_xp callbacks the server owns. Container.field_94537_h (a HashSet<Slot>) is kept as a deduplicated array since no result depends on its order. Enchanting, anvil, brewing, beacon, hopper, dispenser and horse containers are not ported (world.conf switches most of them off). Java member names for Container's drag helpers other than func_94525_a were not checked in this pass."
+}

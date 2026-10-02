@@ -1,0 +1,39 @@
+{
+ "path": "csrc/engine/raster_entities.c",
+ "lines": 1604,
+ "role": "The entity rasterizer (raster_entity_quad: clip, perspective, fog, lightmap, standard item lighting, GL cull/blend/alpha-test/depth modes) shared by every entity-like pass, plus the recorded-scene passes for paintings, dropped items (flat sprites) and XP orbs, and the live-client item and orb pass.",
+ "layer": "render",
+ "java": [
+  {"path": "oracle/src/client/renderer/entity/RenderPainting.java", "members": ["doRender", "func_77010_a", "func_77008_a"]},
+  {"path": "oracle/src/entity/item/EntityPainting.java", "members": ["EnumArt"]},
+  {"path": "oracle/src/client/renderer/entity/RenderItem.java", "members": ["doRender", "renderDroppedItem"]},
+  {"path": "oracle/src/client/renderer/entity/RenderXPOrb.java", "members": ["doRender"]},
+  {"path": "oracle/src/entity/item/EntityXPOrb.java", "members": ["xpColor", "getTextureByXP"]},
+  {"path": "oracle/src/entity/item/EntityItem.java", "members": ["hoverStart", "age"]},
+  {"path": "oracle/src/client/renderer/RenderHelper.java", "members": ["enableStandardItemLighting"]},
+  {"path": "oracle/src/client/renderer/entity/RendererLivingEntity.java", "members": ["doRender"]}
+ ],
+ "structs": [
+  {"name": "painting_art", "java": "EntityPainting.EnumArt (title, sizeX, sizeY, offsetX, offsetY)", "fields": ["title", "size_x", "size_y", "offset_x", "offset_y"]},
+  {"name": "ARTS", "java": "EntityPainting.EnumArt's values, in declaration order", "fields": []}
+ ],
+ "entry_points": [
+  "raster_entity_quad",
+  "raster_entity_estate",
+  "raster_entities_draw",
+  "raster_entities_live",
+  "raster_flat_item_quad",
+  "raster_orb_quad",
+  "raster_entity_diffuse",
+  "raster_painting_live"
+ , "raster_entity_set_prec", "raster_entity_prec"],
+ "tick_path": false,
+ "gpu": [
+  "lines 67-84: eighteen file-scope statics (entity_overlay, entity_blend, entity_material, ...) carry the GL state of the current draw; raster_entity_quad sets and resets them around each quad (lines 441-481), so the rasterizer is not reentrant or thread-safe",
+  "lines 1027-1028, function live_entity_tex: static two-slot texture cache keyed by path",
+  "lines 493, 819, 1134-1180: malloc, strdup and JSON/NBT parsing of the scene files per frame on the recorded path",
+  "line 1024-1045, function live_entity_tex: reads textures from the filesystem (the asset scene, else csrc/assets relative to the working directory)"
+ ],
+ "tests": ["csrc/tests/test_render.c", "csrc/tests/raster.c"],
+ "notes": "The live pass (raster_entities_live) draws a block item (mode 1) through the recorded rows' own block-model path (world_item_core over the live atlas) and a flat item of the block sheet (sprite 0) from the atlas (lane/clientui). raster_flat_item_quad and raster_orb_quad are non-static but declared in no header; no caller outside this file was found. Recorded scenes read entities.jsonl (paintings by class and NBT), render_items.jsonl (MeshProbe's client items with age and hoverStart) and the orb rows; the recorded scenes draw block items (mode 1) through world_item_draw. Member names for RenderPainting and RenderXPOrb were matched by grep; the pixel exactness claim rests on test_render.c, not re-verified here. EntityItemFrame lines of entities.jsonl go to raster_itemframe.c (raster_itemframe_draw). lane/entrender: blends 5 (GL_SRC_COLOR, GL_ONE), 6 (GL_SRC_ALPHA, GL_ONE, 8-bit, depth write) and 7 (GL_ONE, GL_ONE with depth write), GL_LEQUAL for the new passes, the lightmap's GL_CLAMP border past 240, per-frame items and orbs from the row (item_entries), raster_world_item_at for the pickup animation, block item copies' offsets. raster_painting_live: RenderPainting for the live client (lane/clientents). lane/renderprec: raster_triangle takes the process's precision (entity_prec, raster_entity_set_prec): RP_EDGE float edges, the float16 stages (light_sample_h, interp_h), RP_RCP (the PI macro)."
+}

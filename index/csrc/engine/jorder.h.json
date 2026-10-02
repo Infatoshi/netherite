@@ -1,0 +1,79 @@
+{
+ "path": "csrc/engine/jorder.h",
+ "lines": 101,
+ "role": "JDK 8 HashMap and HashSet iteration orders computed as data: ChunkCoordIntPair's and ChunkPosition's hashCode, HashMap's spread and table growth, the chunk-window order (the spawner's eligible set, the active chunk set) and the explosion's put-only ChunkPosition set.",
+ "layer": "util",
+ "java": [
+  {
+   "path": "oracle/src/world/ChunkCoordIntPair.java",
+   "members": [
+    "hashCode"
+   ]
+  },
+  {
+   "path": "oracle/src/world/SpawnerAnimals.java",
+   "members": [
+    "eligibleChunksForSpawning"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "activeChunkSet",
+    "setActivePlayerChunksAndCheckLight"
+   ]
+  },
+  {
+   "path": "oracle/src/world/ChunkPosition.java",
+   "members": [
+    "hashCode",
+    "equals"
+   ]
+  },
+  {
+   "path": "oracle/src/world/Explosion.java",
+   "members": [
+    "affectedBlockPositions",
+    "doExplosionA"
+   ]
+  }
+ ],
+ "structs": [
+  {
+   "name": "jord_set3",
+   "java": "Explosion.affectedBlockPositions (HashSet<ChunkPosition>)",
+   "fields": [
+    "keys",
+    "index",
+    "count",
+    "n",
+    "max_keys",
+    "cap",
+    "idx_cap",
+    "max_cap"
+   ]
+  }
+ ],
+ "entry_points": [
+  "jord_ccp_hash",
+  "jord_cpos_hash",
+  "jord_spread",
+  "jord_cap",
+  "jord_ccp_window",
+  "jord_set3_init",
+  "jord_set3_contains",
+  "jord_set3_add",
+  "jord_set3_order",
+  "jord_ccp_window_memo"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "no chains: a put-only JDK 8 map's order is a stable sort of its insertion sequence by bin; a bin that would treeify is kept in insertion order (the window) or stops the program (the set3) (lane/gpuorder, L4)"
+ ],
+ "tests": [
+  "csrc/tests/order_test.c",
+  "csrc/tests/test_spawning.c",
+  "csrc/tests/test_explosions.c"
+ ],
+ "notes": "JDK 8 treeifies a bin at 9 keys in a table of 64 or more; ChunkCoordIntPair windows do that for about 0.17% of player chunks (r 8) and their TreeNode order is not emulated (DEVLOG 2026-09-26, lane/gpuorder)."
+}

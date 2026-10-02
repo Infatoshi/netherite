@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/server/management/BanList.java",
+  "classes": ["BanList"],
+  "lines": 49,
+  "side": "server",
+  "category": "server",
+  "role": "The banned-ips list: a UserList keyed by the IP string parsed out of a SocketAddress.",
+  "scope": "not_needed",
+  "scope_reason": "Only consulted on TCP login (func_148542_a's path); the oracle's single player joins through the in-memory local channel with no address check.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "ctor", "name": "BanList", "sig": "(File)V", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152682_a", "sig": "(JsonObject)UserListEntry", "native": null, "status": "n/a", "note": "builds an IPBanEntry"},
+    {"kind": "method", "name": "func_152708_a", "sig": "(SocketAddress)Z", "native": null, "status": "n/a", "note": "is this address banned"},
+    {"kind": "method", "name": "func_152709_b", "sig": "(SocketAddress)IPBanEntry", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_152707_c", "sig": "(SocketAddress)String", "native": null, "status": "n/a", "note": "strip the leading / and the port"}
+  ],
+  "missing": [],
+  "notes": "Not reachable in the recorded game."
+}

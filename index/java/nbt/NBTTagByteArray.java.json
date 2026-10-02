@@ -1,0 +1,121 @@
+{
+  "path": "oracle/src/nbt/NBTTagByteArray.java",
+  "classes": [
+    "NBTTagByteArray"
+  ],
+  "lines": 75,
+  "side": "common",
+  "category": "nbt",
+  "role": "The byte-array tag, type id 7: length-prefixed raw bytes, used for block entity ids in structure data, skull textures and similar blobs.",
+  "scope": "in_scope",
+  "scope_reason": "Part of the NBT layer behind snapshots and digests.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/nbtjson.h",
+      "symbols": [
+        "nbt_new_byte_array",
+        "nbt_byte_array"
+      ]
+    },
+    {
+      "file": "csrc/engine/nbtbin.c",
+      "symbols": [
+        "write_payload"
+      ]
+    },
+    {
+      "file": "csrc/engine/region.c",
+      "symbols": [
+        "nbt_bin_value"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/fresh-play-s1",
+    "out/java/snapshots/dev-give-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "byteArray",
+      "sig": "byte[]",
+      "native": "csrc/engine/nbtjson.h:nbt_new_byte_array",
+      "status": "exact",
+      "note": "Canonical text ba:1,2; empty is ba:."
+    },
+    {
+      "kind": "ctor",
+      "name": "NBTTagByteArray",
+      "sig": "([B)V",
+      "native": "csrc/engine/nbtjson.h:nbt_new_byte_array",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "write",
+      "sig": "(LDataOutput;)V",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "exact",
+      "note": "Length int then the bytes."
+    },
+    {
+      "kind": "method",
+      "name": "func_152446_a",
+      "sig": "(LDataInput;ILNBTSizeTracker;)V",
+      "native": "csrc/engine/region.c:nbt_bin_value",
+      "status": "exact",
+      "note": "Reads the length, accounts 8 bytes per element to the size tracker, then readFully."
+    },
+    {
+      "kind": "method",
+      "name": "getId",
+      "sig": "()B",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "exact",
+      "note": "7; NBT_BYTE_ARRAY."
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a",
+      "note": "Java's text form: built only by ItemStack.func_151000_E (the item hover in a chat line), CommandGive (chat commands are not agent input) and logging. func_151000_E runs at StatList's init on tagless stacks (id, Count, Damage: a short and a byte) and in a death message only for an item with hasDisplayName (EntityDamageSource, EntityDamageSourceIndirect, CombatTracker), and only the anvil names an item (world.conf anvil = off)"
+    },
+    {
+      "kind": "method",
+      "name": "copy",
+      "sig": "()LNBTBase;",
+      "native": "csrc/engine/crafting.c:copy_tag",
+      "status": "exact",
+      "note": "Canonical text round trip; Java copies with System.arraycopy, native copies through the parse."
+    },
+    {
+      "kind": "method",
+      "name": "equals",
+      "sig": "(Ljava/lang/Object;)Z",
+      "native": null,
+      "status": "n/a",
+      "note": "NBTTagCompound.equals compares tag values only for ItemStack tags (ItemStack.areItemStackTagsEqual, isItemStackEqual) and a HoverEvent's value; no survival item's tag holds a byte array (ench and StoredEnchantments hold shorts, display.color an int, display.Name and Lore strings, RepairCost an int, Fireworks bytes and int arrays), so it is never compared"
+    },
+    {
+      "kind": "method",
+      "name": "hashCode",
+      "sig": "()I",
+      "native": null,
+      "status": "n/a",
+      "note": "Only feeds Java's HashMap."
+    },
+    {
+      "kind": "method",
+      "name": "func_150292_c",
+      "sig": "()[B",
+      "native": "csrc/engine/nbtjson.h:nbt_byte_array",
+      "status": "exact"
+    }
+  ],
+  "missing": [],
+  "notes": "Java's write writes the length then the array; native writes the same layout in write_payload's NBT_BYTE_ARRAY case."
+}

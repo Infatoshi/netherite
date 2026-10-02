@@ -1,0 +1,14 @@
+{
+ "path": "oracle/harness/netherite/oracle/ServerTickProbe.java",
+ "lines": 689,
+ "role": "Server tick probe: from a spawn-area snapshot (Snapshot's format, mob spawning off, weather forced) runs WorldServer.tick() N times on its own thread bound to Det's SERVER role while the server is parked, recording per tick every block write, every spawned entity and the tick scalars (World.rand, updateLCG, times, weather, pending tick digest, block events, Det digests), plus the end chunks and world state.",
+ "kind": "probe",
+ "used_by": [
+  "make -C oracle run CLASS=ServerTickProbe (the generic {\"cmd\":\"run\",\"class\":\"ServerTickProbe\"} reflection dispatch in Oracle.java)",
+  "csrc/tests/test_servertick.c",
+  "csrc/engine/servertick.h (cites it as the reference)",
+  "oracle/harness/netherite/oracle/SpawnProbe.java (reuses its tick loop and row layout)"
+ ],
+ "vanilla_hooks": [],
+ "notes": "Output manifest.json, tickrows.jsonl.gz, tickwrites.bin, spawns.jsonl.gz, the snapshot files and end-* files. No oracle/src hook."
+}

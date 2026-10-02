@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/entity/ai/EntityAIPlay.java",
+  "classes": ["EntityAIPlay"],
+  "lines": 129,
+  "side": "server",
+  "category": "ai",
+  "role": "Baby villager play: on a 1-in-400 draw a child villager either chases another playing child for 1000 ticks or wanders to random spots; sets the isPlaying flag both sides use.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/ai.c", "symbols": ["ai_should_execute", "ai_continue_executing", "ai_start", "ai_reset", "ai_update", "ai_setup_kind", "random_target"]},
+    {"file": "csrc/engine/living.h", "symbols": ["ai_task"]}
+  ],
+  "evidence": ["out/java/snapshots/persist-village-full-s42", "out/java/villagers/vil-2", "csrc/tests/test_villagers.c", "out/java/snapshots/village-life-s42"],
+  "members": [
+    {"kind": "field", "name": "villagerObj", "sig": "EntityVillager", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "folded: the task runs on the villager itself (struct living); is_playing lives on it"},
+    {"kind": "field", "name": "targetVillager", "sig": "EntityLivingBase", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.target_child"},
+    {"kind": "field", "name": "field_75261_c", "sig": "double", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "0.32"},
+    {"kind": "field", "name": "playTime", "sig": "int", "native": "csrc/engine/living.h:ai_task", "status": "exact", "note": "ai_task.play_time"},
+    {"kind": "ctor", "name": "EntityAIPlay", "sig": "(EntityVillager,double)V", "native": "csrc/engine/ai.c:ai_setup_kind", "status": "exact", "note": "registered as AIC_PLAY, priority 8, mutex 1"},
+    {"kind": "method", "name": "shouldExecute", "sig": "()Z", "native": "csrc/engine/ai.c:ai_should_execute", "status": "exact", "note": "AIC_PLAY case: growingAge < 0, rand(400), the nearest non-playing child in the 6x3x6 box, and a findRandomTarget(16,3) fallback draw that keeps the RNG order"},
+    {"kind": "method", "name": "continueExecuting", "sig": "()Z", "native": "csrc/engine/ai.c:ai_continue_executing", "status": "exact", "note": "playTime > 0"},
+    {"kind": "method", "name": "startExecuting", "sig": "()V", "native": "csrc/engine/ai.c:ai_start", "status": "exact", "note": "setPlaying(true) when there is a partner, playTime = 1000"},
+    {"kind": "method", "name": "resetTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_reset", "status": "exact", "note": "setPlaying(false), targetVillager = null"},
+    {"kind": "method", "name": "updateTask", "sig": "()V", "native": "csrc/engine/ai.c:ai_update", "status": "exact", "note": "--playTime; chase the partner beyond 2 blocks, otherwise re-wander when the path is empty"}
+  ],
+  "missing": [],
+  "notes": "lane/villagetrade 2026-09-27: the tail-only evidence (X-01/X-02) now points at the full re-records persist-village-full-s42, whose native replay starts before the behaviour."
+}

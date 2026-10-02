@@ -1,0 +1,132 @@
+{
+ "path": "oracle/src/block/BlockRotatedPillar.java",
+ "classes": [
+  "BlockRotatedPillar"
+ ],
+ "lines": 90,
+ "side": "common",
+ "category": "block",
+ "role": "Abstract axis-rotated block (logs, hay): the placement side picks the axis bits 4/8 over the variant bits, and render type 31 turns the textures to the axis.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "on_block_placed"
+   ]
+  },
+  {
+   "file": "csrc/engine/render_blocks.c",
+   "symbols": [
+    "render_block_log",
+    "table_icon"
+   ]
+  },
+  {
+   "file": "csrc/engine/drops.c",
+   "symbols": [
+    "drops_break"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvestdrops.c",
+   "symbols": [
+    "create_stacked_block",
+    "harvestdrops_create_stacked_block"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/place/big2",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_harvestdrops.c",
+  "csrc/tests/test_meshes.c",
+  "out/java/meshes/mesh-s1",
+  "out/java/snapshots/cov-blkbreak-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_150164_N",
+   "sig": "IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "the end texture, client"
+  },
+  {
+   "kind": "ctor",
+   "name": "BlockRotatedPillar",
+   "sig": "(Material)V",
+   "native": "csrc/engine/blocks.h:BLOCKS",
+   "status": "exact",
+   "note": "rows 17, 162, 170"
+  },
+  {
+   "kind": "method",
+   "name": "getRenderType",
+   "sig": "()I",
+   "native": "csrc/engine/render_blocks.c:render_block_log",
+   "status": "exact",
+   "note": "31; dispatch case 31"
+  },
+  {
+   "kind": "method",
+   "name": "onBlockPlaced",
+   "sig": "(World,IIIIFFFI)I",
+   "native": "csrc/engine/place.c:on_block_placed",
+   "status": "exact",
+   "note": "meta & 3 | axis (sides 2/3 -> 8, 4/5 -> 4)"
+  },
+  {
+   "kind": "method",
+   "name": "getIcon",
+   "sig": "(II)IIcon",
+   "native": "csrc/engine/render_blocks.c:table_icon",
+   "status": "exact",
+   "note": "the oracle dumps getIcon for every (id, meta, side) into rb_table.icon_index; table_icon reads it; render_block_log sets the uv rotation per axis"
+  },
+  {
+   "kind": "method",
+   "name": "func_150163_b",
+   "sig": "(I)IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "abstract side texture, client"
+  },
+  {
+   "kind": "method",
+   "name": "func_150161_d",
+   "sig": "(I)IIcon",
+   "native": null,
+   "status": "n/a",
+   "note": "end texture, client"
+  },
+  {
+   "kind": "method",
+   "name": "damageDropped",
+   "sig": "(I)I",
+   "native": "csrc/engine/drops.c:drops_break",
+   "status": "exact",
+   "note": "case 17/170: meta & 3 (162 in its own case)"
+  },
+  {
+   "kind": "method",
+   "name": "func_150162_k",
+   "sig": "(I)I",
+   "native": "csrc/engine/harvestdrops.c:create_stacked_block",
+   "status": "exact",
+   "note": "meta & 3"
+  },
+  {
+   "kind": "method",
+   "name": "createStackedBlock",
+   "sig": "(I)ItemStack",
+   "native": "csrc/engine/harvestdrops.c:create_stacked_block",
+   "status": "exact",
+   "note": "silk-touch stack with damage meta & 3; also dig.c create_stacked_block for the live dig"
+  }
+ ],
+ "missing": [],
+ "notes": "place.c tests the class names BlockRotatedPillar, BlockOldLog, BlockNewLog and BlockHay for the axis rule."
+}

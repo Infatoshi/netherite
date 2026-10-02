@@ -1,0 +1,22 @@
+{
+  "path": "oracle/src/util/ScreenShotHelper.java",
+  "classes": ["ScreenShotHelper"],
+  "lines": 152,
+  "side": "client",
+  "category": "client_render",
+  "role": "Reads the frame buffer with glGetTexImage/glReadPixels and writes a timestamped PNG under screenshots/, returning a chat message with the file name.",
+  "scope": "client_cosmetic",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {"kind": "field", "name": "pixelBuffer", "sig": "IntBuffer", "native": null, "status": "n/a"},
+    {"kind": "field", "name": "pixelValues", "sig": "int[]", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "saveScreenshot", "sig": "(File,int,int,Framebuffer)IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "saveScreenshot", "sig": "(File,String,int,int,Framebuffer)IChatComponent", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "getTimestampedPNGFileForDirectory", "sig": "(File)File", "native": null, "status": "n/a"}
+  ],
+  "missing": [],
+  "notes": "Screenshots are a human-client feature. The native engine's frames are written by the replay harness (out/java/frames and the pixel gates), never through this path; F2 is not bound in the native player client. idxaudit 2026-09-27: scope reason rewritten.",
+  "scope_reason": "F2 screenshots: reads the frame buffer and writes a PNG; no game state, and native frames are written by the harness."
+}

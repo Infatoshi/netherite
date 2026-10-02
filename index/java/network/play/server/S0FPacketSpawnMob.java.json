@@ -1,0 +1,275 @@
+{
+ "path": "oracle/src/network/play/server/S0FPacketSpawnMob.java",
+ "classes": [
+  "S0FPacketSpawnMob"
+ ],
+ "lines": 204,
+ "side": "server",
+ "category": "network",
+ "role": "Spawns a living entity on the client: entity id, type id, scaled position, byte angles, clamped velocity and the DataWatcher's initial metadata list.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/combat.c",
+   "symbols": [
+    "track_one"
+   ]
+  },
+  {
+   "file": "csrc/engine/clientworld.c",
+   "symbols": [
+    "clientworld_handle_packet"
+   ]
+  },
+  {
+   "file": "csrc/engine/tracker.c",
+   "symbols": [
+    "tracker_multiply_by_32_and_round"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/clientworld/walk300-s1",
+  "out/java/clientworld/smoke-s1",
+  "out/java/snapshots/mobspawn-final-s1",
+  "csrc/tests/test_clientworld.c"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_149042_a",
+   "sig": "int",
+   "status": "exact",
+   "note": "entity id, rides tracker_packet.id"
+  },
+  {
+   "kind": "field",
+   "name": "field_149040_b",
+   "sig": "int",
+   "status": "exact",
+   "note": "type id, rides tracker_packet.type"
+  },
+  {
+   "kind": "field",
+   "name": "field_149041_c",
+   "sig": "int",
+   "status": "exact",
+   "note": "x * 32 via myEntitySize.multiplyBy32AndRound, rides tracker_packet.x"
+  },
+  {
+   "kind": "field",
+   "name": "field_149038_d",
+   "sig": "int",
+   "status": "exact",
+   "note": "y * 32"
+  },
+  {
+   "kind": "field",
+   "name": "field_149039_e",
+   "sig": "int",
+   "status": "exact",
+   "note": "z * 32"
+  },
+  {
+   "kind": "field",
+   "name": "field_149036_f",
+   "sig": "int",
+   "status": "exact",
+   "note": "velocity x * 8000, rides tracker_packet.mx"
+  },
+  {
+   "kind": "field",
+   "name": "field_149037_g",
+   "sig": "int",
+   "status": "exact",
+   "note": "velocity y * 8000"
+  },
+  {
+   "kind": "field",
+   "name": "field_149047_h",
+   "sig": "int",
+   "status": "exact",
+   "note": "velocity z * 8000"
+  },
+  {
+   "kind": "field",
+   "name": "field_149048_i",
+   "sig": "byte",
+   "status": "exact",
+   "note": "yaw byte, rides tracker_packet.yaw"
+  },
+  {
+   "kind": "field",
+   "name": "field_149045_j",
+   "sig": "byte",
+   "status": "exact",
+   "note": "pitch byte, rides tracker_packet.pitch"
+  },
+  {
+   "kind": "field",
+   "name": "field_149046_k",
+   "sig": "byte",
+   "status": "exact",
+   "note": "head yaw byte, rides tracker_packet.head_yaw"
+  },
+  {
+   "kind": "field",
+   "name": "field_149043_l",
+   "sig": "DataWatcher",
+   "status": "missing",
+   "note": "the metadata list is not carried; the client mirror holds position, angles and velocity only"
+  },
+  {
+   "kind": "field",
+   "name": "field_149044_m",
+   "sig": "List",
+   "status": "missing",
+   "note": "the read-back metadata list"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String",
+   "status": "n/a",
+   "note": "decompiler artifact"
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "ctor",
+   "sig": "(EntityLivingBase)V",
+   "status": "exact",
+   "native": "csrc/engine/combat.c:track_one"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "byte codec; the native channel carries structs (csrc/engine/tracker.h's tracker_packet, csrc/engine/survival.h's s2c_pkt), not packets"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "exact",
+   "native": "csrc/engine/clientworld.c:clientworld_handle_packet",
+   "note": "TRACKER_PKT_S0F case: spawns the living client entity with the interpolated server position"
+  },
+  {
+   "kind": "method",
+   "name": "func_149027_c",
+   "sig": "()Ljava/util/List;",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "serialize",
+   "sig": "()Ljava/lang/String;",
+   "status": "n/a",
+   "note": "logging string; no native counterpart"
+  },
+  {
+   "kind": "method",
+   "name": "func_149024_d",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149025_e",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149023_f",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149034_g",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149029_h",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149026_i",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149033_j",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149031_k",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149028_l",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149030_m",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "func_149032_n",
+   "sig": "()B",
+   "status": "n/a",
+   "note": "accessor over the packet's fields; the native packets are plain structs (no getters)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "INetHandler dispatch overload; the typed processPacket holds the body"
+  }
+ ],
+ "missing": [],
+ "notes": "The mob spawn packets are built by the combat module's tracker pass (csrc/engine/combat.c), which keeps the client mirror fed for targeting; the metadata list is not ported."
+}

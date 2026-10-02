@@ -1,0 +1,15 @@
+{"cmd":"run","class":"MobFree","radius":0,"rain":true,"rainTime":20,"thunder":true,"thunderTime":30}
+{"cmd":"run","class":"Snapshot"}
+{"n":10,"act":{"hold":["forward"]}}
+{"n":10,"act":{"hold":["back"]}}
+{"n":10,"act":{"hold":["forward"]}}
+{"n":10,"act":{"hold":["back"]}}
+{"n":10,"act":{}}
+{"n":10,"act":{"hold":["forward","jump"]}}
+{"n":10,"act":{"hold":["back","jump"]}}
+{"n":10,"act":{"hold":["sneak","forward"]}}
+{"n":10,"act":{"hold":["sneak","back"]}}
+{"n":20,"act":{}}
+{"n":10,"act":{"hold":["forward","sprint"]}}
+{"n":10,"act":{"hold":["back","sprint"]}}
+{"n":20,"act":{}}

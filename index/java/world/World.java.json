@@ -1,0 +1,2111 @@
+{
+ "path": "oracle/src/world/World.java",
+ "classes": [
+  "World",
+  "World (anonymous CrashReport Callables in getBiomeGenForCoords, func_147460_e, updateEntities and addWorldInfoToCrashReport)"
+ ],
+ "lines": 4199,
+ "side": "common",
+ "category": "world",
+ "role": "The shared base of WorldServer and WorldClient: block get/set with neighbour notification, the light engine, entity and tile-entity lists and the per-tick entity pass, collision and material queries, raytrace and explosion helpers, weather and the day clock, the chunk tick's active set and mood sound, player lookups, and the World.rand and updateLCG streams everything else draws from.",
+ "scope": "in_scope",
+ "scope_reason": "Every server tick and every client frame goes through World. Redstone power reads are forced to 0 by world.conf redstone = off (hooked at isBlockProvidingPowerTo and getIndirectPowerLevelTo), which the native side mirrors.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/world.c",
+   "symbols": [
+    "world_set_block",
+    "world_set_meta",
+    "world_get_block",
+    "world_get_meta",
+    "world_chunk",
+    "world_load_chunk",
+    "world_chunk_loaded",
+    "block_exists",
+    "world_do_chunks_near_chunk_exist",
+    "world_check_chunks_exist",
+    "notify_step",
+    "world_notify_neighbors",
+    "mark_blocks_dirty_vertical",
+    "world_can_block_see_the_sky",
+    "world_full_block_light_value",
+    "world_get_full_block_light_value",
+    "world_get_height_value",
+    "world_get_height_map_minimum",
+    "world_get_light",
+    "lw_set_light",
+    "world_get_colliding_bounding_boxes",
+    "world_is_in_fire",
+    "world_get_precipitation_height",
+    "world_get_biome",
+    "world_tile_entity",
+    "world_set_tile_entity",
+    "world_remove_tile_entity",
+    "world_mark_tile_entity_gone",
+    "world_can_block_freeze",
+    "world_can_snow_at",
+    "world_check_light_at",
+    "lp_compute",
+    "update_light_by_type",
+    "set_block_step"
+   ]
+  },
+  {
+   "file": "csrc/engine/world.h",
+   "symbols": [
+    "te_list",
+    "te_added",
+    "te_ticking",
+    "dim",
+    "no_sky"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.c",
+   "symbols": [
+    "servertick_tick",
+    "servertick_tick_head",
+    "servertick_update_weather",
+    "servertick_skylight",
+    "get_celestial_angle",
+    "servertick_celestial_radians",
+    "tick_chunks",
+    "chunk_mood_sound",
+    "player_near",
+    "is_raining",
+    "is_thundering",
+    "rain_strength",
+    "weighted_thunder_strength",
+    "village_siege_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/servertick.h",
+   "symbols": [
+    "update_lcg",
+    "skylight_subtracted",
+    "raining_strength",
+    "thundering_strength",
+    "ambient_tick_countdown",
+    "active",
+    "total_time",
+    "world_time"
+   ]
+  },
+  {
+   "file": "csrc/engine/serverreplay.c",
+   "symbols": [
+    "sr_tick_world",
+    "sr_order_push",
+    "sr_on_chunk",
+    "sr_tiles_loaded",
+    "sr_player_entity_update"
+   ]
+  },
+  {
+   "file": "csrc/engine/tileticks.c",
+   "symbols": [
+    "tileticks_pass"
+   ]
+  },
+  {
+   "file": "csrc/engine/spawning.c",
+   "symbols": [
+    "block_light_value",
+    "block_light_do",
+    "count_entities",
+    "moon_factor",
+    "spawner_local_difficulty",
+    "no_entity_collision",
+    "solid_top_surface"
+   ]
+  },
+  {
+   "file": "csrc/engine/blockcb.c",
+   "symbols": [
+    "notify_one",
+    "notify_all_but",
+    "normal_cube_default",
+    "is_indirectly_powered"
+   ]
+  },
+  {
+   "file": "csrc/engine/raytrace.c",
+   "symbols": [
+    "raytrace_blocks"
+   ]
+  },
+  {
+   "file": "csrc/engine/explosion.c",
+   "symbols": [
+    "block_density",
+    "expl_run"
+   ]
+  },
+  {
+   "file": "csrc/engine/living.c",
+   "symbols": [
+    "light_brightness",
+    "is_any_liquid",
+    "living_update_entity",
+    "an_collect"
+   ]
+  },
+  {
+   "file": "csrc/engine/slimes.c",
+   "symbols": [
+    "an_closest_vulnerable_player"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.c",
+   "symbols": [
+    "handle_material_acceleration",
+    "world_check_block_collision"
+   ]
+  },
+  {
+   "file": "csrc/engine/item_entity.c",
+   "symbols": [
+    "material_in_bb"
+   ]
+  },
+  {
+   "file": "csrc/engine/entityquery.c",
+   "symbols": [
+    "entityquery_in_box"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "can_place_entity_on_side",
+    "update_comparators"
+   ]
+  },
+  {
+   "file": "csrc/engine/pathfind.c",
+   "symbols": [
+    "pf_get_path_entity_to_entity"
+   ]
+  },
+  {
+   "file": "csrc/engine/ai.c",
+   "symbols": [
+    "nav_get_path_to_xyz"
+   ]
+  },
+  {
+   "file": "csrc/engine/dig.c",
+   "symbols": [
+    "dig_op_click"
+   ]
+  },
+  {
+   "file": "csrc/engine/activate.c",
+   "symbols": [
+    "add_event"
+   ]
+  },
+  {
+   "file": "csrc/engine/sleep.c",
+   "symbols": [
+    "server_is_daytime"
+   ]
+  },
+  {
+   "file": "csrc/engine/fire.c",
+   "symbols": [
+    "fire_can_lightning_strike_at",
+    "fire_update_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/temple.c",
+   "symbols": [
+    "set_random_seed"
+   ]
+  },
+  {
+   "file": "csrc/engine/seedworld.c",
+   "symbols": [
+    "sw_top_block",
+    "sw_top_solid_or_liquid"
+   ]
+  },
+  {
+   "file": "csrc/engine/portal.c",
+   "symbols": [
+    "actual_height"
+   ]
+  },
+  {
+   "file": "csrc/engine/stronghold.c",
+   "symbols": [
+    "stronghold_nearest"
+   ]
+  },
+  {
+   "file": "csrc/engine/lightning.c",
+   "symbols": [
+    "lightning_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/renderstate.c",
+   "symbols": [
+    "rs_sunbrightness",
+    "rs_skycolor",
+    "rs_star",
+    "rs_cloudcolour",
+    "rs_providerfog",
+    "rs_celestial"
+   ]
+  },
+  {
+   "file": "csrc/engine/renderstate.h",
+   "symbols": [
+    "lbolt"
+   ]
+  },
+  {
+   "file": "csrc/engine/particles_live.c",
+   "symbols": [
+    "sky_block_type_brightness"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_worldfx.c",
+   "symbols": [
+    "sky_block_light"
+   ]
+  },
+  {
+   "file": "csrc/engine/villagers.c",
+   "symbols": [
+    "vc_tick"
+   ]
+  },
+  {
+   "file": "csrc/engine/env.h",
+   "symbols": [
+    "light_list"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/snapshots/peaceful-s1",
+  "out/java/snapshots/cg-smoke-s1",
+  "out/java/snapshots/replay2-walk-s1",
+  "out/java/snapshots/world-daynight-s1",
+  "out/java/snapshots/world-storm-s1",
+  "out/java/snapshots/cg-replay2-still-rain-s1",
+  "out/java/snapshots/world-fire-s1",
+  "out/java/snapshots/world-water-lava-s1",
+  "out/java/snapshots/world-falling-s1",
+  "out/java/snapshots/surv2-tnt-s1",
+  "out/java/snapshots/te-furnace-s1",
+  "out/java/snapshots/mobspawn-final-s1",
+  "out/java/snapshots/persist-walkback-s1",
+  "csrc/tests/test_servertick.c",
+  "csrc/tests/test_ticks.c",
+  "csrc/tests/test_tileticks.c",
+  "csrc/tests/test_move.c",
+  "csrc/tests/test_renderstate.c",
+  "csrc/tests/test_explosions.c",
+  "csrc/tests/test_paths.c",
+  "csrc/tests/test_place.c",
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_chunkload.c",
+  "out/java/snapshots/idx-clientview-s1",
+  "out/java/snapshots/fight-witch-s1",
+  "out/java/snapshots/pf-clickfire-g9",
+  "out/java/snapshots/end-exit-s1",
+  "csrc/tests/test_populate.c",
+  "csrc/tests/test_feature.c",
+  "out/java/snapshots/crowd-pen-s42",
+  "out/java/snapshots/crowd-breed-s42",
+  "out/java/snapshots/orb-pile-s1",
+  "out/java/snapshots/pfc-teorder-g18",
+  "out/java/snapshots/pfc-vehiclejoin-g11",
+  "out/java/snapshots/pfc-deadrider-s6",
+  "out/java/snapshots/pfc-portalghost-s3"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "scheduledUpdatesAreImmediate",
+   "sig": "boolean",
+   "native": "csrc/engine/ticks.c:ticks_set_immediate",
+   "status": "exact",
+   "note": "set by WorldGenLiquids, WorldGenHellLava and the fortress's lava well while they place their liquid; the worldgen gates (test_populate, test_feature springs) hold the immediate flow"
+  },
+  {
+   "kind": "field",
+   "name": "loadedEntityList",
+   "sig": "List<Entity>",
+   "native": "csrc/engine/serverreplay.c:sr_order_push",
+   "status": "exact",
+   "note": "The pass order is carried as data (pools plus an order list), not a Java list."
+  },
+  {
+   "kind": "field",
+   "name": "unloadedEntityList",
+   "sig": "List<Entity>",
+   "native": "csrc/engine/serverreplay.c:sr_on_chunk",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_147482_g",
+   "sig": "List<TileEntity> (loadedTileEntityList)",
+   "native": "csrc/engine/world.h:te_list",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_147484_a",
+   "sig": "List<TileEntity> (addedTileEntityList)",
+   "native": "csrc/engine/world.h:te_added",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "field_147483_b",
+   "sig": "List<TileEntity> (tileEntitiesToBeRemoved)",
+   "native": "csrc/engine/tileticks.c:tileticks_pass",
+   "status": "exact",
+   "note": "Nothing adds to it in this world; tileticks_pass says so."
+  },
+  {
+   "kind": "field",
+   "name": "playerEntities",
+   "sig": "List<EntityPlayer>",
+   "native": "csrc/engine/servertick.c:player_near",
+   "status": "exact",
+   "note": "the one player of the single-player world (SPEC: one player per environment)"
+  },
+  {
+   "kind": "field",
+   "name": "weatherEffects",
+   "sig": "List<Entity>",
+   "native": "csrc/engine/lightning.c:lightning_tick",
+   "status": "exact",
+   "note": "serverreplay.c visits the bolts before the ordinary entities."
+  },
+  {
+   "kind": "field",
+   "name": "cloudColour",
+   "sig": "long",
+   "native": "csrc/engine/renderstate.c:rs_cloudcolour",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "skylightSubtracted",
+   "sig": "int",
+   "native": "csrc/engine/servertick.h:skylight_subtracted",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "updateLCG",
+   "sig": "int",
+   "native": "csrc/engine/servertick.h:update_lcg",
+   "status": "exact",
+   "note": "Seeded from Det.newRandom() by the determinize pass."
+  },
+  {
+   "kind": "field",
+   "name": "DIST_HASH_MAGIC",
+   "sig": "int 1013904223",
+   "native": "csrc/engine/servertick.c:chunk_mood_sound",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "prevRainingStrength, rainingStrength, prevThunderingStrength, thunderingStrength",
+   "sig": "float",
+   "native": "csrc/engine/servertick.h:raining_strength",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "lastLightningBolt",
+   "sig": "int",
+   "native": "csrc/engine/renderstate.h:lbolt",
+   "status": "exact",
+   "note": "Client sky flash only."
+  },
+  {
+   "kind": "field",
+   "name": "difficultySetting",
+   "sig": "EnumDifficulty",
+   "native": "csrc/engine/servertick.c:servertick_set_ambient",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "rand",
+   "sig": "Random",
+   "native": "csrc/engine/spawning.c:spawner_tick",
+   "status": "exact",
+   "note": "World.rand is the driver's jrand shared by servertick, spawning and populate; seeded from Det."
+  },
+  {
+   "kind": "field",
+   "name": "provider",
+   "sig": "WorldProvider",
+   "native": "csrc/engine/world.h:dim",
+   "status": "exact",
+   "note": "Native carries dim and no_sky; see WorldProvider.java's record."
+  },
+  {
+   "kind": "field",
+   "name": "worldAccesses",
+   "sig": "List<IWorldAccess>",
+   "native": null,
+   "status": "n/a",
+   "note": "Listener list (WorldManager, RenderGlobal)."
+  },
+  {
+   "kind": "field",
+   "name": "chunkProvider",
+   "sig": "IChunkProvider",
+   "native": "csrc/engine/world.c:world_load_chunk",
+   "status": "exact",
+   "note": "ChunkProviderServer is its own record"
+  },
+  {
+   "kind": "field",
+   "name": "saveHandler",
+   "sig": "ISaveHandler",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "worldInfo",
+   "sig": "WorldInfo",
+   "native": "csrc/engine/servertick.h:total_time",
+   "status": "exact",
+   "note": "the clocks and weather in struct servertick; WorldInfo and DerivedWorldInfo are their own records"
+  },
+  {
+   "kind": "field",
+   "name": "findingSpawnPoint",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "Guards chunk loading during createSpawnPosition; seedworld.c runs that search offline."
+  },
+  {
+   "kind": "field",
+   "name": "mapStorage",
+   "sig": "MapStorage",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "villageCollectionObj",
+   "sig": "VillageCollection",
+   "native": "csrc/engine/villagers.c:vc_tick",
+   "status": "exact",
+   "note": "loaded from the snapshot's villages.nbt (the collection as the save held it) and ticked in the world's tail"
+  },
+  {
+   "kind": "field",
+   "name": "villageSiegeObj",
+   "sig": "VillageSiege",
+   "native": "csrc/engine/servertick.c:village_siege_tick",
+   "status": "exact",
+   "note": "the midnight roll and the muster; the zombie waves through the siege muster hook (VillageSiege's own record is exact)"
+  },
+  {
+   "kind": "field",
+   "name": "theProfiler",
+   "sig": "Profiler",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "theCalendar",
+   "sig": "Calendar",
+   "native": "csrc/engine/spawning.c:spawner_set_scene",
+   "status": "exact",
+   "note": "pinned by the oracle (Oracle.calendar(), 2026-09-22 12:00 UTC); the native reads the snapshot manifest's month and day (cal_month, cal_day) for the bat and pumpkin rules"
+  },
+  {
+   "kind": "field",
+   "name": "worldScoreboard",
+   "sig": "Scoreboard",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "isClient",
+   "sig": "boolean",
+   "native": null,
+   "status": "n/a",
+   "note": "Native splits server and client code paths."
+  },
+  {
+   "kind": "field",
+   "name": "activeChunkSet",
+   "sig": "Set<ChunkCoordIntPair>",
+   "native": "csrc/engine/servertick.h:active",
+   "status": "exact",
+   "note": "The HashSet's iteration order is recorded and handed in (servertick_set_active)."
+  },
+  {
+   "kind": "field",
+   "name": "ambientTickCountdown",
+   "sig": "int",
+   "native": "csrc/engine/servertick.h:ambient_tick_countdown",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "spawnHostileMobs, spawnPeacefulMobs",
+   "sig": "boolean",
+   "native": "csrc/engine/spawning.c:spawner_tick",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "collidingBoundingBoxes",
+   "sig": "ArrayList<AxisAlignedBB>",
+   "native": "csrc/engine/world.c:world_get_colliding_bounding_boxes",
+   "status": "exact",
+   "note": "struct collide_list."
+  },
+  {
+   "kind": "field",
+   "name": "field_147481_N",
+   "sig": "boolean (tile entity walk in progress)",
+   "native": "csrc/engine/world.h:te_ticking",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "lightUpdateBlockList",
+   "sig": "int[32768]",
+   "native": "csrc/engine/env.h:light_list",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "World",
+   "sig": "(ISaveHandler,String,WorldProvider,WorldSettings,Profiler) client",
+   "native": null,
+   "status": "n/a",
+   "note": "Client world construction; the ambientTickCountdown nextInt(12000) draw is carried in snapshots."
+  },
+  {
+   "kind": "ctor",
+   "name": "World",
+   "sig": "(ISaveHandler,String,WorldSettings,WorldProvider,Profiler) server",
+   "native": "csrc/engine/servertick.c:servertick_load",
+   "status": "exact",
+   "note": "the constructed state comes from the oracle's snapshot of the constructed world (a fresh world from the seed world build)"
+  },
+  {
+   "kind": "method",
+   "name": "getBiomeGenForCoords",
+   "sig": "(int,int)BiomeGenBase",
+   "native": "csrc/engine/world.c:world_get_biome",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldChunkManager",
+   "sig": "()WorldChunkManager",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "createChunkProvider",
+   "sig": "()IChunkProvider",
+   "native": null,
+   "status": "n/a",
+   "note": "Abstract."
+  },
+  {
+   "kind": "method",
+   "name": "initialize",
+   "sig": "(WorldSettings)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnLocation",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Client-only (8,64,8)."
+  },
+  {
+   "kind": "method",
+   "name": "getTopBlock",
+   "sig": "(int,int)Block",
+   "native": "csrc/engine/seedworld.c:sw_top_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBlock",
+   "sig": "(int,int,int)Block",
+   "native": "csrc/engine/world.c:world_get_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isAirBlock",
+   "sig": "(int,int,int)Z",
+   "native": null,
+   "status": "exact",
+   "note": "Re-implemented inline in many files (seedworld.c, randomtick.c, decorator.c, features_*.c) as a material test."
+  },
+  {
+   "kind": "method",
+   "name": "blockExists",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/world.c:block_exists",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "doChunksNearChunkExist",
+   "sig": "(int,int,int,int)Z",
+   "native": "csrc/engine/world.c:world_do_chunks_near_chunk_exist",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "checkChunksExist",
+   "sig": "(int,int,int,int,int,int)Z",
+   "native": "csrc/engine/world.c:world_check_chunks_exist",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "chunkExists",
+   "sig": "(int,int)Z",
+   "native": "csrc/engine/world.c:world_chunk_loaded",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getChunkFromBlockCoords",
+   "sig": "(int,int)Chunk",
+   "native": "csrc/engine/world.c:world_chunk",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getChunkFromChunkCoords",
+   "sig": "(int,int)Chunk",
+   "native": "csrc/engine/world.c:world_load_chunk",
+   "status": "exact",
+   "note": "provideChunk loads or generates; spawning.c's sp_chunk goes through the ensure_chunk callback."
+  },
+  {
+   "kind": "method",
+   "name": "setBlock",
+   "sig": "(int,int,int,Block,int,int)Z",
+   "native": "csrc/engine/world.c:world_set_block",
+   "status": "exact",
+   "note": "Includes the oracle's Rows.onAttempt/onBlock/onAttemptEnd hooks, mirrored by world.h on_attempt, on_block and on_attempt_end."
+  },
+  {
+   "kind": "method",
+   "name": "getBlockMetadata",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/world.c:world_get_meta",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockMetadataWithNotify",
+   "sig": "(int,int,int,int,int)Z",
+   "native": "csrc/engine/world.c:world_set_meta",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setBlockToAir",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/world.c:world_set_block",
+   "status": "exact",
+   "note": "world_set_block(w,x,y,z,0,0,3) at call sites."
+  },
+  {
+   "kind": "method",
+   "name": "func_147480_a",
+   "sig": "(int,int,int,boolean)Z (breakBlock)",
+   "native": "csrc/engine/dig.c:dig_op_click",
+   "status": "exact",
+   "note": "breakBlock: the 2001 aux effect (sound and particles, client only), the drop and the air write, at each caller (dig.c, harvestdrops.c, randomtick.c, ai.c)"
+  },
+  {
+   "kind": "method",
+   "name": "setBlock",
+   "sig": "(int,int,int,Block)Z",
+   "native": "csrc/engine/world.c:world_set_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147471_g",
+   "sig": "(int,int,int)V (markBlockForUpdate)",
+   "native": null,
+   "status": "n/a",
+   "note": "Listener fan-out; server side is PlayerManager's packet queue, not modelled (native comments: 'no state')."
+  },
+  {
+   "kind": "method",
+   "name": "notifyBlockChange",
+   "sig": "(int,int,int,Block)V",
+   "native": "csrc/engine/world.c:notify_step",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "markBlocksDirtyVertical",
+   "sig": "(int,int,int,int)V",
+   "native": "csrc/engine/world.c:mark_blocks_dirty_vertical",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "markBlockRangeForRenderUpdate",
+   "sig": "(int,int,int,int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Client mesh dirtiness; the native client rebuilds meshes its own way."
+  },
+  {
+   "kind": "method",
+   "name": "notifyBlocksOfNeighborChange",
+   "sig": "(int,int,int,Block)V",
+   "native": "csrc/engine/world.c:world_notify_neighbors",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147441_b",
+   "sig": "(int,int,int,Block,int)V (notify all but one side)",
+   "native": "csrc/engine/blockcb.c:notify_all_but",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147460_e",
+   "sig": "(int,int,int,Block)V (notifyBlockOfNeighborChange)",
+   "native": "csrc/engine/blockcb.c:notify_one",
+   "status": "exact",
+   "note": "server worlds only (!isRemote): world.c notify_step and the BWL_NEIGHBOR frame skip a client world, so a client's own bucket beside its lava runs no lava check (sr3-cast-s1)"
+  },
+  {
+   "kind": "method",
+   "name": "func_147477_a",
+   "sig": "(int,int,int,Block)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "Always false in World; WorldServer overrides for tick scheduling."
+  },
+  {
+   "kind": "method",
+   "name": "canBlockSeeTheSky",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/world.c:world_can_block_see_the_sky",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getFullBlockLightValue",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/world.c:world_full_block_light_value",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockLightValue",
+   "sig": "(int,int,int)I",
+   "native": "csrc/engine/spawning.c:block_light_value",
+   "status": "exact",
+   "note": "Also living.c and randomtick.c copies."
+  },
+  {
+   "kind": "method",
+   "name": "getBlockLightValue_do",
+   "sig": "(int,int,int,boolean)I",
+   "native": "csrc/engine/spawning.c:block_light_do",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getHeightValue",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/world.c:world_get_height_value",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getChunkHeightMapMinimum",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/world.c:world_get_height_map_minimum",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSkyBlockTypeBrightness",
+   "sig": "(EnumSkyBlock,int,int,int)I",
+   "native": "csrc/engine/particles_live.c:sky_block_type_brightness",
+   "status": "exact",
+   "note": "Client lighting; render_blocks.c ports ChunkCache's variant."
+  },
+  {
+   "kind": "method",
+   "name": "getSavedLightValue",
+   "sig": "(EnumSkyBlock,int,int,int)I",
+   "native": "csrc/engine/world.c:world_get_light",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setLightValue",
+   "sig": "(EnumSkyBlock,int,int,int,int)V",
+   "native": "csrc/engine/world.c:lw_set_light",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147479_m",
+   "sig": "(int,int,int)V (markBlockForRenderUpdate)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getLightBrightnessForSkyBlocks",
+   "sig": "(int,int,int,int)I",
+   "native": "csrc/engine/raster_worldfx.c:sky_block_light",
+   "status": "exact",
+   "note": "Frame side."
+  },
+  {
+   "kind": "method",
+   "name": "getLightBrightness",
+   "sig": "(int,int,int)F",
+   "native": "csrc/engine/living.c:light_brightness",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isDaytime",
+   "sig": "()Z",
+   "native": "csrc/engine/sleep.c:server_is_daytime",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "rayTraceBlocks",
+   "sig": "(Vec3,Vec3)MovingObjectPosition",
+   "native": "csrc/engine/raytrace.c:raytrace_blocks",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "rayTraceBlocks",
+   "sig": "(Vec3,Vec3,boolean)MovingObjectPosition",
+   "native": "csrc/engine/raytrace.c:raytrace_blocks",
+   "status": "n/a",
+   "note": "the (Vec3,Vec3,boolean) overload's only caller is ItemBoat.onItemRightClick, which returns first under world.conf boats = off (ItemBoat.java:30)"
+  },
+  {
+   "kind": "method",
+   "name": "func_147447_a",
+   "sig": "(Vec3,Vec3,boolean,boolean,boolean)MovingObjectPosition",
+   "native": "csrc/engine/raytrace.c:raytrace_blocks",
+   "status": "exact",
+   "note": "The 200-step DDA walk."
+  },
+  {
+   "kind": "method",
+   "name": "playSoundAtEntity",
+   "sig": "(Entity,String,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Audio."
+  },
+  {
+   "kind": "method",
+   "name": "playSoundToNearExcept",
+   "sig": "(EntityPlayer,String,float,float)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "playSoundEffect",
+   "sig": "(double,double,double,String,float,float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Audio; any Random draw in its arguments is ported at the caller."
+  },
+  {
+   "kind": "method",
+   "name": "playSound",
+   "sig": "(double,double,double,String,float,float,boolean)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "playRecord",
+   "sig": "(String,int,int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "spawnParticle",
+   "sig": "(String,double,double,double,double,double,double)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Client particles are particles_live.c's record."
+  },
+  {
+   "kind": "method",
+   "name": "addWeatherEffect",
+   "sig": "(Entity)Z",
+   "native": "csrc/engine/lightning.c:lightning_adopt",
+   "status": "exact",
+   "note": "the only weather effect in 1.7.10 is EntityLightningBolt"
+  },
+  {
+   "kind": "method",
+   "name": "spawnEntityInWorld",
+   "sig": "(Entity)Z",
+   "native": "csrc/engine/serverreplay.c:sr_order_push",
+   "status": "exact",
+   "note": "the pass order's tail, the chunk lists, the tracker; the unloaded-chunk refusal at each spawner"
+  },
+  {
+   "kind": "method",
+   "name": "onEntityAdded",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Listener fan-out to WorldManager (tracker)."
+  },
+  {
+   "kind": "method",
+   "name": "onEntityRemoved",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "removeEntity",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/serverreplay.c:sr_on_infect",
+   "status": "exact",
+   "note": "its 1.7.10 callers: the zombie's infection of a villager (sr_on_infect), convertToVillager (sr_on_convert), Entity.travelToDimension (sr_living_portal_travel, sr_ie_portal_travel) and the player's End exit (sr_player_conquer_end)"
+  },
+  {
+   "kind": "method",
+   "name": "removePlayerEntityDangerously",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/serverreplay.c:sr_player_entity_update",
+   "status": "exact",
+   "note": "the dimension change and the respawn"
+  },
+  {
+   "kind": "method",
+   "name": "addWorldAccess",
+   "sig": "(IWorldAccess)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "removeWorldAccess",
+   "sig": "(IWorldAccess)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getCollidingBoundingBoxes",
+   "sig": "(Entity,AxisAlignedBB)List",
+   "native": "csrc/engine/world.c:world_get_colliding_bounding_boxes",
+   "status": "exact",
+   "note": "the block boxes; the entity half's getBoundingBox answers only for boats and minecarts, both off in world.conf"
+  },
+  {
+   "kind": "method",
+   "name": "func_147461_a",
+   "sig": "(AxisAlignedBB)List",
+   "native": "csrc/engine/world.c:world_get_colliding_bounding_boxes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "calculateSkylightSubtracted",
+   "sig": "(float)I",
+   "native": "csrc/engine/servertick.c:servertick_skylight",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSunBrightness",
+   "sig": "(float)F",
+   "native": "csrc/engine/renderstate.c:rs_sunbrightness",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSkyColor",
+   "sig": "(Entity,float)Vec3",
+   "native": "csrc/engine/renderstate.c:rs_skycolor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getCelestialAngle",
+   "sig": "(float)F",
+   "native": "csrc/engine/servertick.c:get_celestial_angle",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getMoonPhase",
+   "sig": "()I",
+   "native": "csrc/engine/spawning.c:moon_factor",
+   "status": "exact",
+   "note": "the slime and the difficulty's moon factor; the sky's moon texture phase from the client's clock (raster.c moon_phase)"
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentMoonPhaseFactor",
+   "sig": "()F",
+   "native": "csrc/engine/spawning.c:moon_factor",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getCelestialAngleRadians",
+   "sig": "(float)F",
+   "native": "csrc/engine/servertick.c:servertick_celestial_radians",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getCloudColour",
+   "sig": "(float)Vec3",
+   "native": "csrc/engine/renderstate.c:rs_cloudcolour",
+   "status": "n/a",
+   "note": "clouds are off in every oracle run: GameSettings.shouldRenderClouds needs the clouds option, which Main.optionsFor sets from a replay's tape header and otherwise false (the fixed render profile, DEVLOG 2026-09-24), and no tape turns it on; RenderGlobal.hasCloudFog is always false, so EntityRenderer's cloud fog never asks either. Native play draws clouds by default (play.c play_clouds), with no oracle frame to judge them"
+  },
+  {
+   "kind": "method",
+   "name": "getFogColor",
+   "sig": "(float)Vec3",
+   "native": "csrc/engine/renderstate.c:rs_providerfog",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getPrecipitationHeight",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/world.c:world_get_precipitation_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getTopSolidOrLiquidBlock",
+   "sig": "(int,int)I",
+   "native": "csrc/engine/seedworld.c:sw_top_solid_or_liquid",
+   "status": "exact",
+   "note": "Also restated in village_blocks.c, temple_blocks.c, decorator.c."
+  },
+  {
+   "kind": "method",
+   "name": "getStarBrightness",
+   "sig": "(float)F",
+   "native": "csrc/engine/renderstate.c:rs_star",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "scheduleBlockUpdate",
+   "sig": "(int,int,int,Block,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty in World; WorldServer's override is ticks.c's record."
+  },
+  {
+   "kind": "method",
+   "name": "func_147454_a",
+   "sig": "(int,int,int,Block,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty in World; WorldServer override."
+  },
+  {
+   "kind": "method",
+   "name": "func_147446_b",
+   "sig": "(int,int,int,Block,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty in World; WorldServer override."
+  },
+  {
+   "kind": "method",
+   "name": "updateEntities",
+   "sig": "()V",
+   "native": "csrc/engine/serverreplay.c:sr_tick_world",
+   "status": "exact",
+   "note": "weather effects, the unloaded removals, the pass in order, the tile entities; every whole-server recording; a snapshot's tile entities tick in its loadedTileEntityList order (worlds.nbt teOrder, sr_te_reorder: pfc-teorder-g18); a dead rider its vehicle let go of earlier in the pass leaves at its own entry in that pass (serverreplay.c sr_entity_pass, pfc-deadrider-s6)"
+  },
+  {
+   "kind": "method",
+   "name": "func_147448_a",
+   "sig": "(Collection)V (addTileEntities)",
+   "native": "csrc/engine/serverreplay.c:sr_tiles_loaded",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateEntity",
+   "sig": "(Entity)V",
+   "native": "csrc/engine/living.c:living_update_entity",
+   "status": "exact",
+   "note": "Per entity family; items, falling blocks and hangings have their own pass functions."
+  },
+  {
+   "kind": "method",
+   "name": "updateEntityWithOptionalForce",
+   "sig": "(Entity,boolean)V",
+   "native": "csrc/engine/living.c:living_update_entity",
+   "status": "exact",
+   "note": "the 32-block guard, the last-tick positions, the chunk membership, the riding branch; the player's entry takes the same 32-block guard (serverreplay.c:sr_entity_pass), persist-village-full-s42; on the client, a copy not addedToChunk (the join's forceSpawn vehicle, spawned into ChunkProviderClient's EmptyChunk before its chunk came) skips its update once and is added, its rider still updated (clientworld.c clientworld_tick_entities no_chunk, pfc-vehiclejoin-g11)"
+  },
+  {
+   "kind": "method",
+   "name": "checkNoEntityCollision",
+   "sig": "(AxisAlignedBB)Z",
+   "native": "csrc/engine/spawning.c:no_entity_collision",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "checkNoEntityCollision",
+   "sig": "(AxisAlignedBB,Entity)Z",
+   "native": "csrc/engine/place.c:can_place_entity_on_side",
+   "status": "exact",
+   "note": "the placement's entity test (place.c), the spawners' (spawning.c no_entity_collision, serverreplay.c sr_tile_no_entity_collision)"
+  },
+  {
+   "kind": "method",
+   "name": "checkBlockCollision",
+   "sig": "(AxisAlignedBB)Z",
+   "native": "csrc/engine/player.c:world_check_block_collision",
+   "status": "n/a",
+   "note": "only NetHandlerPlayServer.processPlayer's flying check calls it, behind !isFlightAllowed(), and IntegratedServer sets setAllowFlight(true) (IntegratedServer.java:92)"
+  },
+  {
+   "kind": "method",
+   "name": "isAnyLiquid",
+   "sig": "(AxisAlignedBB)Z",
+   "native": "csrc/engine/living.c:is_any_liquid",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147470_e",
+   "sig": "(AxisAlignedBB)Z (isBoundingBoxBurning)",
+   "native": "csrc/engine/world.c:world_is_in_fire",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "handleMaterialAcceleration",
+   "sig": "(AxisAlignedBB,Material,Entity)Z",
+   "native": "csrc/engine/player.c:handle_material_acceleration",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isMaterialInBB",
+   "sig": "(AxisAlignedBB,Material)Z",
+   "native": "csrc/engine/item_entity.c:material_in_bb",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isAABBInMaterial",
+   "sig": "(AxisAlignedBB,Material)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "its 1.7.10 callers are EntityBoat and EntityFishHook: boats and fishing are off in world.conf"
+  },
+  {
+   "kind": "method",
+   "name": "createExplosion",
+   "sig": "(Entity,double,double,double,float,boolean)Explosion",
+   "native": "csrc/engine/explosion.c:expl_run",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "newExplosion",
+   "sig": "(Entity,double,double,double,float,boolean,boolean)Explosion",
+   "native": "csrc/engine/explosion.c:expl_run",
+   "status": "n/a",
+   "note": "WorldServer overrides newExplosion without calling super, and every client-side caller (ghast fireball impact, bed use in the Nether, the wither) is behind !isRemote, so the base never runs; the server path is WorldServer's (explosion.c:expl_run)"
+  },
+  {
+   "kind": "method",
+   "name": "getBlockDensity",
+   "sig": "(Vec3,AxisAlignedBB)F",
+   "native": "csrc/engine/explosion.c:block_density",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "extinguishFire",
+   "sig": "(EntityPlayer,int,int,int,int)Z",
+   "native": "csrc/engine/dig.c:extinguish_fire",
+   "status": "exact",
+   "note": "a click on a fire's face (lane/playfuzz, pf-clickfire-g9)"
+  },
+  {
+   "kind": "method",
+   "name": "getDebugLoadedEntities",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getProviderName",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getTileEntity",
+   "sig": "(int,int,int)TileEntity",
+   "native": "csrc/engine/world.c:world_tile_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setTileEntity",
+   "sig": "(int,int,int,TileEntity)V",
+   "native": "csrc/engine/world.c:world_set_tile_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "removeTileEntity",
+   "sig": "(int,int,int)V",
+   "native": "csrc/engine/world.c:world_remove_tile_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147457_a",
+   "sig": "(TileEntity)V (markTileEntityForRemoval)",
+   "native": "csrc/engine/world.c:world_mark_tile_entity_gone",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147469_q",
+   "sig": "(int,int,int)Z (isBlockFullCube)",
+   "native": "csrc/engine/item_entity.c:solid_cell",
+   "status": "exact",
+   "note": "Entity.func_145771_j's full-cube test for items and orbs; the player's own push uses isNormalCube (player.c push_out_of_blocks)"
+  },
+  {
+   "kind": "method",
+   "name": "doesBlockHaveSolidTopSurface",
+   "sig": "static (IBlockAccess,int,int,int)Z",
+   "native": "csrc/engine/spawning.c:solid_top_surface",
+   "status": "exact",
+   "note": "Also blockcb.c solid_top_surface and several per-file copies."
+  },
+  {
+   "kind": "method",
+   "name": "isBlockNormalCubeDefault",
+   "sig": "(int,int,int,boolean)Z",
+   "native": "csrc/engine/blockcb.c:normal_cube_default",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "calculateInitialSkylight",
+   "sig": "()V",
+   "native": "csrc/engine/servertick.c:servertick_load",
+   "status": "exact",
+   "note": "skylightSubtracted as the constructed world holds it, from the snapshot; a fresh world's is 0 at time 0"
+  },
+  {
+   "kind": "method",
+   "name": "setAllowedSpawnTypes",
+   "sig": "(boolean,boolean)V",
+   "native": "csrc/engine/spawning.c:spawner_set_spawn_types",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "tick",
+   "sig": "()V",
+   "native": "csrc/engine/servertick.c:servertick_tick_head",
+   "status": "exact",
+   "note": "updateWeather; WorldServer.tick is the rest."
+  },
+  {
+   "kind": "method",
+   "name": "calculateInitialWeather",
+   "sig": "()V",
+   "native": "csrc/engine/servertick.c:servertick_load",
+   "status": "exact",
+   "note": "the strengths as the constructed worlds hold them (worlds.nbt, per world: a Nether built while the overworld rained keeps its 1)"
+  },
+  {
+   "kind": "method",
+   "name": "updateWeather",
+   "sig": "()V",
+   "native": "csrc/engine/servertick.c:servertick_update_weather",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setActivePlayerChunksAndCheckLight",
+   "sig": "()V",
+   "native": "csrc/engine/servertick.c:tick_chunks",
+   "status": "exact",
+   "note": "The active set arrives as recorded data; the four World.rand draws and func_147451_t are ported. clientworld.c has the client world's copy. The HashSet's clear() keeps its table, so the fill starts from the largest table the world's set reached and grows it as JDK 8 does (serverreplay.c sr_active_set's cap, sr_world.active_cap; opts-rd-s1); a bin of 9 or more is a JDK 8 tree bin, ordered as the HashMap orders it (jorder.c jord_ccp_window; tree-spawn-s1, csrc/tests/jorder_trees.txt). View distances up to 16 (SR_MAX_VIEW: the options slider's and F3+F's top; rd-11-s1, rd-16-s1); a larger one is refused loudly."
+  },
+  {
+   "kind": "method",
+   "name": "func_152379_p",
+   "sig": "()I (render distance in chunks)",
+   "native": null,
+   "status": "n/a",
+   "note": "Abstract; WorldServer's is the view distance (serverreplay.c sr->view, which serverreplay_set_view_distance changes mid-run)."
+  },
+  {
+   "kind": "method",
+   "name": "func_147467_a",
+   "sig": "(int,int,Chunk)V (mood sound and relight enqueue)",
+   "native": "csrc/engine/servertick.c:chunk_mood_sound",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147456_g",
+   "sig": "()V (tick blocks and ambience)",
+   "native": "csrc/engine/servertick.c:tick_chunks",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isBlockFreezable",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/world.c:world_can_block_freeze",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isBlockFreezableNaturally",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/world.c:world_can_block_freeze",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canBlockFreeze",
+   "sig": "(int,int,int,boolean)Z",
+   "native": "csrc/engine/world.c:world_can_block_freeze",
+   "status": "exact",
+   "note": "the four neighbour reads short-circuit as the flag1 && chain does: a read can load and populate its chunk (explore-long-s1 row 22385)"
+  },
+  {
+   "kind": "method",
+   "name": "func_147478_e",
+   "sig": "(int,int,int,boolean)Z (canSnowAt)",
+   "native": "csrc/engine/world.c:world_can_snow_at",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147451_t",
+   "sig": "(int,int,int)Z (updateAllLightTypes)",
+   "native": "csrc/engine/world.c:world_check_light_at",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "computeLightValue",
+   "sig": "(int,int,int,EnumSkyBlock)I",
+   "native": "csrc/engine/world.c:lp_compute",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "updateLightByType",
+   "sig": "(EnumSkyBlock,int,int,int)Z",
+   "native": "csrc/engine/world.c:update_light_by_type",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "tickUpdates",
+   "sig": "(Z)Z",
+   "native": null,
+   "status": "n/a",
+   "note": "false in World; WorldServer override."
+  },
+  {
+   "kind": "method",
+   "name": "getPendingBlockUpdates",
+   "sig": "(Chunk,boolean)List",
+   "native": null,
+   "status": "n/a",
+   "note": "null in World; WorldServer override."
+  },
+  {
+   "kind": "method",
+   "name": "getEntitiesWithinAABBExcludingEntity",
+   "sig": "(Entity,AxisAlignedBB)List",
+   "native": "csrc/engine/entityquery.c:entityquery_in_box",
+   "status": "exact",
+   "note": "Chunk-section walk order preserved; living.c an_collect for mob-only worlds. Every match: item-world callers hold IE_MAX_ENTITIES (item_entity.h IE_QUERY_LIST; orb-pile-s1 piles 80 orbs in the pickup box)."
+  },
+  {
+   "kind": "method",
+   "name": "getEntitiesWithinAABBExcludingEntity",
+   "sig": "(Entity,AxisAlignedBB,IEntitySelector)List",
+   "native": "csrc/engine/entityquery.c:entityquery_in_box",
+   "status": "exact",
+   "note": "the chunk and section walk in insertion order, pools merged by stamp"
+  },
+  {
+   "kind": "method",
+   "name": "getEntitiesWithinAABB",
+   "sig": "(Class,AxisAlignedBB)List",
+   "native": "csrc/engine/living.c:an_collect",
+   "status": "exact",
+   "note": "every match: the callers' lists hold AN_MAX_ENTITIES (living.h AN_QUERY_LIST, from the env scratch stack), so a crowd over 64 is read whole (crowd-pen-s42, crowd-breed-s42)"
+  },
+  {
+   "kind": "method",
+   "name": "selectEntitiesWithinAABB",
+   "sig": "(Class,AxisAlignedBB,IEntitySelector)List",
+   "native": "csrc/engine/living.c:an_collect",
+   "status": "exact",
+   "note": "the selector variants at their callers"
+  },
+  {
+   "kind": "method",
+   "name": "findNearestEntityWithinAABB",
+   "sig": "(Class,AxisAlignedBB,Entity)Entity",
+   "native": "csrc/engine/ai.c:find_nearest_entity_in_aabb",
+   "status": "exact",
+   "note": "EntityAIWatchClosest, EntityAIVillagerMate and EntityAILookAtVillager; a dead entity still in a chunk's list counts (ai.c find_nearest_entity_in_aabb; a traveller's ghost: pfc-portalghost-s3)"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityByID",
+   "sig": "(int)Entity",
+   "native": null,
+   "status": "n/a",
+   "note": "Abstract."
+  },
+  {
+   "kind": "method",
+   "name": "getLoadedEntityList",
+   "sig": "()List",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147476_b",
+   "sig": "(int,int,int,TileEntity)V (markTileEntityChunkModified)",
+   "native": null,
+   "status": "n/a",
+   "note": "Marks the chunk dirty for saving."
+  },
+  {
+   "kind": "method",
+   "name": "countEntities",
+   "sig": "(Class)I",
+   "native": "csrc/engine/spawning.c:count_entities",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "addLoadedEntities",
+   "sig": "(List)V",
+   "native": "csrc/engine/serverreplay.c:sr_restore_saved_entities",
+   "status": "exact",
+   "note": "a reloaded chunk's entities join (the overworld; sr_hell_provide for the Nether and the End)"
+  },
+  {
+   "kind": "method",
+   "name": "unloadEntities",
+   "sig": "(List)V",
+   "native": "csrc/engine/serverreplay.c:sr_on_chunk",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canPlaceEntityOnSide",
+   "sig": "(Block,int,int,int,boolean,int,Entity,ItemStack)Z",
+   "native": "csrc/engine/place.c:can_place_entity_on_side",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getPathEntityToEntity",
+   "sig": "(Entity,Entity,float,boolean,boolean,boolean,boolean)PathEntity",
+   "native": "csrc/engine/pathfind.c:pf_get_path_entity_to_entity",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getEntityPathToXYZ",
+   "sig": "(Entity,int,int,int,float,boolean,boolean,boolean,boolean)PathEntity",
+   "native": "csrc/engine/ai.c:nav_get_path_to_xyz",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isBlockProvidingPowerTo",
+   "sig": "(int,int,int,int)I",
+   "native": "csrc/engine/blockcb.c:is_indirectly_powered",
+   "status": "exact",
+   "note": "Returns 0: world.conf redstone = off (the oracle hook and native agree)."
+  },
+  {
+   "kind": "method",
+   "name": "getBlockPowerInput",
+   "sig": "(int,int,int)I",
+   "native": null,
+   "status": "n/a",
+   "note": "its only caller, getIndirectPowerLevelTo, returns 0 first under world.conf redstone = off (World.java:3585)"
+  },
+  {
+   "kind": "method",
+   "name": "getIndirectPowerOutput",
+   "sig": "(int,int,int,int)Z",
+   "native": null,
+   "status": "exact",
+   "note": "false under redstone = off."
+  },
+  {
+   "kind": "method",
+   "name": "getIndirectPowerLevelTo",
+   "sig": "(int,int,int,int)I",
+   "native": null,
+   "status": "exact",
+   "note": "Hooked to 0 by redstone = off."
+  },
+  {
+   "kind": "method",
+   "name": "isBlockIndirectlyGettingPowered",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/blockcb.c:is_indirectly_powered",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getStrongestIndirectPower",
+   "sig": "(int,int,int)I",
+   "native": null,
+   "status": "exact",
+   "note": "0 under redstone = off (blockcb.c inline)."
+  },
+  {
+   "kind": "method",
+   "name": "getClosestPlayerToEntity",
+   "sig": "(Entity,double)EntityPlayer",
+   "native": "csrc/engine/living.c:living_update_entity_action_state",
+   "status": "exact",
+   "note": "the one player, at each caller (despawn, the look helpers, the silverfish spawner test)"
+  },
+  {
+   "kind": "method",
+   "name": "getClosestPlayer",
+   "sig": "(double,double,double,double)EntityPlayer",
+   "native": "csrc/engine/servertick.c:player_near",
+   "status": "exact",
+   "note": "Single parked player."
+  },
+  {
+   "kind": "method",
+   "name": "getClosestVulnerablePlayerToEntity",
+   "sig": "(Entity,double)EntityPlayer",
+   "native": "csrc/engine/slimes.c:an_closest_vulnerable_player",
+   "status": "exact",
+   "note": "the sneaking factor; the invisibility branch needs the invisibility effect, which nothing in survival 1.7.10 with brewing off gives a player"
+  },
+  {
+   "kind": "method",
+   "name": "getClosestVulnerablePlayer",
+   "sig": "(double,double,double,double)EntityPlayer",
+   "native": "csrc/engine/slimes.c:an_closest_vulnerable_player",
+   "status": "exact",
+   "note": "as above"
+  },
+  {
+   "kind": "method",
+   "name": "getPlayerEntityByName",
+   "sig": "(String)EntityPlayer",
+   "native": null,
+   "status": "n/a",
+   "note": "Tame owners (wolves, ocelots, horses switched off) and commands."
+  },
+  {
+   "kind": "method",
+   "name": "func_152378_a",
+   "sig": "(UUID)EntityPlayer",
+   "native": null,
+   "status": "n/a",
+   "note": "Owner lookup by UUID; same callers as above."
+  },
+  {
+   "kind": "method",
+   "name": "sendQuittingDisconnectingPacket",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "checkSessionLock",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_82738_a",
+   "sig": "(J)V (setTotalWorldTime)",
+   "native": "csrc/engine/servertick.h:total_time",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getSeed",
+   "sig": "()J",
+   "native": null,
+   "status": "exact",
+   "note": "struct world.seed."
+  },
+  {
+   "kind": "method",
+   "name": "getTotalWorldTime",
+   "sig": "()J",
+   "native": "csrc/engine/servertick.h:total_time",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldTime",
+   "sig": "()J",
+   "native": "csrc/engine/servertick.h:world_time",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setWorldTime",
+   "sig": "(J)V",
+   "native": "csrc/engine/servertick.h:world_time",
+   "status": "exact",
+   "note": "Dev op time and sleeping."
+  },
+  {
+   "kind": "method",
+   "name": "getSpawnPoint",
+   "sig": "()ChunkCoordinates",
+   "native": null,
+   "status": "exact",
+   "note": "Carried as the spawn fields of seedworld and the snapshot; spawning.c reads it for the 24-block check."
+  },
+  {
+   "kind": "method",
+   "name": "setSpawnLocation",
+   "sig": "(int,int,int)V",
+   "native": "csrc/engine/seedworld.c:sw_spawn_position",
+   "status": "exact",
+   "note": "WorldServer.createSpawnPosition's only use in survival (/setworldspawn needs cheats); the bed spawn is the player's"
+  },
+  {
+   "kind": "method",
+   "name": "joinEntityInSurroundings",
+   "sig": "(Entity)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Minecraft.runTick every 30 client ticks: ChunkProviderClient.provideChunk over a 5x5 answers the blank chunk without making one, and the player is always in loadedEntityList: no effect"
+  },
+  {
+   "kind": "method",
+   "name": "canMineBlock",
+   "sig": "(EntityPlayer,int,int,int)Z",
+   "native": null,
+   "status": "exact",
+   "note": "Always true; itemuse.c notes it."
+  },
+  {
+   "kind": "method",
+   "name": "setEntityState",
+   "sig": "(Entity,byte)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty in World; WorldServer sends S19."
+  },
+  {
+   "kind": "method",
+   "name": "getChunkProvider",
+   "sig": "()IChunkProvider",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147452_c",
+   "sig": "(int,int,int,Block,int,int)V (addBlockEvent)",
+   "native": "csrc/engine/activate.c:add_event",
+   "status": "exact",
+   "note": "WorldServer's queue; World's version calls the block directly."
+  },
+  {
+   "kind": "method",
+   "name": "getSaveHandler",
+   "sig": "()ISaveHandler",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getWorldInfo",
+   "sig": "()WorldInfo",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getGameRules",
+   "sig": "()GameRules",
+   "native": "csrc/engine/serverreplay.c:serverreplay_load",
+   "status": "exact",
+   "note": "the rules a survival world reaches at their defaults (doFireTick, doMobSpawning, keepInventory, doDaylightCycle read from the save; doMobLoot, doTileDrops, naturalRegeneration, mobGriefing, showDeathMessages true): changing one needs /gamerule (cheats); the dev ops set doDaylightCycle and keepInventory"
+  },
+  {
+   "kind": "method",
+   "name": "updateAllPlayersSleepingFlag",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Empty in World; WorldServer override is sleep.c's."
+  },
+  {
+   "kind": "method",
+   "name": "getWeightedThunderStrength",
+   "sig": "(float)F",
+   "native": "csrc/engine/servertick.c:weighted_thunder_strength",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setThunderStrength",
+   "sig": "(float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Client packet handler."
+  },
+  {
+   "kind": "method",
+   "name": "getRainStrength",
+   "sig": "(float)F",
+   "native": "csrc/engine/servertick.c:rain_strength",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRainStrength",
+   "sig": "(float)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Client packet handler."
+  },
+  {
+   "kind": "method",
+   "name": "isThundering",
+   "sig": "()Z",
+   "native": "csrc/engine/servertick.c:is_thundering",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isRaining",
+   "sig": "()Z",
+   "native": "csrc/engine/servertick.c:is_raining",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "canLightningStrikeAt",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/fire.c:fire_can_lightning_strike_at",
+   "status": "exact",
+   "note": "Also entity.c's copy."
+  },
+  {
+   "kind": "method",
+   "name": "isBlockHighHumidity",
+   "sig": "(int,int,int)Z",
+   "native": "csrc/engine/fire.c:fire_update_tick",
+   "status": "exact",
+   "note": "the humid-biome burn chance is inline in fire_update_tick (fire.c:319)"
+  },
+  {
+   "kind": "method",
+   "name": "setItemData",
+   "sig": "(String,WorldSavedData)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "loadItemData",
+   "sig": "(Class,String)WorldSavedData",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getUniqueDataId",
+   "sig": "(String)I",
+   "native": null,
+   "status": "n/a",
+   "note": "Map ids; maps switched off."
+  },
+  {
+   "kind": "method",
+   "name": "playBroadcastSound",
+   "sig": "(int,int,int,int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "playAuxSFX",
+   "sig": "(int,int,int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Effects; client particles for 2001 etc. are particles_live.c."
+  },
+  {
+   "kind": "method",
+   "name": "playAuxSFXAtEntity",
+   "sig": "(EntityPlayer,int,int,int,int,int)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getHeight",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "callers: TileEntityBeacon (a plain block under world.conf beacon = off) and RenderBlocks' panes, whose blockAccess is a ChunkCache (ChunkCache.getHeight), not a World"
+  },
+  {
+   "kind": "method",
+   "name": "getActualHeight",
+   "sig": "()I",
+   "native": "csrc/engine/portal.c:actual_height",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRandomSeed",
+   "sig": "(int,int,int)Random",
+   "native": "csrc/engine/temple.c:set_random_seed",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "findClosestStructure",
+   "sig": "(String,int,int,int)ChunkPosition",
+   "native": "csrc/engine/stronghold.c:stronghold_nearest",
+   "status": "exact",
+   "note": "Eye of ender (throw.c)."
+  },
+  {
+   "kind": "method",
+   "name": "extendedLevelsInChunkCache",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getHorizon",
+   "sig": "()D",
+   "native": "csrc/engine/raster.c:raster_live_frame",
+   "status": "exact",
+   "note": "63 for the default world type: the sky's void floor (view y - 63)"
+  },
+  {
+   "kind": "method",
+   "name": "addWorldInfoToCrashReport",
+   "sig": "(CrashReport)CrashReportCategory",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "destroyBlockInWorldPartially",
+   "sig": "(int,int,int,int,int)V",
+   "native": null,
+   "status": "n/a",
+   "note": "Break-progress overlay listener."
+  },
+  {
+   "kind": "method",
+   "name": "getCurrentDate",
+   "sig": "()Calendar",
+   "native": "csrc/engine/spawning.c:spawner_set_scene",
+   "status": "exact",
+   "note": "the oracle's calendar pin; the snapshot's month and day"
+  },
+  {
+   "kind": "method",
+   "name": "makeFireworks",
+   "sig": "(double,double,double,double,double,double,NBTTagCompound)V",
+   "native": null,
+   "status": "n/a",
+   "note": "fireworks = off."
+  },
+  {
+   "kind": "method",
+   "name": "getScoreboard",
+   "sig": "()Scoreboard",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_147453_f",
+   "sig": "(int,int,int,Block)V (updateComparators)",
+   "native": "csrc/engine/place.c:update_comparators",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147462_b",
+   "sig": "(double,double,double)F (local difficulty)",
+   "native": "csrc/engine/spawning.c:spawner_local_difficulty",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147473_B",
+   "sig": "(int,int,int)F",
+   "native": "csrc/engine/spawning.c:spawner_local_difficulty",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_147450_X",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a",
+   "note": "Recomputes skylightSubtracted on the client after a time packet."
+  },
+  {
+   "kind": "ctor",
+   "name": "World$1",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in World.getBiomeGenForCoords's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "World$1.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in World.getBiomeGenForCoords's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "World$2",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in World.func_147460_e's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "World$2.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in World.func_147460_e's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "World$3",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in World.addWorldInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "World$3.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in World.addWorldInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "World$4",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in World.addWorldInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "World$4.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in World.addWorldInfoToCrashReport); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  }
+ ],
+ "missing": [],
+ "notes": "Read with comments stripped; members are complete to my reading of the file. Many helpers are re-implemented per file (isAirBlock, doesBlockHaveSolidTopSurface, getTopSolidOrLiquidBlock, getBlockLightValue); the member cites one representative. Oracle hooks in this file: Det.newRandom for rand and updateLCG, Rows.onAttempt/onBlock/onAttemptEnd in setBlock and setBlockMetadataWithNotify, Oracle.quietJoin in updateEntities, Oracle.calendar and calendarMillis for theCalendar and getCurrentDate, WorldConf.redstone at isBlockProvidingPowerTo and getIndirectPowerLevelTo. Status exact at member level means a named native port exists; I did not rerun recordings. Where a member cites a struct field (servertick.h total_time etc.) the logic is inline at its users. Closed by lane/idxworld: each partial or missing member was checked against the Java call sites and the native port (the member notes); a member used only by a switched-off feature or by no reachable caller is n/a with the reason. One player per environment is SPEC's scope (the single-player integrated server; LAN play is not in this game), so the player lists hold one."
+}

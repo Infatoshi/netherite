@@ -1,0 +1,272 @@
+# The device kernels and the C they mirror (the mirror rule, GPU design
+# 2026-09-28 part 6; cuda/mirror.c, out/native/mirror, reads this). One line per fact:
+#
+#   KERNEL  what   a description
+#   KERNEL  root   FILE:NAME  a C item the kernel mirrors; the mirrored set is
+#                  the roots with every function, macro, table and enum
+#                  constant they reach by name (FILE is under csrc/)
+#   KERNEL  cut    FILE:NAME  where that closure stops (the kernel does not
+#                  mirror it: it reports it, or C runs it on both sides)
+#   KERNEL  kept   PATH       compiled C: the list of functions the build kept
+#                  (nw-roots), used instead of the roots when it exists
+#   KERNEL  file   GLOB       files whose any change counts (the port itself,
+#                  its capture, its gate's scripts), under csrc/
+#   KERNEL  build  COMMAND    builds the kernel (from the repository root)
+#   KERNEL  edit   COMMAND    the per-edit check of a lane working on the
+#                  kernel: one recording's stored C side through the device,
+#                  seconds (AGENTS.md, GPU kernel lanes)
+#   KERNEL  quick  COMMAND    the gate a change that reaches the kernel runs
+#                  in the merge trial, on the 3090
+#   KERNEL  full   COMMAND    the nightly's gate over every recording
+#
+# A lane that ports a C function to the device adds its root here; a lane
+# that renames a root updates it (make -C csrc mirror-check fails otherwise).
+
+LIGHTING what  the light engine (World.updateLightByType and its drivers), cuda/lighting/dev.cuh, checked by engine/lightcap.c's capture
+LIGHTING root  engine/world.c:world_light_update_raw
+LIGHTING root  engine/world.c:update_light_by_type
+LIGHTING root  engine/world.c:world_check_light_at
+LIGHTING root  engine/world.c:chunk_populate_column
+LIGHTING root  engine/world.c:chunk_light_populate
+LIGHTING root  engine/world.c:chunk_light_populate_neighbor_
+LIGHTING root  engine/world.c:chunk_enqueue_relight_checks_
+LIGHTING root  engine/world.c:generate_skylight_map
+# a load the device reports (CL_ERR_LOAD); the capture and the profiler's hooks
+LIGHTING cut   engine/world.c:world_load_chunk
+# band storage: the device takes the chunk's home band (lighting/dev.cuh home())
+LIGHTING cut   engine/world.c:sec_take
+# a band's nibble arrays held as one of the constants or its own pool slot (lane/chunkmem): the
+# device's mirror keeps them inline (lightcap's layout), only the values are the light engine's
+LIGHTING cut   engine/world.c:chunk_sec_nib_expand
+LIGHTING cut   engine/world.c:chunk_sec_nib_compact
+LIGHTING cut   engine/world.c:chunk_alloc
+LIGHTING cut   engine/world.c:light_populate_neighbor_chunk
+LIGHTING cut   engine/lightcap.c:lightcap_update
+LIGHTING cut   engine/lightcap.c:lightcap_driver_begin
+LIGHTING cut   engine/lightcap.c:lightcap_driver_end
+LIGHTING cut   engine/phaseprof.c:phase_sub_begin_
+LIGHTING cut   engine/phaseprof.c:phase_sub_end_
+LIGHTING file  cuda/lighting/*
+LIGHTING file  engine/lightcap.[ch]
+LIGHTING file  tests/light_check.sh
+LIGHTING build make -s -C csrc gpu-lighting
+LIGHTING edit  make -s -C csrc gpu-lighting-check RECS=fight-skeleton-s1 DRIVERS=1
+LIGHTING quick make -s -C csrc gpu-lighting-check RECS="combat-mobs-s1 fight-skeleton-s1 nether-trip-s1 s1chain-S8 idx-cwlight-s1 chat-build-s1 fight-ghast-s42"
+LIGHTING full  make -s -C csrc gpu-lighting-check
+LIGHTING full  make -s -C csrc gpu-lighting-check DRIVERS=1
+
+CLIENTLIGHT what  the client world's light deferred to the device (engine/lightdefer.h, D8): the client world's calls and relight checks recorded, run by cuda/lighting/replay.cu's deferred mode (LC_F_AUTH) on the env's resident copy, written chunks back to the host (engine/lightcap.c defer_apply) at each sync; checked by tests/cwdigest.h against the host's run
+CLIENTLIGHT root  engine/world.c:world_light_update_raw
+CLIENTLIGHT root  engine/world.c:chunk_enqueue_relight_checks_
+CLIENTLIGHT root  engine/world.c:generate_skylight_map
+# what is deferred and where the host syncs: a change here moves the order the device sees
+CLIENTLIGHT root  engine/world.c:update_light_by_type
+CLIENTLIGHT root  engine/world.c:chunk_enqueue_relight_checks
+CLIENTLIGHT root  engine/world.c:cw_defer_op
+CLIENTLIGHT root  engine/world.c:cw_sync
+CLIENTLIGHT root  engine/world.c:world_light_defer_run_c
+CLIENTLIGHT root  engine/world.c:relight_block
+CLIENTLIGHT root  engine/world.c:chunk_write_relight
+CLIENTLIGHT root  engine/world.c:world_client_set_block
+CLIENTLIGHT root  engine/world.c:chunk_recheck_gaps
+CLIENTLIGHT root  engine/lightcap.c:lightcap_defer_run
+CLIENTLIGHT cut   engine/world.c:world_load_chunk
+CLIENTLIGHT cut   engine/world.c:sec_take
+CLIENTLIGHT cut   engine/world.c:chunk_alloc
+CLIENTLIGHT cut   engine/world.c:light_populate_neighbor_chunk
+CLIENTLIGHT cut   engine/lightcap.c:lightcap_update
+CLIENTLIGHT cut   engine/lightcap.c:lightcap_driver_begin
+CLIENTLIGHT cut   engine/lightcap.c:lightcap_driver_end
+CLIENTLIGHT cut   engine/phaseprof.c:phase_sub_begin_
+CLIENTLIGHT cut   engine/phaseprof.c:phase_sub_end_
+CLIENTLIGHT cut   engine/lightdefer.c:lightdefer_sync_cause
+CLIENTLIGHT file  cuda/lighting/*
+CLIENTLIGHT file  engine/lightdefer.[ch]
+CLIENTLIGHT file  engine/lightcap.[ch]
+CLIENTLIGHT file  tests/cwdigest.h
+CLIENTLIGHT build make -s -C csrc gpu-lighting-client
+CLIENTLIGHT quick make -s -C csrc gpu-lighting-client-check
+CLIENTLIGHT full  make -s -C csrc gpu-lighting-client-check CWL_RECS=all
+CLIENTLIGHT full  make -s -C csrc gpu-lighting-gate
+
+WORLDGEN what  raw chunk generation (overworld, Nether, End), cuda/worldgen/*.cu, and the gen-ahead seam (cuda/worldgen/ahead.c, engine/genahead.c)
+WORLDGEN root  engine/chunkgen.c:provide_chunk
+WORLDGEN root  engine/world.c:load_dim_chunk
+WORLDGEN root  engine/world.c:world_gen_state
+WORLDGEN root  engine/genahead.c:genahead_step
+# the Chunk constructor's sky map and the loads around generation run in C on both sides
+WORLDGEN cut   engine/world.c:generate_skylight_map
+WORLDGEN cut   engine/world.c:world_load_chunk
+WORLDGEN file  cuda/worldgen/*
+WORLDGEN file  engine/genahead.[ch]
+WORLDGEN file  tests/genahead_check.sh
+WORLDGEN build make -s -C csrc gpu-worldgen
+WORLDGEN edit  make -s -C csrc gpu-worldgen-overworld-check DUMPS=seed1 SPAWNS=
+WORLDGEN edit  make -s -C csrc gpu-worldgen-dim-check DUMPS="nether-42-small end-42-small" SPAWNS= DIM_NEGATIVES=
+WORLDGEN quick make -s -C csrc gpu-worldgen-overworld-check DUMPS="seed1 sb-cave-42 mesa-123456789" SPAWNS=seed1
+WORLDGEN quick make -s -C csrc gpu-worldgen-dim-check DUMPS="nether-42-small end-42-small" SPAWNS= DIM_NEGATIVES="caves construct"
+WORLDGEN quick make -s -C csrc gpu-worldgen-ahead-check RECS="gen-walk-s42 nether-trip-s1 end-dragon-s1"
+WORLDGEN full  make -s -C csrc gpu-worldgen-overworld-check
+WORLDGEN full  make -s -C csrc gpu-worldgen-dim-check
+WORLDGEN full  make -s -C csrc gpu-worldgen-ahead-check
+
+# the built stage: the constructor and the sky map WORLDGEN cuts, run where the
+# chunk was generated, served by the env pool's device generation as bands
+WGBUILT what  Chunk's constructor and generateSkylightMap over generated overworld chunks, cuda/worldgen/built.cu, taken by engine/genahead.c genahead_chunk_built
+WGBUILT root  engine/world.c:chunk_construct
+WGBUILT root  engine/world.c:generate_skylight_map
+WGBUILT root  engine/genahead.c:genahead_chunk_built
+WGBUILT file  cuda/worldgen/built.cu
+WGBUILT file  cuda/worldgen/built_check.c
+WGBUILT build make -s -C csrc gpu-worldgen-built
+WGBUILT edit  make -s -C csrc gpu-worldgen-built-check DUMPS=seed1
+WGBUILT quick make -s -C csrc gpu-worldgen-built-check DUMPS="seed1 sb-cave-42 mesa-123456789"
+WGBUILT full  make -s -C csrc gpu-worldgen-built-check
+
+# TICK, S6 (the chunk loop) as the engine's own C compiled for the device
+# (cuda/tick/tick.mk): the kept list is what the device build's nw-roots kept
+# (cuda/tick/build.sh writes it), the roots stand in until a build made it.
+TICK what  S6, the chunk loop (servertick_chunk_loop), and the world tick's other phases servertick_phase runs alone (S1, S2, S1T, S4, S5, SG: tick_batch --phases), the engine's C compiled for the device by cuda/tick/tick.mk
+TICK root  engine/servertick.c:servertick_chunk_loop
+TICK root  engine/servertick.c:servertick_phase
+TICK root  engine/servertick.c:st_on_block
+TICK root  engine/servertick.c:st_drop_sink
+TICK root  engine/servertick.c:st_tnt_prime
+TICK root  engine/servertick.c:st_block_env_drop
+TICK root  engine/serverreplay.c:sr_on_spawn
+TICK root  engine/serverreplay.c:sr_spawner_tick
+TICK root  engine/serverreplay.c:sr_siege_muster
+TICK kept  out/native/cuda/tick/nw-roots.kept
+TICK file  cuda/tick/*
+TICK build make -s -C csrc gpu-tick
+TICK quick make -s -C csrc gpu-tick-check RECS="combat-mobs-s1 fight-skeleton-s1 nether-trip-s1 s1chain-S8" S6_PHASES=S1,S2,S4,S5,S6,SG
+TICK full  make -s -C csrc gpu-tick-check
+
+RENDER what  the renderer (cuda/render/host.cu: the sky, the sections, the recorded passes, the translucent sections' quad order for the device mesher's meshes), the observation's frames and the judges' (cuda/render), checked against raster_obs_render and play's own frames (the ported functions: cuda/render/mirrors.txt)
+RENDER root  engine/raster.c:byte
+RENDER root  engine/raster.c:clamp01
+RENDER root  engine/raster.c:edge
+RENDER root  engine/raster.c:top_left
+RENDER root  engine/raster.c:light_sample
+RENDER root  engine/raster.c:triangle
+RENDER root  engine/raster.c:screen_vertex
+RENDER root  engine/raster.c:interpolate
+RENDER root  engine/raster.c:clip_triangle
+RENDER root  engine/raster.c:live_emit
+RENDER root  engine/raster.c:sky_vertex
+RENDER root  engine/raster.c:make_vertex
+RENDER root  engine/raster.c:draw_sky
+RENDER root  engine/raster.c:draw_sunrise
+RENDER root  engine/raster.c:celestial_quad
+RENDER root  engine/raster.c:cloud_quad
+RENDER root  engine/raster.c:draw_clouds
+RENDER root  engine/raster.c:draw_end_sky
+RENDER root  engine/raster.c:live_draw_section
+RENDER root  engine/raster.c:live_band_run
+RENDER root  engine/raster.c:raster_live_frame
+RENDER root  engine/raster.c:raster_live_translucent
+RENDER root  engine/raster.c:raster_live_obs
+RENDER root  engine/raster.c:raster_live_overlays
+RENDER root  engine/raster_sky2.c:celestial_quad
+RENDER root  engine/raster_sky2.c:raster_sky2_draw
+RENDER root  engine/raster_sky2.c:raster_sky2_stars
+RENDER root  engine/raster_texture.c:texel
+RENDER root  engine/raster_texture.c:raster_texture_sample
+RENDER root  engine/raster_entities.c:raster_triangle
+RENDER root  engine/raster_entities.c:clip_and_draw
+RENDER root  engine/raster_entities.c:draw_quad
+RENDER root  engine/raster_entities.c:interpolate
+RENDER root  engine/raster_entities.c:screen_vertex
+RENDER root  engine/raster_entities.c:light_sample
+RENDER root  engine/raster_entities.c:edge
+RENDER root  engine/raster_entities.c:edge_exact
+RENDER root  engine/raster_entities.c:top_left
+RENDER root  engine/raster_entities.c:byte
+RENDER root  engine/raster_entities.c:raster_entity_quad
+RENDER root  engine/raster_overlay.c:crack_triangle
+RENDER root  engine/raster_overlay.c:texcoord
+RENDER root  engine/raster_overlay.c:fog_factor
+RENDER root  engine/raster_overlay.c:quant
+RENDER root  engine/raster_tileent.c:portal_triangle
+RENDER root  engine/raster_tileent.c:pedge
+RENDER root  engine/raster_tileent.c:pedge_exact
+RENDER root  engine/raster_tileent.c:ptop_left
+RENDER root  engine/raster_tileent.c:byte01
+RENDER root  engine/raster_overlay.c:line
+RENDER root  engine/raster_obs.c:raster_rec_attach
+RENDER root  engine/raster_obs.c:raster_rec_equad
+RENDER root  engine/raster_obs.c:raster_rec_crack
+RENDER root  engine/raster_obs.c:raster_rec_portal
+RENDER root  engine/raster_obs.c:raster_rec_line
+RENDER root  engine/raster_obs.c:raster_rec_marker
+RENDER root  engine/raster.c:live_quad_distance
+RENDER root  engine/raster.c:water_quad_compare
+# host work whose results reach the device as data (raster_obs.h): the
+# section mesher (the device's own is MESHING), the stages and their threads,
+# the culling, the recorder's storage, the overlays' geometry (recorded
+# quads), the heap and the profiler's hooks
+RENDER cut   engine/raster.c:live_mesh
+RENDER cut   engine/raster.c:live_stage
+RENDER cut   engine/raster.c:live_take
+RENDER cut   engine/raster.c:live_now_ms
+RENDER cut   engine/raster.c:live_sec
+RENDER cut   engine/raster.c:live_culled
+RENDER cut   engine/raster.c:live_water_compare
+RENDER cut   engine/raster.c:raster_live_stats
+RENDER cut   engine/raster.c:alloc
+RENDER cut   engine/raster_obs.c:grow
+RENDER cut   engine/raster_worldfx.c:worldfx_screen
+RENDER cut   engine/envheap.h:malloc
+RENDER cut   engine/envheap.h:calloc
+RENDER cut   engine/envheap.h:realloc
+RENDER cut   engine/envheap.h:free
+RENDER cut   engine/phaseprof.c:phase_sub_begin_
+RENDER cut   engine/phaseprof.c:phase_sub_end_
+RENDER cut   engine/raster_sky2.c:build_stars
+RENDER cut   engine/raster.c:live_worldfx_in
+RENDER cut   engine/raster_sky2.c:raster_sky2_star_table
+RENDER cut   engine/raster_sky2.c:raster_sky2_rotation
+RENDER cut   engine/image.c:env_malloc
+RENDER cut   engine/image.c:env_realloc
+RENDER cut   engine/image.c:env_free_mem
+RENDER file  cuda/render/*
+RENDER file  engine/raster_obs.[ch]
+RENDER build make -s -C csrc gpu-render gpu-render-judge
+RENDER edit  make -s -C csrc gpu-render-check RENDER_ARGS=cov-zoo-s1
+RENDER quick make -s -C csrc gpu-render-check RENDER_ARGS="cov-zoo-s1 pix-sky-s1 pix-fluid-s1 idx-dragondeath-s42"
+RENDER quick make -s -C csrc gpu-render-judge-check JUDGE_ARGS="cov-zoo-s1 idx-hudfx-s1 pix-sky-s1 idx-dragondeath-s42"
+RENDER quick make -s -C csrc gpu-render-check RENDER_PREC=fast RENDER_ARGS="cov-zoo-s1 pix-sky-s1 pix-fluid-s1 idx-dragondeath-s42"
+RENDER quick make -s -C csrc gpu-render-judge-check JUDGE_PREC=fast JUDGE_ARGS="cov-zoo-s1 idx-hudfx-s1 pix-sky-s1 idx-dragondeath-s42"
+RENDER full  make -s -C csrc gpu-render-check
+RENDER full  make -s -C csrc gpu-render-check RENDER_ARGS=--sample\ 2
+RENDER full  make -s -C csrc gpu-render-judge-check
+RENDER full  make -s -C csrc gpu-render-check RENDER_PREC=fast
+
+MESHING what  the device mesher (cuda/meshing: render_blocks*.c compiled for the device as they are by meshing.mk, kernels.c's runtime and kernels, fed by engine/meshfeed), every section pass byte for byte the host's, checked by cuda/render/gate.sh --mesh and pipe_gate --device-mesh 2
+MESHING root  engine/render_blocks.c:rb_mesh_section_begin
+MESHING root  engine/render_blocks.c:rb_mesh_cell_kind
+MESHING root  engine/render_blocks.c:rb_mesh_cell
+MESHING root  engine/render_blocks.c:rb_mesh_cell_standard
+# the table mode (cuda/meshing/table.h): a standard block's, a liquid's, a door's faces apart, and
+# the boxes of logs, fences and stairs (the C they transcribe; table_host.c holds each against it)
+MESHING root  engine/render_blocks.c:render_standard_block_color
+MESHING root  engine/render_blocks.c:render_block_log
+MESHING root  engine/render_blocks2.c:rb2_render_fence
+MESHING root  engine/render_blocks2.c:rb2_render_stairs
+MESHING root  engine/render_blocks2.c:rb2_render_door
+# the libm values the device looks up (render_blocks.h rb_trig): the host computes them
+MESHING root  engine/render_blocks.c:rb_trig_liquid
+MESHING root  engine/render_blocks.c:rb_trig_double_plant
+MESHING root  engine/render_blocks3.c:rb_trig_brewing
+# the live world: the device reads the feed's copies of the chunk records, and the
+# flower pots' plants the feed lists (meshfeed.c)
+MESHING cut   engine/world.c:world_tile_entity
+MESHING file  cuda/meshing/*
+MESHING file  engine/meshfeed.[ch]
+MESHING build make -s -C csrc gpu-meshing gpu-render
+MESHING quick make -s -C csrc gpu-meshing-check MESH_ARGS="pix-fluid-s1 cov-blkgallery-s1 cov-foliage-s1 cov-mesa-s1"
+MESHING quick make -s -C csrc gpu-meshing-stress
+MESHING quick make -s -C csrc gpu-meshing-check PERF=0 MESH_ARGS=pix-fluid-s1
+MESHING quick make -s -C csrc gpu-meshing-check MESH_ARGS="--mesh-tab pix-fluid-s1 cov-blkgallery-s1 cov-foliage-s1 cov-mesa-s1"
+MESHING full  make -s -C csrc gpu-meshing-check
+MESHING full  make -s -C csrc gpu-meshing-check MESH_ARGS=--mesh-tab

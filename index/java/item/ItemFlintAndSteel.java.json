@@ -1,0 +1,29 @@
+{
+  "path": "oracle/src/item/ItemFlintAndSteel.java",
+  "classes": ["ItemFlintAndSteel"],
+  "lines": 72,
+  "side": "server",
+  "category": "item",
+  "role": "The flint and steel: places a fire block in the cell adjacent to the clicked face, with the itemRand ignite pitch, and damages the item by 1.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/itemuse.c", "symbols": ["flint_use", "item_sound_random"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS", "max_damage"]},
+    {"file": "csrc/engine/survival.c", "symbols": ["surv_server_use_packet", "surv_damage_stack", "surv_client_use_pressed", "client_damage_stack"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/rc-items-s1",
+    "out/java/snapshots/surv2-tnt-s1",
+    "csrc/tests/test_itemuse.c",
+    "out/java/itemuse/seed2-v2",
+    "out/java/snapshots/tools-break-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "ItemFlintAndSteel", "sig": "()V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "row 259, max stack 1, max damage 64"},
+    {"kind": "method", "name": "onItemUse", "sig": "(ItemStack,EntityPlayer,World,IIIIIFFF)Z", "native": "csrc/engine/itemuse.c:flint_use", "status": "exact", "note": "the side offset, canPlayerEdit, the air check, the fire.ignite pitch draw and setBlock(fire); the tail's damageItem(1, player) is the caller's: survival.c surv_server_use_packet (surv_damage_stack: Unbreaking, the break draws and stat, the worn-out slot emptied) and surv_client_use_pressed (client_damage_stack); the fire block's own spread is fire.c's job"}
+  ],
+  "missing": [],
+  "notes": "rc-items-s1 gates lighting fire and an obsidian portal, surv2-tnt-s1 gates priming TNT with it; test_itemuse.c gates the body against the oracle probe."
+}

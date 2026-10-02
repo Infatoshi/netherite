@@ -1,0 +1,166 @@
+{
+  "path": "oracle/src/crash/CrashReportCategory.java",
+  "classes": [
+    "CrashReportCategory",
+    "CrashReportCategory.Entry"
+  ],
+  "lines": 309,
+  "side": "common",
+  "category": "util",
+  "role": "One named section of a CrashReport: the key/value entries, the block-location helpers and the stack-trace pruning the report's tree of categories shares.",
+  "scope": "not_needed",
+  "scope_reason": "JVM exception-reporting machinery; never reached from the native engine. world.conf does not list it.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "theCrashReport",
+      "sig": "Lnet/minecraft/crash/CrashReport;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_85076_b",
+      "sig": "Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_85077_c",
+      "sig": "Ljava/util/List;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "stackTrace",
+      "sig": "[Ljava/lang/StackTraceElement;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "CrashReportCategory",
+      "sig": "(Lnet/minecraft/crash/CrashReport;Ljava/lang/String;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_85074_a",
+      "sig": "(DDD)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getLocationInfo",
+      "sig": "(III)Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addCrashSectionCallable",
+      "sig": "(Ljava/lang/String;Ljava/util/concurrent/Callable;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addCrashSection",
+      "sig": "(Ljava/lang/String;Ljava/lang/Object;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "addCrashSectionThrowable",
+      "sig": "(Ljava/lang/String;Ljava/lang/Throwable;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getPrunedStackTrace",
+      "sig": "(I)I",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "firstTwoElementsOfStackTraceMatch",
+      "sig": "(Ljava/lang/StackTraceElement;Ljava/lang/StackTraceElement;)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "trimStackTraceEntriesFromBottom",
+      "sig": "(I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "appendToStringBuilder",
+      "sig": "(Ljava/lang/StringBuilder;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147152_a",
+      "sig": "()[Ljava/lang/StackTraceElement;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "func_147153_a",
+      "sig": "(Lnet/minecraft/crash/CrashReportCategory;IIIIILnet/minecraft/block/Block;I)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "Entry",
+      "sig": "(Ljava/lang/String;Ljava/lang/Object;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "Entry.field_85092_a",
+      "sig": "Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "Entry.field_85091_b",
+      "sig": "Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Entry.func_85089_a",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "Entry.func_85090_b",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": []
+}

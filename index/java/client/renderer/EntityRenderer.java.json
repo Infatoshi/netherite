@@ -1,0 +1,798 @@
+{
+  "path": "oracle/src/client/renderer/EntityRenderer.java",
+  "classes": [
+    "EntityRenderer"
+  ],
+  "lines": 2097,
+  "side": "client",
+  "category": "client_render",
+  "role": "The client's per-frame renderer: it owns the camera (FOV, view bobbing, hurt shake, portal spin, fog), the lightmap, the mouse-over pick, rain and snow, and each frame drives RenderGlobal, the first-person hand, the particles and the HUD.",
+  "scope": "in_scope",
+  "scope_reason": "The pixels the RL agent sees come from this file's camera, fog, lightmap and world/hand/overlay passes; the native renderer mirrors them frame for frame.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/renderstate.c",
+      "symbols": [
+        "renderstate_compute",
+        "rs_fov",
+        "rs_hurt",
+        "rs_bob",
+        "renderstate_hand_camera",
+        "rs_providerfog",
+        "rs_skycolor",
+        "rs_look",
+        "rs_sunrise",
+        "renderstate_torch_flicker",
+        "renderstate_third_person_distance"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_worldfx.c",
+      "symbols": [
+        "worldfx_weather",
+        "worldfx_screen"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_hand.c",
+      "symbols": [
+        "raster_hand_draw"
+      ]
+    },
+    {
+      "file": "csrc/engine/survival.c",
+      "symbols": [
+        "surv_client_mouseover"
+      ]
+    },
+    {
+      "file": "csrc/engine/combat.c",
+      "symbols": [
+        "combat_pick_entity"
+      ]
+    },
+    {
+      "file": "csrc/play/play.c",
+      "symbols": [
+        "renderer_tick",
+        "equip_tick",
+        "draw_hand",
+        "live_worldfx",
+        "build_rs",
+        "set_angles",
+        "play_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/pick.c",
+      "symbols": [
+        "pick_entity_pass",
+        "pick_order"
+      ]
+    },
+    {
+      "file": "csrc/engine/particles_live.c",
+      "symbols": [
+        "particles_live_rain"
+      ]
+    },
+    {
+      "file": "csrc/engine/clientstate.c",
+      "symbols": [
+        "clientstate_fov_hand",
+        "clientstate_fov_multiplier"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_clientworld.c",
+    "csrc/tests/test_raypick.c",
+    "csrc/tests/test_render.c",
+    "csrc/tests/test_renderstate.c",
+    "csrc/tests/test_rendertick.c",
+    "out/java/raypick/rp-1",
+    "out/java/render/night-fast",
+    "out/java/render/water-fast",
+    "out/java/render/worldfx_hurt",
+    "out/java/render/worldfx_rain_level",
+    "out/java/render/worldfx_rain_up",
+    "out/java/render/worldfx_skyup",
+    "out/java/render/worldfx_snow_level",
+    "out/java/render/worldfx_snow_up",
+    "out/java/render/worldfx_underwater",
+    "out/java/renderstate/rs-gamma1",
+    "out/java/renderstate/rs-night",
+    "out/java/rendertick/fx_rain",
+    "out/java/rendertick/torch_wall",
+    "out/java/snapshots/pick-shapes-s1",
+    "out/java/snapshots/cg-replay2-still-rain-s1",
+    "out/java/snapshots/world-daynight-s1",
+    "out/java/snapshots/world-storm-s1",
+    "out/java/rendertick/cs_sprint",
+    "out/java/rendertick/cs_speed",
+    "out/java/rendertick/cs_bow",
+    "out/java/rendertick/cs_portal",
+    "out/java/rendertick/cs_storm",
+    "out/java/rendertick/cs_hurt",
+    "out/java/clientframes/idx-tpv-s1",
+    "out/java/snapshots/cg-replay2-still-rain-s1"
+  ],
+  "members": [
+    {
+      "kind": "field",
+      "name": "static constants (logger, locationRainPng, locationSnowPng, shaderResourceLocations, shaderCount, __OBFID)",
+      "sig": "static final",
+      "native": null,
+      "status": "n/a",
+      "note": "texture paths and the shader list; the C engine loads the asset tree directly"
+    },
+    {
+      "kind": "field",
+      "name": "anaglyphEnable",
+      "sig": "static boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "anaglyph 3D is off in every recording"
+    },
+    {
+      "kind": "field",
+      "name": "anaglyphField",
+      "sig": "static int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "mc",
+      "sig": "Minecraft",
+      "native": null,
+      "status": "n/a",
+      "note": "the C frame reads play.c's own client state instead of a Minecraft reference"
+    },
+    {
+      "kind": "field",
+      "name": "farPlaneDistance",
+      "sig": "float",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "exact",
+      "note": "o->far = renderDistanceChunks * 16"
+    },
+    {
+      "kind": "field",
+      "name": "itemRenderer",
+      "sig": "ItemRenderer",
+      "native": "csrc/play/play.c:equip_tick",
+      "status": "exact",
+      "note": "the held item and equip animation state in play.c's equip struct, drawn by draw_hand"
+    },
+    {
+      "kind": "field",
+      "name": "theMapItemRenderer",
+      "sig": "MapItemRenderer",
+      "native": null,
+      "status": "n/a",
+      "note": "the held map's renderer: maps = off (world.conf) leaves no filled map to hold (ItemEmptyMap.java:23; no loot or trade gives one)"
+    },
+    {
+      "kind": "field",
+      "name": "rendererUpdateCount",
+      "sig": "int",
+      "native": "csrc/play/play.c:renderer_tick",
+      "status": "exact",
+      "note": "play.c's ruc, used by the portal modelview spin"
+    },
+    {
+      "kind": "field",
+      "name": "pointedEntity",
+      "sig": "Entity",
+      "native": "csrc/engine/survival.c:surv_client_mouseover",
+      "status": "exact",
+      "note": "surv_mo.cur.entity_id, the C02 target"
+    },
+    {
+      "kind": "field",
+      "name": "mouseFilterXAxis",
+      "sig": "MouseFilter",
+      "native": null,
+      "status": "n/a",
+      "note": "smoothCamera (cinematic) only"
+    },
+    {
+      "kind": "field",
+      "name": "mouseFilterYAxis",
+      "sig": "MouseFilter",
+      "native": null,
+      "status": "n/a",
+      "note": "smoothCamera only"
+    },
+    {
+      "kind": "field",
+      "name": "mouseFilterDummy1",
+      "sig": "MouseFilter",
+      "native": null,
+      "status": "n/a",
+      "note": "cinematic camera only"
+    },
+    {
+      "kind": "field",
+      "name": "mouseFilterDummy2",
+      "sig": "MouseFilter",
+      "native": null,
+      "status": "n/a",
+      "note": "cinematic camera only"
+    },
+    {
+      "kind": "field",
+      "name": "mouseFilterDummy3",
+      "sig": "MouseFilter",
+      "native": null,
+      "status": "n/a",
+      "note": "cinematic camera only"
+    },
+    {
+      "kind": "field",
+      "name": "mouseFilterDummy4",
+      "sig": "MouseFilter",
+      "native": null,
+      "status": "n/a",
+      "note": "cinematic camera only"
+    },
+    {
+      "kind": "field",
+      "name": "thirdPersonDistance",
+      "sig": "float",
+      "native": "csrc/engine/renderstate.c:renderstate_third_person_distance",
+      "status": "exact",
+      "note": "4.0, never changed; orientCamera's back and front views pull the camera in to the first block the eight rays hit (idx-tpv-s1)"
+    },
+    {
+      "kind": "field",
+      "name": "thirdPersonDistanceTemp",
+      "sig": "float",
+      "native": "csrc/engine/renderstate.c:renderstate_third_person_distance",
+      "status": "exact",
+      "note": "4.0 as well, so the eased distance is 4"
+    },
+    {
+      "kind": "field",
+      "name": "debugCamYaw",
+      "sig": "float",
+      "native": null,
+      "status": "n/a",
+      "note": "cinematic camera only"
+    },
+    {
+      "kind": "field",
+      "name": "prevDebugCamYaw",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "debugCamPitch",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "prevDebugCamPitch",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "smoothCamYaw",
+      "sig": "float",
+      "native": null,
+      "status": "n/a",
+      "note": "smoothCamera only"
+    },
+    {
+      "kind": "field",
+      "name": "smoothCamPitch",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "smoothCamFilterX",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "smoothCamFilterY",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "smoothCamPartialTicks",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "debugCamFOV",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "prevDebugCamFOV",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "camRoll",
+      "sig": "float",
+      "native": null,
+      "status": "n/a",
+      "note": "cinematic camera roll only"
+    },
+    {
+      "kind": "field",
+      "name": "prevCamRoll",
+      "sig": "float",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "lightmapTexture",
+      "sig": "DynamicTexture",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "exact",
+      "note": "the 256-entry lightmap is recomputed into o->lm every frame"
+    },
+    {
+      "kind": "field",
+      "name": "lightmapColors",
+      "sig": "int[]",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "exact"
+    },
+    {
+      "kind": "field",
+      "name": "locationLightMap",
+      "sig": "ResourceLocation",
+      "native": null,
+      "status": "n/a",
+      "note": "the C engine holds the lightmap in memory, no texture upload"
+    },
+    {
+      "kind": "field",
+      "name": "fovModifierHand",
+      "sig": "float",
+      "native": "csrc/engine/clientstate.c:clientstate_fov_hand",
+      "status": "exact",
+      "note": "test_rendertick chains it tick to tick on the cs_* recordings and recomputes each frame's projection from it; play.c keeps its own (fmh)"
+    },
+    {
+      "kind": "field",
+      "name": "fovModifierHandPrev",
+      "sig": "float",
+      "native": "csrc/engine/clientstate.c:clientstate_fov_hand",
+      "status": "exact",
+      "note": "fmhp"
+    },
+    {
+      "kind": "field",
+      "name": "fovMultiplierTemp",
+      "sig": "float",
+      "native": "csrc/engine/clientstate.c:clientstate_fov_multiplier",
+      "status": "exact",
+      "note": "the row's cs.fmt: getFOVMultiplier as updateRenderer read it, after the tick's packets and input"
+    },
+    {
+      "kind": "field",
+      "name": "bossColorModifier",
+      "sig": "float",
+      "native": null,
+      "status": "n/a",
+      "note": "eases toward 1 only while BossStatus.hasColorModifier, which only RenderWither sets true (RenderDragon passes false); world.conf wither = off"
+    },
+    {
+      "kind": "field",
+      "name": "bossColorModifierPrev",
+      "sig": "float",
+      "native": null,
+      "status": "n/a",
+      "note": "see bossColorModifier"
+    },
+    {
+      "kind": "field",
+      "name": "cloudFog",
+      "sig": "boolean",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "n/a",
+      "note": "RenderGlobal.hasCloudFog is false in 1.7.10; renderstate.c hard-codes cloudfog 0"
+    },
+    {
+      "kind": "field",
+      "name": "resourceManager",
+      "sig": "IResourceManager",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "theShaderGroup",
+      "sig": "ShaderGroup",
+      "native": null,
+      "status": "n/a",
+      "note": "post-processing shaders are client_cosmetic and not ported"
+    },
+    {
+      "kind": "field",
+      "name": "shaderIndex",
+      "sig": "int",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "cameraZoom",
+      "sig": "double",
+      "native": null,
+      "status": "n/a",
+      "note": "cinematic zoom only; play.c pins zoom 1.0"
+    },
+    {
+      "kind": "field",
+      "name": "cameraYaw",
+      "sig": "double",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "cameraPitch",
+      "sig": "double",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "prevFrameTime",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "wall-clock only; the contract forbids it"
+    },
+    {
+      "kind": "field",
+      "name": "renderEndNanoTime",
+      "sig": "long",
+      "native": null,
+      "status": "n/a",
+      "note": "wall-clock only"
+    },
+    {
+      "kind": "field",
+      "name": "lightmapUpdateNeeded",
+      "sig": "boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "a GL upload dirty flag; the C path recomputes the lightmap every frame"
+    },
+    {
+      "kind": "field",
+      "name": "random",
+      "sig": "Random",
+      "native": null,
+      "status": "n/a",
+      "note": "addRainParticles' Random, reseeded from rendererUpdateCount each tick and read by nothing else; at particleSetting 2 (Main.particles, every oracle run's default) the loop spawns no particle, so only the rain sound draws from it"
+    },
+    {
+      "kind": "field",
+      "name": "rainSoundCounter",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "the rain sound's pacing (audio), see random"
+    },
+    {
+      "kind": "field",
+      "name": "fogColor2",
+      "sig": "float",
+      "native": "csrc/play/play.c:renderer_tick",
+      "status": "exact",
+      "note": "play.c's fc2"
+    },
+    {
+      "kind": "field",
+      "name": "fogColor1",
+      "sig": "float",
+      "native": "csrc/play/play.c:renderer_tick",
+      "status": "exact",
+      "note": "play.c's fc1, smoothed toward the light brightness each client tick"
+    },
+    {
+      "kind": "field",
+      "name": "debugViewDirection",
+      "sig": "int",
+      "native": null,
+      "status": "n/a",
+      "note": "the F3 debug view angles are not ported"
+    },
+    {
+      "kind": "ctor",
+      "name": "EntityRenderer",
+      "sig": "(Minecraft,IResourceManager)V",
+      "native": "csrc/play/play.c:main",
+      "status": "exact",
+      "note": "the frame state play.c keeps (fogColor1 and 2 eased from the join, rendererUpdateCount, the equip progress, the hand FOV) and raster_live_new's"
+    },
+    {
+      "kind": "method",
+      "name": "isShaderActive",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "post shaders not ported"
+    },
+    {
+      "kind": "method",
+      "name": "deactivateShader",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "activateNextShader",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "onResourceManagerReload",
+      "sig": "(IResourceManager)V",
+      "native": null,
+      "status": "n/a",
+      "note": "the C engine reads textures from the asset tree on start; no reload listener"
+    },
+    {
+      "kind": "method",
+      "name": "updateRenderer",
+      "sig": "()V",
+      "native": "csrc/play/play.c:play_tick",
+      "status": "exact",
+      "note": "fogColor smoothing (fc1 matches er.fc1 to the float, rs.sh), updateFovModifierHand, rendererUpdateCount, updateEquippedItem; the torch flicker is lane/clientrand's pinned stream; smoothCamera, bossColorModifier and addRainParticles are n/a above"
+    },
+    {
+      "kind": "method",
+      "name": "getShaderGroup",
+      "sig": "()LShaderGroup;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "updateShaderGroupSize",
+      "sig": "(II)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getMouseOver",
+      "sig": "(F)V",
+      "native": "csrc/engine/combat.c:combat_pick_entity",
+      "status": "exact",
+      "note": "survival.c:surv_client_mouseover runs the block trace, var4 and the reach; combat.c:combat_pick_entity the entity pass (pick.c) over the living copies and pickobj.c's objects in chunk-list order; the dragon's parts are not in the client world"
+    },
+    {
+      "kind": "method",
+      "name": "updateFovModifierHand",
+      "sig": "()V",
+      "native": "csrc/engine/clientstate.c:clientstate_fov_hand",
+      "status": "exact",
+      "note": "play.c renderer_tick calls it with the live multiplier"
+    },
+    {
+      "kind": "method",
+      "name": "getFOVModifier",
+      "sig": "(FZ)F",
+      "native": "csrc/engine/renderstate.c:rs_fov",
+      "status": "exact",
+      "note": "the death and water factors; the debugViewDirection branch is dead in play"
+    },
+    {
+      "kind": "method",
+      "name": "hurtCameraEffect",
+      "sig": "(F)V",
+      "native": "csrc/engine/renderstate.c:rs_hurt",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "setupViewBobbing",
+      "sig": "(F)V",
+      "native": "csrc/engine/renderstate.c:rs_bob",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "orientCamera",
+      "sig": "(F)V",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "exact",
+      "note": "first person, the third-person back and front views (the ray-clipped distance), the sleeping camera on the bed; the debug camera needs debugCamEnable, which nothing in oracle/src sets"
+    },
+    {
+      "kind": "method",
+      "name": "setupCameraTransform",
+      "sig": "(FI)V",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "exact",
+      "note": "projection (glu_perspective on rs_fov) then the hurt/bob/portal modelview chain"
+    },
+    {
+      "kind": "method",
+      "name": "renderHand",
+      "sig": "(FI)V",
+      "native": "csrc/play/play.c:draw_hand",
+      "status": "exact",
+      "note": "the hand camera is renderstate.c:renderstate_hand_camera (getFOVModifier(pt,false), hurt, bob)"
+    },
+    {
+      "kind": "method",
+      "name": "disableLightmap",
+      "sig": "(D)V",
+      "native": null,
+      "status": "n/a",
+      "note": "no GL state machine; the lightmap is a per-quad raster input (csrc/engine/raster_entity_quad.h:lm)"
+    },
+    {
+      "kind": "method",
+      "name": "enableLightmap",
+      "sig": "(D)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "updateTorchFlicker",
+      "sig": "()V",
+      "native": "csrc/engine/renderstate.c:renderstate_torch_flicker",
+      "status": "exact",
+      "note": "clientworld_tick_input runs it where runTick does (after the textures and the dig particles); the live client from SR.det's client stream"
+    },
+    {
+      "kind": "method",
+      "name": "updateLightmap",
+      "sig": "(F)V",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "exact",
+      "note": "the 256-entry table with gamma and the night-vision branch; torchFlickerX/Y arrive as inputs (tfx/tfy)"
+    },
+    {
+      "kind": "method",
+      "name": "getNightVisionBrightness",
+      "sig": "(LEntityPlayer;F)F",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "n/a",
+      "note": "night vision comes only from a potion: brewing = off brews none, a beacon (beacon = off, no nether star with wither = off) gives none, and no 1.7.10 loot, trade or mob hands one out (EntityWitch.onLivingUpdate drinks water breathing, fire resistance, healing and swiftness) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "updateCameraAndRender",
+      "sig": "(F)V",
+      "native": "csrc/play/play.c:main",
+      "status": "exact",
+      "note": "the frame: the world, the particles, the weather, the hand, the HUD and screens. The smooth camera (F8) filters the mouse per rendered frame, and agent mode's Act.applyLook sets the look directly, so no oracle run reproduces it (rawjudge leaves F8 unjudged); the shader group is only made for a spectated creeper, spider or enderman (func_147704_a), and single player spectates only the player; anaglyph is off in every oracle run's options"
+    },
+    {
+      "kind": "method",
+      "name": "renderWorld",
+      "sig": "(FJ)V",
+      "native": "csrc/engine/raster.c:raster_live_frame",
+      "status": "exact",
+      "note": "the world, sky, clouds, translucent pass, entities and block overlays; the pick runs per client tick (surv_client_mouseover) instead of per frame"
+    },
+    {
+      "kind": "method",
+      "name": "renderCloudsCheck",
+      "sig": "(LRenderGlobal;F)V",
+      "native": "csrc/engine/raster.c:raster_live_frame",
+      "status": "exact",
+      "note": "clouds are off in every oracle run's options (Main.optionsFor: clouds from a replayed tape's header, else false); the live cloud layer (clouds.rgba, cloud_tick) is drawn only for a tape that had them"
+    },
+    {
+      "kind": "method",
+      "name": "addRainParticles",
+      "sig": "()V",
+      "native": "csrc/engine/particles_live.c:particles_live_rain",
+      "status": "exact",
+      "note": "EntityRainFX and the lava smoke from the renderer Random seeded by rendererUpdateCount, checked in fx_rain"
+    },
+    {
+      "kind": "method",
+      "name": "renderRainSnow",
+      "sig": "(F)V",
+      "native": "csrc/engine/raster_worldfx.c:worldfx_weather",
+      "status": "exact",
+      "note": "rain_column/snow_column with the rainXCoords/rainYCoords offsets"
+    },
+    {
+      "kind": "method",
+      "name": "setupOverlayRendering",
+      "sig": "()V",
+      "native": "csrc/engine/hud_live.c:raster_hud_live",
+      "status": "exact",
+      "note": "the scaled ortho the HUD and screens draw in (the scaled width and height, depth -2000)"
+    },
+    {
+      "kind": "method",
+      "name": "updateFogColor",
+      "sig": "(F)V",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "exact",
+      "note": "the sky/provider fog blend, the sunrise look factor and the rain/thunder darkening"
+    },
+    {
+      "kind": "method",
+      "name": "setupFog",
+      "sig": "(IF)V",
+      "native": "csrc/engine/renderstate.c:renderstate_compute",
+      "status": "exact",
+      "note": "the blind/water/lava/void/default modes; llvmpipe's GL_NV_fog_distance radial fog is the model"
+    },
+    {
+      "kind": "method",
+      "name": "setFogColorBuffer",
+      "sig": "(FFFF)LFloatBuffer;",
+      "native": null,
+      "status": "n/a",
+      "note": "no GL fog color buffer; the color is o->gfogc"
+    },
+    {
+      "kind": "method",
+      "name": "getMapItemRenderer",
+      "sig": "()LMapItemRenderer;",
+      "native": null,
+      "status": "n/a",
+      "note": "see theMapItemRenderer"
+    },
+    {
+      "kind": "method",
+      "name": "EntityRenderer$1",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (updateCameraAndRender, when drawing the screen throws) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "EntityRenderer$2",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (updateCameraAndRender, when drawing the screen throws) (lane/covclient)"
+    },
+    {
+      "kind": "method",
+      "name": "EntityRenderer$3",
+      "sig": "()String",
+      "native": null,
+      "status": "n/a",
+      "note": "a crash report section: its call runs only while a crash report is being written after an exception, which ends the run (updateCameraAndRender, when drawing the screen throws) (lane/covclient)"
+    }
+  ],
+  "missing": [],
+  "notes": "The netherite.oracle.RenderStateProbe calls inside renderWorld/setupCameraTransform are our oracle harness (oracle/harness), not vanilla. The C frame path lives in csrc/play/play.c; the deterministic camera, fog and lightmap math is in csrc/engine/renderstate.c, checked by test_renderstate against the renderstate scenes. Anaglyph is off in all recordings. Not verified scene by scene: the clouds fancy/short variants and the FrameTimer. lane/idxclient: the third-person camera ported (idx-tpv-s1); the rest closed against the oracle's settings: maps, wither, clouds and anaglyph off, particles minimal, no spectating in single player, the smooth camera outside agent mode's look."
+}

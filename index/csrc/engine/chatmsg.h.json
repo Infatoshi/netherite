@@ -1,0 +1,27 @@
+{
+  "path": "csrc/engine/chatmsg.h",
+  "lines": 58,
+  "role": "Declares the server's chat line builders (chatmsg.c) and the ids a CombatEntry keeps for its message: the damage type (DT_*), the entity name ids and the fall labels.",
+  "layer": "tick",
+  "java": [
+    {
+      "path": "oracle/src/util/CombatEntry.java",
+      "members": [
+        "field_94566_e"
+      ]
+    },
+    {
+      "path": "oracle/src/util/DamageSource.java",
+      "members": [
+        "damageType"
+      ]
+    }
+  ],
+  "structs": [],
+  "entry_points": [],
+  "tick_path": true,
+  "gpu": [],
+  "tests": [
+    "csrc/tests/test_snapshots.c"
+  ]
+}

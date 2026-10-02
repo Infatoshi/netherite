@@ -1,0 +1,698 @@
+{
+ "path": "oracle/src/item/ItemStack.java",
+ "classes": [
+  "ItemStack"
+ ],
+ "lines": 896,
+ "side": "common",
+ "category": "item",
+ "role": "The stack: item id, count, damage and an NBT tag compound, with the damage/repair/enchant/display helpers every inventory, crafting and drop path goes through.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/container.c",
+   "symbols": [
+    "stack_new",
+    "stack_split",
+    "stack_copy",
+    "stack_move",
+    "stack_max",
+    "stack_stackable",
+    "stack_damageable",
+    "stack_damaged",
+    "stack_subtypes",
+    "stack_same_item",
+    "stack_tags_equal",
+    "craft_out_crafted"
+   ]
+  },
+  {
+   "file": "csrc/engine/crafting.c",
+   "symbols": [
+    "craft_stack_copy",
+    "display_compound"
+   ]
+  },
+  {
+   "file": "csrc/engine/dig.c",
+   "symbols": [
+    "damage_held",
+    "item_on_block_destroyed"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvestdrops.c",
+   "symbols": [
+    "damage_held",
+    "item_on_block_destroyed"
+   ]
+  },
+  {
+   "file": "csrc/engine/combat.c",
+   "symbols": [
+    "combat_server_attack"
+   ]
+  },
+  {
+   "file": "csrc/engine/harvest.c",
+   "symbols": [
+    "inventory_str_vs_block",
+    "item_can_harvest",
+    "item_str_vs_block"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_eat_tick",
+    "entity_interact",
+    "process_c08",
+    "surv_damage_stack",
+    "stack_eq",
+    "server_drink_finish",
+    "client_damage_stack",
+    "surv_dig_adopt_stats"
+   ]
+  },
+  {
+   "file": "csrc/engine/place.c",
+   "symbols": [
+    "item_get_metadata"
+   ]
+  },
+  {
+   "file": "csrc/engine/entity_nbt.c",
+   "symbols": [
+    "item_stack_w"
+   ]
+  },
+  {
+   "file": "csrc/engine/itemuse.c",
+   "symbols": [
+    "itemuse_activate_block_or_use_item",
+    "stack_can_edit_blocks"
+   ]
+  },
+  {
+   "file": "csrc/engine/combatench.c",
+   "symbols": [
+    "damage_item"
+   ]
+  },
+  {
+   "file": "csrc/engine/itemtag.c",
+   "symbols": [
+    "itag_from_tree",
+    "itag_from_item",
+    "itag_get",
+    "itag_put",
+    "itag_add_ench",
+    "itag_set_name",
+    "itag_name",
+    "itag_enchanted",
+    "itag_nench"
+   ]
+  },
+  {
+   "file": "csrc/engine/raster_hud.c",
+   "symbols": [
+    "tooltip_lines",
+    "stack_enchanted",
+    "draw_stack"
+   ]
+  },
+  {
+   "file": "csrc/engine/player.h",
+   "symbols": [
+    "inv_anim"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "csrc/tests/test_dig.c",
+  "csrc/tests/test_crafting.c",
+  "out/java/snapshots/cat-clicks-s1",
+  "out/java/snapshots/flow-craft-s1",
+  "out/java/snapshots/dmg-sources-s1",
+  "out/java/snapshots/melee-mods-s1",
+  "out/java/snapshots/item-tags-s1",
+  "out/java/snapshots/use-kinds-s1",
+  "out/java/snapshots/tools-break-s1",
+  "out/java/snapshots/craft-spam-s1",
+  "out/java/clientframes/idx-tipsword-s1",
+  "out/java/clientframes/idx-tippotion-s1",
+  "out/java/clientframes/idx-tiprecord-s1",
+  "out/java/clientframes/idx-glint-s1",
+  "out/java/clientframes/cr-pickup-s1",
+  "out/java/clientframes/idx-tipapple-s1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_111284_a",
+   "sig": "DecimalFormat",
+   "native": null,
+   "status": "n/a",
+   "note": "tooltip number formatting"
+  },
+  {
+   "kind": "field",
+   "name": "stackSize",
+   "sig": "int",
+   "native": "csrc/engine/container.c:stack_new",
+   "status": "exact",
+   "note": "the count field of struct craft_stack / surv_stack"
+  },
+  {
+   "kind": "field",
+   "name": "animationsToGo",
+   "sig": "int",
+   "native": "csrc/engine/player.h:inv_anim",
+   "status": "exact",
+   "note": "the client's pickup pop: handleSetSlot sets 5 when an S2F raises a hotbar slot's count (survival.c surv_client_pump), decrementAnimations counts it down (player.c cp_on_living_update), GuiIngame.renderInventorySlot squashes the icon (raster_hud.c draw_stack's pop); kept by slot, so a stack a click moves within the five ticks leaves it behind. cr-pickup-s1 81: 355 px to 18"
+  },
+  {
+   "kind": "field",
+   "name": "field_151002_e",
+   "sig": "Item",
+   "native": "csrc/engine/container.c:stack_new",
+   "status": "exact",
+   "note": "the registry id in items.h"
+  },
+  {
+   "kind": "field",
+   "name": "stackTagCompound",
+   "sig": "NBTTagCompound",
+   "native": "csrc/engine/itemtag.c:itag_from_tree",
+   "status": "exact",
+   "note": "an index into the interned tag store (itemtag.c) on every stack struct; 0 is null"
+  },
+  {
+   "kind": "field",
+   "name": "itemDamage",
+   "sig": "int",
+   "native": "csrc/engine/container.c:stack_new",
+   "status": "exact",
+   "note": "the damage field, negative clamped by the constructor"
+  },
+  {
+   "kind": "field",
+   "name": "itemFrame",
+   "sig": "EntityItemFrame",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "ItemStack",
+   "sig": "(Lnet/minecraft/item/Item;II)V",
+   "native": "csrc/engine/container.c:stack_new",
+   "status": "exact",
+   "note": "the count/damage triple with the negative-damage clamp; the Block and single-arg overloads are the same fields"
+  },
+  {
+   "kind": "method",
+   "name": "loadItemStackFromNBT",
+   "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/tileentity.c:stack_load",
+   "status": "exact",
+   "note": "id, Count, Damage and the tag; the null-item refusal needs an id no item has, which survival never writes."
+  },
+  {
+   "kind": "method",
+   "name": "splitStack",
+   "sig": "(I)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:stack_split",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getItem",
+   "sig": "()Lnet/minecraft/item/Item;",
+   "native": null,
+   "status": "exact",
+   "note": "the stack is a plain (item, count, damage, tag) struct; the id is the item"
+  },
+  {
+   "kind": "method",
+   "name": "getIconIndex",
+   "sig": "()Lnet/minecraft/util/IIcon;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getItemSpriteNumber",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "tryPlaceItemIntoWorld",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;IIIIFFF)Z",
+   "native": "csrc/engine/itemuse.c:itemuse_activate_block_or_use_item",
+   "status": "exact",
+   "note": "the Item.onItemUse dispatch plus the objectUseStats stat"
+  },
+  {
+   "kind": "method",
+   "name": "func_150997_a",
+   "sig": "(Lnet/minecraft/block/Block;)F",
+   "native": "csrc/engine/harvest.c:inventory_str_vs_block",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "useItemRightClick",
+   "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/survival.c:process_c08",
+   "status": "exact",
+   "note": "The in-air C08 dispatch per kind and itemuse.c's tryUseItem for the rest; use-kinds-s1, throw-items-s1."
+  },
+  {
+   "kind": "method",
+   "name": "onFoodEaten",
+   "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/survival.c:surv_server_eat_tick",
+   "status": "exact",
+   "note": "ItemFood's finish, ItemSoup's bowl (survival.c:surv_server_eat_tick) and ItemPotion's and ItemBucketMilk's returns (server_drink_finish); use-kinds-s1 eats stew and drinks milk and potions."
+  },
+  {
+   "kind": "method",
+   "name": "writeToNBT",
+   "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)Lnet/minecraft/nbt/NBTTagCompound;",
+   "native": "csrc/engine/entity_nbt.c:item_stack_w",
+   "status": "exact",
+   "note": "id/Count/Damage/tag in the same order; also entity_nbt.c and fallhang.c write stacks"
+  },
+  {
+   "kind": "method",
+   "name": "readFromNBT",
+   "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V",
+   "native": "csrc/engine/itemtag.c:itag_from_item",
+   "status": "exact",
+   "note": "The tag on every stack reader; the negative-damage clamp needs a negative Damage, which survival never writes."
+  },
+  {
+   "kind": "method",
+   "name": "getMaxStackSize",
+   "sig": "()I",
+   "native": "csrc/engine/container.c:stack_max",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isStackable",
+   "sig": "()Z",
+   "native": "csrc/engine/container.c:stack_stackable",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isItemStackDamageable",
+   "sig": "()Z",
+   "native": "csrc/engine/container.c:stack_damageable",
+   "status": "exact",
+   "note": "max_damage over 0 and no Unbreakable tag"
+  },
+  {
+   "kind": "method",
+   "name": "getHasSubtypes",
+   "sig": "()Z",
+   "native": "csrc/engine/container.c:stack_subtypes",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isItemDamaged",
+   "sig": "()Z",
+   "native": "csrc/engine/container.c:stack_damaged",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDamageForDisplay",
+   "sig": "()I",
+   "native": null,
+   "status": "exact",
+   "note": "the damage field itself"
+  },
+  {
+   "kind": "method",
+   "name": "getItemDamage",
+   "sig": "()I",
+   "native": null,
+   "status": "exact",
+   "note": "the damage field itself"
+  },
+  {
+   "kind": "method",
+   "name": "setItemDamage",
+   "sig": "(I)V",
+   "native": null,
+   "status": "exact",
+   "note": "the damage field itself, negative clamped by the writers"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxDamage",
+   "sig": "()I",
+   "native": null,
+   "status": "exact",
+   "note": "the ITEMS max_damage column"
+  },
+  {
+   "kind": "method",
+   "name": "attemptDamageItem",
+   "sig": "(ILjava/util/Random;)Z",
+   "native": "csrc/engine/dig.c:damage_held",
+   "status": "exact",
+   "note": "the Unbreaking negation loop, the break past max_damage, the break sound and particle draws; harvestdrops.c:damage_held is the second copy"
+  },
+  {
+   "kind": "method",
+   "name": "damageItem",
+   "sig": "(ILnet/minecraft/entity/EntityLivingBase;)V",
+   "native": "csrc/engine/dig.c:damage_held",
+   "status": "exact",
+   "note": "creative skip and the break path; the bow's destroyCurrentEquippedItem tail is throw.c:consume_arrow. The player's other paths: survival.c surv_damage_stack (server: the hoe, the flint and steel, the shears on sheep and mooshrooms, the flint on creepers and TNT, armour, combat) and client_damage_stack (the client's copy: the Unbreaking rolls on its Random, renderBrokenItemStack's draws; the break stat is not independent, so the client drops it). A stack the dig machine breaks counts its useItem and breakItem under the item it broke as (survival.c surv_dig_adopt_stats, held_was)."
+  },
+  {
+   "kind": "method",
+   "name": "hitEntity",
+   "sig": "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/combat.c:combat_server_attack",
+   "status": "exact",
+   "note": "the wear block (sword 1, tool 2) with the break; the stat is folded in"
+  },
+  {
+   "kind": "method",
+   "name": "func_150999_a",
+   "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/block/Block;IIILnet/minecraft/entity/player/EntityPlayer;)V",
+   "native": "csrc/engine/dig.c:item_on_block_destroyed",
+   "status": "exact",
+   "note": "the held item's onBlockDestroyed and the useItem stat; also harvestdrops.c:item_on_block_destroyed"
+  },
+  {
+   "kind": "method",
+   "name": "func_150998_b",
+   "sig": "(Lnet/minecraft/block/Block;)Z",
+   "native": "csrc/engine/harvest.c:item_can_harvest",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "interactWithEntity",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/entity/EntityLivingBase;)Z",
+   "native": "csrc/engine/survival.c:entity_interact",
+   "status": "exact",
+   "note": "the mooshroom, cow, sheep, dye and breeding-item interactions"
+  },
+  {
+   "kind": "method",
+   "name": "copy",
+   "sig": "()Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:stack_copy",
+   "status": "exact",
+   "note": "the tag index is copied; store entries are never mutated, so a copy never shares a compound a later write changes"
+  },
+  {
+   "kind": "method",
+   "name": "areItemStackTagsEqual",
+   "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/container.c:stack_tags_equal",
+   "status": "exact",
+   "note": "interned tags compare by index"
+  },
+  {
+   "kind": "method",
+   "name": "areItemStacksEqual",
+   "sig": "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/survival.c:stack_eq",
+   "status": "exact",
+   "note": "size, item, damage and tag index (detectAndSendChanges)"
+  },
+  {
+   "kind": "method",
+   "name": "isItemStackEqual",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/survival.c:stack_eq",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "isItemEqual",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Z",
+   "native": "csrc/engine/container.c:stack_same_item",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getUnlocalizedName",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "copyItemStack",
+   "sig": "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/container.c:stack_copy",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "toString",
+   "sig": "()Ljava/lang/String;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "updateAnimation",
+   "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/Entity;IZ)V",
+   "native": "csrc/engine/player.c:cp_on_living_update",
+   "status": "exact",
+   "note": "the countdown; Item.onUpdate is ItemMap only among the reachable items (maps are off)"
+  },
+  {
+   "kind": "method",
+   "name": "onCrafting",
+   "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;I)V",
+   "native": "csrc/engine/container.c:craft_out_crafted",
+   "status": "exact",
+   "note": "the craftItem stat through the crafted callback; Item.onCreated is a no-op for every item without a map"
+  },
+  {
+   "kind": "method",
+   "name": "getMaxItemUseDuration",
+   "sig": "()I",
+   "native": "csrc/engine/survival.c:surv_item_use_duration",
+   "status": "exact",
+   "note": "the 32 food use and the 72000 sword use are set per kind in the in-air C08"
+  },
+  {
+   "kind": "method",
+   "name": "getItemUseAction",
+   "sig": "()Lnet/minecraft/item/EnumAction;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "onPlayerStoppedUsing",
+   "sig": "(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;I)V",
+   "native": "csrc/engine/throw.c:bow_charge",
+   "status": "exact",
+   "note": "The bow is the only item with onPlayerStoppedUsing in 1.7.10 that survival reaches (throw.c, with its enchantments)."
+  },
+  {
+   "kind": "method",
+   "name": "hasTagCompound",
+   "sig": "()Z",
+   "native": "csrc/engine/itemtag.c:itag_get",
+   "status": "exact",
+   "note": "the stack tag index (0 is null)"
+  },
+  {
+   "kind": "method",
+   "name": "getTagCompound",
+   "sig": "()Lnet/minecraft/nbt/NBTTagCompound;",
+   "native": "csrc/engine/itemtag.c:itag_get",
+   "status": "exact",
+   "note": "the stack tag index (0 is null)"
+  },
+  {
+   "kind": "method",
+   "name": "getEnchantmentTagList",
+   "sig": "()Lnet/minecraft/nbt/NBTTagList;",
+   "native": "csrc/engine/itemtag.c:itag_nench",
+   "status": "exact",
+   "note": "the ench list decoded in the tag entry; enchanted loot, trades and mob gear reach it"
+  },
+  {
+   "kind": "method",
+   "name": "setTagCompound",
+   "sig": "(Lnet/minecraft/nbt/NBTTagCompound;)V",
+   "native": "csrc/engine/itemtag.c:itag_get",
+   "status": "exact",
+   "note": "the stack tag index (0 is null)"
+  },
+  {
+   "kind": "method",
+   "name": "getDisplayName",
+   "sig": "()Ljava/lang/String;",
+   "native": "csrc/engine/crafting.c:display_compound",
+   "status": "exact",
+   "note": "The display.Name read for cloning; a named stack comes only from an anvil (world.conf anvil = off), the rest is client text."
+  },
+  {
+   "kind": "method",
+   "name": "setStackDisplayName",
+   "sig": "(Ljava/lang/String;)Lnet/minecraft/item/ItemStack;",
+   "native": "csrc/engine/itemtag.c:itag_set_name",
+   "status": "exact",
+   "note": "dev stacks and book cloning; the anvil is off"
+  },
+  {
+   "kind": "method",
+   "name": "func_135074_t",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "hasDisplayName",
+   "sig": "()Z",
+   "native": "csrc/engine/itemtag.c:itag_name",
+   "status": "exact",
+   "note": "the display.Name presence read for map and book cloning"
+  },
+  {
+   "kind": "method",
+   "name": "getTooltip",
+   "sig": "(Lnet/minecraft/entity/player/EntityPlayer;Z)Ljava/util/List;",
+   "native": "csrc/engine/raster_hud.c:tooltip_lines",
+   "status": "exact",
+   "note": "runs only when a frame is drawn (the row replays draw none): covframes' frame coverage runs it in cf-idx-tipapple-s1, cf-idx-tippotion-s1, cf-idx-tipsword-s1 and others"
+  },
+  {
+   "kind": "method",
+   "name": "hasEffect",
+   "sig": "()Z",
+   "native": "csrc/engine/raster_hud.c:stack_enchanted",
+   "status": "exact",
+   "note": "the glint: an enchanted stack (and ItemPotion's and the golden apple's own foil in the hand and the hotbar); idx-glint-s1"
+  },
+  {
+   "kind": "method",
+   "name": "getRarity",
+   "sig": "()Lnet/minecraft/item/EnumRarity;",
+   "native": "csrc/engine/raster_hud.c:tooltip_lines",
+   "status": "exact",
+   "note": "Item.getRarity (an enchanted stack rare) and its overrides: ItemAppleGold, ItemRecord, ItemEnchantedBook (see EnumRarity)"
+  },
+  {
+   "kind": "method",
+   "name": "isItemEnchantable",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a",
+   "note": "enchanting is off"
+  },
+  {
+   "kind": "method",
+   "name": "addEnchantment",
+   "sig": "(Lnet/minecraft/enchantment/Enchantment;I)V",
+   "native": "csrc/engine/itemtag.c:itag_add_ench",
+   "status": "exact",
+   "note": "mob gear (enchant.c:enchant_list_tag), dev stacks; the enchanting table is off"
+  },
+  {
+   "kind": "method",
+   "name": "isItemEnchanted",
+   "sig": "()Z",
+   "native": "csrc/engine/itemtag.c:itag_enchanted",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setTagInfo",
+   "sig": "(Ljava/lang/String;Lnet/minecraft/nbt/NBTBase;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "canEditBlocks",
+   "sig": "()Z",
+   "native": "csrc/engine/itemuse.c:stack_can_edit_blocks",
+   "status": "n/a",
+   "note": "n/a: EntityPlayer.isCurrentToolAdventureModeExempt asks it only when capabilities.allowEdit is false (adventure mode)"
+  },
+  {
+   "kind": "method",
+   "name": "isOnItemFrame",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "setItemFrame",
+   "sig": "(Lnet/minecraft/entity/item/EntityItemFrame;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getItemFrame",
+   "sig": "()Lnet/minecraft/entity/item/EntityItemFrame;",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getRepairCost",
+   "sig": "()I",
+   "native": null,
+   "status": "n/a",
+   "note": "the anvil is off"
+  },
+  {
+   "kind": "method",
+   "name": "setRepairCost",
+   "sig": "(I)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "getAttributeModifiers",
+   "sig": "()Lcom/google/common/collect/Multimap;",
+   "native": "csrc/engine/combat.c:combat_server_attack",
+   "status": "exact",
+   "note": "The item's own modifiers (the weapon damage) applied as the attackDamage modifier; an NBT AttributeModifiers list comes only from commands."
+  },
+  {
+   "kind": "method",
+   "name": "func_150996_a",
+   "sig": "(Lnet/minecraft/item/Item;)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_151000_E",
+   "sig": "()Lnet/minecraft/util/IChatComponent;",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "The port represents a stack as a plain struct (item, count, damage, tag); the field-backed accessors are marked exact with a null native for that reason. enchant.c:item_enchantability and the enchanting paths are gated off by world.conf enchanting = off. Verification only (triage 2026-09-25, out/plan/remaining-2026-09-25.md): verification only: the member is ported but no scene pins it; covered by the verify list, not a port (the full-stack equality detectAndSendChanges uses; screens-* recordings exercise it). It stays partial until a recording pins it. Tags (lane/itemtags): one interned tag store (itemtag.c) carried by every stack struct, the inventory, containers, crafting, trades, drops, pickups, spills, frames, packets and snapshot loads; item-tags-s1 pins them. lane/idxblocks: every member exact; the bowl and bottle returns were already ported. idxaudit 2026-09-27: was in_scope/exact: a reachable behaviour is not native (missing). lane/idxlast 2026-09-27: the tooltip half was stale since lane/idxclient d4352f71 (idx-tip*-s1); animationsToGo, the hotbar's pickup pop, was a real gap (the golden's squashed dirt at cr-pickup-s1 81), ported."
+}

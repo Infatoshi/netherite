@@ -1,0 +1,245 @@
+{
+  "path": "csrc/engine/raster.c",
+  "lines": 2753,
+  "role": "The software renderer that reproduces llvmpipe's 1.7.10 frame: the sky, sunrise, sun/moon, End sky and clouds, the opaque and translucent chunk passes from the render_blocks mesher, then entities, mobs, the block overlay, particles, weather, the first-person hand and screen overlays and the HUD, either from a recorded RenderStateProbe/MeshProbe scene (raster_render) or live for the playable client with cached section meshes and a thread pool (raster_live_*).",
+  "layer": "render",
+  "java": [
+    {
+      "path": "oracle/src/client/renderer/RenderGlobal.java",
+      "members": [
+        "renderSky",
+        "renderClouds",
+        "renderCloudsFancy",
+        "sortAndRender",
+        "renderSortedRenderers"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/EntityRenderer.java",
+      "members": [
+        "renderWorld",
+        "renderRainSnow",
+        "renderHand",
+        "setupFog",
+        "updateLightmap"
+      ]
+    },
+    {
+      "path": "oracle/src/client/renderer/ItemRenderer.java",
+      "members": [
+        "renderOverlays"
+      ]
+    },
+    {
+      "path": "oracle/src/client/particle/EffectRenderer.java",
+      "members": [
+        "renderLitParticles",
+        "renderParticles"
+      ]
+    },
+    {
+      "path": "oracle/src/world/World.java",
+      "members": [
+        "getSkyColor"
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "name": "vertex",
+      "java": null,
+      "fields": [
+        "x",
+        "y",
+        "sx",
+        "sy",
+        "z",
+        "w",
+        "u",
+        "v",
+        "color",
+        "light",
+        "depth",
+        "fogcoord",
+        "clip"
+      ]
+    },
+    {
+      "name": "frame",
+      "java": "the GL state of one EntityRenderer.renderWorld frame as RenderStateProbe records it: projection, modelview, fog, sky and cloud colours, celestial angle, moon phase, lightmap",
+      "fields": [
+        "w",
+        "h",
+        "proj",
+        "mv",
+        "fog",
+        "fogs",
+        "foge",
+        "fogd",
+        "fogm",
+        "dimension",
+        "clouds_enabled",
+        "sky",
+        "sky_bottom",
+        "sky_far",
+        "sky_floor",
+        "sunrise",
+        "cloud_color",
+        "cloud_height",
+        "celestial_angle",
+        "cloud_tick",
+        "moon_phase",
+        "sky_mode",
+        "cloud_prepass",
+        "render_pass",
+        "band",
+        "band_y0",
+        "band_y1",
+        "sink",
+        "cam",
+        "texture",
+        "clouds",
+        "sun",
+        "moon",
+        "end_sky",
+        "rgb",
+        "mask",
+        "depth",
+        "lm",
+        "triangles",
+        "samples"
+      , "prec"]
+    },
+    {
+      "name": "water_section",
+      "java": "RenderGlobal's distance-sorted translucent section order",
+      "fields": [
+        "cx",
+        "cz",
+        "s",
+        "distance"
+      ]
+    },
+    {
+      "name": "water_quad",
+      "java": "the per-quad back-to-front sort of a translucent section",
+      "fields": [
+        "offset",
+        "distance"
+      ]
+    },
+    {
+      "name": "worldfx_tex",
+      "java": null,
+      "fields": []
+    },
+    {
+      "name": "live_section",
+      "java": "a WorldRenderer's cached display list for one 16x16x16 section and pass",
+      "fields": [
+        "meshed",
+        "flags",
+        "count",
+        "raw"
+      ]
+    },
+    {
+      "name": "live_draw",
+      "java": null,
+      "fields": [
+        "cx",
+        "s",
+        "cz",
+        "sec",
+        "order"
+      ]
+    },
+    {
+      "name": "live_list",
+      "java": null,
+      "fields": [
+        "v",
+        "rows",
+        "mode",
+        "n",
+        "cap",
+        "render_pass"
+      ]
+    },
+    {
+      "name": "raster_live",
+      "java": null,
+      "fields": [
+        "w",
+        "h",
+        "threads",
+        "texture",
+        "tab",
+        "atlas",
+        "tess",
+        "mesher",
+        "world",
+        "sec",
+        "depth",
+        "opaque",
+        "water",
+        "sky",
+        "stale",
+        "lists",
+        "base",
+        "next",
+        "stats",
+        "lock",
+        "workers",
+        "th",
+        "npool",
+        "stage_id",
+        "done",
+        "run"
+      ]
+    }
+  ],
+  "entry_points": [
+    "raster_render",
+    "raster_png",
+    "raster_live_new",
+    "raster_live_mesher",
+    "raster_live_particle_tex",
+    "raster_live_explosion_tex",
+    "raster_live_block_atlas",
+    "raster_live_depth",
+    "raster_live_depth_mut",
+    "raster_live_stale",
+    "raster_live_rebase",
+    "raster_live_stale_all",
+    "raster_live_stats",
+    "raster_live_frame",
+    "raster_live_translucent",
+    "raster_live_overlay",
+    "raster_live_weather",
+    "raster_live_overlays",
+    "raster_live_free",
+    "raster_live_animate",
+    "raster_live_mesh_bytes",
+    "raster_live_obs",
+    "raster_obs_render",
+    "raster_live_keep", "raster_live_device_mesh", "raster_live_mesh_resync",
+    "raster_live_mesh_check"
+, "raster_live_set_prec"],
+  "tick_path": false,
+  "gpu": [
+    "lines 860, 1108, 1882-1883, 1906, functions draw_section, draw_mesh, raster_live_frame: malloc of sort buffers every frame",
+    "lines 1655-1662, function live_list_push and line 1875, function raster_live_frame: realloc-grown triangle lists per frame",
+    "lines 821-826, function water_section_compare: returns 0 on equal distances, so qsort (line 1121) leaves tied translucent sections in an unspecified order (the live path's live_water_compare breaks ties by index)",
+    "lines 1287-1328, 1483-1488, 1691-1693, 1771-1810: a pthread pool with a shared mutex, atomic stage counter and shared work counter; bands are rasterized in parallel",
+    "line 1535, function live_now_ms: clock_gettime(CLOCK_MONOTONIC) wall-clock read, used only for raster_live_stats timing",
+    "lines 854, 1094, 1099 and the alloc/json helpers at lines 61-163: exit(1) on a full mesher buffer, a load failure or malformed scene JSON"
+  ],
+  "tests": [
+    "csrc/tests/test_render.c",
+    "csrc/tests/raster.c",
+    "csrc/tests/hud_live_test.c",
+    "csrc/tests/hud_frame_gate.sh"
+  ],
+  "notes": "Render layer, outside the tick; the product frame path per SPEC is frames at partial tick 1.0 on request, so the hazards above matter for a GPU renderer port, not for tick state. The file dispatches to raster_sky2.c (sun and moon), raster_entities.c, raster_mobs.c, raster_overlay.c, raster_particles.c, raster_worldfx.c, raster_hand.c and raster_hud.c; those Java ports are recorded in their own files. Java member names here come from the file's comments plus a grep of the Java sources; per-member exactness against pixel gates is asserted by test_render.c (pixel equality with the oracle's frames), not re-verified here. The play client (csrc/play/play.c) drives raster_live_*. lane/skytex: sky_mode 8 is the star pass (blend SRC_ALPHA, ONE as llvmpipe's rounded 8-bit product, colour getStarBrightness * (1 - rain)); the live list's mode byte holds sky_mode in its low 4 bits; the recorded atlases are patched to the frame's animation (texanim_patch_scene) and raster_live_animate uploads the live client's. lane/particles2: draw_mesh draws the translucent terrain (sortAndRender pass 1, no depth writes) after the entities, the overlay and the particles, as EntityRenderer.renderWorld does, so particles behind water or a portal are blended over. lane/entrender: raster_things_scene after the mobs. draw_mesh runs the tile-entity pass (raster_tileent.c raster_tileents_scene) after the mobs, as RenderGlobal.renderEntities' block-entity loop follows the entities. lane/clientstate: a row's \"inside\" list (ClientStateProbe) names the blocks drawn a second time from inside, per section, since that geometry stays in the section until its next rebuild whatever the camera does; rows without it keep the mesh dump's camera block. raster_live_obs hands the last live frame to the device renderer as data (raster_obs.h) and raster_obs_render is the C renderer over such a dump; csrc/cuda/render/host.cu ports this file's passes operation for operation (mirrors.txt lists them). A stale section pass keeps its mesh and version while its key (raster_meshkey.c: what the mesher reads) holds, and a pass no cell of the section is drawn in takes the empty mesh without the mesher (lane/remesh); host meshing walks only the band's cells drawn in the pass; raster_live_mesh_check meshes the spared passes again the reference way (rb_mesh_section) and compares. lane/renderprec: the frame's precision (raster_prec.h; frame.prec from raster_live_set_prec or raster_obs.prec): light_sample_h and shade_h are the float16 stages, RP_XFORM's camera offset is in make_vertex, RP_RCP in triangle()."
+}

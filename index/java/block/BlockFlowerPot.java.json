@@ -1,0 +1,50 @@
+{
+  "path": "oracle/src/block/BlockFlowerPot.java",
+  "classes": ["BlockFlowerPot"],
+  "lines": 266,
+  "side": "common",
+  "category": "block",
+  "role": "The flower pot: a tile-entity block that holds one plant item; right click with a plantable block plants it, breaking it drops the pot and the plant.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/activate.c", "symbols": ["on_block_activated", "ID_POT", "pot_allows"]},
+    {"file": "csrc/engine/tileentity.c", "symbols": ["te_kind_of_block", "render_flower_pot"]},
+    {"file": "csrc/engine/harvestdrops.c", "symbols": ["pot_content", "pot_damage", "break_block"]},
+    {"file": "csrc/engine/drops.c", "symbols": ["drops_break"]},
+    {"file": "csrc/engine/collide.c", "symbols": ["collide_pool_box"]},
+    {"file": "csrc/engine/render_blocks3.c", "symbols": ["rb3_render_flowerpot"]},
+    {"file": "csrc/engine/blocks.h", "symbols": ["BLOCKS"]},
+    {"file": "csrc/engine/pickblock.c", "symbols": ["pick_block_item"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/act2-s1",
+    "out/java/snapshots/rc-blocks-s1",
+    "csrc/tests/test_activate.c",
+    "csrc/tests/test_harvestdrops.c",
+    "out/java/snapshots/pickblock-s1",
+    "out/java/snapshots/cov-blkbreak-s1",
+    "out/java/snapshots/cov-blkplace-s1"
+  ],
+  "members": [
+    {"kind": "ctor", "name": "BlockFlowerPot", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "row 140: the circuits material, the 0.375-cube bounds"},
+    {"kind": "method", "name": "setBlockBoundsForItemRender", "sig": "()V", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "the constructor calls it; row 140's stored bounds"},
+    {"kind": "method", "name": "isOpaqueCube", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "opaque_cube 0 in row 140"},
+    {"kind": "method", "name": "getRenderType", "sig": "()I", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "render_type 33, dispatched to rb3_render_flowerpot"},
+    {"kind": "method", "name": "renderAsNormalBlock", "sig": "()Z", "native": "csrc/engine/blocks.h:BLOCKS", "status": "exact", "note": "normal_block 0 in row 140"},
+    {"kind": "method", "name": "onBlockActivated", "sig": "(World,IIILnet/minecraft/entity/player/EntityPlayer;IFFF)Z", "native": "csrc/engine/activate.c:on_block_activated", "status": "exact", "note": "case ID_POT: the ItemBlock check, the empty-pot guard, func_149928_a's plantable test (pot_allows), the tile write, the meta write with the func_147471_g fallback, the stack decrement"},
+    {"kind": "method", "name": "func_149928_a", "sig": "(Block,I)Z", "native": "csrc/engine/activate.c:pot_allows", "status": "exact", "note": "the seven blocks plus tallgrass meta 2"},
+    {"kind": "method", "name": "getItem", "sig": "(World,III)Lnet/minecraft/item/Item;", "native": "csrc/engine/pickblock.c:block_get_item", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "getDamageValue", "sig": "(World,III)I", "native": "csrc/engine/pickblock.c:block_get_damage", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "isFlowerPot", "sig": "()Z", "native": "csrc/engine/pickblock.c:pick_block_item", "status": "exact", "note": "pick block (Minecraft.func_147112_ai)"},
+    {"kind": "method", "name": "canPlaceBlockAt", "sig": "(World,III)Z", "native": "csrc/engine/place.c:func_150071_a", "status": "exact", "note": "the solid-top requirement is in the generic placement path's support checks"},
+    {"kind": "method", "name": "onNeighborBlockChange", "sig": "(World,IIIBlock)V", "native": "csrc/engine/blockcb.c:block_on_neighbor_changed", "status": "exact", "note": "the pot case: no solid top drops the pot and clears the cell"},
+    {"kind": "method", "name": "breakBlock", "sig": "(World,IIIBlockI)V", "native": "csrc/engine/harvestdrops.c:break_block", "status": "exact", "note": "the plant drop built from the placement meta through pot_content/pot_damage"},
+    {"kind": "method", "name": "onBlockHarvested", "sig": "(World,IIIILnet/minecraft/entity/player/EntityPlayer;)V", "native": "csrc/engine/harvestdrops.c:break_block", "status": "exact", "note": "a survival break (cov-blkbreak-s1) and the creative clear (act2-s1)"},
+    {"kind": "method", "name": "getItemDropped", "sig": "(ILjava/util/Random;I)Lnet/minecraft/item/Item;", "native": "csrc/engine/drops.c:drops_break", "status": "exact", "note": "case 140: the flower pot item"},
+    {"kind": "method", "name": "func_149929_e", "sig": "(World,III)Lnet/minecraft/tileentity/TileEntityFlowerPot;", "native": "csrc/engine/tileentity.c:te_kind_of_block", "status": "exact", "note": "case 140 returns TE_FLOWER_POT; the cast folds away in C"},
+    {"kind": "method", "name": "createNewTileEntity", "sig": "(World,I)Lnet/minecraft/tileentity/TileEntity;", "native": "csrc/engine/harvestdrops.c:pot_content", "status": "exact", "note": "the 14-case meta switch maps to the same plant item and data, used when a break rebuilds the pot"}
+  ],
+  "missing": [],
+  "notes": "Verified by act2-s1 (the placement, planting and creative clear replay exact) and rc-blocks-s1. The Item:-1 vs Item:0 NBT fix from DEVLOG 2026-09-25 lives in tileentity.c's render_flower_pot (writes 0 for the internal null)."
+}

@@ -1,0 +1,4 @@
+# lane/moveact's recordings (csrc/runtime/moveact.mk): name, lever, ticks a step, steps, the driver's seed
+moveact-hold-s1 hold 1 600 1
+moveact-look-s1 look 1 600 2
+moveact-tps4-s1 both 4 150 3

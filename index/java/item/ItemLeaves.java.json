@@ -1,0 +1,31 @@
+{
+  "path": "oracle/src/item/ItemLeaves.java",
+  "classes": ["ItemLeaves"],
+  "lines": 55,
+  "side": "common",
+  "category": "item",
+  "role": "The leaves ItemBlock: places with the damage | 4 (the persistent/no-decay bit) and names and colours per leaf subtype.",
+  "scope": "in_scope",
+  "scope_reason": null,
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/place.c", "symbols": ["item_get_metadata", "item_block_on_item_use"]},
+    {"file": "csrc/engine/items.h", "symbols": ["ITEMS"]},
+    {"file": "csrc/engine/item_color.c", "symbols": ["item_block_color"]}
+  ],
+  "evidence": [
+    "csrc/tests/test_place.c",
+    "csrc/tests/test_items.c",
+    "out/java/snapshots/cov-place-s1"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_150940_b", "sig": "BlockLeaves", "native": "csrc/engine/items.h:ITEMS", "status": "partial", "note": "the leaves block is the ITEMS row's block_id; the BlockLeaves object itself is not carried"},
+    {"kind": "ctor", "name": "ItemLeaves", "sig": "(BlockLeaves)V", "native": "csrc/engine/items.h:ITEMS", "status": "exact", "note": "rows for the leaves and leaves2 items carry class_name ItemLeaves"},
+    {"kind": "method", "name": "getMetadata", "sig": "(I)I", "native": "csrc/engine/place.c:item_get_metadata", "status": "exact", "note": "cov-place-s1 places it (wool, leaves, a piston, snow layers through ItemSnow's super path)"},
+    {"kind": "method", "name": "getIconFromDamage", "sig": "(I)IIcon", "native": null, "status": "n/a", "note": "client icon"},
+    {"kind": "method", "name": "getColorFromItemStack", "sig": "(ItemStack,I)I", "native": null, "status": "n/a", "note": "client colour"},
+    {"kind": "method", "name": "getUnlocalizedName(ItemStack)", "sig": "(ItemStack)String", "native": null, "status": "n/a", "note": "client naming"}
+  ],
+  "missing": [],
+  "notes": " getColorFromItemStack is item_color.c's item_block_color."
+}

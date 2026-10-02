@@ -1,0 +1,22 @@
+{
+ "path": "csrc/engine/pickblock.c",
+ "lines": 132,
+ "role": "The block half of Minecraft.func_147112_ai (pick block): Block.getItem per block class (the ItemBlock at the id by default), the ItemBlock's own block answering getDamageValue at the looked-at cell (damageDropped by default, the dirt, cocoa, new leaf, double plant, silverfish, tall grass, skull, flower pot and slab overrides), and Item.getHasSubtypes.",
+ "layer": "client",
+ "java": [
+  {"path": "oracle/src/client/Minecraft.java", "members": ["func_147112_ai"]},
+  {"path": "oracle/src/block/Block.java", "members": ["getItem", "getDamageValue", "isFlowerPot"]},
+  {"path": "oracle/src/block/BlockSlab.java", "members": ["getItem", "getDamageValue"]},
+  {"path": "oracle/src/block/BlockSkull.java", "members": ["getItem", "getDamageValue"]},
+  {"path": "oracle/src/block/BlockFlowerPot.java", "members": ["getItem", "getDamageValue", "isFlowerPot"]},
+  {"path": "oracle/src/block/BlockDoublePlant.java", "members": ["getDamageValue"]},
+  {"path": "oracle/src/block/BlockCrops.java", "members": ["getItem"]},
+  {"path": "oracle/src/block/BlockStem.java", "members": ["getItem"]}
+ ],
+ "structs": [],
+ "entry_points": ["pick_block_item"],
+ "tick_path": false,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Evidence: out/java/snapshots/pickblock-s1 (42 middle clicks over every block class with its own getItem or getDamageValue). The piston extension, spawner, portal and end portal cases read no world state beyond the cell."
+}

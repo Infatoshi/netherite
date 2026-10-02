@@ -1,0 +1,23 @@
+{
+  "path": "oracle/src/item/crafting/IRecipe.java",
+  "classes": ["IRecipe"],
+  "lines": 25,
+  "side": "common",
+  "category": "crafting",
+  "role": "The recipe interface: match a crafting grid, produce the result, report the recipe size and output.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/crafting.c", "symbols": ["shaped_matches", "shapeless_matches", "shaped_result"]},
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c"],
+  "members": [
+    {"kind": "method", "name": "matches", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;Lnet/minecraft/world/World;)Z", "native": "csrc/engine/crafting.c:shaped_matches", "status": "exact", "note": "the shaped and shapeless halves; the five special classes have their own matchers (dye_matches, book_matches, map_clone_matches, map_extend_matches, fireworks_matches)"},
+    {"kind": "method", "name": "getCraftingResult", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/crafting.c:shaped_result", "status": "exact"},
+    {"kind": "method", "name": "getRecipeSize", "sig": "()I", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the size the sort used, baked into the table order"},
+    {"kind": "method", "name": "getRecipeOutput", "sig": "()Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the baked result stack"}
+  ],
+  "missing": [],
+  "notes": "The implementations live in ShapedRecipes, ShapelessRecipes and the five special classes; the native folds them into one recipe_def walk."
+}

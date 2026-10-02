@@ -1,0 +1,121 @@
+{
+ "path": "csrc/engine/slimes.c",
+ "lines": 852,
+ "role": "EntitySlime and EntityMagmaCube (size, jump delay, squish, jump toward the nearest player, split on death, drops, collision attack) plus the slime probe's own EntityPlayer (onLivingUpdate collision sweep, attackEntityFrom, damageEntity hunger cost, FoodStats) and the probe's per-tick record writers.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/monster/EntitySlime.java",
+   "members": [
+    "setSlimeSize",
+    "getSlimeSize",
+    "onUpdate",
+    "alterSquishAmount",
+    "makesSoundOnLand",
+    "updateEntityActionState",
+    "getJumpDelay",
+    "createInstance",
+    "setDead",
+    "func_146068_u",
+    "onCollideWithPlayer",
+    "canDamagePlayer",
+    "getAttackStrength",
+    "squishAmount",
+    "squishFactor",
+    "prevSquishFactor",
+    "slimeJumpDelay"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/monster/EntityMagmaCube.java",
+   "members": [
+    "applyEntityAttributes",
+    "getJumpDelay",
+    "jump",
+    "dropFewItems",
+    "alterSquishAmount",
+    "makesSoundOnLand",
+    "canDamagePlayer",
+    "getAttackStrength"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/player/EntityPlayer.java",
+   "members": [
+    "onLivingUpdate",
+    "attackEntityFrom",
+    "damageEntity",
+    "shouldHeal",
+    "addMovementStat",
+    "addExhaustion",
+    "onUpdate"
+   ]
+  },
+  {
+   "path": "oracle/src/util/FoodStats.java",
+   "members": [
+    "onUpdate",
+    "foodLevel",
+    "foodSaturationLevel",
+    "foodExhaustionLevel",
+    "foodTimer",
+    "prevFoodLevel"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityLivingBase.java",
+   "members": [
+    "canEntityBeSeen",
+    "heal"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getClosestPlayerToEntity",
+    "getClosestVulnerablePlayer"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "slime_construct",
+  "slime_set_size",
+  "slime_pre_on_update",
+  "slime_post_on_update",
+  "slime_action_state",
+  "slime_jump_override",
+  "slime_get_jump_delay",
+  "slime_alter_squish",
+  "slime_set_dead",
+  "slime_drop_few_items",
+  "slime_on_collide_with_player",
+  "slime_can_despawn",
+  "player_spawn_setup",
+  "player_on_living_update",
+  "player_after_update",
+  "player_damage_entity",
+  "player_attack_entity_from",
+  "player_add_movement_stat",
+  "player_add_exhaustion",
+  "an_spawn_slime",
+  "an_spawn_player",
+  "slime_write_state",
+  "slime_write_player",
+  "an_closest_player",
+  "an_closest_vulnerable_player"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "line 602, function an_spawn_slime: calloc of a struct living per slime, reached inside the tick by slime_set_dead's split (line 265)",
+  "line 625, function an_spawn_player: calloc of the player living",
+  "function player_on_living_update: the collision query list holds every match (AN_QUERY_LIST); the collide order follows an_entities_excluding's list order (lane/querybounds, AI-02)",
+  "lines 746-748 and 779-781, function slime_write_state: heap NBT text per entity per record (probe recording, not simulation)",
+  "lines 44-46: difficulty pinned to NORMAL as compile-time constants; the EASY/HARD/PEACEFUL branches are dead code"
+ ],
+ "tests": [
+  "csrc/tests/test_slimes.c",
+  "csrc/tests/test_snapshots.c"
+ ],
+ "notes": "Evidence: out/java/slimes (SlimeProbe) and out/java/snapshots/fight-slime-s1. The probe player omits inventory, item in use, sleeping, containers, play-time stat and camera smoothing (per the file header). an_add_living is declared in slimes.h but defined in living.c. Difficulty scaling in player_attack_entity_from is a no-op because the probe pins NORMAL; whether the whole-server replay uses a different path for players was not checked."
+}

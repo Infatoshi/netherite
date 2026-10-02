@@ -1,0 +1,290 @@
+{
+  "path": "oracle/src/network/NetworkManager.java",
+  "classes": [
+    "NetworkManager",
+    "NetworkManager.InboundHandlerTuplePacketListener"
+  ],
+  "lines": 411,
+  "side": "common",
+  "category": "network",
+  "role": "The connection: a Netty channel handler that queues inbound packets for the game thread, dispatches outbound ones, tracks the protocol state, and is the place the oracle's lockstep barrier counts sends and receives.",
+  "scope": "not_needed",
+  "scope_reason": "Wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes) (triage 2026-09-25, out/plan/remaining-2026-09-25.md).",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "isClientSide",
+      "sig": "boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "No channel objects exist natively; the tick is split into a client half and a server half with explicit delivery phases."
+    },
+    {
+      "kind": "field",
+      "name": "receivedPacketsQueue",
+      "sig": "Queue",
+      "native": "csrc/engine/player.c:server_player_tick",
+      "status": "partial",
+      "note": "The queue's effect survives as the message structs the client half hands the server half (struct client_out, struct s2c_pkt); no queue object."
+    },
+    {
+      "kind": "field",
+      "name": "outboundPacketsQueue",
+      "sig": "Queue",
+      "native": null,
+      "status": "n/a",
+      "note": "Only used when the channel is not yet open; the local channel is open from the join."
+    },
+    {
+      "kind": "field",
+      "name": "channel",
+      "sig": "Channel",
+      "native": null,
+      "status": "n/a",
+      "note": "Netty plumbing, replaced by struct delivery."
+    },
+    {
+      "kind": "field",
+      "name": "socketAddress",
+      "sig": "SocketAddress",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "netHandler",
+      "sig": "INetHandler",
+      "native": null,
+      "status": "n/a",
+      "note": "The handler role is the native tick's server half (player.c, survival.c)."
+    },
+    {
+      "kind": "field",
+      "name": "connectionState",
+      "sig": "EnumConnectionState",
+      "native": null,
+      "status": "n/a",
+      "note": "The native connection is always in PLAY after the join; no protocol state machine."
+    },
+    {
+      "kind": "field",
+      "name": "terminationReason",
+      "sig": "IChatComponent",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_152463_r",
+      "sig": "boolean",
+      "native": null,
+      "status": "n/a",
+      "note": "Encryption-enabled flag; never set."
+    },
+    {
+      "kind": "field",
+      "name": "attrKeyConnectionState",
+      "sig": "AttributeKey",
+      "native": null,
+      "status": "n/a",
+      "note": "Static channel attribute; Netty plumbing."
+    },
+    {
+      "kind": "field",
+      "name": "attrKeyReceivable",
+      "sig": "AttributeKey",
+      "native": null,
+      "status": "n/a",
+      "note": "Static channel attribute."
+    },
+    {
+      "kind": "field",
+      "name": "attrKeySendable",
+      "sig": "AttributeKey",
+      "native": null,
+      "status": "n/a",
+      "note": "Static channel attribute."
+    },
+    {
+      "kind": "field",
+      "name": "eventLoops",
+      "sig": "NioEventLoopGroup",
+      "native": null,
+      "status": "n/a",
+      "note": "Static thread pool; the native tick is single-threaded by design."
+    },
+    {
+      "kind": "field",
+      "name": "field_152462_h",
+      "sig": "NetworkStatistics",
+      "native": null,
+      "status": "n/a",
+      "note": "The shared statistics object; telemetry only."
+    },
+    {
+      "kind": "ctor",
+      "name": "NetworkManager",
+      "sig": "(Z)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Just records the side flag."
+    },
+    {
+      "kind": "method",
+      "name": "channelActive",
+      "sig": "(LChannelHandlerContext;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Channel open bookkeeping; the native join is the snapshot load."
+    },
+    {
+      "kind": "method",
+      "name": "setConnectionState",
+      "sig": "(LEnumConnectionState;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "channelInactive",
+      "sig": "(LChannelHandlerContext;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "exceptionCaught",
+      "sig": "(LChannelHandlerContext;Ljava/lang/Throwable;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "channelRead0",
+      "sig": "(LChannelHandlerContext;LPacket;)V",
+      "native": "csrc/engine/player.c:server_player_tick",
+      "status": "partial",
+      "note": "Queue-or-process plus the oracle's Lockstep.onRecv hook; the native delivery phase replaces both."
+    },
+    {
+      "kind": "method",
+      "name": "setNetHandler",
+      "sig": "(LINetHandler;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "scheduleOutboundPacket",
+      "sig": "(LPacket;[LGenericFutureListener;)V",
+      "native": "csrc/engine/survival.c:s2c_add",
+      "status": "partial",
+      "note": "The native send is a struct push onto the tick's s2c list; no channel, no listeners."
+    },
+    {
+      "kind": "method",
+      "name": "dispatchPacket",
+      "sig": "(LPacket;[LGenericFutureListener;)V",
+      "native": "csrc/engine/survival.c:s2c_add",
+      "status": "partial",
+      "note": "Carries the oracle's Lockstep.onSend hook; the native push is the delivery itself."
+    },
+    {
+      "kind": "method",
+      "name": "flushOutboundQueue",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "processReceivedPackets",
+      "sig": "()V",
+      "native": "csrc/engine/player.c:server_player_tick",
+      "status": "partial",
+      "note": "Drain the queue into the handler; the native tick's deliver phase does the same work in a fixed order."
+    },
+    {
+      "kind": "method",
+      "name": "getSocketAddress",
+      "sig": "()Ljava/net/SocketAddress;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "closeChannel",
+      "sig": "(LIChatComponent;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "No disconnect path in the native session."
+    },
+    {
+      "kind": "method",
+      "name": "isLocalChannel",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a",
+      "note": "Always true in the oracle (LocalChannel); the native engine assumes it."
+    },
+    {
+      "kind": "method",
+      "name": "provideLanClient",
+      "sig": "(Ljava/net/InetAddress;I)LNetworkManager;",
+      "native": null,
+      "status": "n/a",
+      "note": "Remote TCP connect; unused in-process."
+    },
+    {
+      "kind": "method",
+      "name": "provideLocalClient",
+      "sig": "(Ljava/net/SocketAddress;)LNetworkManager;",
+      "native": null,
+      "status": "n/a",
+      "note": "The connect the integrated server uses; the native join replaces it."
+    },
+    {
+      "kind": "method",
+      "name": "enableEncryption",
+      "sig": "(LSecretKey;)V",
+      "native": null,
+      "status": "n/a",
+      "note": "Online-mode only; never called here."
+    },
+    {
+      "kind": "method",
+      "name": "isChannelOpen",
+      "sig": "()Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getNetHandler",
+      "sig": "()LINetHandler;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getExitMessage",
+      "sig": "()LIChatComponent;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "disableAutoRead",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [
+    "The Netty transport itself (queues, channel, protocol-state attributes, dispatch): replaced by the native tick's struct-message phases; its observable role, the lockstep barrier, lives in the oracle's Lockstep hooks and the native tick's fixed client-deliver, server-tick, server-deliver order."
+  ],
+  "notes": "The nested InboundHandlerTuplePacketListener is the outbound queue's entry type. This file is where the harness's determinism hooks sit (Lockstep.onRecv/onSend), so its behavior is gated by every tape even though no native counterpart exists."
+}

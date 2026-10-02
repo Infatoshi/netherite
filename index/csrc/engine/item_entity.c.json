@@ -1,0 +1,161 @@
+{
+ "path": "csrc/engine/item_entity.c",
+ "lines": 1580,
+ "role": "EntityItem, EntityXPOrb and EntityTNTPrimed ticked the way World.updateEntities does: constructors and adopts, updateEntityWithOptionalForce with the Entity.onEntityUpdate base (water flow push, fire, lava, void), the item's pushOutOfBlocks, lava hop, merge search and despawn, the orb's player pull, the TNT fuse, chunk y-section membership, chunk unload and the entity AABB query; projectiles are dispatched to projectile.c.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/item/EntityItem.java",
+   "members": [
+    "EntityItem",
+    "canTriggerWalking",
+    "onUpdate",
+    "searchForOtherItemsNearby",
+    "combineItems",
+    "handleWaterMovement",
+    "attackEntityFrom",
+    "age",
+    "delayBeforeCanPickup",
+    "health",
+    "hoverStart"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityXPOrb.java",
+   "members": [
+    "EntityXPOrb",
+    "canTriggerWalking",
+    "onUpdate",
+    "handleWaterMovement",
+    "attackEntityFrom",
+    "xpColor",
+    "xpTargetColor",
+    "closestPlayer",
+    "xpOrbAge",
+    "field_70532_c",
+    "xpValue"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/item/EntityTNTPrimed.java",
+   "members": [
+    "EntityTNTPrimed",
+    "onUpdate",
+    "canBeCollidedWith",
+    "explode",
+    "fuse",
+    "tntPlacedBy"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/Entity.java",
+   "members": [
+    "Entity",
+    "onEntityUpdate",
+    "setFire",
+    "setOnFireFromLava",
+    "func_145771_j",
+    "handleLavaMovement",
+    "setBeenAttacked",
+    "setInPortal"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "updateEntities",
+    "updateEntityWithOptionalForce",
+    "handleMaterialAcceleration",
+    "isMaterialInBB",
+    "func_147469_q",
+    "getEntitiesWithinAABBExcludingEntity",
+    "getEntitiesWithinAABB",
+    "getCollidingBoundingBoxes",
+    "onEntityAdded"
+   ]
+  },
+  {
+   "path": "oracle/src/block/BlockLiquid.java",
+   "members": [
+    "func_149801_b",
+    "func_149798_e",
+    "func_149800_f",
+    "isBlockSolid"
+   ]
+  },
+  {
+   "path": "oracle/src/world/chunk/Chunk.java",
+   "members": [
+    "addEntity",
+    "removeEntityAtIndex",
+    "onChunkUnload",
+    "getEntitiesOfTypeWithinAAAB",
+    "getEntitiesWithinAABBForEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/util/Vec3.java",
+   "members": [
+    "normalize"
+   ]
+  },
+  {
+   "path": "oracle/src/util/MathHelper.java",
+   "members": [
+    "floor_double"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "ie_init",
+  "ie_free",
+  "ie_spawn_item",
+  "ie_spawn_orb",
+  "ie_spawn_tnt",
+  "ie_spawn_item_state",
+  "ie_spawn_orb_state",
+  "ie_added_to_world",
+  "ie_adopt_item",
+  "ie_adopt_orb",
+  "ie_adopt_tnt",
+  "ie_unload_chunk",
+  "ie_tick_one",
+  "ie_tick",
+  "ie_material_in_bb",
+  "ie_liquid_height_meta",
+  "ie_water_accelerate",
+  "ie_water_accelerate_box",
+  "ie_can_be_collided_with",
+  "ie_get_entities_within_aabb",
+  "ie_set_in_portal",
+  "ie_chunk_leave",
+  "ie_items_within_aabb",
+  "ie_player_left",
+  "ie_chunk_drop_empty"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "its former globals, function statics and lazily built tables are gone (lane/gpuenv, L2): per-environment state lives in struct env (csrc/engine/env.h), per-dimension state in the replay's dims, constant tables are built before main; csrc/tests/globals.sh lists what is left",
+  "each ie_ent comes from the environment's pool (ie_ent_alloc) (lane/gpuarena, L3)",
+  "functions ie_tick_one and ie_tick: a dead entity goes back to the pool (ie_ent_release keeps its record until the slot is taken again, for a stack_link that still names its count) (lane/gpuarena, L3)",
+  "function chunk_add: the chunk table comes from the arena's list slab (slab_table_room) (lane/gpuarena, L3)",
+  "lines 240-248, function chunk_find: linear scan over the chunk array on every add, remove and query",
+  "lines 1192 and 1237, function ie_tick: writes the global blockcb_env.world_rand",
+  "lines 345-346, 368, 399, 437, 550-552: function pointers attack_from, fizz and extra_boxes stored on each entity",
+  "line 948, function tnt_update: on_tnt_explode owner callback; line 1081 dispatch to projectile_update",
+  "function update_entity: the shooter is an lref read through lv_get (lane/gpuarena, L3)",
+  "line 739, function combine_items: recursion (depth at most 1, it swaps the pair once)",
+  "lines 1126, 1180, 1232: memmove compaction of the list (pool slots) keeps spawn order, the World.loadedEntityList order carried as array order (lane/gpuarena, L3)",
+  "lines 766-791 and 1322-1345: the merge search and AABB query walk chunk section lists in insertion order (Chunk.entityLists order, carried as array order)",
+  "function chunk_add: each section list holds ie pool slots in the arena slab, grown by size class up to the world's IE_MAX_ENTITIES (sec_push stops loudly past it) (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_items.c",
+  "csrc/tests/test_explosions.c",
+  "csrc/tests/test_projectiles.c",
+  "csrc/tests/test_eyes.c",
+  "csrc/tests/test_dragon.c"
+ ],
+ "notes": "Recordings through the tape replay (serverreplay.c drives ie_tick_one) cover dropped items and orbs, e.g. out/java/snapshots/death-drops-s1 and cat-toss-s1; not checked which snapshot exercises TNT. Not ported here: EntityItem.onCollideWithPlayer and EntityXPOrb.onCollideWithPlayer (pickup lives elsewhere, not verified where), NBT read/write (entity_nbt.c), travelToDimension. Item merge ignores tag compounds (no stacks carry tags). ie_extra_boxes only adds the player's box, since items, orbs and projectiles return a null getBoundingBox. Java member names are mapped from the file's comments. lane/anytick: search_other_items walks the world's other item list too (ie_world.peer: the tape replay's server list and the living world's drops), each chunk section's candidates in chunk_stamp order, as the one Chunk.entityLists slice Java walks. ie_end_portal: BlockEndPortal.onEntityCollidedWithBlock for items, orbs and arrows (travelToDimension(1) through the pool's portal_travel; serverreplay.c:sr_ie_exit_end takes one from the End to the overworld spawn). lane/idxentity: ie_items_within_aabb (both pools, chunk-list order) for a mob's loot pickup. lane/envmem: ie_chunk_drop_empty drops an unloaded chunk's empty item lists (the park)."
+}

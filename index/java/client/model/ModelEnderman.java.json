@@ -1,0 +1,60 @@
+{
+ "path": "oracle/src/client/model/ModelEnderman.java",
+ "classes": [
+  "ModelEnderman"
+ ],
+ "lines": 131,
+ "side": "client",
+ "category": "client_model",
+ "role": "The enderman's model: the biped layout with long limbs and the headwear layer, plus the carrying and screaming flags.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/raster_mobs.c",
+   "symbols": [
+    "model_enderman",
+    "draw_carried_block",
+    "pose_model"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/render/mobs2a_enderman_f006",
+  "out/java/render/mobs2a_enderman_f011",
+  "csrc/tests/test_render.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "ModelEnderman",
+   "sig": "()V",
+   "native": "csrc/engine/raster_mobs.c:model_enderman",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "setRotationAngles",
+   "sig": "(Entity,float,float,float,float,float,float)V",
+   "native": "csrc/engine/raster_mobs.c:model_enderman",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "isCarrying",
+   "sig": "boolean",
+   "native": "csrc/engine/raster_mobs.c:draw_carried_block",
+   "status": "partial",
+   "note": "the flag rides in mob_render_input.carried_id; the carried block itself is RenderEnderman.renderEquippedItems, drawn by draw_carried_block"
+  },
+  {
+   "kind": "field",
+   "name": "isAttacking",
+   "sig": "boolean",
+   "native": "csrc/engine/raster_mobs.c:model_enderman",
+   "status": "exact",
+   "note": "the screaming input opens the jaw"
+  }
+ ],
+ "missing": []
+}

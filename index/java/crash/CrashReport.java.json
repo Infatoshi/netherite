@@ -1,0 +1,173 @@
+{
+  "path": "oracle/src/crash/CrashReport.java",
+  "classes": [
+    "CrashReport"
+  ],
+  "lines": 426,
+  "side": "common",
+  "category": "util",
+  "role": "The JVM crash report: description, cause, pruned stack traces, the System Details section (JVM, memory, launcher, mods) and the witty comment, written to a file when the game dies.",
+  "scope": "not_needed",
+  "scope_reason": "JVM exception-reporting machinery; the C engine has no crash-report path and no gate reaches it. world.conf does not list it.",
+  "status": "not_applicable",
+  "native": [],
+  "evidence": [],
+  "members": [
+    {
+      "kind": "field",
+      "name": "logger",
+      "sig": "org.apache.logging.log4j.Logger",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "description",
+      "sig": "Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "cause",
+      "sig": "Ljava/lang/Throwable;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "theReportCategory",
+      "sig": "Lnet/minecraft/crash/CrashReportCategory;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "crashReportSections",
+      "sig": "Ljava/util/List;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "crashReportFile",
+      "sig": "Ljava/io/File;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "field_85059_f",
+      "sig": "Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "field",
+      "name": "stacktrace",
+      "sig": "[Ljava/lang/StackTraceElement;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "ctor",
+      "name": "CrashReport",
+      "sig": "(Ljava/lang/String;Ljava/lang/Throwable;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "populateEnvironment",
+      "sig": "()V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getDescription",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCrashCause",
+      "sig": "()Ljava/lang/Throwable;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getSectionsInStringBuilder",
+      "sig": "(Ljava/lang/StringBuilder;)V",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCauseStackTraceOrString",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCompleteReport",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getFile",
+      "sig": "()Ljava/io/File;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "saveToFile",
+      "sig": "(Ljava/io/File;)Z",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getCategory",
+      "sig": "()Lnet/minecraft/crash/CrashReportCategory;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "makeCategory",
+      "sig": "(Ljava/lang/String;)Lnet/minecraft/crash/CrashReportCategory;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "makeCategoryDepth",
+      "sig": "(Ljava/lang/String;I)Lnet/minecraft/crash/CrashReportCategory;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "getWittyComment",
+      "sig": "()Ljava/lang/String;",
+      "native": null,
+      "status": "n/a"
+    },
+    {
+      "kind": "method",
+      "name": "makeCrashReport",
+      "sig": "(Ljava/lang/Throwable;Ljava/lang/String;)Lnet/minecraft/crash/CrashReport;",
+      "native": null,
+      "status": "n/a"
+    }
+  ],
+  "missing": [],
+  "notes": "populateEnvironment and getSectionsInStringBuilder also declare anonymous Callable subclasses (Java's CrashReport$1..$8); they are section-value providers, not game code."
+}

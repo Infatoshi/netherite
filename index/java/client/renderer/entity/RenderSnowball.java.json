@@ -1,0 +1,25 @@
+{
+  "path": "oracle/src/client/renderer/entity/RenderSnowball.java",
+  "classes": ["RenderSnowball"],
+  "lines": 97,
+  "side": "client",
+  "category": "client_render",
+  "role": "Renders thrown item projectiles (snowball, egg, ender pearl, ender eye, potion, experience bottle, firework): the item's sprite billboarded to face the camera, tinted for the splash potion.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/raster_things.c", "symbols": ["draw_sprite", "billboard"]}
+  ],
+  "evidence": ["out/java/clientframes/cov-zoo-s1", "out/java/render-src/ent_throw", "csrc/tests/test_render.c"],
+  "members": [
+    {"kind": "field", "name": "field_94151_a", "sig": "Item", "native": "csrc/engine/raster_things.c:draw_sprite", "status": "exact", "note": "the icon EntityRenderProbe.sprite reads through the item and damage"},
+    {"kind": "field", "name": "field_94150_f", "sig": "int", "native": "csrc/engine/raster_things.c:draw_sprite", "status": "exact", "note": "the icon EntityRenderProbe.sprite reads through the item and damage"},
+    {"kind": "ctor", "name": "RenderSnowball", "sig": "(Item,int)V", "native": null, "status": "n/a", "note": "constructor"},
+    {"kind": "ctor", "name": "RenderSnowball", "sig": "(Item)V", "native": null, "status": "n/a", "note": "constructor"},
+    {"kind": "method", "name": "doRender", "sig": "(Entity,double,double,double,float,float)V", "native": "csrc/engine/raster_things.c:draw_sprite", "status": "exact", "note": "the splash potion's tinted overlay then the bottle"},
+    {"kind": "method", "name": "getEntityTexture", "sig": "(Entity)ResourceLocation", "native": "csrc/engine/raster_things.c:draw_sprite", "status": "exact"},
+    {"kind": "method", "name": "func_77026_a", "sig": "(Tessellator,IIcon)V", "native": "csrc/engine/raster_things.c:billboard", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "lane/entrender: snowballs, eggs, ender pearls, eyes of ender, splash potions and experience bottles thrown by the player (ent_throw, 18 views within 24 px; master 460 to 397,378 px)."
+}

@@ -1,0 +1,27 @@
+{
+  "path": "oracle/src/item/crafting/CraftingManager.java",
+  "classes": ["CraftingManager", "CraftingManager$1"],
+  "lines": 346,
+  "side": "common",
+  "category": "crafting",
+  "role": "The recipe registry: builds every vanilla recipe at class load (shaped, shapeless and the special recipe classes), sorts them by shapeless-first and size, and finds the match for a crafting grid.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/engine/recipes.h", "symbols": ["RECIPES", "RECIPE_ITEMS"]},
+    {"file": "csrc/engine/crafting.c", "symbols": ["craft_find_matching", "shaped_matches", "shapeless_matches", "repair_result"]}
+  ],
+  "evidence": ["csrc/tests/test_crafting.c", "out/java/snapshots/flow-craft-s1", "out/java/snapshots/cat-recipes-s1", "out/java/snapshots/te-furnace-s1"],
+  "members": [
+    {"kind": "field", "name": "instance", "sig": "CraftingManager", "native": null, "status": "n/a", "note": "a singleton; the native holds the tables at file scope"},
+    {"kind": "field", "name": "recipes", "sig": "List", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "317 baked recipes in the sorted order, with the special classes as recipe kinds"},
+    {"kind": "ctor", "name": "CraftingManager", "sig": "()V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "every addRecipe/addShapelessRecipe call and the Recipes* classes' addRecipes ran at bake time; the shapeless-first size sort is baked into the order"},
+    {"kind": "method", "name": "getInstance", "sig": "()Lnet/minecraft/item/crafting/CraftingManager;", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "addRecipe", "sig": "(Lnet/minecraft/item/ItemStack;[Ljava/lang/Object;)Lnet/minecraft/item/crafting/ShapedRecipes;", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the bake-time builder: the pattern string, the character map (Item, Block as wildcard 32767, ItemStack) and the grid"},
+    {"kind": "method", "name": "addShapelessRecipe", "sig": "(Lnet/minecraft/item/ItemStack;[Ljava/lang/Object;)V", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact", "note": "the bake-time builder of the ingredient list"},
+    {"kind": "method", "name": "findMatchingRecipe", "sig": "(Lnet/minecraft/inventory/InventoryCrafting;Lnet/minecraft/world/World;)Lnet/minecraft/item/ItemStack;", "native": "csrc/engine/crafting.c:craft_find_matching", "status": "exact", "note": "the two-stack repair path first (crafting.c:repair_result), then RECIPES in list order, first match wins; the five code-matched special classes are in the same switch"},
+    {"kind": "method", "name": "getRecipeList", "sig": "()Ljava/util/List;", "native": "csrc/engine/recipes.h:RECIPES", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The recipes.h table was generated from the oracle (the comments carry the original ItemStack toString), so registration drift would show in test_crafting.c and test_registry.c."
+}

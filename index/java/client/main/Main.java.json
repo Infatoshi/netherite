@@ -1,0 +1,28 @@
+{
+  "path": "oracle/src/client/main/Main.java",
+  "classes": ["Main"],
+  "lines": 157,
+  "side": "client",
+  "category": "other",
+  "role": "The vanilla client launcher: parses the jopt arguments (gameDir, assetsDir, session, width/height, proxy), builds the Session and constructs Minecraft, then hands the thread to Minecraft.run.",
+  "scope": "in_scope",
+  "scope_reason": "Every oracle run reaches this main: oracle/harness/netherite/oracle/Main.java:154 calls net.minecraft.client.main.Main.main(...) with the pinned argv, so this file is the real entry point of the oracle.",
+  "status": "exact",
+  "native": [
+    {"file": "csrc/play/play.c", "symbols": ["main"]}
+  ],
+  "evidence": [
+    "out/java/snapshots/fresh-play-s1",
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {"kind": "field", "name": "field_152370_a", "sig": "static java.lang.reflect.Type", "native": null, "status": "n/a", "note": "static Gson map type token"},
+    {"kind": "method", "name": "main", "sig": "(String[])V", "native": "csrc/play/play.c:main", "status": "partial", "note": "the native play driver's own main takes over the role: argument handling, the game loop and teardown; the Minecraft construction and shutdown hook are oracle/java side (netherite.oracle.Main builds the argv and the shutdown hook)"},
+    {"kind": "method", "name": "func_110121_a", "sig": "(String)Z", "native": null, "status": "n/a", "note": "proxy credential check; Proxy.NO_PROXY in every oracle run"},
+    {"kind": "method", "name": "Main$2", "sig": "()PasswordAuthentication", "native": null, "status": "n/a", "note": "the proxy Authenticator Main installs only with --proxyUser and --proxyPass; no oracle launch passes them (lane/covclient)"},
+    {"kind": "method", "name": "Main$3.run", "sig": "()V", "native": null, "status": "n/a", "note": "the Client Shutdown Thread runs at a normal JVM exit; the oracle ends its JVMs with Runtime.halt (Oracle.java:1087), which runs no hooks (lane/covclient)"},
+    {"kind": "ctor", "name": "Main", "sig": "()V", "native": null, "status": "n/a", "note": "never constructed: the launcher calls the static main (lane/covclient)"}
+  ],
+  "missing": [],
+  "notes": "Verified the call chain by reading oracle/harness/netherite/oracle/Main.java:42-160 (WorldConf load, checkpoint replay options, then net.minecraft.client.main.Main.main). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): vanilla argv parsing; the native play binary has its own flags. Formerly listed as missing: No native counterpart for the argument parsing itself: the native play binary has its own flag set and never parses the vanilla argv (username/uuid/session/proxy/width/height). The pinned option set lives in netherite.oracle.Main's writeOptions."
+}

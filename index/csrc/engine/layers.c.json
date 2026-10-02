@@ -1,0 +1,44 @@
+{
+ "path": "csrc/engine/layers.c",
+ "lines": 810,
+ "role": "The Minecraft 1.7.10 GenLayer biome stack for WorldType.DEFAULT, one function per GenLayer class (island, zoom, fuzzy zoom, add island, remove ocean, snow, the three edge layers, mushroom, deep ocean, river init, biome, biome edge, hills, river, smooth, rare biome, shore, river mix, voronoi), the per-layer seed chain and the raw-to-object biome id mapping.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/world/gen/layer/GenLayer.java", "members": ["GenLayer", "initializeAllBiomeGenerators", "initWorldGenSeed", "initChunkSeed", "nextInt", "func_151616_a", "func_151618_b", "func_151619_a", "func_151617_b", "getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerIsland.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerZoom.java", "members": ["getInts", "magnify"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerFuzzyZoom.java", "members": ["func_151617_b"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerAddIsland.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerRemoveTooMuchOcean.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerAddSnow.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerEdge.java", "members": ["getInts", "func_151626_c", "func_151624_d", "func_151625_e"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerAddMushroomIsland.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerDeepOcean.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerRiverInit.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerBiome.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerBiomeEdge.java", "members": ["getInts", "func_151636_a", "func_151635_b", "func_151634_b"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerHills.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerRiver.java", "members": ["getInts", "func_151630_c"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerSmooth.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerRareBiome.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerShore.java", "members": ["getInts", "func_151631_c", "func_151632_a"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerRiverMix.java", "members": ["initWorldGenSeed", "getInts"]},
+  {"path": "oracle/src/world/gen/layer/GenLayerVoronoiZoom.java", "members": ["getInts"]},
+  {"path": "oracle/src/world/biome/WorldChunkManager.java", "members": ["WorldChunkManager", "getBiomesForGeneration", "loadBlockGeneratorData"]}
+ ],
+ "structs": [
+  {"name": "rng", "java": "GenLayer.chunkSeed and worldGenSeed as a local pair", "fields": ["cs", "ws"]}
+ ],
+ "entry_points": ["layer_ints", "layers_init", "biomes_gen", "biomes_full"],
+ "tick_path": true,
+ "gpu": [
+  "line 110, function area: malloc of the parent area on every layer call (IntCache is replaced by the heap)",
+  "line 133, function zoom: malloc of the zoom scratch buffer",
+  "line 635, function voronoi: malloc of the voronoi scratch buffer",
+  "lines 108-113 and 677-703, functions area and layer_ints: recursion through the parent layers (depth bounded by the stack, about 50 layers)",
+  "lines 728-741, function seed_world: recursion over the parent chain",
+  "lines 709-716, function mk: parent pointers p1 and p2 into g->node (pointer graph within a fixed array)"
+ ],
+ "tests": ["csrc/tests/test_worldgen.c"],
+ "notes": "Each layer call is a pure function of seed and position, so call order does not matter. GenLayer's helper names such as func_151626_c/func_151624_d/func_151625_e in GenLayerEdge and func_151630_c in GenLayerRiver were confirmed present in those Java files; the C inlines them rather than keeping one function each. IntCache is not ported (replaced by malloc/free). Only WorldType.DEFAULT is built (no large biomes or flat). Called from chunkgen, terrain, world and the structure placement files (village, temple, stronghold, populate) during chunk generation."
+}

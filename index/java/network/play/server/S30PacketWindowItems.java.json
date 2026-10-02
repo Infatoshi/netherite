@@ -1,0 +1,120 @@
+{
+ "path": "oracle/src/network/play/server/S30PacketWindowItems.java",
+ "classes": [
+  "S30PacketWindowItems"
+ ],
+ "lines": 82,
+ "side": "common",
+ "category": "network",
+ "role": "The bulk container sync: the server sends every slot of a window (the player inventory at login and after syncs) and the client replaces its whole container view.",
+ "scope": "in_scope",
+ "scope_reason": "The player container sync runs in every recorded session; the native engine implements it as its own packet struct.",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "surv_server_sync_inventory",
+    "surv_client_pump",
+    "s2c_add"
+   ]
+  },
+  {
+   "file": "csrc/engine/survival.h",
+   "symbols": [
+    "s2c_pkt",
+    "PK_S30"
+   ]
+  }
+ ],
+ "evidence": [
+  "out/java/containers/seed2",
+  "out/java/containers/seed42",
+  "csrc/tests/test_containers.c"
+ ],
+ "members": [
+  {
+   "kind": "ctor",
+   "name": "S30PacketWindowItems",
+   "sig": "()V",
+   "status": "n/a",
+   "note": "the decoder's ctor only: Packet.generatePacket instantiates it by reflection (newInstance) for bytes read off a socket (MessageDeserializer); the integrated server's local channel passes packet objects with no codec (NetworkManager.provideLocalClient adds only the packet_handler), so it never runs",
+   "native": null
+  },
+  {
+   "kind": "ctor",
+   "name": "S30PacketWindowItems",
+   "sig": "(int,java.util.List)V",
+   "status": "partial",
+   "native": "csrc/engine/survival.c:surv_server_sync_inventory",
+   "note": "the native fill copies the 40 player container slots into struct s2c_pkt.inv; no ItemStack copies"
+  },
+  {
+   "kind": "field",
+   "name": "field_148914_a",
+   "sig": "int",
+   "status": "partial",
+   "native": "csrc/engine/survival.h:s2c_pkt",
+   "note": "the window id rides the packet struct"
+  },
+  {
+   "kind": "field",
+   "name": "field_148913_b",
+   "sig": "ItemStack[]",
+   "status": "partial",
+   "native": "csrc/engine/survival.h:s2c_pkt",
+   "note": "struct s2c_pkt.inv[40], window 0's slots in inventory index order"
+  },
+  {
+   "kind": "method",
+   "name": "readPacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "writePacketData",
+   "sig": "(PacketBuffer)V",
+   "status": "n/a",
+   "note": "not a gap (triage 2026-09-25)"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandlerPlayClient)V",
+   "status": "partial",
+   "native": "csrc/engine/survival.c:surv_client_pump",
+   "note": "the PK_S30 case applies window 0's slots to the client mirror (handleWindowItems); open container windows ride the per slot S2F packets instead"
+  },
+  {
+   "kind": "method",
+   "name": "processPacket",
+   "sig": "(INetHandler)V",
+   "status": "n/a",
+   "note": "dispatch overload"
+  },
+  {
+   "kind": "method",
+   "name": "func_148911_c",
+   "sig": "()I",
+   "status": "n/a",
+   "note": "trivial accessor; the native struct field is read directly"
+  },
+  {
+   "kind": "method",
+   "name": "func_148910_d",
+   "sig": "()ItemStack[]",
+   "status": "n/a",
+   "note": "trivial accessor"
+  },
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "String (static)",
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "The native packet enum is survival.h's PK_S30. surv_server_sync_inventory is ServerConfigurationManager.syncPlayerInventory's S30 half (survival.h:517). Not gaps (triage 2026-09-25, out/plan/remaining-2026-09-25.md): wire format and connection plumbing: native messages are structs by design (SPEC: messages are structs, not bytes). Formerly listed as missing: readPacketData and writePacketData: no byte codec; the native packet is a struct pushed through s2c_add (csrc/engine/survival.c) a bulk S30 for an open container window (window id above 0): the native engine syncs opened containers with per slot S2F packets, so no container window ever gets one"
+}

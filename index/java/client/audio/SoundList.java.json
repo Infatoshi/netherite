@@ -1,0 +1,161 @@
+{
+ "path": "oracle/src/client/audio/SoundList.java",
+ "classes": [
+  "SoundList",
+  "SoundList.SoundEntry",
+  "SoundList.SoundEntry.Type"
+ ],
+ "lines": 147,
+ "side": "client",
+ "category": "client_resources",
+ "role": "Parsed form of one sounds.json event: replace flag, category and list of entries (name, volume, pitch, weight, type, stream).",
+ "scope": "client_cosmetic",
+ "scope_reason": "Client audio is presentation only: SPEC 'Java, then C, then the GPU' keeps audio outside the tick and the GPU/RL path does not need it. The oracle never starts the sound system in agent mode (SoundManager.func_148596_a returns early on Oracle.agent()), so no sound is ever played there, and the native engine has no audio code (grep of csrc/engine and csrc/play for sound/audio/music finds only the server-side pitch draws in living.c and friends, which belong to World.playSoundAtEntity, not to this package).",
+ "status": "not_applicable",
+ "native": [],
+ "evidence": [],
+ "members": [
+  {
+   "kind": "field",
+   "name": "field_148577_a",
+   "sig": "List<SoundEntry>",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148575_b",
+   "sig": "boolean replace",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "field_148576_c",
+   "sig": "SoundCategory",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148570_a",
+   "sig": "()List",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148574_b",
+   "sig": "()Z",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148572_a",
+   "sig": "(Z)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148573_c",
+   "sig": "()SoundCategory",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "func_148571_a",
+   "sig": "(SoundCategory)V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "SoundEntry.field_148569_a",
+   "sig": "String name",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "SoundEntry.field_148567_b",
+   "sig": "float volume",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "SoundEntry.field_148568_c",
+   "sig": "float pitch",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "SoundEntry.field_148565_d",
+   "sig": "int weight",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "SoundEntry.field_148566_e",
+   "sig": "Type",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "SoundEntry.field_148564_f",
+   "sig": "boolean stream",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "SoundEntry",
+   "sig": "()V",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "SoundEntry getters/setters",
+   "sig": "func_148556_a,func_148561_a,func_148558_b,func_148553_a,func_148560_c,func_148559_b,func_148555_d,func_148554_a,func_148563_e,func_148562_a,func_148552_f,func_148557_a",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Type.FILE/SOUND_EVENT",
+   "sig": "enum constants",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "Type.field_148583_c",
+   "sig": "String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "ctor",
+   "name": "Type",
+   "sig": "(String,int,String)",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "method",
+   "name": "Type.func_148580_a",
+   "sig": "(String)Type",
+   "native": null,
+   "status": "n/a"
+  }
+ ],
+ "missing": [],
+ "notes": "Data holder for the resource loader."
+}

@@ -1,0 +1,54 @@
+{
+ "classes": [
+  "ICrafting"
+ ],
+ "lines": 22,
+ "side": "server",
+ "category": "network",
+ "role": "The listener interface the server uses to push container changes to a client: the full window, one slot, or a progress-bar pair.",
+ "scope": "in_scope",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/survival.c",
+   "symbols": [
+    "PK_S30",
+    "PK_S2F",
+    "detect_and_send_changes"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_containers.c",
+  "out/java/snapshots/te-furnace-s1"
+ ],
+ "members": [
+  {
+   "kind": "method",
+   "name": "sendContainerAndContentsToPlayer",
+   "sig": "(Lnet/minecraft/inventory/Container;Ljava/util/List;)V",
+   "native": "csrc/engine/survival.c:PK_S30",
+   "status": "exact",
+   "note": "the full-window S30 on open"
+  },
+  {
+   "kind": "method",
+   "name": "sendSlotContents",
+   "sig": "(Lnet/minecraft/inventory/Container;ILnet/minecraft/item/ItemStack;)V",
+   "native": "csrc/engine/survival.c:PK_S2F",
+   "status": "exact",
+   "note": "detectAndSendChanges' slot diffs"
+  },
+  {
+   "kind": "method",
+   "name": "sendProgressBarUpdate",
+   "sig": "(Lnet/minecraft/inventory/Container;II)V",
+   "native": "csrc/engine/survival.c:gui_furnace_progress",
+   "status": "exact",
+   "note": "The furnace's S31 bars (gui_furnace_progress); the beacon and enchanting bars are world.conf beacon = off and enchanting = off."
+  }
+ ],
+ "missing": [],
+ "notes": "The interface itself is not modeled as a type; the server player's packet queue plays the same role. lane/idxblocks: the furnace progress S31s are sent and compared.",
+ "path": "oracle/src/inventory/ICrafting.java"
+}

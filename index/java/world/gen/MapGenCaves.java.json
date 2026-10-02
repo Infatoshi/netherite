@@ -1,0 +1,21 @@
+{
+  "path": "oracle/src/world/gen/MapGenCaves.java",
+  "classes": ["MapGenCaves"],
+  "lines": 254,
+  "side": "server",
+  "category": "worldgen",
+  "role": "The overworld cave carver: per source chunk, a random number of rooms and winding tunnels that clear stone, dirt and grass into the raw block array, place lava below y 10, and restore the biome's top block over exposed dirt.",
+  "scope": "in_scope",
+  "scope_reason": "Part of ChunkProviderGenerate.provideChunk for every overworld chunk.",
+  "status": "exact",
+  "native": [{"file": "csrc/engine/carve.c", "symbols": ["caves_pass", "cave_source", "tunnel", "carve", "cave_ctx"]}],
+  "evidence": ["csrc/tests/test_worldgen.c", "out/java/chunks/seed1", "out/java/chunks/wide2", "out/java/chunks/sb-cave-42"],
+  "members": [
+    {"kind": "field", "name": "__OBFID", "sig": "static String", "native": null, "status": "n/a"},
+    {"kind": "method", "name": "func_151542_a", "sig": "(long,int,int,Block[],double,double,double)V", "native": "csrc/engine/carve.c:cave_source", "status": "exact", "note": "The room: inlined in cave_source as tunnel(..., -1, -1, 0.5) with width 1 + nextFloat*6."},
+    {"kind": "method", "name": "func_151541_a", "sig": "(long,int,int,Block[],double,double,double,float,float,float,int,int,double)V", "native": "csrc/engine/carve.c:tunnel", "status": "exact", "note": "The tunnel walk, branching and the per-step ellipsoid; the carve step with its water check and top-block restore is carve()."},
+    {"kind": "method", "name": "func_151538_a", "sig": "(World,int,int,int,int,Block[])V", "native": "csrc/engine/carve.c:cave_source", "status": "exact"}
+  ],
+  "missing": [],
+  "notes": "The top block restored over dirt comes from the surface pass's per-biome topBlock state (struct surface.top), matching vanilla's mutable BiomeGenBase.topBlock. Gate not re-run for this record."
+}

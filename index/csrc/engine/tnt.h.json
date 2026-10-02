@@ -1,0 +1,16 @@
+{
+ "path": "csrc/engine/tnt.h",
+ "lines": 24,
+ "role": "Declares TNT's whole-server replay hooks: the primed TNT's explosion callback and BlockTNT's flint-and-steel activation.",
+ "layer": "tick",
+ "java": [
+  {"path": "oracle/src/block/BlockTNT.java", "members": ["onBlockActivated", "func_150114_a"]},
+  {"path": "oracle/src/entity/item/EntityTNTPrimed.java", "members": ["explode"]}
+ ],
+ "structs": [],
+ "entry_points": ["tnt_replay_explode", "tnt_server_activate"],
+ "tick_path": true,
+ "gpu": [],
+ "tests": ["csrc/tests/test_snapshots.c"],
+ "notes": "Forward declares struct ie_ent and struct server_player only."
+}

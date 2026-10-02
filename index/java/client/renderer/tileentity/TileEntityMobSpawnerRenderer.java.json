@@ -1,0 +1,84 @@
+{
+  "path": "oracle/src/client/renderer/tileentity/TileEntityMobSpawnerRenderer.java",
+  "classes": [
+    "TileEntityMobSpawnerRenderer"
+  ],
+  "lines": 44,
+  "side": "client",
+  "category": "client_render",
+  "role": "TileEntitySpecialRenderer for TileEntityMobSpawner: renders the spawner's preview entity (MobSpawnerBaseLogic.func_98281_h) scaled 0.4375, tilted -30 degrees, spinning with the interpolated field_98287_c/field_98284_d yaw, through RenderManager.",
+  "scope": "in_scope",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/raster_tileent.c",
+      "symbols": [
+        "render_spawner",
+        "raster_tileents_spawner_tick",
+        "raster_tileents_mob_kind"
+      ]
+    },
+    {
+      "file": "csrc/engine/raster_mobs.c",
+      "symbols": [
+        "raster_mobs_draw"
+      ]
+    },
+    {
+      "file": "csrc/engine/det.c",
+      "symbols": [
+        "det_spawner_display_yaw"
+      ]
+    },
+    {
+      "file": "csrc/play/play.c",
+      "symbols": [
+        "draw_tileents",
+        "tileents_tick",
+        "spin_of"
+      ]
+    },
+    {
+      "file": "oracle/harness/netherite/oracle/Det.java",
+      "symbols": [
+        "spawnerPin"
+      ]
+    }
+  ],
+  "evidence": [
+    "out/java/clientframes/idx-spawnerhead-s1",
+    "out/java/snapshots/idx-spawner-s1",
+    "out/java/rendertick/te_spawner",
+    "out/java/rendertick/te_dungeon",
+    "out/java/render/te_spawner_a",
+    "csrc/tests/test_render.c",
+    "csrc/tests/test_rendertick.c"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "renderTileEntityAt",
+      "sig": "(TileEntityMobSpawner,D,D,D,F)V",
+      "native": "csrc/engine/raster_tileent.c:render_spawner",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "func_147517_a",
+      "sig": "(MobSpawnerBaseLogic,D,D,D,F)V",
+      "native": "csrc/engine/raster_tileent.c:render_spawner",
+      "status": "exact",
+      "note": "the modelview (the 0.4 lift, the spin times 10, the -30 degree tilt, the 0.4375 scale) and the mob through raster_mobs_draw with it (mob_render_input.outer). The display entity (func_98281_h, made on the first frame that draws the spawner) never ticks and setLocationAndAngles zeroes its yaw and pitch each frame, so RendererLivingEntity turns its body 0 and its head from prevRotationYawHead 0 to the constructor's rotationYawHead: that is the third of the EntityLivingBase constructor's three Math.random draws, which Det.PIN_SPAWNER takes from a stream reseeded at each construction with pinSeed(seed, 5, 0) on a tape whose start says spawnerPin (the RENDER role's shared stream is still drawn; an older tape's head is drawn unturned), and play computes it (det_spawner_display_yaw; the oracle's hyaw on idx-spawnerhead-s1 is 0x3f5a9587, the same float). The spin is the client tile entity's own: made by the S35 that follows the block into the client world, from the Delay that packet carried (the server's desc_delay, the spawnDelay before the tick's update), then MobSpawnerBaseLogic's client half each tick in range (play's tileents_tick); play_check compares rot, prev and delay per row on out/java/snapshots/idx-spawner-s1. Recordings made before the pin keep their rotations from the recording (test_rendertick's te_spawner, te_dungeon)."
+    },
+    {
+      "kind": "method",
+      "name": "renderTileEntityAt",
+      "sig": "(TileEntity,D,D,D,F)V",
+      "native": null,
+      "status": "n/a",
+      "note": "bridge overload"
+    }
+  ],
+  "missing": [],
+  "notes": "te_spawner: eight spawners (zombie, skeleton, spider, cave spider, silverfish, blaze, pig, creeper) over five frames; te_dungeon: the seed-42 dungeon's spider. Recordings take a warm-up frame first so the entities exist. The spin steps natively (raster_tileents_spawner_tick, test_rendertick section 6: 37 turns, bit for bit). lane/idxclient: idx-spawnerhead-s1 (a pig spawner a dev setblock placed 2.5 blocks ahead, shots at 24 to 70) matches the pig bit for bit at every shot; the 29 to 358 px left are the far edge of the stone floor, a terrain seam; with the head yaw 0 the tick-30 shot measures 92 px instead of 49, and the spin started from the server's delay after its update (the old start) 391."
+}

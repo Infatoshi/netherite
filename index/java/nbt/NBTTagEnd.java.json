@@ -1,0 +1,74 @@
+{
+  "path": "oracle/src/nbt/NBTTagEnd.java",
+  "classes": [
+    "NBTTagEnd"
+  ],
+  "lines": 38,
+  "side": "common",
+  "category": "nbt",
+  "role": "The end marker, type id 0: the empty tag that terminates a compound's entry stream and fills empty lists.",
+  "scope": "not_needed",
+  "scope_reason": "Never instantiated in this game: its creators are CompressedStreamTools.func_152455_a, for a stream whose root type byte is 0, and NBTBase.func_150284_a(0), reached from NBTTagList.func_152446_a for a non-empty list of type 0 (NBTTagCompound's reader calls it only for a non-zero type); the game writes neither (an empty list is written as type 0 with count 0, and the compound reader stops at the 0 byte before creating a tag). No recording runs any of its methods.",
+  "status": "not_applicable",
+  "native": [
+    {
+      "file": "csrc/engine/nbtbin.c",
+      "symbols": [
+        "write_payload"
+      ]
+    },
+    {
+      "file": "csrc/engine/region.c",
+      "symbols": [
+        "nbt_bin_compound"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_snapshots.c"
+  ],
+  "members": [
+    {
+      "kind": "method",
+      "name": "write",
+      "sig": "(LDataOutput;)V",
+      "native": "csrc/engine/nbtbin.c:write_payload",
+      "status": "n/a",
+      "note": "A no-op, like Java's; the terminating 0 byte is written by the compound loop; never instantiated (see scope_reason)"
+    },
+    {
+      "kind": "method",
+      "name": "func_152446_a",
+      "sig": "(LDataInput;ILNBTSizeTracker;)V",
+      "native": "csrc/engine/region.c:nbt_bin_compound",
+      "status": "n/a",
+      "note": "The compound reader stops at the 0 byte instead of building a node; never instantiated (see scope_reason)"
+    },
+    {
+      "kind": "method",
+      "name": "getId",
+      "sig": "()B",
+      "native": "csrc/engine/nbtjson.h:nbt_kind",
+      "status": "n/a",
+      "note": "0; the enum has no END kind because no native tree ever holds one; never instantiated (see scope_reason)"
+    },
+    {
+      "kind": "method",
+      "name": "toString",
+      "sig": "()Ljava/lang/String;",
+      "native": "csrc/engine/nbtjson.c:nbt_render",
+      "status": "n/a",
+      "note": "END never appears in a native tree, so nothing renders it; never instantiated (see scope_reason)"
+    },
+    {
+      "kind": "method",
+      "name": "copy",
+      "sig": "()LNBTBase;",
+      "native": null,
+      "status": "n/a",
+      "note": "Never held in a tree, never copied; never instantiated (see scope_reason)"
+    }
+  ],
+  "missing": [],
+  "notes": "Java also uses NBTTagEnd to terminate a write; nbtbin.c writes the 0 byte in the compound case. The class exists in Java because func_150284_a maps type 0 to it. idxaudit 2026-09-27: dropped evidence that runs none of this file's code (JaCoCo): fresh-play-s1."
+}

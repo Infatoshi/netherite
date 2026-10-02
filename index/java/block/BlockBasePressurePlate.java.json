@@ -1,0 +1,323 @@
+{
+  "path": "oracle/src/block/BlockBasePressurePlate.java",
+  "classes": [
+    "BlockBasePressurePlate"
+  ],
+  "lines": 219,
+  "side": "common",
+  "category": "block",
+  "role": "The abstract pressure-plate base: the plate's thin bounds, its floor-support check and its power-state machine that the stone, wooden and weighted plates share.",
+  "scope": "in_scope",
+  "scope_reason": "In scope: stone and wooden plates are craftable and placeable, and entities stand on them (a villager on a house's table plate ran func_150062_a in golem-fight-s42, village-rain-s42 and village-siege-s42). world.conf redstone = off zeroes World's power queries (World.java:3511, 3585) but not the plate's own state machine: func_150062_a still writes the pressed metadata, notifies two cells and re-arms its tick. Only the power it emits (isProvidingWeakPower, isProvidingStrongPower) reaches nothing.",
+  "status": "exact",
+  "native": [
+    {
+      "file": "csrc/engine/blockcb.c",
+      "symbols": [
+        "block_on_neighbor_changed",
+        "solid_top_at",
+        "bwl_on_broken",
+        "bwl_on_neighbor",
+        "breaking_drop"
+      ]
+    },
+    {
+      "file": "csrc/engine/collide.c",
+      "symbols": [
+        "collide_add_boxes"
+      ]
+    },
+    {
+      "file": "csrc/engine/place.c",
+      "symbols": [
+        "place_try"
+      ]
+    },
+    {
+      "file": "csrc/engine/blocks.h",
+      "symbols": [
+        "BLOCKS"
+      ]
+    },
+    {
+      "file": "csrc/engine/raytrace.c",
+      "symbols": [
+        "block_bounds",
+        "raytrace_collision"
+      ]
+    },
+    {
+      "file": "csrc/engine/serverreplay.c",
+      "symbols": [
+        "sr_plate_collide",
+        "sr_plate_func_150062_a",
+        "sr_plate_tick",
+        "sr_plate_count"
+      ]
+    },
+    {
+      "file": "csrc/engine/randomtick.c",
+      "symbols": [
+        "break_draws"
+      ]
+    },
+    {
+      "file": "csrc/engine/servertick.c",
+      "symbols": [
+        "update_tick"
+      ]
+    },
+    {
+      "file": "csrc/engine/block_item_model.c",
+      "symbols": [
+        "block_item_model_build"
+      ]
+    },
+    {
+      "file": "csrc/engine/pathfind.c",
+      "symbols": [
+        "pf_move_class"
+      ]
+    }
+  ],
+  "evidence": [
+    "csrc/tests/test_registry.c",
+    "out/java/place/big2",
+    "out/java/raypick/rp-1",
+    "csrc/tests/test_raypick.c",
+    "out/java/snapshots/golem-fight-s42",
+    "out/java/snapshots/village-rain-s42",
+    "out/java/snapshots/village-siege-s42",
+    "out/java/snapshots/plate-arrow-s1",
+    "out/java/snapshots/plates-s1",
+    "out/java/snapshots/rs-wire-s1",
+    "csrc/tests/test_snapshots.c",
+    "out/java/snapshots/cov-blkpower-s1",
+    "out/java/clientframes/cov-blkgallery-s1"
+  ],
+  "members": [
+    {
+      "kind": "ctor",
+      "name": "BlockBasePressurePlate",
+      "sig": "(String,Material)V",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "The 1/16-thick bounds are baked into entries 70, 72, 147, 148 (0x1.0p-4f .. 0x1.ep-1f)."
+    },
+    {
+      "kind": "field",
+      "name": "field_150067_a",
+      "sig": "String (icon name)",
+      "native": null,
+      "status": "n/a",
+      "note": "Icon naming only."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsForItemRender",
+      "sig": "()V",
+      "native": "csrc/engine/block_item_model.c:block_item_model_build",
+      "status": "exact",
+      "note": "renderBlockAsItem calls it first: the 0.375..0.625 slab block_item_model_build gives ids 70, 72, 147 and 148; render-only: every caller is the client renderer (RenderBlocks, RenderItem, ItemRenderer, RenderGlobal's outline, the item icon and colour hooks); row recordings draw no frames"
+    },
+    {
+      "kind": "method",
+      "name": "func_150063_b",
+      "sig": "(III)AxisAlignedBB",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "updateTick",
+      "sig": "(World,IIIRandom)V",
+      "native": "csrc/engine/serverreplay.c:sr_plate_tick",
+      "status": "exact",
+      "note": "servertick.c update_tick hands the plates' scheduled tick to sr_plate_tick, which re-runs func_150062_a while the plate is down (rs-wire-s1: the player on the stone plate, a dropped stack and an orb on the wooden one, then stepping off)"
+    },
+    {
+      "kind": "method",
+      "name": "onEntityCollidedWithBlock",
+      "sig": "(World,IIIIEntity)V",
+      "native": "csrc/engine/serverreplay.c:sr_plate_collide",
+      "status": "exact",
+      "note": "the up plate re-runs func_150062_a; installed for the block tick and around every entity of the world's entity pass: a villager stepping on its house's table plate (golem-fight-s42), an arrow landing on a wooden plate and a tossed item on one (plate-arrow-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "func_150062_a",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/serverreplay.c:sr_plate_func_150062_a",
+      "status": "exact",
+      "note": "the count (func_150065_e), the metadata write (flag 2), func_150064_a_'s two notifications and the 20-tick (10 weighted) re-arm; the click sounds are server-side no-ops (rs-wire-s1, plates-s1)"
+    },
+    {
+      "kind": "method",
+      "name": "isProvidingWeakPower",
+      "sig": "(IBlockAccess,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Redstone off: the power it emits reaches nothing: World.isBlockProvidingPowerTo and getIndirectPowerLevelTo answer 0 with world.conf redstone = off (World.java:3511, 3585)."
+    },
+    {
+      "kind": "method",
+      "name": "isProvidingStrongPower",
+      "sig": "(IBlockAccess,IIII)I",
+      "native": null,
+      "status": "n/a",
+      "note": "Redstone off: the power it emits reaches nothing: World.isBlockProvidingPowerTo and getIndirectPowerLevelTo answer 0 with world.conf redstone = off (World.java:3511, 3585)."
+    },
+    {
+      "kind": "method",
+      "name": "canProvidePower",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "the registry flag; the wire renderer's connections and blockcb.c source_provides_power read it"
+    },
+    {
+      "kind": "method",
+      "name": "onNeighborBlockChange",
+      "sig": "(World,IIIBlock)V",
+      "native": "csrc/engine/blockcb.c:block_on_neighbor_changed",
+      "status": "exact",
+      "note": "The floor-support pop at blockcb.c:2268, shared with the weighted plates."
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockOnSide",
+      "sig": "(World,IIII)Z",
+      "native": "csrc/engine/place.c:place_try",
+      "status": "exact",
+      "note": "place.c's class-name checks at 856 and 956 route the solid-floor requirement."
+    },
+    {
+      "kind": "method",
+      "name": "setBlockBoundsBasedOnState",
+      "sig": "(IBlockAccess,III)V",
+      "native": "csrc/engine/raytrace.c:block_bounds",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "isOpaqueCube",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact"
+    },
+    {
+      "kind": "method",
+      "name": "renderAsNormalBlock",
+      "sig": "()Z",
+      "native": "csrc/engine/blocks.h:BLOCKS",
+      "status": "exact",
+      "note": "false."
+    },
+    {
+      "kind": "method",
+      "name": "getMobilityFlag",
+      "sig": "()I",
+      "native": "csrc/engine/blocks.h:MATERIALS",
+      "status": "n/a",
+      "note": "only BlockPistonBase calls getMobilityFlag, when a piston extends or retracts; with world.conf redstone = off no piston ever moves"
+    },
+    {
+      "kind": "method",
+      "name": "getCollisionBoundingBoxFromPool",
+      "sig": "(World,III)AxisAlignedBB",
+      "native": "csrc/engine/collide.c:collide_add_boxes",
+      "status": "exact",
+      "note": "Null collision: collide.c:407 lists the plates in the no-box family, and 724 keeps them out of the entity paths."
+    },
+    {
+      "kind": "method",
+      "name": "getIconsForPlateStates",
+      "sig": "(I,IIcon[])V",
+      "native": null,
+      "status": "n/a",
+      "note": "The abstract icon helper; icons are atlas lookups."
+    },
+    {
+      "kind": "method",
+      "name": "breakBlock",
+      "sig": "(World,IIIBlockI)V",
+      "native": "csrc/engine/blockcb.c:bwl_on_broken",
+      "status": "exact",
+      "note": "a pressed plate (func_150060_c(meta) > 0) runs func_150064_a_ before the empty super: rs-wire-s1 breaks a pressed wooden plate beside still water, which the notification sets flowing (it failed at row 440 before lane/idxredstone)"
+    },
+    {
+      "kind": "method",
+      "name": "canPlaceBlockAt",
+      "sig": "(World,III)Z",
+      "native": "csrc/engine/place.c:can_place_block_at",
+      "status": "exact",
+      "note": "a solid top below, or a fence (BlockFence.func_149825_a: 85, 113); the place probe sweeps it (out/java/place/big2)"
+    },
+    {
+      "kind": "method",
+      "name": "func_149738_a",
+      "sig": "(World)I",
+      "native": "csrc/engine/serverreplay.c:sr_plate_func_150062_a",
+      "status": "exact",
+      "note": "the tick rate 20 (the weighted plates' override 10)"
+    },
+    {
+      "kind": "method",
+      "name": "func_150061_a",
+      "sig": "(III)AxisAlignedBB",
+      "native": "csrc/engine/serverreplay.c:sr_plate_count",
+      "status": "exact",
+      "note": "the scan box: 0.125 in on x and z, 0.25 high"
+    },
+    {
+      "kind": "method",
+      "name": "func_150064_a_",
+      "sig": "(World,III)V",
+      "native": "csrc/engine/serverreplay.c:sr_plate_func_150062_a",
+      "status": "exact",
+      "note": "notifyBlocksOfNeighborChange at the plate and below it; breakBlock's copy is blockcb.c bwl_on_broken"
+    },
+    {
+      "kind": "method",
+      "name": "func_150065_e",
+      "sig": "(World,III)I",
+      "native": null,
+      "status": "n/a",
+      "note": "abstract here: BlockPressurePlate's and BlockPressurePlateWeighted's records"
+    },
+    {
+      "kind": "method",
+      "name": "func_150060_c",
+      "sig": "(I)I",
+      "native": null,
+      "status": "n/a",
+      "note": "abstract here: BlockPressurePlate's and BlockPressurePlateWeighted's records"
+    },
+    {
+      "kind": "method",
+      "name": "func_150066_d",
+      "sig": "(I)I",
+      "native": null,
+      "status": "n/a",
+      "note": "abstract here: BlockPressurePlate's and BlockPressurePlateWeighted's records"
+    },
+    {
+      "kind": "method",
+      "name": "getBlocksMovement",
+      "sig": "(IBlockAccess,III)Z",
+      "native": "csrc/engine/pathfind.c:pf_move_class",
+      "status": "exact",
+      "note": "true: the path finder's plate class (PFM_PLATE) walks through (villagers over their house plates in golem-fight-s42 and village-siege-s42)"
+    },
+    {
+      "kind": "method",
+      "name": "registerBlockIcons",
+      "sig": "(IIconRegister)V",
+      "native": null,
+      "status": "n/a",
+      "note": "atlas registration"
+    }
+  ],
+  "missing": [],
+  "notes": "The subclass records (BlockButtonStone is a button, the stone/wooden plates are anonymous subclasses inside BlockPressurePlate and BlockPressurePlateWeighted) inherit the support pop, which IS ported: blockcb.c:2268 drops a plate with no floor. Placement is exercised by the place probes (out/java/place/big2 covers all ids in its 40000-case sweep). idxaudit 2026-09-27: was switched_off/not_applicable; the scope reason did not hold (DEVLOG 2026-09-27, lane/idxaudit). lane/idxredstone 2026-09-27: exact. The plate's floor-loss drop went through place_block_drop, which only the placement probe's sink hears, so a live plate that lost its floor vanished without an item: blockcb.c now uses breaking_drop and randomtick.c break_draws drops the plates through the drops table (rs-wire-s1 failed at row 349 before). breakBlock's notification was missing (row 440). Stepping, releasing, the 20-tick re-check and the drops: rs-wire-s1; the weighted plates: plates-s1."
+}

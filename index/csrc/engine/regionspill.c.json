@@ -1,0 +1,82 @@
+{
+ "path": "csrc/engine/regionspill.c",
+ "lines": 658,
+ "role": "The region stores' spill file (lane/envmem): a parked chunk leaves memory at the park for one unlinked file per environment (~/.cache/netherite-spill or --region-spill DIR), its struct and the caller's extra bytes (its tile entities, saved entities with their NBT, saved ticks) compressed together (lzpack.c) and its packed blob after them, indexed by (dimension, cx, cz) in memory (24 bytes a chunk); a load takes the record back byte for byte into a new chunk slot. A second append-only file holds blobs of other owners (a mineshaft start's pieces, populate.c). Compaction past 64 MB of garbage; the pool's reset copies a start's records into the env's own files (rspill_adopt). An iterative NBT codec (no recursion in the tick) keeps every compound's field order. The page cache is written back every RSPILL_BEHIND_MB without a wait (the stretch before waited for and dropped; lane/spillfast).",
+ "layer": "io",
+ "java": [],
+ "structs": [
+  {
+   "name": "region_spill",
+   "java": null,
+   "fields": [
+    "mode",
+    "dir",
+    "fd1",
+    "end",
+    "live",
+    "buf",
+    "xbuf",
+    "sbuf",
+    "dims",
+    "fd2",
+    "end2",
+    "live2",
+    "ztab",
+    "started1",
+    "started2"
+   ]
+  },
+  {
+   "name": "rspill_rec",
+   "java": null,
+   "fields": [
+    "cx",
+    "cz",
+    "off",
+    "len",
+    "state"
+   ]
+  },
+  {
+   "name": "rspill_map",
+   "java": null,
+   "fields": [
+    "v",
+    "cap",
+    "n",
+    "dead",
+    "nticks"
+   ]
+  }
+ ],
+ "entry_points": [
+  "rspill_flag",
+  "rspill_has",
+  "rspill_ok",
+  "rspill_put",
+  "rspill_take",
+  "rspill_blob_put",
+  "rspill_blob_get",
+  "rspill_adopt",
+  "rspill_close",
+  "rspill_index_bytes",
+  "rspill_records",
+  "rspill_out_put",
+  "rspill_nbt_out",
+  "rspill_in",
+  "rspill_in_u32",
+  "rspill_nbt_in"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "function rspill_take/rspill_blob_get: pread and lzp_decompress (lzpack.c, nothing allocated) inside the tick, when a load reaches a spilled chunk or a population a spilled start; host only, like the region cache",
+  "function rspill_put/rspill_blob_put/move_records: pwrite, mkstemp, unlink, lzp_compress and sync_file_range at the park, between rows",
+  "function file_new: getenv(\"HOME\") for the default directory"
+ ],
+ "tests": [
+  "csrc/tests/test_snapshots.c",
+  "csrc/runtime/pool_gate.c",
+  "csrc/runtime/pipe_gate.c"
+ ],
+ "notes": "Ports no oracle/src file: it stands for vanilla's region files (a chunk that left the view is saved and later reloaded). Every stored recording replays unchanged with it on (the default); test_snapshots --region-spill off keeps the store in memory."
+}

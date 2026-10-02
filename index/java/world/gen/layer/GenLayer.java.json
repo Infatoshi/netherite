@@ -1,0 +1,197 @@
+{
+ "path": "oracle/src/world/gen/layer/GenLayer.java",
+ "classes": [
+  "GenLayer",
+  "GenLayer$1 (anonymous Callable, crash report)",
+  "GenLayer$2 (anonymous Callable, crash report)"
+ ],
+ "lines": 235,
+ "side": "common",
+ "category": "worldgen",
+ "role": "Base of the biome layer stack: initializeAllBiomeGenerators builds the whole GenLayer chain, and the base holds the per-layer LCG seeds (base, world, chunk) and the shared helpers (nextInt, biome-compatibility, mode of four).",
+ "scope": "in_scope",
+ "scope_reason": "Biome generation feeds all terrain and population; vanilla worldgen is in scope (SPEC Decisions).",
+ "status": "exact",
+ "native": [
+  {
+   "file": "csrc/engine/layers.c",
+   "symbols": [
+    "layers_init",
+    "layer_ints",
+    "lcg",
+    "cseed",
+    "next_int",
+    "pick2",
+    "pick4",
+    "mode4",
+    "same",
+    "oceanic",
+    "mk",
+    "magnify",
+    "seed_world",
+    "rng"
+   ]
+  },
+  {
+   "file": "csrc/engine/layers.h",
+   "symbols": [
+    "layer",
+    "layers",
+    "layer_kind"
+   ]
+  }
+ ],
+ "evidence": [
+  "csrc/tests/test_worldgen.c",
+  "out/java/chunks/hills-2",
+  "out/java/chunks/hills-42",
+  "out/java/chunks/light-seed1",
+  "out/java/seedworld/seed1"
+ ],
+ "members": [
+  {
+   "kind": "field",
+   "name": "__OBFID",
+   "sig": "static String",
+   "native": null,
+   "status": "n/a"
+  },
+  {
+   "kind": "field",
+   "name": "worldGenSeed",
+   "sig": "long",
+   "native": "csrc/engine/layers.c:world_seed",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "parent",
+   "sig": "GenLayer",
+   "native": "csrc/engine/layers.c:p1",
+   "status": "exact"
+  },
+  {
+   "kind": "field",
+   "name": "chunkSeed",
+   "sig": "long",
+   "native": "csrc/engine/layers.c:rng",
+   "status": "exact",
+   "note": "Kept per call in a stack struct rng (cs), not on the layer."
+  },
+  {
+   "kind": "field",
+   "name": "baseSeed",
+   "sig": "long",
+   "native": "csrc/engine/layers.c:base_seed",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "initializeAllBiomeGenerators",
+   "sig": "(long,WorldType)[GenLayer",
+   "native": "csrc/engine/layers.c:layers_init",
+   "status": "partial",
+   "note": "WorldType.DEFAULT only (4 zooms); LARGE_BIOMES is never used since the oracle always passes DEFAULT."
+  },
+  {
+   "kind": "ctor",
+   "name": "GenLayer",
+   "sig": "(long)",
+   "native": "csrc/engine/layers.c:mk",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "initWorldGenSeed",
+   "sig": "(long)V",
+   "native": "csrc/engine/layers.c:seed_world",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "initChunkSeed",
+   "sig": "(long,long)V",
+   "native": "csrc/engine/layers.c:cseed",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "nextInt",
+   "sig": "(int)I",
+   "native": "csrc/engine/layers.c:next_int",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "getInts",
+   "sig": "(int,int,int,int)[I",
+   "native": "csrc/engine/layers.c:layer_ints",
+   "status": "exact",
+   "note": "Abstract; layer_ints switches on layer_kind."
+  },
+  {
+   "kind": "method",
+   "name": "func_151616_a",
+   "sig": "(int,int)Z",
+   "native": "csrc/engine/layers.c:same",
+   "status": "exact",
+   "note": "Crash-report path n/a."
+  },
+  {
+   "kind": "method",
+   "name": "func_151618_b",
+   "sig": "(I)Z",
+   "native": "csrc/engine/layers.c:oceanic",
+   "status": "exact"
+  },
+  {
+   "kind": "method",
+   "name": "func_151619_a",
+   "sig": "(int...)I",
+   "native": "csrc/engine/layers.c:pick4",
+   "status": "exact",
+   "note": "Varargs pick; pick2 and pick4 cover the arities used."
+  },
+  {
+   "kind": "method",
+   "name": "func_151617_b",
+   "sig": "(int,int,int,int)I",
+   "native": "csrc/engine/layers.c:mode4",
+   "status": "exact"
+  },
+  {
+   "kind": "ctor",
+   "name": "GenLayer$1",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in GenLayer.func_151616_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "GenLayer$1.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in GenLayer.func_151616_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "ctor",
+   "name": "GenLayer$2",
+   "sig": "()",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in GenLayer.func_151616_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  },
+  {
+   "kind": "method",
+   "name": "GenLayer$2.call",
+   "sig": "()String",
+   "native": null,
+   "status": "n/a",
+   "note": "a crash report section (CrashReportCategory.addCrashSectionCallable in GenLayer.func_151616_a's catch); its call() runs only while a crash report is written, after an uncaught throw, which ends the run; no recording or native tick has one"
+  }
+ ],
+ "missing": [],
+ "notes": "layers.c area() mallocs each parent area per call (heap allocation, and layer_ints recurses through parents), both GPU-contract hazards. Layer structs link parents by pointer (p1, p2). Gates not re-run for this record; statuses rest on the probe and populate tests named in evidence."
+}

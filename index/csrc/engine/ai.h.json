@@ -1,0 +1,103 @@
+{
+ "path": "csrc/engine/ai.h",
+ "lines": 52,
+ "role": "Declares the AI entry points in ai.c: kind task setup and task edits, EntityAITasks update, the look/move/jump/body helpers, EntitySenses, EntityCreature's direct path requests and PathNavigate.",
+ "layer": "tick",
+ "java": [
+  {
+   "path": "oracle/src/entity/ai/EntityAITasks.java",
+   "members": [
+    "onUpdateTasks",
+    "addTask",
+    "removeTask"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityLookHelper.java",
+   "members": [
+    "setLookPositionWithEntity",
+    "setLookPosition",
+    "onUpdateLook"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityMoveHelper.java",
+   "members": [
+    "setMoveTo",
+    "onUpdateMoveHelper"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntityJumpHelper.java",
+   "members": [
+    "doJump"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/EntityBodyHelper.java",
+   "members": [
+    "func_75664_a",
+    "func_75665_a"
+   ]
+  },
+  {
+   "path": "oracle/src/entity/ai/EntitySenses.java",
+   "members": [
+    "clearSensingCache",
+    "canSee"
+   ]
+  },
+  {
+   "path": "oracle/src/pathfinding/PathNavigate.java",
+   "members": [
+    "onUpdateNavigation",
+    "tryMoveToXYZ",
+    "tryMoveToEntityLiving",
+    "noPath",
+    "clearPathEntity"
+   ]
+  },
+  {
+   "path": "oracle/src/world/World.java",
+   "members": [
+    "getPathEntityToEntity",
+    "getEntityPathToXYZ"
+   ]
+  }
+ ],
+ "structs": [],
+ "entry_points": [
+  "ai_setup_kind",
+  "ai_add_break_door",
+  "ai_tasks_update",
+  "ai_remove_task",
+  "ai_add_task_arrow_attack",
+  "ai_add_task_attack_on_collide",
+  "look_helper_update",
+  "look_set_position_with_entity",
+  "look_set_position",
+  "move_helper_set_move_to",
+  "move_helper_update",
+  "jump_helper_do",
+  "body_helper_update",
+  "body_helper_a",
+  "senses_clear",
+  "senses_can_see",
+  "ai_creature_path_to_entity",
+  "ai_creature_path_to_xyz",
+  "nav_update",
+  "nav_try_move_to_xyz",
+  "nav_try_move_to_entity",
+  "nav_no_path",
+  "nav_clear_path"
+ ],
+ "tick_path": true,
+ "gpu": [
+  "ai_creature_path_to_entity and ai_creature_path_to_xyz return a pathref into the environment's path pool the caller drops (lane/gpuarena, L3)"
+ ],
+ "tests": [
+  "csrc/tests/test_animals.c",
+  "csrc/tests/test_hostiles.c"
+ ],
+ "notes": "an_construct_kind is defined in ai.c but declared elsewhere (living.h, not verified). struct ai_tasks and struct ai_task live in living.h."
+}
