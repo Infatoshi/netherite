@@ -72,14 +72,11 @@ const struct wconf_key WCONF_KEYS[WC_NKEYS] = {
     {"fidelity.distant_tick_radius", "0", "int:0:256"},
     /* the ladder's rung (SPEC.md "The fidelity ladder"): exact is today's
      * engine, stripped the four keys above off, micro the client half. Read
-     * by the pool, which applies it per env at a reset (pool.c reset_job);
-     * engine.tick_scope: batched is its micro alias (wconf_parse). */
+     * by the pool, which applies it per env at a reset (pool.c reset_job). */
     {"fidelity.rung", "exact", "enum:exact|stripped|micro"},
     {"engine.render", "device", "enum:device|none"},
-    {"engine.tick", "host", "enum:host|device"},
-    {"engine.tick_scope", "full", "enum:full|fast|batched"},
-    /* batched: the fast model (csrc/runtime/batchtick.c). Until its row is wired (batchtick_env.c)
-     * it runs the fast scope and says so. */
+    {"engine.tick", "host", "enum:host"},
+    {"engine.tick_scope", "full", "enum:full|fast"},
     {"engine.raycast", "host", "enum:host|device"},
     {"engine.raycast_host_groups", "0", "int:0:65536"},
     /* client.cast_precision (lane/castf32): the textured ray cast's scalar (csrc/runtime/raycast.h "The two
@@ -358,11 +355,6 @@ int wconf_parse(struct wconf *c, const char *text, const char *name, char *err, 
         if (strlen(seen) + strlen(tag) + 1 > sizeof seen) return fail(err, n, "%s: too many sections%s%s", name, line, NULL, NULL);
         snprintf(seen + strlen(seen), sizeof seen - strlen(seen), "%s", tag + 1);
     }
-    /* engine.tick_scope: batched is the alias of fidelity.rung: micro (SPEC.md
-     * "The fidelity ladder"); a file that sets a rung as well keeps it */
-    if (!strcmp(c->val[WC_TICK_SCOPE], "batched") && !strstr(keys, ",fidelity.rung,") &&
-        !strstr(keys, ",sim.fidelity.rung,"))
-        snprintf(c->val[WC_FID_RUNG], WCONF_VAL, "%s", "micro");
     return 0;
 }
 
@@ -465,6 +457,26 @@ int wconf_cast_radius(const struct wconf *c) { return atoi(c->val[WC_CAST_RADIUS
 
 int wconf_device_mesh(const struct wconf *c) { return atoi(c->val[WC_DEVICE_MESH]); }
 
+/* a config's directory cut to the tree it belongs to: configs/'s parent for a file in configs/ or in a folder of it
+ * (configs/tests, configs/envs), the directory itself otherwise */
+static void wconf_tree(char *dir, size_t n)
+{
+    char p[512];
+    snprintf(p, sizeof p, "%s", dir);
+    for (int up = 0; up < 2; ++up)
+    {
+        char *b = strrchr(p, '/');
+        if (!strcmp(b ? b + 1 : p, "configs"))
+        {
+            if (b) *b = 0;
+            snprintf(dir, n, "%s", b ? p : ".");
+            return;
+        }
+        if (!b) return;
+        *b = 0;
+    }
+}
+
 void wconf_start_path(const struct wconf *c, char *out, size_t n)
 {
     const char *s = c->val[WC_START];
@@ -479,13 +491,7 @@ void wconf_start_path(const struct wconf *c, char *out, size_t n)
     char *slash = strrchr(dir, '/');
     if (slash) *slash = 0;
     else snprintf(dir, sizeof dir, ".");
-    const char *base = strrchr(dir, '/');
-    base = base ? base + 1 : dir;
-    if (!strcmp(base, "configs"))
-    {
-        if (base == dir) snprintf(dir, sizeof dir, ".");
-        else dir[base - dir - 1] = 0;
-    }
+    wconf_tree(dir, sizeof dir);
     snprintf(out, n, "%s/%s", dir, s);
 }
 

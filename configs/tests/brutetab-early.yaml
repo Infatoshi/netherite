@@ -1,0 +1,41 @@
+# brutetab-early.yaml (lane/brutetab): the brute-force table's early rows (GOAL.md "Done means" 1; DEVLOG 2026-10-27
+# lane/intent's first rows, again): a random policy from spawn for 180 s episodes, brutetab-chain.yaml's sim (seed 42's
+# spawn, the 64x64 ray cast on the host, vanilla fidelity, no device) with the early presets.
+#   CUDA_VISIBLE_DEVICES= out/runtime/train/brutetab --run configs/tests/brutetab-early.yaml --macros SPEC [--episodes R]
+#   ... --seeds 1-1000 --window 32      seeds 1-1000's spawns, 32 loaded at a time
+# The rows are --macros: none (the raw keys); mine; mine,craft; base (surface, loot, mine, craft); base,table-anywhere,iron.
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: host
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: spawn               # seed 42's spawn
+    worlds: 512
+    groups: 4
+    episode_seconds: 180       # lane/intent's
+  performance:
+    workers: 48
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: any
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: base,table-anywhere,iron
+    picks: off

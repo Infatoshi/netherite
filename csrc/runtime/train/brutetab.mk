@@ -3,9 +3,9 @@
 #
 #   make -C csrc/runtime brutetab                  out/runtime/train/brutetab (links libneth)
 #   make -C csrc/runtime brutetab-names-check      the macro names it and ntloop read: unique, their bits distinct
-#   make -C csrc/runtime brutetab-row BT_RUN=configs/brutetab-chain.yaml [BT_ARGS='--macros recipe --seeds 1-1000']
+#   make -C csrc/runtime brutetab-row BT_RUN=configs/tests/brutetab-chain.yaml [BT_ARGS='--macros recipe --seeds 1-1000']
 #          one row, CUDA_VISIBLE_DEVICES= (no device touched)
-BT_RUN  ?= configs/brutetab-early.yaml
+BT_RUN  ?= configs/tests/brutetab-early.yaml
 BT_ARGS ?=
 
 .PHONY: brutetab brutetab-names-check brutetab-row

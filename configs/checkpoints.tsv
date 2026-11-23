@@ -1,8 +1,8 @@
 # checkpoints: named starts for pipeline.start, pipe_bench/pipe_gate --start NAME=CHECKPOINT and the trainer's binding
 # (csrc/runtime/pool.c checkpoint_resolve). A start that is not a directory is looked up here by name, then as
 # out/java/snapshots/NAME. snapshot is relative to the tree's root. The seed-42 golden playthrough (gold-g1-s42 to
-# gold-g30-s42, DEVLOG 2026-09-24 to 2026-10-01) spans the game from a fresh world to the dragon: configs/gold.yaml is
-# its world (seed 42, normal, render distance 4), so `pipe_bench --config configs/gold.yaml --start x=iron --kinds x`.
+# gold-g30-s42, DEVLOG 2026-09-24 to 2026-10-01) spans the game from a fresh world to the dragon: configs/tests/gold-fast.yaml
+# is its world (seed 42, render distance 4) at the fast fidelity, so `pipe_bench --config configs/tests/gold-fast.yaml --start x=iron --kinds x`.
 # name	snapshot	dimension	what the segment starting here plays
 fresh	out/java/snapshots/fresh-play-s1	overworld	a fresh seed-1 world (config.yaml's world)
 spawn	out/java/snapshots/gold-g1-s42	overworld	seed 42 at spawn: a tree, planks, sticks, a table, a wooden pickaxe, cobblestone

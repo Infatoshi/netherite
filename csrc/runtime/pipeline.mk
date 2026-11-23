@@ -20,7 +20,7 @@
 #                                             the rows keep the tapes' own)
 #                                    [CONFIG=FILE]  (a config.yaml: its observation, render distance and
 #                                                 device switches, every recording held to its world;
-#                                                 CONFIG=configs/headline.yaml PRECS=headline-s1)
+#                                                 CONFIG=configs/tests/headline.yaml PRECS=headline-s1)
 #                                          every row against test_snapshots' and every
 #                                          frame the device drew against the C renderer's
 #   make -C csrc/runtime pipe-refs [PRECS=...]   the gate's references (pool-refs)

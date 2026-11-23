@@ -1,0 +1,49 @@
+# Mine an iron ore block (block 15) with raw keys and a stone pickaxe in hand, 20 seconds (lane/rawtree's hard ore task
+# as a scenario). The starts are dev starts made by rawstarts from the seed set's spawns: the pickaxe given, the ore
+# set on the ground 5 to 12 blocks away, the player turned 90 to 180 degrees from it (rawstarts.c's header; its --cave
+# --no-torch --embed make the dark-cave variant), each start's snapshot replayed by test_snapshots. A dev start:
+# ntloop takes --dev, and its replays are WHAT-IFs, not benchmark rows.
+#   nether harvest --env ore-mine --seeds 1..16 --out out/bank/ore-mine
+description: mine iron ore (block 15) with a stone pickaxe, raw keys, 20 s; dev starts with the ore 5 to 12 blocks away, turned
+name: ore-mine
+sim:
+  world:
+    seed: 1
+  pipeline:
+    kind: gold
+    start: out/java/try/seedset-d989661987/s1
+episode:
+  seconds: 20
+actions:
+  keys: forward+back+left+right+jump+mine
+macros: none
+reward:
+  item: 15
+  win: 1
+  death: -0.5
+  look: 0.3
+  crack: 0.05
+  dist: 0.1
+  shaping: potential
+starts:
+  library: out/bank/ore-mine/train
+  curriculum: off
+  pin: on
+train:
+  flags: --dev
+harvest:
+  seed_set: out/java/try/seedset-d989661987
+  prepare:
+    native: make -s -C csrc ../out/native/test_snapshots
+    rawstarts: make -s -C csrc/runtime rawstarts
+  cmd: out/runtime/train/rawstarts --set {seed_set} --seeds {seed} --per 2 --dmin 5 --dmax 12 --turn 180 --turn-min 90 --out {work}/lib
+  index: "{work}/lib/index.tsv"
+  verify: out/native/test_snapshots {start}
+  split_train: 0.8
+eval:
+  primary_metric: ret
+  min_z: 3
+  episodes: 128
+  seed: 1000
+  minutes: 1
+  library: out/bank/ore-mine/eval

@@ -28,8 +28,8 @@ rebuilt from your install by `nether setup`.
 make                                    # builds out/bin/nether
 out/bin/nether setup                 # finds your 1.7.10 (--mc DIR), rebuilds the oracle and textures, builds everything
 out/bin/nether gate --java           # the Java client records now; the C engine replays it row for row
-out/bin/nether train configs/brute16fast.yaml --hours 0.5 --rec on
-out/bin/nether score configs/brute16fast.yaml out/train/brute16fast-DATE-TIME/model.ntw 512 60 1000
+out/bin/nether train configs/tests/brute16fast.yaml --hours 0.5 --rec on
+out/bin/nether score configs/tests/brute16fast.yaml out/train/brute16fast-DATE-TIME/model.ntw 512 60 1000
 out/bin/nether replay out/train/brute16fast-DATE-TIME/episodes.nrec 0
 ```
 
@@ -42,7 +42,7 @@ out/bin/nether replay out/train/brute16fast-DATE-TIME/episodes.nrec 0
 - `replay` takes one recorded episode (`out/runtime/train/ntrec list FILE` lists them), writes it as the Java
   client's script, plays it on the Java client from the episode's world, checks the client's end against the
   record's, and writes frames and an mp4 to `out/replay/NAME`. Only vanilla-fidelity episodes from the run's own
-  start replay row for row: train with a fidelity ladder that ends at vanilla (`configs/ladder.yaml`) or at vanilla.
+  start replay row for row: train with a fidelity ladder that ends at vanilla (a run file's `policy.ladder`) or at vanilla.
 - `nether play` plays the C engine's own client and checks your session against Java when you quit;
   `nether help` lists every verb with an example.
 
@@ -51,7 +51,7 @@ reading this, read [AGENTS.md](AGENTS.md) first: it tells you how to build, chec
 
 ## A run file
 
-`configs/brute16fast.yaml` is the 16x16 recipe; `configs/brute.yaml` explains every key. Two parts at column 0:
+`configs/tests/brute16fast.yaml` is the 16x16 recipe; `configs/tests/brute.yaml` explains every key. Two parts at column 0:
 `sim` (the environment, which the engine reads) and `policy` (the trainer's). What they configure:
 
 | what | keys |
@@ -74,7 +74,7 @@ Each number is DEVLOG.md's, under the entry named.
 
 | what | number | DEVLOG |
 |---|---|---|
-| trainer, 16x16 observation, configs/brute16fast.yaml (256 envs in 2 groups, the FP32 cast), learner on | 283,085 env-steps/s, 1.19x the 512-env shape (the env count is the lever: an L3 cliff on both Zen 5 CPUs) | 2026-11-01, lane/envcpu |
+| trainer, 16x16 observation, configs/tests/brute16fast.yaml (256 envs in 2 groups, the FP32 cast), learner on | 283,085 env-steps/s, 1.19x the 512-env shape (the env count is the lever: an L3 cliff on both Zen 5 CPUs) | 2026-11-01, lane/envcpu |
 | the same, a 3-hour run from scratch | 255,235 env-steps/s average, 2.76B env-steps | 2026-11-01, the night's results |
 | trainer, 64x64 observation (the stem), 256 envs, learner on | 148,028 env-steps/s, the default build (lane/nth16's 69,858 ran beside the nightly holding the GPU); the fused learner (.b.f, .fc: off by default) adds 0.8 to 1.6% | 2026-11-01, lane/ntfc, lane/ntbytes |
 | the frozen 64x64 policy natively (eval, 256 envs) | 246k to 261k env-steps/s (PyTorch's: 81k to 109k on the same env) | 2026-11-01, lane/ntboot |

@@ -4,7 +4,7 @@
 # and pipeline.mk's variables (included first by the Makefile).
 #
 #   make -C csrc/runtime rlbind      out/runtime/libneth.so (and playview.so beside it)
-#   make -C csrc/runtime rl-gate [CONFIG=configs/speedrun.yaml] [N=16] [WARM=20] [STEPS=200] [MCSR=~/dev/mcsr-speedrun]
+#   make -C csrc/runtime rl-gate [CONFIG=configs/tests/speedrun.yaml] [N=16] [WARM=20] [STEPS=200] [MCSR=~/dev/mcsr-speedrun]
 #          the binding's gate: mcsr-speedrun's Python binding (mcsr/nwrl.py) runs pipe_bench's
 #          corpus through libneth.so (its seeded walk, drawn the same way) and its trajectory and
 #          frame digests (the frames read by torch from the device buffer, DLPack) must equal
@@ -133,12 +133,11 @@ RL_PICFLAGS := $(subst ',,$(RT_CC) $(RT_CFLAGS) $(RL_PICDEF) $(RL_PGOFLAGS) $(RL
 $(shell mkdir -p $(RL_PICR) && { printf '%s\n' '$(RL_PICFLAGS)' | cmp -s - $(RL_PICSTAMP) || printf '%s\n' '$(RL_PICFLAGS)' > $(RL_PICSTAMP); })
 # the profile beside the objects (RL_PGOFLAGS)
 RL_PGOSTAMP := $(if $(RL_PGOGCDA),$(RL_PICR)/pgo.stamp)
-CONFIG_RL ?= $(RT_ROOT)/configs/speedrun.yaml
-MCSR      ?= $(HOME)/dev/mcsr-speedrun
+CONFIG_RL ?= $(RT_ROOT)/configs/tests/speedrun.yaml
 WARM      ?= 20
 STEPS     ?= 200
 
-.PHONY: rlbind rl-pic rl-cuda rl-gate rl-gui-gate rl-act-gate rl-raw-gate
+.PHONY: rlbind rl-pic rl-cuda
 
 # not in `all`: the PIC device objects build without ccache (minutes); make rlbind
 
@@ -179,13 +178,9 @@ $(RL_PICR)/%.o: $(RT_DIR)/%.c $(RT_DIR)/pipeline.h $(RT_DIR)/pool.h $(RT_DIR)/vi
 
 # the dev ops (engine/dev.c) too, for neth_rl_make_ex's NETH_RL_DEV (lane/invact: the gui gate's dev recordings and the
 # scenario starts; neth_rl_make refuses a dev start as the product does)
-# rlcompat.ld: the old nwrl_* names as aliases, and libnwrl.so a link to the library, for the trainers that load it by
-# the old file and names (lane/neth-refactor)
-$(RL_LIB): $(RL_OBJ) $(RL_PICN)/libnetherite.a $(RL_PICN)/obj/dev.o $(RL_CUDA) $(RT_DIR)/rlcompat.ld
+$(RL_LIB): $(RL_OBJ) $(RL_PICN)/libnetherite.a $(RL_PICN)/obj/dev.o $(RL_CUDA)
 	$(RT_CC) -shared $(RT_LDFLAGS) $(RL_PGOLD) $(RL_XLDFLAGS) -Wl,-Bsymbolic-functions -o $@ $(RL_OBJ) $(RL_PICN)/obj/dev.o -Wl,--whole-archive $(RL_PICN)/libnetherite.a \
-	  -Wl,--no-whole-archive $(RL_CUDA) -L$(PL_CUDALIB) -Wl,-rpath,$(PL_CUDALIB) -lcudart -lcuda -lstdc++ -ldl -lrt -lz -lm -lpthread \
-	  $(RT_DIR)/rlcompat.ld
-	ln -sfn $(notdir $@) $(dir $@)libnwrl.so
+	  -Wl,--no-whole-archive $(RL_CUDA) -L$(PL_CUDALIB) -Wl,-rpath,$(PL_CUDALIB) -lcudart -lcuda -lstdc++ -ldl -lrt -lz -lm -lpthread
 	@# the thread-locals within glibc's static TLS surplus for a loaded library (glibc.rtld.optional_static_tls, 512
 	@# bytes): past it the trainer's dlopen fails "cannot allocate memory in static TLS block" (lane/raycast's 9,744
 	@# bytes, 2026-10-16); keep large per-thread state on the heap, one pointer a thread
@@ -193,34 +188,3 @@ $(RL_LIB): $(RL_OBJ) $(RL_PICN)/libnetherite.a $(RL_PICN)/obj/dev.o $(RL_CUDA) $
 	  echo "$@: $$(($$tls)) bytes of thread-locals, over the 512 a loaded library may use"; rm -f $@; exit 1; fi
 
 -include $(wildcard $(RL_PICR)/*.d)
-
-rl-gate: rlbind pipeline
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/pipe_bench --config $(CONFIG_RL) --ns $(N) --warm $(WARM) --steps $(STEPS) \
-	  --frame-digest > $(RT_OUT)/rl-gate.bench.txt && grep -E "digest|FAIL" $(RT_OUT)/rl-gate.bench.txt
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) NETHERITE=$(RT_ROOT) PYTHONPATH=$(MCSR) UV_CACHE_DIR=$(RT_CACHE)/uv uv run --no-sync --frozen --project $(MCSR) \
-	  python -m mcsr.nwrl_gate --lib $(RL_LIB) --config $(CONFIG_RL) --n $(N) --warm $(WARM) --steps $(STEPS) --bench $(RT_OUT)/rl-gate.bench.txt
-
-# the gui gate's recordings: crafting (2x2 and 3x3, every recipe), chests, furnaces, drops and drags (lane/invact)
-GUIRECS ?= cat-recipes-s1 craft-spam-s1 chest-toggle-s1 cov-containers-s1 cat-clicks-s1 cont-wbfull-s1 furnace-break-s1 \
-  chest-break-s1 cat-charcoal-s1 achieve-s1 container-break-s1 containers2-s42
-rl-gui-gate: rlbind
-	@$(MAKE) --no-print-directory -s -C $(RT_DIR) pool-refs RECS="$(GUIRECS)"
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) NETHERITE=$(RT_ROOT) PYTHONPATH=$(MCSR) UV_CACHE_DIR=$(RT_CACHE)/uv uv run --no-sync --frozen --project $(MCSR) \
-	  python -m mcsr.nwrl_gui_gate --lib $(RL_LIB) --config $(RT_ROOT)/config.yaml --refdir $(RT_OUT)/ref --work $(RT_OUT)/guigate $(GUIRECS)
-
-# the action compiler's levers (lane/guiact, rlact.h): each lever script (guiact/NAME.jsonl: the compiler's ops and
-# its switches) stepped through libneth.so; the ops it gives each tick equal to the recording's expanded script
-# (oracle/tests/NAME.jsonl, recorded by Java) and every tick's row record equal to test_snapshots' (mcsr/nwrl_act_gate.py)
-ACTRECS ?= guiact-move-s1 guiact-item-s1 guiact-recipe-s1 guiact-mask-s1
-rl-act-gate: rlbind
-	@$(MAKE) --no-print-directory -s -C $(RT_DIR) pool-refs RECS="$(ACTRECS)"
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) NETHERITE=$(RT_ROOT) PYTHONPATH=$(MCSR) UV_CACHE_DIR=$(RT_CACHE)/uv uv run --no-sync --frozen --project $(MCSR) \
-	  python -m mcsr.nwrl_act_gate --lib $(RL_LIB) --config $(RT_ROOT)/configs/speedrun.yaml --refdir $(RT_OUT)/ref --work $(RT_OUT)/actgate $(ACTRECS)
-
-# the raw gate's recordings (lane/iron): the inventory's 2x2 grid (a shift-click, single places, a hotbar key and a
-# drop over the hovered slot, a right drag, a click outside the window) and a furnace and a table
-RAWRECS ?= rawact-inv-s1 rawact-furnace-s1
-rl-raw-gate: rlbind
-	@$(MAKE) --no-print-directory -s -C $(RT_DIR) pool-refs RECS="$(RAWRECS)"
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) NETHERITE=$(RT_ROOT) PYTHONPATH=$(MCSR) UV_CACHE_DIR=$(RT_CACHE)/uv uv run --no-sync --frozen --project $(MCSR) \
-	  python -m mcsr.nwrl_raw_gate --lib $(RL_LIB) --config $(RT_ROOT)/configs/speedrun.yaml --refdir $(RT_OUT)/ref --work $(RT_OUT)/rawgate $(RAWRECS)

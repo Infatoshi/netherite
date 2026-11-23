@@ -2,10 +2,10 @@
 # work (the act, the macros, the reward, the scalars, the episodes) in C on the pool's workers. vecenv.c is in
 # libneth.so (rlbind.mk's RL_SRC); this fragment builds its bench, which links the library.
 #
-#   make -C csrc/runtime vec-bench [CONFIG_VEC=configs/train-fast.yaml] [VEC_NS=256,512] [ARGS=...]
+#   make -C csrc/runtime vec-bench [CONFIG_VEC=configs/tests/train-fast.yaml] [VEC_NS=256,512] [ARGS=...]
 #          out/runtime/vec_bench: random actions through the vector env, env-steps/s and the vector env's C
 #          per env-step at each N (no Python)
-#   make -C csrc/runtime rl-tape-gate [TAPE_CONF=configs/tape-gate.yaml]
+#   make -C csrc/runtime rl-tape-gate [TAPE_CONF=configs/tests/tape-gate.yaml]
 #          lane/tape: out/runtime/vectape_gate plays a seeded stand-in policy through the vector env and writes env
 #          0's second episode as the oracle's script with its row records; the oracle runs the script on the
 #          config's world section (the oracle's registry has no client.camera raycast) and test_snapshots' row
@@ -20,7 +20,7 @@
 #          macros): with picks on and none sent nothing is crafted (the craft macro never starts on its own); with
 #          random picks items are crafted and no pick the mask disallowed starts the craft macro
 #   make -C csrc/runtime rl-obsidian-gate [OG_ENV=E]
-#          lane/obsidian: NETH_VEC_OBSIDIAN's gate, rl-tape-gate's way from configs/s64portal-kit.yaml's start (the
+#          lane/obsidian: NETH_VEC_OBSIDIAN's gate, rl-tape-gate's way from configs/tests/s64portal-kit.yaml's start (the
 #          kit next to lava): vectape_gate's stand-in with recipe, strip, food and obsidian (163839), env OG_ENV's
 #          second 10-minute episode written as the oracle's script, the oracle's rows of it equal to the episode's,
 #          every row; and the same env without the obsidian bit (32767) must give another script (the macro drove
@@ -29,7 +29,7 @@
 #          lane/macromod: the macros' digest matrix (macrodig.sh, macrodig.tsv): vec_bench under random actions from a
 #          start where each macro family runs, with options, levels and labellers, its trajectory, label, episode and
 #          books digests against the pinned ones, one line a row, then MACRO-DIGESTS PASS or FAIL (CPU, about a minute)
-CONFIG_VEC ?= $(RT_ROOT)/configs/train-fast.yaml
+CONFIG_VEC ?= $(RT_ROOT)/configs/tests/train-fast.yaml
 MD_J       ?= 2
 MD_ROWS    ?=
 .PHONY: macro-digests macro-digests-pin
@@ -38,17 +38,17 @@ macro-digests: rlbind $(RT_OUT)/vec_bench
 macro-digests-pin: rlbind $(RT_OUT)/vec_bench
 	@cd $(RT_ROOT) && bash csrc/runtime/macrodig.sh -j $(MD_J) -p $(MD_ROWS)
 VEC_NS     ?= 256,512
-TAPE_CONF  ?= $(RT_ROOT)/configs/tape-gate.yaml
+TAPE_CONF  ?= $(RT_ROOT)/configs/tests/tape-gate.yaml
 TG_OUT     := $(RT_OUT)/tapegate
 PG_OUT     := $(RT_OUT)/picksgate
-PLG_CONF   ?= $(RT_ROOT)/configs/play-gate.yaml
+PLG_CONF   ?= $(RT_ROOT)/configs/tests/play-gate.yaml
 PLG_START  ?= $(RT_CACHE)/native/library-kills/s42-s42k20-end/start
 PLG_ACTS   ?= 2600
 PLG_SEEDS  ?= 1 2
 
 .PHONY: vec_bench vec-bench rl-tape-gate rl-play-gate rl-picks-gate rl-window-gate nether_case rl-obsidian-gate obsidian-start
 
-# lane/obsidian: the kit start (configs/s64portal-kit.yaml's): gold-g5-s42 replayed to tick 3600 and saved (a
+# lane/obsidian: the kit start (configs/tests/s64portal-kit.yaml's): gold-g5-s42 replayed to tick 3600 and saved (a
 # checkpoint), a start recorded from the save, with 20 idle ticks after its snapshot (every directory under
 # out/java/snapshots is a job of the native suite, which fails a tape with no rows after the snapshot)
 # lane/obsidian2: the seed's folder, so the loader's fallback (checkpoints/SEED/NAME) finds it after the recording tree
@@ -76,7 +76,7 @@ rl-obsidian-gate: rlbind pool-native $(RT_OUT)/vectape_gate obsidian-start
 	@cd $(RT_ROOT) && O=$(OG_OUT)/run && rm -rf $$O out/java/try/obsgate && mkdir -p $$O && \
 	  fail() { echo "$$1"; echo "RL-OBSIDIAN-GATE FAIL"; exit 1; }; \
 	  for m in 163839 32767; do \
-	    CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/vectape_gate --config configs/s64portal-kit.yaml --n 8 --groups 1 \
+	    CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/vectape_gate --config configs/tests/s64portal-kit.yaml --n 8 --groups 1 \
 	      --threads 8 --seconds 600 --macros $$m --env $(OG_ENV) --script $$O/script-$$m.jsonl --rows $$O/vec-$$m.rows \
 	      > $$O/gate-$$m.log 2>&1 || fail "vectape_gate --macros $$m: $$(tail -1 $$O/gate-$$m.log)" & \
 	  done; wait; \
@@ -97,7 +97,7 @@ rl-obsidian-gate: rlbind pool-native $(RT_OUT)/vectape_gate obsidian-start
 	    "oracle's (but d.cw, the client world's Random, which the vector env does not know on a checkpoint's start)"; \
 	  echo "RL-OBSIDIAN-GATE PASS"
 
-# lane/seedwin: the mix's start window (neth_vec_opts.start_window) over a seed set of configs/brute.yaml's world
+# lane/seedwin: the mix's start window (neth_vec_opts.start_window) over a seed set of configs/tests/brute.yaml's world
 # (SEEDSET: a directory of starts, as mcsr-speedrun's fastppo --seeds captures them), 10 rounds of 200-step
 # episodes at window 8 stride 4: equal trajectory digests at 2 and 4 groups, the 44 starts those rounds name played,
 # at most 16 loaded at once
@@ -108,7 +108,7 @@ rl-window-gate: rlbind $(RT_OUT)/vec_bench
 	  fail() { echo "$$1"; echo "RL-WINDOW-GATE FAIL"; exit 1; }; \
 	  [ $$(ls -d $(SEEDSET)/s*/ 2>/dev/null | wc -l) -ge 48 ] || fail "SEEDSET=$(SEEDSET): 48 starts or more wanted"; \
 	  for g in 2 4; do \
-	    CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/vec_bench --config configs/brute.yaml --ns 32 --groups $$g \
+	    CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/vec_bench --config configs/tests/brute.yaml --ns 32 --groups $$g \
 	      --threads $$((2 * g)) --ep-len 200 --warm 0 --steps 2000 --starts $(SEEDSET) --window 8:4 --digest \
 	      > $(WG_OUT)/g$$g.log 2>&1 || fail "vec_bench --groups $$g: $$(tail -1 $(WG_OUT)/g$$g.log)"; \
 	  done; \
@@ -123,7 +123,7 @@ rl-picks-gate: rlbind $(RT_OUT)/vec_bench
 	@cd $(RT_ROOT) && rm -rf $(PG_OUT) && mkdir -p $(PG_OUT) && \
 	  fail() { echo "$$1"; echo "RL-PICKS-GATE FAIL"; exit 1; }; \
 	  for p in 1 2; do \
-	    CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/vec_bench --config configs/tape-gate.yaml --ns 32 --groups 1 \
+	    CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/vec_bench --config configs/tests/tape-gate.yaml --ns 32 --groups 1 \
 	      --threads 8 --warm 0 --steps 1250 --ep-len 1200 --macros 15 --picks $$p > $(PG_OUT)/picks$$p.log 2>&1 || \
 	      fail "vec_bench --picks $$p: $$(tail -1 $(PG_OUT)/picks$$p.log)"; \
 	  done; \
@@ -182,7 +182,7 @@ $(RT_OUT)/sh_check: $(RT_DIR)/sh_check.c $(RT_DIR)/vecenv.h $(RT_DIR)/rlgui.h $(
 	cd $(RT_DIR) && $(RT_CC) $(RT_CFLAGS) $(RT_LDFLAGS) -o $@ sh_check.c -L$(RT_OUT) -Wl,-rpath,$(RT_OUT) -lneth -lm
 
 sh-check: rlbind $(RT_OUT)/sh_check
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/sh_check --config configs/train-fast.yaml $(ARGS)
+	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/sh_check --config configs/tests/train-fast.yaml $(ARGS)
 
 $(RT_OUT)/vec_bench: $(RT_DIR)/vec_bench.c $(RT_DIR)/vecenv.h $(RT_DIR)/rlbind.h $(RL_LIB)
 	cd $(RT_DIR) && $(RT_CC) $(RT_CFLAGS) $(RT_LDFLAGS) -o $@ vec_bench.c -L$(RT_OUT) -Wl,-rpath,$(RT_OUT) -lneth -lm

@@ -3,7 +3,7 @@
 #
 #   make -C csrc/runtime rawstarts      out/runtime/train/rawstarts (train/rawstarts.c's header: the dev starts with a
 #                                       stone pickaxe and iron ore in view, from the seed set's spawns)
-#   make -C csrc/runtime rawskill [RS_RUN=configs/rawskill-pot.yaml] [RS_STEPS=400000] [RS_SEED=K] [RS_V=w1.dk.or]
+#   make -C csrc/runtime rawskill [RS_RUN=configs/tests/rawskill-pot.yaml] [RS_STEPS=400000] [RS_SEED=K] [RS_V=w1.dk.or]
 #                                 [RS_OUT=DIR] [RS_EVAL_N=64] [RS_EVAL_SEED=7] [RS_NS=256]
 #       the loop: the starts made where missing (RS_TRAIN, seeds RS_TRAIN_SEEDS; RS_HELD, seeds RS_HELD_SEEDS, never
 #       trained on), a fresh net (ntinit RS_SEED), PPO for RS_STEPS env-steps (ntloop --run RS_RUN --dev), then the
@@ -12,7 +12,7 @@
 #       starts' loading, the env steps with the learner beside them, the eval) and RAWSKILL (held-out success, the
 #       median steps to the pickup, deaths a run; the training curve's last rows). Inside a GPU window:
 #       ~/dev/netherite-v2/out/flywheel/bin/gpuq.sh check --mem 8000 -- make -C csrc/runtime rawskill ...
-#       RS_V=w1.dk.or (16x16 with the dig and the seen ore's scalars), s1.dk.or (64x64, configs/rawskill-pot64.yaml),
+#       RS_V=w1.dk.or (16x16 with the dig and the seen ore's scalars), s1.dk.or (64x64),
 #       ...: the variant is built first (a no-op make is 0.8 s). RS_NS envs (256: about 18 GB resident with the 26
 #       starts), RS_ARGS more ntloop flags for the training alone (--lr 1e-3, --library LIB, --start-pin off, ...),
 #       RS_TASK the task's own (--sticky on, --task-crack X: the training, its checkpoint evals and the held-out eval
@@ -25,7 +25,7 @@ $(NT_OUT)/rawstarts: $(NT_DIR)/rawstarts.c $(RT_ROOT)/out/native/libnetherite.a
 	@mkdir -p $(NT_OUT)
 	cd $(RT_DIR) && $(RT_CC) $(RT_CFLAGS) -o $@ train/rawstarts.c $(RT_ROOT)/out/native/libnetherite.a -lz -lm
 
-RS_RUN         ?= configs/rawskill-pot.yaml
+RS_RUN         ?= configs/tests/rawskill-pot.yaml
 RS_STEPS       ?= 400000
 RS_SEED        ?= 1
 RS_V           ?= w1.dk.or

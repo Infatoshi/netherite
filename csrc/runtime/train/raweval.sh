@@ -41,15 +41,15 @@ done
 EVL=out/runtime/eval1k RTL=out/runtime/rawtree
 ITEM=15 NEED=1
 case $TASK in
-  ore)       RUN=configs/rawpix64.yaml;        LIB=$EVL/ore-plain;  M=0.1667;;
-  orecave)   RUN=configs/rawpix64.yaml;        LIB=$EVL/ore-cave;   M=0.1667;;
-  hard)      RUN=configs/rawtree-ore64.yaml;   LIB=$EVL/hard-plain; M=0.3333;;
-  hardcave)  RUN=configs/rawtree-ore64.yaml;   LIB=$EVL/hard-cave;  M=0.3333;;
-  logview)   RUN=configs/rawtree-log64.yaml;   LIB=$RTL/logs-view-held; M=0.3333; ITEM=17;;
-  logany)    RUN=configs/rawsearch-log64.yaml; LIB=$RTL/logs-any-held;  M=1;      ITEM=17;;
-  lognear)   RUN=configs/rawsearch-log64.yaml; LIB=$RTL/logs-near-held; M=1;      ITEM=17;;
-  logs3near) RUN=configs/rawsearch-logs3.yaml; LIB=$RTL/logs-near-held; M=0.5;    ITEM=17; NEED=3;;
-  logs3view) RUN=configs/rawsearch-logs3.yaml; LIB=$RTL/logs-view-held; M=0.5;    ITEM=17; NEED=3;;
+  ore)       RUN=configs/tests/rawpix64.yaml;        LIB=$EVL/ore-plain;  M=0.1667;;
+  orecave)   RUN=configs/tests/rawpix64.yaml;        LIB=$EVL/ore-cave;   M=0.1667;;
+  hard)      RUN=configs/tests/rawtree-ore64.yaml;   LIB=$EVL/hard-plain; M=0.3333;;
+  hardcave)  RUN=configs/tests/rawtree-ore64.yaml;   LIB=$EVL/hard-cave;  M=0.3333;;
+  logview)   RUN=configs/tests/rawtree-log64.yaml;   LIB=$RTL/logs-view-held; M=0.3333; ITEM=17;;
+  logany)    RUN=configs/tests/rawsearch-log64.yaml; LIB=$RTL/logs-any-held;  M=1;      ITEM=17;;
+  lognear)   RUN=configs/tests/rawsearch-log64.yaml; LIB=$RTL/logs-near-held; M=1;      ITEM=17;;
+  logs3near) RUN=configs/tests/rawsearch-logs3.yaml; LIB=$RTL/logs-near-held; M=0.5;    ITEM=17; NEED=3;;
+  logs3view) RUN=configs/tests/rawsearch-logs3.yaml; LIB=$RTL/logs-view-held; M=0.5;    ITEM=17; NEED=3;;
   *) echo "raweval: task $TASK" >&2; exit 2;;
 esac
 MIN=${MIN:-$M}

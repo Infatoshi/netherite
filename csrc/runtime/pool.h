@@ -86,12 +86,8 @@ struct pool_config {
     int vanilla_only;
     /* engine.tick_scope fast (run_config.tick_fast) */
     int tick_fast;
-    /* engine.tick_scope batched: the fast model as the envs' row (batchtick.c; the row is the
-     * next step, until then it runs as fast) */
-    int tick_batched;
     /* fidelity.rung (env.h neth_rung) every env is reset at; 0 (UNSET): the
-     * config's fidelity.rung, and its engine.tick_scope: batched alias
-     * (worldconf.c), else exact. The rung is applied after the reset's image
+     * config's fidelity.rung, else exact. The rung is applied after the reset's image
      * copy (reset_job), so one start image serves every rung; pool_rung_set
      * gives one env its own from its next reset. */
     int rung;

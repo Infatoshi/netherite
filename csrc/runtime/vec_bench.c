@@ -1,7 +1,7 @@
 /* vec_bench (lane/vecenv): the vector env (vecenv.h) under random actions,
  * no Python: env-steps/s and the vector env's own C work per env-step.
  *
- *   out/runtime/vec_bench [--config configs/train-fast.yaml] [--ns 256,512] [--groups 4] [--threads T]
+ *   out/runtime/vec_bench [--config configs/tests/train-fast.yaml] [--ns 256,512] [--groups 4] [--threads T]
  *                         [--warm 100] [--steps 300] [--ep-len L] [--seed K] [--policy 0|1]
  *                         [--macros BITS] [--picks 0|1|2] [--digest] [--obs-digest] [--starts DIR [--window W[:S]]]
  *
@@ -218,7 +218,7 @@ static void draw(uint64_t *s, int32_t *a, int policy)
 
 int main(int argc, char **argv)
 {
-    const char *config = "configs/train-fast.yaml";
+    const char *config = "configs/tests/train-fast.yaml";
     char ns_arg[256] = "256,512";
     int groups = 4, threads = 0, warm = 100, steps = 300, ep_len = 3600, policy = 1;
     int macros = NETH_VEC_ALL, picks = 0, digest = 0, odigest = 0, window = 0, stride = 0;

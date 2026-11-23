@@ -94,11 +94,19 @@ void cr_start_abs(struct cy *t, const char *src_dir)
     const char *key = cy_node(t, "sim") ? "sim.pipeline.start" : "pipeline.start";
     const char *s = cy_get(t, key, NULL);
     if (!s || !*s || s[0] == '/') return;
-    /* csrc/engine/worldconf.c wconf_start_path: the file's directory, configs/'s parent for a file in configs/ */
+    /* csrc/engine/worldconf.c wconf_start_path: the file's directory, configs/'s parent for a file in configs/ or in a
+     * folder of it (configs/tests, configs/envs) */
     char dir[PATH_MAX];
     snprintf(dir, sizeof dir, "%s", src_dir);
-    const char *b = strrchr(dir, '/');
-    if (b && !strcmp(b + 1, "configs")) dir[b - dir] = 0;
+    char *b = strrchr(dir, '/');
+    if (b && !strcmp(b + 1, "configs")) *b = 0;
+    else if (b)
+    {
+        *b = 0;
+        char *b2 = strrchr(dir, '/');
+        if (b2 && !strcmp(b2 + 1, "configs")) *b2 = 0;
+        else *b = '/';
+    }
     char *a = xasprintf("%s/%s", dir, s);
     cy_set(t, key, a);
     free(a);

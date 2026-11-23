@@ -599,7 +599,7 @@ int main(int argc, char **argv)
     const char **names = calloc((size_t)argc, sizeof *names);
     int nnames = 0;
     const char *config = NULL;
-    int cf_fast = 0, cf_batched = 0;
+    int cf_fast = 0;
     int rd = 0, hud = 0;
     float gamma = 0.0F;
     for (int i = 1; i + 1 < argc; ++i)
@@ -612,7 +612,7 @@ int main(int argc, char **argv)
         ow = cf.pool.obs.w, oh = cf.pool.obs.h, ticks = cf.pool.obs.ticks, rd = cf.pool.obs.rd, hud = cf.pool.obs.hud;
         gamma = cf.pool.obs.gamma;
         device_mesh = cf.device_mesh, device_light = cf.device_light, gen_device = cf.gen_device;
-        cf_fast = cf.tick_fast, cf_batched = cf.tick_batched;
+        cf_fast = cf.tick_fast;
     }
     for (int i = 1; i < argc; ++i)
     {
@@ -703,9 +703,7 @@ int main(int argc, char **argv)
     cfg.pool.privileged = 1;
     cfg.pool.vanilla_only = 1;   /* the gate checks rows the oracle recorded */
     cfg.tick_fast = cf_fast;
-    cfg.tick_batched = cf_batched;
     cfg.pool.tick_fast = cf_fast;
-    cfg.pool.tick_batched = cf_batched;
     cfg.par = par;
     cfg.draw = draw;
     cfg.device_mesh = device_mesh;

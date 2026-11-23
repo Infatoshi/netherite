@@ -133,8 +133,8 @@ struct env;
 #if defined(__NVPTX__)
 /* the device build (cuda/tick/dev.c): each thread runs one environment
  * (a block holds up to 32), named in the block's shared memory by thread */
-extern struct env *__attribute__((address_space(3))) nwdev_envs[32];
-#define neth_env (nwdev_envs[__nvvm_read_ptx_sreg_tid_x()])
+extern struct env *__attribute__((address_space(3))) tickdev_envs[32];
+#define neth_env (tickdev_envs[__nvvm_read_ptx_sreg_tid_x()])
 #else
 #ifndef NETH_ENV_TLS_MODEL
 #define NETH_ENV_TLS_MODEL "local-exec"

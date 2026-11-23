@@ -1,11 +1,11 @@
 /* obsidian_case (lane/obsidian2): NETH_VEC_OBSIDIAN's case, no Python. N envs from a start (the config's
- * pipeline.start: configs/s64portal-kit.yaml's obs-g5-3600, the kit held; or --start DIR), one episode of S steps each
+ * pipeline.start: configs/tests/s64portal-kit.yaml's obs-g5-3600, the kit held; or --start DIR), one episode of S steps each
  * under an idle policy (the centre bins, no key) or vec_bench's random one (--policy 1, its xorshift seeded by --seed:
  * the sampler seed), the macros --macros (default recipe,strip,food,obsidian: 163839; 32767 the same without the bit).
  * At the end a line an env (the books of vecenv.h neth_vec_obsidian: the kit, obsidian held and mined, the Nether's
  * step, the jobs, the deaths with the first one's step, place, cause and who drove the step before it) and the totals.
  *
- *   out/runtime/obsidian_case [--config configs/s64portal-kit.yaml] [--start DIR] [--ns 32] [--groups 2] [--threads T]
+ *   out/runtime/obsidian_case [--config configs/tests/s64portal-kit.yaml] [--start DIR] [--ns 32] [--groups 2] [--threads T]
  *                             [--steps 24000] [--seed K] [--policy 0|1] [--macros BITS] [--quiet]
  *
  * The last line is "obsidian_case: N envs, ... nether K, ten T, died D (kit deaths KD)" for a gate's grep. */
@@ -49,7 +49,7 @@ static void draw(uint64_t *s, int32_t *a, int policy)
 
 int main(int argc, char **argv)
 {
-    const char *config = "configs/s64portal-kit.yaml", *start = NULL;
+    const char *config = "configs/tests/s64portal-kit.yaml", *start = NULL;
     int n = 32, groups = 2, threads = 0, steps = 24000, policy = 0, quiet = 0, macros = 163839, dev = 0;
     int trace = -1, trace_every = 100;
     uint64_t seed = 1;

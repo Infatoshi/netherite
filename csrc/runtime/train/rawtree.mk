@@ -51,18 +51,18 @@ TR_STEPS    ?= $(TR_STEPS_$(TR_TASK))
 TR_LIB_ore  ?= $(TR_HMIX)
 TR_H1_ore   ?= $(TR_HHP)
 TR_H2_ore   ?= $(TR_HHC)
-TR_RUN_ore  ?= configs/rawtree-ore64.yaml
+TR_RUN_ore  ?= configs/tests/rawtree-ore64.yaml
 TR_MIN_ore  ?= 0.3333
 TR_ITEM_ore ?= 15
 TR_TLIB_log ?= $(TR_LVIEW)
 TR_LIB_log  ?= $(TR_LNEAR)
 TR_H1_log   ?= $(TR_LVIEW)-held
 TR_H2_log   ?= $(TR_LANY)-held
-TR_RUN_log  ?= configs/rawtree-log64.yaml
+TR_RUN_log  ?= configs/tests/rawtree-log64.yaml
 TR_MIN_log  ?= 0.3333
 TR_ITEM_log ?= 17
 # lane/rawsearch: TR_TASK=search, a log from any spawn (rawtree-logs' TR_LANY, 60 s episodes,
-# configs/rawsearch-log64.yaml): the teacher sees the hint (task.hint: the nearest log's direction when none is in
+# configs/tests/rawsearch-log64.yaml): the teacher sees the hint (task.hint: the nearest log's direction when none is in
 # view, privileged), started from rawtree's in-view log teacher of the seed (TR_TINIT_search), PPO on every training
 # spawn; the student pixels-only on every training spawn; the evals on every held-out spawn and on those with a log
 # within 16 blocks. TR_VIEW (each task's: 0 iron ore, 2 logs) the evals' view books (rawpix RP_VIEW)
@@ -74,7 +74,7 @@ TR_TLIB_search  ?= $(TR_LSRCH)
 TR_LIB_search   ?= $(TR_LSRCH)
 TR_H1_search    ?= $(TR_LANY)-held
 TR_H2_search    ?= $(TR_LNEAR)-held
-TR_RUN_search   ?= configs/rawsearch-log64.yaml
+TR_RUN_search   ?= configs/tests/rawsearch-log64.yaml
 TR_MIN_search   ?= 1
 TR_ITEM_search  ?= 17
 TR_TSTEPS_search ?= 1600000
@@ -83,7 +83,7 @@ TR_SARGS_search ?= --beta 0.9
 TR_TINIT_search ?= $(TR_MODELS)/log-final-teacher-s$(RP_SEED).ntw
 TR_VAL_search   ?= $(TR_LANY)
 # lane/rawsearch: TR_TASK=logs3, three logs (task.count 3) from a spawn with a log within 16 blocks in 30 s
-# (configs/rawsearch-logs3.yaml), the teacher with the hint started from this lane's search teacher of the seed
+# (configs/tests/rawsearch-logs3.yaml), the teacher with the hint started from this lane's search teacher of the seed
 # (TR_TINIT_logs3, ~/.cache/netherite-native/models/rawsearch), the student on the same spawns, the evals on the held-out
 # spawns with a log within 16 blocks and in view; a success holds TR_NEED logs (rawpix RP_NEED)
 TR_SMODELS      ?= $(RT_CACHE)/native/models/rawsearch
@@ -91,7 +91,7 @@ TR_TLIB_logs3   ?= $(TR_LNEAR)
 TR_LIB_logs3    ?= $(TR_LNEAR)
 TR_H1_logs3     ?= $(TR_LNEAR)-held
 TR_H2_logs3     ?= $(TR_LVIEW)-held
-TR_RUN_logs3    ?= configs/rawsearch-logs3.yaml
+TR_RUN_logs3    ?= configs/tests/rawsearch-logs3.yaml
 TR_MIN_logs3    ?= 0.5
 TR_ITEM_logs3   ?= 17
 TR_TSTEPS_logs3 ?= 1600000

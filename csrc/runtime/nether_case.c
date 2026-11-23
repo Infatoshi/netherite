@@ -5,7 +5,7 @@
  * and the totals: the fortress found, the spawner found, rods held (now and at most), home (the overworld again),
  * deaths and what hurt last before each, and the median step of each event over the envs that reached it.
  *
- *   out/runtime/nether_case [--config configs/train-fast.yaml] [--start DIR] [--ns 32] [--groups 2] [--threads T]
+ *   out/runtime/nether_case [--config configs/tests/train-fast.yaml] [--start DIR] [--ns 32] [--groups 2] [--threads T]
  *                           [--steps 24000] [--seed K] [--policy 0|1] [--macros BITS] [--quiet]
  *                           [--trace I [--every K]]    (lane/nether2: env I's books every K steps)
  *                           [--dump R [--dump-at T] [--dump-env E]]   (a developer's map of env E's client world at
@@ -78,7 +78,7 @@ static int64_t median(const int64_t *v, int n, int *k)
 
 int main(int argc, char **argv)
 {
-    const char *config = "configs/train-fast.yaml", *start = NULL;
+    const char *config = "configs/tests/train-fast.yaml", *start = NULL;
     int dev = 0;
     int xportal = 0, xp[3] = {0, 0, 0};     /* lane/rod: --portal X,Y,Z */
     int n = 32, groups = 2, threads = 0, steps = 24000, policy = 0, quiet = 0, trace = -1, every = 100, dump = 0,

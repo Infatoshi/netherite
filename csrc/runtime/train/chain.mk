@@ -2,9 +2,9 @@
 # commands and the output):
 #
 #   make -C csrc/runtime chain                     out/runtime/train/chain (links libneth and the recorder's codec)
-#   make -C csrc/runtime chain-search CH_DIR=DIR [CH_RUN=configs/chain.yaml] [CH_ARGS='--n 64 --minutes 60']
+#   make -C csrc/runtime chain-search CH_DIR=DIR [CH_RUN=configs/tests/chain.yaml] [CH_ARGS='--n 64 --minutes 60']
 #          the search, CUDA_VISIBLE_DEVICES= (no device touched); DIR/nodes.tsv, DIR/frontier.txt, DIR/seg/
-CH_RUN  ?= configs/chain.yaml
+CH_RUN  ?= configs/tests/chain.yaml
 CH_DIR  ?= $(RT_CACHE)/native/chain/run
 CH_ARGS ?=
 
@@ -57,7 +57,7 @@ chain-script-check: chain
 
 # Compare every canonical controller byte just before each save with its disk-restored bytes at 500-step seams. The
 # macro-digest starts cover the controller's six families; the quiescent run also compares full trajectories.
-CH_MEM_RUN   ?= configs/chain.yaml
+CH_MEM_RUN   ?= configs/tests/chain.yaml
 CH_MEM_STEPS ?= 1501
 CH_MEM_OLD   ?=
 $(RT_OUT)/train/chain_mem_check: $(RT_DIR)/train/chain_mem_check.c $(RT_DIR)/vecenv.h $(RT_DIR)/rlbind.h $(RL_LIB)
@@ -67,13 +67,13 @@ $(RT_OUT)/train/chain_mem_check: $(RT_DIR)/train/chain_mem_check.c $(RT_DIR)/vec
 chain-memory-check: $(RT_OUT)/train/chain_mem_check
 	@mkdir -p $(RT_ROOT)/out/chain
 	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check $(CH_MEM_RUN) $(CH_MEM_STEPS) '' '' 15
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/l4gcase.yaml $(CH_MEM_STEPS) '' '' 33554431
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/l5case.yaml $(CH_MEM_STEPS) '' '' 33554431
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/pearlcase.yaml $(CH_MEM_STEPS) '' '' 33554431 1
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check prefix configs/pearlcase.yaml $(CH_MEM_STEPS) '' '' 33554431 1
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/macrodig-nether.yaml $(CH_MEM_STEPS) '' '' 33554431
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/macrodig-sh.yaml $(CH_MEM_STEPS) '' '' 33554431 1
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/dragon.yaml $(CH_MEM_STEPS) '' '' 33554431
+	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/tests/l4gcase.yaml $(CH_MEM_STEPS) '' '' 33554431
+	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/tests/l5case.yaml $(CH_MEM_STEPS) '' '' 33554431
+	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/tests/pearlcase.yaml $(CH_MEM_STEPS) '' '' 33554431 1
+	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check prefix configs/tests/pearlcase.yaml $(CH_MEM_STEPS) '' '' 33554431 1
+	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/tests/macrodig-nether.yaml $(CH_MEM_STEPS) '' '' 33554431
+	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/tests/macrodig-sh.yaml $(CH_MEM_STEPS) '' '' 33554431 1
+	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check bytes configs/tests/dragon.yaml $(CH_MEM_STEPS) '' '' 33554431
 	@if [ -n '$(CH_MEM_OLD)' ]; then cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check \
 	  legacy $(CH_MEM_RUN) '$(CH_MEM_OLD)'; fi
 	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES= $(RT_OUT)/train/chain_mem_check wait

@@ -1,9 +1,9 @@
 # Scripts in the tree
 
 Every shell, Perl and awk file in the tree (99 at base 7db1ed3d: 96 .sh, 2 .pl, 1 .awk; 0 .py), audited on
-2026-11-23 by lane/nether-polish. Callers are the Makefiles, .mk fragments, C sources, configs and other kept scripts
-that run each one, found by git grep on its name. A script was deleted only when nothing but its own text, the
-DEVLOG or another deleted script named it. Five were deleted, so 94 remain (91 .sh, 2 .pl, 1 .awk).
+2026-11-23. Callers are the Makefiles, .mk fragments, C sources, configs and other kept scripts
+that run each one, found by git grep on its name. Five dead one-offs and two unused `csrc/cuda/tick/` scripts were
+deleted, so 92 remain (89 .sh, 2 .pl, 1 .awk).
 
 ## csrc/cuda/lighting
 
@@ -17,13 +17,6 @@ DEVLOG or another deleted script named it. Five were deleted, so 94 remain (91 .
 |---|---|---|---|---|
 | gate.sh | 235 | kept | csrc/cuda/meshing/meshing.mk:gpu-meshing-check, csrc/cuda/mirror.tsv, csrc/cuda/render/render.mk:gpu-render-bench, csrc/cuda/render/render.mk:gpu-render-check | Render/meshing quick gate driver; called by render.mk, meshing.mk and registered in mirror.tsv. |
 | judge_gate.sh | 93 | kept | csrc/cuda/render/judge.mk:gpu-render-judge-check, csrc/tests/dragonrun.sh | Frame-judge device-vs-C gate; called by judge.mk gpu-render-judge-check. |
-
-## csrc/cuda/tick
-
-| script | lines | status | callers | why |
-|---|---|---|---|---|
-| build.sh | 42 | kept | csrc/cuda/tick/tick.mk:$(S6_OUT)/tick.cubin | Builds the S6 tick cubin/bitcode for the device; called by tick.mk and mirror.tsv. |
-| sweep.sh | 94 | kept | csrc/cuda/tick/tick.mk:gpu-tick-check | Batched S6 tick check (gpu-tick-check); called by tick.mk. |
 
 ## csrc/play
 

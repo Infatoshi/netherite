@@ -1,0 +1,46 @@
+# Punch three logs by hand from a seed's own spawn: raw keys, empty inventory, 30 seconds (task.count 3: the episode
+# ends at the third log held), the nearest log's direction given while none is in view (task.hint 24). The starts are
+# spawns with a log (block 17) within 16 blocks, harvested from the seed set by rawstarts --near-block, each start's
+# snapshot replayed by test_snapshots (lane/rawsearch's logs-near task as a scenario);
+# nether harvest --env wood-logs3 --seeds 1..16 --out out/bank/wood-logs3.
+description: punch three logs (block 17) by hand from spawn, raw keys, 30 s, the log hint; spawn starts with a log within 16 blocks
+name: wood-logs3
+sim:
+  world:
+    seed: 1
+  pipeline:
+    kind: gold
+    start: out/java/try/seedset-d989661987/s1
+episode:
+  seconds: 30
+actions:
+  keys: forward+back+left+right+jump+mine
+macros: none
+reward:
+  item: 17
+  count: 3
+  hint: 24
+  win: 1
+  death: -0.5
+  look: 0.3
+  crack: 0.05
+  dist: 0.1
+  shaping: potential
+starts:
+  library: out/bank/wood-logs3/train
+  curriculum: off
+  pin: on
+harvest:
+  mode: spawn
+  seed_set: out/java/try/seedset-d989661987
+  near_block: 17
+  near_radius: 16
+  biome: any
+  split_train: 0.8
+eval:
+  primary_metric: ret
+  min_z: 3
+  episodes: 128
+  seed: 1000
+  minutes: 1
+  library: out/bank/wood-logs3/eval

@@ -915,7 +915,7 @@ struct nwrl *neth_rl_make_ex(const struct neth_rl_opts *o, int flags, char *err,
      * another project's load, ratios 0.97 to 1.38, median 1.05, the runs closer together (lane/placement) */
     if (cfg.no_view && (cfg.pool_layout == PIPE_LAYOUT_PIPE || cfg.pool_layout == PIPE_LAYOUT_DOMS) && pool_domains() > 1)
     {
-        /* lane/xhigh-patch: said, not silent (workstation-scalable.yaml's pin 0 and place none ran as pin 2, domain) */
+        /* lane/xhigh-patch: said, not silent (the old workstation-scalable.yaml's pin 0 and place none ran as pin 2, domain; configs/sim/blackwell.yaml names pin 2 and place domain) */
         if (cfg.pool.pin != 2 || cfg.pool.place == PP_NONE)
             fprintf(stderr, "neth_rl: performance.layout %s with no view on %d L3s: pin 2 (the config's %d), place %s "
                             "(the config's %s), each env's steps on its L3's workers\n",

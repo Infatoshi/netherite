@@ -63,8 +63,7 @@ struct pipe_config {
      * the host (each view), 1 the device (cuda/meshing: the views send their
      * section passes and the world bytes they read), 2 both, every device
      * mesh checked against the view's (the gate) */
-    int tick_fast;
-    int tick_batched;          /* engine.tick_scope batched: the fast model's door (batchtick.c) */               /* engine.tick_scope fast: the client tick's draw-side work skipped */
+    int tick_fast;              /* engine.tick_scope fast: the client tick's draw-side work skipped */
     int device_mesh;
     /* the device mesher's mode (the same meshes either way): 0 (the
      * default) or 1 its table mode (cuda/meshing/table.h; where the scene

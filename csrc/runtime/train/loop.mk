@@ -13,15 +13,15 @@
 #          quads' median at least NTB_MIN %, and the main thread a group step in each. Two processes measured the same
 #          vec_bench at 81.6k and 118.4k in one window (the first's cold start), so the comparison is in one process
 #
-# NTCONF and NTCONF_DEV are the brute recipe's sim at 16x16 (the cast on the host, on the device): configs/brute16.yaml
-# and configs/brute16dev.yaml (in ~/.cache/netherite-native until lane/polish, so a fresh clone had none). The ray cast takes
+# NTCONF and NTCONF_DEV are the brute recipe's sim at 16x16 (the cast on the host, on the device): configs/tests/brute16.yaml
+# and configs/tests/brute16dev.yaml (in ~/.cache/netherite-native until lane/polish, so a fresh clone had none). The ray cast takes
 # its textures from the config's own directory (rlbind.c), so they are copied to out/runtime/train/cfg beside links to
 # this tree's out/assets and out/java/render.
 NT_DIR     := $(RT_DIR)/train
 NT_OUT     := $(RT_OUT)/train
 NT_CUDAINC := $(dir $(PL_NVCC))../include
-NTCONF     ?= $(RT_ROOT)/configs/brute16.yaml
-NTCONF_DEV ?= $(RT_ROOT)/configs/brute16dev.yaml
+NTCONF     ?= $(RT_ROOT)/configs/tests/brute16.yaml
+NTCONF_DEV ?= $(RT_ROOT)/configs/tests/brute16dev.yaml
 NT_CFG     := $(NT_OUT)/cfg
 # the check: small, its six runs (three at a time, 4 workers each) under 10 s, a reset a group
 NTC_ARGS   ?= --ns 64 --groups 4 --threads 4 --warm 10 --steps 110 --ep-len 100 --macros 63
@@ -256,7 +256,7 @@ train-wire-check: $(NT_OUT)/ntloop
 
 # lane/runrec, the recording's gate (gpuq.sh check), about 10 s:
 #   make -C csrc/runtime rec-gate     ntloop --rec twice at once with the stand-in on the device: (a) the run-to-tape
-#          world (configs/tape-gate.yaml at 16x16, vanilla fidelity), 8 envs, every episode kept, with env 0's rows
+#          world (configs/tests/tape-gate.yaml at 16x16, vanilla fidelity), 8 envs, every episode kept, with env 0's rows
 #          (neth_rl_rows) and its second episode's script as neth_vec_tape writes it; (b) brute16 (train-fast fidelity),
 #          64 envs, the gain rule and half the rest sampled; (c) brute16 with the cast on the device (the served loop:
 #          several groups received before one is launched), every episode kept. Then: every kept episode of each
@@ -280,7 +280,7 @@ rec-gate: rlbind pool-native $(NT_OUT)/ntloop $(NT_OUT)/ntrec train-loop-cfg
 	@cd $(RT_ROOT) && rm -rf $(REC_OUT) out/java/try/recgate && mkdir -p $(REC_OUT) && \
 	  fail() { echo "$$1"; echo "REC-GATE FAIL"; exit 1; }; \
 	  sed -e 's/observation: 32x32/observation: 16x16/' -e 's/ticks_per_step: 1$$/ticks_per_step: $(REC_TPS)/' \
-	    configs/tape-gate.yaml > $(NT_CFG)/tapegate.yaml; \
+	    configs/tests/tape-gate.yaml > $(NT_CFG)/tapegate.yaml; \
 	  grep -q 'ticks_per_step: $(REC_TPS)$$' $(NT_CFG)/tapegate.yaml || fail "REC_TPS=$(REC_TPS): no ticks_per_step line"; \
 	  L=$(NT_OUT)/ntloop; R=$(NT_OUT)/ntrec; O=$(REC_OUT); \
 	  CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $$L --config $(NT_CFG)/tapegate.yaml $(REC_A) --rec $$O/a --rec-keep all \
@@ -340,7 +340,7 @@ ladder-gate: rlbind pool-native $(NT_OUT)/ntloop $(NT_OUT)/ntrec train-loop-cfg
 	  sed 's/^    archive: ms .*/    archive: none/' $(NTCONF) > $$C/lad-flat.yaml; \
 	  awk 'BEGIN{s=0} /^  fidelity:/{s=1; next} s && /^    /{next} {s=0; print}' $$C/lad-flat.yaml > $$C/lad-van.yaml; \
 	  { cat $$C/lad-van.yaml; printf '  ladder:\n    rungs: fast\n'; } > $$C/lad-one.yaml; \
-	  { echo sim:; sed 's/observation: 32x32/observation: 16x16/' configs/tape-gate.yaml | grep -v '^#' | sed 's/^/  /'; \
+	  { echo sim:; sed 's/observation: 32x32/observation: 16x16/' configs/tests/tape-gate.yaml | grep -v '^#' | sed 's/^/  /'; \
 	    printf 'policy:\n  ladder:\n    rungs: fast,vanilla\n    schedule: fixed\n    shares: 0.5,0.5\n'; } > $$C/lad-mix.yaml; \
 	  CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $$L --run $$C/lad-one.yaml $(LAD_A) --rec $$O/one --rec-keep all > $$O/one.log 2>&1 & \
 	  CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $$L --run $$C/lad-flat.yaml $(LAD_A) --rec $$O/flat --rec-keep all > $$O/flat.log 2>&1 & \
@@ -390,7 +390,7 @@ ladder-gate: rlbind pool-native $(NT_OUT)/ntloop $(NT_OUT)/ntrec train-loop-cfg
 	  echo "LADDER-GATE PASS"
 
 # lane/ladder10, the policy's GUI clicks on the Java client (gpuq.sh check), about a minute:
-#   make -C csrc/runtime gui-tape-gate   run-to-tape's world (configs/tape-gate.yaml at 16x16), 8 envs, macros 63 with the
+#   make -C csrc/runtime gui-tape-gate   run-to-tape's world (configs/tests/tape-gate.yaml at 16x16), 8 envs, macros 63 with the
 #          screen macro off (NETH_VEC_NOSCREEN) and actions.gui cursor, the stand-in policy with key 12 at 2%
 #          (standin-gui: it opens the inventory, clicks the cells its camera bins name with its mine, place and sneak keys,
 #          closes it again; the craft macro's plans one op a step): env 0's second episode written by neth_vec_tape, run
@@ -405,7 +405,7 @@ GUI_A   := --ns 8 --groups 2 --threads 4 --warm 0 --steps $$((2 * $(GUI_EP) + 2)
 gui-tape-gate: rlbind pool-native $(NT_OUT)/ntloop train-loop-cfg
 	@cd $(RT_ROOT) && rm -rf $(GUI_OUT) out/java/try/guigate && mkdir -p $(GUI_OUT) && \
 	  fail() { echo "$$1"; echo "GUI-TAPE-GATE FAIL"; exit 1; }; \
-	  sed 's/observation: 32x32/observation: 16x16/' configs/tape-gate.yaml > $(NT_CFG)/guigate.yaml; \
+	  sed 's/observation: 32x32/observation: 16x16/' configs/tests/tape-gate.yaml > $(NT_CFG)/guigate.yaml; \
 	  O=$(GUI_OUT); \
 	  CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(NT_OUT)/ntloop --config $(NT_CFG)/guigate.yaml $(GUI_A) \
 	    --rec-rows 0:$$O/vec.rows --tape 0:$$O/script.jsonl > $$O/a.log 2>&1 || fail "ntloop: $$(tail -1 $$O/a.log)"; \
@@ -489,7 +489,7 @@ train-score-sweep: $(NT_SCORE_BIN)
 # path), a table and a TSV:
 #   make -C csrc/runtime dragon-bench W=MODEL.ntw [V=s1.ls] [DB_RUNS=256] [DB_MIN=120] [DB_SEEDS="spawn 101-164/4"]
 #        [DB_LRUNS=128] [DB_LINKS="STAGE:MIN ..."] [DB_LIB=LIB] [DB_PRE="gpuq.sh check --mem 12000 --"] [DB_DIR=DIR] [DB_REDO=1]
-# From spawn (configs/dbench.yaml: every chain macro, vanilla fidelity, master's defaults), for each DB_SEEDS entry
+# From spawn (configs/tests/dbench.yaml: every chain macro, vanilla fidelity, master's defaults), for each DB_SEEDS entry
 # (spawn: seed 42's spawn; A-B,C: the captured starts of those seeds, starts.seeds): each milestone of the chain in
 # order (wooden pickaxe .. the stronghold's room, the End, the dragon): the share of runs that reached it, the median
 # minute it was first held, the conversion from the milestone before (with its standard error), the deaths a run and what
@@ -500,7 +500,7 @@ train-score-sweep: $(NT_SCORE_BIN)
 # its steps; the link's macros never starting; the kit held). DB_DIR/dragon-bench.txt and .tsv; each run's directory
 # (score.json, episodes.jsonl, books.jsonl) is kept and a finished one is skipped (DB_REDO=1 runs it again).
 DB_DIR    ?= $(NT_OUT)/dbench/$(basename $(notdir $(W)))
-DB_RUN    ?= configs/dbench.yaml
+DB_RUN    ?= configs/tests/dbench.yaml
 DB_RUNS   ?= 256
 DB_MIN    ?= 120
 DB_SEEDS  ?= spawn 101-164/4

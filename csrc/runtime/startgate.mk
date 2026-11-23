@@ -17,7 +17,7 @@
 #          state included, and every frame torch reads).
 #   make -C csrc/runtime rl-start-gate SG_SR1="..." SG_SR4="..." SG_RECS="..."   other cases (NAME@S+M, walk:SEED@S+M)
 
-SG_CONFIG ?= $(RT_ROOT)/configs/speedrun.yaml
+SG_CONFIG ?= $(RT_ROOT)/configs/tests/speedrun.yaml
 SG_SR1    ?= walk:1@300+120 sr-speedrun-s1@400+160
 SG_SR4    ?= walk:2@120+60 sr-speedrun-s1@100+40
 SG_RECS   ?= chest-chain-s1@20+20 death-drops-s1@29+40 cat-recipes-s1@42+30 cov-tradelist-s1@3+30 fight-zombie-s1@60+40 \
@@ -39,10 +39,7 @@ $(RT_OUT)/start_gate: $(RT_OUT)/obj/start_gate.o $(RT_OUT)/libpipe.a $(RT_OUT)/l
 SG_RUN = cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(RT_OUT)/start_gate $(1) 2>$(RT_OUT)/start_gate.err; rc=$$?; \
          grep -v '^play: into' $(RT_OUT)/start_gate.err >&2; exit $$rc
 
-rl-start-gate: pipeline rlbind
+rl-start-gate: pipeline
 	$(call SG_RUN,--config $(SG_CONFIG) $(SG_SR1))
 	$(call SG_RUN,--config $(SG_CONFIG) --ticks 4 $(SG_SR4))
 	$(call SG_RUN,--draw $(SG_RECS))
-	cd $(RT_ROOT) && CUDA_VISIBLE_DEVICES=$(CUDA_DEV) NETHERITE=$(RT_ROOT) PYTHONPATH=$(MCSR) UV_CACHE_DIR=$(RT_CACHE)/uv \
-	  uv run --no-sync --frozen --project $(MCSR) python -m mcsr.nwrl_save_gate --config $(SG_CONFIG) --steps 200 --more 100 \
-	  2>$(RT_OUT)/start_gate.err; rc=$$?; grep -v '^play: into' $(RT_OUT)/start_gate.err >&2; exit $$rc

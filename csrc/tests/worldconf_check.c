@@ -279,30 +279,24 @@ static void grammar(void)
     wconf_defaults(&c);
     expect(wconf_parse(&c, "fidelity:\n  weather: off\n", "t", err, sizeof err) == 0 && !wconf_on(&c, WC_FID_WEATHER),
            "a fidelity section reads");
-    /* fidelity.rung (env.h neth_rung, SPEC.md "The fidelity ladder"), and
-     * engine.tick_scope: batched the alias of micro when no rung is set */
+    /* fidelity.rung (env.h neth_rung, SPEC.md "The fidelity ladder") */
     expect(wconf_set(&c, "fidelity.rung=stripped", err, sizeof err) == 0 && !strcmp(wconf_get(&c, WC_FID_RUNG), "stripped"),
            "--set fidelity.rung=stripped");
     expect(wconf_set(&c, "fidelity.rung=micro", err, sizeof err) == 0, "--set fidelity.rung=micro");
     expect(wconf_set(&c, "fidelity.rung=fast", err, sizeof err) != 0, "--set fidelity.rung=fast (exact, stripped or micro)");
     wconf_defaults(&c);
     expect(!strcmp(wconf_get(&c, WC_FID_RUNG), "exact"), "fidelity.rung defaults to exact");
-    expect(wconf_parse(&c, "engine:\n  tick_scope: batched\n", "t", err, sizeof err) == 0 &&
-               !strcmp(wconf_get(&c, WC_FID_RUNG), "micro"),
-           "engine.tick_scope: batched reads as fidelity.rung: micro");
-    wconf_defaults(&c);
-    expect(wconf_parse(&c, "fidelity:\n  rung: stripped\nengine:\n  tick_scope: batched\n", "t", err, sizeof err) == 0 &&
-               !strcmp(wconf_get(&c, WC_FID_RUNG), "stripped"),
-           "a rung the file sets is not overridden by the alias");
+    expect(wconf_parse(&c, "engine:\n  tick_scope: batched\n", "t", err, sizeof err) != 0,
+           "engine.tick_scope: batched refused (full or fast)");
     wconf_defaults(&c);
     expect(wconf_parse(&c, "engine:\n  tick_scope: fast\n", "t", err, sizeof err) == 0 &&
                !strcmp(wconf_get(&c, WC_FID_RUNG), "exact"),
-           "engine.tick_scope: fast is not the alias");
+           "engine.tick_scope: fast parses with default rung");
     wconf_defaults(&c);
     /* the native placement keys in engine, and the performance section */
     expect(wconf_set(&c, "engine.render=none", err, sizeof err) == 0, "--set engine.render=none");
     expect(wconf_set(&c, "engine.render=host", err, sizeof err) != 0, "--set engine.render=host (no host renderer)");
-    expect(wconf_set(&c, "engine.tick=device", err, sizeof err) == 0, "--set engine.tick=device (the runtime refuses it)");
+    expect(wconf_set(&c, "engine.tick=device", err, sizeof err) != 0, "--set engine.tick=device refused (host only)");
     expect(wconf_set(&c, "engine.raycast=device", err, sizeof err) == 0, "--set engine.raycast=device");
     expect(wconf_set(&c, "engine.raycast=gpu", err, sizeof err) != 0, "--set engine.raycast=gpu (host or device)");
     expect(wconf_set(&c, "client.camera=raycast", err, sizeof err) == 0 &&
@@ -351,6 +345,15 @@ static void grammar(void)
     snprintf(c.val[WC_START], WCONF_VAL, "out/s");
     wconf_start_path(&c, p, sizeof p);
     expect(!strcmp(p, "/r/out/s"), "configs/x.yaml's start under the tree");
+    snprintf(c.path, sizeof c.path, "/r/configs/tests/x.yaml");
+    wconf_start_path(&c, p, sizeof p);
+    expect(!strcmp(p, "/r/out/s"), "configs/tests/x.yaml's start under the tree");
+    snprintf(c.path, sizeof c.path, "configs/tests/x.yaml");
+    wconf_start_path(&c, p, sizeof p);
+    expect(!strcmp(p, "./out/s"), "a relative configs/tests/x.yaml's start under the tree");
+    snprintf(c.path, sizeof c.path, "/r/other/x.yaml");
+    wconf_start_path(&c, p, sizeof p);
+    expect(!strcmp(p, "/r/other/out/s"), "a file outside configs/ resolves against its own directory");
     snprintf(c.path, sizeof c.path, "/r/config.yaml");
     wconf_start_path(&c, p, sizeof p);
     expect(!strcmp(p, "/r/out/s"), "config.yaml's start under the tree");
@@ -364,18 +367,24 @@ int main(int argc, char **argv)
     snprintf(path, sizeof path, "%s/config.yaml", root);
     registry(path);
     config(path);
-    snprintf(path, sizeof path, "%s/configs", root);
-    DIR *d = opendir(path);
+    /* configs/'s run files and configs/tests' (gates.yaml and fidelity.yaml are the CLI's, not a world) */
+    static const char *const dirs[] = {"configs", "configs/tests"};
     int named = 0;
-    for (struct dirent *e; d && (e = readdir(d));)
+    for (int di = 0; di < 2; ++di)
     {
-        size_t l = strlen(e->d_name);
-        if (l < 6 || strcmp(e->d_name + l - 5, ".yaml")) continue;
-        snprintf(path, sizeof path, "%s/configs/%s", root, e->d_name);
-        config(path);
-        ++named;
+        snprintf(path, sizeof path, "%s/%s", root, dirs[di]);
+        DIR *d = opendir(path);
+        for (struct dirent *e; d && (e = readdir(d));)
+        {
+            size_t l = strlen(e->d_name);
+            if (l < 6 || strcmp(e->d_name + l - 5, ".yaml")) continue;
+            if (di == 0 && (!strcmp(e->d_name, "gates.yaml") || !strcmp(e->d_name, "fidelity.yaml"))) continue;
+            snprintf(path, sizeof path, "%s/%s/%s", root, dirs[di], e->d_name);
+            config(path);
+            ++named;
+        }
+        if (d) closedir(d);
     }
-    if (d) closedir(d);
     printf("worldconf_check: %s (%d named configs)\n", bad ? "FAIL" : "ok", named);
     return bad ? 1 : 0;
 }

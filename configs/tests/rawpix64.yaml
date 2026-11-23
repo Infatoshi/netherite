@@ -1,0 +1,70 @@
+# rawpix64.yaml (lane/rawpix): configs/tests/rawskill-pot.yaml (the task, the starts, the winner's PPO: horizon 8, 4 epochs,
+# lr 1e-3) at a 64x64 observation, the cast on the device, for the pixels-only arms (s1.dk: the 64x64 stem, the crack
+# scalar, no seen-ore scalars).
+#   make -C csrc/runtime rawskill RS_RUN=configs/tests/rawpix64.yaml RS_V=s1.dk [RS_STEPS=N] [RS_SEED=K]
+sim:
+  world:
+    seed: 1
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    cast_precision: 32
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: device
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: out/runtime/rawskill/train/s1-0
+    worlds: 256
+    groups: 4
+    episode_seconds: 10
+  fidelity:
+    spawning: off
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: none
+    picks: off
+  task:
+    item: 15
+    keys: forward+back+left+right+jump+mine
+    win: 1
+    death: -0.5
+    look: 0.3
+    crack: 0.05
+    dist: 0.1
+    shaping: potential
+  starts:
+    library: out/runtime/rawskill/train
+    curriculum: off
+    pin: on
+  ppo:
+    lr: 1e-3
+    ent: 0.01
+    clip: 0.2
+    gamma: 0.99
+    lam: 0.95
+    epochs: 4
+    mb: 2048
+    horizon: 8
+  net:
+    kind: small
+  run:
+    log_every: 1

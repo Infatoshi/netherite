@@ -4,7 +4,7 @@
  * endermen seen, provoked and killed, the pillars, the deaths and what caused each, the steps to each pearl, the
  * steps by phase; and env-steps/s.
  *
- *   out/runtime/pearl_check --config configs/s64pearl.yaml --start out/java/snapshots/pearl-night-s42 --dev
+ *   out/runtime/pearl_check --config configs/tests/s64pearl.yaml --start out/java/snapshots/pearl-night-s42 --dev
  *                           [--n 32] [--groups 2] [--threads 16] [--steps 8800] [--seed 1] [--policy 1]
  *                           [--macros BITS] [-v]
  *
@@ -70,7 +70,7 @@ static const char *cause_name(int c)
 
 int main(int argc, char **argv)
 {
-    const char *config = "configs/s64pearl.yaml", *start = NULL;
+    const char *config = "configs/tests/s64pearl.yaml", *start = NULL;
     int n = 32, groups = 2, threads = 16, steps = 8800, policy = 1, dev = 0, verbose = 0, trace = -1, census = 0;
     int free_max = 0;           /* lane/pearlhome: --free F */
     int macros = NETH_VEC_SURFACE | NETH_VEC_MINE | NETH_VEC_FIGHT | NETH_VEC_FOOD | NETH_VEC_PEARL;

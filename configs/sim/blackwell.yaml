@@ -1,0 +1,33 @@
+# The training simulator sized for one RTX PRO 6000 Blackwell (sm_120) and a 64-core Zen 5 CPU with eight 32 MB L3s:
+# 256 worlds in 8 groups of 32 (32 envs an L3), 48 workers, a queue per L3. The 64x64 device ray cast at FP32, one
+# tick a step, the device mesher, vanilla fidelity. The world, the start and the episode length are a scenario's
+# (configs/envs).
+description: RTX PRO 6000 Blackwell + 64-core CPU, 256 worlds in 8 groups of 32, 48 workers, 64x64 device ray cast, FP32
+world:
+  render_distance: 4
+client:
+  observation: 64x64
+  camera: raycast
+  cast_precision: 32
+  ticks_per_step: 1
+pipeline:
+  worlds: 256
+  groups: 8
+engine:
+  tick: host
+  raycast: device
+  device_mesh: 1
+  device_generation: off
+  device_light: off
+  render: none
+performance:
+  workers: 48
+  streams: 2
+  group: 32
+  batch: 256
+  depth: 8
+  layout: doms
+  pin: 2
+  place: domain
+  tune: off
+  region_spill: off

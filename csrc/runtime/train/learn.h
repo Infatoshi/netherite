@@ -123,7 +123,7 @@ typedef struct neth_learn neth_learn;     /* a learner: a cuBLAS handle, its str
 extern "C" {
 #endif
 
-/* the brute recipe's settings (configs/brute.yaml's ppo) */
+/* the brute recipe's settings (configs/tests/brute.yaml's ppo) */
 neth_learn_hyper neth_learn_hyper_default(void);
 
 /* the GEMMs' precision: NETH_LEARN_FP32 fp32 throughout (learn_check's gate); NETH_LEARN_TF32 the same buffers, the GEMMs on the

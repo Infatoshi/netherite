@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { CHAIN_TEST_MACROS = 29261823 }; /* configs/chain.yaml's policy.actions.macros */
+enum { CHAIN_TEST_MACROS = 29261823 }; /* configs/tests/chain.yaml's policy.actions.macros */
 
 static uint64_t hash_bytes(uint64_t h, const void *data, size_t n)
 {
@@ -390,7 +390,7 @@ int main(int argc, char **argv)
     if (argc == 2 && !strcmp(argv[1], "wait"))
     {
         uint64_t digest;
-        if (one_run("configs/chain.yaml", "out/java/snapshots/gold-g26-s42",
+        if (one_run("configs/tests/chain.yaml", "out/java/snapshots/gold-g26-s42",
                     "stronghold_food=wait,stronghold_oracle=locate", NETH_VEC_STRONGHOLD,
                     0, 38001, 2400, 1, 1, 1, &digest, NULL, NULL)) return 1;
         puts("WAIT-BEHAVIOUR PASS: the stronghold wait ended across 2400-step disk cuts");
@@ -399,7 +399,7 @@ int main(int argc, char **argv)
     if (argc == 2 && !strcmp(argv[1], "portal"))
     {
         uint64_t digest;
-        if (one_run("configs/chain.yaml", "out/java/snapshots/gold-g6-s42",
+        if (one_run("configs/tests/chain.yaml", "out/java/snapshots/gold-g6-s42",
                     "portal_room=wide,portal_base=ground", CHAIN_TEST_MACROS,
                     0, 1501, 500, 1, 1, 2, &digest, NULL, NULL)) return 1;
         puts("PORTAL-BEHAVIOUR PASS: a mid-frame disk cut still entered the Nether");
@@ -456,7 +456,7 @@ int main(int argc, char **argv)
         if (rc || a != b) return fprintf(stderr, "CHAIN-MEMORY-PREFIX FAIL: trajectory differs\n"), 1;
         /* Frozen pre-version-3 library, same 1501-step pearl start and macro mask, options off. Its in-memory and
          * disk-cut runs both gave this digest; the new library's straight and shortened-sidecar runs must keep it. */
-        if (!strcmp(argv[at], "configs/pearlcase.yaml") && steps == 1501 && !mopts && !start &&
+        if (!strcmp(argv[at], "configs/tests/pearlcase.yaml") && steps == 1501 && !mopts && !start &&
             macros == 33554431 && dev == 1 && a != 0x94951fc0cc47c274ull)
             return fprintf(stderr, "CHAIN-MEMORY-PREFIX FAIL: pre-version-3 digest changed, got %016llx\n",
                            (unsigned long long)a), 1;

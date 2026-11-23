@@ -688,7 +688,6 @@ static struct env *start_image(struct pool *p, struct pool_start *st, const char
     struct env *e = env_new();
     if (e == NULL) { seterr(err, n, "no image environment (the address window is full)"); return NULL; }
     e->cfg.tick_fast = p->cfg.tick_fast;
-    e->cfg.tick_batched = p->cfg.tick_batched;
     /* the image and its twin must end with the same livings in the same slots, which two independent sweeps do not
      * give (grave.h grave_sweep_joint): the load buries and does not sweep, start_load_job sweeps both together */
     e->grave.hold = 1;

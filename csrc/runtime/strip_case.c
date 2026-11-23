@@ -8,7 +8,7 @@
  * - where each env stopped: the strip's last walk into a new cell (the step, the place), and the envs still mining
  *   in the window's last --tail steps (a cell walked into there).
  *
- *   out/runtime/strip_case [--config configs/s64strip2.yaml] [--start DIR] [--ns 32] [--groups 2] [--threads T]
+ *   out/runtime/strip_case [--config configs/tests/s64strip2.yaml] [--start DIR] [--ns 32] [--groups 2] [--threads T]
  *                          [--steps 36000] [--seed K] [--policy 0|1] [--macros BITS] [--tail 3000] [-v]
  *
  * The last line is "strip_case: N envs, ..." for a gate's grep. */
@@ -57,7 +57,7 @@ static void draw(uint64_t *s, int32_t *a, int policy)
 
 int main(int argc, char **argv)
 {
-    const char *config = "configs/s64strip2.yaml", *start = NULL, *mopts = NULL;
+    const char *config = "configs/tests/s64strip2.yaml", *start = NULL, *mopts = NULL;
     int n = 32, groups = 2, threads = 0, steps = 36000, policy = 1, verbose = 0, macros = 32767, tail = 3000;
     uint64_t seed = 1;
     for (int i = 1; i < argc; ++i)

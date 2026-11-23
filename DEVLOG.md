@@ -1,5 +1,40 @@
 # netherite-v2 DEVLOG
 
+## 2026-11-23 lane/configs-nw-clean: the S6 pass is tickpass; configs/ holds only the registry files and folders
+
+**What changed.**
+
+- `csrc/cuda/tick/nwpass.cpp` is `tickpass.cpp` (`out/native/cuda/tick/tickpass.so`). The passes are
+  `tick-rename`, `tick-roots`, `tick-stub` and `tick-dev`, the option `-tick-callbacks`. The device runtime's
+  `nwdev_*` names and `NWDEV_*` macros are `tickdev_*` and `TICKDEV_*`, `mirror.tsv`'s kept list is
+  `tick-roots.kept`. No `nwpass`, `nwdev`, `nw-rename`, `nw-roots`, `nw-stub` or `nw-dev` is left in `csrc/`.
+- `configs/` at its root holds `gates.yaml`, `fidelity.yaml` and `checkpoints.tsv`, and the folders `envs`, `sim`,
+  `algo`, `gyms` and `tests`.
+  - `configs/tests`: the 31 run files a Makefile, `gates.tsv`, `macrodig.tsv`, a case binary or the raw tools
+    (`raw*.mk`, `raweval.sh`) read, moved as they were, with every caller's path. Also `pgo-devcast.yaml` (the former
+    `workstation-scalable.yaml`, kept whole for `pgo.mk`'s `PGO_DEV_CFG` so the profile's workload stays the same).
+  - New: `configs/sim/rtx3090.yaml` (128 worlds in 16 groups of 8, 32 workers) and `configs/sim/blackwell.yaml`
+    (256 in 8 of 32, 48 workers), both the 64x64 device cast at FP32 and one tick a step. Also
+    `configs/envs/wood-logs3.yaml` (three logs, the hint, 30 s, from spawn starts) and `configs/envs/ore-mine.yaml`
+    (iron ore with a stone pickaxe, 20 s, rawstarts' dev starts).
+  - Deleted: eval-van32, gold, ladder, ppoac, ppoac-eval, s64boot, speedrun-grpo, stronghold-vanilla, t1-overworld,
+    the t2 and t3 files, workstation-ladder, workstation-scalable-tps2, desktop3090-scalable and rawskill-pot64.
+    They are still in git history (`git show 50eeb8f3:configs/NAME.yaml`).
+- A config in a folder of `configs/` resolves a relative `pipeline.start` against the tree, as one in `configs/`
+  does. This holds in `wconf_start_path`, `cr_start_abs` and `WorldConf.root`. `worldconf_check` reads
+  `configs/*.yaml` (minus gates.yaml and fidelity.yaml, which are not world files) and `configs/tests/*.yaml`, and
+  checks that `configs/tests/x.yaml` resolves to `/r/out/s`.
+
+**Why the raw run files and the PGO file stayed.** `raw*.mk`, `raweval.sh` and `ntloop --config` read a run file.
+An env or sim layer is not one: `wconf_load` refuses its `description:` line. So pointing those tools at
+`configs/envs` or `configs/sim` would have broken them.
+
+**Receipts (CPU only).** `worldconf_check` on this tree's configs, with a recording tree's `out/` linked in: ok, 32
+named configs. Every moved file that matched its start before still matches from `configs/tests`. `nether list`
+shows 6 envs, 5 sims and 2 algos. `nether train --env wood-logs3 --sim rtx3090|blackwell --algo ppo-wood` composes.
+`nether harvest --env ore-mine|wood-logs3 --dry-run` prints the rawstarts commands. `tickpass.so` builds with
+clang 21, and `opt -passes=tick-roots -tick-callbacks=` loads it.
+
 ## 2026-11-23 lane/nether-polish: `nether` is the binary; env/sim/algo layers composed in C; harvest makes verified split banks in seconds; the quick gate passes on a fresh checkout in 2.7 s
 
 **What changed.**

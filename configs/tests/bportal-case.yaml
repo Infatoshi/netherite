@@ -1,0 +1,42 @@
+# bportal-case.yaml (lane/obsidian4): s64portal-kit.yaml with the ray cast on the host and the meshes on the host, so
+# the bucket portal's case (csrc/runtime/obsidian_case.c) runs on CPUs alone (no GPU window): the macros read the
+# cast's seen record, and the host cast equals the device's bit for bit (pipe-gate), so an episode is the device
+# config's. The kit starts are dev starts (--dev), under ~/dev/nw/.tmp/chain-inputs/obsidian3:
+#   out/runtime/obsidian_case --config configs/tests/bportal-case.yaml --start DIR --dev --policy 1 --seed K --macros M
+sim:
+  world:
+    seed: 42
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: host
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: out/java/snapshots/obs-g5-3600
+    worlds: 256
+    groups: 4
+    episode_seconds: 300
+  fidelity:
+    spawning: on
+    spawn_types: monster,creature,ambient,water
+    mobs: all
+    random_ticks: on
+    weather: on
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off

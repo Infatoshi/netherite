@@ -798,9 +798,7 @@ int main(int argc, char **argv)
             cfg.pool.region_spill = region_spill;
             cfg.pool.fid = fid;
             cfg.tick_fast = cf.tick_fast;
-            cfg.tick_batched = cf.tick_batched;
             cfg.pool.tick_fast = cf.pool.tick_fast;
-            cfg.pool.tick_batched = cf.pool.tick_batched;
             cfg.par = par;
             cfg.no_device = host_only;
             cfg.no_view = no_view;

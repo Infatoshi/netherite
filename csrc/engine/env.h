@@ -141,7 +141,6 @@ struct run_config {
      * entity tick). The cast, the scalars, the acts and the packets stay full.
      * 0: full */
     int tick_fast;
-    int tick_batched;    /* engine.tick_scope batched: the fast model steps this env's row */
     /* fidelity.rung (neth_rung, above): applied by the pool at a reset, never
      * mid-episode; 0 reads as exact (env_rung) */
     int rung;

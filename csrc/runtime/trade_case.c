@@ -6,7 +6,7 @@
  * cells explored; then each good an hour (72,000 ticks) and the emeralds an hour it buys at a villager's price
  * (EntityVillager villagersSellingList: coal 16 to 23 a emerald, mean 19.5).
  *
- *   out/runtime/trade_case [--config configs/s64van.yaml] [--start DIR] [--ns 32] [--groups 2] [--threads T]
+ *   out/runtime/trade_case [--config configs/tests/s64van.yaml] [--start DIR] [--ns 32] [--groups 2] [--threads T]
  *                          [--steps 36000] [--seed K] [--policy 0|1] [--macros BITS] [-v]
  *
  * The last line is "trade_case: N envs, ..." for a gate's grep. */
@@ -56,7 +56,7 @@ static void draw(uint64_t *s, int32_t *a, int policy)
 
 int main(int argc, char **argv)
 {
-    const char *config = "configs/s64van.yaml", *start = NULL;
+    const char *config = "configs/tests/s64van.yaml", *start = NULL;
     int n = 32, groups = 2, threads = 0, steps = 36000, policy = 0, verbose = 0, macros = 16383 | 16384;
     uint64_t seed = 1;
     for (int i = 1; i < argc; ++i)

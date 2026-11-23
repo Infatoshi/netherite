@@ -12,7 +12,7 @@ set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 JQ="$HERE/dbench.jq"
 mode=${1:-}; shift || true
-MAKE=make W= V= RUN=configs/dbench.yaml OUT= RUNS=256 MIN=120 SPECS=spawn LRUNS=128 LINKS= PRE= FORCE=0 SEED=1000 MINFREE=25 LIB=out/library-train
+MAKE=make W= V= RUN=configs/tests/dbench.yaml OUT= RUNS=256 MIN=120 SPECS=spawn LRUNS=128 LINKS= PRE= FORCE=0 SEED=1000 MINFREE=25 LIB=out/library-train
 SET=
 while getopts "m:w:v:r:o:n:t:s:L:l:p:k:S:B:f" o; do
     case $o in

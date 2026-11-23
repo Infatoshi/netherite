@@ -1,6 +1,6 @@
 # lane/rawpix: the ore skill from pixels alone (lane/rawskill's task, starts and PPO), in one command:
 #
-#   make -C csrc/runtime rawpix [RP_SEED=K] [RP_RUN=configs/rawpix64.yaml] [RP_V=s1.dk.or] [RP_TSTEPS=400000]
+#   make -C csrc/runtime rawpix [RP_SEED=K] [RP_RUN=configs/tests/rawpix64.yaml] [RP_V=s1.dk.or] [RP_TSTEPS=400000]
 #                               [RP_STEPS=800000] [RP_ARGS=--beta 0.9] [RP_OUT=DIR] [RP_TEACHER=W.ntw] [RP_CURVE=N]
 #     The defaults are the measured recipe (DEVLOG 2026-11-05 lane/rawpix): a teacher on the 16 seeds' plain starts,
 #     the student on the 100 seeds' plain and dark-cave mix by DAgger (beta 0.9), the auto exposure, the evals at
@@ -35,7 +35,7 @@
 #     Inside a GPU window: ~/dev/netherite-v2/out/flywheel/bin/gpuq.sh check --mem 20000 -- make -C csrc/runtime rawpix
 #     Models: RP_OUT/teacher.ntw and RP_OUT/model.ntw (the student).
 .PHONY: rawpix rawpix-starts
-RP_RUN         ?= configs/rawpix64.yaml
+RP_RUN         ?= configs/tests/rawpix64.yaml
 RP_V           ?= s1.dk.or
 RP_SV          ?= $(RP_V)
 RP_VIEW        ?=

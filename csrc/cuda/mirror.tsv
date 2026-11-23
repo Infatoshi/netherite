@@ -8,7 +8,7 @@
 #   KERNEL  cut    FILE:NAME  where that closure stops (the kernel does not
 #                  mirror it: it reports it, or C runs it on both sides)
 #   KERNEL  kept   PATH       compiled C: the list of functions the build kept
-#                  (nw-roots), used instead of the roots when it exists
+#                  (tick-roots), used instead of the roots when it exists
 #   KERNEL  file   GLOB       files whose any change counts (the port itself,
 #                  its capture, its gate's scripts), under csrc/
 #   KERNEL  build  COMMAND    builds the kernel (from the repository root)
@@ -122,25 +122,6 @@ WGBUILT build make -s -C csrc gpu-worldgen-built
 WGBUILT edit  make -s -C csrc gpu-worldgen-built-check DUMPS=seed1
 WGBUILT quick make -s -C csrc gpu-worldgen-built-check DUMPS="seed1 sb-cave-42 mesa-123456789"
 WGBUILT full  make -s -C csrc gpu-worldgen-built-check
-
-# TICK, S6 (the chunk loop) as the engine's own C compiled for the device
-# (cuda/tick/tick.mk): the kept list is what the device build's nw-roots kept
-# (cuda/tick/build.sh writes it), the roots stand in until a build made it.
-TICK what  S6, the chunk loop (servertick_chunk_loop), and the world tick's other phases servertick_phase runs alone (S1, S2, S1T, S4, S5, SG: tick_batch --phases), the engine's C compiled for the device by cuda/tick/tick.mk
-TICK root  engine/servertick.c:servertick_chunk_loop
-TICK root  engine/servertick.c:servertick_phase
-TICK root  engine/servertick.c:st_on_block
-TICK root  engine/servertick.c:st_drop_sink
-TICK root  engine/servertick.c:st_tnt_prime
-TICK root  engine/servertick.c:st_block_env_drop
-TICK root  engine/serverreplay.c:sr_on_spawn
-TICK root  engine/serverreplay.c:sr_spawner_tick
-TICK root  engine/serverreplay.c:sr_siege_muster
-TICK kept  out/native/cuda/tick/nw-roots.kept
-TICK file  cuda/tick/*
-TICK build make -s -C csrc gpu-tick
-TICK quick make -s -C csrc gpu-tick-check RECS="combat-mobs-s1 fight-skeleton-s1 nether-trip-s1 s1chain-S8" S6_PHASES=S1,S2,S4,S5,S6,SG
-TICK full  make -s -C csrc gpu-tick-check
 
 RENDER what  the renderer (cuda/render/host.cu: the sky, the sections, the recorded passes, the translucent sections' quad order for the device mesher's meshes), the observation's frames and the judges' (cuda/render), checked against raster_obs_render and play's own frames (the ported functions: cuda/render/mirrors.txt)
 RENDER root  engine/raster.c:byte

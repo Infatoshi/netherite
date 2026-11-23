@@ -40,7 +40,6 @@ all:
 -include $(RUNTIME)/semcam.mk
 -include $(RUNTIME)/vecenv.mk
 -include $(RUNTIME)/raycast.mk
--include $(RUNTIME)/batchtick.mk
 -include $(wildcard $(RUNTIME)/train/*.mk)
 -include $(RUNTIME)/pgo.mk
 -include $(RUNTIME)/livguard.mk

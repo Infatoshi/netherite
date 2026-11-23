@@ -224,7 +224,7 @@ static int fn_ep_seconds(struct neth_runconf *c, const char *v, int r, char *e, 
 
 static const struct rc_row ROWS[] = {
     /* the run */
-    {"--config", NULL, RC_STR, 0, F(config), "configs/train-fast.yaml", NULL, "F", "the sim (a run file is one)"},
+    {"--config", NULL, RC_STR, 0, F(config), "configs/tests/train-fast.yaml", NULL, "F", "the sim (a run file is one)"},
     {"--ns", "pipeline.worlds", RC_INT, RC_POS | RC_SIM, F(n), "512", NULL, "N", "envs"},
     {"--groups", "pipeline.groups", RC_INT, RC_POS | RC_SIM, F(groups), "4", NULL, "G", "groups of envs"},
     {NULL, "pipeline.episode_seconds", RC_FN, RC_SIM, F(ep_len), NULL, fn_ep_seconds, NULL, "an episode's seconds"},

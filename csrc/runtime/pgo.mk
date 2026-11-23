@@ -42,7 +42,7 @@ rl-pgo: rl-cuda $(RT_OUT)/vec_bench train-loop-cfg
 
 # Device-cast ntloop PGO (lane/hill-train-fidelity): profiles real device-cast training (steady + multi-seed resets)
 # so .text.hot reflects simulation rather than host raycast, paired with -Wl,-z,keep-text-section-prefix in rlbind.mk.
-PGO_DEV_CFG   ?= $(RT_ROOT)/configs/workstation-scalable.yaml
+PGO_DEV_CFG   ?= $(RT_ROOT)/configs/tests/pgo-devcast.yaml
 PGO_DEV_INIT  ?= $(RT_ROOT)/cache/models/s64-it42.ntw
 PGO_DEV_NT    ?= $(RT_OUT)/train/s1.ls/ntloop
 PGO_DEV_SEEDS ?= 100005598,1019266621,1044203914,106545754,1086470609,1113382357,1134009793,1155280576

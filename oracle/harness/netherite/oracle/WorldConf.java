@@ -321,12 +321,15 @@ public final class WorldConf
 
     /**
      * config.yaml's directory, the tree the run belongs to (its out/java):
-     * the parent of configs/ for a named config there.
+     * the parent of configs/ for a named config there or in a folder of it
+     * (configs/tests, configs/envs).
      */
     static java.io.File root(String confPath)
     {
         java.io.File d = new java.io.File(confPath).getAbsoluteFile().getParentFile();
-        return d.getName().equals("configs") ? d.getParentFile() : d;
+        if (d.getName().equals("configs")) return d.getParentFile();
+        java.io.File p = d.getParentFile();
+        return p != null && p.getName().equals("configs") ? p.getParentFile() : d;
     }
 
     /** The resolved world, for the tape header. */

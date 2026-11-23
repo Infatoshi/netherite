@@ -74,7 +74,7 @@ static int64_t median(const int64_t *v, int n, int *k)
 
 int main(int argc, char **argv)
 {
-    const char *config = "configs/train-fast.yaml", *start = NULL, *tape = NULL, *rowsp = NULL;
+    const char *config = "configs/tests/train-fast.yaml", *start = NULL, *tape = NULL, *rowsp = NULL;
     int dev = 0, n = 32, groups = 2, threads = 0, steps = 12000, policy = 1, quiet = 0, every = 0, te = 0;
     int macros = NETH_VEC_ALL | NETH_VEC_TABLE2 | NETH_VEC_IRON | NETH_VEC_LATE | NETH_VEC_LIQUID | NETH_VEC_FIGHT |
                  NETH_VEC_CARRY | NETH_VEC_FOOD;

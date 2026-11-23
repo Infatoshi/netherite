@@ -2,7 +2,7 @@
  * the architecture test (nvptx64 is not __x86_64__, and the header's other
  * branch is i386's: other sizes and a regparm attribute nvptx rejects). The
  * sizes are the host's, so a struct holding a pthread type has one layout
- * on both sides; the device calls no pthread function (nw-stub flags one). */
+ * on both sides; the device calls no pthread function (tick-stub flags one). */
 #if defined(NETH_MESH_DEVICE)
 /* the mesher's build reads the system's, as it did from its own copy of
  * these stand-ins (cuda/include/pthread.h) */

@@ -5,7 +5,7 @@
  * portal (how many envs, the median and fastest step), the deaths and what was near each, arrows shot and crystals
  * hit, and the episode records' milestones (vecenv.h NETH_VEC_MS_END, NETH_VEC_MS_DRAGON).
  *
- *   out/runtime/dragon_case --config configs/dragon.yaml [--start DIR] [--dev] [--ns 32] [--groups 2] [--threads T]
+ *   out/runtime/dragon_case --config configs/tests/dragon.yaml [--start DIR] [--dev] [--ns 32] [--groups 2] [--threads T]
  *                           [--steps 24000] [--macros BITS] [--policy 0|1] [--seed K] [--trace ID] [--tape DIR]
  *
  * --deaths prints every End death's line (its cause by the server's CombatTracker, the push before it, the macro's
@@ -62,7 +62,7 @@ static int cmp_ll(const void *a, const void *b)
 
 int main(int argc, char **argv)
 {
-    const char *config = "configs/dragon.yaml", *start = NULL, *tape = NULL;
+    const char *config = "configs/tests/dragon.yaml", *start = NULL, *tape = NULL;
     int n = 32, groups = 2, threads = 0, steps = 24000, policy = 0, dev = 0, trace = -1, map_r = 0, map_s = 1, map_t = 1, every = 100;
     int rows_id = -1, verbose_deaths = 0;
     char mopts[512] = "";

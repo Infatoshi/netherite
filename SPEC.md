@@ -476,7 +476,7 @@ render streams' ceiling comes within 5% of theirs. The device's kernels
 are in flight 90 to 99% of the wall at every size, mostly the mesher's
 (0.27 to 0.66 device-ms an env-step, independent of the size).
 32x32 and 48x48 are gated the same way since 2026-10-15 (pipe-gate: 23,987 rows and 6,008 frames;
-the render gate: 1,798 frames and 928 variants, each bit-exact). At configs/gold-fast.yaml on the
+the render gate: 1,798 frames and 928 variants, each bit-exact). At configs/tests/gold-fast.yaml on the
 dev host's 3090 (DEVLOG 2026-10-15, the observation's size) the device is the limit and the size
 moves it little: N 128 26,023 env-steps/s at 128x128, 27,600 at 96, 29,184 at 64, 30,345 at 48
 and 31,428 at 32, as most of a frame's device work is per section, quad and entity; at 32x32 raster's
@@ -487,7 +487,7 @@ client.observation's size (the default); semantic, the semantic camera alone (cs
 metadata, distance and face a ray at client.semantic's size, no renderer); both; and raycast (lane/raycast,
 csrc/runtime/raycast.h), the textured ray cast the CPU draws at the observation's size: RGB from the renderer's own
 block table and terrain atlas, biome tints, the lightmap, water, entities as boxes, sky and fog, no renderer, gated
-byte-equal against its reference (raycast-gate). At configs/gold-fast.yaml, N 128, one tick a step (DEVLOG
+byte-equal against its reference (raycast-gate). At configs/tests/gold-fast.yaml, N 128, one tick a step (DEVLOG
 2026-10-15, two lanes): the tick alone 121,000 to 125,000 env-steps/s; pixels 29,098 at 32x32, 27,953 at 64x64,
 25,512 at 128x128; semantic 80,587 at 32x32, 38,168 at 64x64, 12,077 at 128x128; raycast 77,070 at 32x32 (0.168 ms of
 a worker's thread a cast), 53,035 at 48x48, 37,033 at 64x64, 12,044 at 128x128 (2.29 ms). The CPU casts win up to
@@ -507,7 +507,7 @@ S11, the client and the network last or never: they change daily).
 
 1.7.10 is netherite's default version (Elliot, 2026-10-15; 1.16.1, its own branch, is the speedrunning one). A run
 chooses three things by configuration (config.yaml's grammar, csrc/engine/worldconf.h), each measured below on the
-dev host (9950X3D, 16 cores; the RTX 3090) with pipe_bench's corpus mode (configs/gold.yaml at spawn, 20 steps warm
+dev host (9950X3D, 16 cores; the RTX 3090) with pipe_bench's corpus mode (configs/gold.yaml, removed 2026-11-23: seed 42, normal, render distance 4, at spawn, 20 steps warm
 and 200 measured, 128x128, 4 ticks a step) in a window with nothing else on the GPU (the mirror nightly held at a
 stop for it). Keys marked native are the runtime's alone: config.yaml leaves them out, the oracle refuses a file
 that sets one, and the gates refuse a fidelity that is not vanilla.
@@ -520,7 +520,7 @@ that sets one, and the gates refuse a fidelity that is not vanilla.
   or EntityList names joined by +), random_ticks, weather; the daylight cycle is world.daylight_cycle, a vanilla rule.
   User instructions an env-step (tick alone N 16; the pipeline N 64): vanilla 6.70 and 8.35 M; spawning off 2.83 and
   4.06; mobs none 2.19 and 3.36; random ticks off 6.17 and 7.59; weather off 6.64 and 8.23; spawning, mobs, random
-  ticks and weather off 1.58 and 2.45. configs/gold-fast.yaml (spawning, random ticks and weather off) against
+  ticks and weather off 1.58 and 2.45. configs/tests/gold-fast.yaml (spawning, random ticks and weather off) against
   gold.yaml, the default performance settings: 11,571 against 8,830 env-steps/s at N 16, 22,197 against 14,078 at
   N 64, 23,830 against 14,169 at N 128. After the kernel round of 2026-10-15 (lanes kcbin, kcgeom, kcmesh) gold-fast
   runs 23,967 at N 64 and 25,815 at N 128 against 22,247 and 23,996 before it in the same session (DEVLOG). The renderer's fast precision (pipe_bench --render-prec fast, frames no
@@ -583,11 +583,11 @@ inner loop about 1 s, a run, a profile or a gate about 10 s. Over budget is a ta
 | `make -C csrc phase-profile RECS=cov-villagerep-s42` | one recording's phases: instructions, time, allocations | 1.05 s | 10 s |
 | `make -C csrc/runtime pipe-gate PRECS="cov-villagerep-s42 nether-trip-s1 end-dragon-s1"` | the quick pipe gate: 32,967 rows, 8,252 frames bit-exact | 4.4 s (memo kept) / 8.4 to 10.7 s (memo made again after a playview.so change) | 10 s |
 | `pipe_bench --config configs/gold.yaml --ns N --warm 20 --steps 200` | the corpus at N 16, 64, 128 | 1.3, 2.3, 3.8 s | 10 s |
-| the same with configs/gold-fast.yaml | | 1.2, 1.9, 2.8 s | 10 s |
+| the same with configs/tests/gold-fast.yaml | | 1.2, 1.9, 2.8 s | 10 s |
 | the same with `--start x=end --kinds x --ns 8 --steps 20` | a checkpoint loaded and stepped | 1.0 s | 10 s |
 | the same with `--tune` | the sweep, then a fresh make and the corpus | sweep 5.7 to 7.0 s, the run 9.5 to 11.3 s | 10 s |
 | the same with `--device-light 1 --gen-device` at N 64 | the all-device placement | 8.7 to 9.9 s | 10 s |
-| `nsys profile -t cuda,nvtx --sample=none --cpuctxsw=none ... pipe_bench --config configs/gold-fast.yaml --ns 64 --warm 10 --steps 100` | the end-to-end timeline | 5.1 s, then `nsys stats --report cuda_gpu_kern_sum` 0.8 s | 10 s |
+| `nsys profile -t cuda,nvtx --sample=none --cpuctxsw=none ... pipe_bench --config configs/tests/gold-fast.yaml --ns 64 --warm 10 --steps 100` | the end-to-end timeline | 5.1 s, then `nsys stats --report cuda_gpu_kern_sum` 0.8 s | 10 s |
 | `out/flywheel/bin/ncuwrap.sh --kernel-name regex:raster --launch-skip 100 --launch-count 1 --section SpeedOfLight --section Occupancy --section LaunchStats -- pipe_bench ... --ns 64 --warm 5 --steps 20` | one kernel's counters | 6.9 s at gold.yaml (it waited up to 300 s for an empty GPU before 2026-10-15); 3.6 to 3.8 s a kernel at gold-fast.yaml | 10 s |
 | `out/flywheel/bin/kcab.sh [-r R] [-n "64 128"]` | a kernel lane's A/B: master's pipe_bench against the lane's, gold-fast, rounds interleaved in one bench window | 3.5 s a run; 3 rounds at N 64 and 128 about 35 s, 11 rounds at one size 70 s | 10 s a run |
 | `out/native/cuda/rcbench DUMP` | the cast kernel alone on a dump (rcdev_dump, mcsr scripts/rcdump.py): frames and seen records against the dump's, ms a launch; with its unit's build, the four dumps' corpus | 0.6 s; 2.4 s | 1 s |

@@ -815,7 +815,7 @@ static const struct verb VERBS[] = {
      "build: yes (the tree already built: the quick set's checks alone). Each check's ms is in the manifest.", v_gate},
     {"train", "RUN.yaml [--set KEY=VALUE ...] [--variant V] [NTLOOP ARGS...]",
      "train a policy on a run file with the native trainer (C and CUDA, no Python)",
-     "nether train configs/brute16fast.yaml --set ppo.lr=1e-4 --hours 0.01",
+     "nether train configs/tests/brute16fast.yaml --set ppo.lr=1e-4 --hours 0.01",
      "Makes what the run file needs where it is missing (make -C " ENGINE "/runtime train-prep RUN=...: the\n"
      "trainer built for its observation, 16x16 the default build and 64x64 the s1 one; out/assets; the\n"
      "cast's atlas; its start, recorded by the oracle), then runs\n"
@@ -830,7 +830,7 @@ static const struct verb VERBS[] = {
      "--trainer DIR runs the run file's \"# nether train: DIR: COMMAND\" directive instead (an\n"
      "external trainer's checkout, such as mcsr-speedrun's Python one).\n" LAYERS "With --algo: its variant and train keys become --variant and ntloop flags.", c_train},
     {"score", "RUN.yaml W.ntw [RUNS [MIN [SEED]]]", "the frozen eval: a model's milestones and depth over RUNS episodes",
-     "nether score configs/brute16fast.yaml out/train/brute16fast-20261101-120000/model.ntw 512 60 1000",
+     "nether score configs/tests/brute16fast.yaml out/train/brute16fast-20261101-120000/model.ntw 512 60 1000",
      "W's actor frozen (nothing learned), RUNS envs (default 512) from RUN's start, one MIN-minute\n"
      "episode each (default 60) with RUN's macros and fidelity, the sampler seeded by SEED (default\n"
      "1000): make -C " ENGINE "/runtime train-score (ntloop --score). Prints each milestone's share,\n"

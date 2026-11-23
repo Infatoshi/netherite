@@ -5,7 +5,7 @@
  * one success is expected in at the measured env-steps/s, 1 / (rate x episodes a second) = ep_len / (rate x
  * env-steps/s). A milestone no episode reached prints its 95% bound (rate under 3 / E: the wall over that).
  *
- *   out/runtime/train/brutetab --run configs/brutetab-chain.yaml [--macros SPEC|BITS] [--label NAME]
+ *   out/runtime/train/brutetab --run configs/tests/brutetab-chain.yaml [--macros SPEC|BITS] [--label NAME]
  *                              [--episodes R] [--ep-seconds S] [--n N] [--groups G] [--threads T]
  *                              [--seeds A-B,C] [--seed-set DIR] [--sample K] [--window W[:S]]
  *                              [--cam W] [--keys P] [--seed K] [--every SEC] [--json FILE]

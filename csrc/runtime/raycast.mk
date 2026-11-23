@@ -98,7 +98,7 @@ $(RT_OUT)/raycast_sheet: $(RT_DIR)/raycast_sheet.c $(RT_NLIB)
 
 pool: $(RT_OUT)/raycast_sheet
 
-# the cast at -O3 (1.55 M instructions a 32x32 cast at configs/gold-fast.yaml against 1.61 M at -O2); the
+# the cast at -O3 (1.55 M instructions a 32x32 cast at configs/tests/gold-fast.yaml against 1.61 M at -O2); the
 # arithmetic is the same (-ffp-contract=off). RCXFLAGS: more flags for the cast's objects alone, both instances (its
 # compile-time knobs, lane/hostf32: -DRC_W32=8, -DRC_BLOCK=6, ...), with VARIANT=NAME (rlbind.mk) a variant library
 # whose engine objects come from ccache: make -C csrc/runtime rlbind VARIANT=w8 RCXFLAGS='-DRC_W32=8'

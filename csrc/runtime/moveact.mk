@@ -8,12 +8,12 @@
 #          row record equal to test_snapshots' over out/java/snapshots/NAME
 #   make -C csrc/runtime rl-move-record NAME=moveact-hold-s1
 #          re-record one: the script from sr-speedrun-s1, then the Java oracle
-#          runs it (configs/speedrun.yaml) into out/java/snapshots/NAME
+#          runs it (configs/tests/speedrun.yaml) into out/java/snapshots/NAME
 #
 # A recording's driver arguments: oracle/tests/moveact.list (name, lever, ticks a step, steps, seed).
 MV_GATE  := $(RT_OUT)/moveact_gate
 MV_LIST  := $(RT_ROOT)/oracle/tests/moveact.list
-MV_CONF  := $(RT_ROOT)/configs/speedrun.yaml
+MV_CONF  := $(RT_ROOT)/configs/tests/speedrun.yaml
 MOVERECS ?= $(shell awk '!/^#/ && NF {print $$1}' $(MV_LIST) 2>/dev/null)
 
 .PHONY: rl-move-gate rl-move-record
@@ -38,5 +38,5 @@ rl-move-record: rlbind $(MV_GATE)
 	  CUDA_VISIBLE_DEVICES=$(CUDA_DEV) $(MV_GATE) --config $(MV_CONF) --start out/java/snapshots/sr-speedrun-s1 --lever $$1 \
 	    --tps $$2 --steps $$3 --seed $$4 --script oracle/tests/$(NAME).jsonl && \
 	  mkdir -p out/java/snapshots/$(NAME) && \
-	  $(MAKE) --no-print-directory -s -C oracle script SEED=1 CONF=../configs/speedrun.yaml SCRIPT=tests/$(NAME).jsonl \
+	  $(MAKE) --no-print-directory -s -C oracle script SEED=1 CONF=../configs/tests/speedrun.yaml SCRIPT=tests/$(NAME).jsonl \
 	    TAPE=../out/java/snapshots/$(NAME)/tape.jsonl

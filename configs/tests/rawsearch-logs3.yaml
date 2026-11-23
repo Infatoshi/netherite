@@ -1,0 +1,74 @@
+# rawsearch-logs3.yaml (lane/rawsearch): configs/tests/rawsearch-log64.yaml for three logs (task.count 3: the episode ends
+# at the third, each paid a third) from a spawn with a log within 16 blocks, 30 s episodes: a tree's trunk is 4 to 6
+# logs, the first is within reach of the feet's level and the next ones are above the eye (looked up at); by hand a
+# log is a 3 s punch, so three from one tree are about 9 s of punching and 4 to 5 s of walking and picking up, and
+# 30 s leaves about twice that. The teacher's hint (task.hint 24) as the search's.
+#   make -C csrc/runtime rawtree TR_TASK=logs3
+sim:
+  world:
+    seed: 1
+    render_distance: 4
+  client:
+    ticks_per_step: 1
+    camera: raycast
+    cast_precision: 32
+    observation: 64x64
+  engine:
+    device_mesh: 0
+    raycast: device
+    device_generation: off
+    device_light: off
+    render: none
+    tick: host
+  pipeline:
+    kind: gold
+    start: out/java/try/seedset-d989661987/s1
+    worlds: 256
+    groups: 4
+    episode_seconds: 30
+  fidelity:
+    spawning: off
+    random_ticks: off
+    weather: off
+  performance:
+    workers: 30
+    streams: 0
+    group: 0
+    batch: 0
+    depth: 0
+    layout: doms
+    pin: 0
+    place: none
+    tune: off
+policy:
+  actions:
+    macros: none
+    picks: off
+  task:
+    item: 17
+    keys: forward+back+left+right+jump+mine
+    win: 1
+    death: -0.5
+    look: 0.3
+    crack: 0.05
+    dist: 0.1
+    shaping: potential
+    hint: 24
+    count: 3
+  starts:
+    library: out/runtime/rawtree/logs-near
+    curriculum: off
+    pin: on
+  ppo:
+    lr: 1e-3
+    ent: 0.01
+    clip: 0.2
+    gamma: 0.99
+    lam: 0.95
+    epochs: 4
+    mb: 2048
+    horizon: 8
+  net:
+    kind: small
+  run:
+    log_every: 1

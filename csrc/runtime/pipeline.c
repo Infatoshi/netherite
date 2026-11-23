@@ -693,22 +693,8 @@ int pipe_config_file(struct pipe_config *cfg, const char *path, struct wconf *wc
     cfg->device_light = wconf_on(&c, WC_DEVICE_LIGHT);
     cfg->pool.config = path;
     if (fidelity_from_conf(&cfg->pool.fid, &c, err, n)) return -1;
-    if (!strcmp(wconf_get(&c, WC_TICK), "device"))
-    {
-        snprintf(err, n, "%s: engine.tick: device is not implemented (cuda/tick runs the chunk loop, S6, alone as a "
-                         "check against C; SPEC.md \"Placement\" has its cost)", path);
-        return -1;
-    }
-    {
-        const char *scope = wconf_get(&c, WC_TICK_SCOPE);
-        cfg->tick_batched = !strcmp(scope, "batched");
-        if (cfg->tick_batched)
-            fprintf(stderr, "%s: engine.tick_scope: batched runs the fast scope until the fast model's row is "
-                            "wired (csrc/runtime/batchtick.c, batchtick_env.c)\n", path);
-        cfg->tick_fast = cfg->tick_batched || !strcmp(scope, "fast");
-        cfg->pool.tick_batched = cfg->tick_batched;
-        cfg->pool.tick_fast = cfg->tick_fast;
-    }
+    cfg->tick_fast = !strcmp(wconf_get(&c, WC_TICK_SCOPE), "fast");
+    cfg->pool.tick_fast = cfg->tick_fast;
     cfg->no_view = !strcmp(wconf_get(&c, WC_RENDER), "none");
     cfg->pool.threads = wconf_int(&c, WC_WORKERS);
     cfg->par.streams = wconf_int(&c, WC_STREAMS);

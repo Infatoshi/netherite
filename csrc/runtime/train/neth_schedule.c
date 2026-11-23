@@ -13,7 +13,7 @@ int neth_schedule_starts(struct neth_pipe *L, const struct neth_runconf *c, stru
     const char *seeds_arg = c->seeds_arg;
     if (seeds_arg && !c->lib_arg && seeds_arg[0] && !seeds_arg[strspn(seeds_arg, "0123456789")])
     {
-        /* a seed set of the world's own seed alone (configs/brute16fast.yaml's starts.seeds 42) is the run's own
+        /* a seed set of the world's own seed alone (configs/tests/brute16fast.yaml's starts.seeds 42) is the run's own
          * start, not a mix: no seed set, so the milestone archive still runs with it */
         static struct wconf c1;
         char err[1024];
